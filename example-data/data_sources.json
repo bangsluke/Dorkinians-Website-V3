@@ -1,0 +1,19 @@
+{
+    "StatsData": {
+        "TBL_importFixturesList": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=0&single=true&output=csv",
+        "TBL_importPlayersListTab": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
+        "TBL_combineAndCalculateMatchDetailsTab": "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=564691931&single=true&output=csv"
+    },
+    "FASiteData": {
+        "2016-17": {
+            "1st XI": {
+                "results": "https://fulltime.thefa.com/results.html?selectedSeason=559712266&selectedFixtureGroupKey=&selectedRelatedFixtureOption=2&selectedClub=938244043&selectedTeam=506738919&selectedDateCode=all&previousSelectedFixtureGroupAgeGroup=&previousSelectedFixtureGroupKey=&previousSelectedClub=938244043",
+                "table": "https://fulltime.thefa.com/table.html?selectedSeason=559712266&selectedDivision=8368223&ftsTablePageContent.fixtureAnalysisForm.standingsTableDay=15&ftsTablePageContent.fixtureAnalysisForm.standingsTableMonth=7&ftsTablePageContent.fixtureAnalysisForm.standingsTableYear=2025&activeTab=1"
+            },
+            "2nd XI": {
+                "results": "TBC",
+                "table": "TBC"
+            }
+        }
+    }
+}

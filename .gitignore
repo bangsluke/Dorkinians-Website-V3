@@ -1,0 +1,30 @@
+# Environments
+
+# .env files
+.env
+.env.development
+.env.production
+# However, we do want to commit the example env file
+!.env.example
+
+# venv files
+.venv
+venv/
+
+# node_modules
+node_modules
+
+# Python
+python/errors.json
+.properties
+python/properties.properties
+python/propertiesProduction.properties
+/__pycache__
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE
+.idea/
+.vscode/ 
