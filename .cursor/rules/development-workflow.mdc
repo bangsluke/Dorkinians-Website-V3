@@ -7,6 +7,9 @@
 - Start with simplest possible solutions and add complexity only after basic functionality is verified
 - Test environment configuration before implementing complex features
 - Create minimal test scripts first, then enhance with advanced functionality
+- **External Data Validation**: Always verify external data source accessibility (URLs, APIs, files) before implementing data processing logic
+- **Progressive Debugging**: Start with simplest possible tests (URL accessibility, basic connectivity) before complex operations
+- **Data Source Testing**: Test data sources at the HTTP level before implementing parsing and processing logic
 
 ## Module Compatibility
 - Verify import/export compatibility between TypeScript and CommonJS before creating test scripts

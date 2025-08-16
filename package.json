@@ -10,6 +10,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test-neo4j": "node scripts/test-neo4j.js",
+    "seed-database": "node scripts/seed-database.js",
+    "test-seed": "node scripts/seed-test-data.js",
     "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
   },
   "dependencies": {
@@ -21,7 +23,7 @@
     "next": "14.0.4",
     "next-pwa": "^5.6.0",
     "openai": "^4.20.1",
-    "papaparse": "^5.4.1",
+    "papaparse": "^5.5.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.8.0",
@@ -30,7 +32,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.5",
-    "@types/papaparse": "^5.3.14",
+    "@types/papaparse": "^5.3.16",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",

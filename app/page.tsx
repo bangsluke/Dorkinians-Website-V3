@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigationStore } from '@/lib/stores/navigation'
 import Header from '@/components/Header'
@@ -7,6 +8,7 @@ import FooterNavigation from '@/components/FooterNavigation'
 import StatsContainer from '@/components/StatsContainer'
 import TOTW from '@/components/pages/TOTW'
 import ClubInfo from '@/components/pages/ClubInfo'
+import ChatbotInterface from '@/components/ChatbotInterface'
 
 export default function HomePage() {
   const { currentMainPage } = useNavigationStore()
@@ -29,24 +31,8 @@ export default function HomePage() {
               Your comprehensive source for club statistics, player performance, and team insights.
             </p>
             
-            {/* Chatbot Input Bar */}
-            <div className="w-full max-w-md">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Ask me about player stats, team performance, or club information..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent"
-                />
-                <button className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-dorkinians-blue text-white p-2 rounded-full hover:bg-blue-600 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </button>
-              </div>
-              <p className="text-sm text-gray-500 mt-2">
-                Try: "Who scored the most goals this season?"
-              </p>
-            </div>
+            {/* Chatbot Interface */}
+            <ChatbotInterface />
           </motion.div>
         )
       
