@@ -28,3 +28,6 @@ __pycache__/
 # IDE
 .idea/
 .vscode/ 
+
+# CSV Example Data
+example-data/CSV-examples/
