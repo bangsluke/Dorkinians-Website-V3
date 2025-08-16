@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "export": "next build && next export",
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
@@ -20,7 +21,7 @@
     "dotenv": "^17.2.1",
     "framer-motion": "^10.16.16",
     "neo4j-driver": "^5.15.0",
-    "next": "14.0.4",
+    "next": "14.2.31",
     "next-pwa": "^5.6.0",
     "openai": "^4.20.1",
     "papaparse": "^5.5.3",

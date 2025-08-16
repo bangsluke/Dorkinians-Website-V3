@@ -200,15 +200,16 @@ export class ChatbotService {
     let visualization: ChatbotResponse['visualization'] = undefined
     
     if (!data || data.length === 0) {
-      answer = "I couldn't find any relevant information to answer your question. This might be because the database is empty or the data hasn't been seeded yet."
+      answer = "I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet."
       return {
         answer,
-        confidence: 0.1,
-        sources: []
+        confidence: 0.15, // Never show 0% confidence
+        sources: [], // Always hide technical sources
+        visualization
       }
     }
 
-    // Handle different types of questions with context-aware responses
+    // Handle different types of questions with strict club-focused responses
     if (analysis.type === 'player') {
       if (data.length > 0) {
         if (data[0].playerCount) {
@@ -220,34 +221,35 @@ export class ChatbotService {
             config: { title: 'Total Players' }
           }
         } else if (data[0].name) {
-          // Specific player data
-          const playerNames = data.slice(0, 10).map((p: any) => p.name).join(', ')
-          answer = `I found ${data.length} players in the club including: ${playerNames}${data.length > 10 ? ' and many more...' : ''}`
+          // Specific player data - MAX 14 players as per rules
+          const maxPlayers = Math.min(data.length, 14)
+          const playerNames = data.slice(0, maxPlayers).map((p: any) => p.name).join(', ')
+          answer = `I found ${data.length} players in the club. Here are some of our registered players: ${playerNames}${data.length > maxPlayers ? ' and many more...' : ''}`
           visualization = {
             type: 'table',
-            data: data.slice(0, 10),
+            data: data.slice(0, maxPlayers),
             config: { columns: ['name'] }
           }
         }
       }
     } else if (analysis.type === 'general') {
       if (data[0]?.playerCount) {
-        answer = `The club database contains information about ${data[0].playerCount} players.`
+        answer = `The club maintains comprehensive records of ${data[0].playerCount} registered players across all our teams.`
       } else {
-        answer = `I found ${data.length} records in the club's database.`
+        answer = `I found ${data.length} records in the club's information system.`
       }
     } else if (analysis.type === 'team') {
-      answer = `I found information about ${data.length} teams in the club.`
+      answer = `I found information about ${data.length} teams within the club structure.`
     } else if (analysis.type === 'club') {
       answer = `I found club information including details about captains and awards.`
     } else if (analysis.type === 'fixture') {
-      answer = `I found ${data.length} fixture records in the database.`
+      answer = `I found ${data.length} fixture records in the club's match history.`
     }
 
     return {
       answer,
-      confidence: data.length > 0 ? 0.8 : 0.1,
-      sources: [], // Hide technical sources as per context requirements
+      confidence: data.length > 0 ? 0.85 : 0.15, // High confidence when data found, never 0%
+      sources: [], // Always hide technical sources as per mandatory rules
       visualization
     }
   }
