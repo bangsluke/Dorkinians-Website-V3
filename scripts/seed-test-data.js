@@ -8,14 +8,31 @@ async function seedTestData() {
     // Load environment variables
     require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
     
-    console.log('📋 Environment check:')
-    console.log('  DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set')
-    console.log('  DEV_NEO4J_USER:', process.env.DEV_NEO4J_USER || 'not set')
-    console.log('  DEV_NEO4J_PASSWORD:', process.env.DEV_NEO4J_PASSWORD ? '***set***' : 'not set')
+    // Check if we're in production mode
+    const isProduction = process.env.NODE_ENV === 'production'
     
-    if (!process.env.DEV_NEO4J_URI || !process.env.DEV_NEO4J_USER || !process.env.DEV_NEO4J_PASSWORD) {
-      console.error('❌ Missing required Neo4j environment variables')
-      return
+    if (isProduction) {
+      console.log('🏭 PRODUCTION MODE: Seeding Neo4j Aura Database')
+      console.log('📋 Production Environment check:')
+      console.log('  PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set')
+      console.log('  PROD_NEO4J_USER:', process.env.PROD_NEO4J_USER || 'not set')
+      console.log('  PROD_NEO4J_PASSWORD:', process.env.PROD_NEO4J_PASSWORD ? '***set***' : 'not set')
+      
+      if (!process.env.PROD_NEO4J_URI || !process.env.PROD_NEO4J_USER || !process.env.PROD_NEO4J_PASSWORD) {
+        console.error('❌ Missing required production Neo4j environment variables')
+        return
+      }
+    } else {
+      console.log('💻 DEVELOPMENT MODE: Seeding Local Neo4j Database')
+      console.log('📋 Development Environment check:')
+      console.log('  DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set')
+      console.log('  DEV_NEO4J_USER:', process.env.DEV_NEO4J_USER || 'not set')
+      console.log('  DEV_NEO4J_PASSWORD:', process.env.DEV_NEO4J_PASSWORD ? '***set***' : 'not set')
+      
+      if (!process.env.DEV_NEO4J_URI || !process.env.DEV_NEO4J_USER || !process.env.DEV_NEO4J_PASSWORD) {
+        console.error('❌ Missing required development Neo4j environment variables')
+        return
+      }
     }
     
     console.log('✅ Environment variables loaded')
@@ -33,7 +50,13 @@ async function seedTestData() {
       ]
     }
     
-    const response = await fetch('http://localhost:3000/api/seed-data', {
+    // Use appropriate port based on environment
+    const port = isProduction ? 3000 : 3001
+    const apiUrl = `http://localhost:${port}/api/seed-data`
+    
+    console.log(`🌐 Calling API endpoint: ${apiUrl}`)
+    
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -48,6 +71,7 @@ async function seedTestData() {
       
       if (result.success) {
         console.log(`🎉 Created ${result.nodesCreated} nodes and ${result.relationshipsCreated} relationships`)
+        console.log(`📍 Database: ${isProduction ? 'Neo4j Aura (Production)' : 'Local Neo4j Desktop'}`)
       } else {
         console.log('⚠️ Seeding completed with errors:', result.errors)
       }
@@ -59,9 +83,15 @@ async function seedTestData() {
   } catch (error) {
     console.error('❌ Script failed:', error.message)
     console.log('\n💡 Make sure:')
-    console.log('1. Neo4j Desktop is running')
-    console.log('2. Next.js server is running (npm run dev)')
-    console.log('3. Your .env file has correct credentials')
+    if (process.env.NODE_ENV === 'production') {
+      console.log('1. Production Neo4j Aura is accessible')
+      console.log('2. Production environment variables are set')
+      console.log('3. Next.js server is running (npm run dev)')
+    } else {
+      console.log('1. Neo4j Desktop is running')
+      console.log('2. Next.js server is running (npm run dev)')
+      console.log('3. Your .env file has correct credentials')
+    }
   }
 }
 

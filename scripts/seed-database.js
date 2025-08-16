@@ -42,27 +42,13 @@ async function seedDatabase() {
     
     console.log('✅ Environment variables validated')
     
-    // Import the data seeder service
-    const { dataSeederService } = require('../lib/services/dataSeederService')
+    // For now, we'll use the development server approach
+    console.log('🌱 To seed the database, please:')
+    console.log('1. Start the development server: npm run dev')
+    console.log('2. Run the test seeding: npm run test-seed')
+    console.log('3. Or use the chatbot to test data retrieval')
     
-    // Test data source - TBL_Players
-    const seedData = {
-      dataSources: [
-        {
-          name: "TBL_Players",
-          url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
-          type: "StatsData"
-        }
-      ]
-    }
-    
-    console.log(`🌱 Seeding TBL_Players data to ${environment} database...`)
-    
-    // Seed the data
-    const result = await dataSeederService.seedAllData(seedData)
-    
-    console.log(`✅ ${environment} seeding completed successfully!`)
-    console.log('📊 Result:', JSON.stringify(result, null, 2))
+    console.log(`✅ ${environment} environment check completed successfully!`)
     
   } catch (error) {
     console.error(`❌ ${environment} seeding failed:`, error.message)
