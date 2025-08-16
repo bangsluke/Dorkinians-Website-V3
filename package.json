@@ -1,0 +1,48 @@
+{
+  "name": "dorkinians-website-v3",
+  "version": "1.0.0",
+  "description": "Dorkinians FC Statistics Website",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test-neo4j": "node scripts/test-neo4j.js",
+    "seed-database": "node scripts/seed-database.js",
+    "test-seed": "node scripts/seed-test-data.js",
+    "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
+  },
+  "dependencies": {
+    "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.2.0",
+    "dotenv": "^17.2.1",
+    "framer-motion": "^10.16.16",
+    "neo4j-driver": "^5.15.0",
+    "next": "14.0.4",
+    "next-pwa": "^5.6.0",
+    "openai": "^4.20.1",
+    "papaparse": "^5.5.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.8.0",
+    "tailwindcss": "^3.3.6",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/papaparse": "^5.3.16",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "postcss": "^8.4.32",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
