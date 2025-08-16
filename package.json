@@ -1,0 +1,41 @@
+{
+  "name": "dorkinians-fc-stats",
+  "version": "1.0.0",
+  "description": "Dorkinians FC Statistics Website - Mobile-first PWA with chatbot",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "framer-motion": "^10.16.16",
+    "tailwindcss": "^3.3.6",
+    "@headlessui/react": "^1.7.17",
+    "recharts": "^2.8.0",
+    "zustand": "^4.4.7",
+    "neo4j-driver": "^5.15.0",
+    "openai": "^4.20.1",
+    "papaparse": "^5.4.1",
+    "next-pwa": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.5",
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "@types/papaparse": "^5.3.14",
+    "typescript": "^5.3.3",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "14.0.4",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
