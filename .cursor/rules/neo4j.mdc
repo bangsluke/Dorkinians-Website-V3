@@ -1,0 +1,14 @@
+## Graph Data Safety
+- When adding any nodes to the Neo4j graph, ensure the nodes have a property called "graphLabel" with the value "dorkiniansWebsite"
+- When clearing the graph, only delete nodes that have the property "graphLabel" with the value "dorkiniansWebsite"
+- Always use the `clearGraphData()` method which includes pre-deletion safety checks and logging
+- Implement safe deletion methods that verify `graphLabel` before any destructive operations
+
+## Database Operations
+- Use the `createNode()` helper method which automatically adds `graphLabel` and `createdAt` properties
+- Use the `createRelationship()` helper method which ensures both nodes have the correct `graphLabel`
+- Query nodes using `getNodesByGraphLabel()` to ensure data isolation between projects
+- Use `getDatabaseStats()` to monitor only `dorkiniansWebsite` labeled data
+alwaysApply: true
+---
+When adding any nodes to the Neo4j graph, ensure the nodes have a property called "graphLabel" with the value "dorkiniansWebsite". When clearing the graph, only delete nodes that have the property "graphLabel" with the value "dorkiniansWebsite".

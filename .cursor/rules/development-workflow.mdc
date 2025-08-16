@@ -1,0 +1,19 @@
+## Environment Configuration
+- Always confirm user's preferred environment file structure before implementation
+- Prefer single `.env` files with environment-specific prefixes (e.g., `DEV_`, `PROD_`) when user specifies this preference
+- Avoid assumptions about `.env.local` vs `.env` approaches without user confirmation
+
+## Progressive Development
+- Start with simplest possible solutions and add complexity only after basic functionality is verified
+- Test environment configuration before implementing complex features
+- Create minimal test scripts first, then enhance with advanced functionality
+
+## Module Compatibility
+- Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
+- Use appropriate tools for the task - avoid `ts-node` for simple environment checks when `node` suffices
+- Ensure test scripts can run without complex module resolution issues
+
+## User Preference Discovery
+- Proactively discover user preferences rather than making assumptions about configuration approaches
+- Ask clarifying questions early in the process to avoid wasted effort
+- Adapt implementation strategy based on user feedback and preferences

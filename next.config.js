@@ -7,14 +7,8 @@ const withPWA = require('next-pwa')({
 })
 
 const nextConfig = {
-  experimental: {
-    appDir: true,
-  },
   images: {
     domains: ['docs.google.com'],
-  },
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 }
 

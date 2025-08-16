@@ -19,18 +19,31 @@ A **mobile-first PWA chatbot statistics website** for Dorkinians FC that process
 - OpenAI API key (for chatbot)
 
 ### 1. Environment Setup
-Copy `.env.example` to `.env.local` and configure:
+
+#### Option A: Local Neo4j Desktop (Recommended for Development)
+1. Install [Neo4j Desktop](https://neo4j.com/download/)
+2. Create local database: `neo4j` on port `7687`
+3. Update your `.env` file with:
 
 ```bash
-# Development Neo4j Configuration
-DEV_NEO4J_URI=your-connection-type-and-url
-DEV_NEO4J_USER=your-username
-DEV_NEO4J_PASSWORD=your_local_password
+# Local Development Neo4j Configuration
+DEV_NEO4J_URI=bolt://localhost:7687
+DEV_NEO4J_USER=neo4j
+DEV_NEO4J_PASSWORD=password
+DEV_NEO4J_DATABASE=neo4j
 
 # Production Neo4j Configuration (Aura)
 PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
 PROD_NEO4J_USER=your-username
 PROD_NEO4J_PASSWORD=your_aura_db_password
+```
+
+**See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for detailed setup instructions.**
+
+**Note**: The system uses a single `.env` file with `DEV_` and `PROD_` prefixes for environment-specific values.
+
+#### Option B: Neo4j Aura (Production)
+Use your existing Aura database configuration.
 
 # OpenAI API (for chatbot)
 OPENAI_API_KEY=your_openai_api_key_here
@@ -49,7 +62,12 @@ TO_EMAIL=recipient@example.com
 npm install
 ```
 
-### 3. Start Development Server
+### 3. Test Neo4j Connection (Local Development)
+```bash
+npm run test-neo4j
+```
+
+### 4. Start Development Server
 ```bash
 npm run dev
 ```
