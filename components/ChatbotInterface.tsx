@@ -4,14 +4,17 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ChatbotResponse } from '@/lib/services/chatbotService'
 import { AnimatePresence } from 'framer-motion'
+import { useNavigationStore } from '@/lib/stores/navigation'
 
 interface SavedConversation {
   question: string
   response: ChatbotResponse
   timestamp: number
+  playerContext?: string
 }
 
 export default function ChatbotInterface() {
+  const { selectedPlayer } = useNavigationStore()
   const [question, setQuestion] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState<ChatbotResponse | null>(null)
@@ -47,12 +50,17 @@ export default function ChatbotInterface() {
     setResponse(null)
 
     try {
+      // Include player context in the question if available
+      const questionWithContext = selectedPlayer 
+        ? `About ${selectedPlayer}: ${question.trim()}`
+        : question.trim()
+
       const res = await fetch('/.netlify/functions/chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: question.trim() }),
+        body: JSON.stringify({ question: questionWithContext }),
       })
 
       if (!res.ok) {
@@ -62,11 +70,12 @@ export default function ChatbotInterface() {
       const data: ChatbotResponse = await res.json()
       setResponse(data)
       
-      // Save to conversation history
+      // Save to conversation history with player context
       const newConversation: SavedConversation = {
         question: question.trim(),
         response: data,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        playerContext: selectedPlayer || undefined
       }
       setConversationHistory(prev => [...prev, newConversation])
       
@@ -128,27 +137,28 @@ export default function ChatbotInterface() {
   return (
     <div className="w-full max-w-2xl">
       {/* Question Input */}
-      <form onSubmit={handleSubmit} className="mb-6">
-        <div className="relative">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="flex space-x-2">
           <input
             type="text"
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="Ask me about player stats, team performance, or club information..."
-            className="w-full px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent pr-12"
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={!question.trim() || isLoading}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-dorkinians-blue text-white p-2 rounded-full hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             {isLoading ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-            ) : (
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
+            ) : (
+              'Ask'
             )}
           </button>
         </div>
@@ -222,14 +232,25 @@ export default function ChatbotInterface() {
       {conversationHistory.length > 0 && (
         <div className="mt-8">
           <h3 className="font-semibold text-gray-900 mb-4">Previous Conversations</h3>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-60 pr-2">
             {conversationHistory.slice(-5).reverse().map((conv, index) => (
               <motion.div
                 key={conv.timestamp}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+                className="bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors"
+                onClick={() => {
+                  setQuestion(conv.question)
+                  // Focus the input after setting the question
+                  setTimeout(() => {
+                    const input = document.querySelector('input[type="text"]') as HTMLInputElement
+                    if (input) {
+                      input.focus()
+                      input.setSelectionRange(0, input.value.length)
+                    }
+                  }, 0)
+                }}
               >
                 <div className="flex items-start justify-between mb-2">
                   <p className="font-medium text-gray-900 text-sm">Q: {conv.question}</p>
