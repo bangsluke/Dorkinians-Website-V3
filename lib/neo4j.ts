@@ -194,10 +194,23 @@ class Neo4jService {
       const result = await session.run(deleteQuery, { graphLabel: this.GRAPH_LABEL })
       const summary = result.summary.counters
       
-      console.log(`🗑️ Deleted ${summary.nodesDeleted()} nodes and ${summary.relationshipsDeleted()} relationships`)
+      // Debug: Log what the summary object contains
+      console.log('🔍 Summary object:', summary)
+      console.log('🔍 Summary type:', typeof summary)
+      console.log('🔍 Summary keys:', Object.keys(summary))
+      console.log('🔍 Summary prototype:', Object.getPrototypeOf(summary))
+      
+      // Use the correct method names from QueryStatistics
+      const nodesDeleted = summary.nodesDeleted?.() || 0
+      const relationshipsDeleted = summary.relationshipsDeleted?.() || 0
+      
+      console.log(`🗑️ Deleted ${nodesDeleted} nodes and ${relationshipsDeleted} relationships`)
       console.log(`✅ Only nodes with graphLabel: ${this.GRAPH_LABEL} were affected`)
       
-      return summary
+      return {
+        nodesDeleted,
+        relationshipsDeleted
+      }
     } catch (error) {
       console.error('❌ Failed to clear graph data:', error)
       throw error
@@ -225,7 +238,10 @@ class Neo4jService {
       const summary = result.summary.counters
       
       console.log(`🗑️ Deleted ${summary.nodesDeleted()} ${label} nodes`)
-      return summary
+      return {
+        nodesDeleted: summary.nodesDeleted(),
+        relationshipsDeleted: summary.relationshipsDeleted()
+      }
     } catch (error) {
       console.error(`❌ Failed to delete ${label} nodes:`, error)
       throw error

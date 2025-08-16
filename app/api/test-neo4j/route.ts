@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import neo4jService from '@/lib/neo4j'
+import { neo4jService } from '@/lib/neo4j'
 
 export async function GET() {
   try {
@@ -28,6 +28,9 @@ export async function GET() {
     
     // Test connection
     console.log('🔗 Attempting to connect to Neo4j...')
+    console.log('🔍 Neo4j service object:', typeof neo4jService)
+    console.log('🔍 Neo4j service methods:', Object.getOwnPropertyNames(neo4jService))
+    
     const connected = await neo4jService.connect()
     if (!connected) {
       console.error('❌ Failed to connect to Neo4j')
