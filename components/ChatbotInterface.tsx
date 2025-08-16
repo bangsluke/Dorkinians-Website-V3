@@ -1,15 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { ChatbotResponse } from '@/lib/services/chatbotService'
 import { AnimatePresence } from 'framer-motion'
+
+interface SavedConversation {
+  question: string
+  response: ChatbotResponse
+  timestamp: number
+}
 
 export default function ChatbotInterface() {
   const [question, setQuestion] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [response, setResponse] = useState<ChatbotResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([])
+
+  // Load conversation history from localStorage on component mount
+  useEffect(() => {
+    const saved = localStorage.getItem('chatbotConversations')
+    if (saved) {
+      try {
+        const history = JSON.parse(saved) as SavedConversation[]
+        setConversationHistory(history)
+      } catch (e) {
+        console.warn('Failed to parse saved conversations:', e)
+      }
+    }
+  }, [])
+
+  // Save conversation history to localStorage whenever it changes
+  useEffect(() => {
+    if (conversationHistory.length > 0) {
+      localStorage.setItem('chatbotConversations', JSON.stringify(conversationHistory))
+    }
+  }, [conversationHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +61,15 @@ export default function ChatbotInterface() {
 
       const data: ChatbotResponse = await res.json()
       setResponse(data)
+      
+      // Save to conversation history
+      const newConversation: SavedConversation = {
+        question: question.trim(),
+        response: data,
+        timestamp: Date.now()
+      }
+      setConversationHistory(prev => [...prev, newConversation])
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
@@ -48,14 +84,14 @@ export default function ChatbotInterface() {
       case 'table':
         return (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <h4 className="font-semibold text-gray-900 mb-2">Data Table</h4>
+            <h4 className="font-semibold text-gray-900 mb-2">Player Information</h4>
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-200">
                     {visualization.config?.columns?.map((col: string) => (
                       <th key={col} className="text-left py-2 px-3 font-medium text-gray-700">
-                        {col}
+                        {col === 'name' ? 'Player Name' : col}
                       </th>
                     ))}
                   </tr>
@@ -176,28 +212,37 @@ export default function ChatbotInterface() {
               </div>
             </div>
 
-            {/* Sources */}
-            {response.sources && response.sources.length > 0 && (
-              <div className="mb-4">
-                <h4 className="font-medium text-gray-900 mb-2">Sources:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {response.sources.map((source, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
-                    >
-                      {source}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Visualization */}
             {response.visualization && renderVisualization(response.visualization)}
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Conversation History */}
+      {conversationHistory.length > 0 && (
+        <div className="mt-8">
+          <h3 className="font-semibold text-gray-900 mb-4">Previous Conversations</h3>
+          <div className="space-y-3">
+            {conversationHistory.slice(-5).reverse().map((conv, index) => (
+              <motion.div
+                key={conv.timestamp}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="bg-gray-50 border border-gray-200 rounded-lg p-4"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <p className="font-medium text-gray-900 text-sm">Q: {conv.question}</p>
+                  <span className="text-xs text-gray-500">
+                    {new Date(conv.timestamp).toLocaleTimeString()}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">{conv.response.answer}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,8 +1,8 @@
 const path = require('path')
 
-// Test seeding with sample data
+// Test seeding with TBL_Players data
 async function seedTestData() {
-  console.log('🧪 Testing Database Seeding with Sample Data...')
+  console.log('🧪 Testing Database Seeding with TBL_Players...')
   
   try {
     // Load environment variables
@@ -20,14 +20,14 @@ async function seedTestData() {
     
     console.log('✅ Environment variables loaded')
     
-    // Test seeding via API with sample data
-    console.log('🌐 Testing seeding with sample data...')
+    // Test seeding via API with TBL_Players
+    console.log('🌐 Testing seeding with TBL_Players...')
     
-    const sampleData = {
+    const seedData = {
       dataSources: [
         {
-          name: "TestPlayerStats",
-          url: "data:text/csv;base64,UGxheWVyTmFtZSxUZWFtLFBvc2l0aW9uLEdvYWxzCkpvaG4gRG9lLFRlYW0gMSxGb3J3YXJkLDEwClNtaXRoIEpvbmVzLFRlYW0gMiwgTWlkZmllbGRlciw1Ck1pa2UgV2lsbGlhbXMsVGVhbSAxLERlZmVuZGVyLDA=",
+          name: "TBL_Players",
+          url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
           type: "StatsData"
         }
       ]
@@ -38,7 +38,7 @@ async function seedTestData() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(sampleData)
+      body: JSON.stringify(seedData)
     })
     
     if (response.ok) {

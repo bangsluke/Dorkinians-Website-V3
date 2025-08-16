@@ -13,6 +13,19 @@ A **mobile-first PWA chatbot statistics website** for Dorkinians FC that process
 
 ## 🚀 Quick Start
 
+### Development Start
+
+To quickly get started in development mode:
+
+1. Start up Neo4j desktop locally
+2. Start the Neo4j graph database (on Neo4j desktop) and use the command `MATCH (n)-[r]->(m) RETURN n, r, m;` to see all nodes and edges or `MATCH (n) RETURN n` to see all nodes
+3. Start the backend by running: `npm run dev` in a terminal - Note: This will generate types from the GraphQL schema in the backend and start up the Python script in development mode
+4. Open up whatever frontend app you are connecting to the backend-server and check that data is coming through
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Setting Up
+
 ### Prerequisites
 - Node.js 18+ 
 - Neo4j Aura database access

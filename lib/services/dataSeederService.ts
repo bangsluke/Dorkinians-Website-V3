@@ -76,11 +76,28 @@ export class DataSeederService {
     let nodesCreated = 0
     let relationshipsCreated = 0
 
+    // Map table names to semantic node labels
+    const getNodeLabel = (tableName: string): string => {
+      if (tableName.includes('Player')) return 'Player'
+      if (tableName.includes('Fixture')) return 'Fixture'
+      if (tableName.includes('Match')) return 'Match'
+      if (tableName.includes('Team')) return 'Team'
+      if (tableName.includes('TOTW')) return 'TOTW'
+      if (tableName.includes('Award')) return 'Award'
+      if (tableName.includes('Opposition')) return 'Opposition'
+      if (tableName.includes('Site')) return 'Site'
+      if (tableName.includes('Stat')) return 'Stat'
+      return tableName // fallback to table name if no match
+    }
+
+    const nodeLabel = getNodeLabel(sourceName)
+    console.log(`🏷️ Using node label: ${nodeLabel} for table: ${sourceName}`)
+
     // Create nodes for each row
     for (const row of data) {
       try {
-        // Create main entity node
-        const nodeId = await neo4jService.createNode(sourceName, {
+        // Create main entity node with semantic label
+        const nodeId = await neo4jService.createNode(nodeLabel, {
           ...row,
           source: sourceName,
           rowId: `${sourceName}_${nodesCreated}`

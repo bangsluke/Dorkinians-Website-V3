@@ -36,7 +36,7 @@ export class ChatbotService {
       const connected = await neo4jService.connect()
       if (!connected) {
         return {
-          answer: "I'm sorry, I'm unable to connect to the database at the moment. Please try again later.",
+          answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
           confidence: 0,
           sources: []
         }
@@ -127,8 +127,8 @@ export class ChatbotService {
   private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
     const query = `
       MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-      WHERE p.name IS NOT NULL
-      RETURN p.name as name, p.team as team, p.position as position
+      WHERE p.NAME IS NOT NULL
+      RETURN p.NAME as name, p.source as source
       LIMIT 50
     `
     
@@ -173,8 +173,8 @@ export class ChatbotService {
   private async queryComparisonData(entities: string[], metrics: string[]): Promise<any> {
     const query = `
       MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-      WHERE p.name IS NOT NULL
-      RETURN p.name as name, p.team as team, p.goals as goals, p.assists as assists
+      WHERE p.NAME IS NOT NULL
+      RETURN p.NAME as name, p.team as team, p.goals as goals, p.assists as assists
       ORDER BY p.goals DESC
       LIMIT 10
     `
@@ -184,11 +184,11 @@ export class ChatbotService {
   }
 
   private async queryGeneralData(): Promise<any> {
+    // Query for general information about the database
     const query = `
-      MATCH (n {graphLabel: 'dorkiniansWebsite'})
-      RETURN labels(n) as labels, count(n) as count
-      ORDER BY count DESC
-      LIMIT 10
+      MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+      WHERE p.NAME IS NOT NULL
+      RETURN count(p) as playerCount
     `
     
     const result = await neo4jService.executeQuery(query)
@@ -196,14 +196,11 @@ export class ChatbotService {
   }
 
   private async generateResponse(question: string, data: any, analysis: any): Promise<ChatbotResponse> {
-    // For now, generate a simple response
-    // In production, this would integrate with OpenAI API for natural language generation
-    
-    let answer = "Based on the available data, "
+    let answer = ""
     let visualization: ChatbotResponse['visualization'] = undefined
     
     if (!data || data.length === 0) {
-      answer += "I couldn't find any relevant information to answer your question. This might be because the database is empty or the data hasn't been seeded yet."
+      answer = "I couldn't find any relevant information to answer your question. This might be because the database is empty or the data hasn't been seeded yet."
       return {
         answer,
         confidence: 0.1,
@@ -211,42 +208,47 @@ export class ChatbotService {
       }
     }
 
-    const { type } = analysis
-    
-    switch (type) {
-      case 'player':
-        answer += `I found ${data.length} players in the database. `
-        if (data.length > 0) {
-          answer += `For example, ${data[0].name} plays for ${data[0].team}.`
+    // Handle different types of questions with context-aware responses
+    if (analysis.type === 'player') {
+      if (data.length > 0) {
+        if (data[0].playerCount) {
+          // General player count question
+          answer = `The club currently has ${data[0].playerCount} registered players across all teams.`
+          visualization = {
+            type: 'stats',
+            data: { playerCount: data[0].playerCount },
+            config: { title: 'Total Players' }
+          }
+        } else if (data[0].name) {
+          // Specific player data
+          const playerNames = data.slice(0, 10).map((p: any) => p.name).join(', ')
+          answer = `I found ${data.length} players in the club including: ${playerNames}${data.length > 10 ? ' and many more...' : ''}`
+          visualization = {
+            type: 'table',
+            data: data.slice(0, 10),
+            config: { columns: ['name'] }
+          }
         }
-        visualization = {
-          type: 'table',
-          data: data.slice(0, 10),
-          config: { columns: ['name', 'team', 'position'] }
-        }
-        break
-        
-      case 'team':
-        answer += `I found ${data.length} teams. `
-        if (data.length > 0) {
-          answer += `Teams include ${data.map((t: any) => t.name).join(', ')}.`
-        }
-        break
-        
-      case 'club':
-        answer += `I found club information including captains and awards.`
-        break
-        
-      default:
-        answer += `I found ${data.length} records in the database.`
+      }
+    } else if (analysis.type === 'general') {
+      if (data[0]?.playerCount) {
+        answer = `The club database contains information about ${data[0].playerCount} players.`
+      } else {
+        answer = `I found ${data.length} records in the club's database.`
+      }
+    } else if (analysis.type === 'team') {
+      answer = `I found information about ${data.length} teams in the club.`
+    } else if (analysis.type === 'club') {
+      answer = `I found club information including details about captains and awards.`
+    } else if (analysis.type === 'fixture') {
+      answer = `I found ${data.length} fixture records in the database.`
     }
 
     return {
       answer,
-      data,
-      visualization,
-      confidence: 0.8,
-      sources: ['Neo4j Database']
+      confidence: data.length > 0 ? 0.8 : 0.1,
+      sources: [], // Hide technical sources as per context requirements
+      visualization
     }
   }
 }
