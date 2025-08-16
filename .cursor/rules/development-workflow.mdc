@@ -10,11 +10,18 @@
 - **External Data Validation**: Always verify external data source accessibility (URLs, APIs, files) before implementing data processing logic
 - **Progressive Debugging**: Start with simplest possible tests (URL accessibility, basic connectivity) before complex operations
 - **Data Source Testing**: Test data sources at the HTTP level before implementing parsing and processing logic
+- **Progressive Complexity Development**: Start with the simplest working solution, then enhance incrementally. Avoid over-engineering before basic functionality is proven
+- **Environment Isolation Testing**: Test each environment independently before assuming cross-compatibility. Validate credentials, connections, and data flow separately
 
 ## Module Compatibility
 - Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
 - Use appropriate tools for the task - avoid `ts-node` for simple environment checks when `node` suffices
 - Ensure test scripts can run without complex module resolution issues
+
+## Platform Compatibility
+- **Platform Agnostic Operations**: Consider Windows vs Unix command differences in all terminal operations
+- Use cross-platform compatible approaches when possible (e.g., PowerShell-compatible commands on Windows)
+- Test commands on the target platform before assuming universal compatibility
 
 ## User Preference Discovery
 - Proactively discover user preferences rather than making assumptions about configuration approaches
