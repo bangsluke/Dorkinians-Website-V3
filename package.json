@@ -17,6 +17,7 @@
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.2.0",
+    "autoprefixer": "^10.4.16",
     "dotenv": "^17.2.1",
     "framer-motion": "^10.16.16",
     "neo4j-driver": "^5.15.0",
@@ -24,6 +25,7 @@
     "next-pwa": "^5.6.0",
     "openai": "^4.20.1",
     "papaparse": "^5.5.3",
+    "postcss": "^8.4.32",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "recharts": "^2.8.0",
@@ -35,10 +37,8 @@
     "@types/papaparse": "^5.3.16",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
-    "autoprefixer": "^10.4.16",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.0.4",
-    "postcss": "^8.4.32",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },

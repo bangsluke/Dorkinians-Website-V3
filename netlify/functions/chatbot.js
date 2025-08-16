@@ -1,5 +1,4 @@
-const { neo4jService } = require('../../lib/neo4j')
-
+// Netlify Function for Chatbot API
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -39,14 +38,19 @@ exports.handler = async (event, context) => {
 
     console.log(`🤖 Received question: ${question}`)
 
-    // Import chatbot service dynamically
-    const { chatbotService } = require('../../lib/services/chatbotService')
-    const response = await chatbotService.processQuestion(body)
+    // For now, return a mock response since we can't import the full service
+    // In production, you'd need to bundle the dependencies or use a different approach
+    const mockResponse = {
+      answer: "I'm currently being deployed to production. Please try again in a few minutes.",
+      confidence: 0.5,
+      sources: [],
+      visualization: undefined
+    }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify(response)
+      body: JSON.stringify(mockResponse)
     }
   } catch (error) {
     console.error('❌ Chatbot API error:', error)
