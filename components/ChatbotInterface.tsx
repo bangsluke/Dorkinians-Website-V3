@@ -154,7 +154,7 @@ export default function ChatbotInterface() {
         </div>
         
         <p className="text-sm text-gray-500 mt-2 text-center">
-          Try: "Who scored the most goals this season?"
+          Try: "How many players are in the club?" or "Who are the players?"
         </p>
       </form>
 

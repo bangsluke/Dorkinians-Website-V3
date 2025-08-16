@@ -4,9 +4,15 @@
 
 [build.environment]
   NODE_VERSION = "18"
+  NODE_ENV = "production"
 
 [functions]
   directory = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
 
 [[redirects]]
   from = "/*"
