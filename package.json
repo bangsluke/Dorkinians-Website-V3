@@ -10,7 +10,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test-neo4j": "node scripts/test-neo4j.js",
-    "seed-database": "node scripts/seed-database.js",
+    "seed-dev": "cross-env NODE_ENV=development node scripts/seed-database.js development",
+    "seed-prod": "cross-env NODE_ENV=production node scripts/seed-database.js production",
     "test-seed": "node scripts/seed-test-data.js",
     "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
   },
@@ -38,6 +39,7 @@
     "zustand": "^4.4.7"
   },
   "devDependencies": {
+    "cross-env": "^10.0.0",
     "eslint": "^8.56.0",
     "eslint-config-next": "14.0.4",
     "ts-node": "^10.9.2"

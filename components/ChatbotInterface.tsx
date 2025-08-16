@@ -40,7 +40,7 @@ export default function ChatbotInterface() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!question.trim() || isLoading) return
+    if (!question.trim()) return
 
     setIsLoading(true)
     setError(null)
@@ -52,7 +52,7 @@ export default function ChatbotInterface() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ question: question.trim() }),
+        body: JSON.stringify({ question: question.trim() })
       })
 
       if (!res.ok) {

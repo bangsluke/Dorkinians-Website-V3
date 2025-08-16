@@ -1,4 +1,6 @@
 // Netlify Function for Chatbot API
+const { neo4jService } = require('../../lib/neo4j')
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -38,26 +40,32 @@ exports.handler = async (event, context) => {
 
     console.log(`🤖 Received question: ${question}`)
 
-    // For now, return a mock response since we can't import the full service
-    // In production, you'd need to bundle the dependencies or use a different approach
-    const mockResponse = {
-      answer: "I'm currently being deployed to production. Please try again in a few minutes.",
-      confidence: 0.5,
+    // Import and use the chatbot service
+    const { chatbotService } = require('../../lib/services/chatbotService')
+    
+    // Process the question
+    const response = await chatbotService.processQuestion({ question })
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(response)
+    }
+  } catch (error) {
+    console.error('❌ Chatbot API error:', error)
+    
+    // Return a user-friendly error response
+    const errorResponse = {
+      answer: "I'm sorry, I'm having trouble processing your question right now. Please try again in a moment.",
+      confidence: 0.1,
       sources: [],
       visualization: undefined
     }
 
     return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(mockResponse)
-    }
-  } catch (error) {
-    console.error('❌ Chatbot API error:', error)
-    return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ error: 'Internal server error' })
+      body: JSON.stringify(errorResponse)
     }
   }
 }
