@@ -19,6 +19,8 @@ node_modules
 out/
 dist/
 build/
+.next
+.next\
 
 # Production builds
 *.tgz

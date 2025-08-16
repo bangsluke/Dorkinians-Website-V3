@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
+    "@heroicons/react": "^2.2.0",
     "dotenv": "^17.2.1",
     "framer-motion": "^10.16.16",
     "neo4j-driver": "^5.15.0",
