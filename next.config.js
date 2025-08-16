@@ -7,6 +7,8 @@ const withPWA = require('next-pwa')({
 })
 
 const nextConfig = {
+  output: 'export',
+  trailingSlash: true,
   images: {
     unoptimized: true,
     domains: ['docs.google.com'],
