@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = ".next"
+  publish = "out"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -9,11 +9,19 @@
 [functions]
   directory = "netlify/functions"
 
+# Handle static assets
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+
+# Handle API routes
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
+# Handle all other routes - serve index.html for SPA routing
 [[redirects]]
   from = "/*"
   to = "/index.html"
