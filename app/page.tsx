@@ -9,9 +9,22 @@ import StatsContainer from '@/components/StatsContainer'
 import TOTW from '@/components/pages/TOTW'
 import ClubInfo from '@/components/pages/ClubInfo'
 import ChatbotInterface from '@/components/ChatbotInterface'
+import PlayerSelection from '@/components/PlayerSelection'
 
 export default function HomePage() {
-  const { currentMainPage } = useNavigationStore()
+  const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode } = useNavigationStore()
+  const [showChatbot, setShowChatbot] = useState(false)
+
+  const handlePlayerSelect = (playerName: string) => {
+    selectPlayer(playerName)
+    // Trigger chatbot reveal after a brief delay
+    setTimeout(() => setShowChatbot(true), 500)
+  }
+
+  const handleEditClick = () => {
+    enterEditMode()
+    setShowChatbot(false)
+  }
 
   const renderCurrentPage = () => {
     switch (currentMainPage) {
@@ -22,17 +35,83 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex flex-col items-center justify-center h-full text-center px-6"
+            className="flex flex-col h-full px-6"
           >
-            <h1 className="text-4xl font-bold text-gray-900 mb-6">
-              Welcome to Dorkinians FC
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-md">
-              Your comprehensive source for club statistics, player performance, and team insights.
-            </p>
-            
-            {/* Chatbot Interface */}
-            <ChatbotInterface />
+            {/* Top Section: Welcome Header and Player Selection */}
+            <div className="pt-8 pb-6">
+              {/* Welcome Header and Subtitle */}
+              <AnimatePresence mode="wait">
+                {!isPlayerSelected && (
+                  <motion.div
+                    key="welcome"
+                    initial={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -50 }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center mb-8"
+                  >
+                    <h1 className="text-xl font-bold text-gray-900 mb-6">
+                      Welcome to Dorkinians FC
+                    </h1>
+                    <p className="text-m text-gray-600 max-w-md mx-auto">
+                      Your comprehensive source for club statistics, player performance, and team insights.
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Player Selection or Player Name Display */}
+              <AnimatePresence mode="wait">
+                {!isPlayerSelected ? (
+                  <motion.div
+                    key="player-selection"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full"
+                  >
+                    <PlayerSelection 
+                      onPlayerSelect={handlePlayerSelect}
+                      onEditClick={handleEditClick}
+                      selectedPlayer={selectedPlayer}
+                      isEditMode={isEditMode}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="player-name"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                    className="text-center"
+                  >
+                    <PlayerSelection 
+                      onPlayerSelect={handlePlayerSelect}
+                      onEditClick={handleEditClick}
+                      selectedPlayer={selectedPlayer}
+                      isEditMode={isEditMode}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Chatbot Interface - Positioned below with fade-in animation */}
+            <AnimatePresence mode="wait">
+              {showChatbot && (
+                <motion.div
+                  key="chatbot"
+                  initial={{ opacity: 0, y: 50 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.2 }}
+                  className="flex-1 flex items-center justify-center"
+                >
+                  <div className="w-full max-w-2xl mx-auto">
+                    <ChatbotInterface />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )
       

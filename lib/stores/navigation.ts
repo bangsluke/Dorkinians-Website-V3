@@ -8,9 +8,17 @@ interface NavigationState {
   currentMainPage: MainPage
   // Stats sub-page navigation (for swipe gestures)
   currentStatsSubPage: StatsSubPage
+  // Player selection state
+  selectedPlayer: string | null
+  isPlayerSelected: boolean
+  isEditMode: boolean
   // Navigation actions
   setMainPage: (page: MainPage) => void
   setStatsSubPage: (page: StatsSubPage) => void
+  // Player selection actions
+  selectPlayer: (playerName: string) => void
+  clearPlayerSelection: () => void
+  enterEditMode: () => void
   // Swipe navigation helpers
   nextStatsSubPage: () => void
   previousStatsSubPage: () => void
@@ -20,6 +28,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
   // Initial state
   currentMainPage: 'home',
   currentStatsSubPage: 'player-stats',
+  selectedPlayer: null,
+  isPlayerSelected: false,
+  isEditMode: false,
 
   // Main page navigation
   setMainPage: (page: MainPage) => {
@@ -28,11 +39,28 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     if (page !== 'stats') {
       set({ currentStatsSubPage: 'player-stats' })
     }
+    // Reset player selection when leaving home
+    if (page !== 'home') {
+      set({ selectedPlayer: null, isPlayerSelected: false })
+    }
   },
 
   // Stats sub-page navigation
   setStatsSubPage: (page: StatsSubPage) => {
     set({ currentStatsSubPage: page })
+  },
+
+  // Player selection actions
+  selectPlayer: (playerName: string) => {
+    set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false })
+  },
+
+  clearPlayerSelection: () => {
+    set({ selectedPlayer: null, isPlayerSelected: false, isEditMode: false })
+  },
+
+  enterEditMode: () => {
+    set({ isEditMode: true, isPlayerSelected: false })
   },
 
   // Swipe navigation within stats
