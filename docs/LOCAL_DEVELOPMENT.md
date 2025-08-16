@@ -115,10 +115,10 @@ The project includes a data seeder utility that automatically adds the `graphLab
 ### Using the Data Seeder
 
 ```typescript
-import { dataSeeder } from '@/lib/data-seeder'
+import { dataSeederService } from '@/lib/services/dataSeederService'
 
 // Seed all data types
-await dataSeeder.seedAllData({
+await dataSeederService.seedAllData({
   players: playerData,
   fixtures: fixtureData,
   matchDetails: matchDetailData,
