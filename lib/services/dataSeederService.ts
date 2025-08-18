@@ -181,6 +181,12 @@ export class DataSeederService {
     const nodeLabel = getNodeLabel(sourceName)
     console.log(`🏷️ Using node label: ${nodeLabel} for table: ${sourceName}`)
 
+    // DEBUG: Check what data we're actually receiving
+    if (data.length > 0) {
+      console.log(`🔍 DEBUG: First row keys:`, Object.keys(data[0]))
+      console.log(`🔍 DEBUG: First row sample:`, Object.entries(data[0]).slice(0, 5))
+    }
+
     // Create nodes for each row
     console.log(`🔄 Processing ${data.length} rows for ${sourceName}`)
     for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
@@ -240,35 +246,46 @@ export class DataSeederService {
   private mapCSVToSchema(sourceName: string, row: CSVData, rowIndex: number): any {
     // Map CSV column names to schema property names
     if (sourceName.includes('Player')) {
-      const playerName = row['NAME'] || `unknown-player-${rowIndex}`
+      const playerName = this.findColumnValue(row, ['NAME', 'name', 'Name', 'PLAYER_NAME', 'player_name']) || `unknown-player-${rowIndex}`
       return {
         id: `player-${playerName.toString().toLowerCase().replace(/\s+/g, '-')}`,
-        name: row['NAME'] || null,
-        allowOnSite: row['ALLOW ON SITE'] === 'TRUE',
+        name: playerName,
+        allowOnSite: this.findColumnValue(row, ['ALLOW ON SITE', 'ALLOW_ON_SITE', 'allowOnSite', 'allow_on_site']) === 'TRUE',
         graphLabel: 'dorkiniansWebsite',
         createdAt: new Date().toISOString()
       }
     }
     
     if (sourceName.includes('FixturesAndResults')) {
-      const season = row['SEASON'] || `unknown-season-${rowIndex}`
-      const seasonFixId = row['SEASON FIX ID'] || `unknown-id-${rowIndex}`
+      // Debug: Show actual row data
+      this.debugRowKeys(row, rowIndex)
+      
+      // Use smart column mapping
+      const season = this.findColumnValue(row, ['SEASON', 'season', 'Season', 'YEAR', 'year', 'Year']) || `unknown-season-${rowIndex}`
+      const seasonFixId = this.findColumnValue(row, ['SEASON FIX ID', 'SEASON_FIX_ID', 'seasonFixId', 'season_fix_id', 'FIX ID', 'fix_id', 'ID', 'id', 'Id']) || `unknown-id-${rowIndex}`
+      const competition = this.findColumnValue(row, ['COMPETITION', 'competition', 'Competition', 'COMP', 'comp', 'Comp', 'LEAGUE', 'league', 'League'])
+      const date = this.findColumnValue(row, ['DATE', 'date', 'Date', 'GAME_DATE', 'game_date'])
+      const team = this.findColumnValue(row, ['TEAM', 'team', 'Team', 'HOME_TEAM', 'home_team', 'OUR_TEAM', 'our_team'])
+      const opposition = this.findColumnValue(row, ['OPPOSITION', 'opposition', 'Opposition', 'AWAY_TEAM', 'away_team', 'OPP_TEAM', 'opp_team'])
+      const result = this.findColumnValue(row, ['RESULT', 'result', 'Result', 'SCORE', 'score', 'Score'])
+      const homeScore = this.findColumnValue(row, ['HOME SCORE', 'HOME_SCORE', 'homeScore', 'home_score', 'OUR_SCORE', 'our_score'])
+      const awayScore = this.findColumnValue(row, ['AWAY SCORE', 'AWAY_SCORE', 'awayScore', 'away_score', 'OPP_SCORE', 'opp_score'])
+      
+      if (rowIndex < 3) {
+        console.log(`🔍 Mapped values: season="${season}", seasonFixId="${seasonFixId}", competition="${competition}"`)
+      }
+      
       return {
         id: `fixture-${season}-${seasonFixId}`,
-        season: row['SEASON'] || null,
-        seasonFixId: row['SEASON FIX ID'] || null,
-        date: row['DATE'] || null,
-        team: row['TEAM'] || null,
-        compType: row['COMP TYPE'] || null,
-        competition: row['COMPETITION'] || null,
-        opposition: row['OPPOSITION'] || null,
-        homeAway: row['HOME/AWAY'] || null,
-        result: row['RESULT'] || null,
-        homeScore: row['HOME SCORE'] || null,
-        awayScore: row['AWAY SCORE'] || null,
-        fullResult: row['FULL RESULT'] || null,
-        dorkiniansGoals: this.parseNumber(row['DORKINIANS GOALS']),
-        conceded: this.parseNumber(row['CONCEDED']),
+        season: season,
+        seasonFixId: seasonFixId,
+        date: date,
+        team: team,
+        competition: competition,
+        opposition: opposition,
+        result: result,
+        homeScore: this.parseNumber(homeScore),
+        awayScore: this.parseNumber(awayScore),
         graphLabel: 'dorkiniansWebsite',
         createdAt: new Date().toISOString()
       }
@@ -378,6 +395,22 @@ export class DataSeederService {
     if (value === null || value === undefined || value === '') return null
     const num = Number(value)
     return isNaN(num) ? null : num
+  }
+
+  private findColumnValue(row: CSVData, possibleNames: string[]): any {
+    for (const name of possibleNames) {
+      if (row[name] !== undefined && row[name] !== null && row[name] !== '') {
+        return row[name]
+      }
+    }
+    return null
+  }
+
+  private debugRowKeys(row: CSVData, rowIndex: number): void {
+    if (rowIndex < 3) {
+      console.log(`🔍 DEBUG Row ${rowIndex} - All keys:`, Object.keys(row))
+      console.log(`🔍 DEBUG Row ${rowIndex} - Sample values:`, Object.entries(row).slice(0, 5))
+    }
   }
 
   private async checkNodeExists(label: string, id: string): Promise<boolean> {
