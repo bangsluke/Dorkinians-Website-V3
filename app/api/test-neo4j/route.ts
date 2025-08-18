@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { neo4jService } from '@/lib/neo4j'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     console.log('🧪 Testing Neo4j connection via API...')

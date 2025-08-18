@@ -407,6 +407,7 @@ export class DataSeederService {
   }
 
   private debugRowKeys(row: CSVData, rowIndex: number): void {
+    console.log(`🚨 DEBUG METHOD CALLED for row ${rowIndex}`)
     if (rowIndex < 3) {
       console.log(`🔍 DEBUG Row ${rowIndex} - All keys:`, Object.keys(row))
       console.log(`🔍 DEBUG Row ${rowIndex} - Sample values:`, Object.entries(row).slice(0, 5))
