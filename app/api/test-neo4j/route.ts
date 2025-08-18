@@ -53,11 +53,12 @@ export async function GET() {
     if (testNode) {
       console.log('✅ Test node created successfully via API')
       
-      // Verify graphLabel property
-      if (testNode.properties.graphLabel === 'dorkiniansWebsite') {
+      // Verify graphLabel property - safely check structure
+      if (testNode && typeof testNode === 'object' && 'properties' in testNode && testNode.properties && testNode.properties.graphLabel === 'dorkiniansWebsite') {
         console.log('✅ graphLabel property correctly set via API')
       } else {
         console.error('❌ graphLabel property missing or incorrect via API')
+        console.log('🔍 Test node structure:', JSON.stringify(testNode, null, 2))
       }
     }
 
