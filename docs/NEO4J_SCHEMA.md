@@ -107,18 +107,13 @@
 ```cypher
 (:TOTW {
   id: String,                    // Unique TOTW identifier
-  season: String,                // Season reference
-  week: Integer,                 // Week number
-  seasonWeekNumRef: String,      // Season-week reference
-  dateLookup: String,            // Date reference
-  seasonMonthRef: String,        // Season-month reference
-  weekAdjusted: String,          // Adjusted week reference
-  bestFormation: String,         // Best formation used
+  season: String,                // Season reference (extracted from SEASONWEEKNUMREF)
+  week: Integer,                 // Week number (extracted from SEASONWEEKNUMREF)
+  seasonWeekNumRef: String,      // Season-week reference (e.g., "2016/17-37")
   totwScore: Float,              // TOTW score
   playerCount: Integer,          // Number of players
   starMan: String,               // Star man player
   starManScore: Float,           // Star man score
-  playerLookups: String,         // Player lookup string
   gk1: String,                   // Goalkeeper 1
   def1: String,                  // Defender 1
   def2: String,                  // Defender 2
@@ -138,28 +133,57 @@
 })
 ```
 
-### 7. PlayerOfTheMonth Nodes
+### 7. SeasonTOTW Nodes (Season-end Team of the Year)
 ```cypher
-(:PlayerOfTheMonth {
-  id: String,                    // Unique identifier
-  season: String,                // Season reference
-  month: String,                 // Month name
-  seasonMonthRef: String,        // Season-month reference
-  playerName: String,            // Player name
-  team: String,                  // Team name
-  position: String,              // Player position
-  goals: Integer,                // Goals scored
-  assists: Integer,              // Assists provided
-  cleanSheets: Integer,          // Clean sheets (defenders/GK)
-  totwAppearances: Integer,      // TOTW appearances
-  starManCount: Integer,         // Star man awards
-  totalScore: Float,             // Total monthly score
+(:SeasonTOTW {
+  id: String,                    // Unique SeasonTOTW identifier
+  season: String,                // Season reference (extracted from DATE LOOKUP)
+  dateLookup: String,            // Original date lookup value (e.g., "2016/17 Season")
+  totwScore: Float,              // Season TOTW score
+  starMan: String,               // Star man player
+  starManScore: Float,           // Star man score
+  gk1: String,                   // Goalkeeper 1
+  def1: String,                  // Defender 1
+  def2: String,                  // Defender 2
+  def3: String,                  // Defender 3
+  def4: String,                  // Defender 4
+  def5: String,                  // Defender 5
+  mid1: String,                  // Midfielder 1
+  mid2: String,                  // Midfielder 2
+  mid3: String,                  // Midfielder 3
+  mid4: String,                  // Midfielder 4
+  mid5: String,                  // Midfielder 5
+  fwd1: String,                  // Forward 1
+  fwd2: String,                  // Forward 2
+  fwd3: String,                  // Forward 3
   graphLabel: 'dorkiniansWebsite',
   createdAt: DateTime
 })
 ```
 
-### 8. CaptainAward Data (Table Format)
+### 8. PlayerOfTheMonth Nodes
+```cypher
+(:PlayerOfTheMonth {
+  id: String,                    // Unique identifier
+  season: String,                // Season reference (extracted from SEASONMONTHREF)
+  month: String,                 // Month number (extracted from SEASONMONTHREF)
+  seasonMonthRef: String,        // Season-month reference (e.g., "2016/17-09")
+  player1Name: String,           // #1 ranked player name
+  player1Points: Float,          // #1 ranked player points
+  player2Name: String,           // #2 ranked player name
+  player2Points: Float,          // #2 ranked player points
+  player3Name: String,           // #3 ranked player name
+  player3Points: Float,          // #3 ranked player points
+  player4Name: String,           // #4 ranked player name
+  player4Points: Float,          // #4 ranked player points
+  player5Name: String,           // #5 ranked player name
+  player5Points: Float,          // #5 ranked player points
+  graphLabel: 'dorkiniansWebsite',
+  createdAt: DateTime
+})
+```
+
+### 9. CaptainAward Data (Table Format)
 ```typescript
 // CaptainAward data will be loaded directly from CSV into tables
 // No graph nodes needed - this is static reference data
@@ -179,7 +203,22 @@ interface CaptainAwardData {
 }
 ```
 
-### 9. OppositionDetail Nodes
+### 10. StatDetails Data (Table Format)
+```typescript
+// StatDetails data will be loaded directly from CSV into tables
+// No graph nodes needed - this is static reference data
+interface StatDetailsData {
+  season: string
+  playerName: string
+  team: string
+  goals: number
+  assists: number
+  cleanSheets: number
+  starMan: number
+}
+```
+
+### 11. OppositionDetail Nodes
 ```cypher
 (:OppositionDetail {
   id: String,                    // Unique identifier
@@ -349,7 +388,8 @@ ORDER BY t.season
 6. **TOTW** - Weekly team selections
 7. **PlayerOfTheMonth** - Monthly awards
 8. **CaptainAward** - Season awards (loaded as table data, not graph nodes)
-9. **OppositionDetail** - Opposition information
+9. **StatDetails** - Player statistical summaries (loaded as table data, not graph nodes)
+10. **OppositionDetail** - Opposition information
 
 ### 2. Relationship Creation
 1. **Player-Team** relationships based on match appearances
@@ -358,7 +398,12 @@ ORDER BY t.season
 4. **TOTW-Season** relationships for weekly analysis
 5. **Award-Player** relationships for recognition tracking (TOTW and monthly awards only)
 
-### 3. Data Validation
+### 3. Table Data (No Graph Relationships)
+1. **CaptainAward** - Season awards and honors
+2. **StatDetails** - Player statistical summaries
+3. **SiteDetails** - Website configuration and metadata
+
+### 4. Data Validation
 - **Referential Integrity**: Ensure all relationships reference valid nodes
 - **Data Consistency**: Validate calculated fields against source data
 - **Duplicate Prevention**: Use unique identifiers and constraints

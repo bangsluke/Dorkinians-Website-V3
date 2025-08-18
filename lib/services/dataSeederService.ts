@@ -183,7 +183,9 @@ export class DataSeederService {
         'CREATE CONSTRAINT matchdetail_fixture_player_unique IF NOT EXISTS FOR (md:MatchDetail) REQUIRE (md.fixtureId, md.playerName) IS UNIQUE',
         'CREATE CONSTRAINT totw_id_unique IF NOT EXISTS FOR (t:TOTW) REQUIRE t.id IS UNIQUE',
         'CREATE CONSTRAINT totw_season_week_unique IF NOT EXISTS FOR (t:TOTW) REQUIRE (t.season, t.week) IS UNIQUE',
-        'CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayerOfTheMonth) REQUIRE (pom.season, pom.month, pom.playerName) IS UNIQUE',
+        'CREATE CONSTRAINT season_totw_id_unique IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE st.id IS UNIQUE',
+        'CREATE CONSTRAINT season_totw_season_unique IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE st.season IS UNIQUE',
+        'CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayerOfTheMonth) REQUIRE pom.id IS UNIQUE',
         'CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.id IS UNIQUE'
       ]
 
@@ -231,14 +233,15 @@ export class DataSeederService {
         'CREATE INDEX matchdetail_penaltiesmissed_index IF NOT EXISTS FOR (md:MatchDetail) ON (md.penaltiesMissed)',
         'CREATE INDEX matchdetail_penaltiesconceded_index IF NOT EXISTS FOR (md:MatchDetail) ON (md.penaltiesConceded)',
         'CREATE INDEX matchdetail_penaltiessaved_index IF NOT EXISTS FOR (md:MatchDetail) ON (md.penaltiesSaved)',
-        'CREATE INDEX totw_season_index IF NOT EXISTS FOR (t:TOTW) ON (t.season)',
+                                     'CREATE INDEX totw_season_index IF NOT EXISTS FOR (t:TOTW) ON (t.season)',
         'CREATE INDEX totw_week_index IF NOT EXISTS FOR (t:TOTW) ON (t.week)',
-        'CREATE INDEX totw_seasonweek_index IF NOT EXISTS FOR (t:TOTW) ON (t.seasonWeekNumRef)',
         'CREATE INDEX totw_starman_index IF NOT EXISTS FOR (t:TOTW) ON (t.starMan)',
+        'CREATE INDEX totw_seasonweek_index IF NOT EXISTS FOR (t:TOTW) ON (t.seasonWeekNumRef)',
+        'CREATE INDEX season_totw_season_index IF NOT EXISTS FOR (st:SeasonTOTW) ON (st.season)',
+        'CREATE INDEX season_totw_starman_index IF NOT EXISTS FOR (st:SeasonTOTW) ON (st.starMan)',
         'CREATE INDEX playerofmonth_season_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.season)',
         'CREATE INDEX playerofmonth_month_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.month)',
-        'CREATE INDEX playerofmonth_player_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.playerName)',
-        'CREATE INDEX playerofmonth_team_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.team)',
+        'CREATE INDEX playerofmonth_seasonmonth_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.seasonMonthRef)',
         'CREATE INDEX opposition_league_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.league)',
         'CREATE INDEX opposition_division_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.division)'
       ]
@@ -273,7 +276,7 @@ export class DataSeederService {
       if (tableName.includes('WeeklyTOTW')) return 'TOTW'
       if (tableName.includes('SeasonTOTW')) return 'SeasonTOTW'
       if (tableName.includes('PlayersOfTheMonth')) return 'PlayerOfTheMonth'
-      if (tableName.includes('StatDetails')) return 'StatDetail'
+      // StatDetails is handled as table data, not graph nodes
       if (tableName.includes('OppositionDetails')) return 'OppositionDetail'
       if (tableName.includes('SiteDetails')) return 'SiteDetail'
       return tableName // fallback to table name if no match
@@ -399,51 +402,49 @@ export class DataSeederService {
       // Debug: Show actual row data
       this.debugRowKeys(row, rowIndex)
       
-      // Use actual column names from CSV - TBL_FixturesAndResults has SEASON column
-      const season = String(this.findColumnValue(row, ['SEASON']) || '')
-      const seasonFixId = String(this.findColumnValue(row, ['FIX ID']) || '')
-      const competition = String(this.findColumnValue(row, ['COMPETITION']) || '')
-      const date = String(this.findColumnValue(row, ['DATE']) || '')
-      const team = String(this.findColumnValue(row, ['TEAM']) || '')
-      const opposition = String(this.findColumnValue(row, ['OPPOSITION']) || '')
-      const result = String(this.findColumnValue(row, ['RESULT']) || '')
-      const homeScore = this.findColumnValue(row, ['HOME SCORE']) || null
-      const awayScore = this.findColumnValue(row, ['AWAY SCORE']) || null
-      const conceded = this.findColumnValue(row, ['CONCEDED']) || null
+      // Use positional indexing since first 3 columns were deleted from CSV
+      // Original columns: [0]=SEASON, [1]=FIX ID, [2]=COMPETITION, [3]=DATE, [4]=TEAM, [5]=OPPOSITION, [6]=RESULT, [7]=HOME SCORE, [8]=AWAY SCORE, [9]=CONCEDED
+      // After deletion: [0]=DATE, [1]=TEAM, [2]=OPPOSITION, [3]=RESULT, [4]=HOME SCORE, [5]=AWAY SCORE, [6]=CONCEDED
+      const date = String(row[0] || '')
+      const team = String(row[1] || '')
+      const opposition = String(row[2] || '')
+      const result = String(row[3] || '')
+      const homeScore = row[4] || null
+      const awayScore = row[5] || null
+      const conceded = row[6] || null
+      
+      // Since SEASON and FIX ID columns were deleted, we need to generate them
+      const seasonFixId = `fix-${rowIndex + 1}` // Generate a sequential fixture ID
       
       if (rowIndex < 3) {
-        console.log(`🔍 Mapped values: season="${season}", seasonFixId="${seasonFixId}", competition="${competition}"`)
+        console.log(`🔍 Mapped values: date="${date}", team="${team}", opposition="${opposition}", seasonFixId="${seasonFixId}"`)
       }
       
-      // Validate and extract season - try multiple sources
-      let finalSeason = season
-      
-      // If season is empty or invalid, try to extract from date
-      if (!finalSeason || finalSeason.trim() === '' || finalSeason.includes('unknown')) {
-        if (date && date.includes(',')) {
-          // Date format: "Sat, 10 Sep 2016" - extract year
-          const yearMatch = date.match(/(\d{4})/)
-          if (yearMatch) {
-            const year = parseInt(yearMatch[1])
-            finalSeason = `${year}/${year + 1}`
+      // Extract season from date since SEASON column was deleted
+      let finalSeason = null
+      if (date && date.includes(',')) {
+        // Date format: "Sat, 10 Sep 2016" - extract year
+        const yearMatch = date.match(/(\d{4})/)
+        if (yearMatch) {
+          const year = parseInt(yearMatch[1])
+          finalSeason = `${year}/${year + 1}`
+          console.log(`🔍 Extracted season "${finalSeason}" from date "${date}"`)
+        }
+      } else if (date && date.includes('/')) {
+        // Date format: "10/09/16" - extract year
+        const dateParts = date.split('/')
+        if (dateParts.length >= 3) {
+          const year = dateParts[2]
+          if (year && year.length === 2) {
+            finalSeason = `20${year}/17` // Convert 2-digit year to season format
             console.log(`🔍 Extracted season "${finalSeason}" from date "${date}"`)
-          }
-        } else if (date && date.includes('/')) {
-          // Date format: "10/09/16" - extract year
-          const dateParts = date.split('/')
-          if (dateParts.length >= 3) {
-            const year = dateParts[2]
-            if (year && year.length === 2) {
-              finalSeason = `20${year}/17` // Convert 2-digit year to season format
-              console.log(`🔍 Extracted season "${finalSeason}" from date "${date}"`)
-            }
           }
         }
       }
       
       // If we still don't have a valid season, skip this row
       if (!finalSeason || finalSeason.trim() === '' || finalSeason.includes('unknown')) {
-        console.warn(`⚠️ Skipping row ${rowIndex}: No valid season found. season="${season}", date="${date}"`)
+        console.warn(`⚠️ Skipping row ${rowIndex}: No valid season found. date="${date}"`)
         return null // This will cause the row to be skipped
       }
       
@@ -453,12 +454,10 @@ export class DataSeederService {
         return null
       }
       
-      // Skip fixtures with invalid opposition or competition data
+      // Skip fixtures with invalid opposition or team data (competition column was deleted)
       if (opposition === 'No Game' || 
-          competition === '-' || 
-          competition === 'COMP TYPE' ||
           team === 'HOME/AWAY' || team === '-') {
-        console.log(`ℹ️ Skipping fixture ${seasonFixId}: Invalid data (opposition="${opposition}", competition="${competition}", team="${team}")`)
+        console.log(`ℹ️ Skipping fixture ${seasonFixId}: Invalid data (opposition="${opposition}", team="${team}")`)
         return null
       }
       
@@ -468,7 +467,7 @@ export class DataSeederService {
         seasonFixId: seasonFixId,
         date: date,
         team: team,
-        competition: competition,
+        competition: 'Unknown', // Competition column was deleted, set default value
         opposition: opposition,
         result: result,
         homeScore: this.parseNumber(homeScore),
@@ -553,71 +552,170 @@ export class DataSeederService {
     }
     
     if (sourceName.includes('WeeklyTOTW')) {
-      // Use positional column mapping based on actual CSV structure
-      // Columns: [0]=Season, [1]=Week, [2]=SeasonWeekNumRef, [3]=StarMan
-      const season = String(row[0] || `unknown-season-${rowIndex}`)
-      const week = String(row[1] || `unknown-week-${rowIndex}`)
+      // Use actual column names from CSV
+      const seasonWeekNumRef = String(this.findColumnValue(row, ['SEASONWEEKNUMREF']) || `unknown-ref-${rowIndex}`)
+      const totwScore = this.findColumnValue(row, ['TOTW SCORE'])
+      const playerCount = this.findColumnValue(row, ['PLAYER COUNT']) || null
+      const starMan = String(this.findColumnValue(row, ['STAR MAN']) || '')
+      const starManScore = this.findColumnValue(row, ['STAR MAN SCORE']) || null
+      
+      // Skip rows where TOTW SCORE is blank
+      if (!totwScore || String(totwScore).trim() === '') {
+        console.log(`ℹ️ Skipping WeeklyTOTW row ${rowIndex}: TOTW SCORE is blank`)
+        return null
+      }
+      
+      // Extract season and week from SEASONWEEKNUMREF (e.g., "2016/17-37")
+      let season = ''
+      let week = ''
+      
+      if (seasonWeekNumRef && seasonWeekNumRef.includes('-')) {
+        const [seasonPart, weekPart] = seasonWeekNumRef.split('-')
+        season = seasonPart || ''
+        week = weekPart || ''
+      }
+      
+      // Validate that we have both season and week
+      if (!season || !week) {
+        console.warn(`⚠️ Skipping WeeklyTOTW row ${rowIndex}: Invalid SEASONWEEKNUMREF format: "${seasonWeekNumRef}"`)
+        return null
+      }
+      
       return {
         id: `totw-weekly-${season}-${week}`,
-        season: String(row[0] || ''),
-        week: String(row[1] || ''),
-        seasonWeekNumRef: String(row[2] || ''),
-        starMan: row[3] || null,
+        season: season,
+        week: parseInt(week) || 0,
+        seasonWeekNumRef: seasonWeekNumRef,
+        totwScore: this.parseNumber(totwScore),
+        playerCount: this.parseNumber(playerCount),
+        starMan: starMan,
+        starManScore: this.parseNumber(starManScore),
+        // Player position fields
+        gk1: String(this.findColumnValue(row, ['GK1']) || ''),
+        def1: String(this.findColumnValue(row, ['DEF1']) || ''),
+        def2: String(this.findColumnValue(row, ['DEF2']) || ''),
+        def3: String(this.findColumnValue(row, ['DEF3']) || ''),
+        def4: String(this.findColumnValue(row, ['DEF4']) || ''),
+        def5: String(this.findColumnValue(row, ['DEF5']) || ''),
+        mid1: String(this.findColumnValue(row, ['MID1']) || ''),
+        mid2: String(this.findColumnValue(row, ['MID2']) || ''),
+        mid3: String(this.findColumnValue(row, ['MID3']) || ''),
+        mid4: String(this.findColumnValue(row, ['MID4']) || ''),
+        mid5: String(this.findColumnValue(row, ['MID5']) || ''),
+        fwd1: String(this.findColumnValue(row, ['FWD1']) || ''),
+        fwd2: String(this.findColumnValue(row, ['FWD2']) || ''),
+        fwd3: String(this.findColumnValue(row, ['FWD3']) || ''),
         graphLabel: 'dorkiniansWebsite',
         createdAt: new Date().toISOString()
       }
     }
     
     if (sourceName.includes('SeasonTOTW')) {
-      // Use positional column mapping based on actual CSV structure
-      // Columns: [0]=Season, [1]=PlayerName, [2]=Team
-      const season = String(row[0] || `unknown-season-${rowIndex}`)
-      const playerName = String(row[1] || `unknown-player-${rowIndex}`)
+      // Use actual column names from CSV
+      const dateLookup = String(this.findColumnValue(row, ['DATE LOOKUP']) || `unknown-date-${rowIndex}`)
+      const totwScore = this.findColumnValue(row, ['TOTW SCORE'])
+      const starMan = String(this.findColumnValue(row, ['STAR MAN']) || '')
+      const starManScore = this.findColumnValue(row, ['STAR MAN SCORE']) || null
+      
+      // Skip rows where TOTW SCORE is blank
+      if (!totwScore || String(totwScore).trim() === '') {
+        console.log(`ℹ️ Skipping SeasonTOTW row ${rowIndex}: TOTW SCORE is blank`)
+        return null
+      }
+      
+      // Extract season from DATE LOOKUP (e.g., "2016/17 Season" -> "2016/17")
+      let season = ''
+      if (dateLookup && dateLookup.includes('Season')) {
+        season = dateLookup.replace(' Season', '').trim()
+      } else if (dateLookup && dateLookup.includes('All Time')) {
+        season = 'All Time'
+      } else {
+        season = dateLookup || `unknown-season-${rowIndex}`
+      }
+      
+      // Validate that we have a valid season
+      if (!season || season.trim() === '' || season.includes('unknown')) {
+        console.warn(`⚠️ Skipping SeasonTOTW row ${rowIndex}: Invalid season extracted from DATE LOOKUP: "${dateLookup}"`)
+        return null
+      }
+      
       return {
-        id: `totw-season-${season}-${playerName}`,
-        season: String(row[0] || ''),
-        playerName: String(row[1] || ''),
-        team: String(row[2] || ''),
+        id: `totw-season-${season}`,
+        season: season,
+        dateLookup: dateLookup,
+        totwScore: this.parseNumber(totwScore),
+        starMan: starMan,
+        starManScore: this.parseNumber(starManScore),
+        // Player position fields
+        gk1: String(this.findColumnValue(row, ['GK1']) || ''),
+        def1: String(this.findColumnValue(row, ['DEF1']) || ''),
+        def2: String(this.findColumnValue(row, ['DEF2']) || ''),
+        def3: String(this.findColumnValue(row, ['DEF3']) || ''),
+        def4: String(this.findColumnValue(row, ['DEF4']) || ''),
+        def5: String(this.findColumnValue(row, ['DEF5']) || ''),
+        mid1: String(this.findColumnValue(row, ['MID1']) || ''),
+        mid2: String(this.findColumnValue(row, ['MID2']) || ''),
+        mid3: String(this.findColumnValue(row, ['MID3']) || ''),
+        mid4: String(this.findColumnValue(row, ['MID4']) || ''),
+        mid5: String(this.findColumnValue(row, ['MID5']) || ''),
+        fwd1: String(this.findColumnValue(row, ['FWD1']) || ''),
+        fwd2: String(this.findColumnValue(row, ['FWD2']) || ''),
+        fwd3: String(this.findColumnValue(row, ['FWD3']) || ''),
         graphLabel: 'dorkiniansWebsite',
         createdAt: new Date().toISOString()
       }
     }
     
     if (sourceName.includes('PlayersOfTheMonth')) {
-      // Use positional column mapping based on actual CSV structure
-      // Columns: [0]=Season, [1]=Month, [2]=PlayerName, [3]=Team
-      const season = String(row[0] || `unknown-season-${rowIndex}`)
-      const month = String(row[1] || `unknown-month-${rowIndex}`)
-      const playerName = String(row[2] || `unknown-player-${rowIndex}`)
+      // Use actual column names from CSV
+      const seasonMonthRef = String(this.findColumnValue(row, ['SEASONMONTHREF']) || `unknown-ref-${rowIndex}`)
+      const player1Name = String(this.findColumnValue(row, ['#1 Name']) || '')
+      const player1Points = this.findColumnValue(row, ['#1 Points']) || null
+      
+      // Skip rows where #1 Name is blank
+      if (!player1Name || player1Name.trim() === '') {
+        console.log(`ℹ️ Skipping PlayersOfTheMonth row ${rowIndex}: #1 Name is blank`)
+        return null
+      }
+      
+      // Extract season and month from SEASONMONTHREF (e.g., "2016/17-09" -> season="2016/17", month="09")
+      let season = ''
+      let month = ''
+      
+      if (seasonMonthRef && seasonMonthRef.includes('-')) {
+        const [seasonPart, monthPart] = seasonMonthRef.split('-')
+        season = seasonPart || ''
+        month = monthPart || ''
+      }
+      
+      // Validate that we have both season and month
+      if (!season || !month) {
+        console.warn(`⚠️ Skipping PlayersOfTheMonth row ${rowIndex}: Invalid SEASONMONTHREF format: "${seasonMonthRef}"`)
+        return null
+      }
+      
       return {
-        id: `pom-${season}-${month}-${playerName}`,
-        season: String(row[0] || ''),
-        month: String(row[1] || ''),
-        playerName: String(row[2] || ''),
-        team: String(row[3] || ''),
+        id: `pom-${season}-${month}`,
+        season: season,
+        month: month,
+        seasonMonthRef: seasonMonthRef,
+        // Player rankings and points
+        player1Name: player1Name,
+        player1Points: this.parseNumber(player1Points),
+        player2Name: String(this.findColumnValue(row, ['#2 Name']) || ''),
+        player2Points: this.parseNumber(this.findColumnValue(row, ['#2 Points'])),
+        player3Name: String(this.findColumnValue(row, ['#3 Name']) || ''),
+        player3Points: this.parseNumber(this.findColumnValue(row, ['#3 Points'])),
+        player4Name: String(this.findColumnValue(row, ['#4 Name']) || ''),
+        player4Points: this.parseNumber(this.findColumnValue(row, ['#4 Points'])),
+        player5Name: String(this.findColumnValue(row, ['#5 Name']) || ''),
+        player5Points: this.parseNumber(this.findColumnValue(row, ['#5 Points'])),
         graphLabel: 'dorkiniansWebsite',
         createdAt: new Date().toISOString()
       }
     }
     
-    if (sourceName.includes('StatDetails')) {
-      // Use positional column mapping based on actual CSV structure
-      // Columns: [0]=Season, [1]=PlayerName, [2]=Team, [3]=Goals, [4]=Assists, [5]=CleanSheets, [6]=StarMan
-      const season = String(row[0] || `unknown-season-${rowIndex}`)
-      const playerName = String(row[1] || `unknown-player-${rowIndex}`)
-      return {
-        id: `stat-${season}-${playerName}`,
-        season: String(row[0] || ''),
-        playerName: String(row[1] || ''),
-        team: String(row[2] || ''),
-        goals: this.parseNumber(row[3]),
-        assists: this.parseNumber(row[4]),
-        cleanSheets: this.parseNumber(row[5]),
-        starMan: this.parseNumber(row[6]),
-        graphLabel: 'dorkiniansWebsite',
-        createdAt: new Date().toISOString()
-      }
-    }
+    // StatDetails is handled as table data, not graph nodes
     
     if (sourceName.includes('OppositionDetails')) {
       // Use positional column mapping based on actual CSV structure
@@ -713,15 +811,45 @@ export class DataSeederService {
     let relationshipsCreated = 0
     
     try {
-      // Player relationships will be created from match data, not static CSV data
-      // This ensures we have actual team assignments and season participation
-      console.log(`ℹ️ Player ${playerData.name}: Relationships will be created from match data`)
+      // Create Player-Team relationship based on mostPlayedForTeam
+      if (playerData.mostPlayedForTeam && String(playerData.mostPlayedForTeam).trim() !== '') {
+        const teamId = `team-${String(playerData.mostPlayedForTeam).toLowerCase().replace(/\s+/g, '-')}`
+        
+        // Create team node if it doesn't exist
+        await neo4jService.createNodeIfNotExists('Team', {
+          id: teamId,
+          name: playerData.mostPlayedForTeam,
+          season: 'current', // Default season since we don't have specific season data
+          league: 'unknown'
+        })
+        
+        // Create PLAYS_FOR relationship
+        const playsForRel = await neo4jService.createRelationship(
+          'Player',
+          { id: playerNodeId, graphLabel: 'dorkiniansWebsite' } as any,
+          'PLAYS_FOR',
+          'Team',
+          { id: teamId, graphLabel: 'dorkiniansWebsite' } as any,
+          { 
+            season: 'current',
+            startDate: playerData.createdAt || new Date().toISOString(),
+            graphLabel: 'dorkiniansWebsite'
+          }
+        )
+        
+        if (playsForRel) {
+          relationshipsCreated++
+          console.log(`  ✅ Created PLAYS_FOR relationship: ${playerData.name} → ${playerData.mostPlayedForTeam}`)
+        } else {
+          this.logError(`Failed to create PLAYS_FOR relationship for ${playerData.name}`, { teamId, playerData })
+        }
+      }
       
-      // For now, we'll create a basic relationship to indicate the player exists
-      // More meaningful relationships will be created when processing MatchDetails
+      // Note: Position is stored as a string property on Player nodes, no separate Position nodes needed
       
     } catch (error) {
       console.warn(`⚠️ Failed to create player relationships for ${playerData.name}: ${error instanceof Error ? error.message : String(error)}`)
+      this.logError(`Failed to create player relationships for ${playerData.name}`, { playerData, error: error instanceof Error ? error.message : String(error) })
     }
     
     return relationshipsCreated
@@ -1107,29 +1235,58 @@ export class DataSeederService {
         }
       }
       
-      // Create TOTW-Player relationships for star man
-      if (totwData.starMan) {
-        const playerId = `player-${String(totwData.starMan).toLowerCase().replace(/\s+/g, '-')}`
-        
-        // Create SELECTED_IN relationship
-        const selectedInRel = await neo4jService.createRelationship(
-          'Player',
-          { id: playerId, graphLabel: 'dorkiniansWebsite' } as any,
-          'SELECTED_IN',
-          'TOTW',
-          { id: totwNodeId, graphLabel: 'dorkiniansWebsite' } as any,
-          { 
-            position: 'star_man',
-            score: totwData.starManScore || 0,
-            graphLabel: 'dorkiniansWebsite'
-          }
-        )
-        
-        if (selectedInRel) {
-          relationshipsCreated++
-          console.log(`  ✅ Created SELECTED_IN relationship: ${totwData.starMan} → ${totwData.id}`)
-        }
-      }
+             // Create TOTW-Player relationships for star man
+       if (totwData.starMan) {
+         const playerId = `player-${String(totwData.starMan).toLowerCase().replace(/\s+/g, '-')}`
+         
+         // Create SELECTED_IN relationship
+         const selectedInRel = await neo4jService.createRelationship(
+           'Player',
+           { id: playerId, graphLabel: 'dorkiniansWebsite' } as any,
+           'SELECTED_IN',
+           'TOTW',
+           { id: totwNodeId, graphLabel: 'dorkiniansWebsite' } as any,
+           { 
+             position: 'star_man',
+             score: totwData.starManScore || 0,
+             graphLabel: 'dorkiniansWebsite'
+           }
+         )
+         
+         if (selectedInRel) {
+           relationshipsCreated++
+           console.log(`  ✅ Created SELECTED_IN relationship: ${totwData.starMan} → ${totwData.id}`)
+         }
+       }
+       
+       // Create TOTW-Player relationships for all selected players
+       const playerPositions = ['gk1', 'def1', 'def2', 'def3', 'def4', 'def5', 'mid1', 'mid2', 'mid3', 'mid4', 'mid5', 'fwd1', 'fwd2', 'fwd3']
+       
+       for (const position of playerPositions) {
+         const playerName = String(totwData[position] || '')
+         if (playerName && playerName.trim() !== '') {
+           const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, '-')}`
+           
+           // Create SELECTED_IN relationship for each selected player
+           const selectedInRel = await neo4jService.createRelationship(
+             'Player',
+             { id: playerId, graphLabel: 'dorkiniansWebsite' } as any,
+             'SELECTED_IN',
+             'TOTW',
+             { id: totwNodeId, graphLabel: 'dorkiniansWebsite' } as any,
+             { 
+               position: position,
+               score: 0, // Default score for non-star man players
+               graphLabel: 'dorkiniansWebsite'
+             }
+           )
+           
+           if (selectedInRel) {
+             relationshipsCreated++
+             console.log(`  ✅ Created SELECTED_IN relationship: ${playerName} → ${totwData.id} (${position})`)
+           }
+         }
+       }
       
     } catch (error) {
       console.warn(`⚠️ Failed to create TOTW relationships for ${totwData.id}: ${error instanceof Error ? error.message : String(error)}`)
@@ -1172,27 +1329,41 @@ export class DataSeederService {
         }
       }
       
-      // Create PlayerOfMonth-Player relationship
-      if (pomData.playerName) {
-        const playerId = `player-${String(pomData.playerName).toLowerCase().replace(/\s+/g, '-')}`
-        
-        // Create AWARDED_MONTHLY relationship
-        const awardedMonthlyRel = await neo4jService.createRelationship(
-          'Player',
-          { id: playerId, graphLabel: 'dorkiniansWebsite' } as any,
-          'AWARDED_MONTHLY',
-          'PlayerOfTheMonth',
-          { id: pomNodeId, graphLabel: 'dorkiniansWebsite' } as any,
-          { 
-            month: pomData.month,
-            season: pomData.season,
-            graphLabel: 'dorkiniansWebsite'
+      // Create PlayerOfMonth-Player relationships for all ranked players
+      const playerRankings = [
+        { name: pomData.player1Name, points: pomData.player1Points, rank: 1 },
+        { name: pomData.player2Name, points: pomData.player2Points, rank: 2 },
+        { name: pomData.player3Name, points: pomData.player3Points, rank: 3 },
+        { name: pomData.player4Name, points: pomData.player4Points, rank: 4 },
+        { name: pomData.player5Name, points: pomData.player5Points, rank: 5 }
+      ]
+      
+      for (const playerRank of playerRankings) {
+        if (playerRank.name && String(playerRank.name).trim() !== '') {
+          const playerId = `player-${String(playerRank.name).toLowerCase().replace(/\s+/g, '-')}`
+          
+          // Create AWARDED_MONTHLY relationship
+          const awardedMonthlyRel = await neo4jService.createRelationship(
+            'Player',
+            { id: playerId, graphLabel: 'dorkiniansWebsite' } as any,
+            'AWARDED_MONTHLY',
+            'PlayerOfTheMonth',
+            { id: pomNodeId, graphLabel: 'dorkiniansWebsite' } as any,
+            { 
+              month: pomData.month,
+              season: pomData.season,
+              rank: playerRank.rank,
+              points: playerRank.points || 0,
+              graphLabel: 'dorkiniansWebsite'
+            }
+          )
+          
+          if (awardedMonthlyRel) {
+            relationshipsCreated++
+            console.log(`  ✅ Created AWARDED_MONTHLY relationship: ${playerRank.name} → ${pomData.id} (Rank ${playerRank.rank})`)
+          } else {
+            this.logError(`Failed to create AWARDED_MONTHLY relationship for ${playerRank.name}`, { playerId, pomData, playerRank })
           }
-        )
-        
-        if (awardedMonthlyRel) {
-          relationshipsCreated++
-          console.log(`  ✅ Created AWARDED_MONTHLY relationship: ${pomData.playerName} → ${pomData.id}`)
         }
       }
       
@@ -1214,6 +1385,8 @@ export class DataSeederService {
     
     return new Date().getFullYear()
   }
+
+
 
   async getDatabaseStats(): Promise<any> {
     return await neo4jService.getDatabaseStats()

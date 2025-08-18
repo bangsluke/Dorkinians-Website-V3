@@ -19,6 +19,12 @@
 - Validate data structure and accessibility before implementing parsing and seeding logic
 - Have fallback strategies (e.g., sample data) when external sources are temporarily unavailable
 
+## Schema Design Principles
+- **Schema Simplicity First**: Prefer simple string properties over complex node types unless complex relationships provide clear analytical value
+- **Constraint Validation**: Only create unique constraints for fields that truly need to be unique across all records
+- **User Intent Alignment**: Validate schema design assumptions against user requirements before implementation
+- **Performance vs. Complexity**: Complex graph relationships should only be created when they provide clear analytical value
+
 ## Environment Management
 - **Environment Isolation Testing**: Test each Neo4j environment independently before assuming cross-compatibility
 - Validate production vs development credentials, connections, and data flow separately
