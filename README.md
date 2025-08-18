@@ -199,6 +199,10 @@ npm run type-check   # Run TypeScript type checking
 - **`example-data/`**: Sample CSV data and example questions
 - **`data_sources.json`**: Data source URLs and structure
 
+## Neo4j Queries
+
+- `MATCH ()-[r {graphLabel: 'dorkiniansWebsite'}]->() RETURN count(r) AS totalRelationships` - This will return the total number of relationships in the database for the dorkiniansWebsite graph label
+
 ## 🚨 Important Notes
 
 - **Data Updates**: Google Sheets updated daily, automated refresh desired

@@ -14,3 +14,4 @@
 |How many consecutive games have I scored/assisted/had a goal contribution?|Calendar|StatsData|
 |How many goals did the 2nd team score during the 2017/18 season?|NumberCard|FASiteData|
 |Which team has conceded the fewest goals in history?|Table|StatsData|
+|How many awards have I won?|Table|StatsData|

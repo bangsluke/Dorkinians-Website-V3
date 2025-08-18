@@ -1,6 +1,50 @@
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
+// All data sources from the project
+const ALL_DATA_SOURCES = [
+  {
+    name: "TBL_Players",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_FixturesAndResults",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=0&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_MatchDetails",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=564691931&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_WeeklyTOTW",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1985336995&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_SeasonTOTW",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=91372781&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_PlayersOfTheMonth",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=2007852556&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_StatDetails",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=488085380&single=true&output=csv",
+    type: "StatsData"
+  },
+  {
+    name: "TBL_OppositionDetails",
+    url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1977394709&single=true&output=csv",
+    type: "StatsData"
+  }
+]
+
 // Unified database seeding script that works with both development and production
 async function seedDatabase() {
   // Get environment from command line argument or default to development
@@ -42,16 +86,56 @@ async function seedDatabase() {
     
     console.log('✅ Environment variables validated')
     
-    // For now, we'll use the development server approach
-    console.log('🌱 To seed the database, please:')
-    console.log('1. Start the development server: npm run dev')
-    console.log('2. Run the test seeding: npm run test-seed')
-    console.log('3. Or use the chatbot to test data retrieval')
+    // Use appropriate port based on environment
+    const port = 3000 // Both dev and prod use port 3000
+    const apiUrl = `http://localhost:${port}/api/seed-data`
     
-    console.log(`✅ ${environment} environment check completed successfully!`)
+    console.log(`🌐 Calling seeding API: ${apiUrl}`)
+    console.log(`📊 Seeding ${ALL_DATA_SOURCES.length} data sources...`)
+    
+    // Display data sources being seeded
+    ALL_DATA_SOURCES.forEach((source, index) => {
+      console.log(`  ${index + 1}. ${source.name}`)
+    })
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        dataSources: ALL_DATA_SOURCES
+      })
+    })
+    
+    if (response.ok) {
+      const result = await response.json()
+      console.log('✅ Seeding completed successfully!')
+      console.log('📊 Result:', result)
+      
+      if (result.success) {
+        console.log(`🎉 Created ${result.nodesCreated} nodes and ${result.relationshipsCreated} relationships`)
+        console.log(`📍 Database: ${environment === 'production' ? 'Neo4j Aura (Production)' : 'Local Neo4j Desktop'}`)
+      } else {
+        console.log('⚠️ Seeding completed with errors:', result.errors)
+      }
+    } else {
+      const errorText = await response.text()
+      console.error('❌ Seeding failed:', response.status, errorText)
+      console.log('\n💡 Make sure:')
+      console.log('1. Next.js server is running (npm run dev)')
+      console.log('2. Neo4j database is accessible')
+      console.log('3. All environment variables are set correctly')
+    }
+    
+    console.log(`✅ ${environment} seeding completed!`)
     
   } catch (error) {
     console.error(`❌ ${environment} seeding failed:`, error.message)
+    console.log('\n💡 Make sure:')
+    console.log('1. Next.js server is running (npm run dev)')
+    console.log('2. Neo4j database is accessible')
+    console.log('3. All environment variables are set correctly')
     process.exit(1)
   }
 }

@@ -46,12 +46,17 @@ async function seedTestData() {
           name: "TBL_Players",
           url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
           type: "StatsData"
+        },
+        {
+          name: "TBL_FixturesAndResults",
+          url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=0&single=true&output=csv",
+          type: "StatsData"
         }
       ]
     }
     
     // Use appropriate port based on environment
-    const port = isProduction ? 3000 : 3001
+    const port = isProduction ? 3000 : 3000
     const apiUrl = `http://localhost:${port}/api/seed-data`
     
     console.log(`🌐 Calling API endpoint: ${apiUrl}`)

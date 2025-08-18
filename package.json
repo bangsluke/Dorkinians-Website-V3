@@ -13,6 +13,10 @@
     "seed-dev": "cross-env NODE_ENV=development node scripts/seed-database.js development",
     "seed-prod": "node scripts/seed-production-sample.js",
     "test-seed": "node scripts/seed-test-data.js",
+    "apply-schema": "node scripts/apply-schema.js",
+    "test-player-search": "node scripts/test-player-search.js",
+    "test-full-schema": "node scripts/test-full-schema.js",
+    "schema-status": "node scripts/schema-status.js",
     "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
   },
   "dependencies": {

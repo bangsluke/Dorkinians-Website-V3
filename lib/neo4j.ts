@@ -73,6 +73,22 @@ class Neo4jService {
     }
   }
 
+  async runQuery(query: string, params: any = {}) {
+    if (!this.driver) {
+      throw new Error('Neo4j driver not initialized')
+    }
+    const session = this.driver.session()
+    try {
+      const result = await session.run(query, params)
+      return result
+    } catch (error) {
+      console.error('❌ Query execution failed:', error)
+      throw error
+    } finally {
+      await session.close()
+    }
+  }
+
   async createNode(label: string, properties: any) {
     if (!this.driver) {
       throw new Error('Neo4j driver not initialized')
@@ -114,19 +130,18 @@ class Neo4jService {
     }
     const session = this.driver.session()
     try {
-      // Ensure both nodes have the correct graphLabel
+      // Ensure both nodes have the correct graphLabel before creating relationship
       const query = `
-        MATCH (from:${fromLabel} {graphLabel: $graphLabel})
-        MATCH (to:${toLabel} {graphLabel: $graphLabel})
-        WHERE from.id = $fromId AND to.id = $toId
+        MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})
+        MATCH (to:${toLabel} {id: $toId, graphLabel: $graphLabel})
         CREATE (from)-[r:${relationshipType} $relProps]->(to)
         RETURN r
       `
       
       const params = {
-        graphLabel: this.GRAPH_LABEL,
         fromId: fromProps.id,
         toId: toProps.id,
+        graphLabel: this.GRAPH_LABEL,
         relProps: {
           ...relationshipProps,
           graphLabel: this.GRAPH_LABEL,
