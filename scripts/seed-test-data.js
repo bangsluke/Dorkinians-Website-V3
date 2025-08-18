@@ -1,4 +1,55 @@
 const path = require('path')
+const fs = require('fs')
+
+// Function to read and analyze the seeding errors log
+function analyzeErrorLog() {
+  const errorLogPath = path.join(process.cwd(), 'logs', 'seeding-errors.log')
+  
+  try {
+    if (!fs.existsSync(errorLogPath)) {
+      return {
+        exists: false,
+        errorCount: 0,
+        errors: []
+      }
+    }
+    
+    const logContent = fs.readFileSync(errorLogPath, 'utf8')
+    const lines = logContent.split('\n')
+    
+    // Count error entries (lines starting with timestamp)
+    const errorLines = lines.filter(line => 
+      line.trim() && 
+      line.match(/^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\]/)
+    )
+    
+    // Extract recent errors for summary
+    const recentErrors = errorLines.slice(-10).map(line => {
+      const match = line.match(/^\[([^\]]+)\]\s*(.+)/)
+      if (match) {
+        return {
+          timestamp: match[1],
+          message: match[2].trim()
+        }
+      }
+      return null
+    }).filter(Boolean)
+    
+    return {
+      exists: true,
+      errorCount: errorLines.length,
+      errors: recentErrors,
+      totalLines: lines.length
+    }
+  } catch (error) {
+    return {
+      exists: false,
+      errorCount: 0,
+      errors: [],
+      error: error.message
+    }
+  }
+}
 
 // Test seeding with TBL_Players data
 async function seedTestData() {
@@ -103,6 +154,36 @@ async function seedTestData() {
 // Run the test seeding
 seedTestData()
   .then(() => {
+    console.log('\n🔍 Analyzing seeding error log...')
+    
+    const errorAnalysis = analyzeErrorLog()
+    
+    if (errorAnalysis.exists) {
+      console.log(`📊 Error Log Analysis:`)
+      console.log(`  📁 Log file: logs/seeding-errors.log`)
+      console.log(`  ❌ Total errors: ${errorAnalysis.errorCount}`)
+      console.log(`  📄 Total log lines: ${errorAnalysis.totalLines}`)
+      
+      if (errorAnalysis.errorCount > 0) {
+        console.log(`\n⚠️ Recent errors found:`)
+        errorAnalysis.errors.forEach((error, index) => {
+          console.log(`  ${index + 1}. [${error.timestamp}] ${error.message}`)
+        })
+        
+        if (errorAnalysis.errorCount > 10) {
+          console.log(`  ... and ${errorAnalysis.errorCount - 10} more errors`)
+        }
+        
+        console.log(`\n💡 Check the full log file for complete error details`)
+      } else {
+        console.log(`✅ No errors found in the log file`)
+      }
+    } else {
+      console.log(`📊 Error Log Analysis:`)
+      console.log(`  📁 Log file: logs/seeding-errors.log (not found)`)
+      console.log(`  ℹ️ No error log file exists yet`)
+    }
+    
     console.log('\n🎉 Test seeding completed')
     process.exit(0)
   })

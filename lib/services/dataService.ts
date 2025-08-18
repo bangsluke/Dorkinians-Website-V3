@@ -4,6 +4,9 @@ export interface CSVData {
   [key: string]: string | number
 }
 
+// For header-based CSV parsing, data is an object with column names
+export type CSVRow = CSVData
+
 export interface DataSource {
   name: string
   url: string
@@ -12,8 +15,8 @@ export interface DataSource {
 
 export class DataService {
   private static instance: DataService
-  private dataCache: Map<string, { data: CSVData[], timestamp: number }> = new Map()
-  private readonly CACHE_DURATION = 1000 * 60 * 60 * 24 // 24 hours
+  private dataCache: Map<string, { data: CSVRow[], timestamp: number }> = new Map()
+  private readonly CACHE_DURATION = process.env.NODE_ENV === 'development' ? 1000 * 60 * 5 : 1000 * 60 * 60 * 24 // 5 minutes in dev, 24 hours in prod
 
   static getInstance(): DataService {
     if (!DataService.instance) {
@@ -22,7 +25,7 @@ export class DataService {
     return DataService.instance
   }
 
-  async fetchCSVData(url: string, sourceName: string): Promise<CSVData[]> {
+  async fetchCSVData(url: string, sourceName: string): Promise<CSVRow[]> {
     // Check cache first
     const cached = this.dataCache.get(sourceName)
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
@@ -40,7 +43,7 @@ export class DataService {
       
       const csvText = await response.text()
       const result = Papa.parse(csvText, {
-        header: true,
+        header: true, // Use headers for column names
         skipEmptyLines: true,
         transform: (value) => {
           // Convert numeric strings to numbers
@@ -53,7 +56,7 @@ export class DataService {
         console.warn(`⚠️ CSV parsing warnings for ${sourceName}:`, result.errors)
       }
 
-      const data = result.data as CSVData[]
+      const data = result.data as CSVRow[]
       console.log(`✅ Fetched ${data.length} rows from ${sourceName}`)
 
       // Cache the data
@@ -69,8 +72,8 @@ export class DataService {
     }
   }
 
-  async fetchAllDataSources(dataSources: DataSource[]): Promise<Map<string, CSVData[]>> {
-    const results = new Map<string, CSVData[]>()
+  async fetchAllDataSources(dataSources: DataSource[]): Promise<Map<string, CSVRow[]>> {
+    const results = new Map<string, CSVRow[]>()
     
     const promises = dataSources.map(async (source) => {
       try {

@@ -3,7 +3,7 @@ const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
 async function checkRelationships() {
-  console.log('🔍 Checking Neo4j Relationships and graphLabel Properties...')
+  console.log('🔍 Checking Database Relationships...')
   
   const uri = process.env.DEV_NEO4J_URI
   const username = process.env.DEV_NEO4J_USER
@@ -22,109 +22,118 @@ async function checkRelationships() {
     
     // Check 1: Count all relationships
     console.log('\n📊 Check 1: Total Relationship Count')
-    const totalRelResult = await session.run('MATCH ()-[r]->() RETURN count(r) as totalRelationships')
-    const totalRels = totalRelResult.records[0].get('totalRelationships')
-    console.log(`  Total relationships in database: ${totalRels}`)
-
-    // Check 2: Count relationships with graphLabel property
-    console.log('\n🏷️ Check 2: Relationships with graphLabel Property')
-    const labeledRelResult = await session.run(`
+    const totalRelsQuery = `
       MATCH ()-[r]->()
-      WHERE r.graphLabel IS NOT NULL
-      RETURN count(r) as labeledRelationships
-    `)
-    const labeledRels = labeledRelResult.records[0].get('labeledRelationships')
-    console.log(`  Relationships with graphLabel: ${labeledRels}`)
-
-    // Check 3: Check specific graphLabel values
-    console.log('\n🔍 Check 3: graphLabel Values on Relationships')
-    const labelValuesResult = await session.run(`
-      MATCH ()-[r]->()
-      WHERE r.graphLabel IS NOT NULL
-      RETURN r.graphLabel as graphLabel, count(r) as count
-      ORDER BY count DESC
-    `)
+      RETURN count(r) as totalRelationships
+    `
     
-    labelValuesResult.records.forEach(record => {
-      const graphLabel = record.get('graphLabel')
+    const totalRelsResult = await session.run(totalRelsQuery)
+    const totalRels = totalRelsResult.records[0].get('totalRelationships')
+    console.log(`  Total relationships: ${totalRels}`)
+    
+    // Check 2: Count relationships by type
+    console.log('\n🔗 Check 2: Relationships by Type')
+    const relsByTypeQuery = `
+      MATCH ()-[r]->()
+      RETURN type(r) as relationshipType, count(r) as count
+      ORDER BY count DESC
+    `
+    
+    const relsByTypeResult = await session.run(relsByTypeQuery)
+    console.log('  Relationships by type:')
+    relsByTypeResult.records.forEach(record => {
+      const relType = record.get('relationshipType')
       const count = record.get('count')
-      console.log(`  ${graphLabel}: ${count} relationships`)
+      console.log(`    ${relType}: ${count}`)
     })
-
-    // Check 4: Check nodes with graphLabel property
-    console.log('\n📋 Check 4: Nodes with graphLabel Property')
-    const labeledNodesResult = await session.run(`
-      MATCH (n)
-      WHERE n.graphLabel IS NOT NULL
-      RETURN n.graphLabel as graphLabel, count(n) as count
-      ORDER BY count DESC
-    `)
     
-    labeledNodesResult.records.forEach(record => {
-      const graphLabel = record.get('graphLabel')
-      const count = record.get('count')
-      console.log(`  ${graphLabel}: ${count} nodes`)
-    })
-
-    // Check 5: Sample relationships to see their properties
-    console.log('\n🔗 Check 5: Sample Relationships with Properties')
-    const sampleRelsResult = await session.run(`
-      MATCH (n)-[r]->(m)
-      WHERE n.graphLabel = 'dorkiniansWebsite' OR m.graphLabel = 'dorkiniansWebsite' OR r.graphLabel = 'dorkiniansWebsite'
-      RETURN n.graphLabel as fromLabel, type(r) as relType, r.graphLabel as relLabel, m.graphLabel as toLabel
-      LIMIT 10
-    `)
+    // Check 3: Check specific relationship types we expect
+    console.log('\n🎯 Check 3: Expected Relationship Types')
+    const expectedRels = ['PLAYS_FOR', 'PARTICIPATES_IN', 'BELONGS_TO', 'PERFORMED_IN', 'GENERATED_FROM']
     
-    if (sampleRelsResult.records.length > 0) {
-      console.log('  Sample relationships:')
-      sampleRelsResult.records.forEach((record, index) => {
-        const fromLabel = record.get('fromLabel')
-        const relType = record.get('relType')
-        const relLabel = record.get('relLabel')
-        const toLabel = record.get('toLabel')
-        console.log(`    ${index + 1}. (${fromLabel})-[${relType}:${relLabel}]->(${toLabel})`)
-      })
-    } else {
-      console.log('  No relationships found with dorkiniansWebsite graphLabel')
-    }
-
-    // Check 6: Look for any relationships at all
-    console.log('\n🔍 Check 6: Any Relationships in Database')
-    const anyRelsResult = await session.run(`
-      MATCH ()-[r]->()
-      RETURN type(r) as relType, count(r) as count
-      ORDER BY count DESC
-      LIMIT 10
-    `)
-    
-    if (anyRelsResult.records.length > 0) {
-      console.log('  Relationship types found:')
-      anyRelsResult.records.forEach(record => {
-        const relType = record.get('relType')
-        const count = record.get('count')
+    for (const relType of expectedRels) {
+      const checkQuery = `
+        MATCH ()-[r:${relType}]->()
+        RETURN count(r) as count
+      `
+      
+      try {
+        const result = await session.run(checkQuery)
+        const count = result.records[0].get('count')
         console.log(`    ${relType}: ${count}`)
-      })
-    } else {
-      console.log('  No relationships found in database')
+      } catch (error) {
+        console.log(`    ${relType}: Error - ${error.message}`)
+      }
     }
-
+    
+    // Check 4: Sample relationships
+    console.log('\n📋 Check 4: Sample Relationships')
+    const sampleRelsQuery = `
+      MATCH (from)-[r]->(to)
+      RETURN labels(from)[0] as fromType, from.id as fromId, type(r) as relType, labels(to)[0] as toType, to.id as toId
+      LIMIT 10
+    `
+    
+    const sampleRelsResult = await session.run(sampleRelsQuery)
+    console.log('  Sample relationships:')
+    sampleRelsResult.records.forEach((record, index) => {
+      const fromType = record.get('fromType')
+      const fromId = record.get('fromId')
+      const relType = record.get('relType')
+      const toType = record.get('toType')
+      const toId = record.get('toId')
+      console.log(`    ${index + 1}. (${fromType}:${fromId}) -[${relType}]-> (${toType}:${toId})`)
+    })
+    
+    // Check 5: Player-Team relationships specifically
+    console.log('\n👥 Check 5: Player-Team Relationships')
+    const playerTeamQuery = `
+      MATCH (p:Player)-[r:PLAYS_FOR]->(t:Team)
+      RETURN count(r) as count
+    `
+    
+    try {
+      const playerTeamResult = await session.run(playerTeamQuery)
+      const count = playerTeamResult.records[0].get('count')
+      console.log(`  Player-Team relationships: ${count}`)
+      
+      if (count > 0) {
+        // Show a sample
+        const sampleQuery = `
+          MATCH (p:Player)-[r:PLAYS_FOR]->(t:Team)
+          RETURN p.name as playerName, t.name as teamName, r.season as season
+          LIMIT 3
+        `
+        const sampleResult = await session.run(sampleQuery)
+        console.log('  Sample Player-Team relationships:')
+        sampleResult.records.forEach((record, index) => {
+          const playerName = record.get('playerName')
+          const teamName = record.get('teamName')
+          const season = record.get('season')
+          console.log(`    ${index + 1}. ${playerName} plays for ${teamName} (${season})`)
+        })
+      }
+    } catch (error) {
+      console.log(`  Error checking Player-Team relationships: ${error.message}`)
+    }
+    
     console.log('\n✅ Relationship check completed')
     
   } catch (error) {
-    console.error('❌ Relationship check failed:', error.message)
+    console.error('❌ Check failed:', error.message)
   } finally {
     await session.close()
     await driver.close()
   }
 }
 
-// Run the relationship check
+// Run the check
 checkRelationships()
   .then(() => {
-    console.log('✅ Relationship check completed')
+    console.log('🎉 Relationship check completed')
     process.exit(0)
   })
   .catch((error) => {
-    console.error('💥 Relationship check failed:', error)
+    console.error('💥 Check failed:', error)
     process.exit(1)
   })

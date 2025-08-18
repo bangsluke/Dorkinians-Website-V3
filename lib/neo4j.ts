@@ -117,6 +117,39 @@ class Neo4jService {
     }
   }
 
+  async createNodeIfNotExists(label: string, properties: any) {
+    if (!this.driver) {
+      throw new Error('Neo4j driver not initialized')
+    }
+    const session = this.driver.session()
+    try {
+      // Add graphLabel and createdAt to properties
+      const nodeProperties = {
+        ...properties,
+        graphLabel: this.GRAPH_LABEL,
+        createdAt: new Date().toISOString()
+      }
+
+      const query = `
+        MERGE (n:${label} {id: $id, graphLabel: $graphLabel})
+        ON CREATE SET n += $properties
+        RETURN n
+      `
+      const result = await session.run(query, { 
+        id: properties.id,
+        graphLabel: this.GRAPH_LABEL,
+        properties: nodeProperties 
+      })
+      const node = result.records[0]?.get('n')
+      return node ? node.identity.toString() : null
+    } catch (error) {
+      console.error('❌ Node creation/merge failed:', error)
+      throw error
+    } finally {
+      await session.close()
+    }
+  }
+
   async createRelationship(
     fromLabel: string,
     fromProps: any,
@@ -130,7 +163,8 @@ class Neo4jService {
     }
     const session = this.driver.session()
     try {
-      // Ensure both nodes have the correct graphLabel before creating relationship
+      // Only create relationships between existing nodes
+      // This prevents infinite loops during seeding
       const query = `
         MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})
         MATCH (to:${toLabel} {id: $toId, graphLabel: $graphLabel})

@@ -33,10 +33,12 @@ async function applySchema() {
     const constraints = [
       'CREATE CONSTRAINT player_id_unique IF NOT EXISTS FOR (p:Player) REQUIRE p.id IS UNIQUE',
       'CREATE CONSTRAINT player_name_unique IF NOT EXISTS FOR (p:Player) REQUIRE p.name IS UNIQUE',
+      'CREATE CONSTRAINT player_most_played_team_unique IF NOT EXISTS FOR (p:Player) REQUIRE p.mostPlayedForTeam IS UNIQUE',
+      'CREATE CONSTRAINT player_most_common_position_unique IF NOT EXISTS FOR (p:Player) REQUIRE p.mostCommonPosition IS UNIQUE',
       'CREATE CONSTRAINT team_id_unique IF NOT EXISTS FOR (t:Team) REQUIRE t.id IS UNIQUE',
       'CREATE CONSTRAINT team_season_name_unique IF NOT EXISTS FOR (t:Team) REQUIRE (t.season, t.name) IS UNIQUE',
       'CREATE CONSTRAINT season_id_unique IF NOT EXISTS FOR (s:Season) REQUIRE s.id IS UNIQUE',
-      'CREATE CONSTRAINT season_years_unique IF NOT EXISTS FOR (s:Season) REQUIRE (s.startYear, s.endYear) IS UNIQUE',
+      // Removed: 'CREATE CONSTRAINT season_years_unique IF NOT EXISTS FOR (s:Season) REQUIRE (s.startYear, s.endYear) IS UNIQUE',
       'CREATE CONSTRAINT fixture_id_unique IF NOT EXISTS FOR (f:Fixture) REQUIRE f.id IS UNIQUE',
       'CREATE CONSTRAINT fixture_season_id_unique IF NOT EXISTS FOR (f:Fixture) REQUIRE (f.season, f.seasonFixId) IS UNIQUE',
       'CREATE CONSTRAINT matchdetail_id_unique IF NOT EXISTS FOR (md:MatchDetail) REQUIRE md.id IS UNIQUE',
@@ -45,7 +47,7 @@ async function applySchema() {
       'CREATE CONSTRAINT totw_season_week_unique IF NOT EXISTS FOR (t:TOTW) REQUIRE (t.season, t.week) IS UNIQUE',
       'CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayerOfTheMonth) REQUIRE (pom.season, pom.month, pom.playerName) IS UNIQUE',
       'CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.id IS UNIQUE',
-      'CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.oppositionName IS UNIQUE'
+      // Removed: 'CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.oppositionName IS UNIQUE'
     ]
 
     for (const constraint of constraints) {
@@ -67,6 +69,8 @@ async function applySchema() {
     const indexes = [
       'CREATE INDEX player_name_index IF NOT EXISTS FOR (p:Player) ON (p.name)',
       'CREATE INDEX player_allowonsite_index IF NOT EXISTS FOR (p:Player) ON (p.allowOnSite)',
+      'CREATE INDEX player_most_played_team_index IF NOT EXISTS FOR (p:Player) ON (p.mostPlayedForTeam)',
+      'CREATE INDEX player_most_common_position_index IF NOT EXISTS FOR (p:Player) ON (p.mostCommonPosition)',
       'CREATE INDEX team_name_index IF NOT EXISTS FOR (t:Team) ON (t.name)',
       'CREATE INDEX team_season_index IF NOT EXISTS FOR (t:Team) ON (t.season)',
       'CREATE INDEX team_league_index IF NOT EXISTS FOR (t:Team) ON (t.league)',

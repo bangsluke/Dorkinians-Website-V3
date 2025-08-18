@@ -22,6 +22,8 @@
   id: String,                    // Unique identifier
   name: String,                  // Player full name
   allowOnSite: Boolean,          // Privacy flag
+  mostPlayedForTeam: String,     // Most frequently played team (e.g., "3s")
+  mostCommonPosition: String,    // Most common position (GK/DEF/MID/FWD)
   graphLabel: 'dorkiniansWebsite',
   createdAt: DateTime
 })

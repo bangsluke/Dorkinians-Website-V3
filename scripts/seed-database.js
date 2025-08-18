@@ -1,6 +1,56 @@
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') })
 
+// Use built-in http module for making requests
+const http = require('http')
+const https = require('https')
+
+function makeRequest(url, options = {}) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url)
+    const isHttps = urlObj.protocol === 'https:'
+    const client = isHttps ? https : http
+    
+    const requestOptions = {
+      hostname: urlObj.hostname,
+      port: urlObj.port,
+      path: urlObj.pathname + urlObj.search,
+      method: options.method || 'GET',
+      headers: options.headers || {}
+    }
+    
+    if (options.body) {
+      requestOptions.headers['Content-Type'] = 'application/json'
+      requestOptions.headers['Content-Length'] = Buffer.byteLength(options.body)
+    }
+    
+    const req = client.request(requestOptions, (res) => {
+      let data = ''
+      res.on('data', (chunk) => {
+        data += chunk
+      })
+      res.on('end', () => {
+        resolve({
+          ok: res.statusCode >= 200 && res.statusCode < 300,
+          status: res.statusCode,
+          json: () => JSON.parse(data),
+          text: () => data
+        })
+      })
+    })
+    
+    req.on('error', (error) => {
+      reject(error)
+    })
+    
+    if (options.body) {
+      req.write(options.body)
+    }
+    
+    req.end()
+  })
+}
+
 // All data sources from the project
 const ALL_DATA_SOURCES = [
   {
@@ -88,7 +138,7 @@ async function seedDatabase() {
     
     // Use appropriate port based on environment
     const port = 3000 // Both dev and prod use port 3000
-    const apiUrl = `http://localhost:${port}/api/seed-data`
+    const apiUrl = `http://localhost:${port}/api/seed-data/`
     
     console.log(`🌐 Calling seeding API: ${apiUrl}`)
     console.log(`📊 Seeding ${ALL_DATA_SOURCES.length} data sources...`)
@@ -98,7 +148,7 @@ async function seedDatabase() {
       console.log(`  ${index + 1}. ${source.name}`)
     })
     
-    const response = await fetch(apiUrl, {
+    const response = await makeRequest(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
