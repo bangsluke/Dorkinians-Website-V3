@@ -7,7 +7,7 @@ const withPWA = require('next-pwa')({
 })
 
 const nextConfig = {
-  output: 'export',
+  // output: 'export', // Commented out to enable API routes
   trailingSlash: true,
   images: {
     unoptimized: true,

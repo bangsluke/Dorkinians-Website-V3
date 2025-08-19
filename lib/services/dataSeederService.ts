@@ -1,5 +1,8 @@
 import { neo4jService } from '@/lib/neo4j'
 import { dataService, CSVRow, DataSource } from './dataService'
+import { csvHeaderValidator, CSVHeaderValidationResult } from './csvHeaderValidator'
+import { emailService, CSVHeaderValidationFailure } from './emailService'
+import { getEmailConfig } from '@/lib/config/emailConfig'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -65,6 +68,54 @@ export class DataSeederService {
     }
     
     try {
+      // Step 1: Configure email service if available
+      const emailConfig = getEmailConfig()
+      if (emailConfig) {
+        emailService.configure(emailConfig)
+        console.log('📧 Email service configured for CSV header validation notifications')
+      } else {
+        console.log('⚠️ Email service not configured - CSV header validation failures will not be emailed')
+      }
+      
+      // Step 2: Validate CSV headers before proceeding
+      console.log('🔍 Step 2: Validating CSV headers...')
+      const headerValidationResult = await csvHeaderValidator.validateAllCSVHeaders(dataSources)
+      
+      if (!headerValidationResult.isValid) {
+        const errorMsg = `CSV header validation failed. ${headerValidationResult.failedSources} out of ${headerValidationResult.totalSources} data sources have invalid headers.`
+        console.error(`❌ ${errorMsg}`)
+        
+        // Log the validation failures
+        this.logError('CSV Header Validation Failed', {
+          totalSources: headerValidationResult.totalSources,
+          validSources: headerValidationResult.validSources,
+          failedSources: headerValidationResult.failedSources,
+          failures: headerValidationResult.failures
+        })
+        
+        // Try to send email notification
+        try {
+          await emailService.sendCSVHeaderValidationFailure(headerValidationResult.failures)
+          console.log('📧 Email notification sent for CSV header validation failures')
+        } catch (emailError) {
+          console.error('❌ Failed to send email notification:', emailError)
+          this.logError('Failed to send email notification for CSV header validation failures', { emailError })
+        }
+        
+        // Return early with validation failure
+        return {
+          success: false,
+          nodesCreated: 0,
+          relationshipsCreated: 0,
+          errors: [errorMsg, ...headerValidationResult.failures.map(f => 
+            `${f.sourceName}: Missing [${f.missingHeaders.join(', ')}], Extra [${f.extraHeaders.join(', ')}]`
+          )],
+          unknownNodes: []
+        }
+      }
+      
+      console.log('✅ CSV header validation passed')
+      
       // Ensure Neo4j connection
       const connected = await neo4jService.connect()
       if (!connected) {
@@ -740,7 +791,7 @@ export class DataSeederService {
     
     // Default mapping for unknown types
     return {
-      id: `${sourceName.toLowerCase()}-${rowIndex}-${row.join('-').toLowerCase().replace(/\s+/g, '-')}`,
+             id: `${sourceName.toLowerCase()}-${rowIndex}-${Object.values(row).join('-').toLowerCase().replace(/\s+/g, '-')}`,
       graphLabel: 'dorkiniansWebsite',
       createdAt: new Date().toISOString()
     }
@@ -868,8 +919,8 @@ export class DataSeederService {
         await neo4jService.createNodeIfNotExists('Season', {
           id: seasonId,
           name: fixtureData.season,
-          startYear: this.extractYear(fixtureData.season),
-          endYear: this.extractYear(fixtureData.season) + 1,
+                     startYear: this.extractYear(String(fixtureData.season)),
+           endYear: this.extractYear(String(fixtureData.season)) + 1,
           isActive: false
         })
         
@@ -1135,8 +1186,8 @@ export class DataSeederService {
           await neo4jService.createNodeIfNotExists('Season', {
             id: seasonId,
             name: matchDetailData.season,
-            startYear: this.extractYear(matchDetailData.season),
-            endYear: this.extractYear(matchDetailData.season) + 1,
+                         startYear: this.extractYear(String(matchDetailData.season)),
+             endYear: this.extractYear(String(matchDetailData.season)) + 1,
             isActive: false
           })
           
@@ -1214,8 +1265,8 @@ export class DataSeederService {
         await neo4jService.createNodeIfNotExists('Season', {
           id: seasonId,
           name: totwData.season,
-          startYear: this.extractYear(totwData.season),
-          endYear: this.extractYear(totwData.season) + 1,
+                     startYear: this.extractYear(String(totwData.season)),
+           endYear: this.extractYear(String(totwData.season)) + 1,
           isActive: false
         })
         
@@ -1308,8 +1359,8 @@ export class DataSeederService {
         await neo4jService.createNodeIfNotExists('Season', {
           id: seasonId,
           name: pomData.season,
-          startYear: this.extractYear(pomData.season),
-          endYear: this.extractYear(pomData.season) + 1,
+                     startYear: this.extractYear(String(pomData.season)),
+           endYear: this.extractYear(String(pomData.season)) + 1,
           isActive: false
         })
         

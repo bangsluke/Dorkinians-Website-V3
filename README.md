@@ -64,10 +64,11 @@ OPENAI_API_KEY=your_openai_api_key_here
 # SMTP Configuration (for automated emails)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
+SMTP_EMAIL_SECURE=false
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-FROM_EMAIL=your-email@gmail.com
-TO_EMAIL=recipient@example.com
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_TO_EMAIL=recipient@example.com
 ```
 
 ### 2. Install Dependencies

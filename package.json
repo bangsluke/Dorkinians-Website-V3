@@ -12,12 +12,14 @@
     "seed-dev": "cross-env NODE_ENV=development node scripts/seed-database.js development",
     "seed-prod": "cross-env NODE_ENV=production node scripts/seed-database.js production",
     "apply-schema": "node scripts/apply-schema.js",
+    "test-headers": "node scripts/test-csv-headers.js",
     "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
     "@heroicons/react": "^2.2.0",
     "@types/node": "^20.10.5",
+    "@types/nodemailer": "^7.0.0",
     "@types/papaparse": "^5.3.16",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
@@ -27,6 +29,7 @@
     "neo4j-driver": "^5.15.0",
     "next": "14.2.31",
     "next-pwa": "^5.6.0",
+    "nodemailer": "^7.0.5",
     "openai": "^4.20.1",
     "papaparse": "^5.5.3",
     "postcss": "^8.4.32",
