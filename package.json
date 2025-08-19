@@ -9,15 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "test-neo4j": "node scripts/test-neo4j.js",
     "seed-dev": "cross-env NODE_ENV=development node scripts/seed-database.js development",
-    "seed-prod": "node scripts/seed-production-sample.js",
-    "test-seed": "node scripts/seed-test-data.js",
+    "seed-prod": "cross-env NODE_ENV=production node scripts/seed-database.js production",
     "apply-schema": "node scripts/apply-schema.js",
-    "test-player-search": "node scripts/test-player-search.js",
-    "test-full-schema": "node scripts/test-full-schema.js",
-    "schema-status": "node scripts/schema-status.js",
-    "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
+    "check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
   },
   "dependencies": {
     "@headlessui/react": "^1.7.17",
@@ -32,7 +27,6 @@
     "neo4j-driver": "^5.15.0",
     "next": "14.2.31",
     "next-pwa": "^5.6.0",
-    "node-fetch": "^3.3.2",
     "openai": "^4.20.1",
     "papaparse": "^5.5.3",
     "postcss": "^8.4.32",
