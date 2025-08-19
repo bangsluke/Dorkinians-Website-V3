@@ -1,9 +1,11 @@
 # Dorkinians FC Chatbot Query Library
 
 ## 🎯 Overview
+
 This document contains optimized Cypher queries for the chatbot to answer complex questions efficiently. All queries use the `graphLabel: 'dorkiniansWebsite'` for data isolation.
 
 **Note**: This system uses a hybrid approach:
+
 - **Graph Database**: For complex statistical queries, player performance, and relationships
 - **Table Data**: For static reference data like CaptainAward (loaded directly from CSV)
 
@@ -12,6 +14,7 @@ This document contains optimized Cypher queries for the chatbot to answer comple
 ### 1. Player Performance Queries
 
 #### Get Player Goals for Specific Team
+
 ```cypher
 // Question: "How many goals have I scored for the 3rd team?"
 MATCH (p:Player {name: $playerName})-[:PLAYS_FOR]->(t:Team {name: $teamName})
@@ -26,6 +29,7 @@ RETURN p.name as player,
 ```
 
 #### Get Player Goals for All Teams
+
 ```cypher
 // Question: "How many goals have I scored across all teams?"
 MATCH (p:Player {name: $playerName})-[:PLAYS_FOR]->(t:Team)
@@ -39,6 +43,7 @@ ORDER BY f.season DESC, t.name
 ```
 
 #### Get Player Assists
+
 ```cypher
 // Question: "How many assists do I have?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -50,6 +55,7 @@ RETURN p.name as player,
 ```
 
 #### Get Player Clean Sheets
+
 ```cypher
 // Question: "How many clean sheets have I had?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -63,6 +69,7 @@ RETURN p.name as player,
 ### 2. Team Performance Queries
 
 #### Get Team League Position
+
 ```cypher
 // Question: "Where did the 2s finish in the 2017/18 season?"
 MATCH (t:Team {name: $teamName, season: $season})-[:PARTICIPATES_IN]->(s:Season {id: $season})
@@ -81,6 +88,7 @@ RETURN t.name as team,
 ```
 
 #### Get Team Goals Scored
+
 ```cypher
 // Question: "How many goals did the 2nd team score during the 2017/18 season?"
 MATCH (t:Team {name: $teamName, season: $season})-[:PARTICIPATES_IN]->(s:Season {id: $season})
@@ -94,6 +102,7 @@ RETURN t.name as team,
 ```
 
 #### Get Team Conceded Goals
+
 ```cypher
 // Question: "Which team has conceded the fewest goals in history?"
 MATCH (t:Team)-[:PARTICIPATES_IN]->(s:Season)
@@ -111,6 +120,7 @@ LIMIT 10
 ### 3. Historical Analysis Queries
 
 #### Get Player Goal Scoring Trends
+
 ```cypher
 // Question: "What's my goal scoring trend over the seasons?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -125,6 +135,7 @@ ORDER BY s.startYear
 ```
 
 #### Get Player Appearances Over Time
+
 ```cypher
 // Question: "How many games have I played each season?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -139,6 +150,7 @@ ORDER BY s.startYear
 ```
 
 #### Get Player Performance by Month
+
 ```cypher
 // Question: "What's my best month for goals?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -153,6 +165,7 @@ ORDER BY totalGoals DESC
 ### 4. TOTW and Awards Queries
 
 #### Get Player TOTW Appearances
+
 ```cypher
 // Question: "How many times have I been in Team of the Week?"
 MATCH (p:Player {name: $playerName})-[:SELECTED_IN]->(t:TOTW)
@@ -163,6 +176,7 @@ RETURN p.name as player,
 ```
 
 #### Get Player Monthly Awards
+
 ```cypher
 // Question: "Have I won any monthly awards?"
 MATCH (p:Player {name: $playerName})-[:AWARDED_MONTHLY]->(pom:PlayerOfTheMonth)
@@ -176,16 +190,18 @@ ORDER BY pom.season DESC, pom.month
 ```
 
 #### Get Player Season Awards
+
 ```typescript
 // Question: "What awards did I win last season?"
 // CaptainAward data is handled as table data, not graph relationships
 // Query the award table directly for better performance
-const playerAwards = captainAwardData.filter(award => 
-  award.topScorer === playerName || 
-  award.topAssister === playerName || 
-  award.mostCleanSheets === playerName ||
-  award.mostTOTW === playerName ||
-  award.mostStarMan === playerName
+const playerAwards = captainAwardData.filter(
+	(award) =>
+		award.topScorer === playerName ||
+		award.topAssister === playerName ||
+		award.mostCleanSheets === playerName ||
+		award.mostTOTW === playerName ||
+		award.mostStarMan === playerName,
 );
 return playerAwards;
 ```
@@ -193,6 +209,7 @@ return playerAwards;
 ### 5. Comparative Analysis Queries
 
 #### Compare Player Performance
+
 ```cypher
 // Question: "How do I compare to James Tain?"
 MATCH (p1:Player {name: $player1Name})-[:PERFORMED_IN]->(md1:MatchDetail)
@@ -212,6 +229,7 @@ RETURN p1.name as player1,
 ```
 
 #### Get Top Performers by Category
+
 ```cypher
 // Question: "Who are the top scorers this season?"
 MATCH (p:Player)-[:PERFORMED_IN]->(md:MatchDetail)
@@ -228,6 +246,7 @@ LIMIT 10
 ### 6. Temporal Analysis Queries
 
 #### Get Consecutive Appearances
+
 ```cypher
 // Question: "What's the longest consecutive streak of weekends I've played?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -238,7 +257,7 @@ WITH p, collect(matchDate) as dates
 UNWIND range(0, size(dates)-1) as idx
 WITH p, dates[idx] as currentDate, dates[idx+1] as nextDate
 WHERE nextDate IS NOT NULL
-WITH p, currentDate, nextDate, 
+WITH p, currentDate, nextDate,
      duration.between(currentDate, nextDate).days as daysBetween
 WHERE daysBetween <= 7
 RETURN p.name as player,
@@ -246,6 +265,7 @@ RETURN p.name as player,
 ```
 
 #### Get Double Game Weeks
+
 ```cypher
 // Question: "How many double game weeks have I played?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -256,7 +276,7 @@ WITH p, collect(matchDate) as dates
 UNWIND range(0, size(dates)-1) as idx
 WITH p, dates[idx] as currentDate, dates[idx+1] as nextDate
 WHERE nextDate IS NOT NULL
-WITH p, currentDate, nextDate, 
+WITH p, currentDate, nextDate,
      duration.between(currentDate, nextDate).days as daysBetween
 WHERE daysBetween <= 3
 RETURN p.name as player,
@@ -264,6 +284,7 @@ RETURN p.name as player,
 ```
 
 #### Get Clean Sheet Streaks
+
 ```cypher
 // Question: "How many clean sheets have I had in a row?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -275,7 +296,7 @@ WITH p, collect(matchDate) as dates
 UNWIND range(0, size(dates)-1) as idx
 WITH p, dates[idx] as currentDate, dates[idx+1] as nextDate
 WHERE nextDate IS NOT NULL
-WITH p, currentDate, nextDate, 
+WITH p, currentDate, nextDate,
      duration.between(currentDate, nextDate).days as daysBetween
 WHERE daysBetween <= 7
 RETURN p.name as player,
@@ -285,6 +306,7 @@ RETURN p.name as player,
 ### 7. Opposition Analysis Queries
 
 #### Get Opposition Performance
+
 ```cypher
 // Question: "How do we perform against specific opposition?"
 MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetail {oppositionName: $oppositionName})
@@ -298,6 +320,7 @@ RETURN o.oppositionName as opposition,
 ```
 
 #### Get Opposition Grounds
+
 ```cypher
 // Question: "Where do we play our away games?"
 MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetail)
@@ -312,6 +335,7 @@ ORDER BY o.league, o.oppositionName
 ### 8. Milestone Queries
 
 #### Get Next Milestone
+
 ```cypher
 // Question: "Who will reach the next 100 goal milestone?"
 MATCH (p:Player)-[:PERFORMED_IN]->(md:MatchDetail)
@@ -326,11 +350,12 @@ LIMIT 5
 ```
 
 #### Get Player Milestones
+
 ```cypher
 // Question: "What milestones have I reached?"
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
 MATCH (md)-[:GENERATED_FROM]->(f:Fixture)
-WITH p, 
+WITH p,
      sum(md.goals) as totalGoals,
      sum(md.assists) as totalAssists,
      count(md) as totalAppearances
@@ -338,13 +363,13 @@ RETURN p.name as player,
        totalGoals as goals,
        totalAssists as assists,
        totalAppearances as appearances,
-       CASE 
+       CASE
          WHEN totalGoals >= 100 THEN 'Century Scorer'
          WHEN totalGoals >= 50 THEN 'Half Century'
          WHEN totalGoals >= 25 THEN 'Quarter Century'
          ELSE 'Building Up'
        END as goalMilestone,
-       CASE 
+       CASE
          WHEN totalAppearances >= 100 THEN 'Century Appearances'
          WHEN totalAppearances >= 50 THEN 'Half Century'
          WHEN totalAppearances >= 25 THEN 'Quarter Century'
@@ -355,21 +380,25 @@ RETURN p.name as player,
 ## 🚀 Performance Optimization Tips
 
 ### 1. Use Indexes
+
 - Always query on indexed properties first
 - Use composite indexes for multi-property queries
 - Leverage relationship indexes for path queries
 
 ### 2. Limit Results
+
 - Use `LIMIT` clauses for large result sets
 - Implement pagination for long lists
 - Cache frequently requested data
 
 ### 3. Optimize Patterns
+
 - Start queries from the most selective node
 - Use `OPTIONAL MATCH` sparingly
 - Prefer `MATCH` over `OPTIONAL MATCH` when possible
 
 ### 4. Data Aggregation
+
 - Use `WITH` clauses to break complex queries
 - Aggregate data at the database level
 - Avoid client-side data processing
@@ -377,6 +406,7 @@ RETURN p.name as player,
 ## 🔧 Query Parameters
 
 ### Common Parameters
+
 - `$playerName`: Player's full name
 - `$teamName`: Team name (1st XI, 2nd XI, etc.)
 - `$season`: Season identifier (2016-17, 2017-18, etc.)
@@ -385,6 +415,7 @@ RETURN p.name as player,
 - `$endDate`: End date for date ranges
 
 ### Parameter Examples
+
 ```cypher
 :param playerName => 'James Tain';
 :param teamName => '1st XI';
@@ -397,21 +428,25 @@ RETURN p.name as player,
 ## 📈 Expected Performance
 
 ### Simple Queries (< 10ms)
+
 - Player name lookups
 - Basic team information
 - Single fixture details
 
 ### Medium Queries (10-100ms)
+
 - Player season totals
 - Team performance summaries
 - Basic statistical aggregations
 
 ### Complex Queries (100-500ms)
+
 - Historical trends
 - Comparative analysis
 - Multi-season statistics
 
 ### Advanced Queries (500ms+)
+
 - Complex player comparisons
 - Multi-dimensional analysis
 - Predictive modeling queries
@@ -419,9 +454,11 @@ RETURN p.name as player,
 ## 🧪 Testing Queries
 
 ### Test Data Setup
+
 Use the `scripts/sample-data-queries.cypher` file to populate test data.
 
 ### Query Validation
+
 ```cypher
 -- Test query performance
 PROFILE MATCH (p:Player {name: 'James Tain'})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -433,6 +470,7 @@ RETURN p.name, sum(md.goals) as totalGoals;
 ```
 
 ### Performance Monitoring
+
 ```cypher
 -- Check index usage
 CALL db.indexes();

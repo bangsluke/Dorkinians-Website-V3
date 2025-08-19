@@ -3,12 +3,14 @@
 ## 🎯 Schema Design Principles
 
 ### Primary Objectives
+
 - **Temporal Analysis**: Efficient date-based queries for seasons, months, weeks
 - **Player Performance**: Track individual stats across teams and time periods
 - **Team Dynamics**: Analyze team performance and player contributions
 - **Historical Trends**: Support complex statistical analysis and comparisons
 
 ### Performance Considerations
+
 - **Indexed Properties**: Date fields, player names, team identifiers
 - **Relationship Types**: Clear, semantic relationship naming
 - **Property Optimization**: Store calculated values to avoid runtime computation
@@ -17,6 +19,7 @@
 ## 🏗️ Core Node Labels
 
 ### 1. Player Nodes
+
 ```cypher
 (:Player {
   id: String,                    // Unique identifier
@@ -30,6 +33,7 @@
 ```
 
 ### 2. Team Nodes
+
 ```cypher
 (:Team {
   id: String,                    // Team identifier (1st XI, 2nd XI, etc.)
@@ -42,6 +46,7 @@
 ```
 
 ### 3. Season Nodes
+
 ```cypher
 (:Season {
   id: String,                    // Season identifier (2016-17, 2017-18, etc.)
@@ -55,6 +60,7 @@
 ```
 
 ### 4. Fixture Nodes
+
 ```cypher
 (:Fixture {
   id: String,                    // Unique fixture identifier
@@ -78,6 +84,7 @@
 ```
 
 ### 5. MatchDetail Nodes
+
 ```cypher
 (:MatchDetail {
   id: String,                    // Unique match detail identifier
@@ -104,6 +111,7 @@
 ```
 
 ### 6. TOTW Nodes (Team of the Week)
+
 ```cypher
 (:TOTW {
   id: String,                    // Unique TOTW identifier
@@ -134,6 +142,7 @@
 ```
 
 ### 7. SeasonTOTW Nodes (Season-end Team of the Year)
+
 ```cypher
 (:SeasonTOTW {
   id: String,                    // Unique SeasonTOTW identifier
@@ -162,6 +171,7 @@
 ```
 
 ### 8. PlayerOfTheMonth Nodes
+
 ```cypher
 (:PlayerOfTheMonth {
   id: String,                    // Unique identifier
@@ -184,41 +194,44 @@
 ```
 
 ### 9. CaptainAward Data (Table Format)
+
 ```typescript
 // CaptainAward data will be loaded directly from CSV into tables
 // No graph nodes needed - this is static reference data
 interface CaptainAwardData {
-  season: string
-  team: string
-  captain: string
-  viceCaptain: string
-  mostImproved: string
-  playersPlayer: string
-  managersPlayer: string
-  topScorer: string
-  topAssister: string
-  mostCleanSheets: string
-  mostTOTW: string
-  mostStarMan: string
+	season: string;
+	team: string;
+	captain: string;
+	viceCaptain: string;
+	mostImproved: string;
+	playersPlayer: string;
+	managersPlayer: string;
+	topScorer: string;
+	topAssister: string;
+	mostCleanSheets: string;
+	mostTOTW: string;
+	mostStarMan: string;
 }
 ```
 
 ### 10. StatDetails Data (Table Format)
+
 ```typescript
 // StatDetails data will be loaded directly from CSV into tables
 // No graph nodes needed - this is static reference data
 interface StatDetailsData {
-  season: string
-  playerName: string
-  team: string
-  goals: number
-  assists: number
-  cleanSheets: number
-  starMan: number
+	season: string;
+	playerName: string;
+	team: string;
+	goals: number;
+	assists: number;
+	cleanSheets: number;
+	starMan: number;
 }
 ```
 
 ### 11. OppositionDetail Nodes
+
 ```cypher
 (:OppositionDetail {
   id: String,                    // Unique identifier
@@ -237,6 +250,7 @@ interface StatDetailsData {
 ## 🔗 Relationship Types
 
 ### 1. Player Relationships
+
 ```cypher
 // Player belongs to team in specific season
 (:Player)-[:PLAYS_FOR {season: String, startDate: Date, endDate: Date}]->(:Team)
@@ -258,6 +272,7 @@ interface StatDetailsData {
 ```
 
 ### 2. Team Relationships
+
 ```cypher
 // Team participates in season
 (:Team)-[:PARTICIPATES_IN]->(:Season)
@@ -270,6 +285,7 @@ interface StatDetailsData {
 ```
 
 ### 3. Fixture Relationships
+
 ```cypher
 // Fixture belongs to season
 (:Fixture)-[:BELONGS_TO]->(:Season)
@@ -282,6 +298,7 @@ interface StatDetailsData {
 ```
 
 ### 4. Temporal Relationships
+
 ```cypher
 // Season contains fixtures
 (:Season)-[:CONTAINS]->(:Fixture)
@@ -298,6 +315,7 @@ interface StatDetailsData {
 ## 📊 Indexing Strategy
 
 ### Primary Indexes
+
 ```cypher
 // Player name lookup
 CREATE INDEX player_name_index FOR (p:Player) ON (p.name);
@@ -319,6 +337,7 @@ CREATE INDEX totw_season_week_index FOR (t:TOTW) ON (t.season, t.week);
 ```
 
 ### Composite Indexes
+
 ```cypher
 // Player-team-season combination
 CREATE INDEX player_team_season_index FOR (p:Player)-[:PLAYS_FOR]->(t:Team) ON (p.name, t.name, t.season);
@@ -330,18 +349,20 @@ CREATE INDEX fixture_season_date_index FOR (f:Fixture) ON (f.season, f.date);
 ## 🚀 Query Optimization Patterns
 
 ### 1. Player Performance Queries
+
 ```cypher
 // Get player stats for specific season
 MATCH (p:Player {name: $playerName})-[:PLAYS_FOR]->(t:Team {season: $season})
 MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail)
 MATCH (md)-[:GENERATED_FROM]->(f:Fixture {season: $season})
-RETURN p.name, 
+RETURN p.name,
        sum(md.goals) as totalGoals,
        sum(md.assists) as totalAssists,
        count(md) as appearances
 ```
 
 ### 2. Team Performance Analysis
+
 ```cypher
 // Get team performance over time
 MATCH (t:Team {name: $teamName})-[:PARTICIPATES_IN]->(s:Season)
@@ -355,6 +376,7 @@ ORDER BY s.startYear
 ```
 
 ### 3. Historical Trends
+
 ```cypher
 // Get player goal scoring trends
 MATCH (p:Player {name: $playerName})-[:PERFORMED_IN]->(md:MatchDetail)
@@ -368,6 +390,7 @@ ORDER BY s.startYear
 ```
 
 ### 4. TOTW Analysis
+
 ```cypher
 // Get player TOTW appearances by season
 MATCH (p:Player {name: $playerName})-[:SELECTED_IN]->(t:TOTW)
@@ -380,6 +403,7 @@ ORDER BY t.season
 ## 🔄 Data Loading Strategy
 
 ### 1. Initial Load Order
+
 1. **Seasons** - Foundation for all temporal data
 2. **Teams** - Team structure and relationships
 3. **Players** - Player base data
@@ -392,6 +416,7 @@ ORDER BY t.season
 10. **OppositionDetail** - Opposition information
 
 ### 2. Relationship Creation
+
 1. **Player-Team** relationships based on match appearances
 2. **Fixture-Season** relationships for temporal grouping
 3. **MatchDetail-Fixture** relationships for performance tracking
@@ -399,11 +424,13 @@ ORDER BY t.season
 5. **Award-Player** relationships for recognition tracking (TOTW and monthly awards only)
 
 ### 3. Table Data (No Graph Relationships)
+
 1. **CaptainAward** - Season awards and honors
 2. **StatDetails** - Player statistical summaries
 3. **SiteDetails** - Website configuration and metadata
 
 ### 4. Data Validation
+
 - **Referential Integrity**: Ensure all relationships reference valid nodes
 - **Data Consistency**: Validate calculated fields against source data
 - **Duplicate Prevention**: Use unique identifiers and constraints
@@ -412,12 +439,14 @@ ORDER BY t.season
 ## 📈 Performance Monitoring
 
 ### Query Performance Metrics
+
 - **Response Time**: Target < 100ms for simple queries
 - **Memory Usage**: Monitor heap usage during complex operations
 - **Index Hit Rate**: Ensure indexes are being utilized effectively
 - **Relationship Traversal**: Optimize path finding queries
 
 ### Maintenance Operations
+
 - **Regular Index Updates**: Rebuild indexes after major data loads
 - **Statistics Updates**: Update database statistics for query planner
 - **Data Archiving**: Archive old seasons to maintain performance
@@ -426,21 +455,25 @@ ORDER BY t.season
 ## 🎯 Expected Query Performance
 
 ### Simple Lookups (1-10ms)
+
 - Player name searches
 - Team information retrieval
 - Basic fixture lookups
 
 ### Statistical Queries (10-100ms)
+
 - Player season totals
 - Team performance summaries
 - Basic aggregations
 
 ### Complex Analysis (100-500ms)
+
 - Historical trends
 - Comparative analysis
 - Multi-season statistics
 
 ### Advanced Analytics (500ms+)
+
 - Complex player comparisons
 - Multi-dimensional analysis
 - Predictive modeling queries

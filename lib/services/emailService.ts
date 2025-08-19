@@ -1,108 +1,108 @@
-import nodemailer from 'nodemailer'
+import nodemailer from "nodemailer";
 
 export interface CSVHeaderValidationFailure {
-  sourceName: string
-  expectedHeaders: string[]
-  actualHeaders: string[]
-  missingHeaders: string[]
-  extraHeaders: string[]
-  url: string
-  error?: string // For access errors (401, 403, 404, etc.)
+	sourceName: string;
+	expectedHeaders: string[];
+	actualHeaders: string[];
+	missingHeaders: string[];
+	extraHeaders: string[];
+	url: string;
+	error?: string; // For access errors (401, 403, 404, etc.)
 }
 
 export interface CSVValidationSummary {
-  headerFailures: CSVHeaderValidationFailure[]
-  accessFailures: CSVHeaderValidationFailure[]
-  totalSources: number
-  validSources: number
-  failedSources: number
+	headerFailures: CSVHeaderValidationFailure[];
+	accessFailures: CSVHeaderValidationFailure[];
+	totalSources: number;
+	validSources: number;
+	failedSources: number;
 }
 
 export interface EmailConfig {
-  host: string
-  port: number
-  secure: boolean
-  auth: {
-    user: string
-    pass: string
-  }
-  from: string
-  to: string
+	host: string;
+	port: number;
+	secure: boolean;
+	auth: {
+		user: string;
+		pass: string;
+	};
+	from: string;
+	to: string;
 }
 
 export class EmailService {
-  private static instance: EmailService
-  private transporter: nodemailer.Transporter | null = null
-  private config: EmailConfig | null = null
+	private static instance: EmailService;
+	private transporter: nodemailer.Transporter | null = null;
+	private config: EmailConfig | null = null;
 
-  static getInstance(): EmailService {
-    if (!EmailService.instance) {
-      EmailService.instance = new EmailService()
-    }
-    return EmailService.instance
-  }
+	static getInstance(): EmailService {
+		if (!EmailService.instance) {
+			EmailService.instance = new EmailService();
+		}
+		return EmailService.instance;
+	}
 
-  configure(config: EmailConfig): void {
-    this.config = config
-    this.transporter = nodemailer.createTransport({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      auth: {
-        user: config.auth.user,
-        pass: config.auth.pass
-      },
-      tls: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production' // Only reject in production
-      }
-    })
-  }
+	configure(config: EmailConfig): void {
+		this.config = config;
+		this.transporter = nodemailer.createTransport({
+			host: config.host,
+			port: config.port,
+			secure: config.secure,
+			auth: {
+				user: config.auth.user,
+				pass: config.auth.pass,
+			},
+			tls: {
+				rejectUnauthorized: process.env.NODE_ENV === "production", // Only reject in production
+			},
+		});
+	}
 
-    async sendCSVHeaderValidationFailure(failures: CSVHeaderValidationFailure[]): Promise<boolean> {
-    // Convert old interface to new summary format for backward compatibility
-    const summary: CSVValidationSummary = {
-      headerFailures: failures.filter(f => !f.error),
-      accessFailures: failures.filter(f => f.error),
-      totalSources: failures.length,
-      validSources: 0,
-      failedSources: failures.length
-    }
-    
-    return this.sendCSVValidationSummary(summary)
-  }
+	async sendCSVHeaderValidationFailure(failures: CSVHeaderValidationFailure[]): Promise<boolean> {
+		// Convert old interface to new summary format for backward compatibility
+		const summary: CSVValidationSummary = {
+			headerFailures: failures.filter((f) => !f.error),
+			accessFailures: failures.filter((f) => f.error),
+			totalSources: failures.length,
+			validSources: 0,
+			failedSources: failures.length,
+		};
 
-  async sendCSVValidationSummary(summary: CSVValidationSummary): Promise<boolean> {
-    if (!this.transporter || !this.config) {
-      console.error('❌ Email service not configured')
-      return false
-    }
+		return this.sendCSVValidationSummary(summary);
+	}
 
-    try {
-      const totalFailures = summary.headerFailures.length + summary.accessFailures.length
-      const subject = `🚨 Dorkinians Website V3 - CSV Validation Issues - ${totalFailures} data source(s) affected`
+	async sendCSVValidationSummary(summary: CSVValidationSummary): Promise<boolean> {
+		if (!this.transporter || !this.config) {
+			console.error("❌ Email service not configured");
+			return false;
+		}
 
-      const htmlBody = this.generateCSVValidationSummaryEmail(summary)
-      const textBody = this.generateCSVValidationSummaryEmailText(summary)
+		try {
+			const totalFailures = summary.headerFailures.length + summary.accessFailures.length;
+			const subject = `🚨 Dorkinians Website V3 - CSV Validation Issues - ${totalFailures} data source(s) affected`;
 
-      const mailOptions = {
-        from: this.config.from,
-        to: this.config.to,
-        subject,
-        html: htmlBody,
-        text: textBody
-      }
+			const htmlBody = this.generateCSVValidationSummaryEmail(summary);
+			const textBody = this.generateCSVValidationSummaryEmailText(summary);
 
-      const info = await this.transporter.sendMail(mailOptions)
-      console.log(`✅ CSV validation summary email sent: ${info.messageId}`)
-      return true
-    } catch (error) {
-      console.error('❌ Failed to send CSV validation summary email:', error)
-      return false
-    }
-  }
+			const mailOptions = {
+				from: this.config.from,
+				to: this.config.to,
+				subject,
+				html: htmlBody,
+				text: textBody,
+			};
 
-  private generateCSVValidationSummaryEmail(summary: CSVValidationSummary): string {
-    let html = `
+			const info = await this.transporter.sendMail(mailOptions);
+			console.log(`✅ CSV validation summary email sent: ${info.messageId}`);
+			return true;
+		} catch (error) {
+			console.error("❌ Failed to send CSV validation summary email:", error);
+			return false;
+		}
+	}
+
+	private generateCSVValidationSummaryEmail(summary: CSVValidationSummary): string {
+		let html = `
       <h2>🚨 CSV Validation Issues Detected</h2>
       <p>The database seeding process has detected issues with CSV data sources:</p>
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
@@ -115,54 +115,54 @@ export class EmailService {
         <li><strong>Header Validation Failures:</strong> ${summary.headerFailures.length}</li>
         <li><strong>Access Failures:</strong> ${summary.accessFailures.length}</li>
       </ul>
-    `
+    `;
 
-    // Header validation failures
-    if (summary.headerFailures.length > 0) {
-      html += `
+		// Header validation failures
+		if (summary.headerFailures.length > 0) {
+			html += `
         <h3>🔍 Header Validation Failures (${summary.headerFailures.length}):</h3>
         <p>These data sources have changes in their CSV headers:</p>
-      `
+      `;
 
-      summary.headerFailures.forEach((failure, index) => {
-        html += `
+			summary.headerFailures.forEach((failure, index) => {
+				html += `
           <div style="margin: 20px 0; padding: 15px; border: 1px solid #ff6b6b; border-radius: 5px; background-color: #fff5f5;">
             <h4>${index + 1}. ${failure.sourceName}</h4>
             <p><strong>URL:</strong> <a href="${failure.url}">${failure.url}</a></p>
 
             <div style="margin: 10px 0;">
               <h5>Expected Headers:</h5>
-              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(', ')}</code>
+              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(", ")}</code>
             </div>
 
             <div style="margin: 10px 0;">
               <h5>Actual Headers:</h5>
-              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.actualHeaders.join(', ')}</code>
+              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.actualHeaders.join(", ")}</code>
             </div>
 
             <div style="margin: 10px 0;">
               <h5>Missing Headers:</h5>
-              <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.missingHeaders.join(', ') || 'None'}</code>
+              <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.missingHeaders.join(", ") || "None"}</code>
             </div>
 
             <div style="margin: 10px 0;">
               <h5>Extra Headers:</h5>
-              <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.extraHeaders.join(', ') || 'None'}</code>
+              <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.extraHeaders.join(", ") || "None"}</code>
             </div>
           </div>
-        `
-      })
-    }
+        `;
+			});
+		}
 
-    // Access failures
-    if (summary.accessFailures.length > 0) {
-      html += `
+		// Access failures
+		if (summary.accessFailures.length > 0) {
+			html += `
         <h3>🔒 Access Failures (${summary.accessFailures.length}):</h3>
         <p>These data sources could not be accessed (likely permission or URL issues):</p>
-      `
+      `;
 
-      summary.accessFailures.forEach((failure, index) => {
-        html += `
+			summary.accessFailures.forEach((failure, index) => {
+				html += `
           <div style="margin: 20px 0; padding: 15px; border: 1px solid #e74c3c; border-radius: 5px; background-color: #fdf2f2;">
             <h4>${index + 1}. ${failure.sourceName}</h4>
             <p><strong>URL:</strong> <a href="${failure.url}">${failure.url}</a></p>
@@ -170,7 +170,7 @@ export class EmailService {
             
             <div style="margin: 10px 0;">
               <h5>Expected Headers:</h5>
-              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(', ')}</code>
+              <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(", ")}</code>
             </div>
             
             <div style="margin: 10px 0; padding: 10px; background-color: #fff3cd; border-radius: 3px;">
@@ -183,21 +183,21 @@ export class EmailService {
               </ul>
             </div>
           </div>
-        `
-      })
-    }
+        `;
+			});
+		}
 
-    html += `
+		html += `
       <h3>🔧 Required Actions:</h3>
       <ol>
-    `
-    
-    if (summary.headerFailures.length > 0) {
-      html += `<li>For header validation failures: Update the header configuration in <code>lib/config/csvHeaders.ts</code></li>`
-    }
-    
-    if (summary.accessFailures.length > 0) {
-      html += `
+    `;
+
+		if (summary.headerFailures.length > 0) {
+			html += `<li>For header validation failures: Update the header configuration in <code>lib/config/csvHeaders.ts</code></li>`;
+		}
+
+		if (summary.accessFailures.length > 0) {
+			html += `
         <li>For access failures: 
           <ul>
             <li>Check Google Sheets permissions and publishing settings</li>
@@ -205,10 +205,10 @@ export class EmailService {
             <li>Test URLs manually in a browser</li>
           </ul>
         </li>
-      `
-    }
+      `;
+		}
 
-    html += `
+		html += `
         <li>Test the validation process again with <code>npm run test-headers</code></li>
         <li>Run seeding only after all issues are resolved</li>
       </ol>
@@ -219,51 +219,51 @@ export class EmailService {
       <p style="color: #666; font-size: 12px;">
         This email was automatically generated by the Dorkinians FC database seeding system.
       </p>
-    `
+    `;
 
-    return html
-  }
+		return html;
+	}
 
-  private generateCSVHeaderValidationEmail(failures: CSVHeaderValidationFailure[]): string {
-    let html = `
+	private generateCSVHeaderValidationEmail(failures: CSVHeaderValidationFailure[]): string {
+		let html = `
       <h2>🚨 CSV Header Validation Failed</h2>
       <p>The database seeding process has detected changes in CSV headers for the following data sources:</p>
       <p><strong>Time:</strong> ${new Date().toISOString()}</p>
       <p><strong>Total Sources Affected:</strong> ${failures.length}</p>
       
       <h3>📊 Validation Failures:</h3>
-    `
+    `;
 
-    failures.forEach((failure, index) => {
-      html += `
+		failures.forEach((failure, index) => {
+			html += `
         <div style="margin: 20px 0; padding: 15px; border: 1px solid #ff6b6b; border-radius: 5px; background-color: #fff5f5;">
           <h4>${index + 1}. ${failure.sourceName}</h4>
           <p><strong>URL:</strong> <a href="${failure.url}">${failure.url}</a></p>
           
           <div style="margin: 10px 0;">
             <h5>Expected Headers:</h5>
-            <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(', ')}</code>
+            <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.expectedHeaders.join(", ")}</code>
           </div>
           
           <div style="margin: 10px 0;">
             <h5>Actual Headers:</h5>
-            <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.actualHeaders.join(', ')}</code>
+            <code style="background-color: #f0f0f0; padding: 5px; border-radius: 3px;">${failure.actualHeaders.join(", ")}</code>
           </div>
           
           <div style="margin: 10px 0;">
             <h5>Missing Headers:</h5>
-            <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.missingHeaders.join(', ') || 'None'}</code>
+            <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.missingHeaders.join(", ") || "None"}</code>
           </div>
           
           <div style="margin: 10px 0;">
             <h5>Extra Headers:</h5>
-            <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.extraHeaders.join(', ') || 'None'}</code>
+            <code style="background-color: #ffe6e6; padding: 5px; border-radius: 3px; color: #d63031;">${failure.extraHeaders.join(", ") || "None"}</code>
           </div>
         </div>
-      `
-    })
+      `;
+		});
 
-    html += `
+		html += `
       <h3>🔧 Required Actions:</h3>
       <ol>
         <li>Review the CSV files in Google Sheets</li>
@@ -277,13 +277,13 @@ export class EmailService {
       <p style="color: #666; font-size: 12px;">
         This email was automatically generated by the Dorkinians FC database seeding system.
       </p>
-    `
+    `;
 
-    return html
-  }
+		return html;
+	}
 
-  private generateCSVValidationSummaryEmailText(summary: CSVValidationSummary): string {
-    let text = `
+	private generateCSVValidationSummaryEmailText(summary: CSVValidationSummary): string {
+		let text = `
 CSV Validation Issues Detected
 
 The database seeding process has detected issues with CSV data sources:
@@ -296,45 +296,45 @@ SUMMARY:
 - Failed Sources: ${summary.failedSources}
 - Header Validation Failures: ${summary.headerFailures.length}
 - Access Failures: ${summary.accessFailures.length}
-`
+`;
 
-    // Header validation failures
-    if (summary.headerFailures.length > 0) {
-      text += `
+		// Header validation failures
+		if (summary.headerFailures.length > 0) {
+			text += `
 
 HEADER VALIDATION FAILURES (${summary.headerFailures.length}):
 These data sources have changes in their CSV headers:
-`
+`;
 
-      summary.headerFailures.forEach((failure, index) => {
-        text += `
+			summary.headerFailures.forEach((failure, index) => {
+				text += `
 ${index + 1}. ${failure.sourceName}
 URL: ${failure.url}
 
-Expected Headers: ${failure.expectedHeaders.join(', ')}
-Actual Headers: ${failure.actualHeaders.join(', ')}
-Missing Headers: ${failure.missingHeaders.join(', ') || 'None'}
-Extra Headers: ${failure.extraHeaders.join(', ') || 'None'}
+Expected Headers: ${failure.expectedHeaders.join(", ")}
+Actual Headers: ${failure.actualHeaders.join(", ")}
+Missing Headers: ${failure.missingHeaders.join(", ") || "None"}
+Extra Headers: ${failure.extraHeaders.join(", ") || "None"}
 
-`
-      })
-    }
+`;
+			});
+		}
 
-    // Access failures
-    if (summary.accessFailures.length > 0) {
-      text += `
+		// Access failures
+		if (summary.accessFailures.length > 0) {
+			text += `
 
 ACCESS FAILURES (${summary.accessFailures.length}):
 These data sources could not be accessed (likely permission or URL issues):
-`
+`;
 
-      summary.accessFailures.forEach((failure, index) => {
-        text += `
+			summary.accessFailures.forEach((failure, index) => {
+				text += `
 ${index + 1}. ${failure.sourceName}
 URL: ${failure.url}
 Error: ${failure.error}
 
-Expected Headers: ${failure.expectedHeaders.join(', ')}
+Expected Headers: ${failure.expectedHeaders.join(", ")}
 
 Possible Causes:
 - Google Sheets tab is not published or has restricted access
@@ -342,44 +342,44 @@ Possible Causes:
 - Temporary Google Sheets service issue
 - Network connectivity problems
 
-`
-      })
-    }
+`;
+			});
+		}
 
-    text += `
+		text += `
 
 REQUIRED ACTIONS:
-`
-    
-    if (summary.headerFailures.length > 0) {
-      text += `1. For header validation failures: Update the header configuration in lib/config/csvHeaders.ts
-`
-    }
-    
-    if (summary.accessFailures.length > 0) {
-      text += `${summary.headerFailures.length > 0 ? '2' : '1'}. For access failures:
+`;
+
+		if (summary.headerFailures.length > 0) {
+			text += `1. For header validation failures: Update the header configuration in lib/config/csvHeaders.ts
+`;
+		}
+
+		if (summary.accessFailures.length > 0) {
+			text += `${summary.headerFailures.length > 0 ? "2" : "1"}. For access failures:
    - Check Google Sheets permissions and publishing settings
    - Verify URLs and GIDs in lib/config/dataSources.ts
    - Test URLs manually in a browser
-`
-    }
+`;
+		}
 
-    const nextActionNumber = (summary.headerFailures.length > 0 ? 1 : 0) + (summary.accessFailures.length > 0 ? 1 : 0) + 1
+		const nextActionNumber = (summary.headerFailures.length > 0 ? 1 : 0) + (summary.accessFailures.length > 0 ? 1 : 0) + 1;
 
-    text += `${nextActionNumber}. Test the validation process again with: npm run test-headers
+		text += `${nextActionNumber}. Test the validation process again with: npm run test-headers
 ${nextActionNumber + 1}. Run seeding only after all issues are resolved
 
 Note: Database seeding has been halted to prevent data corruption.
 
 ---
 This email was automatically generated by the Dorkinians FC database seeding system.
-`
+`;
 
-    return text
-  }
+		return text;
+	}
 
-  private generateCSVHeaderValidationEmailText(failures: CSVHeaderValidationFailure[]): string {
-    let text = `
+	private generateCSVHeaderValidationEmailText(failures: CSVHeaderValidationFailure[]): string {
+		let text = `
 CSV Header Validation Failed
 
 The database seeding process has detected changes in CSV headers for the following data sources:
@@ -388,22 +388,22 @@ Time: ${new Date().toISOString()}
 Total Sources Affected: ${failures.length}
 
 VALIDATION FAILURES:
-`
+`;
 
-    failures.forEach((failure, index) => {
-      text += `
+		failures.forEach((failure, index) => {
+			text += `
 ${index + 1}. ${failure.sourceName}
 URL: ${failure.url}
 
-Expected Headers: ${failure.expectedHeaders.join(', ')}
-Actual Headers: ${failure.actualHeaders.join(', ')}
-Missing Headers: ${failure.missingHeaders.join(', ') || 'None'}
-Extra Headers: ${failure.extraHeaders.join(', ') || 'None'}
+Expected Headers: ${failure.expectedHeaders.join(", ")}
+Actual Headers: ${failure.actualHeaders.join(", ")}
+Missing Headers: ${failure.missingHeaders.join(", ") || "None"}
+Extra Headers: ${failure.extraHeaders.join(", ") || "None"}
 
-`
-    })
+`;
+		});
 
-    text += `
+		text += `
 REQUIRED ACTIONS:
 1. Review the CSV files in Google Sheets
 2. Update the header configuration in lib/config/csvHeaders.ts
@@ -413,26 +413,26 @@ Note: Database seeding has been halted to prevent data corruption.
 
 ---
 This email was automatically generated by the Dorkinians FC database seeding system.
-`
+`;
 
-    return text
-  }
+		return text;
+	}
 
-  async testConnection(): Promise<boolean> {
-    if (!this.transporter) {
-      console.error('❌ Email service not configured')
-      return false
-    }
+	async testConnection(): Promise<boolean> {
+		if (!this.transporter) {
+			console.error("❌ Email service not configured");
+			return false;
+		}
 
-    try {
-      await this.transporter.verify()
-      console.log('✅ Email service connection verified')
-      return true
-    } catch (error) {
-      console.error('❌ Email service connection failed:', error)
-      return false
-    }
-  }
+		try {
+			await this.transporter.verify();
+			console.log("✅ Email service connection verified");
+			return true;
+		} catch (error) {
+			console.error("❌ Email service connection failed:", error);
+			return false;
+		}
+	}
 }
 
-export const emailService = EmailService.getInstance()
+export const emailService = EmailService.getInstance();

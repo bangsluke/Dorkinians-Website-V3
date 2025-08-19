@@ -22,6 +22,7 @@ SMTP_TO_EMAIL=your-email@gmail.com
 ## Email Provider Examples
 
 ### Gmail
+
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -31,6 +32,7 @@ SMTP_PASSWORD=your-app-password  # Use App Password, not regular password
 ```
 
 ### Outlook/Hotmail
+
 ```bash
 SMTP_SERVER=smtp-mail.outlook.com
 SMTP_PORT=587
@@ -40,6 +42,7 @@ SMTP_PASSWORD=your-password
 ```
 
 ### Custom SMTP Server
+
 ```bash
 SMTP_SERVER=mail.yourdomain.com
 SMTP_PORT=587
@@ -77,17 +80,20 @@ npm run test-headers
 ## Troubleshooting
 
 ### Email Not Sending
+
 - Check all environment variables are set
 - Verify SMTP credentials
 - Check firewall/network restrictions
 - Test with `npm run test-headers`
 
 ### Headers Not Matching
+
 - Review CSV files in Google Sheets
 - Update `lib/config/csvHeaders.ts` with new headers
 - Test again with `npm run test-headers`
 
 ### False Positives
+
 - Ensure CSV files are accessible
 - Check for extra spaces or special characters in headers
 - Verify CSV encoding (should be UTF-8)
