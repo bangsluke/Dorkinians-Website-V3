@@ -47,7 +47,7 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 	},
 	{
 		name: "TBL_MatchDetails",
-		expectedHeaders: ["TEAM", "PLAYER NAME", "DATE", "MIN", "CLASS", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "PSC", "PM", "PCO", "PSV"],
+		expectedHeaders: ["SEASON FIX ID", "TEAM", "PLAYER NAME", "DATE", "MIN", "CLASS", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "PSC", "PM", "PCO", "PSV"],
 		description: "Individual player performance data for each match",
 	},
 	{

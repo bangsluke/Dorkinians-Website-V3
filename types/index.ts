@@ -178,3 +178,10 @@ export interface DataUpdateResponse {
 	recordsProcessed: number;
 	errors?: string[];
 }
+
+export interface DataSource {
+	name: string;
+	url: string;
+	type: string;
+	maxRows?: number; // Optional property for reduced seeding mode
+}

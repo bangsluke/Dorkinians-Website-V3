@@ -10,13 +10,14 @@ export type CSVRow = CSVData;
 export interface DataSource {
 	name: string;
 	url: string;
-	type: "StatsData" | "FASiteData";
+	type: string;
+	maxRows?: number; // Optional property for reduced seeding mode
 }
 
 export class DataService {
 	private static instance: DataService;
-	private dataCache: Map<string, { data: CSVRow[]; timestamp: number }> = new Map();
-	private readonly CACHE_DURATION = process.env.NODE_ENV === "development" ? 1000 * 60 * 5 : 1000 * 60 * 60 * 24; // 5 minutes in dev, 24 hours in prod
+	private cache: Map<string, any> = new Map();
+	private cacheStats = { hits: 0, misses: 0, size: 0 };
 
 	static getInstance(): DataService {
 		if (!DataService.instance) {
@@ -25,49 +26,52 @@ export class DataService {
 		return DataService.instance;
 	}
 
-	async fetchCSVData(url: string, sourceName: string): Promise<CSVRow[]> {
+	async fetchCSVData(dataSource: DataSource, reducedMode: boolean = false, maxRows: number = 50): Promise<CSVRow[]> {
+		const cacheKey = `${dataSource.name}-${reducedMode}-${maxRows}`;
+		
 		// Check cache first
-		const cached = this.dataCache.get(sourceName);
-		if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-			console.log(`📦 Using cached data for ${sourceName}`);
-			return cached.data;
+		if (this.cache.has(cacheKey)) {
+			this.cacheStats.hits++;
+			return this.cache.get(cacheKey);
 		}
 
-		try {
-			console.log(`🌐 Fetching data from ${sourceName}...`);
+		this.cacheStats.misses++;
 
-			const response = await fetch(url);
+		try {
+			console.log(`📥 Fetching CSV data from: ${dataSource.url}`);
+			if (reducedMode) {
+				console.log(`📊 Reduced mode: Processing max ${maxRows} rows`);
+			}
+
+			const response = await fetch(dataSource.url);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 
 			const csvText = await response.text();
 			const result = Papa.parse(csvText, {
-				header: true, // Use headers for column names
+				header: true,
 				skipEmptyLines: true,
-				transform: (value) => {
-					// Convert numeric strings to numbers
-					const num = Number(value);
-					return isNaN(num) ? value : num;
-				},
+				transformHeader: (header) => header.trim(),
 			});
 
-			if (result.errors.length > 0) {
-				console.warn(`⚠️ CSV parsing warnings for ${sourceName}:`, result.errors);
+			let rows = result.data as CSVRow[];
+
+			// Apply row limit if in reduced mode
+			if (reducedMode && maxRows > 0) {
+				const originalCount = rows.length;
+				rows = rows.slice(0, maxRows);
+				console.log(`📊 Reduced from ${originalCount} to ${rows.length} rows for ${dataSource.name}`);
 			}
 
-			const data = result.data as CSVRow[];
-			console.log(`✅ Fetched ${data.length} rows from ${sourceName}`);
+			// Cache the result
+			this.cache.set(cacheKey, rows);
+			this.cacheStats.size = this.cache.size;
 
-			// Cache the data
-			this.dataCache.set(sourceName, {
-				data,
-				timestamp: Date.now(),
-			});
-
-			return data;
+			console.log(`✅ Successfully fetched ${rows.length} rows from ${dataSource.name}`);
+			return rows;
 		} catch (error) {
-			console.error(`❌ Failed to fetch data from ${sourceName}:`, error);
+			console.error(`❌ Error fetching CSV data from ${dataSource.url}:`, error);
 			throw error;
 		}
 	}
@@ -77,7 +81,7 @@ export class DataService {
 
 		const promises = dataSources.map(async (source) => {
 			try {
-				const data = await this.fetchCSVData(source.url, source.name);
+				const data = await this.fetchCSVData(source, false, 0); // No reduced mode for all data
 				results.set(source.name, data);
 			} catch (error) {
 				console.error(`Failed to fetch ${source.name}:`, error);
@@ -90,14 +94,15 @@ export class DataService {
 	}
 
 	clearCache(): void {
-		this.dataCache.clear();
+		this.cache.clear();
+		this.cacheStats = { hits: 0, misses: 0, size: 0 };
 		console.log("🗑️ Data cache cleared");
 	}
 
 	getCacheStats(): { size: number; sources: string[] } {
 		return {
-			size: this.dataCache.size,
-			sources: Array.from(this.dataCache.keys()),
+			size: this.cacheStats.size,
+			sources: Array.from(this.cache.keys()),
 		};
 	}
 }

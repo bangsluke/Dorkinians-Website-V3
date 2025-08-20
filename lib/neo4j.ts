@@ -144,6 +144,36 @@ class Neo4jService {
 		}
 	}
 
+	async ensureNodeExists(label: string, id: string, maxRetries: number = 3): Promise<boolean> {
+		for (let attempt = 1; attempt <= maxRetries; attempt++) {
+			try {
+				const query = `
+          MATCH (n:${label} {id: $id, graphLabel: $graphLabel})
+          RETURN n
+          LIMIT 1
+        `;
+				
+				const result = await this.runQuery(query, { id, graphLabel: this.GRAPH_LABEL });
+				
+				if (result.records.length > 0) {
+					return true;
+				}
+				
+				if (attempt < maxRetries) {
+					console.log(`⏳ Node ${label}:${id} not found, retrying in 100ms (attempt ${attempt}/${maxRetries})`);
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+			} catch (error) {
+				console.warn(`⚠️ Error checking node existence (attempt ${attempt}):`, error);
+				if (attempt < maxRetries) {
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+			}
+		}
+		
+		return false;
+	}
+
 	async createRelationship(
 		fromLabel: string,
 		fromProps: any,
@@ -157,9 +187,37 @@ class Neo4jService {
 		}
 		const session = this.driver.session();
 		try {
-			// Only create relationships between existing nodes
-			// This prevents infinite loops during seeding
-			const query = `
+			// Ensure both nodes exist with retry logic
+			const fromNodeExists = await this.ensureNodeExists(fromLabel, fromProps.id);
+			if (!fromNodeExists) {
+				throw new Error(`From node not found after retries: ${fromLabel}:${fromProps.id}`);
+			}
+
+			const toNodeExists = await this.ensureNodeExists(toLabel, toProps.id);
+			if (!toNodeExists) {
+				throw new Error(`To node not found after retries: ${toLabel}:${toProps.id}`);
+			}
+
+			// Check if relationship already exists to prevent duplicates
+			const existingRelQuery = `
+        MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})-[r:${relationshipType}]->(to:${toLabel} {id: $toId, graphLabel: $graphLabel})
+        RETURN r
+        LIMIT 1
+      `;
+			
+			const existingRel = await session.run(existingRelQuery, {
+				fromId: fromProps.id,
+				toId: toProps.id,
+				graphLabel: this.GRAPH_LABEL,
+			});
+
+			if (existingRel.records.length > 0) {
+				console.log(`ℹ️ Relationship ${relationshipType} already exists between ${fromProps.id} and ${toProps.id}`);
+				return existingRel.records[0].get("r");
+			}
+
+			// Create the relationship
+			const createRelQuery = `
         MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})
         MATCH (to:${toLabel} {id: $toId, graphLabel: $graphLabel})
         CREATE (from)-[r:${relationshipType} $relProps]->(to)
@@ -177,10 +235,18 @@ class Neo4jService {
 				},
 			};
 
-			const result = await session.run(query, params);
-			return result.records[0]?.get("r");
+			const result = await session.run(createRelQuery, params);
+			const relationship = result.records[0]?.get("r");
+			
+			if (relationship) {
+				console.log(`✅ Created ${relationshipType} relationship: ${fromProps.id} → ${toProps.id}`);
+			} else {
+				throw new Error(`Failed to create ${relationshipType} relationship between ${fromProps.id} and ${toProps.id}`);
+			}
+			
+			return relationship;
 		} catch (error) {
-			console.error("❌ Relationship creation failed:", error);
+			console.error(`❌ Relationship creation failed for ${relationshipType} between ${fromProps.id} and ${toProps.id}:`, error);
 			throw error;
 		} finally {
 			await session.close();

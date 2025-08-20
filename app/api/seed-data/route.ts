@@ -4,11 +4,12 @@ import { dataService } from "@/lib/services/dataService";
 import { csvHeaderValidator } from "@/lib/services/csvHeaderValidator";
 import { emailService } from "@/lib/services/emailService";
 import { getEmailConfig } from "@/lib/config/emailConfig";
+import { getDataSourcesByName } from "@/lib/config/dataSources";
 
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const { action, dataSources } = body;
+		const { action, dataSources, reducedMode } = body;
 
 		if (!dataSources || !Array.isArray(dataSources)) {
 			return NextResponse.json({ error: "dataSources array is required" }, { status: 400 });
@@ -28,14 +29,9 @@ export async function POST(request: NextRequest) {
 					console.log("⚠️ Email service not configured - CSV header validation failures will not be emailed");
 				}
 
-				// Validate CSV headers
-				const headerValidationResult = await csvHeaderValidator.validateAllCSVHeaders(
-					dataSources.map((name) => ({
-						name,
-						url: `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/export?format=csv&gid=${getGidForDataSource(name)}`,
-						type: "StatsData" as const,
-					})),
-				);
+				// Validate CSV headers using correct URLs from dataSources.ts
+				const dataSourceObjects = getDataSourcesByName(dataSources);
+				const headerValidationResult = await csvHeaderValidator.validateAllCSVHeaders(dataSourceObjects);
 
 				if (!headerValidationResult.isValid) {
 					console.error(
@@ -66,9 +62,12 @@ export async function POST(request: NextRequest) {
 
 		// Default action: seed the data
 		console.log("🌱 Starting data seeding process...");
+		if (reducedMode) {
+			console.log("📊 REDUCED MODE: Processing limited rows for testing");
+		}
 
-		// Seed the data
-		const result = await dataSeederService.seedAllData(dataSources);
+		// Seed the data with reduced mode flag
+		const result = await dataSeederService.seedAllData(dataSources, reducedMode);
 
 		if (result.success) {
 			console.log(`✅ Data seeding completed: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
@@ -99,18 +98,4 @@ export async function GET() {
 	}
 }
 
-// Helper function to get GID for data sources (using actual GIDs from dataSources.ts)
-function getGidForDataSource(name: string): string {
-	const gidMap: Record<string, string> = {
-		TBL_Players: "528214413",
-		TBL_FixturesAndResults: "0",
-		TBL_MatchDetails: "1",
-		TBL_WeeklyTOTW: "2",
-		TBL_SeasonTOTW: "3",
-		TBL_PlayersOfTheMonth: "4",
-		TBL_OppositionDetails: "6",
-		TBL_SiteDetails: "7",
-		TBL_CaptainsAndAwards: "8",
-	};
-	return gidMap[name] || "0";
-}
+
