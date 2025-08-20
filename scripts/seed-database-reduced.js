@@ -56,17 +56,17 @@ const { dataSources } = require("../lib/config/dataSources");
 // Add maxRows to each data source for reduced seeding
 const REDUCED_DATA_SOURCES = dataSources.map(source => ({
 	...source,
-	maxRows: 50 // Limit to 50 rows per source for testing
+	maxRows: 100 // Limit to 100 rows per source for testing
 }));
 
 // Unified database seeding script that works with both development and production
 async function seedDatabase() {
 	try {
 		console.log("🌱 Starting reduced database seeding process...");
-		console.log("📊 REDUCED MODE: Processing limited rows for testing");
+		console.log("📊 REDUCED MODE: Processing up to 100 rows per table for testing");
 
 		// Make request to the seeding API
-		const apiUrl = "http://localhost:3000/api/seed-data";
+		const apiUrl = "http://localhost:3000/api/seed-data/";
 		const response = await makeRequest(apiUrl, {
 			method: "POST",
 			headers: {
@@ -78,28 +78,36 @@ async function seedDatabase() {
 			}),
 		});
 
-		if (response.success) {
+		if (response.ok) {
+			const result = await response.json();
 			console.log("✅ Database seeding completed successfully!");
-			console.log(`📊 Nodes created: ${response.data.nodesCreated}`);
-			console.log(`🔗 Relationships created: ${response.data.relationshipsCreated}`);
-			console.log(`⚠️ Errors: ${response.data.errors.length}`);
-			console.log(`❓ Unknown nodes: ${response.data.unknownNodes.length}`);
+			console.log(`📊 Result:`, result);
 
-			if (response.data.errors.length > 0) {
-				console.log("\n❌ Errors encountered:");
-				response.data.errors.forEach((error, index) => {
-					console.log(`  ${index + 1}. ${error}`);
-				});
-			}
+			if (result.success) {
+				console.log(`📊 Nodes created: ${result.nodesCreated}`);
+				console.log(`🔗 Relationships created: ${result.relationshipsCreated}`);
+				console.log(`⚠️ Errors: ${result.errors.length}`);
+				console.log(`❓ Unknown nodes: ${result.unknownNodes.length}`);
 
-			if (response.data.unknownNodes.length > 0) {
-				console.log("\n❓ Unknown nodes encountered:");
-				response.data.unknownNodes.forEach((node, index) => {
-					console.log(`  ${index + 1}. ${node}`);
-				});
+				if (result.errors.length > 0) {
+					console.log("\n❌ Errors encountered:");
+					result.errors.forEach((error, index) => {
+						console.log(`  ${index + 1}. ${error}`);
+					});
+				}
+
+				if (result.unknownNodes.length > 0) {
+					console.log("\n❓ Unknown nodes encountered:");
+					result.unknownNodes.forEach((node, index) => {
+						console.log(`  ${index + 1}. ${node}`);
+					});
+				}
+			} else {
+				console.log("⚠️ Seeding completed with errors:", result.errors);
 			}
 		} else {
-			console.error("❌ Database seeding failed:", response.error);
+			const errorText = await response.text();
+			console.error("❌ Database seeding failed:", response.status, errorText);
 			process.exit(1);
 		}
 	} catch (error) {

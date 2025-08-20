@@ -241,22 +241,8 @@ export class DataSeederService {
 				}
 			});
 
-			// Create relationships for nodes in this source
-			for (const node of nodeResult.createdNodes) {
-				try {
-					const relationshipsCreatedForNode = await this.createRelationshipsForNode(node);
-					relationshipsCreated += relationshipsCreatedForNode;
-
-					if (relationshipsCreatedForNode === 0) {
-						this.logError(`No relationships created for node: ${node.nodeLabel} - ${node.id}`, node.properties);
-					}
-				} catch (error) {
-					const errorMsg = `Failed to create relationships for node ${node.id}: ${error instanceof Error ? error.message : String(error)}`;
-					console.warn(`⚠️ ${errorMsg}`);
-					this.logError(errorMsg, { nodeId: node.id, nodeLabel: node.nodeLabel, properties: node.properties });
-					errors.push(errorMsg);
-				}
-			}
+			// Note: Relationships will be created after all nodes are created
+			console.log(`ℹ️ Relationships for ${sourceName} will be created after all nodes are processed`);
 
 			console.log(`✅ ${sourceName}: ${nodesCreated} nodes, ${relationshipsCreated} relationships created`);
 		} catch (error) {
@@ -270,15 +256,60 @@ export class DataSeederService {
 	}
 
 	private async createAllRelationships(): Promise<number> {
-		console.log("🔗 Creating additional relationships between existing nodes...");
+		console.log("🔗 Creating relationships between all nodes...");
 		let totalRelationships = 0;
 
 		try {
-			// This method can be used to create any additional relationships that weren't created during node processing
-			// For now, we'll return 0 as relationships are created during node processing
-			console.log("ℹ️ All relationships created during node processing");
+			// Get all nodes from the database to create relationships
+			const allNodesQuery = `
+				MATCH (n {graphLabel: 'dorkiniansWebsite'})
+				RETURN n.id as id, labels(n)[0] as label, n
+				ORDER BY labels(n)[0], n.id
+			`;
+			
+			const allNodesResult = await neo4jService.runQuery(allNodesQuery);
+			console.log(`📊 Found ${allNodesResult.records.length} nodes to process for relationships`);
+			
+			// Group nodes by type
+			const nodesByType: { [key: string]: any[] } = {};
+			allNodesResult.records.forEach(record => {
+				const label = record.get("label");
+				const nodeData = record.get("n").properties;
+				if (!nodesByType[label]) {
+					nodesByType[label] = [];
+				}
+				nodesByType[label].push(nodeData);
+			});
+			
+			// Create relationships for each node type
+			for (const [nodeType, nodes] of Object.entries(nodesByType)) {
+				console.log(`🔗 Processing ${nodeType} nodes for relationships...`);
+				
+				// Map Neo4j labels back to source names for relationship creation
+				const sourceName = this.mapNodeLabelToSourceName(nodeType);
+				
+				for (const node of nodes) {
+					try {
+						const relationshipsCreatedForNode = await this.createRelationshipsForNode({
+							id: node.id,
+							properties: node,
+							sourceName: sourceName,
+							nodeLabel: nodeType
+						});
+						totalRelationships += relationshipsCreatedForNode;
+						
+						if (relationshipsCreatedForNode === 0) {
+							console.log(`ℹ️ No relationships created for ${nodeType}: ${node.id}`);
+						}
+					} catch (error) {
+						console.warn(`⚠️ Failed to create relationships for ${nodeType} ${node.id}: ${error instanceof Error ? error.message : String(error)}`);
+					}
+				}
+			}
+			
+			console.log(`✅ Created ${totalRelationships} total relationships`);
 		} catch (error) {
-			console.error(`❌ Error creating additional relationships: ${error instanceof Error ? error.message : String(error)}`);
+			console.error(`❌ Error creating relationships: ${error instanceof Error ? error.message : String(error)}`);
 		}
 
 		return totalRelationships;
@@ -841,6 +872,7 @@ export class DataSeederService {
 					name: playerData.mostPlayedForTeam,
 					season: "current", // Default season since we don't have specific season data
 					league: "unknown",
+					graphLabel: "dorkiniansWebsite",
 				});
 
 				// Create PLAYS_FOR relationship
@@ -1058,166 +1090,179 @@ export class DataSeederService {
 
 			// Create MatchDetail-Player relationship
 			if (matchDetailData.playerName) {
-				const playerId = `player-${String(matchDetailData.playerName).toLowerCase().replace(/\s+/g, "-")}`;
-
-				// Check if player node exists before creating relationship
-				const playerExists = await this.checkNodeExists("Player", playerId);
-				if (!playerExists) {
-					console.warn(`⚠️ Player node ${playerId} not found for MatchDetail ${matchDetailData.id}`);
-					this.logError(`Player node not found for MatchDetail ${matchDetailData.id}`, { playerId, matchDetailData });
-					// Continue with other relationships instead of failing completely
-				} else {
-					// Calculate clean sheet based on fixture CONCEDED value
-					let cleanSheet = 0;
-					if (matchDetailData.fixtureId) {
-						try {
-							// Find the fixture to get the CONCEDED value using the direct fixture ID
-							const fixtureQuery = `
-              MATCH (f:Fixture {id: $fixtureId, graphLabel: 'dorkiniansWebsite'})
-              RETURN f.conceded as conceded
-            `;
-							const fixtureResult = await neo4jService.runQuery(fixtureQuery, {
-								fixtureId: String(matchDetailData.fixtureId),
-							});
-							if (fixtureResult.records.length > 0) {
-								const conceded = fixtureResult.records[0].get("conceded");
-								// Clean sheet = 1 if conceded = 0, otherwise 0
-								cleanSheet = conceded === 0 ? 1 : 0;
+				// Try to find player by name instead of generating ID
+				const playerQuery = `
+					MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+					RETURN p.id as playerId
+					LIMIT 1
+				`;
+				
+				try {
+					const playerResult = await neo4jService.runQuery(playerQuery, { playerName: String(matchDetailData.playerName) });
+					
+					if (playerResult.records.length > 0) {
+						const playerId = playerResult.records[0].get("playerId");
+						
+						// Calculate clean sheet based on fixture CONCEDED value
+						let cleanSheet = 0;
+						if (matchDetailData.fixtureId) {
+							try {
+								// Find the fixture to get the CONCEDED value using the direct fixture ID
+								const fixtureQuery = `
+									MATCH (f:Fixture {id: $fixtureId, graphLabel: 'dorkiniansWebsite'})
+									RETURN f.conceded as conceded
+								`;
+								const fixtureResult = await neo4jService.runQuery(fixtureQuery, {
+									fixtureId: String(matchDetailData.fixtureId),
+								});
+								if (fixtureResult.records.length > 0) {
+									const conceded = fixtureResult.records[0].get("conceded");
+									// Clean sheet = 1 if conceded = 0, otherwise 0
+									cleanSheet = conceded === 0 ? 1 : 0;
+								}
+							} catch (error) {
+								console.warn(
+									`⚠️ Could not calculate clean sheet for ${matchDetailData.id}: ${error instanceof Error ? error.message : String(error)}`,
+								);
+								this.logError(`Clean sheet calculation failed for ${matchDetailData.id}`, {
+									error: error instanceof Error ? error.message : String(error),
+								});
 							}
-						} catch (error) {
-							console.warn(
-								`⚠️ Could not calculate clean sheet for ${matchDetailData.id}: ${error instanceof Error ? error.message : String(error)}`,
-							);
-							this.logError(`Clean sheet calculation failed for ${matchDetailData.id}`, {
-								error: error instanceof Error ? error.message : String(error),
-							});
 						}
-					}
 
-					// Create PERFORMED_IN relationship with all statistical properties
-					const performedInRel = await neo4jService.createRelationship(
-						"Player",
-						{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-						"PERFORMED_IN",
-						"MatchDetail",
-						{ id: matchDetailNodeId, graphLabel: "dorkiniansWebsite" } as any,
-						{
-							goals: matchDetailData.goals || 0,
-							assists: matchDetailData.assists || 0,
-							manOfMatch: matchDetailData.manOfMatch || 0,
-							yellowCards: matchDetailData.yellowCards || 0,
-							redCards: matchDetailData.redCards || 0,
-							saves: matchDetailData.saves || 0,
-							ownGoals: matchDetailData.ownGoals || 0,
-							penaltiesScored: matchDetailData.penaltiesScored || 0,
-							penaltiesMissed: matchDetailData.penaltiesMissed || 0,
-							penaltiesConceded: matchDetailData.penaltiesConceded || 0,
-							penaltiesSaved: matchDetailData.penaltiesSaved || 0,
-							cleanSheet: cleanSheet,
-							graphLabel: "dorkiniansWebsite",
-						},
-					);
+						// Create PERFORMED_IN relationship with all statistical properties
+						const performedInRel = await neo4jService.createRelationship(
+							"Player",
+							{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+							"PERFORMED_IN",
+							"MatchDetail",
+							{ id: matchDetailNodeId, graphLabel: "dorkiniansWebsite" } as any,
+							{
+								goals: matchDetailData.goals || 0,
+								assists: matchDetailData.assists || 0,
+								manOfMatch: matchDetailData.manOfMatch || 0,
+								yellowCards: matchDetailData.yellowCards || 0,
+								redCards: matchDetailData.redCards || 0,
+								saves: matchDetailData.saves || 0,
+								ownGoals: matchDetailData.ownGoals || 0,
+								penaltiesScored: matchDetailData.penaltiesScored || 0,
+								penaltiesMissed: matchDetailData.penaltiesMissed || 0,
+								penaltiesConceded: matchDetailData.penaltiesConceded || 0,
+								penaltiesSaved: matchDetailData.penaltiesSaved || 0,
+								cleanSheet: cleanSheet,
+								graphLabel: "dorkiniansWebsite",
+							},
+						);
 
-					if (performedInRel) {
-						relationshipsCreated++;
-						console.log(`  ✅ Created PERFORMED_IN relationship: ${matchDetailData.playerName} → ${matchDetailData.id}`);
+						if (performedInRel) {
+							relationshipsCreated++;
+							console.log(`  ✅ Created PERFORMED_IN relationship: ${matchDetailData.playerName} → ${matchDetailData.id}`);
+						} else {
+							this.logError(`Failed to create PERFORMED_IN relationship for ${matchDetailData.id}`, { playerId, matchDetailData });
+						}
+
+						// Create Player-Team relationship based on match data
+						if (matchDetailData.team) {
+							const teamId = `team-${String(matchDetailData.team).toLowerCase().replace(/\s+/g, "-")}`;
+
+							// Create team node if it doesn't exist
+							await neo4jService.createNodeIfNotExists("Team", {
+								id: teamId,
+								name: matchDetailData.team,
+								season: matchDetailData.season || "unknown",
+								league: "unknown",
+								graphLabel: "dorkiniansWebsite",
+							});
+
+							// Check if PLAYS_FOR relationship already exists to prevent duplicates
+							const existingPlaysForQuery = `
+								MATCH (p:Player {id: $playerId, graphLabel: 'dorkiniansWebsite'})-[r:PLAYS_FOR]->(t:Team {id: $teamId, graphLabel: 'dorkiniansWebsite'})
+								WHERE r.season = $season
+								RETURN r LIMIT 1
+							`;
+							const existingPlaysFor = await neo4jService.runQuery(existingPlaysForQuery, {
+								playerId,
+								teamId,
+								season: matchDetailData.season || "unknown",
+							});
+
+							if (existingPlaysFor.records.length === 0) {
+								// Create PLAYS_FOR relationship only if it doesn't exist
+								const playsForRel = await neo4jService.createRelationship(
+									"Player",
+									{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+									"PLAYS_FOR",
+									"Team",
+									{ id: teamId, graphLabel: "dorkiniansWebsite" } as any,
+									{
+										season: matchDetailData.season || "unknown",
+										startDate: matchDetailData.date || new Date().toISOString(),
+										graphLabel: "dorkiniansWebsite",
+									},
+								);
+
+								if (playsForRel) {
+									relationshipsCreated++;
+									console.log(`  ✅ Created PLAYS_FOR relationship: ${matchDetailData.playerName} → ${matchDetailData.team}`);
+								} else {
+									this.logError(`Failed to create PLAYS_FOR relationship for ${matchDetailData.id}`, { playerId, teamId, matchDetailData });
+								}
+							} else {
+								console.log(
+									`  ℹ️ PLAYS_FOR relationship already exists: ${matchDetailData.playerName} → ${matchDetailData.team} (${matchDetailData.season})`,
+								);
+							}
+						}
+
+						// Create Player-Season relationship based on match data
+						if (matchDetailData.season) {
+							const seasonId = `season-${String(matchDetailData.season).toLowerCase().replace(/\s+/g, "-")}`;
+
+							// Create season node if it doesn't exist
+							await neo4jService.createNodeIfNotExists("Season", {
+								id: seasonId,
+								name: matchDetailData.season,
+								startYear: this.extractYear(String(matchDetailData.season)),
+								endYear: this.extractYear(String(matchDetailData.season)) + 1,
+								isActive: false,
+								graphLabel: "dorkiniansWebsite",
+							});
+
+							// Check if PARTICIPATES_IN relationship already exists to prevent duplicates
+							const existingParticipatesQuery = `
+								MATCH (p:Player {id: $playerId, graphLabel: 'dorkiniansWebsite'})-[r:PARTICIPATES_IN]->(s:Season {id: $seasonId, graphLabel: 'dorkiniansWebsite'})
+								RETURN r LIMIT 1
+							`;
+							const existingParticipates = await neo4jService.runQuery(existingParticipatesQuery, { playerId, seasonId });
+
+							if (existingParticipates.records.length === 0) {
+								// Create PARTICIPATES_IN relationship only if it doesn't exist
+								const participatesRel = await neo4jService.createRelationship(
+									"Player",
+									{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+									"PARTICIPATES_IN",
+									"Season",
+									{ id: seasonId, graphLabel: "dorkiniansWebsite" } as any,
+									{ graphLabel: "dorkiniansWebsite" },
+								);
+
+								if (participatesRel) {
+									relationshipsCreated++;
+									console.log(`  ✅ Created PARTICIPATES_IN relationship: ${matchDetailData.playerName} → ${matchDetailData.season}`);
+								} else {
+									this.logError(`Failed to create PARTICIPATES_IN relationship for ${matchDetailData.id}`, { playerId, seasonId, matchDetailData });
+								}
+							} else {
+								console.log(`  ℹ️ PARTICIPATES_IN relationship already exists: ${matchDetailData.playerName} → ${matchDetailData.season}`);
+							}
+						}
 					} else {
-						this.logError(`Failed to create PERFORMED_IN relationship for ${matchDetailData.id}`, { playerId, matchDetailData });
+						console.warn(`⚠️ Player node not found for name: ${matchDetailData.playerName} in MatchDetail ${matchDetailData.id}`);
+						this.logError(`Player node not found for name: ${matchDetailData.playerName} in MatchDetail ${matchDetailData.id}`, { playerName: matchDetailData.playerName, matchDetailData });
 					}
-
-					// Create Player-Team relationship based on match data
-					if (matchDetailData.team) {
-						const teamId = `team-${String(matchDetailData.team).toLowerCase().replace(/\s+/g, "-")}`;
-
-						// Create team node if it doesn't exist
-						await neo4jService.createNodeIfNotExists("Team", {
-							id: teamId,
-							name: matchDetailData.team,
-							season: matchDetailData.season || "unknown",
-							league: "unknown",
-						});
-
-						// Check if PLAYS_FOR relationship already exists to prevent duplicates
-						const existingPlaysForQuery = `
-            MATCH (p:Player {id: $playerId, graphLabel: 'dorkiniansWebsite'})-[r:PLAYS_FOR]->(t:Team {id: $teamId, graphLabel: 'dorkiniansWebsite'})
-            WHERE r.season = $season
-            RETURN r LIMIT 1
-          `;
-						const existingPlaysFor = await neo4jService.runQuery(existingPlaysForQuery, {
-							playerId,
-							teamId,
-							season: matchDetailData.season || "unknown",
-						});
-
-						if (existingPlaysFor.records.length === 0) {
-							// Create PLAYS_FOR relationship only if it doesn't exist
-							const playsForRel = await neo4jService.createRelationship(
-								"Player",
-								{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-								"PLAYS_FOR",
-								"Team",
-								{ id: teamId, graphLabel: "dorkiniansWebsite" } as any,
-								{
-									season: matchDetailData.season || "unknown",
-									startDate: matchDetailData.date || new Date().toISOString(),
-									graphLabel: "dorkiniansWebsite",
-								},
-							);
-
-							if (playsForRel) {
-								relationshipsCreated++;
-								console.log(`  ✅ Created PLAYS_FOR relationship: ${matchDetailData.playerName} → ${matchDetailData.team}`);
-							} else {
-								this.logError(`Failed to create PLAYS_FOR relationship for ${matchDetailData.id}`, { playerId, teamId, matchDetailData });
-							}
-						} else {
-							console.log(
-								`  ℹ️ PLAYS_FOR relationship already exists: ${matchDetailData.playerName} → ${matchDetailData.team} (${matchDetailData.season})`,
-							);
-						}
-					}
-
-					// Create Player-Season relationship based on match data
-					if (matchDetailData.season) {
-						const seasonId = `season-${String(matchDetailData.season).toLowerCase().replace(/\s+/g, "-")}`;
-
-						// Create season node if it doesn't exist
-						await neo4jService.createNodeIfNotExists("Season", {
-							id: seasonId,
-							name: matchDetailData.season,
-							startYear: this.extractYear(String(matchDetailData.season)),
-							endYear: this.extractYear(String(matchDetailData.season)) + 1,
-							isActive: false,
-						});
-
-						// Check if PARTICIPATES_IN relationship already exists to prevent duplicates
-						const existingParticipatesQuery = `
-            MATCH (p:Player {id: $playerId, graphLabel: 'dorkiniansWebsite'})-[r:PARTICIPATES_IN]->(s:Season {id: $seasonId, graphLabel: 'dorkiniansWebsite'})
-            RETURN r LIMIT 1
-          `;
-						const existingParticipates = await neo4jService.runQuery(existingParticipatesQuery, { playerId, seasonId });
-
-						if (existingParticipates.records.length === 0) {
-							// Create PARTICIPATES_IN relationship only if it doesn't exist
-							const participatesRel = await neo4jService.createRelationship(
-								"Player",
-								{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-								"PARTICIPATES_IN",
-								"Season",
-								{ id: seasonId, graphLabel: "dorkiniansWebsite" } as any,
-								{ graphLabel: "dorkiniansWebsite" },
-							);
-
-							if (participatesRel) {
-								relationshipsCreated++;
-								console.log(`  ✅ Created PARTICIPATES_IN relationship: ${matchDetailData.playerName} → ${matchDetailData.season}`);
-							} else {
-								this.logError(`Failed to create PARTICIPATES_IN relationship for ${matchDetailData.id}`, { playerId, seasonId, matchDetailData });
-							}
-						} else {
-							console.log(`  ℹ️ PARTICIPATES_IN relationship already exists: ${matchDetailData.playerName} → ${matchDetailData.season}`);
-						}
-					}
+				} catch (error) {
+					console.warn(`⚠️ Error finding player ${matchDetailData.playerName}: ${error instanceof Error ? error.message : String(error)}`);
+					this.logError(`Error finding player ${matchDetailData.playerName}`, { playerName: matchDetailData.playerName, error: error instanceof Error ? error.message : String(error) });
 				}
 			}
 
@@ -1267,6 +1312,7 @@ export class DataSeederService {
 					startYear: this.extractYear(String(totwData.season)),
 					endYear: this.extractYear(String(totwData.season)) + 1,
 					isActive: false,
+					graphLabel: "dorkiniansWebsite",
 				});
 
 				// Create REPRESENTS relationship
@@ -1308,48 +1354,42 @@ export class DataSeederService {
 			for (const position of playerPositions) {
 				const playerName = totwData[position];
 				if (playerName && String(playerName).trim() !== "") {
-					const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, "-")}`;
+					try {
+						// Ensure player node exists (create if missing)
+						const playerId = await this.ensurePlayerNodeExists(String(playerName));
+						
+						// Create SELECTED_IN relationship
+						const selectedInRel = await neo4jService.createRelationship(
+							"Player",
+							{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+							"SELECTED_IN",
+							"TOTW",
+							{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
+							{
+								position: position,
+								graphLabel: "dorkiniansWebsite",
+							},
+						);
 
-					// Check if player node exists before creating relationship
-					const playerExists = await this.checkNodeExists("Player", playerId);
-					if (!playerExists) {
-						console.warn(`⚠️ Player node ${playerId} not found for TOTW ${totwData.id}`);
-						this.logError(`Player node not found for TOTW ${totwData.id}`, { playerId, totwData });
-						continue; // Skip this player but continue with others
-					}
-
-					// Create SELECTED_IN relationship
-					const selectedInRel = await neo4jService.createRelationship(
-						"Player",
-						{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-						"SELECTED_IN",
-						"TOTW",
-						{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
-						{
-							position: position,
-							graphLabel: "dorkiniansWebsite",
-						},
-					);
-
-					if (selectedInRel) {
-						relationshipsCreated++;
-						console.log(`  ✅ Created SELECTED_IN relationship: ${playerName} → ${totwData.id} (${position})`);
-					} else {
-						this.logError(`Failed to create SELECTED_IN relationship for ${totwData.id}`, { playerId, position, totwData });
+						if (selectedInRel) {
+							relationshipsCreated++;
+							console.log(`  ✅ Created SELECTED_IN relationship: ${playerName} → ${totwData.id} (${position})`);
+						} else {
+							this.logError(`Failed to create SELECTED_IN relationship for ${totwData.id}`, { playerId, position, totwData });
+						}
+					} catch (error) {
+						console.warn(`⚠️ Error creating relationship for player ${playerName}: ${error instanceof Error ? error.message : String(error)}`);
+						this.logError(`Error creating relationship for player ${playerName}`, { playerName, error: error instanceof Error ? error.message : String(error) });
 					}
 				}
 			}
 
 			// Create TOTW-StarMan relationship if star man exists
 			if (totwData.starMan && String(totwData.starMan).trim() !== "") {
-				const starManId = `player-${String(totwData.starMan).toLowerCase().replace(/\s+/g, "-")}`;
-
-				// Check if star man player node exists
-				const starManExists = await this.checkNodeExists("Player", starManId);
-				if (!starManExists) {
-					console.warn(`⚠️ Star man player node ${starManId} not found for TOTW ${totwData.id}`);
-					this.logError(`Star man player node not found for TOTW ${totwData.id}`, { starManId, totwData });
-				} else {
+				try {
+					// Ensure star man player node exists (create if missing)
+					const starManId = await this.ensurePlayerNodeExists(String(totwData.starMan));
+					
 					// Create STAR_MAN relationship
 					const starManRel = await neo4jService.createRelationship(
 						"Player",
@@ -1369,6 +1409,9 @@ export class DataSeederService {
 					} else {
 						this.logError(`Failed to create STAR_MAN relationship for ${totwData.id}`, { starManId, totwData });
 					}
+				} catch (error) {
+					console.warn(`⚠️ Error creating star man relationship for ${totwData.starMan}: ${error instanceof Error ? error.message : String(error)}`);
+					this.logError(`Error creating star man relationship for ${totwData.starMan}`, { starManName: totwData.starMan, error: error instanceof Error ? error.message : String(error) });
 				}
 			}
 		} catch (error) {
@@ -1427,35 +1470,55 @@ export class DataSeederService {
 
 			for (const ranking of playerRankings) {
 				if (ranking.name && String(ranking.name).trim() !== "") {
-					const playerId = `player-${String(ranking.name).toLowerCase().replace(/\s+/g, "-")}`;
+					// Search for player by name in the Players table
+					const playerQuery = `
+						MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+						WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
+						RETURN p.id as playerId, p.name as playerName
+						LIMIT 1
+					`;
+					
+					try {
+						const playerNameLower = String(ranking.name).toLowerCase();
+						const playerNameHyphen = String(ranking.name).toLowerCase().replace(/\s+/g, "-");
+						
+						const playerResult = await neo4jService.runQuery(playerQuery, { 
+							playerName: String(ranking.name),
+							playerNameLower: playerNameLower,
+							playerNameHyphen: playerNameHyphen
+						});
+						
+						if (playerResult.records.length > 0) {
+							const playerId = playerResult.records[0].get("playerId");
+							const foundPlayerName = playerResult.records[0].get("playerName");
+							
+							// Create RANKED_IN relationship
+							const rankedInRel = await neo4jService.createRelationship(
+								"Player",
+								{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+								"RANKED_IN",
+								"PlayerOfMonth",
+								{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
+								{
+									rank: ranking.rank,
+									points: ranking.points || 0,
+									graphLabel: "dorkiniansWebsite",
+								},
+							);
 
-					// Check if player node exists before creating relationship
-					const playerExists = await this.checkNodeExists("Player", playerId);
-					if (!playerExists) {
-						console.warn(`⚠️ Player node ${playerId} not found for PlayerOfMonth ${pomData.id}`);
-						this.logError(`Player node not found for PlayerOfMonth ${pomData.id}`, { playerId, pomData });
-						continue; // Skip this player but continue with others
-					}
-
-					// Create RANKED_IN relationship
-					const rankedInRel = await neo4jService.createRelationship(
-						"Player",
-						{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-						"RANKED_IN",
-						"PlayerOfMonth",
-						{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
-						{
-							rank: ranking.rank,
-							points: ranking.points || 0,
-							graphLabel: "dorkiniansWebsite",
-						},
-					);
-
-					if (rankedInRel) {
-						relationshipsCreated++;
-						console.log(`  ✅ Created RANKED_IN relationship: ${ranking.name} → ${pomData.id} (Rank ${ranking.rank})`);
-					} else {
-						this.logError(`Failed to create RANKED_IN relationship for ${pomData.id}`, { playerId, ranking, pomData });
+							if (rankedInRel) {
+								relationshipsCreated++;
+								console.log(`  ✅ Created RANKED_IN relationship: ${foundPlayerName} → ${pomData.id} (Rank ${ranking.rank})`);
+							} else {
+								this.logError(`Failed to create RANKED_IN relationship for ${pomData.id}`, { playerId, ranking, pomData });
+							}
+						} else {
+							console.warn(`⚠️ Player node not found for name: ${ranking.name} in PlayerOfMonth ${pomData.id}`);
+							this.logError(`Player node not found for name: ${ranking.name} in PlayerOfMonth ${pomData.id}`, { playerName: ranking.name, pomData });
+						}
+					} catch (error) {
+						console.warn(`⚠️ Error finding player ${ranking.name}: ${error instanceof Error ? error.message : String(error)}`);
+						this.logError(`Error finding player ${ranking.name}`, { playerName: ranking.name, error: error instanceof Error ? error.message : String(error) });
 					}
 				}
 			}
@@ -1466,6 +1529,75 @@ export class DataSeederService {
 		}
 
 		return relationshipsCreated;
+	}
+
+	private async ensurePlayerNodeExists(playerName: string): Promise<string> {
+		// First try to find existing player
+		const existingPlayerQuery = `
+			MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+			WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
+			RETURN p.id as playerId
+			LIMIT 1
+		`;
+		
+		try {
+			const playerNameLower = String(playerName).toLowerCase();
+			const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
+			
+			const existingResult = await neo4jService.runQuery(existingPlayerQuery, { 
+				playerName: String(playerName),
+				playerNameLower: playerNameLower,
+				playerNameHyphen: playerNameHyphen
+			});
+			
+			if (existingResult.records.length > 0) {
+				return existingResult.records[0].get("playerId");
+			}
+			
+			// Player doesn't exist, create a new one
+			const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, "-")}`;
+			const playerProperties = {
+				id: playerId,
+				name: playerName,
+				allowOnSite: false, // Historical player not allowed on site
+				mostPlayedForTeam: "Unknown",
+				mostCommonPosition: "Unknown",
+				graphLabel: "dorkiniansWebsite",
+				createdAt: new Date().toISOString(),
+			};
+			
+			await neo4jService.createNode("Player", playerProperties);
+			console.log(`  ℹ️ Created missing Player node: ${playerName} (${playerId})`);
+			return playerId;
+			
+		} catch (error) {
+			console.warn(`⚠️ Error ensuring player node exists for ${playerName}: ${error instanceof Error ? error.message : String(error)}`);
+			throw error;
+		}
+	}
+
+	private mapNodeLabelToSourceName(nodeLabel: string): string {
+		// Map Neo4j labels back to CSV source names for relationship creation
+		switch (nodeLabel) {
+			case "Player":
+				return "TBL_Players";
+			case "Fixture":
+				return "TBL_FixturesAndResults";
+			case "MatchDetail":
+				return "TBL_MatchDetails";
+			case "TOTW":
+				return "TBL_WeeklyTOTW";
+			case "SeasonTOTW":
+				return "TBL_SeasonTOTW";
+			case "PlayerOfTheMonth":
+				return "TBL_PlayersOfTheMonth";
+			case "OppositionDetail":
+				return "TBL_OppositionDetails";
+			case "SiteDetail":
+				return "TBL_SiteDetails";
+			default:
+				return nodeLabel; // fallback to node label if no mapping found
+		}
 	}
 
 	private extractYear(seasonString: string): number {
