@@ -1,4 +1,6 @@
 import Papa from "papaparse";
+import fs from "fs";
+import path from "path";
 
 export interface CSVData {
 	[key: string]: string | number;
@@ -43,12 +45,28 @@ export class DataService {
 				console.log(`📊 Reduced mode: Processing max ${maxRows} rows`);
 			}
 
-			const response = await fetch(dataSource.url);
-			if (!response.ok) {
-				throw new Error(`HTTP error! status: ${response.status}`);
+			let csvText: string;
+
+			// Handle local file URLs
+			if (dataSource.url.startsWith("file://")) {
+				const filePath = dataSource.url.replace("file://", "");
+				const fullPath = path.resolve(process.cwd(), filePath);
+				console.log(`📁 Reading local file: ${fullPath}`);
+				
+				if (!fs.existsSync(fullPath)) {
+					throw new Error(`Local file not found: ${fullPath}`);
+				}
+				
+				csvText = fs.readFileSync(fullPath, "utf-8");
+			} else {
+				// Handle remote URLs
+				const response = await fetch(dataSource.url);
+				if (!response.ok) {
+					throw new Error(`HTTP error! status: ${response.status}`);
+				}
+				csvText = await response.text();
 			}
 
-			const csvText = await response.text();
 			const result = Papa.parse(csvText, {
 				header: true,
 				skipEmptyLines: true,

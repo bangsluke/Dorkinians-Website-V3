@@ -486,373 +486,281 @@ export class DataSeederService {
 	}
 
 	private mapCSVToSchema(sourceName: string, row: CSVRow, rowIndex: number): any {
-		// Map CSV column names to schema property names
-		if (sourceName.includes("Player")) {
-			const playerName = String(this.findColumnValue(row, ["PLAYER NAME"]) || `unknown-player-${rowIndex}`);
-			const allowOnSite = String(this.findColumnValue(row, ["ALLOW ON SITE"])) === "TRUE";
-			const mostPlayedForTeam = String(this.findColumnValue(row, ["MOST PLAYED FOR TEAM"]) || "");
-			const mostCommonPosition = String(this.findColumnValue(row, ["MOST COMMON POSITION"]) || "");
-
-			// Skip players who are not allowed on site
-			if (!allowOnSite) {
-				console.log(`ℹ️ Skipping player ${playerName}: ALLOW ON SITE = FALSE`);
-				return null;
-			}
-
-			// Skip players with blank team or position values
-			if (!mostPlayedForTeam || mostPlayedForTeam.trim() === "" || !mostCommonPosition || mostCommonPosition.trim() === "") {
-				console.log(`ℹ️ Skipping player ${playerName}: Missing team or position data`);
-				return null;
-			}
-
-			return {
-				id: `player-${playerName.toLowerCase().replace(/\s+/g, "-")}`,
-				name: playerName,
-				allowOnSite: true,
-				mostPlayedForTeam: mostPlayedForTeam,
-				mostCommonPosition: mostCommonPosition,
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
+		// Use the explicit ID column from the CSV instead of generating IDs
+		const explicitId = String(row["ID"] || "");
+		
+		if (!explicitId || explicitId.trim() === "") {
+			console.warn(`⚠️ Skipping row ${rowIndex}: No ID found`);
+			return null;
 		}
 
-		if (sourceName.includes("FixturesAndResults")) {
-			// Debug: Show actual row data
-			this.debugRowKeys(row, rowIndex);
+		// Map CSV data based on source name using explicit IDs
+		switch (sourceName) {
+			case "TBL_Players":
+				return this.mapPlayerData(row, explicitId);
 
-			// Use positional indexing since first 3 columns were deleted from CSV
-			// Original columns: [0]=SEASON, [1]=FIX ID, [2]=COMPETITION, [3]=DATE, [4]=TEAM, [5]=OPPOSITION, [6]=RESULT, [7]=HOME SCORE, [8]=AWAY SCORE, [9]=CONCEDED
-			// After deletion: [0]=DATE, [1]=TEAM, [2]=OPPOSITION, [3]=RESULT, [4]=HOME SCORE, [5]=AWAY SCORE, [6]=CONCEDED
-			const date = String(row[0] || "");
-			const team = String(row[1] || "");
-			const opposition = String(row[2] || "");
-			const result = String(row[3] || "");
-			const homeScore = row[4] || null;
-			const awayScore = row[5] || null;
-			const conceded = row[6] || null;
+			case "TBL_FixturesAndResults":
+				return this.mapFixtureData(row, explicitId);
 
-			// Since SEASON and FIX ID columns were deleted, we need to generate them
-			const seasonFixId = `fix-${rowIndex + 1}`; // Generate a sequential fixture ID
+			case "TBL_MatchDetails":
+				return this.mapMatchDetailData(row, explicitId);
 
-			if (rowIndex < 3) {
-				console.log(`🔍 Mapped values: date="${date}", team="${team}", opposition="${opposition}", seasonFixId="${seasonFixId}"`);
-			}
+			case "TBL_WeeklyTOTW":
+				return this.mapWeeklyTOTWData(row, explicitId);
 
-			// Extract season from date since SEASON column was deleted
-			let finalSeason = null;
-			if (date && date.includes(",")) {
-				// Date format: "Sat, 10 Sep 2016" - extract year
-				const yearMatch = date.match(/(\d{4})/);
-				if (yearMatch) {
-					const year = parseInt(yearMatch[1]);
-					finalSeason = `${year}/${year + 1}`;
-					console.log(`🔍 Extracted season "${finalSeason}" from date "${date}"`);
-				}
-			} else if (date && date.includes("/")) {
-				// Date format: "10/09/16" - extract year
-				const dateParts = date.split("/");
-				if (dateParts.length >= 3) {
-					const year = dateParts[2];
-					if (year && year.length === 2) {
-						finalSeason = `20${year}/17`; // Convert 2-digit year to season format
-						console.log(`🔍 Extracted season "${finalSeason}" from date "${date}"`);
-					}
-				}
-			}
+			case "TBL_SeasonTOTW":
+				return this.mapSeasonTOTWData(row, explicitId);
 
-			// If we still don't have a valid season, skip this row
-			if (!finalSeason || finalSeason.trim() === "" || finalSeason.includes("unknown")) {
-				console.warn(`⚠️ Skipping row ${rowIndex}: No valid season found. date="${date}"`);
-				return null; // This will cause the row to be skipped
-			}
+			case "TBL_PlayersOfTheMonth":
+				return this.mapPlayerOfMonthData(row, explicitId);
 
-			// Validate seasonFixId
-			if (!seasonFixId || seasonFixId.trim() === "") {
-				console.warn(`⚠️ Skipping row ${rowIndex}: No valid FIX ID found. seasonFixId="${seasonFixId}"`);
+			case "TBL_OppositionDetails":
+				return this.mapOppositionDetailData(row, explicitId);
+
+			default:
+				console.warn(`⚠️ Unknown source type: ${sourceName}`);
 				return null;
-			}
+		}
+	}
 
-			// Skip fixtures with invalid opposition or team data (competition column was deleted)
-			if (opposition === "No Game" || team === "HOME/AWAY" || team === "-") {
-				console.log(`ℹ️ Skipping fixture ${seasonFixId}: Invalid data (opposition="${opposition}", team="${team}")`);
-				return null;
-			}
+	private mapPlayerData(row: CSVRow, explicitId: string): any {
+		const playerName = String(row["PLAYER NAME"] || "");
+		const allowOnSite = String(row["ALLOW ON SITE"] || "") === "TRUE";
+		const mostPlayedForTeam = String(row["MOST PLAYED FOR TEAM"] || "");
+		const mostCommonPosition = String(row["MOST COMMON POSITION"] || "");
 
-			return {
-				id: `fixture-${finalSeason.replace(/\//g, "-")}-${opposition.replace(/\s+/g, "-")}-${team.toLowerCase()}`,
-				season: finalSeason,
-				seasonFixId: seasonFixId,
-				date: date,
-				team: team,
-				competition: "Unknown", // Competition column was deleted, set default value
-				opposition: opposition,
-				result: result,
-				homeScore: this.parseNumber(homeScore),
-				awayScore: this.parseNumber(awayScore),
-				conceded: this.parseNumber(conceded),
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
+		// Skip players who are not allowed on site
+		if (!allowOnSite) {
+			console.log(`ℹ️ Skipping player ${playerName}: ALLOW ON SITE = FALSE`);
+			return null;
 		}
 
-		if (sourceName.includes("MatchDetails")) {
-			// Use actual column names from CSV - SEASON FIX ID is now the first column
-			const seasonFixId = String(this.findColumnValue(row, ["SEASON FIX ID"]) || "");
-			const team = String(this.findColumnValue(row, ["TEAM"]) || "");
-			const playerName = String(this.findColumnValue(row, ["PLAYER NAME"]) || `unknown-player-${rowIndex}`);
-			const fixtureDesc = String(this.findColumnValue(row, ["DATE"]) || "");
-			const minutes = this.findColumnValue(row, ["MIN"]) || null;
-			const position = String(this.findColumnValue(row, ["CLASS"]) || "");
-			const goals = this.findColumnValue(row, ["G"]) || null;
-			const assists = this.findColumnValue(row, ["A"]) || null;
-			const manOfMatch = this.findColumnValue(row, ["MOM"]) || null;
-			const yellowCards = this.findColumnValue(row, ["Y"]) || null;
-			const redCards = this.findColumnValue(row, ["R"]) || null;
-			const saves = this.findColumnValue(row, ["SAVES"]) || null;
-			const ownGoals = this.findColumnValue(row, ["OG"]) || null;
-			const penaltiesScored = this.findColumnValue(row, ["PSC"]) || null;
-			const penaltiesMissed = this.findColumnValue(row, ["PM"]) || null;
-			const penaltiesConceded = this.findColumnValue(row, ["PCO"]) || null;
-			const penaltiesSaved = this.findColumnValue(row, ["PSV"]) || null;
-
-			// Extract season from SEASON FIX ID (e.g., "fixture-2016-17-old-thorntonians-first-away")
-			let season = null;
-			if (seasonFixId && seasonFixId.startsWith("fixture-")) {
-				const parts = seasonFixId.split("-");
-				if (parts.length >= 3) {
-					// Extract season from parts like ["fixture", "2016", "17", "old", "thorntonians", "first", "away"]
-					season = `${parts[1]}/${parts[2]}`;
-				}
-			}
-
-			// Validate required fields
-			if (!seasonFixId || seasonFixId.trim() === "") {
-				console.warn(`⚠️ Skipping row ${rowIndex}: No SEASON FIX ID found`);
-				return null;
-			}
-
-			if (!playerName || playerName.trim() === "") {
-				console.warn(`⚠️ Skipping row ${rowIndex}: No player name found`);
-				return null;
-			}
-
-			return {
-				id: `match-${seasonFixId}-${playerName}`,
-				fixtureId: seasonFixId, // Use the SEASON FIX ID directly
-				playerName: playerName,
-				team: team,
-				season: season,
-				date: fixtureDesc, // Use fixture description as date for now
-				class: position,
-				minutes: this.parseNumber(minutes),
-				// Add all the statistical properties
-				goals: this.parseNumber(goals),
-				assists: this.parseNumber(assists),
-				manOfMatch: this.parseNumber(manOfMatch),
-				yellowCards: this.parseNumber(yellowCards),
-				redCards: this.parseNumber(redCards),
-				saves: this.parseNumber(saves),
-				ownGoals: this.parseNumber(ownGoals),
-				penaltiesScored: this.parseNumber(penaltiesScored),
-				penaltiesMissed: this.parseNumber(penaltiesMissed),
-				penaltiesConceded: this.parseNumber(penaltiesConceded),
-				penaltiesSaved: this.parseNumber(penaltiesSaved),
-				// Clean sheets will be calculated during relationship creation based on fixture CONCEDED value
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
+		// Skip players with blank team or position values
+		if (!mostPlayedForTeam || mostPlayedForTeam.trim() === "" || !mostCommonPosition || mostCommonPosition.trim() === "") {
+			console.log(`ℹ️ Skipping player ${playerName}: Missing team or position data`);
+			return null;
 		}
 
-		if (sourceName.includes("WeeklyTOTW")) {
-			// Use actual column names from CSV
-			const seasonWeekNumRef = String(this.findColumnValue(row, ["SEASONWEEKNUMREF"]) || `unknown-ref-${rowIndex}`);
-			const totwScore = this.findColumnValue(row, ["TOTW SCORE"]);
-			const playerCount = this.findColumnValue(row, ["PLAYER COUNT"]) || null;
-			const starMan = String(this.findColumnValue(row, ["STAR MAN"]) || "");
-			const starManScore = this.findColumnValue(row, ["STAR MAN SCORE"]) || null;
-
-			// Skip rows where TOTW SCORE is blank
-			if (!totwScore || String(totwScore).trim() === "") {
-				console.log(`ℹ️ Skipping WeeklyTOTW row ${rowIndex}: TOTW SCORE is blank`);
-				return null;
-			}
-
-			// Extract season and week from SEASONWEEKNUMREF (e.g., "2016/17-37")
-			let season = "";
-			let week = "";
-
-			if (seasonWeekNumRef && seasonWeekNumRef.includes("-")) {
-				const [seasonPart, weekPart] = seasonWeekNumRef.split("-");
-				season = seasonPart || "";
-				week = weekPart || "";
-			}
-
-			// Validate that we have both season and week
-			if (!season || !week) {
-				console.warn(`⚠️ Skipping WeeklyTOTW row ${rowIndex}: Invalid SEASONWEEKNUMREF format: "${seasonWeekNumRef}"`);
-				return null;
-			}
-
-			return {
-				id: `totw-weekly-${season}-${week}`,
-				season: season,
-				week: parseInt(week) || 0,
-				seasonWeekNumRef: seasonWeekNumRef,
-				totwScore: this.parseNumber(totwScore),
-				playerCount: this.parseNumber(playerCount),
-				starMan: starMan,
-				starManScore: this.parseNumber(starManScore),
-				// Player position fields
-				gk1: String(this.findColumnValue(row, ["GK1"]) || ""),
-				def1: String(this.findColumnValue(row, ["DEF1"]) || ""),
-				def2: String(this.findColumnValue(row, ["DEF2"]) || ""),
-				def3: String(this.findColumnValue(row, ["DEF3"]) || ""),
-				def4: String(this.findColumnValue(row, ["DEF4"]) || ""),
-				def5: String(this.findColumnValue(row, ["DEF5"]) || ""),
-				mid1: String(this.findColumnValue(row, ["MID1"]) || ""),
-				mid2: String(this.findColumnValue(row, ["MID2"]) || ""),
-				mid3: String(this.findColumnValue(row, ["MID3"]) || ""),
-				mid4: String(this.findColumnValue(row, ["MID4"]) || ""),
-				mid5: String(this.findColumnValue(row, ["MID5"]) || ""),
-				fwd1: String(this.findColumnValue(row, ["FWD1"]) || ""),
-				fwd2: String(this.findColumnValue(row, ["FWD2"]) || ""),
-				fwd3: String(this.findColumnValue(row, ["FWD3"]) || ""),
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
-		}
-
-		if (sourceName.includes("SeasonTOTW")) {
-			// Use actual column names from CSV
-			const dateLookup = String(this.findColumnValue(row, ["DATE LOOKUP"]) || `unknown-date-${rowIndex}`);
-			const totwScore = this.findColumnValue(row, ["TOTW SCORE"]);
-			const starMan = String(this.findColumnValue(row, ["STAR MAN"]) || "");
-			const starManScore = this.findColumnValue(row, ["STAR MAN SCORE"]) || null;
-
-			// Skip rows where TOTW SCORE is blank
-			if (!totwScore || String(totwScore).trim() === "") {
-				console.log(`ℹ️ Skipping SeasonTOTW row ${rowIndex}: TOTW SCORE is blank`);
-				return null;
-			}
-
-			// Extract season from DATE LOOKUP (e.g., "2016/17 Season" -> "2016/17")
-			let season = "";
-			if (dateLookup && dateLookup.includes("Season")) {
-				season = dateLookup.replace(" Season", "").trim();
-			} else if (dateLookup && dateLookup.includes("All Time")) {
-				season = "All Time";
-			} else {
-				season = dateLookup || `unknown-season-${rowIndex}`;
-			}
-
-			// Validate that we have a valid season
-			if (!season || season.trim() === "" || season.includes("unknown")) {
-				console.warn(`⚠️ Skipping SeasonTOTW row ${rowIndex}: Invalid season extracted from DATE LOOKUP: "${dateLookup}"`);
-				return null;
-			}
-
-			return {
-				id: `totw-season-${season}`,
-				season: season,
-				dateLookup: dateLookup,
-				totwScore: this.parseNumber(totwScore),
-				starMan: starMan,
-				starManScore: this.parseNumber(starManScore),
-				// Player position fields
-				gk1: String(this.findColumnValue(row, ["GK1"]) || ""),
-				def1: String(this.findColumnValue(row, ["DEF1"]) || ""),
-				def2: String(this.findColumnValue(row, ["DEF2"]) || ""),
-				def3: String(this.findColumnValue(row, ["DEF3"]) || ""),
-				def4: String(this.findColumnValue(row, ["DEF4"]) || ""),
-				def5: String(this.findColumnValue(row, ["DEF5"]) || ""),
-				mid1: String(this.findColumnValue(row, ["MID1"]) || ""),
-				mid2: String(this.findColumnValue(row, ["MID2"]) || ""),
-				mid3: String(this.findColumnValue(row, ["MID3"]) || ""),
-				mid4: String(this.findColumnValue(row, ["MID4"]) || ""),
-				mid5: String(this.findColumnValue(row, ["MID5"]) || ""),
-				fwd1: String(this.findColumnValue(row, ["FWD1"]) || ""),
-				fwd2: String(this.findColumnValue(row, ["FWD2"]) || ""),
-				fwd3: String(this.findColumnValue(row, ["FWD3"]) || ""),
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
-		}
-
-		if (sourceName.includes("PlayersOfTheMonth")) {
-			// Use actual column names from CSV
-			const seasonMonthRef = String(this.findColumnValue(row, ["SEASONMONTHREF"]) || `unknown-ref-${rowIndex}`);
-			const player1Name = String(this.findColumnValue(row, ["#1 Name"]) || "");
-			const player1Points = this.findColumnValue(row, ["#1 Points"]) || null;
-
-			// Skip rows where #1 Name is blank
-			if (!player1Name || player1Name.trim() === "") {
-				console.log(`ℹ️ Skipping PlayersOfTheMonth row ${rowIndex}: #1 Name is blank`);
-				return null;
-			}
-
-			// Extract season and month from SEASONMONTHREF (e.g., "2016/17-09" -> season="2016/17", month="09")
-			let season = "";
-			let month = "";
-
-			if (seasonMonthRef && seasonMonthRef.includes("-")) {
-				const [seasonPart, monthPart] = seasonMonthRef.split("-");
-				season = seasonPart || "";
-				month = monthPart || "";
-			}
-
-			// Validate that we have both season and month
-			if (!season || !month) {
-				console.warn(`⚠️ Skipping PlayersOfTheMonth row ${rowIndex}: Invalid SEASONMONTHREF format: "${seasonMonthRef}"`);
-				return null;
-			}
-
-			return {
-				id: `pom-${season}-${month}`,
-				season: season,
-				month: month,
-				seasonMonthRef: seasonMonthRef,
-				// Player rankings and points
-				player1Name: player1Name,
-				player1Points: this.parseNumber(player1Points),
-				player2Name: String(this.findColumnValue(row, ["#2 Name"]) || ""),
-				player2Points: this.parseNumber(this.findColumnValue(row, ["#2 Points"])),
-				player3Name: String(this.findColumnValue(row, ["#3 Name"]) || ""),
-				player3Points: this.parseNumber(this.findColumnValue(row, ["#3 Points"])),
-				player4Name: String(this.findColumnValue(row, ["#4 Name"]) || ""),
-				player4Points: this.parseNumber(this.findColumnValue(row, ["#4 Points"])),
-				player5Name: String(this.findColumnValue(row, ["#5 Name"]) || ""),
-				player5Points: this.parseNumber(this.findColumnValue(row, ["#5 Points"])),
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
-		}
-
-		// StatDetails is handled as table data, not graph nodes
-
-		if (sourceName.includes("OppositionDetails")) {
-			// Use positional column mapping based on actual CSV structure
-			// Columns: [0]=Name, [1]=League, [2]=Division
-			const name = String(row[0] || `unknown-opposition-${rowIndex}`);
-
-			// Skip rows with empty names to prevent constraint violations
-			if (!name || name.trim() === "" || name === "unknown-opposition-" + rowIndex) {
-				console.log(`ℹ️ Skipping OppositionDetail row ${rowIndex}: Empty or invalid name`);
-				return null;
-			}
-
-			return {
-				id: `opposition-${name}`,
-				oppositionName: String(row[0] || ""),
-				league: String(row[1] || ""),
-				division: String(row[2] || ""),
-				graphLabel: "dorkiniansWebsite",
-				createdAt: new Date().toISOString(),
-			};
-		}
-
-		// Default mapping for unknown types
 		return {
-			id: `${sourceName.toLowerCase()}-${rowIndex}-${Object.values(row).join("-").toLowerCase().replace(/\s+/g, "-")}`,
+			id: explicitId,
+			name: playerName,
+			allowOnSite: true,
+			mostPlayedForTeam: mostPlayedForTeam,
+			mostCommonPosition: mostCommonPosition,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapFixtureData(row: CSVRow, explicitId: string): any {
+		const season = String(row["SEASON"] || "");
+		const date = String(row["DATE"] || "");
+		const team = String(row["TEAM"] || "");
+		const compType = String(row["COMP TYPE"] || "");
+		const competition = String(row["COMPETITION"] || "");
+		const opposition = String(row["OPPOSITION"] || "");
+		const homeAway = String(row["HOME/AWAY"] || "");
+		const result = String(row["RESULT"] || "");
+		const homeScore = this.parseNumber(row["HOME SCORE"]);
+		const awayScore = this.parseNumber(row["AWAY SCORE"]);
+		const conceded = this.parseNumber(row["CONCEDED"]);
+
+		// Skip fixtures with invalid data
+		if (opposition === "No Game" || team === "No Game" || opposition === "-" || team === "-") {
+			console.log(`ℹ️ Skipping fixture ${explicitId}: Invalid data (opposition="${opposition}", team="${team}")`);
+			return null;
+		}
+
+		return {
+			id: explicitId,
+			season: season,
+			date: date,
+			team: team,
+			compType: compType,
+			competition: competition,
+			opposition: opposition,
+			homeAway: homeAway,
+			result: result,
+			homeScore: homeScore,
+			awayScore: awayScore,
+			conceded: conceded,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapMatchDetailData(row: CSVRow, explicitId: string): any {
+		const season = String(row["SEASON"] || "");
+		const date = String(row["DATE"] || "");
+		const team = String(row["TEAM"] || "");
+		const playerName = String(row["PLAYER NAME"] || "");
+		const minutes = this.parseNumber(row["MIN"]);
+		const position = String(row["CLASS"] || "");
+		const manOfMatch = this.parseNumber(row["MOM"]);
+		const goals = this.parseNumber(row["G"]);
+		const assists = this.parseNumber(row["A"]);
+		const yellowCards = this.parseNumber(row["Y"]);
+		const redCards = this.parseNumber(row["R"]);
+		const saves = this.parseNumber(row["SAVES"]);
+		const ownGoals = this.parseNumber(row["OG"]);
+		const penaltiesScored = this.parseNumber(row["PSC"]);
+		const penaltiesMissed = this.parseNumber(row["PM"]);
+		const penaltiesConceded = this.parseNumber(row["PCO"]);
+		const penaltiesSaved = this.parseNumber(row["PSV"]);
+
+		// Extract fixture ID from the explicit ID (format: matchdetail-{fixtureID}-{playerName})
+		const fixtureId = explicitId.replace(/^matchdetail-/, "").replace(/-[^-]+$/, "");
+
+		return {
+			id: explicitId,
+			fixtureId: fixtureId,
+			playerName: playerName,
+			team: team,
+			season: season,
+			date: date,
+			class: position,
+			minutes: minutes,
+			goals: goals,
+			assists: assists,
+			manOfMatch: manOfMatch,
+			yellowCards: yellowCards,
+			redCards: redCards,
+			saves: saves,
+			ownGoals: ownGoals,
+			penaltiesScored: penaltiesScored,
+			penaltiesMissed: penaltiesMissed,
+			penaltiesConceded: penaltiesConceded,
+			penaltiesSaved: penaltiesSaved,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapWeeklyTOTWData(row: CSVRow, explicitId: string): any {
+		const season = String(row["SEASON"] || "");
+		const week = String(row["WEEK"] || "");
+		const totwScore = this.parseNumber(row["TOTW SCORE"]);
+		const playerCount = this.parseNumber(row["PLAYER COUNT"]);
+		const starMan = String(row["STAR MAN"] || "");
+		const starManScore = this.parseNumber(row["STAR MAN SCORE"]);
+
+		// Map all player positions
+		const playerPositions = {
+			gk1: String(row["GK1"] || ""),
+			def1: String(row["DEF1"] || ""),
+			def2: String(row["DEF2"] || ""),
+			def3: String(row["DEF3"] || ""),
+			def4: String(row["DEF4"] || ""),
+			def5: String(row["DEF5"] || ""),
+			mid1: String(row["MID1"] || ""),
+			mid2: String(row["MID2"] || ""),
+			mid3: String(row["MID3"] || ""),
+			mid4: String(row["MID4"] || ""),
+			mid5: String(row["MID5"] || ""),
+			fwd1: String(row["FWD1"] || ""),
+			fwd2: String(row["FWD2"] || ""),
+			fwd3: String(row["FWD3"] || ""),
+		};
+
+		return {
+			id: explicitId,
+			season: season,
+			week: week,
+			totwScore: totwScore,
+			playerCount: playerCount,
+			starMan: starMan,
+			starManScore: starManScore,
+			...playerPositions,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapSeasonTOTWData(row: CSVRow, explicitId: string): any {
+		const season = String(row["SEASON"] || "");
+		const totwScore = this.parseNumber(row["TOTW SCORE"]);
+		const starMan = String(row["STAR MAN"] || "");
+		const starManScore = this.parseNumber(row["STAR MAN SCORE"]);
+
+		// Map all player positions
+		const playerPositions = {
+			gk1: String(row["GK1"] || ""),
+			def1: String(row["DEF1"] || ""),
+			def2: String(row["DEF2"] || ""),
+			def3: String(row["DEF3"] || ""),
+			def4: String(row["DEF4"] || ""),
+			def5: String(row["DEF5"] || ""),
+			mid1: String(row["MID1"] || ""),
+			mid2: String(row["MID2"] || ""),
+			mid3: String(row["MID3"] || ""),
+			mid4: String(row["MID4"] || ""),
+			mid5: String(row["MID5"] || ""),
+			fwd1: String(row["FWD1"] || ""),
+			fwd2: String(row["FWD2"] || ""),
+			fwd3: String(row["FWD3"] || ""),
+		};
+
+		return {
+			id: explicitId,
+			season: season,
+			totwScore: totwScore,
+			starMan: starMan,
+			starManScore: starManScore,
+			...playerPositions,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapPlayerOfMonthData(row: CSVRow, explicitId: string): any {
+		const season = String(row["SEASON"] || "");
+		const date = String(row["DATE"] || "");
+
+		// Map all player rankings
+		const playerRankings = {
+			player1Name: String(row["#1 Name"] || ""),
+			player1Points: this.parseNumber(row["#1 Points"]),
+			player2Name: String(row["#2 Name"] || ""),
+			player2Points: this.parseNumber(row["#2 Points"]),
+			player3Name: String(row["#3 Name"] || ""),
+			player3Points: this.parseNumber(row["#3 Points"]),
+			player4Name: String(row["#4 Name"] || ""),
+			player4Points: this.parseNumber(row["#4 Points"]),
+			player5Name: String(row["#5 Name"] || ""),
+			player5Points: this.parseNumber(row["#5 Points"]),
+		};
+
+		// Extract month from date or ID
+		let month = "";
+		if (date) {
+			month = date;
+		} else if (explicitId.includes("-")) {
+			const parts = explicitId.split("-");
+			month = parts[parts.length - 1] || "";
+		}
+
+		return {
+			id: explicitId,
+			season: season,
+			month: month,
+			...playerRankings,
+			graphLabel: "dorkiniansWebsite",
+			createdAt: new Date().toISOString(),
+		};
+	}
+
+	private mapOppositionDetailData(row: CSVRow, explicitId: string): any {
+		const opposition = String(row["OPPOSITION"] || "");
+		const shortTeamName = String(row["SHORT TEAM NAME"] || "");
+		const address = String(row["ADDRESS"] || "");
+		const distance = String(row["DISTANCE (MILES)"] || "");
+
+		return {
+			id: explicitId,
+			oppositionName: opposition,
+			shortTeamName: shortTeamName,
+			address: address,
+			distance: distance,
 			graphLabel: "dorkiniansWebsite",
 			createdAt: new Date().toISOString(),
 		};
@@ -1118,7 +1026,7 @@ export class DataSeederService {
 		let relationshipsCreated = 0;
 
 		try {
-			// Create MatchDetail-Fixture relationship using the direct SEASON FIX ID
+			// Create MatchDetail-Fixture relationship using the explicit fixtureId
 			if (matchDetailData.fixtureId) {
 				const fixtureId = String(matchDetailData.fixtureId);
 
@@ -1361,34 +1269,55 @@ export class DataSeederService {
 					isActive: false,
 				});
 
-				// Create HAS_TOTW relationship
-				const hasTotwRel = await neo4jService.createRelationship(
-					"Season",
-					{ id: seasonId, graphLabel: "dorkiniansWebsite" } as any,
-					"HAS_TOTW",
+				// Create REPRESENTS relationship
+				const representsRel = await neo4jService.createRelationship(
 					"TOTW",
 					{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
+					"REPRESENTS",
+					"Season",
+					{ id: seasonId, graphLabel: "dorkiniansWebsite" } as any,
 					{ graphLabel: "dorkiniansWebsite" },
 				);
 
-				if (hasTotwRel) {
+				if (representsRel) {
 					relationshipsCreated++;
-					console.log(`  ✅ Created HAS_TOTW relationship: ${totwData.season} → ${totwData.id}`);
+					console.log(`  ✅ Created REPRESENTS relationship: ${totwData.id} → ${totwData.season}`);
 				} else {
-					this.logError(`Failed to create HAS_TOTW relationship for ${totwData.id}`, { seasonId, totwData });
+					this.logError(`Failed to create REPRESENTS relationship for ${totwData.id}`, { seasonId, totwData });
 				}
 			}
 
-			// Create TOTW-Player relationships for star man
-			if (totwData.starMan) {
-				const playerId = `player-${String(totwData.starMan).toLowerCase().replace(/\s+/g, "-")}`;
+			// Create TOTW-Player relationships for all positions
+			const playerPositions = [
+				"gk1",
+				"def1",
+				"def2",
+				"def3",
+				"def4",
+				"def5",
+				"mid1",
+				"mid2",
+				"mid3",
+				"mid4",
+				"mid5",
+				"fwd1",
+				"fwd2",
+				"fwd3",
+			];
 
-				// Check if player node exists before creating relationship
-				const playerExists = await this.checkNodeExists("Player", playerId);
-				if (!playerExists) {
-					console.warn(`⚠️ Player node ${playerId} not found for TOTW ${totwData.id}`);
-					this.logError(`Player node not found for TOTW ${totwData.id}`, { playerId, totwData });
-				} else {
+			for (const position of playerPositions) {
+				const playerName = totwData[position];
+				if (playerName && String(playerName).trim() !== "") {
+					const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, "-")}`;
+
+					// Check if player node exists before creating relationship
+					const playerExists = await this.checkNodeExists("Player", playerId);
+					if (!playerExists) {
+						console.warn(`⚠️ Player node ${playerId} not found for TOTW ${totwData.id}`);
+						this.logError(`Player node not found for TOTW ${totwData.id}`, { playerId, totwData });
+						continue; // Skip this player but continue with others
+					}
+
 					// Create SELECTED_IN relationship
 					const selectedInRel = await neo4jService.createRelationship(
 						"Player",
@@ -1397,55 +1326,48 @@ export class DataSeederService {
 						"TOTW",
 						{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
 						{
-							position: "star_man",
-							score: totwData.starManScore || 0,
+							position: position,
 							graphLabel: "dorkiniansWebsite",
 						},
 					);
 
 					if (selectedInRel) {
 						relationshipsCreated++;
-						console.log(`  ✅ Created SELECTED_IN relationship: ${totwData.starMan} → ${totwData.id}`);
+						console.log(`  ✅ Created SELECTED_IN relationship: ${playerName} → ${totwData.id} (${position})`);
 					} else {
-						this.logError(`Failed to create SELECTED_IN relationship for ${totwData.id}`, { playerId, totwData });
+						this.logError(`Failed to create SELECTED_IN relationship for ${totwData.id}`, { playerId, position, totwData });
 					}
 				}
 			}
 
-			// Create TOTW-Player relationships for all selected players
-			const playerPositions = ["gk1", "def1", "def2", "def3", "def4", "def5", "mid1", "mid2", "mid3", "mid4", "mid5", "fwd1", "fwd2", "fwd3"];
+			// Create TOTW-StarMan relationship if star man exists
+			if (totwData.starMan && String(totwData.starMan).trim() !== "") {
+				const starManId = `player-${String(totwData.starMan).toLowerCase().replace(/\s+/g, "-")}`;
 
-			for (const position of playerPositions) {
-				const playerName = String(totwData[position] || "");
-				if (playerName && playerName.trim() !== "") {
-					const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, "-")}`;
+				// Check if star man player node exists
+				const starManExists = await this.checkNodeExists("Player", starManId);
+				if (!starManExists) {
+					console.warn(`⚠️ Star man player node ${starManId} not found for TOTW ${totwData.id}`);
+					this.logError(`Star man player node not found for TOTW ${totwData.id}`, { starManId, totwData });
+				} else {
+					// Create STAR_MAN relationship
+					const starManRel = await neo4jService.createRelationship(
+						"Player",
+						{ id: starManId, graphLabel: "dorkiniansWebsite" } as any,
+						"STAR_MAN",
+						"TOTW",
+						{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
+						{
+							score: totwData.starManScore || 0,
+							graphLabel: "dorkiniansWebsite",
+						},
+					);
 
-					// Check if player node exists before creating relationship
-					const playerExists = await this.checkNodeExists("Player", playerId);
-					if (!playerExists) {
-						console.warn(`⚠️ Player node ${playerId} not found for TOTW ${totwData.id} (${position})`);
-						this.logError(`Player node not found for TOTW ${totwData.id}`, { playerId, position, totwData });
+					if (starManRel) {
+						relationshipsCreated++;
+						console.log(`  ✅ Created STAR_MAN relationship: ${totwData.starMan} → ${totwData.id}`);
 					} else {
-						// Create SELECTED_IN relationship for each selected player
-						const selectedInRel = await neo4jService.createRelationship(
-							"Player",
-							{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-							"SELECTED_IN",
-							"TOTW",
-							{ id: totwNodeId, graphLabel: "dorkiniansWebsite" } as any,
-							{
-								position: position,
-								score: 0, // Default score for non-star man players
-								graphLabel: "dorkiniansWebsite",
-							},
-						);
-
-						if (selectedInRel) {
-							relationshipsCreated++;
-							console.log(`  ✅ Created SELECTED_IN relationship: ${playerName} → ${totwData.id} (${position})`);
-						} else {
-							this.logError(`Failed to create SELECTED_IN relationship for ${totwData.id}`, { playerId, position, totwData });
-						}
+						this.logError(`Failed to create STAR_MAN relationship for ${totwData.id}`, { starManId, totwData });
 					}
 				}
 			}
@@ -1476,25 +1398,25 @@ export class DataSeederService {
 					isActive: false,
 				});
 
-				// Create HAS_MONTHLY_AWARDS relationship
-				const hasMonthlyRel = await neo4jService.createRelationship(
+				// Create REPRESENTS relationship
+				const representsRel = await neo4jService.createRelationship(
+					"PlayerOfMonth",
+					{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
+					"REPRESENTS",
 					"Season",
 					{ id: seasonId, graphLabel: "dorkiniansWebsite" } as any,
-					"HAS_MONTHLY_AWARDS",
-					"PlayerOfTheMonth",
-					{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
 					{ graphLabel: "dorkiniansWebsite" },
 				);
 
-				if (hasMonthlyRel) {
+				if (representsRel) {
 					relationshipsCreated++;
-					console.log(`  ✅ Created HAS_MONTHLY_AWARDS relationship: ${pomData.season} → ${pomData.id}`);
+					console.log(`  ✅ Created REPRESENTS relationship: ${pomData.id} → ${pomData.season}`);
 				} else {
-					this.logError(`Failed to create HAS_MONTHLY_AWARDS relationship for ${pomData.id}`, { seasonId, pomData });
+					this.logError(`Failed to create REPRESENTS relationship for ${pomData.id}`, { seasonId, pomData });
 				}
 			}
 
-			// Create PlayerOfMonth-Player relationships for all ranked players
+			// Create PlayerOfMonth-Player relationships for all rankings
 			const playerRankings = [
 				{ name: pomData.player1Name, points: pomData.player1Points, rank: 1 },
 				{ name: pomData.player2Name, points: pomData.player2Points, rank: 2 },
@@ -1503,38 +1425,37 @@ export class DataSeederService {
 				{ name: pomData.player5Name, points: pomData.player5Points, rank: 5 },
 			];
 
-			for (const playerRank of playerRankings) {
-				if (playerRank.name && String(playerRank.name).trim() !== "") {
-					const playerId = `player-${String(playerRank.name).toLowerCase().replace(/\s+/g, "-")}`;
+			for (const ranking of playerRankings) {
+				if (ranking.name && String(ranking.name).trim() !== "") {
+					const playerId = `player-${String(ranking.name).toLowerCase().replace(/\s+/g, "-")}`;
 
 					// Check if player node exists before creating relationship
 					const playerExists = await this.checkNodeExists("Player", playerId);
 					if (!playerExists) {
-						console.warn(`⚠️ Player node ${playerId} not found for PlayerOfMonth ${pomData.id} (Rank ${playerRank.rank})`);
-						this.logError(`Player node not found for PlayerOfMonth ${pomData.id}`, { playerId, playerRank, pomData });
-					} else {
-						// Create AWARDED_MONTHLY relationship
-						const awardedMonthlyRel = await neo4jService.createRelationship(
-							"Player",
-							{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
-							"AWARDED_MONTHLY",
-							"PlayerOfTheMonth",
-							{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
-							{
-								month: pomData.month,
-								season: pomData.season,
-								rank: playerRank.rank,
-								points: playerRank.points || 0,
-								graphLabel: "dorkiniansWebsite",
-							},
-						);
+						console.warn(`⚠️ Player node ${playerId} not found for PlayerOfMonth ${pomData.id}`);
+						this.logError(`Player node not found for PlayerOfMonth ${pomData.id}`, { playerId, pomData });
+						continue; // Skip this player but continue with others
+					}
 
-						if (awardedMonthlyRel) {
-							relationshipsCreated++;
-							console.log(`  ✅ Created AWARDED_MONTHLY relationship: ${playerRank.name} → ${pomData.id} (Rank ${playerRank.rank})`);
-						} else {
-							this.logError(`Failed to create AWARDED_MONTHLY relationship for ${playerRank.name}`, { playerId, pomData, playerRank });
-						}
+					// Create RANKED_IN relationship
+					const rankedInRel = await neo4jService.createRelationship(
+						"Player",
+						{ id: playerId, graphLabel: "dorkiniansWebsite" } as any,
+						"RANKED_IN",
+						"PlayerOfMonth",
+						{ id: pomNodeId, graphLabel: "dorkiniansWebsite" } as any,
+						{
+							rank: ranking.rank,
+							points: ranking.points || 0,
+							graphLabel: "dorkiniansWebsite",
+						},
+					);
+
+					if (rankedInRel) {
+						relationshipsCreated++;
+						console.log(`  ✅ Created RANKED_IN relationship: ${ranking.name} → ${pomData.id} (Rank ${ranking.rank})`);
+					} else {
+						this.logError(`Failed to create RANKED_IN relationship for ${pomData.id}`, { playerId, ranking, pomData });
 					}
 				}
 			}

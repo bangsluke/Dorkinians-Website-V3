@@ -3,27 +3,9 @@ const http = require("http");
 const https = require("https");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-// GID mapping for Google Sheets (using the actual URLs from dataSources.ts)
-const dataSourceUrls = {
-	TBL_Players:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
-	TBL_FixturesAndResults:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=0&single=true&output=csv",
-	TBL_MatchDetails:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1&single=true&output=csv",
-	TBL_WeeklyTOTW:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=2&single=true&output=csv",
-	TBL_SeasonTOTW:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=3&single=true&output=csv",
-	TBL_PlayersOfTheMonth:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=4&single=true&output=csv",
-	TBL_OppositionDetails:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=6&single=true&output=csv",
-	TBL_SiteDetails:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=7&single=true&output=csv",
-	TBL_CaptainsAndAwards:
-		"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=8&single=true&output=csv",
-};
+// Import data sources and header configurations
+const { dataSources } = require("../lib/config/dataSources");
+const { csvHeaderConfigs } = require("../lib/config/csvHeaders");
 
 // Helper function to make HTTP requests
 function makeRequest(url, maxRedirects = 5) {
@@ -98,7 +80,6 @@ async function fetchCSVHeaders(url) {
 
 		return headers;
 	} catch (error) {
-		console.error(`❌ Failed to fetch CSV headers from ${url}:`, error.message);
 		throw error;
 	}
 }
@@ -115,164 +96,73 @@ function validateCSVHeaders(sourceName, expectedHeaders, actualHeaders) {
 	};
 }
 
+// Function to get expected headers for a given source name
+function getExpectedHeaders(sourceName) {
+	const config = csvHeaderConfigs.find(config => config.name === sourceName);
+	return config ? config.expectedHeaders : null;
+}
+
 // Main test function
 async function testCSVHeaders() {
-	console.log("🔍 Testing CSV Header Validation...");
+	console.log("🔍 Testing CSV Header Validation...\n");
 
-	// Expected headers for each data source
-	const expectedHeaders = {
-		TBL_SiteDetails: [
-			"Version Number",
-			"Version Release Details",
-			"Updates To Come",
-			"Last Updated Stats",
-			"Page Details Last Refreshed",
-			"Current Season",
-			"Stat Limitations",
-			"Stat Details",
-		],
-		TBL_Players: ["PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"],
-		TBL_FixturesAndResults: [
-			"SEASON FIX ID",
-			"DATE",
-			"TEAM",
-			"COMP TYPE",
-			"COMPETITION",
-			"OPPOSITION",
-			"HOME/AWAY",
-			"RESULT",
-			"HOME SCORE",
-			"AWAY SCORE",
-			"STATUS",
-			"OPPO OWN GOALS",
-			"FULL RESULT",
-			"DORKINIANS GOALS",
-			"CONCEDED",
-		],
-		TBL_MatchDetails: ["TEAM", "PLAYER NAME", "DATE", "MIN", "CLASS", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "PSC", "PM", "PCO", "PSV"],
-		TBL_WeeklyTOTW: [
-			"SEASONWEEKNUMREF",
-			"TOTW SCORE",
-			"PLAYER COUNT",
-			"STAR MAN",
-			"STAR MAN SCORE",
-			"GK1",
-			"DEF1",
-			"DEF2",
-			"DEF3",
-			"DEF4",
-			"DEF5",
-			"MID1",
-			"MID2",
-			"MID3",
-			"MID4",
-			"MID5",
-			"FWD1",
-			"FWD2",
-			"FWD3",
-		],
-		TBL_SeasonTOTW: [
-			"DATE LOOKUP",
-			"TOTW SCORE",
-			"STAR MAN",
-			"STAR MAN SCORE",
-			"GK1",
-			"DEF1",
-			"DEF2",
-			"DEF3",
-			"DEF4",
-			"DEF5",
-			"MID1",
-			"MID2",
-			"MID3",
-			"MID4",
-			"MID5",
-			"FWD1",
-			"FWD2",
-			"FWD3",
-		],
-		TBL_PlayersOfTheMonth: [
-			"SEASONMONTHREF",
-			"#1 Name",
-			"#1 Points",
-			"#2 Name",
-			"#2 Points",
-			"#3 Name",
-			"#3 Points",
-			"#4 Name",
-			"#4 Points",
-			"#5 Name",
-			"#5 Points",
-		],
-		TBL_OppositionDetails: ["OPPOSITION", "SHORT TEAM NAME", "ADDRESS", "DISTANCE (MILES)"],
-		TBL_CaptainsAndAwards: [
-			"Item",
-			"HTML ID",
-			"2016/17",
-			"2017/18",
-			"2018/19",
-			"2019/20",
-			"2020/21",
-			"2021/22",
-			"2022/23",
-			"2023/24",
-			"2024/25",
-			"2025/26",
-			"2026/27",
-		],
-	};
-
-	const results = [];
 	let totalSources = 0;
 	let validSources = 0;
 	let failedSources = 0;
+	const results = [];
 
-	for (const [sourceName, headers] of Object.entries(expectedHeaders)) {
+	// Test each data source
+	for (const dataSource of dataSources) {
 		totalSources++;
-		console.log(`\n📊 Testing ${sourceName}...`);
+		console.log(`📊 Testing ${dataSource.name}...`);
 
 		try {
-			const url = dataSourceUrls[sourceName];
+			const actualHeaders = await fetchCSVHeaders(dataSource.url);
+			const expectedHeaders = getExpectedHeaders(dataSource.name);
 
-			const actualHeaders = await fetchCSVHeaders(url);
-			const validation = validateCSVHeaders(sourceName, headers, actualHeaders);
-
-			if (validation.isValid) {
-				console.log(`  ✅ Headers valid for ${sourceName}`);
-				validSources++;
-			} else {
-				console.error(`  ❌ Header validation failed for ${sourceName}`);
-				console.error(`     Expected: ${headers.join(", ")}`);
-				console.error(`     Actual:   ${actualHeaders.join(", ")}`);
-				console.error(`     Missing:  ${validation.missingHeaders.join(", ") || "None"}`);
-				console.error(`     Extra:    ${validation.extraHeaders.join(", ") || "None"}`);
-				failedSources++;
+			if (!expectedHeaders) {
+				console.log(`  ⚠️ No header validation defined for ${dataSource.name}, skipping`);
+				continue;
 			}
 
-			results.push({
-				sourceName,
-				expectedHeaders: headers,
-				actualHeaders,
-				validation,
-				url,
-			});
+			const missingHeaders = expectedHeaders.filter((h) => !actualHeaders.includes(h));
+			const extraHeaders = actualHeaders.filter((h) => !expectedHeaders.includes(h));
 
-			// Small delay to avoid overwhelming the server
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			if (missingHeaders.length === 0 && extraHeaders.length === 0) {
+				validSources++;
+				console.log(`  ✅ Headers valid`);
+			} else {
+				failedSources++;
+				console.log(`  ❌ Headers invalid`);
+				console.log(`     Missing: ${missingHeaders.join(", ")}`);
+				console.log(`     Extra: ${extraHeaders.join(", ")}`);
+				console.log(`     Expected: ${expectedHeaders.join(", ")}`);
+				console.log(`     Actual: ${actualHeaders.join(", ")}`);
+
+				results.push({
+					sourceName: dataSource.name,
+					expectedHeaders,
+					actualHeaders,
+					missingHeaders,
+					extraHeaders,
+					url: dataSource.url,
+				});
+			}
 		} catch (error) {
-			console.error(`  ❌ Failed to validate headers for ${sourceName}:`, error.message);
 			failedSources++;
+			console.log(`  ❌ Failed to validate headers for ${dataSource.name}: ${error.message}`);
 
-			const url = dataSourceUrls[sourceName];
 			results.push({
-				sourceName,
-				expectedHeaders: headers,
+				sourceName: dataSource.name,
+				expectedHeaders: getExpectedHeaders(dataSource.name) || [],
 				actualHeaders: [],
-				validation: { isValid: false, missingHeaders: headers, extraHeaders: [] },
-				url: url || "N/A",
-				error: error.message,
+				missingHeaders: getExpectedHeaders(dataSource.name) || [],
+				extraHeaders: [],
+				url: dataSource.url,
 			});
 		}
+
+		console.log(""); // Empty line for readability
 	}
 
 	// Summary

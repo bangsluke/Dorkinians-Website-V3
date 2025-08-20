@@ -16,18 +16,26 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 			"Current Season",
 			"Stat Limitations",
 			"Stat Details",
+			"Games Counted",
+			"Games without all goals accounted",
+			"Game rate with all goals accounted.",
+			"Games without a MoM provided",
+			"Game rate with a MoM accounted.",
+			"Dorkinians Goals Scored",
+			"Dorkinians Goals Conceded",
 		],
 		description: "Website configuration and metadata",
 	},
 	{
 		name: "TBL_Players",
-		expectedHeaders: ["PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"],
+		expectedHeaders: ["ID","PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"],
 		description: "Player information with privacy flags and team/position data",
 	},
 	{
 		name: "TBL_FixturesAndResults",
 		expectedHeaders: [
-			"SEASON FIX ID",
+			"ID",
+			"SEASON",
 			"DATE",
 			"TEAM",
 			"COMP TYPE",
@@ -42,18 +50,21 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 			"FULL RESULT",
 			"DORKINIANS GOALS",
 			"CONCEDED",
+			"EXTRACTED PICKER",
 		],
 		description: "Fixture schedule and results with competition details",
 	},
 	{
 		name: "TBL_MatchDetails",
-		expectedHeaders: ["SEASON FIX ID", "TEAM", "PLAYER NAME", "DATE", "MIN", "CLASS", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "PSC", "PM", "PCO", "PSV"],
+		expectedHeaders: ["ID", "SEASON", "DATE", "TEAM", "PLAYER NAME", "MIN", "CLASS", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "PSC", "PM", "PCO", "PSV", "IMPORTED_FIXTURE_DETAIL"],
 		description: "Individual player performance data for each match",
 	},
 	{
 		name: "TBL_WeeklyTOTW",
 		expectedHeaders: [
-			"SEASONWEEKNUMREF",
+			"ID",
+			"SEASON",
+			"WEEK",
 			"TOTW SCORE",
 			"PLAYER COUNT",
 			"STAR MAN",
@@ -78,7 +89,8 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 	{
 		name: "TBL_SeasonTOTW",
 		expectedHeaders: [
-			"DATE LOOKUP",
+			"ID",
+			"SEASON",
 			"TOTW SCORE",
 			"STAR MAN",
 			"STAR MAN SCORE",
@@ -102,7 +114,9 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 	{
 		name: "TBL_PlayersOfTheMonth",
 		expectedHeaders: [
-			"SEASONMONTHREF",
+			"ID",
+			"SEASON",
+			"DATE",
 			"#1 Name",
 			"#1 Points",
 			"#2 Name",
@@ -117,16 +131,9 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 		description: "Monthly player awards with rankings and points",
 	},
 	{
-		name: "TBL_OppositionDetails",
-		expectedHeaders: ["OPPOSITION", "SHORT TEAM NAME", "ADDRESS", "DISTANCE (MILES)"],
-		description: "Opposition team information and contact details",
-	},
-
-	{
 		name: "TBL_CaptainsAndAwards",
 		expectedHeaders: [
 			"Item",
-			"HTML ID",
 			"2016/17",
 			"2017/18",
 			"2018/19",
@@ -140,6 +147,11 @@ export const csvHeaderConfigs: CSVHeaderConfig[] = [
 			"2026/27",
 		],
 		description: "Season awards and captain information",
+	},
+	{
+		name: "TBL_OppositionDetails",
+		expectedHeaders: ["ID","OPPOSITION", "SHORT TEAM NAME", "ADDRESS", "DISTANCE (MILES)"],
+		description: "Opposition team information and contact details",
 	},
 ];
 

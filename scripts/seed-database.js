@@ -51,45 +51,8 @@ function makeRequest(url, options = {}) {
 	});
 }
 
-// All data sources from the project
-const ALL_DATA_SOURCES = [
-	{
-		name: "TBL_Players",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=528214413&single=true&output=csv",
-		type: "StatsData",
-	},
-	{
-		name: "TBL_FixturesAndResults",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=0&single=true&output=csv",
-		type: "StatsData",
-	},
-	{
-		name: "TBL_MatchDetails",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=564691931&single=true&output=csv",
-		type: "StatsData",
-	},
-	{
-		name: "TBL_WeeklyTOTW",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1985336995&single=true&output=csv",
-		type: "StatsData",
-	},
-	{
-		name: "TBL_SeasonTOTW",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=91372781&single=true&output=csv",
-		type: "StatsData",
-	},
-	{
-		name: "TBL_PlayersOfTheMonth",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=2007852556&single=true&output=csv",
-		type: "StatsData",
-	},
-
-	{
-		name: "TBL_OppositionDetails",
-		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1977394709&single=true&output=csv",
-		type: "StatsData",
-	},
-];
+// Import data sources from configuration
+const { dataSources } = require("../lib/config/dataSources");
 
 // Unified database seeding script that works with both development and production
 async function seedDatabase() {
@@ -98,6 +61,7 @@ async function seedDatabase() {
 
 	console.log(`🚀 Starting Database Seeding...`);
 	console.log(`📍 Environment: ${environment.toUpperCase()}`);
+	console.log(`📊 Processing all data sources`);
 
 	try {
 		// Set NODE_ENV based on the environment parameter
@@ -109,7 +73,7 @@ async function seedDatabase() {
 			console.log("  NODE_ENV:", process.env.NODE_ENV);
 			console.log("  PROD_NEO4J_URI:", process.env.PROD_NEO4J_URI ? "✅ Set" : "❌ Missing");
 			console.log("  PROD_NEO4J_USER:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
-			console.log("  PROD_NEO4J_PASSWORD:", process.env.PROD_NEO4J_PASSWORD ? "✅ Set" : "❌ Missing");
+			console.log("  PROD_NEO4J_PASSWORD:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
 
 			if (!process.env.PROD_NEO4J_URI || !process.env.PROD_NEO4J_USER || !process.env.PROD_NEO4J_PASSWORD) {
 				throw new Error("Production Neo4j environment variables are not configured");
@@ -137,20 +101,21 @@ async function seedDatabase() {
 		const apiUrl = `http://localhost:${port}/api/seed-data/`;
 
 		console.log(`🌐 Calling seeding API: ${apiUrl}`);
-		console.log(`📊 Seeding ${ALL_DATA_SOURCES.length} data sources...`);
+		console.log(`📊 Seeding ${dataSources.length} data sources...`);
 
 		// Display data sources being seeded
-		ALL_DATA_SOURCES.forEach((source, index) => {
+		dataSources.forEach((source, index) => {
 			console.log(`  ${index + 1}. ${source.name}`);
 		});
 
+		// Make request to the seeding API
 		const response = await makeRequest(apiUrl, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				dataSources: ALL_DATA_SOURCES,
+				dataSources: dataSources,
 			}),
 		});
 
@@ -160,7 +125,7 @@ async function seedDatabase() {
 			console.log("📊 Result:", result);
 
 			if (result.success) {
-				console.log(`🎉 Created ${result.nodesCreated} nodes and ${result.relationshipsCreated} relationships`);
+				console.log(`🎉 Created ${result.data.nodesCreated} nodes and ${result.data.relationshipsCreated} relationships`);
 				console.log(`📍 Database: ${environment === "production" ? "Neo4j Aura (Production)" : "Local Neo4j Desktop"}`);
 			} else {
 				console.log("⚠️ Seeding completed with errors:", result.errors);

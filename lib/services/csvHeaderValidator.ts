@@ -4,10 +4,18 @@ import { CSVHeaderValidationFailure } from "./emailService";
 
 export interface CSVHeaderValidationResult {
 	isValid: boolean;
-	failures: CSVHeaderValidationFailure[];
 	totalSources: number;
 	validSources: number;
 	failedSources: number;
+	failures: CSVHeaderValidationFailure[];
+}
+
+export interface CSVHeaderValidationFailure {
+	sourceName: string;
+	expectedHeaders: string[];
+	actualHeaders: string[];
+	missingHeaders: string[];
+	extraHeaders: string[];
 }
 
 export class CSVHeaderValidator {
@@ -20,157 +28,216 @@ export class CSVHeaderValidator {
 		return CSVHeaderValidator.instance;
 	}
 
-	/**
-	 * Fetches only the headers from a CSV URL without downloading the full content
-	 */
-	private async fetchCSVHeaders(url: string): Promise<string[]> {
+	async validateAllCSVHeaders(dataSources: DataSource[]): Promise<CSVHeaderValidationResult> {
+		console.log("🔍 Starting CSV header validation...");
+
+		const results: CSVHeaderValidationFailure[] = [];
+		let validSources = 0;
+		let failedSources = 0;
+
+		for (const dataSource of dataSources) {
+			try {
+				const isValid = await this.validateCSVHeaders(dataSource);
+				if (isValid) {
+					validSources++;
+					console.log(`✅ ${dataSource.name}: Headers valid`);
+				} else {
+					failedSources++;
+					console.log(`❌ ${dataSource.name}: Headers invalid`);
+				}
+			} catch (error) {
+				failedSources++;
+				console.error(`❌ ${dataSource.name}: Validation error:`, error);
+				results.push({
+					sourceName: dataSource.name,
+					expectedHeaders: [],
+					actualHeaders: [],
+					missingHeaders: [],
+					extraHeaders: [],
+				});
+			}
+		}
+
+		const totalSources = dataSources.length;
+		const isValid = failedSources === 0;
+
+		console.log(`📊 Header validation complete: ${validSources}/${totalSources} sources valid`);
+
+		return {
+			isValid,
+			totalSources,
+			validSources,
+			failedSources,
+			failures: results,
+		};
+	}
+
+	private async validateCSVHeaders(dataSource: DataSource): Promise<boolean> {
 		try {
-			const response = await fetch(url);
+			const response = await fetch(dataSource.url);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 
 			const csvText = await response.text();
 			const lines = csvText.split("\n");
-
 			if (lines.length === 0) {
 				throw new Error("Empty CSV file");
 			}
 
-			// Parse the first line as headers
 			const headerLine = lines[0].trim();
-			if (!headerLine) {
-				throw new Error("Empty header line");
+			const actualHeaders = headerLine.split(",").map((h) => h.trim());
+
+			// Define expected headers for each data source
+			const expectedHeaders = this.getExpectedHeaders(dataSource.name);
+			if (!expectedHeaders) {
+				console.warn(`⚠️ No header validation defined for ${dataSource.name}`);
+				return true; // Skip validation for unknown sources
 			}
 
-			// Split by comma and clean up quotes
-			const headers = headerLine.split(",").map((header) => header.trim().replace(/^["']|["']$/g, ""));
+			const missingHeaders = expectedHeaders.filter((h) => !actualHeaders.includes(h));
+			const extraHeaders = actualHeaders.filter((h) => !expectedHeaders.includes(h));
 
-			return headers;
+			if (missingHeaders.length > 0 || extraHeaders.length > 0) {
+				console.error(`❌ ${dataSource.name} header validation failed:`);
+				if (missingHeaders.length > 0) {
+					console.error(`  Missing: ${missingHeaders.join(", ")}`);
+				}
+				if (extraHeaders.length > 0) {
+					console.error(`  Extra: ${extraHeaders.join(", ")}`);
+				}
+				console.error(`  Expected: ${expectedHeaders.join(", ")}`);
+				console.error(`  Actual: ${actualHeaders.join(", ")}`);
+				return false;
+			}
+
+			return true;
 		} catch (error) {
-			console.error(`❌ Failed to fetch CSV headers from ${url}:`, error);
-			throw error;
+			console.error(`❌ Error validating headers for ${dataSource.name}:`, error);
+			return false;
 		}
 	}
 
-	/**
-	 * Validates CSV headers for a single data source
-	 */
-	private validateCSVHeaders(sourceName: string, expectedHeaders: string[], actualHeaders: string[]): CSVHeaderValidationFailure | null {
-		const missingHeaders = expectedHeaders.filter((header) => !actualHeaders.includes(header));
-		const extraHeaders = actualHeaders.filter((header) => !expectedHeaders.includes(header));
+	private getExpectedHeaders(sourceName: string): string[] | null {
+		// Define expected headers for each data source based on new structure
+		switch (sourceName) {
+			case "TBL_Players":
+				return ["ID", "PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"];
 
-		if (missingHeaders.length === 0 && extraHeaders.length === 0) {
-			return null; // Headers match exactly
-		}
+			case "TBL_FixturesAndResults":
+				return [
+					"ID",
+					"SEASON",
+					"DATE",
+					"TEAM",
+					"COMP TYPE",
+					"COMPETITION",
+					"OPPOSITION",
+					"HOME/AWAY",
+					"RESULT",
+					"HOME SCORE",
+					"AWAY SCORE",
+					"STATUS",
+					"OPPO OWN GOALS",
+					"FULL RESULT",
+					"DORKINIANS GOALS",
+					"CONCEDED",
+					"EXTRACTED PICKER",
+				];
 
-		return {
-			sourceName,
-			expectedHeaders,
-			actualHeaders,
-			missingHeaders,
-			extraHeaders,
-			url: "N/A", // Will be filled in by caller
-		};
-	}
+			case "TBL_MatchDetails":
+				return [
+					"ID",
+					"SEASON",
+					"DATE",
+					"TEAM",
+					"PLAYER NAME",
+					"MIN",
+					"CLASS",
+					"MOM",
+					"G",
+					"A",
+					"Y",
+					"R",
+					"SAVES",
+					"OG",
+					"PSC",
+					"PM",
+					"PCO",
+					"PSV",
+					"IMPORTED_FIXTURE_DETAIL",
+				];
 
-	/**
-	 * Validates CSV headers for all data sources
-	 */
-	async validateAllCSVHeaders(dataSources: DataSource[]): Promise<CSVHeaderValidationResult> {
-		console.log("🔍 Starting CSV header validation...");
+			case "TBL_WeeklyTOTW":
+				return [
+					"ID",
+					"SEASON",
+					"WEEK",
+					"TOTW SCORE",
+					"PLAYER COUNT",
+					"STAR MAN",
+					"STAR MAN SCORE",
+					"GK1",
+					"DEF1",
+					"DEF2",
+					"DEF3",
+					"DEF4",
+					"DEF5",
+					"MID1",
+					"MID2",
+					"MID3",
+					"MID4",
+					"MID5",
+					"FWD1",
+					"FWD2",
+					"FWD3",
+				];
 
-		const failures: CSVHeaderValidationFailure[] = [];
-		const totalSources = dataSources.length;
-		let validSources = 0;
-		let failedSources = 0;
+			case "TBL_SeasonTOTW":
+				return [
+					"ID",
+					"SEASON",
+					"TOTW SCORE",
+					"STAR MAN",
+					"STAR MAN SCORE",
+					"GK1",
+					"DEF1",
+					"DEF2",
+					"DEF3",
+					"DEF4",
+					"DEF5",
+					"MID1",
+					"MID2",
+					"MID3",
+					"MID4",
+					"MID5",
+					"FWD1",
+					"FWD2",
+					"FWD3",
+				];
 
-		for (const source of dataSources) {
-			try {
-				console.log(`  📊 Validating headers for ${source.name}...`);
+			case "TBL_PlayersOfTheMonth":
+				return [
+					"ID",
+					"SEASON",
+					"DATE",
+					"#1 Name",
+					"#1 Points",
+					"#2 Name",
+					"#2 Points",
+					"#3 Name",
+					"#3 Points",
+					"#4 Name",
+					"#4 Points",
+					"#5 Name",
+					"#5 Points",
+				];
 
-				const headerConfig = getCSVHeaderConfig(source.name);
-				if (!headerConfig) {
-					console.warn(`  ⚠️ No header configuration found for ${source.name}, skipping validation`);
-					continue;
-				}
+			case "TBL_OppositionDetails":
+				return ["ID", "OPPOSITION", "SHORT TEAM NAME", "ADDRESS", "DISTANCE (MILES)"];
 
-				const actualHeaders = await this.fetchCSVHeaders(source.url);
-				const failure = this.validateCSVHeaders(source.name, headerConfig.expectedHeaders, actualHeaders);
-
-				if (failure) {
-					failure.url = source.url;
-					failures.push(failure);
-					failedSources++;
-					console.error(`  ❌ Header validation failed for ${source.name}`);
-					console.error(`     Expected: ${headerConfig.expectedHeaders.join(", ")}`);
-					console.error(`     Actual: ${actualHeaders.join(", ")}`);
-					console.error(`     Missing: ${failure.missingHeaders.join(", ")}`);
-					console.error(`     Extra: ${failure.extraHeaders.join(", ")}`);
-				} else {
-					validSources++;
-					console.log(`  ✅ Headers valid for ${source.name}`);
-				}
-
-				// Small delay to avoid overwhelming the server
-				await new Promise((resolve) => setTimeout(resolve, 100));
-			} catch (error) {
-				console.error(`  ❌ Failed to validate headers for ${source.name}:`, error);
-				failedSources++;
-
-				// Create a failure record for this source
-				const headerConfig = getCSVHeaderConfig(source.name);
-				if (headerConfig) {
-					failures.push({
-						sourceName: source.name,
-						expectedHeaders: headerConfig.expectedHeaders,
-						actualHeaders: [],
-						missingHeaders: headerConfig.expectedHeaders,
-						extraHeaders: [],
-						url: source.url,
-					});
-				}
-			}
-		}
-
-		const result: CSVHeaderValidationResult = {
-			isValid: failures.length === 0,
-			failures,
-			totalSources,
-			validSources,
-			failedSources,
-		};
-
-		console.log(`\n📊 CSV Header Validation Complete:`);
-		console.log(`  Total Sources: ${totalSources}`);
-		console.log(`  Valid Sources: ${validSources}`);
-		console.log(`  Failed Sources: ${failedSources}`);
-		console.log(`  Overall Result: ${result.isValid ? "✅ PASSED" : "❌ FAILED"}`);
-
-		return result;
-	}
-
-	/**
-	 * Validates CSV headers for a single data source
-	 */
-	async validateSingleCSVHeaders(source: DataSource): Promise<CSVHeaderValidationFailure | null> {
-		try {
-			const headerConfig = getCSVHeaderConfig(source.name);
-			if (!headerConfig) {
-				throw new Error(`No header configuration found for ${source.name}`);
-			}
-
-			const actualHeaders = await this.fetchCSVHeaders(source.url);
-			const failure = this.validateCSVHeaders(source.name, headerConfig.expectedHeaders, actualHeaders);
-
-			if (failure) {
-				failure.url = source.url;
-			}
-
-			return failure;
-		} catch (error) {
-			console.error(`Failed to validate headers for ${source.name}:`, error);
-			throw error;
+			default:
+				return null; // Unknown source, skip validation
 		}
 	}
 }

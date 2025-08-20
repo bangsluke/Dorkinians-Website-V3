@@ -9,11 +9,11 @@
 		"start": "next start",
 		"lint": "next lint",
 		"type-check": "tsc --noEmit",
-		"seed-dev": "cross-env NODE_ENV=development node scripts/seed-database.js development",
-		"seed-dev-reduced": "cross-env NODE_ENV=development node scripts/seed-database-reduced.js development",
-		"seed-prod": "cross-env NODE_ENV=production node scripts/seed-database.js production",
+		"seed-dev": "cross-env NODE_ENV=development ts-node scripts/seed-database.js development",
+		"seed-dev-reduced": "cross-env NODE_ENV=development ts-node scripts/seed-database-reduced.js development",
+		"seed-prod": "cross-env NODE_ENV=production ts-node scripts/seed-database.js production",
 		"apply-schema": "node scripts/apply-schema.js",
-		"test-headers": "node scripts/test-csv-headers.js",
+		"test-headers": "ts-node scripts/test-csv-headers.js",
 		"check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
 	},
 	"dependencies": {
