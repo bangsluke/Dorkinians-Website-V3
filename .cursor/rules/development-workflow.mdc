@@ -78,5 +78,12 @@ alwaysApply: true
 - **Solution Validation**: Test user-provided solutions thoroughly to ensure they work as intended before suggesting modifications
 - **User Domain Knowledge Leverage**: When users provide domain-specific solutions (like ID formatting), prioritize their approach over complex technical workarounds
 
+## Natural Language Interface Development
+- **Configuration-Driven Mapping**: Use dedicated configuration files for complex natural language mappings (aliases, singular/plural forms) rather than hardcoding logic
+- **Context-Aware Pattern Detection**: Consider full phrase context when implementing pattern matching, not just individual keywords
+- **Specific-Before-General Logic**: In conditional logic systems, always check specific conditions before general ones to prevent false matches
+- **Multiple Question Format Support**: Design natural language interfaces to handle various question formats users naturally employ
+- **Type Detection Comprehensiveness**: When extending functionality to new domains, ensure all type detection logic is updated comprehensively
+
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps

@@ -1,4 +1,5 @@
 import { neo4jService } from "@/lib/neo4j";
+import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "@/lib/config/chatbotMetrics";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -76,7 +77,10 @@ export class ChatbotService {
 		let type: "player" | "team" | "club" | "fixture" | "comparison" | "general" = "general";
 
 		if (lowerQuestion.includes("player") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || 
-			lowerQuestion.includes("appearances") || lowerQuestion.includes("minutes") || lowerQuestion.includes("man of the match")) {
+			lowerQuestion.includes("assists") || lowerQuestion.includes("appearances") || lowerQuestion.includes("minutes") || 
+			lowerQuestion.includes("man of the match") || lowerQuestion.includes("yellow") || lowerQuestion.includes("red") ||
+			lowerQuestion.includes("saves") || lowerQuestion.includes("own goals") || lowerQuestion.includes("conceded") ||
+			lowerQuestion.includes("clean sheets") || lowerQuestion.includes("penalties") || lowerQuestion.includes("fantasy")) {
 			type = "player";
 		} else if (lowerQuestion.includes("team") || lowerQuestion.includes("finish")) {
 			type = "team";
@@ -97,9 +101,17 @@ export class ChatbotService {
 			entities.push(playerNameMatch[1].trim());
 		}
 		
-		// Pattern 2: "How many goals has Luke Bangs scored?" or "How many goals has Luke Bangs scored?"
+		// Pattern 2: "How many goals has Luke Bangs scored?" or "How many yellow cards has Luke Bangs received?"
 		if (entities.length === 0) {
-			playerNameMatch = question.match(/How many (?:goals|assists|appearances|minutes|man of the match awards?) has (.*?) (?:scored|got|made|played|won)/);
+			playerNameMatch = question.match(/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) has (.*?) (?:scored|got|made|played|won|received|conceded|kept|missed|saved|earned|received|given|booked|cautioned|dismissed|sent off|let in|allowed|kept|converted|failed|gave away|stopped|earned|collected|accumulated)/);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+		
+		// Pattern 2b: "How many penalties has Jonny Sourris missed?" (more natural format)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) has (.*?) (?:scored|got|made|played|won|received|conceded|kept|missed|saved|earned|received|given|booked|cautioned|dismissed|sent off|let in|allowed|kept|converted|failed|gave away|stopped|earned|collected|accumulated)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -107,20 +119,61 @@ export class ChatbotService {
 		
 		// Pattern 3: "Luke Bangs goals" or "Luke Bangs appearances"
 		if (entities.length === 0) {
-			playerNameMatch = question.match(/^([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom)/);
+			playerNameMatch = question.match(/^([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom|yellow cards?|red cards?|saves?|own goals?|conceded|clean sheets?|penalties|fantasy points)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
 
-		// Extract metrics
+		// Extract metrics using the configuration with context awareness
 		const metrics: string[] = [];
-		if (lowerQuestion.includes("goals")) metrics.push("goals");
-		if (lowerQuestion.includes("assists")) metrics.push("assists");
-		if (lowerQuestion.includes("clean sheets")) metrics.push("cleanSheets");
-		if (lowerQuestion.includes("games") || lowerQuestion.includes("appearances")) metrics.push("appearances");
-		if (lowerQuestion.includes("minutes")) metrics.push("minutes");
-		if (lowerQuestion.includes("man of the match")) metrics.push("mom");
+		
+		// Check for metric matches using aliases
+		for (const config of metricConfigs) {
+			const found = config.aliases.some(alias => 
+				lowerQuestion.includes(alias.toLowerCase())
+			) || lowerQuestion.includes(config.displayName.toLowerCase());
+			
+			if (found) {
+				metrics.push(config.key);
+				break; // Use first match found
+			}
+		}
+		
+		// Enhanced metric detection with context awareness
+		if (metrics.length === 0) {
+			// Check penalties first (more specific) before general goals
+			if (lowerQuestion.includes("penalties")) {
+				if (lowerQuestion.includes("missed") || lowerQuestion.includes("failed")) {
+					metrics.push("PM"); // Penalties missed
+				} else if (lowerQuestion.includes("conceded") || lowerQuestion.includes("gave away")) {
+					metrics.push("PCO"); // Penalties conceded
+				} else if (lowerQuestion.includes("saved") || lowerQuestion.includes("stopped")) {
+					metrics.push("PSV"); // Penalties saved
+				} else if (lowerQuestion.includes("scored") || lowerQuestion.includes("converted")) {
+					metrics.push("PSC"); // Penalties scored
+				} else {
+					metrics.push("PSC"); // Default to penalties scored
+				}
+			} else if (lowerQuestion.includes("goals") && !lowerQuestion.includes("penalties")) {
+				metrics.push("G");
+			}
+			
+			if (lowerQuestion.includes("assists")) metrics.push("A");
+			if (lowerQuestion.includes("clean sheets")) metrics.push("CLS");
+			if (lowerQuestion.includes("games") || lowerQuestion.includes("appearances")) metrics.push("APP");
+			if (lowerQuestion.includes("minutes")) metrics.push("MIN");
+			if (lowerQuestion.includes("man of the match")) metrics.push("MOM");
+			if (lowerQuestion.includes("yellow")) metrics.push("Y");
+			if (lowerQuestion.includes("red")) metrics.push("R");
+			if (lowerQuestion.includes("saves")) metrics.push("SAVES");
+			if (lowerQuestion.includes("own goals")) metrics.push("OG");
+			if (lowerQuestion.includes("conceded")) metrics.push("C");
+			if (lowerQuestion.includes("fantasy")) metrics.push("FTP");
+		}
+		
+		// Debug logging
+		console.log(`Question analysis - Type: ${type}, Entities: ${entities}, Metrics: ${metrics}, Lower question: ${lowerQuestion}`);
 
 		return { type, entities, metrics };
 	}
@@ -163,17 +216,53 @@ export class ChatbotService {
 			
 			let returnClause = '';
 			switch (metric) {
-				case 'appearances':
+				case 'APP':
 					returnClause = 'RETURN p.name as playerName, count(md) as value';
 					break;
-				case 'minutes':
+				case 'MIN':
 					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
 					break;
-				case 'goals':
+				case 'G':
 					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
 					break;
-				case 'mom':
+				case 'A':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
+					break;
+				case 'MOM':
 					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.manOfMatch IS NULL OR md.manOfMatch = "" THEN 0 ELSE md.manOfMatch END), 0) as value';
+					break;
+				case 'Y':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value';
+					break;
+				case 'R':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value';
+					break;
+				case 'SAVES':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = "" THEN 0 ELSE md.saves END), 0) as value';
+					break;
+				case 'OG':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
+					break;
+				case 'C':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END), 0) as value';
+					break;
+				case 'CLS':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = "" THEN 0 ELSE md.cleanSheet END), 0) as value';
+					break;
+				case 'PSC':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
+					break;
+				case 'PM':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
+					break;
+				case 'PCO':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
+					break;
+				case 'PSV':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
+					break;
+				case 'FTP':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
 					break;
 				default:
 					returnClause = 'RETURN p.name as playerName, count(md) as value';
@@ -285,25 +374,8 @@ export class ChatbotService {
 				const metric = data.metric;
 				const value = playerData.value;
 				
-				// Format the metric name for display
-				let metricName = '';
-				switch (metric) {
-					case 'appearances':
-						metricName = 'appearances';
-						break;
-					case 'minutes':
-						metricName = 'minutes played';
-						break;
-					case 'goals':
-						metricName = 'goals';
-						break;
-					case 'mom':
-						metricName = 'man of the match awards';
-						break;
-					default:
-						metricName = metric;
-				}
-				
+				// Use the metric configuration for proper display names
+				const metricName = getMetricDisplayName(metric, value);
 				answer = `${playerName} has ${value} ${metricName}.`;
 			} else if (data && data.type === 'general_players' && data.data && data.data.length > 0) {
 				if (data.data[0].playerCount) {

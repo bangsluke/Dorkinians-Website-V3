@@ -273,7 +273,7 @@ async function testDataValidation() {
 			
 			try {
 				// Query Neo4j for player stats - aggregate from MatchDetail nodes
-				// Use correct property names: minutes, manOfMatch, goals
+				// Now including all metrics from the configuration
 				const neo4jQuery = `
 					MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
 					MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
@@ -282,7 +282,19 @@ async function testDataValidation() {
 						count(md) as APP,
 						coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = '' THEN 0 ELSE md.minutes END), 0) as MIN,
 						coalesce(sum(CASE WHEN md.manOfMatch IS NULL OR md.manOfMatch = '' THEN 0 ELSE md.manOfMatch END), 0) as MOM,
-						coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = '' THEN 0 ELSE md.goals END), 0) as G
+						coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = '' THEN 0 ELSE md.goals END), 0) as G,
+						coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = '' THEN 0 ELSE md.assists END), 0) as A,
+						coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = '' THEN 0 ELSE md.yellowCards END), 0) as Y,
+						coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = '' THEN 0 ELSE md.redCards END), 0) as R,
+						coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = '' THEN 0 ELSE md.saves END), 0) as SAVES,
+						coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = '' THEN 0 ELSE md.ownGoals END), 0) as OG,
+						coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = '' THEN 0 ELSE md.conceded END), 0) as C,
+						coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = '' THEN 0 ELSE md.cleanSheet END), 0) as CLS,
+						coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = '' THEN 0 ELSE md.penaltiesScored END), 0) as PSC,
+						coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = '' THEN 0 ELSE md.penaltiesMissed END), 0) as PM,
+						coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = '' THEN 0 ELSE md.penaltiesConceded END), 0) as PCO,
+						coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = '' THEN 0 ELSE md.penaltiesSaved END), 0) as PSV,
+						coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = '' THEN 0 ELSE md.fantasyPoints END), 0) as FTP
 				`;
 				
 				// Use the seeding API to execute the query (since we need Neo4j access)
@@ -309,7 +321,19 @@ async function testDataValidation() {
 						APP: extractNeo4jValue(neo4jData?.APP),
 						MIN: extractNeo4jValue(neo4jData?.MIN),
 						MOM: extractNeo4jValue(neo4jData?.MOM),
-						G: extractNeo4jValue(neo4jData?.G)
+						G: extractNeo4jValue(neo4jData?.G),
+						A: extractNeo4jValue(neo4jData?.A),
+						Y: extractNeo4jValue(neo4jData?.Y),
+						R: extractNeo4jValue(neo4jData?.R),
+						SAVES: extractNeo4jValue(neo4jData?.SAVES),
+						OG: extractNeo4jValue(neo4jData?.OG),
+						C: extractNeo4jValue(neo4jData?.C),
+						CLS: extractNeo4jValue(neo4jData?.CLS),
+						PSC: extractNeo4jValue(neo4jData?.PSC),
+						PM: extractNeo4jValue(neo4jData?.PM),
+						PCO: extractNeo4jValue(neo4jData?.PCO),
+						PSV: extractNeo4jValue(neo4jData?.PSV),
+						FTP: extractNeo4jValue(neo4jData?.FTP)
 					});
 				} else {
 					console.warn(`⚠️ Failed to query Neo4j for ${playerName}`);
@@ -338,12 +362,34 @@ async function testDataValidation() {
 			if (!playerName) continue;
 			
 			try {
-				// Test chatbot for each stat
-				const stats = ['APP', 'MIN', 'MOM', 'G'];
+				// Test chatbot for each stat - now including all metrics
+				const stats = ['APP', 'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 'PSC', 'PM', 'PCO', 'PSV', 'FTP'];
 				const chatbotStats = {};
 				
 				for (const stat of stats) {
-					const question = `What is ${playerName}'s total ${stat === 'APP' ? 'appearances' : stat === 'MIN' ? 'minutes played' : stat === 'MOM' ? 'man of the match awards' : 'goals'}?`;
+					// Generate appropriate question text for each metric
+					let questionText = '';
+					switch (stat) {
+						case 'APP': questionText = 'appearances'; break;
+						case 'MIN': questionText = 'minutes played'; break;
+						case 'MOM': questionText = 'man of the match awards'; break;
+						case 'G': questionText = 'goals'; break;
+						case 'A': questionText = 'assists'; break;
+						case 'Y': questionText = 'yellow cards'; break;
+						case 'R': questionText = 'red cards'; break;
+						case 'SAVES': questionText = 'saves'; break;
+						case 'OG': questionText = 'own goals'; break;
+						case 'C': questionText = 'conceded goals'; break;
+						case 'CLS': questionText = 'clean sheets'; break;
+						case 'PSC': questionText = 'penalties scored'; break;
+						case 'PM': questionText = 'penalties missed'; break;
+						case 'PCO': questionText = 'penalties conceded'; break;
+						case 'PSV': questionText = 'penalties saved'; break;
+						case 'FTP': questionText = 'fantasy points'; break;
+						default: questionText = stat.toLowerCase();
+					}
+					
+					const question = `What is ${playerName}'s total ${questionText}?`;
 					
 					console.log(`    🤖 Asking: ${question}`);
 					
@@ -365,7 +411,22 @@ async function testDataValidation() {
 				
 				chatbotResults.push({
 					playerName,
-					...chatbotStats
+					APP: chatbotStats.APP || 'N/A',
+					MIN: chatbotStats.MIN || 'N/A',
+					MOM: chatbotStats.MOM || 'N/A',
+					G: chatbotStats.G || 'N/A',
+					A: chatbotStats.A || 'N/A',
+					Y: chatbotStats.Y || 'N/A',
+					R: chatbotStats.R || 'N/A',
+					SAVES: chatbotStats.SAVES || 'N/A',
+					OG: chatbotStats.OG || 'N/A',
+					C: chatbotStats.C || 'N/A',
+					CLS: chatbotStats.CLS || 'N/A',
+					PSC: chatbotStats.PSC || 'N/A',
+					PM: chatbotStats.PM || 'N/A',
+					PCO: chatbotStats.PCO || 'N/A',
+					PSV: chatbotStats.PSV || 'N/A',
+					FTP: chatbotStats.FTP || 'N/A'
 				});
 			} catch (error) {
 				console.warn(`⚠️ Error testing chatbot for ${playerName}:`, error.message);
@@ -393,12 +454,24 @@ async function testDataValidation() {
 				console.log(`\n👤 PLAYER: ${playerName}`);
 				console.log("─".repeat(50));
 				
-				// Test each stat individually
+				// Test each stat individually - now including all metrics
 				const stats = [
 					{ key: 'APP', label: 'Appearances', csvValue: player['APP'], neo4jValue: neo4jResult.APP, chatbotValue: chatbotResult.APP },
 					{ key: 'MIN', label: 'Minutes', csvValue: player['MIN'], neo4jValue: neo4jResult.MIN, chatbotValue: chatbotResult.MIN },
 					{ key: 'MOM', label: 'Man of Match', csvValue: player['MOM'], neo4jValue: neo4jResult.MOM, chatbotValue: chatbotResult.MOM },
-					{ key: 'G', label: 'Goals', csvValue: player['G'], neo4jValue: neo4jResult.G, chatbotValue: chatbotResult.G }
+					{ key: 'G', label: 'Goals', csvValue: player['G'], neo4jValue: neo4jResult.G, chatbotValue: chatbotResult.G },
+					{ key: 'A', label: 'Assists', csvValue: player['A'], neo4jValue: neo4jResult.A, chatbotValue: chatbotResult.A },
+					{ key: 'Y', label: 'Yellow Cards', csvValue: player['Y'], neo4jValue: neo4jResult.Y, chatbotValue: chatbotResult.Y },
+					{ key: 'R', label: 'Red Cards', csvValue: player['R'], neo4jValue: neo4jResult.R, chatbotValue: chatbotResult.R },
+					{ key: 'SAVES', label: 'Saves', csvValue: player['SAVES'], neo4jValue: neo4jResult.SAVES, chatbotValue: chatbotResult.SAVES },
+					{ key: 'OG', label: 'Own Goals', csvValue: player['OG'], neo4jValue: neo4jResult.OG, chatbotValue: chatbotResult.OG },
+					{ key: 'C', label: 'Conceded', csvValue: player['C'], neo4jValue: neo4jResult.C, chatbotValue: chatbotResult.C },
+					{ key: 'CLS', label: 'Clean Sheets', csvValue: player['CLS'], neo4jValue: neo4jResult.CLS, chatbotValue: chatbotResult.CLS },
+					{ key: 'PSC', label: 'Penalties Scored', csvValue: player['PSC'], neo4jValue: neo4jResult.PSC, chatbotValue: chatbotResult.PSC },
+					{ key: 'PM', label: 'Penalties Missed', csvValue: player['PM'], neo4jValue: neo4jResult.PM, chatbotValue: chatbotResult.PM },
+					{ key: 'PCO', label: 'Penalties Conceded', csvValue: player['PCO'], neo4jValue: neo4jResult.PCO, chatbotValue: chatbotResult.PCO },
+					{ key: 'PSV', label: 'Penalties Saved', csvValue: player['PSV'], neo4jValue: neo4jResult.PSV, chatbotValue: chatbotResult.PSV },
+					{ key: 'FTP', label: 'Fantasy Points', csvValue: player['FTP'], neo4jValue: neo4jResult.FTP, chatbotValue: chatbotResult.FTP }
 				];
 				
 				stats.forEach(stat => {
@@ -447,7 +520,7 @@ async function testDataValidation() {
 			const chatbotResult = chatbotResults.find(r => r.playerName === playerName);
 			
 			if (chatbotResult) {
-				const stats = ['APP', 'MIN', 'MOM', 'G'];
+				const stats = ['APP', 'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 'PSC', 'PM', 'PCO', 'PSV', 'FTP'];
 				stats.forEach(stat => {
 					const csvValue = player[stat] || 'N/A';
 					const chatbotValue = chatbotResult[stat] || 'N/A';
