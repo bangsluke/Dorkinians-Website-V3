@@ -51,6 +51,14 @@ function makeRequest(url, options = {}) {
 	});
 }
 
+// Helper function to extract numeric values from Neo4j results
+function extractNeo4jValue(value) {
+	if (value && typeof value === 'object' && value.low !== undefined) {
+		return value.low; // Neo4j Integer object
+	}
+	return value || 0; // Direct value or fallback
+}
+
 // Test data validation function
 async function testDataValidation() {
 	console.log("🧪 Starting Data Validation Test...");
@@ -109,7 +117,9 @@ async function testDataValidation() {
 				const result = await dbCheckResponse.json();
 				console.log("  📊 Database contents:");
 				result.data?.forEach(row => {
-					console.log(`    ${row.type}: ${row.count} nodes`);
+					// Fix: Extract numeric values from Neo4j count results
+					const count = extractNeo4jValue(row.count);
+					console.log(`    ${row.type}: ${count} nodes`);
 				});
 			} else {
 				console.log("  ⚠️ Could not check database contents");
@@ -192,7 +202,9 @@ async function testDataValidation() {
 			
 			if (matchDetailResponse.ok) {
 				const matchDetailResult = await matchDetailResponse.json();
-				console.log(`  📊 Total MatchDetail nodes: ${matchDetailResult.data?.[0]?.totalMatchDetails || 0}`);
+				// Fix: Extract numeric value from Neo4j count result
+				const count = matchDetailResult.data?.[0]?.totalMatchDetails?.toNumber?.() || matchDetailResult.data?.[0]?.totalMatchDetails || 0;
+				console.log(`  📊 Total MatchDetail nodes: ${count}`);
 			}
 			
 			// Check relationships for a test player
@@ -201,6 +213,15 @@ async function testDataValidation() {
 				MATCH (p:Player {name: 'Luke Bangs', graphLabel: 'dorkiniansWebsite'})
 				OPTIONAL MATCH (p)-[r]->(n)
 				RETURN p.name as playerName, type(r) as relationshipType, labels(n)[0] as targetType, count(r) as relationshipCount
+			`;
+			
+			// Check MatchDetail properties for Luke Bangs
+			console.log("  📊 Checking MatchDetail properties for Luke Bangs...");
+			const matchDetailPropsQuery = `
+				MATCH (p:Player {name: 'Luke Bangs', graphLabel: 'dorkiniansWebsite'})
+				MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
+				RETURN md.min as min, md.mom as mom, md.goals as goals, keys(md) as allProperties
+				LIMIT 5
 			`;
 			
 			const relationshipResponse = await makeRequest("http://localhost:3000/api/seed-data/", {
@@ -216,7 +237,28 @@ async function testDataValidation() {
 				const relationshipResult = await relationshipResponse.json();
 				console.log("  🔗 Relationships for Luke Bangs:");
 				relationshipResult.data?.forEach(row => {
-					console.log(`    ${row.relationshipType} -> ${row.targetType}: ${row.relationshipCount}`);
+					// Fix: Extract numeric value from Neo4j count result
+					const count = extractNeo4jValue(row.relationshipCount);
+					console.log(`    ${row.relationshipType} -> ${row.targetType}: ${count}`);
+				});
+			}
+			
+			// Execute MatchDetail properties query
+			const matchDetailPropsResponse = await makeRequest("http://localhost:3000/api/seed-data/", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					action: "query",
+					query: matchDetailPropsQuery
+				})
+			});
+			
+			if (matchDetailPropsResponse.ok) {
+				const matchDetailPropsResult = await matchDetailPropsResponse.json();
+				console.log("  📊 Sample MatchDetail properties:");
+				matchDetailPropsResult.data?.forEach((row, index) => {
+					console.log(`    Match ${index + 1}: min=${row.min}, mom=${row.mom}, goals=${row.goals}`);
+					console.log(`    Properties: ${row.allProperties?.join(', ')}`);
 				});
 			}
 		} catch (error) {
@@ -231,15 +273,16 @@ async function testDataValidation() {
 			
 			try {
 				// Query Neo4j for player stats - aggregate from MatchDetail nodes
+				// Use correct property names: minutes, manOfMatch, goals
 				const neo4jQuery = `
 					MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
 					MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
 					RETURN 
 						p.name as playerName,
 						count(md) as APP,
-						coalesce(sum(md.min), 0) as MIN,
-						coalesce(sum(md.mom), 0) as MOM,
-						coalesce(sum(md.goals), 0) as G
+						coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = '' THEN 0 ELSE md.minutes END), 0) as MIN,
+						coalesce(sum(CASE WHEN md.manOfMatch IS NULL OR md.manOfMatch = '' THEN 0 ELSE md.manOfMatch END), 0) as MOM,
+						coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = '' THEN 0 ELSE md.goals END), 0) as G
 				`;
 				
 				// Use the seeding API to execute the query (since we need Neo4j access)
@@ -255,12 +298,18 @@ async function testDataValidation() {
 				
 				if (queryResponse.ok) {
 					const result = await queryResponse.json();
+					// Fix: Extract numeric values from Neo4j results
+					const neo4jData = result.data?.[0];
+					
+					// Debug: Log raw Neo4j results
+					console.log(`    🔍 Raw Neo4j data for ${playerName}:`, JSON.stringify(neo4jData, null, 2));
+					
 					neo4jResults.push({
 						playerName,
-						APP: result.data?.[0]?.APP || 0,
-						MIN: result.data?.[0]?.MIN || 0,
-						MOM: result.data?.[0]?.MOM || 0,
-						G: result.data?.[0]?.G || 0
+						APP: extractNeo4jValue(neo4jData?.APP),
+						MIN: extractNeo4jValue(neo4jData?.MIN),
+						MOM: extractNeo4jValue(neo4jData?.MOM),
+						G: extractNeo4jValue(neo4jData?.G)
 					});
 				} else {
 					console.warn(`⚠️ Failed to query Neo4j for ${playerName}`);
@@ -296,6 +345,8 @@ async function testDataValidation() {
 				for (const stat of stats) {
 					const question = `What is ${playerName}'s total ${stat === 'APP' ? 'appearances' : stat === 'MIN' ? 'minutes played' : stat === 'MOM' ? 'man of the match awards' : 'goals'}?`;
 					
+					console.log(`    🤖 Asking: ${question}`);
+					
 					const chatbotResponse = await makeRequest("http://localhost:3000/api/chatbot/", {
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
@@ -304,8 +355,10 @@ async function testDataValidation() {
 					
 					if (chatbotResponse.ok) {
 						const result = await chatbotResponse.json();
+						console.log(`    🤖 Answer: ${result.answer}`);
 						chatbotStats[stat] = result.answer;
 					} else {
+						console.log(`    ❌ API Error: ${chatbotResponse.status}`);
 						chatbotStats[stat] = "API Error";
 					}
 				}
@@ -361,7 +414,18 @@ async function testDataValidation() {
 					console.log(`    CSV: ${csvValue}`);
 					console.log(`    Neo4j: ${neo4jValue}`);
 					console.log(`    Chatbot: ${chatbotValue}`);
-					console.log(`    Match: ${isMatch ? '✅ PASS' : '❌ FAIL'}`);
+					console.log(`    Match: ${csvValue == neo4jValue ? '✅ PASS' : '❌ FAIL'}`);
+					
+					// Add chatbot answer analysis
+					if (chatbotValue !== 'N/A' && chatbotValue !== 'API Error') {
+						// Extract numeric value from chatbot answer if possible
+						const chatbotNumericMatch = chatbotValue.match(/(\d+)/);
+						if (chatbotNumericMatch) {
+							const chatbotNumeric = parseInt(chatbotNumericMatch[1]);
+							const chatbotMatch = (csvValue == chatbotNumeric);
+							console.log(`    Chatbot Match: ${chatbotMatch ? '✅ PASS' : '❌ FAIL'} (${chatbotNumeric})`);
+						}
+					}
 				});
 				
 				report.push({
@@ -374,10 +438,40 @@ async function testDataValidation() {
 			}
 		}
 		
+		// Calculate chatbot accuracy
+		let chatbotPassedTests = 0;
+		let chatbotTotalTests = 0;
+		
+		for (const player of testPlayers) {
+			const playerName = player['PLAYER NAME'] || player['Player Name'];
+			const chatbotResult = chatbotResults.find(r => r.playerName === playerName);
+			
+			if (chatbotResult) {
+				const stats = ['APP', 'MIN', 'MOM', 'G'];
+				stats.forEach(stat => {
+					const csvValue = player[stat] || 'N/A';
+					const chatbotValue = chatbotResult[stat] || 'N/A';
+					
+					if (csvValue !== 'N/A' && chatbotValue !== 'N/A' && chatbotValue !== 'API Error') {
+						chatbotTotalTests++;
+						const chatbotNumericMatch = chatbotValue.match(/(\d+)/);
+						if (chatbotNumericMatch) {
+							const chatbotNumeric = parseInt(chatbotNumericMatch[1]);
+							if (csvValue == chatbotNumeric) {
+								chatbotPassedTests++;
+							}
+						}
+					}
+				});
+			}
+		}
+		
 		// Display summary
 		console.log("\n" + "=".repeat(60));
 		console.log(`📈 VALIDATION SUMMARY: ${passedTests}/${totalTests} tests passed`);
 		console.log(`📊 Success Rate: ${Math.round(passedTests/totalTests*100)}%`);
+		console.log(`🤖 CHATBOT ACCURACY: ${chatbotPassedTests}/${chatbotTotalTests} tests passed`);
+		console.log(`🤖 Chatbot Success Rate: ${Math.round(chatbotPassedTests/chatbotTotalTests*100)}%`);
 		console.log("=".repeat(60));
 		
 		// Calculate and display timing

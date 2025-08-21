@@ -29,7 +29,7 @@ export class ChatbotService {
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
-		console.log(`🤖 Processing question: ${context.question}`);
+		
 
 		try {
 			// Ensure Neo4j connection
@@ -52,6 +52,8 @@ export class ChatbotService {
 			const response = await this.generateResponse(context.question, data, analysis);
 
 			return response;
+
+			console.log(` 🤖 Answer to question: ${response.answer}`);
 		} catch (error) {
 			console.error("❌ Chatbot processing failed:", error);
 			return {
@@ -73,7 +75,8 @@ export class ChatbotService {
 		// Determine question type
 		let type: "player" | "team" | "club" | "fixture" | "comparison" | "general" = "general";
 
-		if (lowerQuestion.includes("player") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals")) {
+		if (lowerQuestion.includes("player") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || 
+			lowerQuestion.includes("appearances") || lowerQuestion.includes("minutes") || lowerQuestion.includes("man of the match")) {
 			type = "player";
 		} else if (lowerQuestion.includes("team") || lowerQuestion.includes("finish")) {
 			type = "team";
@@ -85,17 +88,21 @@ export class ChatbotService {
 			type = "comparison";
 		}
 
-		// Extract entities (player names, team names, etc.)
+		// Extract player names from questions like "What is Luke Bangs's total goals?"
 		const entities: string[] = [];
-		// This is a simplified extraction - in production, you'd use NLP
+		const playerNameMatch = question.match(/What is (.*?)'s total/);
+		if (playerNameMatch) {
+			entities.push(playerNameMatch[1].trim());
+		}
 
 		// Extract metrics
 		const metrics: string[] = [];
 		if (lowerQuestion.includes("goals")) metrics.push("goals");
 		if (lowerQuestion.includes("assists")) metrics.push("assists");
 		if (lowerQuestion.includes("clean sheets")) metrics.push("cleanSheets");
-		if (lowerQuestion.includes("games")) metrics.push("games");
-		if (lowerQuestion.includes("points")) metrics.push("points");
+		if (lowerQuestion.includes("games") || lowerQuestion.includes("appearances")) metrics.push("appearances");
+		if (lowerQuestion.includes("minutes")) metrics.push("minutes");
+		if (lowerQuestion.includes("man of the match")) metrics.push("mom");
 
 		return { type, entities, metrics };
 	}
@@ -125,6 +132,47 @@ export class ChatbotService {
 	}
 
 	private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
+		// If we have a specific player name and metrics, query their stats
+		if (entities.length > 0 && metrics.length > 0) {
+			const playerName = entities[0];
+			const metric = metrics[0];
+			
+			// Build query based on the metric requested
+			let query = `
+				MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+				MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
+			`;
+			
+			let returnClause = '';
+			switch (metric) {
+				case 'appearances':
+					returnClause = 'RETURN p.name as playerName, count(md) as value';
+					break;
+				case 'minutes':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
+					break;
+				case 'goals':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
+					break;
+				case 'mom':
+					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.manOfMatch IS NULL OR md.manOfMatch = "" THEN 0 ELSE md.manOfMatch END), 0) as value';
+					break;
+				default:
+					returnClause = 'RETURN p.name as playerName, count(md) as value';
+			}
+			
+			query += ' ' + returnClause;
+			
+			try {
+				const result = await neo4jService.executeQuery(query, { playerName });
+				return { type: 'specific_player', data: result, playerName, metric };
+			} catch (error) {
+				console.error('Error querying specific player data:', error);
+				return null;
+			}
+		}
+		
+		// Fallback to general player query
 		const query = `
       MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
       WHERE p.NAME IS NOT NULL
@@ -133,7 +181,7 @@ export class ChatbotService {
     `;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		return { type: 'general_players', data: result };
 	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
@@ -212,26 +260,53 @@ export class ChatbotService {
 
 		// Handle different types of questions with strict club-focused responses
 		if (analysis.type === "player") {
-			if (data.length > 0) {
-				if (data[0].playerCount) {
+			// Check if this is a specific player query
+			if (data && data.type === 'specific_player' && data.data && data.data.length > 0) {
+				const playerData = data.data[0];
+				const playerName = data.playerName;
+				const metric = data.metric;
+				const value = playerData.value;
+				
+				// Format the metric name for display
+				let metricName = '';
+				switch (metric) {
+					case 'appearances':
+						metricName = 'appearances';
+						break;
+					case 'minutes':
+						metricName = 'minutes played';
+						break;
+					case 'goals':
+						metricName = 'goals';
+						break;
+					case 'mom':
+						metricName = 'man of the match awards';
+						break;
+					default:
+						metricName = metric;
+				}
+				
+				answer = `${playerName} has ${value} ${metricName}.`;
+			} else if (data && data.type === 'general_players' && data.data && data.data.length > 0) {
+				if (data.data[0].playerCount) {
 					// General player count question
-					answer = `The club currently has ${data[0].playerCount} registered players across all teams.`;
+					answer = `The club currently has ${data.data[0].playerCount} registered players across all teams.`;
 					visualization = {
 						type: "stats",
-						data: { playerCount: data[0].playerCount },
+						data: { playerCount: data.data[0].playerCount },
 						config: { title: "Total Players" },
 					};
-				} else if (data[0].name) {
+				} else if (data.data[0].name) {
 					// Specific player data - MAX 14 players as per rules
-					const maxPlayers = Math.min(data.length, 14);
-					const playerNames = data
+					const maxPlayers = Math.min(data.data.length, 14);
+					const playerNames = data.data
 						.slice(0, maxPlayers)
 						.map((p: any) => p.name)
 						.join(", ");
-					answer = `I found ${data.length} players in the club. Here are some of our registered players: ${playerNames}${data.length > maxPlayers ? " and many more..." : ""}`;
+					answer = `I found ${data.data.length} players in the club. Here are some of our registered players: ${playerNames}${data.data.length > maxPlayers ? " and many more..." : ""}`;
 					visualization = {
 						type: "table",
-						data: data.slice(0, maxPlayers),
+						data: data.data.slice(0, maxPlayers),
 						config: { columns: ["name"] },
 					};
 				}

@@ -101,7 +101,7 @@
   playerName: String,            // ✅ Player name
   min: Integer,                  // ✅ Minutes played
   class: String,                 // ✅ Position/class
-  mom: Boolean,                  // ✅ Man of the match
+  mom: Integer,                  // ✅ Man of the match
   goals: Integer,                // ✅ Goals scored
   assists: Integer,              // ✅ Assists provided
   yellowCards: Integer,          // ✅ Yellow cards received
