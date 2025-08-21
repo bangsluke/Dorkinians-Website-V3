@@ -10,14 +10,6 @@ export interface CSVHeaderValidationResult {
 	failures: CSVHeaderValidationFailure[];
 }
 
-export interface CSVHeaderValidationFailure {
-	sourceName: string;
-	expectedHeaders: string[];
-	actualHeaders: string[];
-	missingHeaders: string[];
-	extraHeaders: string[];
-}
-
 export class CSVHeaderValidator {
 	private static instance: CSVHeaderValidator;
 
@@ -50,6 +42,7 @@ export class CSVHeaderValidator {
 				console.error(`❌ ${dataSource.name}: Validation error:`, error);
 				results.push({
 					sourceName: dataSource.name,
+					url: dataSource.url,
 					expectedHeaders: [],
 					actualHeaders: [],
 					missingHeaders: [],

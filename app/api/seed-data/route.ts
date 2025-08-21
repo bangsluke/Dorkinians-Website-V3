@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
 				
 				const result = await neo4jService.runQuery(query, params || {});
 				const data = result.records.map(record => {
-					const obj = {};
+					const obj: { [key: string]: any } = {};
 					record.keys.forEach(key => {
-						obj[key] = record.get(key);
+						obj[String(key)] = record.get(key);
 					});
 					return obj;
 				});

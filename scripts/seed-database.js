@@ -4,6 +4,7 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 // Use built-in http module for making requests
 const http = require("http");
 const https = require("https");
+const fs = require("fs");
 
 function makeRequest(url, options = {}) {
 	return new Promise((resolve, reject) => {
@@ -49,6 +50,35 @@ function makeRequest(url, options = {}) {
 
 		req.end();
 	});
+}
+
+function countErrorsFromLog() {
+	try {
+		const logPath = path.join(__dirname, "..", "logs", "seeding-errors.log");
+		if (!fs.existsSync(logPath)) {
+			return 0;
+		}
+
+		const logContent = fs.readFileSync(logPath, "utf8");
+		const lines = logContent.split("\n");
+		
+		// Count lines that contain actual error details (not timestamps or separators)
+		let errorCount = 0;
+		for (const line of lines) {
+			if (line.trim() && 
+				!line.startsWith("===") && 
+				!line.startsWith("[") && 
+				!line.startsWith("Details:") &&
+				!line.startsWith("}")) {
+				errorCount++;
+			}
+		}
+		
+		return errorCount;
+	} catch (error) {
+		console.warn(`⚠️ Could not read error log: ${error.message}`);
+		return 0;
+	}
 }
 
 // Import data sources from configuration
@@ -145,8 +175,73 @@ async function seedDatabase() {
 				} catch (validationError) {
 					console.warn(`⚠️ Data validation failed: ${validationError.message}`);
 				}
+
+				// Send email notification
+				console.log("\n📧 Sending seeding summary email...");
+				try {
+					const { emailService } = require("../lib/services/emailService");
+					const { getEmailConfig } = require("../lib/config/emailConfig");
+					
+					const emailConfig = getEmailConfig();
+					if (emailConfig) {
+						emailService.configure(emailConfig);
+						
+						const errorCount = countErrorsFromLog();
+						const duration = Math.floor((Date.now() - startTime) / 1000);
+						
+						const summary = {
+							environment: environment,
+							nodesCreated: result.data.nodesCreated,
+							relationshipsCreated: result.data.relationshipsCreated,
+							duration: duration,
+							errorCount: errorCount,
+							timestamp: new Date().toISOString(),
+							success: true
+						};
+						
+						await emailService.sendSeedingSummary(summary);
+						console.log("✅ Seeding summary email sent successfully");
+					} else {
+						console.log("⚠️ Email service not configured - skipping email notification");
+					}
+				} catch (emailError) {
+					console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+				}
 			} else {
 				console.log("⚠️ Seeding completed with errors:", result.errors);
+				
+				// Send email notification for seeding with errors
+				console.log("\n📧 Sending seeding summary email...");
+				try {
+					const { emailService } = require("../lib/services/emailService");
+					const { getEmailConfig } = require("../lib/config/emailConfig");
+					
+					const emailConfig = getEmailConfig();
+					if (emailConfig) {
+						emailService.configure(emailConfig);
+						
+						const errorCount = countErrorsFromLog();
+						const duration = Math.floor((Date.now() - startTime) / 1000);
+						
+						const summary = {
+							environment: environment,
+							nodesCreated: result.data?.nodesCreated || 0,
+							relationshipsCreated: result.data?.relationshipsCreated || 0,
+							duration: duration,
+							errorCount: errorCount,
+							timestamp: new Date().toISOString(),
+							success: false,
+							errors: result.errors
+						};
+						
+						await emailService.sendSeedingSummary(summary);
+						console.log("✅ Seeding summary email sent successfully");
+					} else {
+						console.log("⚠️ Email service not configured - skipping email notification");
+					}
+				} catch (emailError) {
+					console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+				}
 			}
 		} else {
 			const errorText = await response.text();
@@ -155,6 +250,39 @@ async function seedDatabase() {
 			console.log("1. Next.js server is running (npm run dev)");
 			console.log("2. Neo4j database is accessible");
 			console.log("3. All environment variables are set correctly");
+			
+			// Send email notification for complete seeding failure
+			console.log("\n📧 Sending seeding summary email...");
+			try {
+				const { emailService } = require("../lib/services/emailService");
+				const { getEmailConfig } = require("../lib/config/emailConfig");
+				
+				const emailConfig = getEmailConfig();
+				if (emailConfig) {
+					emailService.configure(emailConfig);
+					
+					const errorCount = countErrorsFromLog();
+					const duration = Math.floor((Date.now() - startTime) / 1000);
+					
+					const summary = {
+						environment: environment,
+						nodesCreated: 0,
+						relationshipsCreated: 0,
+						duration: duration,
+						errorCount: errorCount,
+						timestamp: new Date().toISOString(),
+						success: false,
+						errors: [`API call failed with status ${response.status}: ${errorText}`]
+					};
+					
+					await emailService.sendSeedingSummary(summary);
+					console.log("✅ Seeding summary email sent successfully");
+				} else {
+					console.log("⚠️ Email service not configured - skipping email notification");
+				}
+			} catch (emailError) {
+				console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+			}
 		}
 
 		// Calculate and display timing
@@ -180,6 +308,40 @@ async function seedDatabase() {
 		console.log("1. Next.js server is running (npm run dev)");
 		console.log("2. Neo4j database is accessible");
 		console.log("3. All environment variables are set correctly");
+		
+		// Send email notification for complete seeding failure
+		console.log("\n📧 Sending seeding summary email...");
+		try {
+			const { emailService } = require("../lib/services/emailService");
+			const { getEmailConfig } = require("../lib/config/emailConfig");
+			
+			const emailConfig = getEmailConfig();
+			if (emailConfig) {
+				emailService.configure(emailConfig);
+				
+				const errorCount = countErrorsFromLog();
+				const durationSeconds = Math.floor(duration / 1000);
+				
+				const summary = {
+					environment: environment,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					duration: durationSeconds,
+					errorCount: errorCount,
+					timestamp: new Date().toISOString(),
+					success: false,
+					errors: [`Seeding process failed with exception: ${error.message}`]
+				};
+				
+				await emailService.sendSeedingSummary(summary);
+				console.log("✅ Seeding summary email sent successfully");
+			} else {
+				console.log("⚠️ Email service not configured - skipping email notification");
+			}
+		} catch (emailError) {
+			console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+		}
+		
 		process.exit(1);
 	}
 }
