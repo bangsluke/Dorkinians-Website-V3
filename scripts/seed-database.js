@@ -130,6 +130,21 @@ async function seedDatabase() {
 			if (result.success) {
 				console.log(`🎉 Created ${result.data.nodesCreated} nodes and ${result.data.relationshipsCreated} relationships`);
 				console.log(`📍 Database: ${environment === "production" ? "Neo4j Aura (Production)" : "Local Neo4j Desktop"}`);
+				
+				// Run data validation test after successful seeding
+				console.log("\n🧪 Running data validation test...");
+				try {
+					const { testDataValidation } = require("./test-data-validation");
+					const validationResult = await testDataValidation();
+					
+					if (validationResult.success) {
+						console.log(`✅ Validation completed: ${validationResult.passedTests}/${validationResult.totalTests} tests passed`);
+					} else {
+						console.log(`⚠️ Validation completed with issues: ${validationResult.error}`);
+					}
+				} catch (validationError) {
+					console.warn(`⚠️ Data validation failed: ${validationError.message}`);
+				}
 			} else {
 				console.log("⚠️ Seeding completed with errors:", result.errors);
 			}

@@ -9,7 +9,42 @@ import { getDataSourcesByName } from "@/lib/config/dataSources";
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const { action, dataSources, reducedMode } = body;
+		const { action, dataSources, reducedMode, query, params } = body;
+
+		// Handle custom query execution
+		if (action === "query" && query) {
+			console.log("🔍 Executing custom Neo4j query...");
+			
+			try {
+				const { neo4jService } = await import("@/lib/neo4j");
+				const connected = await neo4jService.connect();
+				
+				if (!connected) {
+					return NextResponse.json({ error: "Neo4j connection failed" }, { status: 500 });
+				}
+				
+				const result = await neo4jService.runQuery(query, params || {});
+				const data = result.records.map(record => {
+					const obj = {};
+					record.keys.forEach(key => {
+						obj[key] = record.get(key);
+					});
+					return obj;
+				});
+				
+				return NextResponse.json({
+					action: "query",
+					success: true,
+					data: data
+				});
+			} catch (error) {
+				console.error("❌ Query execution error:", error);
+				return NextResponse.json({ 
+					error: "Query execution failed", 
+					details: error instanceof Error ? error.message : String(error) 
+				}, { status: 500 });
+			}
+		}
 
 		if (!dataSources || !Array.isArray(dataSources)) {
 			return NextResponse.json({ error: "dataSources array is required" }, { status: 400 });
