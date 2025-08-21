@@ -81,99 +81,59 @@ function countErrorsFromLog() {
 	}
 }
 
-// Import data sources from configuration
 const { dataSources } = require("../lib/config/dataSources");
+
+// Add maxRows to each data source for reduced seeding
+const REDUCED_DATA_SOURCES = dataSources.map(source => ({
+	...source,
+	maxRows: 100 // Limit to 100 rows per source for testing
+}));
 
 // Unified database seeding script that works with both development and production
 async function seedDatabase() {
-	// Get environment from command line argument or default to development
-	const environment = process.argv[2] || "development";
-	
 	// Start timing
 	const startTime = Date.now();
-
-	console.log(`🚀 Starting Database Seeding...`);
-	console.log(`📍 Environment: ${environment.toUpperCase()}`);
-	console.log(`📊 Processing all data sources`);
-
+	
 	try {
-		// Set NODE_ENV based on the environment parameter
-		process.env.NODE_ENV = environment;
-
-		// Check environment variables based on the target environment
-		if (environment === "production") {
-			console.log("📋 Production Environment Check:");
-			console.log("  NODE_ENV:", process.env.NODE_ENV);
-			console.log("  PROD_NEO4J_URI:", process.env.PROD_NEO4J_URI ? "✅ Set" : "❌ Missing");
-			console.log("  PROD_NEO4J_USER:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
-			console.log("  PROD_NEO4J_PASSWORD:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
-
-			if (!process.env.PROD_NEO4J_URI || !process.env.PROD_NEO4J_USER || !process.env.PROD_NEO4J_PASSWORD) {
-				throw new Error("Production Neo4j environment variables are not configured");
-			}
-
-			console.log("📍 Target: Neo4j Aura (Production)");
-		} else {
-			console.log("📋 Development Environment Check:");
-			console.log("  NODE_ENV:", process.env.NODE_ENV);
-			console.log("  DEV_NEO4J_URI:", process.env.DEV_NEO4J_URI ? "✅ Set" : "❌ Missing");
-			console.log("  DEV_NEO4J_USER:", process.env.DEV_NEO4J_USER ? "✅ Set" : "❌ Missing");
-			console.log("  DEV_NEO4J_PASSWORD:", process.env.DEV_NEO4J_PASSWORD ? "✅ Set" : "❌ Missing");
-
-			if (!process.env.DEV_NEO4J_URI || !process.env.DEV_NEO4J_USER || !process.env.DEV_NEO4J_PASSWORD) {
-				throw new Error("Development Neo4j environment variables are not configured");
-			}
-
-			console.log("📍 Target: Local Neo4j Desktop (Development)");
-		}
-
-		console.log("✅ Environment variables validated");
-
-		// Use appropriate port based on environment
-		const port = 3000; // Both dev and prod use port 3000
-		const apiUrl = `http://localhost:${port}/api/seed-data/`;
-
-		console.log(`🌐 Calling seeding API: ${apiUrl}`);
-		console.log(`📊 Seeding ${dataSources.length} data sources...`);
-
-		// Display data sources being seeded
-		dataSources.forEach((source, index) => {
-			console.log(`  ${index + 1}. ${source.name}`);
-		});
+		console.log("🌱 Starting reduced database seeding process...");
+		console.log("📊 REDUCED MODE: Processing up to 100 rows per table for testing");
 
 		// Make request to the seeding API
+		const apiUrl = "http://localhost:3000/api/seed-data/";
 		const response = await makeRequest(apiUrl, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
-				dataSources: dataSources,
+				dataSources: REDUCED_DATA_SOURCES,
+				reducedMode: true, // Flag to indicate reduced seeding mode
 			}),
 		});
 
 		if (response.ok) {
 			const result = await response.json();
-			console.log("✅ Seeding completed successfully!");
-			console.log("📊 Result:", result);
+			console.log("✅ Database seeding completed successfully!");
+			console.log(`📊 Result:`, result);
 
 			if (result.success) {
-				console.log(`🎉 Created ${result.data.nodesCreated} nodes and ${result.data.relationshipsCreated} relationships`);
-				console.log(`📍 Database: ${environment === "production" ? "Neo4j Aura (Production)" : "Local Neo4j Desktop"}`);
-				
-				// Run data validation test after successful seeding
-				console.log("\n🧪 Running data validation test...");
-				try {
-					const { testDataValidation } = require("./test-data-validation");
-					const validationResult = await testDataValidation();
-					
-					if (validationResult.success) {
-						console.log(`✅ Validation completed: ${validationResult.passedTests}/${validationResult.totalTests} tests passed`);
-					} else {
-						console.log(`⚠️ Validation completed with issues: ${validationResult.error}`);
-					}
-				} catch (validationError) {
-					console.warn(`⚠️ Data validation failed: ${validationError.message}`);
+				console.log(`📊 Nodes created: ${result.nodesCreated}`);
+				console.log(`🔗 Relationships created: ${result.relationshipsCreated}`);
+				console.log(`⚠️ Errors: ${result.errors.length}`);
+				console.log(`❓ Unknown nodes: ${result.unknownNodes.length}`);
+
+				if (result.errors.length > 0) {
+					console.log("\n❌ Errors encountered:");
+					result.errors.forEach((error, index) => {
+						console.log(`  ${index + 1}. ${error}`);
+					});
+				}
+
+				if (result.unknownNodes.length > 0) {
+					console.log("\n❓ Unknown nodes encountered:");
+					result.unknownNodes.forEach((node, index) => {
+						console.log(`  ${index + 1}. ${node}`);
+					});
 				}
 
 				// Send email notification
@@ -190,9 +150,9 @@ async function seedDatabase() {
 						const duration = Math.floor((Date.now() - startTime) / 1000);
 						
 						const summary = {
-							environment: environment,
-							nodesCreated: result.data.nodesCreated,
-							relationshipsCreated: result.data.relationshipsCreated,
+							environment: "development (reduced)",
+							nodesCreated: result.nodesCreated,
+							relationshipsCreated: result.relationshipsCreated,
 							duration: duration,
 							errorCount: errorCount,
 							timestamp: new Date().toISOString(),
@@ -224,9 +184,9 @@ async function seedDatabase() {
 						const duration = Math.floor((Date.now() - startTime) / 1000);
 						
 						const summary = {
-							environment: environment,
-							nodesCreated: result.data?.nodesCreated || 0,
-							relationshipsCreated: result.data?.relationshipsCreated || 0,
+							environment: "development (reduced)",
+							nodesCreated: result.nodesCreated || 0,
+							relationshipsCreated: result.relationshipsCreated || 0,
 							duration: duration,
 							errorCount: errorCount,
 							timestamp: new Date().toISOString(),
@@ -245,11 +205,7 @@ async function seedDatabase() {
 			}
 		} else {
 			const errorText = await response.text();
-			console.error("❌ Seeding failed:", response.status, errorText);
-			console.log("\n💡 Make sure:");
-			console.log("1. Next.js server is running (npm run dev)");
-			console.log("2. Neo4j database is accessible");
-			console.log("3. All environment variables are set correctly");
+			console.error("❌ Database seeding failed:", response.status, errorText);
 			
 			// Send email notification for complete seeding failure
 			console.log("\n📧 Sending seeding summary email...");
@@ -265,7 +221,7 @@ async function seedDatabase() {
 					const duration = Math.floor((Date.now() - startTime) / 1000);
 					
 					const summary = {
-						environment: environment,
+						environment: "development (reduced)",
 						nodesCreated: 0,
 						relationshipsCreated: 0,
 						duration: duration,
@@ -283,8 +239,10 @@ async function seedDatabase() {
 			} catch (emailError) {
 				console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
 			}
+			
+			process.exit(1);
 		}
-
+		
 		// Calculate and display timing
 		const endTime = Date.now();
 		const duration = endTime - startTime;
@@ -293,7 +251,6 @@ async function seedDatabase() {
 		const milliseconds = duration % 1000;
 		
 		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
-		console.log(`✅ ${environment} seeding completed!`);
 	} catch (error) {
 		// Calculate timing even on error
 		const endTime = Date.now();
@@ -303,11 +260,7 @@ async function seedDatabase() {
 		const milliseconds = duration % 1000;
 		
 		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
-		console.error(`❌ ${environment} seeding failed:`, error.message);
-		console.log("\n💡 Make sure:");
-		console.log("1. Next.js server is running (npm run dev)");
-		console.log("2. Neo4j database is accessible");
-		console.log("3. All environment variables are set correctly");
+		console.error("❌ Error during database seeding:", error);
 		
 		// Send email notification for complete seeding failure
 		console.log("\n📧 Sending seeding summary email...");
@@ -323,7 +276,7 @@ async function seedDatabase() {
 				const durationSeconds = Math.floor(duration / 1000);
 				
 				const summary = {
-					environment: environment,
+					environment: "development (reduced)",
 					nodesCreated: 0,
 					relationshipsCreated: 0,
 					duration: durationSeconds,

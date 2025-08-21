@@ -1,0 +1,11 @@
+// .prettierrc.js
+module.exports = {
+	bracketSameLine: true,
+	bracketSpacing: true,
+	tabWidth: 1,
+	useTabs: true,
+	semi: true,
+	jsxSingleQuote: true,
+	singleAttributePerLine: false,
+	printWidth: 140,
+};

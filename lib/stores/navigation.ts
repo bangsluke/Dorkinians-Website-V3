@@ -45,7 +45,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     }
   },
 
-  // Stats sub-page navigation
   setStatsSubPage: (page: StatsSubPage) => {
     set({ currentStatsSubPage: page })
   },
@@ -76,7 +75,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
     const { currentStatsSubPage } = get()
     const subPages: StatsSubPage[] = ['player-stats', 'team-stats', 'club-stats', 'comparison']
     const currentIndex = subPages.indexOf(currentStatsSubPage)
-    const previousIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1
-    set({ currentStatsSubPage: subPages[previousIndex] })
-  }
+    const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1
+    set({ currentStatsSubPage: subPages[prevIndex] })
+  },
 }))

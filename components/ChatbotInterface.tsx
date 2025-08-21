@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -26,19 +26,17 @@ export default function ChatbotInterface() {
     const saved = localStorage.getItem('chatbotConversations')
     if (saved) {
       try {
-        const history = JSON.parse(saved) as SavedConversation[]
-        setConversationHistory(history)
-      } catch (e) {
-        console.warn('Failed to parse saved conversations:', e)
+        const parsed = JSON.parse(saved)
+        setConversationHistory(parsed)
+      } catch (err) {
+        console.error('Failed to parse saved conversations:', err)
       }
     }
   }, [])
 
   // Save conversation history to localStorage whenever it changes
   useEffect(() => {
-    if (conversationHistory.length > 0) {
-      localStorage.setItem('chatbotConversations', JSON.stringify(conversationHistory))
-    }
+    localStorage.setItem('chatbotConversations', JSON.stringify(conversationHistory))
   }, [conversationHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -100,7 +98,7 @@ export default function ChatbotInterface() {
                   <tr className="border-b border-gray-200">
                     {visualization.config?.columns?.map((col: string) => (
                       <th key={col} className="text-left py-2 px-3 font-medium text-gray-700">
-                        {col === 'name' ? 'Player Name' : col}
+                        {col === "name" ? "Player Name" : col}
                       </th>
                     ))}
                   </tr>
@@ -110,7 +108,7 @@ export default function ChatbotInterface() {
                     <tr key={index} className="border-b border-gray-100">
                       {visualization.config?.columns?.map((col: string) => (
                         <td key={col} className="py-2 px-3 text-gray-600">
-                          {row[col] || '-'}
+                          {row[col] || "-"}
                         </td>
                       ))}
                     </tr>
@@ -120,15 +118,15 @@ export default function ChatbotInterface() {
             </div>
           </div>
         )
-      
+
       case 'chart':
         return (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg">
             <h4 className="font-semibold text-gray-900 mb-2">Chart Visualization</h4>
-            <p className="text-sm text-gray-600">Chart component will be integrated here</p>
+            <p className="text-gray-600">Chart data available: {JSON.stringify(visualization.data)}</p>
           </div>
         )
-      
+
       default:
         return null
     }
@@ -164,7 +162,7 @@ export default function ChatbotInterface() {
         </div>
         
         <p className="text-sm text-gray-500 mt-2 text-center">
-          Try: "How many players are in the club?" or "Who are the players?"
+          Try: &ldquo;How many players are in the club?&rdquo; or &ldquo;Who are the players?&rdquo;
         </p>
       </form>
 
@@ -178,7 +176,7 @@ export default function ChatbotInterface() {
             className="text-center py-8"
           >
             <div className="inline-flex items-center space-x-2">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-dorkinians-blue"></div>
+              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
               <span className="text-gray-600">Thinking...</span>
             </div>
           </motion.div>
@@ -214,7 +212,7 @@ export default function ChatbotInterface() {
                 <span className="text-sm text-gray-600">Confidence:</span>
                 <div className="flex-1 bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-dorkinians-blue h-2 rounded-full transition-all duration-300"
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${response.confidence * 100}%` }}
                   ></div>
                 </div>

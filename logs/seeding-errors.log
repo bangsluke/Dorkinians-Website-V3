@@ -1,0 +1,441 @@
+=== SEEDING RUN STARTED: 2025-08-21T18:44:29.367Z ===
+[2025-08-21T18:57:00.747Z] Player node not found for name: Connor in MatchDetail matchdetail__fixture-2017-18-2018/02/17-3rd-xi-vs-old-tiffinians-first-home__connor
+Details: {
+  "playerName": "Connor",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2018/02/17",
+    "createdAt": "2025-08-21T18:46:56.615Z",
+    "playerName": "Connor",
+    "minutes": 90,
+    "fixtureId": "fixture-2017-18-2018/02/17-3rd-xi-vs-old-tiffinians-first-home",
+    "season": "2017/18",
+    "id": "matchdetail__fixture-2017-18-2018/02/17-3rd-xi-vs-old-tiffinians-first-home__connor",
+    "team": "3rd XI",
+    "class": "MID"
+  }
+}
+[2025-08-21T18:57:31.065Z] Player node not found for name: Brown in MatchDetail matchdetail__fixture-2017-18-2018/04/14-6th-xi-vs-old-wokingians-seventh-home__brown
+Details: {
+  "playerName": "Brown",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2018/04/14",
+    "createdAt": "2025-08-21T18:47:00.803Z",
+    "playerName": "Brown",
+    "minutes": 90,
+    "fixtureId": "fixture-2017-18-2018/04/14-6th-xi-vs-old-wokingians-seventh-home",
+    "season": "2017/18",
+    "id": "matchdetail__fixture-2017-18-2018/04/14-6th-xi-vs-old-wokingians-seventh-home__brown",
+    "team": "6th XI",
+    "class": "MID"
+  }
+}
+[2025-08-21T19:00:26.257Z] Player node not found for name: Mason Mcbride in MatchDetail matchdetail__fixture-2019-20-2019/10/12-3rd-xi-vs-old-st.-mary's-first-home__mason_mcbride
+Details: {
+  "playerName": "Mason Mcbride",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2019/10/12",
+    "createdAt": "2025-08-21T18:47:24.505Z",
+    "playerName": "Mason Mcbride",
+    "minutes": 90,
+    "fixtureId": "fixture-2019-20-2019/10/12-3rd-xi-vs-old-st.-mary's-first-home",
+    "season": "2019/20",
+    "id": "matchdetail__fixture-2019-20-2019/10/12-3rd-xi-vs-old-st.-mary's-first-home__mason_mcbride",
+    "team": "3rd XI",
+    "class": "GK"
+  }
+}
+[2025-08-21T19:00:33.889Z] Player node not found for name: Mason Mcbride in MatchDetail matchdetail__fixture-2019-20-2019/10/19-3rd-xi-vs-fulham-compton-old-boys-reserves-home__mason_mcbride
+Details: {
+  "playerName": "Mason Mcbride",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2019/10/19",
+    "createdAt": "2025-08-21T18:47:25.383Z",
+    "playerName": "Mason Mcbride",
+    "minutes": 90,
+    "fixtureId": "fixture-2019-20-2019/10/19-3rd-xi-vs-fulham-compton-old-boys-reserves-home",
+    "season": "2019/20",
+    "id": "matchdetail__fixture-2019-20-2019/10/19-3rd-xi-vs-fulham-compton-old-boys-reserves-home__mason_mcbride",
+    "team": "3rd XI",
+    "class": "GK"
+  }
+}
+[2025-08-21T19:03:27.741Z] Player node not found for name: Luis (Levi's Friend) in MatchDetail matchdetail__fixture-2020-21-2021/04/10-8th-xi-vs-pembroke-old-boys-1st-xi-home__luis_(levi's_friend)
+Details: {
+  "playerName": "Luis (Levi's Friend)",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2021/04/10",
+    "createdAt": "2025-08-21T18:47:59.456Z",
+    "playerName": "Luis (Levi's Friend)",
+    "minutes": 30,
+    "fixtureId": "fixture-2020-21-2021/04/10-8th-xi-vs-pembroke-old-boys-1st-xi-home",
+    "season": "2020/21",
+    "id": "matchdetail__fixture-2020-21-2021/04/10-8th-xi-vs-pembroke-old-boys-1st-xi-home__luis_(levi's_friend)",
+    "team": "8th XI",
+    "class": "MID"
+  }
+}
+[2025-08-21T19:03:46.262Z] Player node not found for name: Ben (James M Mate) in MatchDetail matchdetail__fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-away__ben_(james_m_mate)
+Details: {
+  "playerName": "Ben (James M Mate)",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2021/05/01",
+    "createdAt": "2025-08-21T18:48:03.065Z",
+    "playerName": "Ben (James M Mate)",
+    "minutes": 30,
+    "fixtureId": "fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-away",
+    "season": "2020/21",
+    "id": "matchdetail__fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-away__ben_(james_m_mate)",
+    "team": "8th XI",
+    "class": "FWD"
+  }
+}
+[2025-08-21T19:03:47.196Z] Player node not found for name: Ben (James M Mate) in MatchDetail matchdetail__fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-home__ben_(james_m_mate)
+Details: {
+  "playerName": "Ben (James M Mate)",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2021/05/01",
+    "createdAt": "2025-08-21T18:48:03.281Z",
+    "playerName": "Ben (James M Mate)",
+    "minutes": 60,
+    "fixtureId": "fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-home",
+    "season": "2020/21",
+    "id": "matchdetail__fixture-2020-21-2021/05/01-8th-xi-vs-old-guildfordians-third-home__ben_(james_m_mate)",
+    "team": "8th XI",
+    "class": "FWD",
+    "goals": 1
+  }
+}
+[2025-08-21T19:12:40.108Z] Player node not found for name: Joe SIlver in MatchDetail matchdetail__fixture-2023-24-2023/11/18-4th-xi-vs-economicals-third-away__joe_silver
+Details: {
+  "playerName": "Joe SIlver",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "2023/11/18",
+    "createdAt": "2025-08-21T18:49:23.207Z",
+    "playerName": "Joe SIlver",
+    "minutes": 30,
+    "fixtureId": "fixture-2023-24-2023/11/18-4th-xi-vs-economicals-third-away",
+    "season": "2023/24",
+    "id": "matchdetail__fixture-2023-24-2023/11/18-4th-xi-vs-economicals-third-away__joe_silver",
+    "team": "4th XI",
+    "class": "MID"
+  }
+}
+[2025-08-21T19:12:51.910Z] Player node not found for name: Jack green in MatchDetail matchdetail__fixture-2023-24-2023/11/25-5th-xi-vs-lancing-old-boys-2nd-home__jack_green
+Details: {
+  "playerName": "Jack green",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "",
+    "createdAt": "2025-08-21T18:49:31.588Z",
+    "saves": 6,
+    "playerName": "Jack green",
+    "minutes": 90,
+    "fixtureId": "fixture-2023-24-2023/11/25-5th-xi-vs-lancing-old-boys-2nd-home",
+    "season": "2023/24",
+    "id": "matchdetail__fixture-2023-24-2023/11/25-5th-xi-vs-lancing-old-boys-2nd-home__jack_green",
+    "team": "5th XI",
+    "class": "DEF"
+  }
+}
+[2025-08-21T19:14:52.389Z] Player node not found for name: Ross O'riordan in MatchDetail matchdetail__fixture-2023-24-2024/03/30-5th-xi-vs-old-grantonians-home__ross_o'riordan
+Details: {
+  "playerName": "Ross O'riordan",
+  "matchDetailData": {
+    "graphLabel": "dorkiniansWebsite",
+    "date": "",
+    "createdAt": "2025-08-21T18:49:33.217Z",
+    "playerName": "Ross O'riordan",
+    "minutes": 90,
+    "fixtureId": "fixture-2023-24-2024/03/30-5th-xi-vs-old-grantonians-home",
+    "season": "2023/24",
+    "id": "matchdetail__fixture-2023-24-2024/03/30-5th-xi-vs-old-grantonians-home__ross_o'riordan",
+    "team": "5th XI",
+    "class": "FWD"
+  }
+}
+[2025-08-21T19:19:22.936Z] Failed to create TOTW relationships for totw__2016-17__season: From node not found after retries: TOTW:totw__2016-17__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "James Dickinson",
+    "def4": "Harry Lynn",
+    "starMan": "Oli Goddard",
+    "def1": "Charlie Woodman",
+    "def2": "George Stables",
+    "gk1": "James Whitmarsh",
+    "starManScore": 174,
+    "fwd1": "Rupert Cape",
+    "fwd2": "Kieran Mackrell",
+    "fwd3": "Oli Wayne",
+    "createdAt": "2025-08-21T18:50:01.212Z",
+    "mid3": "Ben Simpkins",
+    "season": "2016/17",
+    "mid2": "Joe Teague",
+    "mid1": "Oli Goddard",
+    "id": "totw__2016-17__season",
+    "totwScore": 1385,
+    "mid5": "Chris Bedford",
+    "def5": "Callum Mackrell",
+    "mid4": "Matt Cannon"
+  },
+  "error": "From node not found after retries: TOTW:totw__2016-17__season"
+}
+[2025-08-21T19:19:23.167Z] Failed to create TOTW relationships for totw__2017-18__season: From node not found after retries: TOTW:totw__2017-18__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Luke Bangs",
+    "def4": "Oli Goddard",
+    "starMan": "Matt Evans",
+    "def1": "Charlie Woodman",
+    "def2": "Seth Clenaghan",
+    "gk1": "Henry Warne",
+    "starManScore": 150,
+    "fwd1": "Matt Evans",
+    "fwd2": "Oli Wayne",
+    "fwd3": "Rupert Cape",
+    "createdAt": "2025-08-21T18:50:01.228Z",
+    "mid3": "George Warne",
+    "season": "2017/18",
+    "mid2": "Lewis Smith",
+    "mid1": "Liam Hawkins",
+    "id": "totw__2017-18__season",
+    "totwScore": 1243,
+    "mid5": "Joe Parker",
+    "def5": "Andy Wills",
+    "mid4": "James Campbell"
+  },
+  "error": "From node not found after retries: TOTW:totw__2017-18__season"
+}
+[2025-08-21T19:19:23.399Z] Failed to create TOTW relationships for totw__2018-19__season: From node not found after retries: TOTW:totw__2018-19__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Cameron Smith",
+    "def4": "Seth Clenaghan",
+    "starMan": "Rupert Cape",
+    "def1": "Luke Bangs",
+    "def2": "Charlie Woodman",
+    "gk1": "Henry Warne",
+    "starManScore": 170,
+    "fwd1": "Matt Evans",
+    "fwd2": "James Whitmarsh",
+    "fwd3": "Tom Deeks",
+    "createdAt": "2025-08-21T18:50:01.244Z",
+    "mid3": "Arron Oakley",
+    "season": "2018/19",
+    "mid2": "Sam Slade",
+    "mid1": "Rupert Cape",
+    "id": "totw__2018-19__season",
+    "totwScore": 1297,
+    "mid5": "Liam Hawkins",
+    "def5": "Oli Goddard",
+    "mid4": "Matt Cannon"
+  },
+  "error": "From node not found after retries: TOTW:totw__2018-19__season"
+}
+[2025-08-21T19:19:23.657Z] Failed to create TOTW relationships for totw__2019-20__season: From node not found after retries: TOTW:totw__2019-20__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "George Fisher",
+    "def4": "Charlie Woodman",
+    "starMan": "Miles Amoza",
+    "def1": "Reece Strudwick",
+    "def2": "Luke Bangs",
+    "gk1": "David Williams",
+    "starManScore": 137,
+    "fwd1": "Chris Black",
+    "fwd2": "Arron Oakley",
+    "fwd3": "James Whitmarsh",
+    "createdAt": "2025-08-21T18:50:01.259Z",
+    "mid3": "Alex Campbell",
+    "season": "2019/20",
+    "mid2": "Rupert Cape",
+    "mid1": "Miles Amoza",
+    "id": "totw__2019-20__season",
+    "totwScore": 1142,
+    "mid5": "Ollie Teague",
+    "def5": "Brad Williams",
+    "mid4": "Sam Besant"
+  },
+  "error": "From node not found after retries: TOTW:totw__2019-20__season"
+}
+[2025-08-21T19:19:23.890Z] Failed to create TOTW relationships for totw__2020-21__season: From node not found after retries: TOTW:totw__2020-21__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Luke Bangs",
+    "def4": "Brad Cannon",
+    "starMan": "Matt Morley",
+    "def1": "Charlie Woodman",
+    "def2": "Jamie Redford",
+    "gk1": "Sam Harker",
+    "starManScore": 96,
+    "fwd1": "Ali Wise",
+    "fwd2": "James Whitmarsh",
+    "fwd3": "Marvin Ndzamba Mambari",
+    "createdAt": "2025-08-21T18:50:01.273Z",
+    "mid3": "Arron Oakley",
+    "season": "2020/21",
+    "mid2": "Alex Campbell",
+    "mid1": "Matt Morley",
+    "id": "totw__2020-21__season",
+    "totwScore": 845,
+    "mid5": "Liam Hawkins",
+    "def5": "Pete Camden",
+    "mid4": "Sam Slade"
+  },
+  "error": "From node not found after retries: TOTW:totw__2020-21__season"
+}
+[2025-08-21T19:19:24.122Z] Failed to create TOTW relationships for totw__2021-22__season: From node not found after retries: TOTW:totw__2021-22__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Jack Wisbey",
+    "def4": "George Fisher",
+    "starMan": "Oli Goddard",
+    "def1": "Scott Dunkerley",
+    "def2": "Fred Mansfield",
+    "gk1": "James Whitmarsh",
+    "starManScore": 202,
+    "fwd1": "Oli Goddard",
+    "fwd2": "Hugh Roach",
+    "fwd3": "Michael Peck",
+    "createdAt": "2025-08-21T18:50:01.287Z",
+    "mid3": "Steve Brown",
+    "season": "2021/22",
+    "mid2": "Chris Bedford",
+    "mid1": "Ben Simpkins",
+    "id": "totw__2021-22__season",
+    "totwScore": 1069,
+    "mid5": "Charlie Woodman",
+    "def5": "Ollie Turner",
+    "mid4": "Sam Slade"
+  },
+  "error": "From node not found after retries: TOTW:totw__2021-22__season"
+}
+[2025-08-21T19:19:24.359Z] Failed to create TOTW relationships for totw__2022-23__season: From node not found after retries: TOTW:totw__2022-23__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "George Warne",
+    "def4": "Andy Higgins",
+    "starMan": "Craig Kingswell",
+    "def1": "George Fisher",
+    "def2": "Jack Wisbey",
+    "gk1": "Henry Warne",
+    "starManScore": 304,
+    "fwd1": "Craig Kingswell",
+    "fwd2": "Oli Goddard",
+    "fwd3": "Arron Oakley",
+    "createdAt": "2025-08-21T18:50:01.303Z",
+    "mid3": "Andy Sears-Black",
+    "season": "2022/23",
+    "mid2": "Joe Teague",
+    "mid1": "Charlie Woodman",
+    "id": "totw__2022-23__season",
+    "totwScore": 1618,
+    "mid5": "James Herouvin",
+    "def5": "Stan Cunningham",
+    "mid4": "Bafoday Nyandou"
+  },
+  "error": "From node not found after retries: TOTW:totw__2022-23__season"
+}
+[2025-08-21T19:19:24.585Z] Failed to create TOTW relationships for totw__2023-24__season: From node not found after retries: TOTW:totw__2023-24__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Archie Mansfield",
+    "def4": "Aidan Torpey",
+    "starMan": "Joe Teague",
+    "def1": "Seth Clenaghan",
+    "def2": "Andy Higgins",
+    "gk1": "James Whitmarsh",
+    "starManScore": 204,
+    "fwd1": "Craig Kingswell",
+    "fwd2": "Andy Sears-Black",
+    "fwd3": "Oli Goddard",
+    "createdAt": "2025-08-21T18:50:01.318Z",
+    "mid3": "Charlie Woodman",
+    "season": "2023/24",
+    "mid2": "Max Ridler",
+    "mid1": "Joe Teague",
+    "id": "totw__2023-24__season",
+    "totwScore": 1478,
+    "mid5": "Darrell Mothee",
+    "def5": "Jack Wisbey",
+    "mid4": "Charlie Kenway"
+  },
+  "error": "From node not found after retries: TOTW:totw__2023-24__season"
+}
+[2025-08-21T19:19:24.817Z] Failed to create TOTW relationships for totw__2024-25__season: From node not found after retries: TOTW:totw__2024-25__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "James Whitmarsh",
+    "def4": "George Fisher",
+    "starMan": "Oli Goddard",
+    "def1": "Jack Wisbey",
+    "def2": "Ollie Turner",
+    "gk1": "Henry Warne",
+    "starManScore": 177,
+    "fwd1": "Oli Goddard",
+    "fwd2": "Phil Robinson",
+    "fwd3": "Andy Sears-Black",
+    "createdAt": "2025-08-21T18:50:01.331Z",
+    "mid3": "Matt Morley",
+    "season": "2024/25",
+    "mid2": "Ryan Flashman",
+    "mid1": "Charlie Woodman",
+    "id": "totw__2024-25__season",
+    "totwScore": 1355,
+    "mid5": "George Warne",
+    "def5": "Oli Jarvis",
+    "mid4": "Liam Hawkins"
+  },
+  "error": "From node not found after retries: TOTW:totw__2024-25__season"
+}
+[2025-08-21T19:19:25.086Z] Failed to create TOTW relationships for totw__all-time__season: From node not found after retries: TOTW:totw__all-time__season
+Details: {
+  "totwData": {
+    "graphLabel": "dorkiniansWebsite",
+    "def3": "Seth Clenaghan",
+    "def4": "George Fisher",
+    "starMan": "Oli Goddard",
+    "def1": "Charlie Woodman",
+    "def2": "Luke Bangs",
+    "gk1": "James Whitmarsh",
+    "starManScore": 1142,
+    "fwd1": "Oli Goddard",
+    "fwd2": "Oli Wayne",
+    "fwd3": "Rupert Cape",
+    "createdAt": "2025-08-21T18:50:01.125Z",
+    "mid3": "Arron Oakley",
+    "season": "All Time",
+    "mid2": "Sam Slade",
+    "mid1": "Matt Morley",
+    "id": "totw__all-time__season",
+    "totwScore": 8268,
+    "mid5": "Liam Hawkins",
+    "def5": "Andy Higgins",
+    "mid4": "Joe Teague"
+  },
+  "error": "From node not found after retries: TOTW:totw__all-time__season"
+}
+[2025-08-21T19:21:03.230Z] Seeding completed with summary:
+Details: {
+  "totalNodes": 21287,
+  "totalRelationships": 81661,
+  "errors": 0,
+  "unknownNodes": 0,
+  "success": true
+}
