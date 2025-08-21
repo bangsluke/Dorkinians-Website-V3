@@ -6,16 +6,24 @@
   NODE_VERSION = "18"
   NODE_ENV = "production"
 
+[functions]
+  directory = "netlify/functions"
+
 # Handle static assets
 [[redirects]]
   from = "/_next/*"
   to = "/_next/:splat"
   status = 200
 
-# Handle API routes - chatbot now uses Next.js API route
+# Handle API routes - redirect to Netlify functions (we'll create these)
 [[redirects]]
   from = "/api/chatbot"
-  to = "/api/chatbot"
+  to = "/.netlify/functions/chatbot"
+  status = 200
+
+[[redirects]]
+  from = "/api/seed-data"
+  to = "/.netlify/functions/seed-data"
   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
