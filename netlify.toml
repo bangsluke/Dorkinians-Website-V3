@@ -1,13 +1,13 @@
 [build]
   command = "npm run build"
-  publish = "out"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
 
-[functions]
-  directory = "netlify/functions"
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 # Handle static assets
 [[redirects]]
@@ -15,15 +15,10 @@
   to = "/_next/:splat"
   status = 200
 
-# Handle API routes - redirect to Netlify functions (we'll create these)
+# Handle API routes - now handled by Next.js plugin
 [[redirects]]
-  from = "/api/chatbot"
-  to = "/.netlify/functions/chatbot"
-  status = 200
-
-[[redirects]]
-  from = "/api/seed-data"
-  to = "/.netlify/functions/seed-data"
+  from = "/api/*"
+  to = "/.netlify/functions/___netlify-handler"
   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
