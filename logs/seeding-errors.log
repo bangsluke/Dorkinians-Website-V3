@@ -1,2484 +1,1154 @@
-=== SEEDING RUN STARTED: 2025-08-20T16:42:39.245Z ===
-[2025-08-20T16:43:18.891Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-ben-rogers
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-ben",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.107Z",
-    "playerName": "Ben Rogers",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-ben",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-ben-rogers",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:19.256Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris-thurgood
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.056Z",
-    "playerName": "Chris Thurgood",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris-thurgood",
-    "team": "1st XI",
-    "class": "MID",
-    "redCards": 1
-  }
-}
-[2025-08-20T16:43:19.259Z] Player node not found for name: Chris Thurgood in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris-thurgood
+=== SEEDING RUN STARTED: 2025-08-21T07:08:41.399Z ===
+[2025-08-21T07:09:49.506Z] Player node not found for name: Chris Thurgood in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__chris_thurgood
 Details: {
   "playerName": "Chris Thurgood",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.056Z",
+    "createdAt": "2025-08-21T07:09:31.695Z",
     "playerName": "Chris Thurgood",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-chris-thurgood",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__chris_thurgood",
     "team": "1st XI",
     "class": "MID",
     "redCards": 1
   }
 }
-[2025-08-20T16:43:19.287Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin-morrison
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.026Z",
-    "playerName": "Gavin Morrison",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin-morrison",
-    "team": "1st XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:19.292Z] Player node not found for name: Gavin Morrison in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin-morrison
+[2025-08-21T07:09:49.560Z] Player node not found for name: Gavin Morrison in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__gavin_morrison
 Details: {
   "playerName": "Gavin Morrison",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.026Z",
+    "createdAt": "2025-08-21T07:09:31.663Z",
     "playerName": "Gavin Morrison",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-gavin-morrison",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__gavin_morrison",
     "team": "1st XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:19.320Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george-warne
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.040Z",
-    "playerName": "George Warne",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george-warne",
-    "team": "1st XI",
-    "class": "MID",
-    "manOfMatch": 1
-  }
-}
-[2025-08-20T16:43:19.324Z] Player node not found for name: George Warne in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george-warne
+[2025-08-21T07:09:49.617Z] Player node not found for name: George Warne in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__george_warne
 Details: {
   "playerName": "George Warne",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.040Z",
+    "createdAt": "2025-08-21T07:09:31.674Z",
     "playerName": "George Warne",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-george-warne",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__george_warne",
     "team": "1st XI",
     "class": "MID",
     "manOfMatch": 1
   }
 }
-[2025-08-20T16:43:19.342Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry-lynn
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.015Z",
-    "playerName": "Harry Lynn",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry-lynn",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:19.348Z] Player node not found for name: Harry Lynn in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry-lynn
+[2025-08-21T07:09:49.667Z] Player node not found for name: Harry Lynn in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__harry_lynn
 Details: {
   "playerName": "Harry Lynn",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.015Z",
+    "createdAt": "2025-08-21T07:09:31.641Z",
     "playerName": "Harry Lynn",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-harry-lynn",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__harry_lynn",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:19.370Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew-jepson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.049Z",
-    "playerName": "Leandrew Jepson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew-jepson",
-    "team": "1st XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:19.373Z] Player node not found for name: Leandrew Jepson in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew-jepson
+[2025-08-21T07:09:49.737Z] Player node not found for name: Leandrew Jepson in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__leandrew_jepson
 Details: {
   "playerName": "Leandrew Jepson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.049Z",
+    "createdAt": "2025-08-21T07:09:31.683Z",
     "playerName": "Leandrew Jepson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-leandrew-jepson",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__leandrew_jepson",
     "team": "1st XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:19.398Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke-woodards
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.099Z",
-    "playerName": "Luke Woodards",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke-woodards",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:19.403Z] Player node not found for name: Luke Woodards in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke-woodards
+[2025-08-21T07:09:49.810Z] Player node not found for name: Luke Woodards in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__luke_woodards
 Details: {
   "playerName": "Luke Woodards",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.099Z",
+    "createdAt": "2025-08-21T07:09:31.757Z",
     "playerName": "Luke Woodards",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-luke-woodards",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__luke_woodards",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:19.473Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli-wayne
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.070Z",
-    "playerName": "Oli Wayne",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli-wayne",
-    "team": "1st XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:19.508Z] Player node not found for name: Oli Wayne in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli-wayne
+[2025-08-21T07:09:49.865Z] Player node not found for name: Oli Wayne in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__oli_wayne
 Details: {
   "playerName": "Oli Wayne",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.070Z",
+    "createdAt": "2025-08-21T07:09:31.716Z",
     "playerName": "Oli Wayne",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-oli-wayne",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__oli_wayne",
     "team": "1st XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:19.818Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert-cape
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.063Z",
-    "playerName": "Rupert Cape",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert-cape",
-    "team": "1st XI",
-    "class": "FWD",
-    "yellowCards": 1
-  }
-}
-[2025-08-20T16:43:19.840Z] Player node not found for name: Rupert Cape in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert-cape
+[2025-08-21T07:09:49.991Z] Player node not found for name: Rupert Cape in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__rupert_cape
 Details: {
   "playerName": "Rupert Cape",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.063Z",
+    "createdAt": "2025-08-21T07:09:31.707Z",
     "playerName": "Rupert Cape",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-rupert-cape",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__rupert_cape",
     "team": "1st XI",
     "class": "FWD",
     "yellowCards": 1
   }
 }
-[2025-08-20T16:43:20.083Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ-harvey
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.075Z",
-    "playerName": "Russ Harvey",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ-harvey",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:20.133Z] Player node not found for name: Russ Harvey in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ-harvey
+[2025-08-21T07:09:50.202Z] Player node not found for name: Russ Harvey in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__russ_harvey
 Details: {
   "playerName": "Russ Harvey",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.075Z",
+    "createdAt": "2025-08-21T07:09:31.727Z",
     "playerName": "Russ Harvey",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-russ-harvey",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__russ_harvey",
     "team": "1st XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:20.673Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom-neville
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.085Z",
-    "playerName": "Tom Neville",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom-neville",
-    "team": "1st XI",
-    "class": "MID",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:20.684Z] Player node not found for name: Tom Neville in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom-neville
+[2025-08-21T07:09:50.270Z] Player node not found for name: Tom Neville in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__tom_neville
 Details: {
   "playerName": "Tom Neville",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.085Z",
+    "createdAt": "2025-08-21T07:09:31.735Z",
     "playerName": "Tom Neville",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-tom-neville",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__tom_neville",
     "team": "1st XI",
     "class": "MID",
     "goals": 1
   }
 }
-[2025-08-20T16:43:20.973Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will-westcott
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.091Z",
-    "playerName": "Will Westcott",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will-westcott",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:20.991Z] Player node not found for name: Will Westcott in MatchDetail matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will-westcott
+[2025-08-21T07:09:50.374Z] Player node not found for name: Will Westcott in MatchDetail matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__will_westcott
 Details: {
   "playerName": "Will Westcott",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.091Z",
+    "createdAt": "2025-08-21T07:09:31.746Z",
     "playerName": "Will Westcott",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will",
+    "fixtureId": "fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away-will-westcott",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-1st-xi-vs-old-thorntonians-first-away__will_westcott",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:21.107Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-callum-mackrell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-callum",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.175Z",
-    "playerName": "Callum Mackrell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-callum",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-callum-mackrell",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:21.643Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris-black
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.114Z",
-    "playerName": "Chris Black",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris-black",
-    "team": "2nd XI",
-    "class": "FWD",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:21.655Z] Player node not found for name: Chris Black in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris-black
+[2025-08-21T07:09:50.562Z] Player node not found for name: Chris Black in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__chris_black
 Details: {
   "playerName": "Chris Black",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.114Z",
+    "createdAt": "2025-08-21T07:09:31.775Z",
     "playerName": "Chris Black",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-chris-black",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__chris_black",
     "team": "2nd XI",
     "class": "FWD",
     "goals": 1
   }
 }
-[2025-08-20T16:43:21.792Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george-stables
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.140Z",
-    "playerName": "George Stables",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george-stables",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:21.808Z] Player node not found for name: George Stables in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george-stables
+[2025-08-21T07:09:50.614Z] Player node not found for name: George Stables in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__george_stables
 Details: {
   "playerName": "George Stables",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.140Z",
+    "createdAt": "2025-08-21T07:09:31.815Z",
     "playerName": "George Stables",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-george-stables",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__george_stables",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:21.875Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-dickinson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.168Z",
-    "playerName": "James Dickinson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-dickinson",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:21.889Z] Player node not found for name: James Dickinson in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-dickinson
+[2025-08-21T07:09:50.673Z] Player node not found for name: James Dickinson in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_dickinson
 Details: {
   "playerName": "James Dickinson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.168Z",
+    "createdAt": "2025-08-21T07:09:31.849Z",
     "playerName": "James Dickinson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-dickinson",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_dickinson",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:21.920Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-ellenger
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.197Z",
-    "playerName": "James Ellenger",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-ellenger",
-    "team": "2nd XI",
-    "class": "DEF",
-    "yellowCards": 1
-  }
-}
-[2025-08-20T16:43:21.925Z] Player node not found for name: James Ellenger in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-ellenger
+[2025-08-21T07:09:50.727Z] Player node not found for name: James Ellenger in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_ellenger
 Details: {
   "playerName": "James Ellenger",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.197Z",
+    "createdAt": "2025-08-21T07:09:31.889Z",
     "playerName": "James Ellenger",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-ellenger",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_ellenger",
     "team": "2nd XI",
     "class": "DEF",
     "yellowCards": 1
   }
 }
-[2025-08-20T16:43:22.074Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-whitmarsh
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.120Z",
-    "playerName": "James Whitmarsh",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-whitmarsh",
-    "team": "2nd XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:22.087Z] Player node not found for name: James Whitmarsh in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-whitmarsh
+[2025-08-21T07:09:50.778Z] Player node not found for name: James Whitmarsh in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_whitmarsh
 Details: {
   "playerName": "James Whitmarsh",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.120Z",
+    "createdAt": "2025-08-21T07:09:31.783Z",
     "playerName": "James Whitmarsh",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-james-whitmarsh",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__james_whitmarsh",
     "team": "2nd XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:22.126Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel-sanders
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.147Z",
-    "playerName": "Joel Sanders",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel-sanders",
-    "team": "2nd XI",
-    "class": "MID",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:22.241Z] Player node not found for name: Joel Sanders in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel-sanders
+[2025-08-21T07:09:50.832Z] Player node not found for name: Joel Sanders in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__joel_sanders
 Details: {
   "playerName": "Joel Sanders",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.147Z",
+    "createdAt": "2025-08-21T07:09:31.823Z",
     "playerName": "Joel Sanders",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-joel-sanders",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__joel_sanders",
     "team": "2nd XI",
     "class": "MID",
     "goals": 1
   }
 }
-[2025-08-20T16:43:22.288Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam-hawkins
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.153Z",
-    "playerName": "Liam Hawkins",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam-hawkins",
-    "team": "2nd XI",
-    "class": "MID",
-    "yellowCards": 1
-  }
-}
-[2025-08-20T16:43:22.454Z] Player node not found for name: Liam Hawkins in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam-hawkins
+[2025-08-21T07:09:50.899Z] Player node not found for name: Liam Hawkins in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__liam_hawkins
 Details: {
   "playerName": "Liam Hawkins",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.153Z",
+    "createdAt": "2025-08-21T07:09:31.831Z",
     "playerName": "Liam Hawkins",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-liam-hawkins",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__liam_hawkins",
     "team": "2nd XI",
     "class": "MID",
     "yellowCards": 1
   }
 }
-[2025-08-20T16:43:22.636Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin-kingsley
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.125Z",
-    "playerName": "Martin Kingsley",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin-kingsley",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:22.641Z] Player node not found for name: Martin Kingsley in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin-kingsley
+[2025-08-21T07:09:50.970Z] Player node not found for name: Martin Kingsley in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__martin_kingsley
 Details: {
   "playerName": "Martin Kingsley",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.125Z",
+    "createdAt": "2025-08-21T07:09:31.794Z",
     "playerName": "Martin Kingsley",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-martin-kingsley",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__martin_kingsley",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:22.770Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike-richardson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.160Z",
-    "playerName": "Mike Richardson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike-richardson",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:22.809Z] Player node not found for name: Mike Richardson in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike-richardson
+[2025-08-21T07:09:51.099Z] Player node not found for name: Mike Richardson in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__mike_richardson
 Details: {
   "playerName": "Mike Richardson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.160Z",
+    "createdAt": "2025-08-21T07:09:31.841Z",
     "playerName": "Mike Richardson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-mike-richardson",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__mike_richardson",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:22.872Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun-patterson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.133Z",
-    "playerName": "Shaun Patterson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun-patterson",
-    "team": "2nd XI",
-    "class": "MID",
-    "manOfMatch": 1
-  }
-}
-[2025-08-20T16:43:22.887Z] Player node not found for name: Shaun Patterson in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun-patterson
+[2025-08-21T07:09:51.152Z] Player node not found for name: Shaun Patterson in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__shaun_patterson
 Details: {
   "playerName": "Shaun Patterson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.133Z",
+    "createdAt": "2025-08-21T07:09:31.803Z",
     "playerName": "Shaun Patterson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-shaun-patterson",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__shaun_patterson",
     "team": "2nd XI",
     "class": "MID",
     "manOfMatch": 1
   }
 }
-[2025-08-20T16:43:22.937Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve-pearse
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.189Z",
-    "playerName": "Steve Pearse",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve-pearse",
-    "team": "2nd XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:22.970Z] Player node not found for name: Steve Pearse in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve-pearse
+[2025-08-21T07:09:51.227Z] Player node not found for name: Steve Pearse in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__steve_pearse
 Details: {
   "playerName": "Steve Pearse",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.189Z",
+    "createdAt": "2025-08-21T07:09:31.879Z",
     "playerName": "Steve Pearse",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-steve-pearse",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__steve_pearse",
     "team": "2nd XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:23.008Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim-goddard
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.183Z",
-    "playerName": "Tim Goddard",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim-goddard",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:23.020Z] Player node not found for name: Tim Goddard in MatchDetail matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim-goddard
+[2025-08-21T07:09:51.288Z] Player node not found for name: Tim Goddard in MatchDetail matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__tim_goddard
 Details: {
   "playerName": "Tim Goddard",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/10",
-    "createdAt": "2025-08-20T16:43:02.183Z",
+    "createdAt": "2025-08-21T07:09:31.868Z",
     "playerName": "Tim Goddard",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim",
+    "fixtureId": "fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away-tim-goddard",
+    "id": "matchdetail__fixture-2016-17-2016/09/10-2nd-xi-vs-old-wokingians-reserves-away__tim_goddard",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:23.172Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-alex-wills
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-alex",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.203Z",
-    "playerName": "Alex Wills",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-alex",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-alex-wills",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:23.383Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie-woodman
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.238Z",
-    "playerName": "Charlie Woodman",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie-woodman",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:23.390Z] Player node not found for name: Charlie Woodman in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie-woodman
+[2025-08-21T07:09:51.586Z] Player node not found for name: Charlie Woodman in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__charlie_woodman
 Details: {
   "playerName": "Charlie Woodman",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.238Z",
+    "createdAt": "2025-08-21T07:09:31.943Z",
     "playerName": "Charlie Woodman",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-charlie-woodman",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__charlie_woodman",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:23.418Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin-morrison
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.217Z",
-    "playerName": "Gavin Morrison",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin-morrison",
-    "team": "1st XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:23.424Z] Player node not found for name: Gavin Morrison in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin-morrison
+[2025-08-21T07:09:51.661Z] Player node not found for name: Gavin Morrison in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__gavin_morrison
 Details: {
   "playerName": "Gavin Morrison",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.217Z",
+    "createdAt": "2025-08-21T07:09:31.916Z",
     "playerName": "Gavin Morrison",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-gavin-morrison",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__gavin_morrison",
     "team": "1st XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:23.452Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george-warne
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.231Z",
-    "playerName": "George Warne",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george-warne",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:23.458Z] Player node not found for name: George Warne in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george-warne
+[2025-08-21T07:09:51.722Z] Player node not found for name: George Warne in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__george_warne
 Details: {
   "playerName": "George Warne",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.231Z",
+    "createdAt": "2025-08-21T07:09:31.933Z",
     "playerName": "George Warne",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-george-warne",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__george_warne",
     "team": "1st XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:23.490Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry-lynn
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.209Z",
-    "playerName": "Harry Lynn",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry-lynn",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:23.497Z] Player node not found for name: Harry Lynn in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry-lynn
+[2025-08-21T07:09:51.772Z] Player node not found for name: Harry Lynn in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__harry_lynn
 Details: {
   "playerName": "Harry Lynn",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.209Z",
+    "createdAt": "2025-08-21T07:09:31.908Z",
     "playerName": "Harry Lynn",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-harry-lynn",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__harry_lynn",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:23.526Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus-legg
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.284Z",
-    "playerName": "Marcus Legg",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus-legg",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:23.534Z] Player node not found for name: Marcus Legg in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus-legg
+[2025-08-21T07:09:51.821Z] Player node not found for name: Marcus Legg in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__marcus_legg
 Details: {
   "playerName": "Marcus Legg",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.284Z",
+    "createdAt": "2025-08-21T07:09:31.995Z",
     "playerName": "Marcus Legg",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-marcus-legg",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__marcus_legg",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:23.567Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt-evans
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.252Z",
-    "playerName": "Matt Evans",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt-evans",
-    "team": "1st XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:23.574Z] Player node not found for name: Matt Evans in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt-evans
+[2025-08-21T07:09:51.871Z] Player node not found for name: Matt Evans in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__matt_evans
 Details: {
   "playerName": "Matt Evans",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.252Z",
+    "createdAt": "2025-08-21T07:09:31.961Z",
     "playerName": "Matt Evans",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-matt-evans",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__matt_evans",
     "team": "1st XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:23.603Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike-wills
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.224Z",
-    "playerName": "Mike Wills",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike-wills",
-    "team": "1st XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:23.609Z] Player node not found for name: Mike Wills in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike-wills
+[2025-08-21T07:09:51.920Z] Player node not found for name: Mike Wills in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__mike_wills
 Details: {
   "playerName": "Mike Wills",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.224Z",
+    "createdAt": "2025-08-21T07:09:31.925Z",
     "playerName": "Mike Wills",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-mike-wills",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__mike_wills",
     "team": "1st XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:23.692Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli-wayne
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.258Z",
-    "playerName": "Oli Wayne",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli-wayne",
-    "team": "1st XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:23.706Z] Player node not found for name: Oli Wayne in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli-wayne
+[2025-08-21T07:09:51.971Z] Player node not found for name: Oli Wayne in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__oli_wayne
 Details: {
   "playerName": "Oli Wayne",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.258Z",
+    "createdAt": "2025-08-21T07:09:31.968Z",
     "playerName": "Oli Wayne",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-oli-wayne",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__oli_wayne",
     "team": "1st XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:23.773Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert-cape
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.245Z",
-    "playerName": "Rupert Cape",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert-cape",
-    "team": "1st XI",
-    "class": "FWD",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:23.800Z] Player node not found for name: Rupert Cape in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert-cape
+[2025-08-21T07:09:52.014Z] Player node not found for name: Rupert Cape in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__rupert_cape
 Details: {
   "playerName": "Rupert Cape",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.245Z",
+    "createdAt": "2025-08-21T07:09:31.950Z",
     "playerName": "Rupert Cape",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-rupert-cape",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__rupert_cape",
     "team": "1st XI",
     "class": "FWD",
     "goals": 1
   }
 }
-[2025-08-20T16:43:23.863Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ-harvey
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.267Z",
-    "playerName": "Russ Harvey",
-    "assists": 2,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ-harvey",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:23.887Z] Player node not found for name: Russ Harvey in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ-harvey
+[2025-08-21T07:09:52.051Z] Player node not found for name: Russ Harvey in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__russ_harvey
 Details: {
   "playerName": "Russ Harvey",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.267Z",
+    "createdAt": "2025-08-21T07:09:31.979Z",
     "playerName": "Russ Harvey",
     "assists": 2,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-russ-harvey",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__russ_harvey",
     "team": "1st XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:23.988Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth-clenaghan
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.301Z",
-    "playerName": "Seth Clenaghan",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth-clenaghan",
-    "team": "1st XI",
-    "class": "DEF",
-    "manOfMatch": 1,
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:24.018Z] Player node not found for name: Seth Clenaghan in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth-clenaghan
+[2025-08-21T07:09:52.098Z] Player node not found for name: Seth Clenaghan in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__seth_clenaghan
 Details: {
   "playerName": "Seth Clenaghan",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.301Z",
+    "createdAt": "2025-08-21T07:09:32.014Z",
     "playerName": "Seth Clenaghan",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-seth-clenaghan",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__seth_clenaghan",
     "team": "1st XI",
     "class": "DEF",
     "manOfMatch": 1,
     "goals": 1
   }
 }
-[2025-08-20T16:43:24.172Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom-neville
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.273Z",
-    "playerName": "Tom Neville",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom-neville",
-    "team": "1st XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:24.194Z] Player node not found for name: Tom Neville in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom-neville
+[2025-08-21T07:09:52.152Z] Player node not found for name: Tom Neville in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__tom_neville
 Details: {
   "playerName": "Tom Neville",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.273Z",
+    "createdAt": "2025-08-21T07:09:31.986Z",
     "playerName": "Tom Neville",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-tom-neville",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__tom_neville",
     "team": "1st XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:24.254Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will-westcott
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.292Z",
-    "playerName": "Will Westcott",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will-westcott",
-    "team": "1st XI",
-    "class": "DEF",
-    "manOfMatch": 1,
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:24.267Z] Player node not found for name: Will Westcott in MatchDetail matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will-westcott
+[2025-08-21T07:09:52.192Z] Player node not found for name: Will Westcott in MatchDetail matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__will_westcott
 Details: {
   "playerName": "Will Westcott",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.292Z",
+    "createdAt": "2025-08-21T07:09:32.002Z",
     "playerName": "Will Westcott",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will",
+    "fixtureId": "fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home-will-westcott",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-1st-xi-vs-old-wokingians-first-home__will_westcott",
     "team": "1st XI",
     "class": "DEF",
     "manOfMatch": 1,
     "goals": 1
   }
 }
-[2025-08-20T16:43:24.325Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-callum-mackrell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-callum",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.387Z",
-    "playerName": "Callum Mackrell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-callum",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-callum-mackrell",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:24.503Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris-black
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.317Z",
-    "playerName": "Chris Black",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris-black",
-    "team": "2nd XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:24.535Z] Player node not found for name: Chris Black in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris-black
+[2025-08-21T07:09:52.327Z] Player node not found for name: Chris Black in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__chris_black
 Details: {
   "playerName": "Chris Black",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.317Z",
+    "createdAt": "2025-08-21T07:09:32.040Z",
     "playerName": "Chris Black",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-chris-black",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__chris_black",
     "team": "2nd XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:24.608Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack-murrell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.395Z",
-    "playerName": "Jack Murrell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack-murrell",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:24.622Z] Player node not found for name: Jack Murrell in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack-murrell
+[2025-08-21T07:09:52.374Z] Player node not found for name: Jack Murrell in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__jack_murrell
 Details: {
   "playerName": "Jack Murrell",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.395Z",
+    "createdAt": "2025-08-21T07:09:32.221Z",
     "playerName": "Jack Murrell",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-jack-murrell",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__jack_murrell",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:24.676Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-baker
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.357Z",
-    "playerName": "James Baker",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-baker",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:24.688Z] Player node not found for name: James Baker in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-baker
+[2025-08-21T07:09:52.413Z] Player node not found for name: James Baker in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_baker
 Details: {
   "playerName": "James Baker",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.357Z",
+    "createdAt": "2025-08-21T07:09:32.133Z",
     "playerName": "James Baker",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-baker",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_baker",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:24.723Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-dickinson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.380Z",
-    "playerName": "James Dickinson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-dickinson",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:24.738Z] Player node not found for name: James Dickinson in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-dickinson
+[2025-08-21T07:09:52.454Z] Player node not found for name: James Dickinson in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_dickinson
 Details: {
   "playerName": "James Dickinson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.380Z",
+    "createdAt": "2025-08-21T07:09:32.195Z",
     "playerName": "James Dickinson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-dickinson",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_dickinson",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:24.770Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-whitmarsh
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.323Z",
-    "playerName": "James Whitmarsh",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-whitmarsh",
-    "team": "2nd XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:24.775Z] Player node not found for name: James Whitmarsh in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-whitmarsh
+[2025-08-21T07:09:52.495Z] Player node not found for name: James Whitmarsh in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_whitmarsh
 Details: {
   "playerName": "James Whitmarsh",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.323Z",
+    "createdAt": "2025-08-21T07:09:32.050Z",
     "playerName": "James Whitmarsh",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-james-whitmarsh",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__james_whitmarsh",
     "team": "2nd XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:24.807Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel-sanders
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.350Z",
-    "playerName": "Joel Sanders",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel-sanders",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:24.821Z] Player node not found for name: Joel Sanders in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel-sanders
+[2025-08-21T07:09:52.533Z] Player node not found for name: Joel Sanders in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__joel_sanders
 Details: {
   "playerName": "Joel Sanders",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.350Z",
+    "createdAt": "2025-08-21T07:09:32.118Z",
     "playerName": "Joel Sanders",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-joel-sanders",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__joel_sanders",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:24.854Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam-hawkins
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.365Z",
-    "playerName": "Liam Hawkins",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam-hawkins",
-    "team": "2nd XI",
-    "class": "MID",
-    "manOfMatch": 1,
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:24.867Z] Player node not found for name: Liam Hawkins in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam-hawkins
+[2025-08-21T07:09:52.573Z] Player node not found for name: Liam Hawkins in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__liam_hawkins
 Details: {
   "playerName": "Liam Hawkins",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.365Z",
+    "createdAt": "2025-08-21T07:09:32.148Z",
     "playerName": "Liam Hawkins",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-liam-hawkins",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__liam_hawkins",
     "team": "2nd XI",
     "class": "MID",
     "manOfMatch": 1,
     "goals": 1
   }
 }
-[2025-08-20T16:43:24.904Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke-woodards
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.403Z",
-    "playerName": "Luke Woodards",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke-woodards",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:24.912Z] Player node not found for name: Luke Woodards in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke-woodards
+[2025-08-21T07:09:52.608Z] Player node not found for name: Luke Woodards in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__luke_woodards
 Details: {
   "playerName": "Luke Woodards",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.403Z",
+    "createdAt": "2025-08-21T07:09:32.234Z",
     "playerName": "Luke Woodards",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-luke-woodards",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__luke_woodards",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:24.956Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin-kingsley
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.333Z",
-    "playerName": "Martin Kingsley",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin-kingsley",
-    "team": "2nd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:24.966Z] Player node not found for name: Martin Kingsley in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin-kingsley
+[2025-08-21T07:09:52.649Z] Player node not found for name: Martin Kingsley in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__martin_kingsley
 Details: {
   "playerName": "Martin Kingsley",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.333Z",
+    "createdAt": "2025-08-21T07:09:32.077Z",
     "playerName": "Martin Kingsley",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-martin-kingsley",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__martin_kingsley",
     "team": "2nd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:25.007Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt-cannon
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.308Z",
-    "playerName": "Matt Cannon",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt-cannon",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.017Z] Player node not found for name: Matt Cannon in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt-cannon
+[2025-08-21T07:09:52.685Z] Player node not found for name: Matt Cannon in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__matt_cannon
 Details: {
   "playerName": "Matt Cannon",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.308Z",
+    "createdAt": "2025-08-21T07:09:32.028Z",
     "playerName": "Matt Cannon",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-matt-cannon",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__matt_cannon",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:25.061Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike-richardson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.372Z",
-    "playerName": "Mike Richardson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike-richardson",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.071Z] Player node not found for name: Mike Richardson in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike-richardson
+[2025-08-21T07:09:52.721Z] Player node not found for name: Mike Richardson in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__mike_richardson
 Details: {
   "playerName": "Mike Richardson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.372Z",
+    "createdAt": "2025-08-21T07:09:32.169Z",
     "playerName": "Mike Richardson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-mike-richardson",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__mike_richardson",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:25.108Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun-patterson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.341Z",
-    "playerName": "Shaun Patterson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun-patterson",
-    "team": "2nd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.120Z] Player node not found for name: Shaun Patterson in MatchDetail matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun-patterson
+[2025-08-21T07:09:52.760Z] Player node not found for name: Shaun Patterson in MatchDetail matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__shaun_patterson
 Details: {
   "playerName": "Shaun Patterson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.341Z",
+    "createdAt": "2025-08-21T07:09:32.100Z",
     "playerName": "Shaun Patterson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun",
+    "fixtureId": "fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home-shaun-patterson",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-2nd-xi-vs-economicals-fourth-home__shaun_patterson",
     "team": "2nd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:25.162Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-ben-rogers
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-ben",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.456Z",
-    "playerName": "Ben Rogers",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-ben",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-ben-rogers",
-    "team": "3rd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.459Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie-routleff
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.480Z",
-    "playerName": "Frankie Routleff",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie-routleff",
-    "team": "3rd XI",
-    "class": "MID",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:25.478Z] Player node not found for name: Frankie Routleff in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie-routleff
+[2025-08-21T07:09:52.880Z] Player node not found for name: Frankie Routleff in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__frankie_routleff
 Details: {
   "playerName": "Frankie Routleff",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.480Z",
+    "createdAt": "2025-08-21T07:09:32.352Z",
     "playerName": "Frankie Routleff",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-frankie-routleff",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__frankie_routleff",
     "team": "3rd XI",
     "class": "MID",
     "goals": 1
   }
 }
-[2025-08-20T16:43:25.591Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe-banin
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.431Z",
-    "playerName": "Joe Banin",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe-banin",
-    "team": "3rd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:25.602Z] Player node not found for name: Joe Banin in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe-banin
+[2025-08-21T07:09:52.922Z] Player node not found for name: Joe Banin in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__joe_banin
 Details: {
   "playerName": "Joe Banin",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.431Z",
+    "createdAt": "2025-08-21T07:09:32.292Z",
     "playerName": "Joe Banin",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-joe-banin",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__joe_banin",
     "team": "3rd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:25.663Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny-walton
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.438Z",
-    "playerName": "Johnny Walton",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny-walton",
-    "team": "3rd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.675Z] Player node not found for name: Johnny Walton in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny-walton
+[2025-08-21T07:09:52.961Z] Player node not found for name: Johnny Walton in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__johnny_walton
 Details: {
   "playerName": "Johnny Walton",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.438Z",
+    "createdAt": "2025-08-21T07:09:32.305Z",
     "playerName": "Johnny Walton",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-johnny-walton",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__johnny_walton",
     "team": "3rd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:25.725Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran-mackrell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.465Z",
-    "playerName": "Kieran Mackrell",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran-mackrell",
-    "team": "3rd XI",
-    "class": "FWD",
-    "goals": 2
-  }
-}
-[2025-08-20T16:43:25.737Z] Player node not found for name: Kieran Mackrell in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran-mackrell
+[2025-08-21T07:09:53.006Z] Player node not found for name: Kieran Mackrell in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__kieran_mackrell
 Details: {
   "playerName": "Kieran Mackrell",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.465Z",
+    "createdAt": "2025-08-21T07:09:32.335Z",
     "playerName": "Kieran Mackrell",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-kieran-mackrell",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__kieran_mackrell",
     "team": "3rd XI",
     "class": "FWD",
     "goals": 2
   }
 }
-[2025-08-20T16:43:25.790Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis-clarke
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.444Z",
-    "playerName": "Louis Clarke",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis-clarke",
-    "team": "3rd XI",
-    "class": "DEF",
-    "manOfMatch": 1
-  }
-}
-[2025-08-20T16:43:25.805Z] Player node not found for name: Louis Clarke in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis-clarke
+[2025-08-21T07:09:53.163Z] Player node not found for name: Louis Clarke in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__louis_clarke
 Details: {
   "playerName": "Louis Clarke",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.444Z",
+    "createdAt": "2025-08-21T07:09:32.317Z",
     "playerName": "Louis Clarke",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-louis-clarke",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__louis_clarke",
     "team": "3rd XI",
     "class": "DEF",
     "manOfMatch": 1
   }
 }
-[2025-08-20T16:43:25.889Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke-morley
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.424Z",
-    "playerName": "Luke Morley",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke-morley",
-    "team": "3rd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:25.919Z] Player node not found for name: Luke Morley in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke-morley
+[2025-08-21T07:09:53.256Z] Player node not found for name: Luke Morley in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__luke_morley
 Details: {
   "playerName": "Luke Morley",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.424Z",
+    "createdAt": "2025-08-21T07:09:32.277Z",
     "playerName": "Luke Morley",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-luke-morley",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__luke_morley",
     "team": "3rd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:26.039Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc-sturmey
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.472Z",
-    "playerName": "Marc Sturmey",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc-sturmey",
-    "team": "3rd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:26.054Z] Player node not found for name: Marc Sturmey in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc-sturmey
+[2025-08-21T07:09:53.322Z] Player node not found for name: Marc Sturmey in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__marc_sturmey
 Details: {
   "playerName": "Marc Sturmey",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.472Z",
+    "createdAt": "2025-08-21T07:09:32.345Z",
     "playerName": "Marc Sturmey",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-marc-sturmey",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__marc_sturmey",
     "team": "3rd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:26.140Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam-slade
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.418Z",
-    "playerName": "Sam Slade",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam-slade",
-    "team": "3rd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:26.152Z] Player node not found for name: Sam Slade in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam-slade
+[2025-08-21T07:09:53.394Z] Player node not found for name: Sam Slade in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__sam_slade
 Details: {
   "playerName": "Sam Slade",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.418Z",
+    "createdAt": "2025-08-21T07:09:32.263Z",
     "playerName": "Sam Slade",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-sam-slade",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__sam_slade",
     "team": "3rd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:26.225Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane-tanner
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.409Z",
-    "playerName": "Shane Tanner",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane-tanner",
-    "team": "3rd XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:26.238Z] Player node not found for name: Shane Tanner in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane-tanner
+[2025-08-21T07:09:53.469Z] Player node not found for name: Shane Tanner in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__shane_tanner
 Details: {
   "playerName": "Shane Tanner",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.409Z",
+    "createdAt": "2025-08-21T07:09:32.247Z",
     "playerName": "Shane Tanner",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-shane-tanner",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__shane_tanner",
     "team": "3rd XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:26.358Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim-goddard
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.487Z",
-    "playerName": "Tim Goddard",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim-goddard",
-    "team": "3rd XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:26.381Z] Player node not found for name: Tim Goddard in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim-goddard
+[2025-08-21T07:09:53.557Z] Player node not found for name: Tim Goddard in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__tim_goddard
 Details: {
   "playerName": "Tim Goddard",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.487Z",
+    "createdAt": "2025-08-21T07:09:32.362Z",
     "playerName": "Tim Goddard",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tim-goddard",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__tim_goddard",
     "team": "3rd XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:26.522Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom-bullock
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.494Z",
-    "playerName": "Tom Bullock",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom-bullock",
-    "team": "3rd XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:26.574Z] Player node not found for name: Tom Bullock in MatchDetail matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom-bullock
+[2025-08-21T07:09:53.605Z] Player node not found for name: Tom Bullock in MatchDetail matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__tom_bullock
 Details: {
   "playerName": "Tom Bullock",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.494Z",
+    "createdAt": "2025-08-21T07:09:32.369Z",
     "playerName": "Tom Bullock",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom",
+    "fixtureId": "fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away-tom-bullock",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-3rd-xi-vs-old-guildfordians-first-away__tom_bullock",
     "team": "3rd XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:26.740Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aaron-morley
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aaron",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.504Z",
-    "playerName": "Aaron Morley",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aaron",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aaron-morley",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:27.104Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aidan-torpey
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aidan",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.564Z",
-    "playerName": "Aidan Torpey",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aidan",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-aidan-torpey",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:27.905Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben-hobbs
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.579Z",
-    "playerName": "Ben Hobbs",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben-hobbs",
-    "team": "4th XI",
-    "class": "DEF",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:28.802Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben-simpkins
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.571Z",
-    "playerName": "Ben Simpkins",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-ben-simpkins",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:29.004Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris-ward
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.510Z",
-    "playerName": "Chris Ward",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris-ward",
-    "team": "4th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:29.024Z] Player node not found for name: Chris Ward in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris-ward
+[2025-08-21T07:09:54.183Z] Player node not found for name: Chris Ward in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__chris_ward
 Details: {
   "playerName": "Chris Ward",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.510Z",
+    "createdAt": "2025-08-21T07:09:32.387Z",
     "playerName": "Chris Ward",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-chris-ward",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__chris_ward",
     "team": "4th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:29.308Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry-brookmyre
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.541Z",
-    "playerName": "Harry Brookmyre",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry-brookmyre",
-    "team": "4th XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:29.321Z] Player node not found for name: Harry Brookmyre in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry-brookmyre
+[2025-08-21T07:09:54.234Z] Player node not found for name: Harry Brookmyre in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__harry_brookmyre
 Details: {
   "playerName": "Harry Brookmyre",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.541Z",
+    "createdAt": "2025-08-21T07:09:32.424Z",
     "playerName": "Harry Brookmyre",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-harry-brookmyre",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__harry_brookmyre",
     "team": "4th XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:30.257Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh-hawkey
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.520Z",
-    "playerName": "Josh Hawkey",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh-hawkey",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:30.324Z] Player node not found for name: Josh Hawkey in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh-hawkey
+[2025-08-21T07:09:54.284Z] Player node not found for name: Josh Hawkey in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__josh_hawkey
 Details: {
   "playerName": "Josh Hawkey",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.520Z",
+    "createdAt": "2025-08-21T07:09:32.397Z",
     "playerName": "Josh Hawkey",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-josh-hawkey",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__josh_hawkey",
     "team": "4th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:30.590Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie-howlett
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.550Z",
-    "playerName": "Mattie Howlett",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie-howlett",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:30.604Z] Player node not found for name: Mattie Howlett in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie-howlett
+[2025-08-21T07:09:54.337Z] Player node not found for name: Mattie Howlett in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__mattie_howlett
 Details: {
   "playerName": "Mattie Howlett",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.550Z",
+    "createdAt": "2025-08-21T07:09:32.431Z",
     "playerName": "Mattie Howlett",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-mattie-howlett",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__mattie_howlett",
     "team": "4th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:30.802Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli-goddard
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.587Z",
-    "playerName": "Oli Goddard",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli-goddard",
-    "team": "4th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:30.808Z] Player node not found for name: Oli Goddard in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli-goddard
+[2025-08-21T07:09:54.389Z] Player node not found for name: Oli Goddard in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__oli_goddard
 Details: {
   "playerName": "Oli Goddard",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.587Z",
+    "createdAt": "2025-08-21T07:09:32.481Z",
     "playerName": "Oli Goddard",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-oli-goddard",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__oli_goddard",
     "team": "4th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:30.839Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete-hale
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.535Z",
-    "playerName": "Pete Hale",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete-hale",
-    "team": "4th XI",
-    "class": "DEF",
-    "manOfMatch": 1
-  }
-}
-[2025-08-20T16:43:30.843Z] Player node not found for name: Pete Hale in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete-hale
+[2025-08-21T07:09:54.447Z] Player node not found for name: Pete Hale in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__pete_hale
 Details: {
   "playerName": "Pete Hale",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.535Z",
+    "createdAt": "2025-08-21T07:09:32.414Z",
     "playerName": "Pete Hale",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-pete-hale",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__pete_hale",
     "team": "4th XI",
     "class": "DEF",
     "manOfMatch": 1
   }
 }
-[2025-08-20T16:43:30.880Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam-raby
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.557Z",
-    "playerName": "Sam Raby",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam-raby",
-    "team": "4th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:30.886Z] Player node not found for name: Sam Raby in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam-raby
+[2025-08-21T07:09:54.499Z] Player node not found for name: Sam Raby in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__sam_raby
 Details: {
   "playerName": "Sam Raby",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.557Z",
+    "createdAt": "2025-08-21T07:09:32.441Z",
     "playerName": "Sam Raby",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-sam-raby",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__sam_raby",
     "team": "4th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:31.025Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim-louis
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.526Z",
-    "playerName": "Tim Louis",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim-louis",
-    "team": "4th XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:31.041Z] Player node not found for name: Tim Louis in MatchDetail matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim-louis
+[2025-08-21T07:09:54.563Z] Player node not found for name: Tim Louis in MatchDetail matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__tim_louis
 Details: {
   "playerName": "Tim Louis",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.526Z",
+    "createdAt": "2025-08-21T07:09:32.404Z",
     "playerName": "Tim Louis",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim",
+    "fixtureId": "fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away-tim-louis",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-4th-xi-vs-royal-sun-alliance-away__tim_louis",
     "team": "4th XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:31.519Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-alex-campbell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-alex",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.634Z",
-    "playerName": "Alex Campbell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-alex",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-alex-campbell",
-    "team": "5th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:33.088Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris-fox
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.669Z",
-    "playerName": "Chris Fox",
-    "assists": 1,
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris-fox",
-    "team": "5th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:33.093Z] Player node not found for name: Chris Fox in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris-fox
+[2025-08-21T07:09:54.811Z] Player node not found for name: Chris Fox in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__chris_fox
 Details: {
   "playerName": "Chris Fox",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.669Z",
+    "createdAt": "2025-08-21T07:09:32.605Z",
     "playerName": "Chris Fox",
     "assists": 1,
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-chris-fox",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__chris_fox",
     "team": "5th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:33.125Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm-murphy
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.625Z",
-    "playerName": "Colm Murphy",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm-murphy",
-    "team": "5th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:33.131Z] Player node not found for name: Colm Murphy in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm-murphy
+[2025-08-21T07:09:54.856Z] Player node not found for name: Colm Murphy in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__colm_murphy
 Details: {
   "playerName": "Colm Murphy",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.625Z",
+    "createdAt": "2025-08-21T07:09:32.535Z",
     "playerName": "Colm Murphy",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-colm-murphy",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__colm_murphy",
     "team": "5th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:33.157Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren-turner
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.660Z",
-    "playerName": "Darren Turner",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren-turner",
-    "team": "5th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:33.162Z] Player node not found for name: Darren Turner in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren-turner
+[2025-08-21T07:09:54.898Z] Player node not found for name: Darren Turner in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__darren_turner
 Details: {
   "playerName": "Darren Turner",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.660Z",
+    "createdAt": "2025-08-21T07:09:32.587Z",
     "playerName": "Darren Turner",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-darren-turner",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__darren_turner",
     "team": "5th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:33.188Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas-lownis
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "playerName": "Ghilas Lownis",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas",
-    "team": "5th XI",
-    "manOfMatch": 1,
-    "createdAt": "2025-08-20T16:43:02.685Z",
-    "assists": 1,
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas-lownis",
-    "class": "MID",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:33.193Z] Player node not found for name: Ghilas Lownis in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas-lownis
+[2025-08-21T07:09:54.939Z] Player node not found for name: Ghilas Lownis in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__ghilas_lownis
 Details: {
   "playerName": "Ghilas Lownis",
   "matchDetailData": {
@@ -2486,600 +1156,293 @@ Details: {
     "date": "2016/09/17",
     "playerName": "Ghilas Lownis",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "team": "5th XI",
     "manOfMatch": 1,
-    "createdAt": "2025-08-20T16:43:02.685Z",
+    "createdAt": "2025-08-21T07:09:32.642Z",
     "assists": 1,
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ghilas-lownis",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__ghilas_lownis",
     "class": "MID",
     "goals": 1
   }
 }
-[2025-08-20T16:43:33.220Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack-duffell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.692Z",
-    "playerName": "Jack Duffell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack-duffell",
-    "team": "5th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:33.225Z] Player node not found for name: Jack Duffell in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack-duffell
+[2025-08-21T07:09:54.985Z] Player node not found for name: Jack Duffell in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__jack_duffell
 Details: {
   "playerName": "Jack Duffell",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.692Z",
+    "createdAt": "2025-08-21T07:09:32.690Z",
     "playerName": "Jack Duffell",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jack-duffell",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__jack_duffell",
     "team": "5th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:33.253Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james-campbell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.653Z",
-    "playerName": "James Campbell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james-campbell",
-    "team": "5th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:33.258Z] Player node not found for name: James Campbell in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james-campbell
+[2025-08-21T07:09:55.035Z] Player node not found for name: James Campbell in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__james_campbell
 Details: {
   "playerName": "James Campbell",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.653Z",
+    "createdAt": "2025-08-21T07:09:32.565Z",
     "playerName": "James Campbell",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-james-campbell",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__james_campbell",
     "team": "5th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:33.285Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan-martin
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.702Z",
-    "playerName": "Jordan Martin",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan-martin",
-    "team": "5th XI",
-    "class": "FWD",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:33.290Z] Player node not found for name: Jordan Martin in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan-martin
+[2025-08-21T07:09:55.090Z] Player node not found for name: Jordan Martin in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__jordan_martin
 Details: {
   "playerName": "Jordan Martin",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.702Z",
+    "createdAt": "2025-08-21T07:09:32.716Z",
     "playerName": "Jordan Martin",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-jordan-martin",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__jordan_martin",
     "team": "5th XI",
     "class": "FWD",
     "goals": 1
   }
 }
-[2025-08-20T16:43:33.324Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke-bangs
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.592Z",
-    "playerName": "Luke Bangs",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke-bangs",
-    "team": "5th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:33.333Z] Player node not found for name: Luke Bangs in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke-bangs
+[2025-08-21T07:09:55.126Z] Player node not found for name: Luke Bangs in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__luke_bangs
 Details: {
   "playerName": "Luke Bangs",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.592Z",
+    "createdAt": "2025-08-21T07:09:32.491Z",
     "playerName": "Luke Bangs",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-luke-bangs",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__luke_bangs",
     "team": "5th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:33.370Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin-butterly
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.603Z",
-    "playerName": "Martin Butterly",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin-butterly",
-    "team": "5th XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:33.376Z] Player node not found for name: Martin Butterly in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin-butterly
+[2025-08-21T07:09:55.163Z] Player node not found for name: Martin Butterly in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__martin_butterly
 Details: {
   "playerName": "Martin Butterly",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.603Z",
+    "createdAt": "2025-08-21T07:09:32.499Z",
     "playerName": "Martin Butterly",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-martin-butterly",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__martin_butterly",
     "team": "5th XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:33.411Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard-stanbridge
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.609Z",
-    "playerName": "Richard Stanbridge",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard-stanbridge",
-    "team": "5th XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:33.419Z] Player node not found for name: Richard Stanbridge in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard-stanbridge
+[2025-08-21T07:09:55.198Z] Player node not found for name: Richard Stanbridge in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__richard_stanbridge
 Details: {
   "playerName": "Richard Stanbridge",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.609Z",
+    "createdAt": "2025-08-21T07:09:32.510Z",
     "playerName": "Richard Stanbridge",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-richard-stanbridge",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__richard_stanbridge",
     "team": "5th XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:33.455Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross-johnson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.642Z",
-    "playerName": "Ross Johnson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross-johnson",
-    "team": "5th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:33.465Z] Player node not found for name: Ross Johnson in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross-johnson
+[2025-08-21T07:09:55.232Z] Player node not found for name: Ross Johnson in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__ross_johnson
 Details: {
   "playerName": "Ross Johnson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.642Z",
+    "createdAt": "2025-08-21T07:09:32.557Z",
     "playerName": "Ross Johnson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-ross-johnson",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__ross_johnson",
     "team": "5th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:33.501Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve-harcombe
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.676Z",
-    "playerName": "Steve Harcombe",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve-harcombe",
-    "team": "5th XI",
-    "class": "FWD"
-  }
-}
-[2025-08-20T16:43:33.507Z] Player node not found for name: Steve Harcombe in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve-harcombe
+[2025-08-21T07:09:55.270Z] Player node not found for name: Steve Harcombe in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__steve_harcombe
 Details: {
   "playerName": "Steve Harcombe",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.676Z",
+    "createdAt": "2025-08-21T07:09:32.624Z",
     "playerName": "Steve Harcombe",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-steve-harcombe",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__steve_harcombe",
     "team": "5th XI",
     "class": "FWD"
   }
 }
-[2025-08-20T16:43:33.556Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne-jones
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.618Z",
-    "playerName": "Tim Glynne-Jones",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne-jones",
-    "team": "5th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:33.571Z] Player node not found for name: Tim Glynne-Jones in MatchDetail matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne-jones
+[2025-08-21T07:09:55.311Z] Player node not found for name: Tim Glynne-Jones in MatchDetail matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__tim_glynne_jones
 Details: {
   "playerName": "Tim Glynne-Jones",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.618Z",
+    "createdAt": "2025-08-21T07:09:32.524Z",
     "playerName": "Tim Glynne-Jones",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne",
+    "fixtureId": "fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home-tim-glynne-jones",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-5th-xi-vs-old-wokingians-sixth-home__tim_glynne_jones",
     "team": "5th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:33.634Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-aaron-harper
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-aaron",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.709Z",
-    "playerName": "Aaron Harper",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-aaron",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-aaron-harper",
-    "team": "6th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:33.842Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-alex-campbell
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-alex",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.718Z",
-    "playerName": "Alex Campbell",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-alex",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-alex-campbell",
-    "team": "6th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:34.224Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm-murphy
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.731Z",
-    "playerName": "Colm Murphy",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm-murphy",
-    "team": "6th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:34.259Z] Player node not found for name: Colm Murphy in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm-murphy
+[2025-08-21T07:09:55.508Z] Player node not found for name: Colm Murphy in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__colm_murphy
 Details: {
   "playerName": "Colm Murphy",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.731Z",
+    "createdAt": "2025-08-21T07:09:32.790Z",
     "playerName": "Colm Murphy",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-colm-murphy",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__colm_murphy",
     "team": "6th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:34.402Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan-creech
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.738Z",
-    "playerName": "Dan Creech",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan-creech",
-    "team": "6th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:34.407Z] Player node not found for name: Dan Creech in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan-creech
+[2025-08-21T07:09:55.549Z] Player node not found for name: Dan Creech in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__dan_creech
 Details: {
   "playerName": "Dan Creech",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.738Z",
+    "createdAt": "2025-08-21T07:09:32.807Z",
     "playerName": "Dan Creech",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dan-creech",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__dan_creech",
     "team": "6th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:34.942Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david-williams
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.745Z",
-    "playerName": "David Williams",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david-williams",
-    "team": "6th XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:35.000Z] Player node not found for name: David Williams in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david-williams
+[2025-08-21T07:09:55.600Z] Player node not found for name: David Williams in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__david_williams
 Details: {
   "playerName": "David Williams",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.745Z",
+    "createdAt": "2025-08-21T07:09:32.824Z",
     "playerName": "David Williams",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-david-williams",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__david_williams",
     "team": "6th XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:35.200Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean-knowles
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.754Z",
-    "playerName": "Dean Knowles",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean-knowles",
-    "team": "6th XI",
-    "class": "MID"
-  }
-}
-[2025-08-20T16:43:35.233Z] Player node not found for name: Dean Knowles in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean-knowles
+[2025-08-21T07:09:55.645Z] Player node not found for name: Dean Knowles in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__dean_knowles
 Details: {
   "playerName": "Dean Knowles",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.754Z",
+    "createdAt": "2025-08-21T07:09:32.843Z",
     "playerName": "Dean Knowles",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-dean-knowles",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__dean_knowles",
     "team": "6th XI",
     "class": "MID"
   }
 }
-[2025-08-20T16:43:35.806Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john-atkinson
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.763Z",
-    "playerName": "John Atkinson",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john-atkinson",
-    "team": "6th XI",
-    "class": "MID",
-    "manOfMatch": 1
-  }
-}
-[2025-08-20T16:43:35.966Z] Player node not found for name: John Atkinson in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john-atkinson
+[2025-08-21T07:09:55.685Z] Player node not found for name: John Atkinson in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__john_atkinson
 Details: {
   "playerName": "John Atkinson",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.763Z",
+    "createdAt": "2025-08-21T07:09:32.857Z",
     "playerName": "John Atkinson",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-john-atkinson",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__john_atkinson",
     "team": "6th XI",
     "class": "MID",
     "manOfMatch": 1
   }
 }
-[2025-08-20T16:43:36.109Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard-stanbridge
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.771Z",
-    "playerName": "Richard Stanbridge",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard-stanbridge",
-    "team": "6th XI",
-    "class": "GK"
-  }
-}
-[2025-08-20T16:43:36.127Z] Player node not found for name: Richard Stanbridge in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard-stanbridge
+[2025-08-21T07:09:55.739Z] Player node not found for name: Richard Stanbridge in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__richard_stanbridge
 Details: {
   "playerName": "Richard Stanbridge",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.771Z",
+    "createdAt": "2025-08-21T07:09:32.871Z",
     "playerName": "Richard Stanbridge",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-richard-stanbridge",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__richard_stanbridge",
     "team": "6th XI",
     "class": "GK"
   }
 }
-[2025-08-20T16:43:36.273Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-cruickshank
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.779Z",
-    "playerName": "Tom Cruickshank",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-cruickshank",
-    "team": "6th XI",
-    "class": "MID",
-    "goals": 1
-  }
-}
-[2025-08-20T16:43:36.291Z] Player node not found for name: Tom Cruickshank in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-cruickshank
+[2025-08-21T07:09:55.782Z] Player node not found for name: Tom Cruickshank in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__tom_cruickshank
 Details: {
   "playerName": "Tom Cruickshank",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.779Z",
+    "createdAt": "2025-08-21T07:09:32.885Z",
     "playerName": "Tom Cruickshank",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-cruickshank",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__tom_cruickshank",
     "team": "6th XI",
     "class": "MID",
     "goals": 1
   }
 }
-[2025-08-20T16:43:36.469Z] Fixture node not found for MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-trier
-Details: {
-  "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
-  "matchDetailData": {
-    "graphLabel": "dorkiniansWebsite",
-    "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.787Z",
-    "playerName": "Tom Trier",
-    "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
-    "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-trier",
-    "team": "6th XI",
-    "class": "DEF"
-  }
-}
-[2025-08-20T16:43:36.499Z] Player node not found for name: Tom Trier in MatchDetail matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-trier
+[2025-08-21T07:09:55.828Z] Player node not found for name: Tom Trier in MatchDetail matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__tom_trier
 Details: {
   "playerName": "Tom Trier",
   "matchDetailData": {
     "graphLabel": "dorkiniansWebsite",
     "date": "2016/09/17",
-    "createdAt": "2025-08-20T16:43:02.787Z",
+    "createdAt": "2025-08-21T07:09:32.897Z",
     "playerName": "Tom Trier",
     "minutes": 90,
-    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom",
+    "fixtureId": "fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away",
     "season": "2016/17",
-    "id": "matchdetail-fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away-tom-trier",
+    "id": "matchdetail__fixture-2016-17-2016/09/17-6th-xi-vs-brent-third-away__tom_trier",
     "team": "6th XI",
     "class": "DEF"
   }
 }
-[2025-08-20T16:43:45.730Z] Failed to create TOTW relationships for totw-2016-17-season: From node not found after retries: TOTW:totw-2016-17-season
+[2025-08-21T07:09:58.167Z] Failed to create TOTW relationships for totw__2016-17__season: From node not found after retries: TOTW:totw__2016-17__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3093,20 +1456,20 @@ Details: {
     "fwd1": "Rupert Cape",
     "fwd2": "Kieran Mackrell",
     "fwd3": "Oli Wayne",
-    "createdAt": "2025-08-20T16:43:05.207Z",
+    "createdAt": "2025-08-21T07:09:35.991Z",
     "mid3": "Ben Simpkins",
     "season": "2016/17",
     "mid2": "Joe Teague",
     "mid1": "Oli Goddard",
-    "id": "totw-2016-17-season",
+    "id": "totw__2016-17__season",
     "totwScore": 1385,
     "mid5": "Chris Bedford",
     "def5": "Callum Mackrell",
     "mid4": "Matt Cannon"
   },
-  "error": "From node not found after retries: TOTW:totw-2016-17-season"
+  "error": "From node not found after retries: TOTW:totw__2016-17__season"
 }
-[2025-08-20T16:43:46.059Z] Failed to create TOTW relationships for totw-2017-18-season: From node not found after retries: TOTW:totw-2017-18-season
+[2025-08-21T07:09:58.445Z] Failed to create TOTW relationships for totw__2017-18__season: From node not found after retries: TOTW:totw__2017-18__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3120,20 +1483,20 @@ Details: {
     "fwd1": "Matt Evans",
     "fwd2": "Oli Wayne",
     "fwd3": "Rupert Cape",
-    "createdAt": "2025-08-20T16:43:05.224Z",
+    "createdAt": "2025-08-21T07:09:35.999Z",
     "mid3": "George Warne",
     "season": "2017/18",
     "mid2": "Lewis Smith",
     "mid1": "Liam Hawkins",
-    "id": "totw-2017-18-season",
+    "id": "totw__2017-18__season",
     "totwScore": 1243,
     "mid5": "Joe Parker",
     "def5": "Andy Wills",
     "mid4": "James Campbell"
   },
-  "error": "From node not found after retries: TOTW:totw-2017-18-season"
+  "error": "From node not found after retries: TOTW:totw__2017-18__season"
 }
-[2025-08-20T16:43:46.485Z] Failed to create TOTW relationships for totw-2018-19-season: From node not found after retries: TOTW:totw-2018-19-season
+[2025-08-21T07:09:58.691Z] Failed to create TOTW relationships for totw__2018-19__season: From node not found after retries: TOTW:totw__2018-19__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3147,20 +1510,20 @@ Details: {
     "fwd1": "Matt Evans",
     "fwd2": "James Whitmarsh",
     "fwd3": "Tom Deeks",
-    "createdAt": "2025-08-20T16:43:05.240Z",
+    "createdAt": "2025-08-21T07:09:36.010Z",
     "mid3": "Arron Oakley",
     "season": "2018/19",
     "mid2": "Sam Slade",
     "mid1": "Rupert Cape",
-    "id": "totw-2018-19-season",
+    "id": "totw__2018-19__season",
     "totwScore": 1297,
     "mid5": "Liam Hawkins",
     "def5": "Oli Goddard",
     "mid4": "Matt Cannon"
   },
-  "error": "From node not found after retries: TOTW:totw-2018-19-season"
+  "error": "From node not found after retries: TOTW:totw__2018-19__season"
 }
-[2025-08-20T16:43:47.546Z] Failed to create TOTW relationships for totw-2019-20-season: From node not found after retries: TOTW:totw-2019-20-season
+[2025-08-21T07:09:58.930Z] Failed to create TOTW relationships for totw__2019-20__season: From node not found after retries: TOTW:totw__2019-20__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3174,20 +1537,20 @@ Details: {
     "fwd1": "Chris Black",
     "fwd2": "Arron Oakley",
     "fwd3": "James Whitmarsh",
-    "createdAt": "2025-08-20T16:43:05.253Z",
+    "createdAt": "2025-08-21T07:09:36.017Z",
     "mid3": "Alex Campbell",
     "season": "2019/20",
     "mid2": "Rupert Cape",
     "mid1": "Miles Amoza",
-    "id": "totw-2019-20-season",
+    "id": "totw__2019-20__season",
     "totwScore": 1142,
     "mid5": "Ollie Teague",
     "def5": "Brad Williams",
     "mid4": "Sam Besant"
   },
-  "error": "From node not found after retries: TOTW:totw-2019-20-season"
+  "error": "From node not found after retries: TOTW:totw__2019-20__season"
 }
-[2025-08-20T16:43:47.989Z] Failed to create TOTW relationships for totw-2020-21-season: From node not found after retries: TOTW:totw-2020-21-season
+[2025-08-21T07:09:59.199Z] Failed to create TOTW relationships for totw__2020-21__season: From node not found after retries: TOTW:totw__2020-21__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3201,20 +1564,20 @@ Details: {
     "fwd1": "Ali Wise",
     "fwd2": "James Whitmarsh",
     "fwd3": "Marvin Ndzamba Mambari",
-    "createdAt": "2025-08-20T16:43:05.272Z",
+    "createdAt": "2025-08-21T07:09:36.028Z",
     "mid3": "Arron Oakley",
     "season": "2020/21",
     "mid2": "Alex Campbell",
     "mid1": "Matt Morley",
-    "id": "totw-2020-21-season",
+    "id": "totw__2020-21__season",
     "totwScore": 845,
     "mid5": "Liam Hawkins",
     "def5": "Pete Camden",
     "mid4": "Sam Slade"
   },
-  "error": "From node not found after retries: TOTW:totw-2020-21-season"
+  "error": "From node not found after retries: TOTW:totw__2020-21__season"
 }
-[2025-08-20T16:43:48.351Z] Failed to create TOTW relationships for totw-2021-22-season: From node not found after retries: TOTW:totw-2021-22-season
+[2025-08-21T07:09:59.444Z] Failed to create TOTW relationships for totw__2021-22__season: From node not found after retries: TOTW:totw__2021-22__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3228,20 +1591,20 @@ Details: {
     "fwd1": "Oli Goddard",
     "fwd2": "Hugh Roach",
     "fwd3": "Michael Peck",
-    "createdAt": "2025-08-20T16:43:05.293Z",
+    "createdAt": "2025-08-21T07:09:36.036Z",
     "mid3": "Steve Brown",
     "season": "2021/22",
     "mid2": "Chris Bedford",
     "mid1": "Ben Simpkins",
-    "id": "totw-2021-22-season",
+    "id": "totw__2021-22__season",
     "totwScore": 1069,
     "mid5": "Charlie Woodman",
     "def5": "Ollie Turner",
     "mid4": "Sam Slade"
   },
-  "error": "From node not found after retries: TOTW:totw-2021-22-season"
+  "error": "From node not found after retries: TOTW:totw__2021-22__season"
 }
-[2025-08-20T16:43:48.716Z] Failed to create TOTW relationships for totw-2022-23-season: From node not found after retries: TOTW:totw-2022-23-season
+[2025-08-21T07:09:59.677Z] Failed to create TOTW relationships for totw__2022-23__season: From node not found after retries: TOTW:totw__2022-23__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3255,20 +1618,20 @@ Details: {
     "fwd1": "Craig Kingswell",
     "fwd2": "Oli Goddard",
     "fwd3": "Arron Oakley",
-    "createdAt": "2025-08-20T16:43:05.309Z",
+    "createdAt": "2025-08-21T07:09:36.058Z",
     "mid3": "Andy Sears-Black",
     "season": "2022/23",
     "mid2": "Joe Teague",
     "mid1": "Charlie Woodman",
-    "id": "totw-2022-23-season",
+    "id": "totw__2022-23__season",
     "totwScore": 1618,
     "mid5": "James Herouvin",
     "def5": "Stan Cunningham",
     "mid4": "Bafoday Nyandou"
   },
-  "error": "From node not found after retries: TOTW:totw-2022-23-season"
+  "error": "From node not found after retries: TOTW:totw__2022-23__season"
 }
-[2025-08-20T16:43:49.139Z] Failed to create TOTW relationships for totw-2023-24-season: From node not found after retries: TOTW:totw-2023-24-season
+[2025-08-21T07:09:59.911Z] Failed to create TOTW relationships for totw__2023-24__season: From node not found after retries: TOTW:totw__2023-24__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3282,20 +1645,20 @@ Details: {
     "fwd1": "Craig Kingswell",
     "fwd2": "Andy Sears-Black",
     "fwd3": "Oli Goddard",
-    "createdAt": "2025-08-20T16:43:05.323Z",
+    "createdAt": "2025-08-21T07:09:36.074Z",
     "mid3": "Charlie Woodman",
     "season": "2023/24",
     "mid2": "Max Ridler",
     "mid1": "Joe Teague",
-    "id": "totw-2023-24-season",
+    "id": "totw__2023-24__season",
     "totwScore": 1478,
     "mid5": "Darrell Mothee",
     "def5": "Jack Wisbey",
     "mid4": "Charlie Kenway"
   },
-  "error": "From node not found after retries: TOTW:totw-2023-24-season"
+  "error": "From node not found after retries: TOTW:totw__2023-24__season"
 }
-[2025-08-20T16:43:49.605Z] Failed to create TOTW relationships for totw-2024-25-season: From node not found after retries: TOTW:totw-2024-25-season
+[2025-08-21T07:10:00.160Z] Failed to create TOTW relationships for totw__2024-25__season: From node not found after retries: TOTW:totw__2024-25__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3309,20 +1672,20 @@ Details: {
     "fwd1": "Oli Goddard",
     "fwd2": "Phil Robinson",
     "fwd3": "Andy Sears-Black",
-    "createdAt": "2025-08-20T16:43:05.338Z",
+    "createdAt": "2025-08-21T07:09:36.084Z",
     "mid3": "Matt Morley",
     "season": "2024/25",
     "mid2": "Ryan Flashman",
     "mid1": "Charlie Woodman",
-    "id": "totw-2024-25-season",
+    "id": "totw__2024-25__season",
     "totwScore": 1355,
     "mid5": "George Warne",
     "def5": "Oli Jarvis",
     "mid4": "Liam Hawkins"
   },
-  "error": "From node not found after retries: TOTW:totw-2024-25-season"
+  "error": "From node not found after retries: TOTW:totw__2024-25__season"
 }
-[2025-08-20T16:43:50.172Z] Failed to create TOTW relationships for totw-all-time-season: From node not found after retries: TOTW:totw-all-time-season
+[2025-08-21T07:10:00.396Z] Failed to create TOTW relationships for totw__all-time__season: From node not found after retries: TOTW:totw__all-time__season
 Details: {
   "totwData": {
     "graphLabel": "dorkiniansWebsite",
@@ -3336,23 +1699,23 @@ Details: {
     "fwd1": "Oli Goddard",
     "fwd2": "Oli Wayne",
     "fwd3": "Rupert Cape",
-    "createdAt": "2025-08-20T16:43:05.190Z",
+    "createdAt": "2025-08-21T07:09:35.964Z",
     "mid3": "Arron Oakley",
     "season": "All Time",
     "mid2": "Sam Slade",
     "mid1": "Matt Morley",
-    "id": "totw-all-time-season",
+    "id": "totw__all-time__season",
     "totwScore": 8268,
     "mid5": "Liam Hawkins",
     "def5": "Andy Higgins",
     "mid4": "Joe Teague"
   },
-  "error": "From node not found after retries: TOTW:totw-all-time-season"
+  "error": "From node not found after retries: TOTW:totw__all-time__season"
 }
-[2025-08-20T16:44:57.372Z] Seeding completed with summary:
+[2025-08-21T07:10:29.963Z] Seeding completed with summary:
 Details: {
   "totalNodes": 494,
-  "totalRelationships": 1945,
+  "totalRelationships": 2045,
   "errors": 0,
   "unknownNodes": 0,
   "success": true

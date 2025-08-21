@@ -440,6 +440,15 @@ export class DataSeederService {
 		for (let rowIndex = 0; rowIndex < data.length; rowIndex++) {
 			const row = data[rowIndex];
 			try {
+				// Validate ID format before processing
+				const validationErrors = this.validateRowIDs(row, sourceName);
+				if (validationErrors.length > 0) {
+					console.error(`❌ ID validation failed for row ${rowIndex} in ${sourceName}:`);
+					validationErrors.forEach(error => console.error(`  ${error}`));
+					this.logError(`ID validation failed for row ${rowIndex} in ${sourceName}`, { row, validationErrors, rowIndex });
+					continue; // Skip invalid rows
+				}
+
 				// Map CSV data to schema properties
 				const mappedProperties = this.mapCSVToSchema(sourceName, row, rowIndex);
 
@@ -639,8 +648,30 @@ export class DataSeederService {
 		const penaltiesConceded = this.parseNumber(row["PCO"]);
 		const penaltiesSaved = this.parseNumber(row["PSV"]);
 
-		// Extract fixture ID from the explicit ID (format: matchdetail-{fixtureID}-{playerName})
-		const fixtureId = explicitId.replace(/^matchdetail-/, "").replace(/-[^-]+$/, "");
+		// Extract fixture ID from the explicit ID (format: matchdetail__{fixtureID}__{playerName})
+		// Use double underscore separator for clean, unambiguous parsing
+		// Split on double underscores to get fixture ID and player name
+		const parts = explicitId.split('__');
+		
+		let fixtureId: string;
+		if (parts.length === 3 && parts[0] === 'matchdetail') {
+			// Format: matchdetail__{fixtureID}__{playerName}
+			fixtureId = parts[1];
+		} else {
+			// Fallback: try to extract using old logic for backward compatibility
+			const withoutPrefix = explicitId.replace(/^matchdetail-/, "");
+			const homeAwayPlayerPattern = /-(home|away)-([a-zA-Z_-]+)$/;
+			const match = withoutPrefix.match(homeAwayPlayerPattern);
+			
+			if (match) {
+				const playerNameWithSeparator = `-${match[2]}`;
+				fixtureId = withoutPrefix.replace(playerNameWithSeparator, "");
+			} else {
+				// Last resort: use last underscore
+				const lastUnderscoreIndex = withoutPrefix.lastIndexOf("_");
+				fixtureId = lastUnderscoreIndex !== -1 ? withoutPrefix.substring(0, lastUnderscoreIndex) : withoutPrefix;
+			}
+		}
 
 		return {
 			id: explicitId,
@@ -1531,21 +1562,113 @@ export class DataSeederService {
 		return relationshipsCreated;
 	}
 
+	/**
+	 * Validates ID format against expected patterns
+	 * @param id The ID to validate
+	 * @param expectedFormat The expected format pattern
+	 * @returns true if valid, false otherwise
+	 */
+	private validateIDFormat(id: string, expectedFormat: string): boolean {
+		if (!id || typeof id !== 'string') {
+			return false;
+		}
+
+		if (expectedFormat.includes('__')) {
+			// Double underscore format: entity__primaryKey__secondaryKey
+			const parts = id.split('__');
+			
+			// Must have at least 3 parts: entity, primaryKey, secondaryKey
+			if (parts.length < 3) {
+				return false;
+			}
+			
+			// Check entity type matches
+			if (parts[0] !== expectedFormat.split('__')[0]) {
+				return false;
+			}
+			
+			// Validate that all parts exist and are not empty
+			return parts.every(part => part && part.trim() !== '');
+		} else {
+			// Simple prefix format: entity-{data}
+			return id.startsWith(expectedFormat);
+		}
+	}
+
+	/**
+	 * Validates all IDs in a data row against expected formats
+	 * @param row The CSV row data
+	 * @param sourceName The source table name
+	 * @returns Array of validation errors, empty if all valid
+	 */
+	private validateRowIDs(row: CSVRow, sourceName: string): string[] {
+		const errors: string[] = [];
+		
+		switch (sourceName) {
+			case "TBL_Players":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "player-")) {
+					errors.push(`Invalid Player ID format: ${row.ID}. Expected: player-{firstName}-{lastName}`);
+				}
+				break;
+				
+			case "TBL_FixturesAndResults":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "fixture-")) {
+					errors.push(`Invalid Fixture ID format: ${row.ID}. Expected: fixture-{season}-{date}-{team}-vs-{opposition}-{homeAway}`);
+				}
+				break;
+				
+			case "TBL_MatchDetails":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "matchdetail__")) {
+					errors.push(`Invalid MatchDetail ID format: ${row.ID}. Expected: matchdetail__{fixtureID}__{playerName}`);
+				}
+				break;
+				
+			case "TBL_WeeklyTOTW":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "totw__")) {
+					errors.push(`Invalid WeeklyTOTW ID format: ${row.ID}. Expected: totw__{season}__week-{weekNumber}`);
+				}
+				break;
+				
+			case "TBL_SeasonTOTW":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "totw__")) {
+					errors.push(`Invalid SeasonTOTW ID format: ${row.ID}. Expected: totw__{season}__season`);
+				}
+				break;
+				
+			case "TBL_PlayersOfTheMonth":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "pom__")) {
+					errors.push(`Invalid PlayerOfMonth ID format: ${row.ID}. Expected: pom__{season}__{month}`);
+				}
+				break;
+				
+			case "TBL_OppositionDetails":
+				if (row.ID && !this.validateIDFormat(String(row.ID), "opposition-")) {
+					errors.push(`Invalid Opposition ID format: ${row.ID}. Expected: opposition-{opposition}`);
+				}
+				break;
+		}
+		
+		return errors;
+	}
+
 	private async ensurePlayerNodeExists(playerName: string): Promise<string> {
 		// First try to find existing player
+		// Handle both underscore-separated names and space-separated names
 		const existingPlayerQuery = `
 			MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-			WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
+			WHERE p.name = $playerName OR p.name = $playerNameDisplay OR p.name = $playerNameLower OR p.name = $playerNameHyphen
 			RETURN p.id as playerId
 			LIMIT 1
 		`;
 		
 		try {
+			const playerNameDisplay = String(playerName).replace(/_/g, " "); // Convert underscores to spaces
 			const playerNameLower = String(playerName).toLowerCase();
-			const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
+			const playerNameHyphen = String(playerName).toLowerCase().replace(/[_\s]+/g, "-");
 			
 			const existingResult = await neo4jService.runQuery(existingPlayerQuery, { 
 				playerName: String(playerName),
+				playerNameDisplay: playerNameDisplay,
 				playerNameLower: playerNameLower,
 				playerNameHyphen: playerNameHyphen
 			});
@@ -1555,10 +1678,12 @@ export class DataSeederService {
 			}
 			
 			// Player doesn't exist, create a new one
-			const playerId = `player-${String(playerName).toLowerCase().replace(/\s+/g, "-")}`;
+			// Convert underscore-separated names back to readable format for display
+			const displayName = String(playerName).replace(/_/g, " ");
+			const playerId = `player-${String(playerName).toLowerCase().replace(/_/g, "-")}`;
 			const playerProperties = {
 				id: playerId,
-				name: playerName,
+				name: displayName, // Store the readable name (with spaces)
 				allowOnSite: false, // Historical player not allowed on site
 				mostPlayedForTeam: "Unknown",
 				mostCommonPosition: "Unknown",

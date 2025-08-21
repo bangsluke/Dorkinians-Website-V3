@@ -1,3 +1,4 @@
+
 ---
 alwaysApply: true
 ---
@@ -19,6 +20,8 @@ alwaysApply: true
 - **Environment Isolation Testing**: Test each environment independently before assuming cross-compatibility. Validate credentials, connections, and data flow separately
 - **File State Verification**: Read files before and after modifications to ensure changes are applied correctly
 - **Documentation Synchronization**: Update all related documentation files when making architectural changes
+- **Documentation Status Tracking**: Implement clear status indicators (✅/⚠️/❌) in technical documentation to track implementation progress and system health
+- **Comprehensive Feature Implementation**: When implementing features across multiple components, ensure consistency in implementation and error handling
 
 ## Module Compatibility
 - Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
@@ -36,49 +39,34 @@ alwaysApply: true
 - Proactively discover user preferences rather than making assumptions about configuration approaches
 - Ask clarifying questions early in the process to avoid wasted effort
 - Adapt implementation strategy based on user feedback and preferences
+- **User Instruction Compliance**: Always respect explicit user instructions about what NOT to do, especially regarding resource-intensive operations
 
 ## Tool Reliability & Fallbacks
 - **Search Tool Limitations**: When search_replace fails, use read_file to understand context and apply changes manually
 - **File Reading Dependency**: Read files multiple times if necessary to understand current state before making changes
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps
-## Environment Configuration
-- Always confirm user's preferred environment file structure before implementation
-- Prefer single `.env` files with environment-specific prefixes (e.g., `DEV_`, `PROD_`) when user specifies this preference
-- Avoid assumptions about `.env.local` vs `.env` approaches without user confirmation
-- After asking once, assume that an `.env` file exists and only mention it when new values need to be added to it
 
-## Progressive Development
-- Start with simplest possible solutions and add complexity only after basic functionality is verified
-- Test environment configuration before implementing complex features
-- Create minimal test scripts first, then enhance with advanced functionality
-- **External Data Validation**: Always verify external data source accessibility (URLs, APIs, files) before implementing data processing logic
-- **Progressive Debugging**: Start with simplest possible tests (URL accessibility, basic connectivity) before complex operations
-- **Data Source Testing**: Test data sources at the HTTP level before implementing parsing and processing logic
-- **Progressive Complexity Development**: Start with the simplest working solution, then enhance incrementally. Avoid over-engineering before basic functionality is proven
-- **Environment Isolation Testing**: Test each environment independently before assuming cross-compatibility. Validate credentials, connections, and data flow separately
-- **File State Verification**: Read files before and after modifications to ensure changes are applied correctly
-- **Documentation Synchronization**: Update all related documentation files when making architectural changes
+## Configuration Management
+- **Preserve Existing Configuration**: Never modify existing configuration files without explicit user request
+- **Avoid Duplicate Files**: Never create duplicate configuration files in different locations
+- **Understand System Context**: Fully comprehend the purpose and usage of configuration properties before making changes
+- **Configuration Validation**: Test configuration changes incrementally to ensure they don't break existing functionality
+- **Data Source Integrity**: Preserve original data source configurations (URLs, types, credentials) unless explicitly asked to change them
+- **Configuration File Discipline**: Always verify existing file structure before making changes to prevent duplication and conflicts
 
-## Module Compatibility
-- Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
-- Use appropriate tools for the task - avoid `ts-node` for simple environment checks when `node` suffices
-- Ensure test scripts can run without complex module resolution issues
+## Database Architecture Patterns
+- **Separate Node and Relationship Creation**: In database seeding workflows, create all nodes first, then create relationships in a separate phase
+- **Missing Dependency Auto-Creation**: When relationships fail due to missing dependent nodes, automatically create them rather than failing the relationship
+- **Data Consistency Validation**: Verify that all required data exists before attempting to create relationships
+- **Incremental Relationship Building**: Build relationships incrementally, starting with the simplest dependencies and working toward complex ones
+- **Validation-First Architecture**: Implement comprehensive validation at data ingestion boundaries to prevent downstream failures and provide clear error messages
 
-## Platform Compatibility
-- **Platform Agnostic Operations**: Consider Windows vs Unix command differences in all terminal operations
-- Use cross-platform compatible approaches when possible (e.g., PowerShell-compatible commands on Windows)
-- Test commands on the target platform before assuming universal compatibility
-- **Tool Command Precision**: Always verify command syntax before execution, especially in different shell environments
-- **Command Fallback**: Use fallback methods when primary tools fail or encounter errors
+## User Interaction & Solution Implementation
+- **User Solution Leverage**: When users provide specific technical solutions, implement them directly rather than over-engineering alternatives
+- **Domain Knowledge Respect**: Trust user expertise in their domain and implement their suggested approaches as the primary solution
+- **Feedback Integration**: Immediately implement user corrections without defending previous decisions or approaches
+- **Solution Validation**: Test user-provided solutions thoroughly to ensure they work as intended before suggesting modifications
 
-## User Preference Discovery
-- Proactively discover user preferences rather than making assumptions about configuration approaches
-- Ask clarifying questions early in the process to avoid wasted effort
-- Adapt implementation strategy based on user feedback and preferences
-
-## Tool Reliability & Fallbacks
-- **Search Tool Limitations**: When search_replace fails, use read_file to understand context and apply changes manually
-- **File Reading Dependency**: Read files multiple times if necessary to understand current state before making changes
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps

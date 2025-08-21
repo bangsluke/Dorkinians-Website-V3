@@ -61,6 +61,9 @@ const REDUCED_DATA_SOURCES = dataSources.map(source => ({
 
 // Unified database seeding script that works with both development and production
 async function seedDatabase() {
+	// Start timing
+	const startTime = Date.now();
+	
 	try {
 		console.log("🌱 Starting reduced database seeding process...");
 		console.log("📊 REDUCED MODE: Processing up to 100 rows per table for testing");
@@ -110,7 +113,24 @@ async function seedDatabase() {
 			console.error("❌ Database seeding failed:", response.status, errorText);
 			process.exit(1);
 		}
+		
+		// Calculate and display timing
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
+		
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
 	} catch (error) {
+		// Calculate timing even on error
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
+		
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
 		console.error("❌ Error during database seeding:", error);
 		process.exit(1);
 	}

@@ -58,6 +58,9 @@ const { dataSources } = require("../lib/config/dataSources");
 async function seedDatabase() {
 	// Get environment from command line argument or default to development
 	const environment = process.argv[2] || "development";
+	
+	// Start timing
+	const startTime = Date.now();
 
 	console.log(`🚀 Starting Database Seeding...`);
 	console.log(`📍 Environment: ${environment.toUpperCase()}`);
@@ -139,8 +142,24 @@ async function seedDatabase() {
 			console.log("3. All environment variables are set correctly");
 		}
 
+		// Calculate and display timing
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
+		
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
 		console.log(`✅ ${environment} seeding completed!`);
 	} catch (error) {
+		// Calculate timing even on error
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
+		
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
 		console.error(`❌ ${environment} seeding failed:`, error.message);
 		console.log("\n💡 Make sure:");
 		console.log("1. Next.js server is running (npm run dev)");
