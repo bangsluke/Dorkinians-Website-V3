@@ -65,6 +65,11 @@ export class EmailService {
 			},
 			tls: {
 				rejectUnauthorized: process.env.NODE_ENV === "production", // Only reject in production
+				// For development, allow self-signed certificates
+				...((process.env.NODE_ENV !== "production") && {
+					rejectUnauthorized: false,
+					checkServerIdentity: () => undefined
+				})
 			},
 		});
 	}
