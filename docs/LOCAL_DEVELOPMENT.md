@@ -5,6 +5,7 @@ This guide will help you set up local Neo4j Desktop development for the Dorkinia
 ## 🎯 Overview
 
 Instead of using Neo4j Aura (cloud), we'll use Neo4j Desktop for local development. This provides:
+
 - **Faster Development**: No network latency
 - **Cost-Free**: No cloud charges during development
 - **Full Control**: Complete database access and management
@@ -67,6 +68,7 @@ npm run test-neo4j
 ```
 
 You should see:
+
 ```
 🧪 Testing Neo4j Local Connection...
 ✅ Connection successful!
@@ -91,18 +93,21 @@ You should see:
 ### Useful Cypher Queries
 
 **View all nodes with graphLabel:**
+
 ```cypher
 MATCH (n {graphLabel: 'dorkiniansWebsite'})
 RETURN n LIMIT 10
 ```
 
 **View node count by label:**
+
 ```cypher
 MATCH (n {graphLabel: 'dorkiniansWebsite'})
 RETURN labels(n) as Label, count(n) as Count
 ```
 
 **Clear all data:**
+
 ```cypher
 MATCH (n {graphLabel: 'dorkiniansWebsite'})
 DETACH DELETE n
@@ -115,42 +120,47 @@ The project includes a data seeder utility that automatically adds the `graphLab
 ### Using the Data Seeder
 
 ```typescript
-import { dataSeederService } from '@/lib/services/dataSeederService'
+import { dataSeederService } from "@/lib/services/dataSeederService";
 
 // Seed all data types
 await dataSeederService.seedAllData({
-  players: playerData,
-  fixtures: fixtureData,
-  matchDetails: matchDetailData,
-  weeklyTOTW: weeklyTOTWData,
-  seasonTOTW: seasonTOTWData
-})
+	players: playerData,
+	fixtures: fixtureData,
+	matchDetails: matchDetailData,
+	weeklyTOTW: weeklyTOTWData,
+	seasonTOTW: seasonTOTWData,
+});
 ```
 
 ### What Gets Added Automatically
 
 Every node created through the service gets these properties:
+
 - **`graphLabel`**: Always set to `"dorkiniansWebsite"`
 - **`createdAt`**: ISO timestamp of creation
 
 ## 🚨 Troubleshooting
 
 ### Connection Refused
+
 - Ensure Neo4j Desktop is running
 - Check if database is started (green status)
 - Verify port 7687 is not blocked by firewall
 
 ### Authentication Failed
+
 - Double-check username/password in `.env.local`
 - Ensure password matches what you set in Neo4j Desktop
 - Try resetting password in Neo4j Desktop
 
 ### Port Already in Use
+
 - Check if another Neo4j instance is running
 - Change port in Neo4j Desktop settings
 - Update `DEV_NEO4J_URI` in `.env.local`
 
 ### Memory Issues
+
 - Neo4j Desktop uses significant RAM
 - Close other applications if needed
 - Consider increasing system RAM
@@ -158,12 +168,14 @@ Every node created through the service gets these properties:
 ## 🔄 Switching Between Local and Production
 
 ### Development (Local)
+
 ```bash
 NODE_ENV=development
 # Uses DEV_NEO4J_URI, DEV_NEO4J_USER, DEV_NEO4J_PASSWORD
 ```
 
 ### Production (Aura)
+
 ```bash
 NODE_ENV=production
 # Uses PROD_NEO4J_URI, PROD_NEO4J_USER, PROD_NEO4J_PASSWORD

@@ -27,13 +27,15 @@ To quickly get started in development mode:
 ## Setting Up
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
 
 ### 1. Environment Setup
 
 #### Option A: Local Neo4j Desktop (Recommended for Development)
+
 1. Install [Neo4j Desktop](https://neo4j.com/download/)
 2. Create local database: `neo4j` on port `7687`
 3. Update your `.env` file with:
@@ -56,31 +58,38 @@ PROD_NEO4J_PASSWORD=your_aura_db_password
 **Note**: The system uses a single `.env` file with `DEV_` and `PROD_` prefixes for environment-specific values.
 
 #### Option B: Neo4j Aura (Production)
+
 Use your existing Aura database configuration.
 
 # OpenAI API (for chatbot)
+
 OPENAI_API_KEY=your_openai_api_key_here
 
 # SMTP Configuration (for automated emails)
+
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
+SMTP_EMAIL_SECURE=false
 SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
-FROM_EMAIL=your-email@gmail.com
-TO_EMAIL=recipient@example.com
-```
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_TO_EMAIL=recipient@example.com
+
+````
 
 ### 2. Install Dependencies
 ```bash
 npm install
-```
+````
 
 ### 3. Test Neo4j Connection (Local Development)
+
 ```bash
 npm run test-neo4j
 ```
 
 ### 4. Start Development Server
+
 ```bash
 npm run dev
 ```
@@ -90,6 +99,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see the app.
 ## 🏗️ Architecture
 
 ### Tech Stack
+
 - **Frontend**: Next.js 14 + App Router
 - **Mobile Navigation**: Framer Motion + Hybrid Navigation
 - **UI Components**: Tailwind CSS + Headless UI
@@ -99,16 +109,18 @@ Visit [http://localhost:3000](http://localhost:3000) to see the app.
 - **State Management**: Zustand
 
 ### Screen Structure
+
 - **Homepage**: Chatbot input interface
 - **Stats**: Container with 4 swipeable sub-screens
   - Player Stats
-  - Team Stats  
+  - Team Stats
   - Club Stats
   - Comparison
 - **TOTW**: Team of the week with interactive graphics
 - **Club Information**: Static content display
 
 ### Navigation Pattern
+
 - **Header**: Club logo + settings icon (all screens)
 - **Footer**: 4 main navigation icons
 - **Sub-navigation**: Swipe gestures within Stats page
@@ -116,6 +128,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see the app.
 ## 📊 Data Sources
 
 ### Google Sheets CSV Endpoints
+
 - **FixturesAndResults**: ~2,400 rows (fixtures, results, team data)
 - **Players**: ~631 rows (player information)
 - **MatchDetails**: ~18,500 rows (individual match statistics)
@@ -125,6 +138,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see the app.
 - **Other tables**: ~400 rows total
 
 ### Data Volume Projections
+
 - **Current**: ~22,000 total rows
 - **5-year projection**: ~34,000 total rows
 - **Neo4j Aura Free Tier**: 200,000 nodes, 400,000 relationships ✅
@@ -132,6 +146,7 @@ Visit [http://localhost:3000](http://localhost:3000) to see the app.
 ## 🔧 Development
 
 ### Available Scripts
+
 ```bash
 npm run dev          # Start development server
 npm run build        # Build for production
@@ -141,6 +156,7 @@ npm run type-check   # Run TypeScript type checking
 ```
 
 ### Project Structure
+
 ```
 ├── app/                 # Next.js 14 app directory
 │   ├── globals.css     # Global styles with Tailwind
@@ -165,6 +181,7 @@ npm run type-check   # Run TypeScript type checking
 ## 🚧 Current Status
 
 ### ✅ Completed (Phase 1)
+
 - [x] Next.js 14 project setup
 - [x] PWA configuration
 - [x] Tailwind CSS setup
@@ -176,12 +193,14 @@ npm run type-check   # Run TypeScript type checking
 - [x] TypeScript type definitions
 
 ### 🔄 Next Steps (Phase 2)
+
 - [ ] Navigation framework implementation
 - [ ] Screen routing and transitions
 - [ ] Stats page container structure
 - [ ] Basic screen layouts
 
 ### 📋 Future Phases
+
 - **Phase 3**: Data integration & chatbot
 - **Phase 4**: Individual screen development
 - **Phase 5**: Performance & PWA optimization
@@ -198,6 +217,10 @@ npm run type-check   # Run TypeScript type checking
 - **`context/ARCHITECTURE_ANALYSIS.md`**: Complete architecture documentation
 - **`example-data/`**: Sample CSV data and example questions
 - **`data_sources.json`**: Data source URLs and structure
+
+## Neo4j Queries
+
+- `MATCH ()-[r {graphLabel: 'dorkiniansWebsite'}]->() RETURN count(r) AS totalRelationships` - This will return the total number of relationships in the database for the dorkiniansWebsite graph label
 
 ## 🚨 Important Notes
 

@@ -15,10 +15,10 @@
   to = "/_next/:splat"
   status = 200
 
-# Handle API routes
+# Handle API routes - only chatbot now
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/chatbot"
+  to = "/.netlify/functions/chatbot"
   status = 200
 
 # Handle all other routes - serve index.html for SPA routing

@@ -104,5 +104,9 @@ __pycache__/
 .idea/
 .vscode/ 
 
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
 # CSV Example Data
 example-data/CSV-examples/
