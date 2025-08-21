@@ -51,9 +51,9 @@ export class ChatbotService {
 			// Generate response based on data and question type
 			const response = await this.generateResponse(context.question, data, analysis);
 
-			return response;
-
 			console.log(` 🤖 Answer to question: ${response.answer}`);
+			
+			return response;
 		} catch (error) {
 			console.error("❌ Chatbot processing failed:", error);
 			return {
@@ -88,11 +88,29 @@ export class ChatbotService {
 			type = "comparison";
 		}
 
-		// Extract player names from questions like "What is Luke Bangs's total goals?"
+		// Extract player names from various question formats
 		const entities: string[] = [];
-		const playerNameMatch = question.match(/What is (.*?)'s total/);
+		
+		// Pattern 1: "What is Luke Bangs's total goals?" or "What is Luke Bangs total goals?"
+		let playerNameMatch = question.match(/What is (.*?)(?:'s | )total/);
 		if (playerNameMatch) {
 			entities.push(playerNameMatch[1].trim());
+		}
+		
+		// Pattern 2: "How many goals has Luke Bangs scored?" or "How many goals has Luke Bangs scored?"
+		if (entities.length === 0) {
+			playerNameMatch = question.match(/How many (?:goals|assists|appearances|minutes|man of the match awards?) has (.*?) (?:scored|got|made|played|won)/);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+		
+		// Pattern 3: "Luke Bangs goals" or "Luke Bangs appearances"
+		if (entities.length === 0) {
+			playerNameMatch = question.match(/^([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom)/);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
 		}
 
 		// Extract metrics

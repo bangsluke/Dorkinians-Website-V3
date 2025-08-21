@@ -47,7 +47,7 @@ export default function ChatbotInterface() {
 		setResponse(null);
 
 		try {
-			const res = await fetch("/.netlify/functions/chatbot", {
+			const res = await fetch("/api/chatbot/", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",

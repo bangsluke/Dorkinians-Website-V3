@@ -47,6 +47,12 @@ alwaysApply: true
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps
 
+## Data Pipeline Architecture
+- **End-to-End Data Flow Validation**: Always verify the complete data pipeline: source data → ingestion logic → storage → query/retrieval → validation
+- **Property Name Consistency**: Maintain consistent property naming across all pipeline stages to prevent runtime failures
+- **Data Type Mapping Verification**: Verify that data types are correctly mapped from source formats to target storage systems
+- **Validation Boundary Testing**: Test data validation at each pipeline boundary to catch issues early and provide clear error messages
+
 ## Configuration Management
 - **Preserve Existing Configuration**: Never modify existing configuration files without explicit user request
 - **Avoid Duplicate Files**: Never create duplicate configuration files in different locations
@@ -54,6 +60,7 @@ alwaysApply: true
 - **Configuration Validation**: Test configuration changes incrementally to ensure they don't break existing functionality
 - **Data Source Integrity**: Preserve original data source configurations (URLs, types, credentials) unless explicitly asked to change them
 - **Configuration File Discipline**: Always verify existing file structure before making changes to prevent duplication and conflicts
+- **Configuration Architecture Verification**: Always verify existing configuration structure before making changes, especially in multi-file systems with interdependent configurations
 
 ## Database Architecture Patterns
 - **Separate Node and Relationship Creation**: In database seeding workflows, create all nodes first, then create relationships in a separate phase
@@ -61,12 +68,15 @@ alwaysApply: true
 - **Data Consistency Validation**: Verify that all required data exists before attempting to create relationships
 - **Incremental Relationship Building**: Build relationships incrementally, starting with the simplest dependencies and working toward complex ones
 - **Validation-First Architecture**: Implement comprehensive validation at data ingestion boundaries to prevent downstream failures and provide clear error messages
+- **Dependency Graph Understanding**: When creating relationships between entities, understand the dependency order - create all nodes first, then establish relationships
+- **Property Mapping Validation**: Always verify the complete data flow: CSV headers → seeding logic → database properties → query references to prevent property name mismatches
 
 ## User Interaction & Solution Implementation
 - **User Solution Leverage**: When users provide specific technical solutions, implement them directly rather than over-engineering alternatives
 - **Domain Knowledge Respect**: Trust user expertise in their domain and implement their suggested approaches as the primary solution
 - **Feedback Integration**: Immediately implement user corrections without defending previous decisions or approaches
 - **Solution Validation**: Test user-provided solutions thoroughly to ensure they work as intended before suggesting modifications
+- **User Domain Knowledge Leverage**: When users provide domain-specific solutions (like ID formatting), prioritize their approach over complex technical workarounds
 
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps
