@@ -1,177 +1,38 @@
-const path = require('path');
-const fs = require('fs');
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-// Simple email service implementation for Netlify Functions
-class SimpleEmailService {
-	constructor() {
-		this.config = null;
-		this.transporter = null;
-	}
+const fs = require("fs");
 
-	configure() {
-		// Try to get email configuration from environment variables
-		const emailConfig = {
-			host: process.env.SMTP_SERVER,
-			port: parseInt(process.env.SMTP_PORT) || 587,
-			secure: process.env.SMTP_EMAIL_SECURE === 'true',
-			auth: {
-				user: process.env.SMTP_USERNAME,
-				pass: process.env.SMTP_PASSWORD
-			},
-			from: process.env.SMTP_FROM_EMAIL,
-			to: process.env.SMTP_TO_EMAIL
-		};
+function countErrorsFromLog() {
+	try {
+		const logPath = path.join(__dirname, "..", "logs", "seeding-errors.log");
+		if (!fs.existsSync(logPath)) {
+			return 0;
+		}
 
-		// Check if all required email config is present
-		if (emailConfig.host && emailConfig.auth.user && emailConfig.auth.pass && emailConfig.from && emailConfig.to) {
-			try {
-				const nodemailer = require('nodemailer');
-				this.transporter = nodemailer.createTransport({
-					host: emailConfig.host,
-					port: emailConfig.port,
-					secure: emailConfig.secure,
-					auth: emailConfig.auth,
-					tls: {
-						rejectUnauthorized: false,
-						checkServerIdentity: () => undefined
-					}
-				});
-				this.config = emailConfig;
-				console.log('📧 Email service configured successfully');
-			} catch (error) {
-				console.warn('⚠️ Failed to configure email service:', error.message);
+		const logContent = fs.readFileSync(logPath, "utf8");
+		const lines = logContent.split("\n");
+		
+		// Count lines that contain actual error details (not timestamps or separators)
+		let errorCount = 0;
+		for (const line of lines) {
+			if (line.trim() && 
+				!line.startsWith("===") && 
+				!line.startsWith("[") && 
+				!line.startsWith("Details:") &&
+				!line.startsWith("}")) {
+				errorCount++;
 			}
-		} else {
-			console.log('ℹ️ Email service not configured - missing environment variables');
 		}
-	}
-
-	async sendSeedingSummaryEmail(summary) {
-		if (!this.transporter || !this.config) {
-			console.log('Email service not configured, skipping email notification');
-			return true;
-		}
-
-		try {
-			const subject = `Database Seeding ${summary.success ? 'Success' : 'Failed'} - ${summary.environment}`;
-			
-			const htmlBody = this.generateSeedingSummaryEmail(summary);
-			const textBody = this.generateSeedingSummaryEmailText(summary);
-
-			const mailOptions = {
-				from: this.config.from,
-				to: this.config.to,
-				subject: subject,
-				html: htmlBody,
-				text: textBody
-			};
-
-			const info = await this.transporter.sendMail(mailOptions);
-			console.log('📧 Email sent successfully:', info.messageId);
-			return true;
-		} catch (error) {
-			console.error('Failed to send email:', error.message);
-			return false;
-		}
-	}
-
-	generateSeedingSummaryEmail(summary) {
-		const statusIcon = summary.success ? '✅' : '❌';
-		const statusText = summary.success ? 'Success' : 'Failed';
-		const statusColor = summary.success ? '#28a745' : '#dc3545';
 		
-		return `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<style>
-					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-					.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-					.header { background-color: ${statusColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-					.content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
-					.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-					.summary-item { background: white; padding: 15px; border-radius: 5px; text-align: center; }
-					.summary-number { font-size: 24px; font-weight: bold; color: ${statusColor}; }
-					.summary-label { font-size: 14px; color: #666; margin-top: 5px; }
-					.error-list { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0; }
-					.error-item { margin: 5px 0; padding: 5px; background: white; border-radius: 3px; }
-					.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; }
-				</style>
-			</head>
-			<body>
-				<div class="container">
-					<div class="header">
-						<h1>${statusIcon} Database Seeding ${statusText}</h1>
-						<p>Environment: ${summary.environment.toUpperCase()}</p>
-						<p>Timestamp: ${new Date(summary.timestamp).toLocaleString()}</p>
-					</div>
-					
-					<div class="content">
-						<h2>Seeding Summary</h2>
-						
-						<div class="summary-grid">
-							<div class="summary-item">
-								<div class="summary-number">${summary.nodesCreated}</div>
-								<div class="summary-label">Nodes Created</div>
-							</div>
-							<div class="summary-item">
-								<div class="summary-number">${summary.relationshipsCreated}</div>
-								<div class="summary-label">Relationships Created</div>
-							</div>
-							<div class="summary-item">
-								<div class="summary-number">${summary.errorCount}</div>
-								<div class="summary-label">Errors in Log</div>
-							</div>
-							<div class="summary-item">
-								<div class="summary-number">${Math.floor(summary.duration / 1000)}s</div>
-								<div class="summary-label">Duration</div>
-							</div>
-						</div>
-						
-						${summary.errors && summary.errors.length > 0 ? `
-							<div class="error-list">
-								<h3>Errors Encountered:</h3>
-								${summary.errors.map(error => `<div class="error-item">❌ ${error}</div>`).join('')}
-							</div>
-						` : ''}
-						
-						<div class="footer">
-							<p>This is an automated notification from the Dorkinians Website V3 seeding system.</p>
-							<p>For detailed error logs, check the seeding-errors.log file.</p>
-						</div>
-					</div>
-				</div>
-			</body>
-			</html>
-		`;
-	}
-
-	generateSeedingSummaryEmailText(summary) {
-		const statusText = summary.success ? 'SUCCESS' : 'FAILED';
-		
-		return `
-Database Seeding ${statusText}
-Environment: ${summary.environment.toUpperCase()}
-Timestamp: ${new Date(summary.timestamp).toLocaleString()}
-
-SUMMARY:
-- Nodes Created: ${summary.nodesCreated}
-- Relationships Created: ${summary.relationshipsCreated}
-- Errors in Log: ${summary.errorCount}
-- Duration: ${Math.floor(summary.duration / 1000)} seconds
-
-${summary.errors && summary.errors.length > 0 ? `
-ERRORS ENCOUNTERED:
-${summary.errors.map(error => `- ${error}`).join('\n')}
-` : ''}
-
-This is an automated notification from the Dorkinians Website V3 seeding system.
-For detailed error logs, check the seeding-errors.log file.
-		`.trim();
+		return errorCount;
+	} catch (error) {
+		console.warn(`⚠️ Could not read error log: ${error.message}`);
+		return 0;
 	}
 }
 
-// Simple data seeder implementation for Netlify Functions
+// Simple data seeder implementation
 class SimpleDataSeeder {
 	constructor() {
 		this.neo4jDriver = null;
@@ -235,7 +96,7 @@ class SimpleDataSeeder {
 				},
 				{
 					name: "TBL_Players",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1796371215&single=true&output=csv",
+					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1796371215&single=true&output=csv",
 				},
 				{
 					name: "TBL_FixturesAndResults",
@@ -798,188 +659,371 @@ class SimpleDataSeeder {
 	}
 }
 
-// Initialize services
-const dataSeeder = new SimpleDataSeeder();
-const emailService = new SimpleEmailService();
-
-exports.handler = async (event, context) => {
-	// Set CORS headers
-	const headers = {
-		'Access-Control-Allow-Origin': '*',
-		'Access-Control-Allow-Headers': 'Content-Type',
-		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
-	};
-
-	// Handle preflight request
-	if (event.httpMethod === 'OPTIONS') {
-		return {
-			statusCode: 200,
-			headers,
-			body: ''
-		};
+// Simple email service implementation
+class SimpleEmailService {
+	constructor() {
+		this.config = null;
+		this.transporter = null;
 	}
 
-	try {
-		// Parse request
-		const { environment = 'production', force = false } = event.queryStringParameters || {};
-		
-		// Validate environment
-		if (!['development', 'production'].includes(environment)) {
-			return {
-				statusCode: 400,
-				headers: { ...headers, 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					error: 'Invalid environment. Use "development" or "production"'
-				})
+	configure() {
+		// Try to get email configuration from environment variables
+		const emailConfig = {
+			host: process.env.SMTP_SERVER,
+			port: parseInt(process.env.SMTP_PORT) || 587,
+			secure: process.env.SMTP_EMAIL_SECURE === 'true',
+			auth: {
+				user: process.env.SMTP_USERNAME,
+				pass: process.env.SMTP_PASSWORD
+			},
+			from: process.env.SMTP_FROM_EMAIL,
+			to: process.env.SMTP_TO_EMAIL
+		};
+
+		// Check if all required email config is present
+		if (emailConfig.host && emailConfig.auth.user && emailConfig.auth.pass && emailConfig.from && emailConfig.to) {
+			try {
+				const nodemailer = require('nodemailer');
+				this.transporter = nodemailer.createTransport({
+					host: emailConfig.host,
+					port: emailConfig.port,
+					secure: emailConfig.secure,
+					auth: emailConfig.auth,
+					tls: {
+						rejectUnauthorized: false,
+						checkServerIdentity: () => undefined
+					}
+				});
+				this.config = emailConfig;
+				console.log('📧 Email service configured successfully');
+			} catch (error) {
+				console.warn('⚠️ Failed to configure email service:', error.message);
+			}
+		} else {
+			console.log('ℹ️ Email service not configured - missing environment variables');
+		}
+	}
+
+	async sendSeedingSummary(summary) {
+		if (!this.transporter || !this.config) {
+			console.log('Email service not configured, skipping email notification');
+			return true;
+		}
+
+		try {
+			const subject = `Database Seeding ${summary.success ? 'Success' : 'Failed'} - ${summary.environment}`;
+			
+			const htmlBody = this.generateSeedingSummaryEmail(summary);
+			const textBody = this.generateSeedingSummaryEmailText(summary);
+
+			const mailOptions = {
+				from: this.config.from,
+				to: this.config.to,
+				subject: subject,
+				html: htmlBody,
+				text: textBody
 			};
+
+			const info = await this.transporter.sendMail(mailOptions);
+			console.log('📧 Email sent successfully:', info.messageId);
+			return true;
+		} catch (error) {
+			console.error('Failed to send email:', error.message);
+			return false;
 		}
-
-		console.log(`🚀 Triggering database seeding for environment: ${environment}`);
-
-		// Execute seeding directly
-		const startTime = Date.now();
-		const result = await executeSeedingDirectly(environment);
-		const duration = Date.now() - startTime;
-
-		// Send email notification
-		try {
-			await sendSeedingNotification(result, environment, duration);
-		} catch (emailError) {
-			console.warn('Failed to send email notification:', emailError);
-			// Don't fail the function if email fails
-		}
-
-		// Return success response
-		return {
-			statusCode: 200,
-			headers: { ...headers, 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				success: true,
-				message: 'Database seeding completed successfully',
-				environment,
-				timestamp: new Date().toISOString(),
-				result: {
-					...result,
-					duration
-				}
-			})
-		};
-
-	} catch (error) {
-		console.error('❌ Error during seeding:', error);
-
-		// Send failure notification
-		try {
-			await emailService.sendSeedingSummaryEmail({
-				success: false,
-				environment: event.queryStringParameters?.environment || 'production',
-				nodesCreated: 0,
-				relationshipsCreated: 0,
-				errorCount: 1,
-				errors: [error.message],
-				duration: 0
-			});
-		} catch (emailError) {
-			console.warn('Failed to send failure email:', emailError);
-		}
-
-		return {
-			statusCode: 500,
-			headers: { ...headers, 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				error: 'Failed to complete database seeding',
-				message: error.message,
-				timestamp: new Date().toISOString()
-			})
-		};
 	}
-};
 
-async function executeSeedingDirectly(environment) {
-	console.log(`📜 Starting direct seeding for environment: ${environment}`);
+	generateSeedingSummaryEmail(summary) {
+		const statusIcon = summary.success ? '✅' : '❌';
+		const statusText = summary.success ? 'Success' : 'Failed';
+		const statusColor = summary.success ? '#28a745' : '#dc3545';
+		
+		return `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<style>
+					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+					.container { max-width: 600px; margin: 0 auto; padding: 20px; }
+					.header { background-color: ${statusColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+					.content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
+					.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+					.summary-item { background: white; padding: 15px; border-radius: 5px; text-align: center; }
+					.summary-number { font-size: 24px; font-weight: bold; color: ${statusColor}; }
+					.summary-label { font-size: 14px; color: #666; margin-top: 5px; }
+					.error-list { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0; }
+					.error-item { margin: 5px 0; padding: 5px; background: white; border-radius: 3px; }
+					.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; }
+				</style>
+			</head>
+			<body>
+				<div class="container">
+					<div class="header">
+						<h1>${statusIcon} Database Seeding ${statusText}</h1>
+						<p>Environment: ${summary.environment.toUpperCase()}</p>
+						<p>Timestamp: ${new Date(summary.timestamp).toLocaleString()}</p>
+					</div>
+					
+					<div class="content">
+						<h2>Seeding Summary</h2>
+						
+						<div class="summary-grid">
+							<div class="summary-item">
+								<div class="summary-number">${summary.nodesCreated}</div>
+								<div class="summary-label">Nodes Created</div>
+							</div>
+							<div class="summary-item">
+								<div class="summary-number">${summary.relationshipsCreated}</div>
+								<div class="summary-label">Relationships Created</div>
+							</div>
+							<div class="summary-item">
+								<div class="summary-number">${summary.errorCount}</div>
+								<div class="summary-label">Errors in Log</div>
+							</div>
+							<div class="summary-item">
+								<div class="summary-number">${Math.floor(summary.duration / 1000)}s</div>
+								<div class="summary-label">Duration</div>
+							</div>
+						</div>
+						
+						${summary.errors && summary.errors.length > 0 ? `
+							<div class="error-list">
+								<h3>Errors Encountered:</h3>
+								${summary.errors.map(error => `<div class="error-item">❌ ${error}</div>`).join('')}
+							</div>
+						` : ''}
+						
+						<div class="footer">
+							<p>This is an automated notification from the Dorkinians Website V3 seeding system.</p>
+							<p>For detailed error logs, check the seeding-errors.log file.</p>
+						</div>
+					</div>
+				</div>
+			</body>
+			</html>
+		`;
+	}
+
+	generateSeedingSummaryEmailText(summary) {
+		const statusText = summary.success ? 'SUCCESS' : 'FAILED';
+		
+		return `
+Database Seeding ${statusText}
+Environment: ${summary.environment.toUpperCase()}
+Timestamp: ${new Date(summary.timestamp).toLocaleString()}
+
+SUMMARY:
+- Nodes Created: ${summary.nodesCreated}
+- Relationships Created: ${summary.relationshipsCreated}
+- Errors in Log: ${summary.errorCount}
+- Duration: ${Math.floor(summary.duration / 1000)} seconds
+
+${summary.errors && summary.errors.length > 0 ? `
+ERRORS ENCOUNTERED:
+${summary.errors.map(error => `- ${error}`).join('\n')}
+` : ''}
+
+This is an automated notification from the Dorkinians Website V3 seeding system.
+For detailed error logs, check the seeding-errors.log file.
+		`.trim();
+	}
+}
+
+// Main seeding function
+async function seedDatabase() {
+	// Get environment from command line argument or default to development
+	const environment = process.argv[2] || "development";
 	
-	// Set environment variables
-	process.env.NODE_ENV = environment;
-	
+	// Start timing
+	const startTime = Date.now();
+
+	console.log(`🚀 Starting Database Seeding...`);
+	console.log(`📍 Environment: ${environment.toUpperCase()}`);
+	console.log(`📊 Processing all data sources`);
+
 	try {
+		// Set NODE_ENV based on the environment parameter
+		process.env.NODE_ENV = environment;
+
+		// Check environment variables based on the target environment
+		if (environment === "production") {
+			console.log("📋 Production Environment Check:");
+			console.log("  NODE_ENV:", process.env.NODE_ENV);
+			console.log("  PROD_NEO4J_URI:", process.env.PROD_NEO4J_URI ? "✅ Set" : "❌ Missing");
+			console.log("  PROD_NEO4J_USER:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
+			console.log("  PROD_NEO4J_PASSWORD:", process.env.PROD_NEO4J_USER ? "✅ Set" : "❌ Missing");
+
+			if (!process.env.PROD_NEO4J_URI || !process.env.PROD_NEO4J_USER || !process.env.PROD_NEO4J_PASSWORD) {
+				throw new Error("Production Neo4j environment variables are not configured");
+			}
+
+			console.log("📍 Target: Neo4j Aura (Production)");
+		} else {
+			console.log("📋 Development Environment Check:");
+			console.log("  NODE_ENV:", process.env.NODE_ENV);
+			console.log("  DEV_NEO4J_URI:", process.env.DEV_NEO4J_URI ? "✅ Set" : "❌ Missing");
+			console.log("  DEV_NEO4J_USER:", process.env.DEV_NEO4J_USER ? "✅ Set" : "❌ Missing");
+			console.log("  DEV_NEO4J_PASSWORD:", process.env.DEV_NEO4J_PASSWORD ? "✅ Set" : "❌ Missing");
+
+			if (!process.env.DEV_NEO4J_URI || !process.env.DEV_NEO4J_USER || !process.env.DEV_NEO4J_PASSWORD) {
+				throw new Error("Development Neo4j environment variables are not configured");
+			}
+
+			console.log("📍 Target: Local Neo4j Desktop (Development)");
+		}
+
+		console.log("✅ Environment variables validated");
+
+		console.log(`📊 Seeding 10 data sources...`);
+		console.log(`  1. TBL_SiteDetails`);
+		console.log(`  2. TBL_Players`);
+		console.log(`  3. TBL_FixturesAndResults`);
+		console.log(`  4. TBL_MatchDetails`);
+		console.log(`  5. TBL_WeeklyTOTW`);
+		console.log(`  6. TBL_SeasonTOTW`);
+		console.log(`  7. TBL_PlayersOfTheMonth`);
+		console.log(`  8. TBL_CaptainsAndAwards`);
+		console.log(`  9. TBL_OppositionDetails`);
+		console.log(`  10. TBL_TestData`);
+
 		// Initialize the data seeder service
-		await dataSeeder.initialize();
-		
-		// Execute the seeding process
-		const seedingResult = await dataSeeder.seedAllData();
-		
-		// Count errors from log file
-		const errorCount = countErrorsFromLog();
-		
-		return {
-			success: true,
-			exitCode: 0,
-			nodesCreated: seedingResult.nodesCreated || 0,
-			relationshipsCreated: seedingResult.relationshipsCreated || 0,
-			errorCount,
-			errors: []
-		};
-		
-	} catch (error) {
-		console.error('Seeding failed:', error);
-		return {
-			success: false,
-			exitCode: 1,
-			nodesCreated: 0,
-			relationshipsCreated: 0,
-			errorCount: 1,
-			errors: [error.message]
-		};
-	} finally {
-		// Clean up connections
+		console.log("\n🔧 Initializing DataSeederService...");
+		const dataSeeder = new SimpleDataSeeder();
+
 		try {
-			await dataSeeder.cleanup();
-		} catch (cleanupError) {
-			console.warn('Cleanup failed:', cleanupError);
-		}
-	}
-}
-
-async function sendSeedingNotification(result, environment, duration) {
-	const summary = {
-		success: result.success,
-		environment,
-		nodesCreated: result.nodesCreated,
-		relationshipsCreated: result.relationshipsCreated,
-		errorCount: result.errorCount,
-		errors: result.errors,
-		duration
-	};
-
-	await emailService.sendSeedingSummaryEmail(summary);
-}
-
-function countErrorsFromLog() {
-	try {
-		const logPath = path.join(process.cwd(), 'logs', 'seeding-errors.log');
-		
-		if (!fs.existsSync(logPath)) {
-			return 0;
-		}
-
-		const logContent = fs.readFileSync(logPath, 'utf8');
-		const lines = logContent.split('\n');
-		
-		// Count lines that contain actual error details
-		let errorCount = 0;
-		for (const line of lines) {
-			if (line.trim() && 
-				!line.startsWith('===') && 
-				!line.startsWith('[') && 
-				!line.startsWith('Details:') &&
-				!line.startsWith('}')) {
-				errorCount++;
+			// Initialize the service
+			await dataSeeder.initialize();
+			
+			// Execute seeding
+			console.log("🌱 Starting database seeding...");
+			const result = await dataSeeder.seedAllData();
+			
+			if (result.success) {
+				console.log("✅ Seeding completed successfully!");
+				console.log(`🎉 Created ${result.nodesCreated} nodes and ${result.relationshipsCreated} relationships`);
+				console.log(`📍 Database: ${environment === "production" ? "Neo4j Aura (Production)" : "Local Neo4j Desktop"}`);
+				
+				// Send email notification
+				console.log("\n📧 Sending seeding summary email...");
+				try {
+					const emailService = new SimpleEmailService();
+					emailService.configure(); // Configure nodemailer
+					
+					const errorCount = countErrorsFromLog();
+					const duration = Math.floor((Date.now() - startTime) / 1000);
+					
+					const summary = {
+						environment: environment,
+						nodesCreated: result.nodesCreated,
+						relationshipsCreated: result.relationshipsCreated,
+						duration: duration,
+						errorCount: errorCount,
+						timestamp: new Date().toISOString(),
+						success: true
+					};
+					
+					await emailService.sendSeedingSummary(summary);
+					console.log("✅ Seeding summary email sent successfully");
+				} catch (emailError) {
+					console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+				}
+			} else {
+				console.log("⚠️ Seeding completed with errors:", result.errors);
+				
+				// Send email notification for seeding with errors
+				console.log("\n📧 Sending seeding summary email...");
+				try {
+					const emailService = new SimpleEmailService();
+					emailService.configure(); // Configure nodemailer
+					
+					const errorCount = countErrorsFromLog();
+					const duration = Math.floor((Date.now() - startTime) / 1000);
+					
+					const summary = {
+						environment: environment,
+						nodesCreated: result.nodesCreated || 0,
+						relationshipsCreated: result.relationshipsCreated || 0,
+						duration: duration,
+						errorCount: errorCount,
+						timestamp: new Date().toISOString(),
+						success: false,
+						errors: result.errors
+					};
+					
+					await emailService.sendSeedingSummary(summary);
+					console.log("✅ Seeding summary email sent successfully");
+				} catch (emailError) {
+					console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+				}
+			}
+		} catch (seedingError) {
+			console.error("❌ Seeding failed:", seedingError.message);
+			console.log("\n💡 Make sure:");
+			console.log("1. Neo4j database is accessible");
+			console.log("2. All environment variables are set correctly");
+			console.log("3. Data source files are available");
+			
+			// Send email notification for complete seeding failure
+			console.log("\n📧 Sending seeding summary email...");
+			try {
+				const emailService = new SimpleEmailService();
+				emailService.configure(); // Configure nodemailer
+				
+				const errorCount = countErrorsFromLog();
+				const duration = Math.floor((Date.now() - startTime) / 1000);
+				
+				const summary = {
+					environment: environment,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					duration: duration,
+					errorCount: errorCount,
+					timestamp: new Date().toISOString(),
+					success: false,
+					errors: [seedingError.message]
+				};
+				
+				await emailService.sendSeedingSummary(summary);
+				console.log("✅ Seeding summary email sent successfully");
+			} catch (emailError) {
+				console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+			}
+		} finally {
+			// Clean up connections
+			try {
+				await dataSeeder.cleanup();
+			} catch (cleanupError) {
+				console.warn("⚠️ Cleanup failed:", cleanupError.message);
 			}
 		}
+
+		// Calculate and display timing
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
 		
-		return errorCount;
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
+		console.log(`✅ ${environment} seeding completed!`);
 	} catch (error) {
-		console.warn(`⚠️ Could not read error log: ${error}`);
-		return 0;
+		// Calculate timing even on error
+		const endTime = Date.now();
+		const duration = endTime - startTime;
+		const minutes = Math.floor(duration / 60000);
+		const seconds = Math.floor((duration % 60000) / 1000);
+		const milliseconds = duration % 1000;
+		
+		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
+		console.error(`❌ ${environment} seeding failed:`, error.message);
+		console.log("\n💡 Make sure:");
+		console.log("1. Neo4j database is accessible");
+		console.log("2. All environment variables are set correctly");
+		console.log("3. Data source files are available");
+		
+		process.exit(1);
 	}
 }
+
+// Run the seeding
+seedDatabase();
