@@ -18,7 +18,7 @@ if (!fs.existsSync(buildDir)) {
 }
 
 // Copy and compile lib files
-function copyDir(src, dest) {
+function copyDir(src, dest, relativeDepth = 0) {
 	if (!fs.existsSync(dest)) {
 		fs.mkdirSync(dest, { recursive: true });
 	}
@@ -30,10 +30,21 @@ function copyDir(src, dest) {
 		const destPath = path.join(dest, item);
 		
 		if (fs.statSync(srcPath).isDirectory()) {
-			copyDir(srcPath, destPath);
+			copyDir(srcPath, destPath, relativeDepth + 1);
 		} else if (item.endsWith('.ts')) {
-			// Copy TypeScript files as-is (Netlify will handle compilation)
-			fs.copyFileSync(srcPath, destPath);
+			// Copy TypeScript files and update import paths
+			let content = fs.readFileSync(srcPath, 'utf8');
+			
+			// Replace @/lib/ imports with relative paths
+			// For files in config/, imports to services/ need to go up one level
+			if (relativeDepth > 0) {
+				content = content.replace(/@\/lib\/services\//g, '../services/');
+				content = content.replace(/@\/lib\//g, '../');
+			} else {
+				content = content.replace(/@\/lib\//g, './');
+			}
+			
+			fs.writeFileSync(destPath, content);
 		} else {
 			// Copy other files
 			fs.copyFileSync(srcPath, destPath);

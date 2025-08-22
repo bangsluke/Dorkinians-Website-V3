@@ -5,7 +5,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev",
-		"build": "next build && npm run build:lib",
+		"build": "npm run build:lib && next build",
 		"build:lib": "node scripts/build-lib.js",
 		"start": "next start",
 		"lint": "next lint",
