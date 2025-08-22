@@ -170,15 +170,15 @@ If you're getting a 500 server error when testing your cron job, follow these de
 - Database connection errors
 - Environment variable issues
 
-### Step 1.5: Build Lib Directory (CRITICAL)
+### Step 1.5: Build Process (CRITICAL)
 
 **This step is required before deploying to Netlify:**
 
 1. **Run the build script**:
    ```bash
-   npm run build:lib
+   npm run build
    ```
-   This copies the `lib` directory to `netlify/functions/lib` where the function can access it.
+   This automatically handles the lib directory preparation and builds the Next.js app.
 
 2. **Verify the build**:
    ```bash
@@ -242,9 +242,9 @@ If you're getting a 500 server error when testing your cron job, follow these de
 
 **Solution**: This usually means the function can't find the required services.
 
-1. **Check File Paths**: Ensure all imports use correct relative paths
-2. **Verify Build**: Run `npm run build` to ensure no compilation errors
-3. **Check Netlify Deploy**: Make sure the latest code is deployed
+1. **Check Build Process**: Run `npm run build` to ensure the lib directory is properly prepared
+2. **Verify Netlify Deploy**: Make sure the latest code is deployed
+3. **Check Function Logs**: Look for specific import errors in Netlify function logs
 
 #### Error: "Database connection failed"
 

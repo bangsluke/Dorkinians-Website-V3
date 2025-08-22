@@ -44,6 +44,11 @@ function copyDir(src, dest, relativeDepth = 0) {
 				content = content.replace(/@\/lib\//g, './');
 			}
 			
+			// Write as .js file for Netlify Functions compatibility
+			const jsDestPath = destPath.replace('.ts', '.js');
+			fs.writeFileSync(jsDestPath, content);
+			
+			// Also keep the .ts file for reference
 			fs.writeFileSync(destPath, content);
 		} else {
 			// Copy other files
