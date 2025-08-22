@@ -1,4 +1,4 @@
-import { DataSource } from "@/lib/services/dataService";
+import { DataSource } from "../services/dataService";
 
 export const dataSources: DataSource[] = [
 	// Stats Data (Google Sheets CSVs)

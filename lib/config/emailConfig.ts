@@ -1,4 +1,4 @@
-import { EmailConfig } from "@/lib/services/emailService";
+import { EmailConfig } from "../services/emailService";
 
 export const getEmailConfig = (): EmailConfig | null => {
 	// Check if email configuration is available

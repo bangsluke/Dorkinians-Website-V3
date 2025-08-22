@@ -12,7 +12,7 @@
 		"type-check": "tsc --noEmit",
 		"seed-dev": "cross-env NODE_ENV=development ts-node scripts/seed-database.js development",
 		"seed-dev-reduced": "cross-env NODE_ENV=development ts-node scripts/seed-database-reduced.js development",
-		"seed-prod": "cross-env NODE_ENV=production ts-node scripts/seed-database.js production",
+		"seed-prod": "cross-env NODE_ENV=production node scripts/seed-database-simple.js production",
 		"apply-schema": "node scripts/apply-schema.js",
 		"test-headers": "ts-node scripts/test-csv-headers.js",
 		"test-data-validation": "ts-node scripts/test-data-validation.js",
