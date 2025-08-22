@@ -1,4 +1,4 @@
-import { CSVHeaderConfig, getCSVHeaderConfig } from "@/lib/config/csvHeaders";
+import { CSVHeaderConfig, getCSVHeaderConfig } from "../config/csvHeaders";
 import { DataSource } from "./dataService";
 import { CSVHeaderValidationFailure } from "./emailService";
 

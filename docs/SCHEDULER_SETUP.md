@@ -399,35 +399,30 @@ DEV_NEO4J_PASSWORD=password
 
 **Before deploying to Netlify, ensure you've completed these steps:**
 
-1. **✅ Build the project**:
+1. **✅ Build the project** (automatically handles lib directory):
    ```bash
    npm run build
    ```
 
-2. **✅ Build the lib directory**:
-   ```bash
-   npm run build:lib
-   ```
-
-3. **✅ Test the function locally**:
+2. **✅ Test the function locally**:
    ```bash
    npm run test-function
    ```
 
-4. **✅ Verify environment variables** are set in your `.env` file
+3. **✅ Verify environment variables** are set in your `.env` file
 
-5. **✅ Deploy to Netlify** (this will happen automatically on git push)
+4. **✅ Deploy to Netlify** (this will happen automatically on git push)
 
-6. **✅ Set environment variables in Netlify Dashboard**:
+5. **✅ Set environment variables in Netlify Dashboard**:
    - Go to Site Settings → Environment Variables
    - Add all required variables from your `.env` file
 
-7. **✅ Test the deployed function**:
+6. **✅ Test the deployed function**:
    ```bash
    curl -X POST "https://your-domain.netlify.app/.netlify/functions/trigger-seed?environment=production"
    ```
 
-8. **✅ Set up external cron job** (cron-job.org recommended)
+7. **✅ Set up external cron job** (cron-job.org recommended)
 
 ## 📞 Support
 
@@ -436,7 +431,7 @@ For issues or questions:
 2. Review Netlify function logs
 3. Verify configuration and environment setup
 4. Test with minimal configuration first
-5. Ensure you've run `npm run build:lib` before deploying
+5. Ensure you've run `npm run build` (this automatically handles the lib directory)
 
 ## 📝 Changelog
 

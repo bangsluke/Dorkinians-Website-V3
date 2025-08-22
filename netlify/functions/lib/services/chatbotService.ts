@@ -1,5 +1,5 @@
-import { neo4jService } from "@/lib/neo4j";
-import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "@/lib/config/chatbotMetrics";
+import { neo4jService } from "../neo4j";
+import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
 
 export interface ChatbotResponse {
 	answer: string;

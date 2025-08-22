@@ -1,8 +1,8 @@
-import { neo4jService } from "@/lib/neo4j";
+import { neo4jService } from "../neo4j";
 import { dataService, CSVRow, DataSource } from "./dataService";
 import { csvHeaderValidator, CSVHeaderValidationResult } from "./csvHeaderValidator";
 import { emailService, CSVHeaderValidationFailure } from "./emailService";
-import { getEmailConfig } from "@/lib/config/emailConfig";
+import { getEmailConfig } from "../config/emailConfig";
 import * as fs from "fs";
 import * as path from "path";
 

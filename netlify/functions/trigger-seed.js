@@ -4,31 +4,18 @@ const path = require('path');
 let dataSeederService;
 let emailService;
 
-	try {
-		// Try to import from the copied lib directory in netlify/functions
-		const { DataSeederService } = require('./lib/services/dataSeederService');
-		const { emailService: emailServiceModule } = require('./lib/services/emailService');
-		
-		dataSeederService = new DataSeederService();
-		emailService = emailServiceModule;
-		console.log('✅ Services imported successfully from netlify/functions/lib');
-	} catch (error) {
-		console.error('Failed to import from netlify/functions/lib:', error);
-		
-		// Fallback: try to import from source
-		try {
-			console.log('Trying fallback import from source...');
-			const { DataSeederService } = require('../../lib/services/dataSeederService');
-			const { emailService: emailServiceModule } = require('../../lib/services/emailService');
-			
-			dataSeederService = new DataSeederService();
-			emailService = emailServiceModule;
-			console.log('✅ Fallback import successful from source');
-		} catch (fallbackError) {
-			console.error('Fallback import also failed:', fallbackError);
-			console.error('This function will not work without proper imports');
-		}
-	}
+try {
+	// Import from the copied lib directory in netlify/functions
+	const { DataSeederService } = require('./lib/services/dataSeederService');
+	const { emailService: emailServiceModule } = require('./lib/services/emailService');
+	
+	dataSeederService = new DataSeederService();
+	emailService = emailServiceModule;
+	console.log('✅ Services imported successfully from netlify/functions/lib');
+} catch (error) {
+	console.error('Failed to import from netlify/functions/lib:', error);
+	console.error('This function will not work without proper imports');
+}
 
 exports.handler = async (event, context) => {
 	// Set CORS headers
