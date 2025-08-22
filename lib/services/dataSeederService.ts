@@ -1121,15 +1121,23 @@ export class DataSeederService {
 
 			// Create MatchDetail-Player relationship
 			if (matchDetailData.playerName) {
-				// Try to find player by name instead of generating ID
+				// Try to find player by name with case-insensitive matching
 				const playerQuery = `
-					MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+					MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+					WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
 					RETURN p.id as playerId
 					LIMIT 1
 				`;
 				
 				try {
-					const playerResult = await neo4jService.runQuery(playerQuery, { playerName: String(matchDetailData.playerName) });
+					const playerNameLower = String(matchDetailData.playerName).toLowerCase();
+					const playerNameHyphen = String(matchDetailData.playerName).toLowerCase().replace(/\s+/g, "-");
+					
+					const playerResult = await neo4jService.runQuery(playerQuery, { 
+						playerName: String(matchDetailData.playerName),
+						playerNameLower: playerNameLower,
+						playerNameHyphen: playerNameHyphen
+					});
 					
 					if (playerResult.records.length > 0) {
 						const playerId = playerResult.records[0].get("playerId");

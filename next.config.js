@@ -8,7 +8,6 @@ const withPWA = require("next-pwa")({
 
 const nextConfig = {
 	// output: 'export', // Disabled to enable API routes
-	trailingSlash: true,
 	images: {
 		unoptimized: true,
 		domains: ["docs.google.com"],
