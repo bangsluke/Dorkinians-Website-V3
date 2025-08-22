@@ -10,7 +10,7 @@
 		"start": "next start",
 		"lint": "next lint",
 		"type-check": "tsc --noEmit",
-		"seed-dev": "cross-env NODE_ENV=development ts-node scripts/seed-database.js development",
+		"seed-dev": "cross-env NODE_ENV=development ts-node -P tsconfig.scripts.json scripts/seed-database.ts development",
 		"seed-dev-reduced": "cross-env NODE_ENV=development ts-node scripts/seed-database-reduced.js development",
 		"seed-prod": "cross-env NODE_ENV=production node scripts/seed-database-simple.js production",
 		"apply-schema": "node scripts/apply-schema.js",
