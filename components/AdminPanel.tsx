@@ -166,7 +166,7 @@ export default function AdminPanel() {
 				<h3 className="text-lg font-semibold text-blue-800 mb-2">How It Works</h3>
 				<ul className="text-blue-700 text-sm space-y-1">
 					<li>• This triggers the database seeding process immediately</li>
-					<li>• Seeding runs on Netlify's infrastructure</li>
+					<li>• Seeding runs on Netlify&apos;s infrastructure</li>
 					<li>• Results are displayed in real-time</li>
 					<li>• Use for manual updates or testing</li>
 				</ul>
