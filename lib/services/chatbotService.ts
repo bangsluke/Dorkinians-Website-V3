@@ -183,21 +183,32 @@ export class ChatbotService {
 	}
 
 	private async queryRelevantData(analysis: any): Promise<any> {
+		console.log(`🔍 queryRelevantData called with analysis:`, analysis);
 		const { type, entities, metrics } = analysis;
 
 		try {
+			console.log(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
+			
 			switch (type) {
 				case "player":
-					return await this.queryPlayerData(entities, metrics);
+					console.log(`🔍 Calling queryPlayerData...`);
+					const playerResult = await this.queryPlayerData(entities, metrics);
+					console.log(`🔍 queryPlayerData returned:`, playerResult);
+					return playerResult;
 				case "team":
+					console.log(`🔍 Calling queryTeamData...`);
 					return await this.queryTeamData(entities, metrics);
 				case "club":
+					console.log(`🔍 Calling queryClubData...`);
 					return await this.queryClubData(entities, metrics);
 				case "fixture":
+					console.log(`🔍 Calling queryFixtureData...`);
 					return await this.queryFixtureData(entities, metrics);
 				case "comparison":
+					console.log(`🔍 Calling queryComparisonData...`);
 					return await this.queryComparisonData(entities, metrics);
 				default:
+					console.log(`🔍 Calling queryGeneralData...`);
 					return await this.queryGeneralData();
 			}
 		} catch (error) {
@@ -207,10 +218,14 @@ export class ChatbotService {
 	}
 
 	private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
+		console.log(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
+		
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
 			const metric = metrics[0];
+			
+			console.log(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
 			
 			// Build query with case-insensitive player name matching
 			let query = `
@@ -274,11 +289,14 @@ export class ChatbotService {
 			}
 			
 			query += ' ' + returnClause;
+			console.log(`🔍 Final query: ${query}`);
 			
 			try {
 				// Create case-insensitive name variations for matching
 				const playerNameLower = String(playerName).toLowerCase();
 				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
+				
+				console.log(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
 				
 				const result = await neo4jService.executeQuery(query, { 
 					playerName, 
@@ -287,12 +305,20 @@ export class ChatbotService {
 				});
 				
 				console.log(`🔍 Player query result for ${playerName}:`, result);
+				console.log(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : 'not array'}`);
+				
+				if (result && Array.isArray(result) && result.length > 0) {
+					console.log(`🔍 First result item:`, result[0]);
+				}
+				
 				return { type: 'specific_player', data: result, playerName, metric };
 			} catch (error) {
-				console.error('Error querying specific player data:', error);
+				console.error('❌ Error querying specific player data:', error);
 				return null;
 			}
 		}
+		
+		console.log(`🔍 No specific player query, falling back to general player query`);
 		
 		// Fallback to general player query
 		const query = `
@@ -303,6 +329,7 @@ export class ChatbotService {
     `;
 
 		const result = await neo4jService.executeQuery(query);
+		console.log(`🔍 General player query result:`, result);
 		return { type: 'general_players', data: result };
 	}
 
