@@ -46,22 +46,23 @@ export class ChatbotService {
 				};
 			}
 
-			// Analyze the question to determine what data we need
+			// Analyze the question
 			const analysis = this.analyzeQuestion(context.question);
+			console.log(`🔍 Question analysis:`, analysis);
 
-			// Query Neo4j for relevant data
+			// Query the database
 			const data = await this.queryRelevantData(analysis);
+			console.log(`📊 Query result:`, data);
 
-			// Generate response based on data and question type
+			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
+			console.log(`💬 Generated response:`, response);
 
-			console.log(` 🤖 Answer to question: ${response.answer}`);
-			
 			return response;
 		} catch (error) {
-			console.error("❌ Chatbot processing failed:", error);
+			console.error("❌ Error processing question:", error);
 			return {
-				answer: "I'm sorry, I encountered an error while processing your question. Please try again.",
+				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				confidence: 0,
 				sources: [],
 			};
@@ -211,9 +212,10 @@ export class ChatbotService {
 			const playerName = entities[0];
 			const metric = metrics[0];
 			
-			// Build query based on the metric requested
+			// Build query with case-insensitive player name matching
 			let query = `
-				MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+				MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+				WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
 				MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
 			`;
 			
@@ -274,7 +276,17 @@ export class ChatbotService {
 			query += ' ' + returnClause;
 			
 			try {
-				const result = await neo4jService.executeQuery(query, { playerName });
+				// Create case-insensitive name variations for matching
+				const playerNameLower = String(playerName).toLowerCase();
+				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
+				
+				const result = await neo4jService.executeQuery(query, { 
+					playerName, 
+					playerNameLower, 
+					playerNameHyphen 
+				});
+				
+				console.log(`🔍 Player query result for ${playerName}:`, result);
 				return { type: 'specific_player', data: result, playerName, metric };
 			} catch (error) {
 				console.error('Error querying specific player data:', error);
