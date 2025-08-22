@@ -9,6 +9,9 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+[functions]
+  directory = "netlify/functions"
+
 # Handle static assets
 [[redirects]]
   from = "/_next/*"
