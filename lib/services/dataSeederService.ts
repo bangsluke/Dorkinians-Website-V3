@@ -565,7 +565,7 @@ export class DataSeederService {
 
 	private mapPlayerData(row: CSVRow, explicitId: string): any {
 		const playerName = String(row["PLAYER NAME"] || "");
-		const allowOnSite = String(row["ALLOW ON SITE"] || "") === "TRUE";
+		const allowOnSite = String(row["ALLOW ON SITE"] || "").toUpperCase() === "TRUE";
 		const mostPlayedForTeam = String(row["MOST PLAYED FOR TEAM"] || "");
 		const mostCommonPosition = String(row["MOST COMMON POSITION"] || "");
 
@@ -605,9 +605,9 @@ export class DataSeederService {
 		const awayScore = this.parseNumber(row["AWAY SCORE"]);
 		const conceded = this.parseNumber(row["CONCEDED"]);
 
-		// Skip fixtures with invalid data
-		if (opposition === "No Game" || team === "No Game" || opposition === "-" || team === "-") {
-			console.log(`ℹ️ Skipping fixture ${explicitId}: Invalid data (opposition="${opposition}", team="${team}")`);
+		// Skip fixtures when COMP TYPE or COMPETITION is "-" or OPPOSITION is "No Game"
+		if (compType === "-" || opposition === "No Game" || competition === "-") {
+			console.log(`ℹ️ Skipping fixture ${explicitId}: COMP TYPE="${compType}", OPPOSITION="${opposition}"`);
 			return null;
 		}
 
