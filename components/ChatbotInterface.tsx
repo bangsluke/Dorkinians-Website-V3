@@ -53,7 +53,7 @@ export default function ChatbotInterface() {
         ? `About ${selectedPlayer}: ${question.trim()}`
         : question.trim()
 
-      const res = await fetch('/.netlify/functions/chatbot', {
+      const res = await fetch('/api/chatbot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

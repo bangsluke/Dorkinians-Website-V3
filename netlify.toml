@@ -20,6 +20,7 @@
   from = "/api/*"
   to = "/.netlify/functions/___netlify-handler"
   status = 200
+  force = true
 
 # Handle all other routes - serve index.html for SPA routing
 [[redirects]]
