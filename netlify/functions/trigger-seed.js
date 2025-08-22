@@ -1,5 +1,34 @@
-const { spawn } = require('child_process');
 const path = require('path');
+
+// Import the seeding service directly
+let dataSeederService;
+let emailService;
+
+	try {
+		// Try to import from the copied lib directory in netlify/functions
+		const { DataSeederService } = require('./lib/services/dataSeederService');
+		const { emailService: emailServiceModule } = require('./lib/services/emailService');
+		
+		dataSeederService = new DataSeederService();
+		emailService = emailServiceModule;
+		console.log('✅ Services imported successfully from netlify/functions/lib');
+	} catch (error) {
+		console.error('Failed to import from netlify/functions/lib:', error);
+		
+		// Fallback: try to import from source
+		try {
+			console.log('Trying fallback import from source...');
+			const { DataSeederService } = require('../../lib/services/dataSeederService');
+			const { emailService: emailServiceModule } = require('../../lib/services/emailService');
+			
+			dataSeederService = new DataSeederService();
+			emailService = emailServiceModule;
+			console.log('✅ Fallback import successful from source');
+		} catch (fallbackError) {
+			console.error('Fallback import also failed:', fallbackError);
+			console.error('This function will not work without proper imports');
+		}
+	}
 
 exports.handler = async (event, context) => {
 	// Set CORS headers
@@ -33,16 +62,43 @@ exports.handler = async (event, context) => {
 			};
 		}
 
-		// Check if seeding is already running (optional - can be disabled with force=true)
-		if (!force) {
-			// You could implement a simple lock mechanism here
-			// For now, we'll allow concurrent executions
-		}
-
 		console.log(`🚀 Triggering database seeding for environment: ${environment}`);
 
-		// Execute seeding script
-		const result = await executeSeedingScript(environment);
+		// Check if services are available
+		if (!dataSeederService || !emailService) {
+			const errorMsg = 'Required services not available. Check function logs for import errors.';
+			console.error(errorMsg);
+			console.error('DataSeederService available:', !!dataSeederService);
+			console.error('EmailService available:', !!emailService);
+			
+			return {
+				statusCode: 500,
+				headers: { ...headers, 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					error: errorMsg,
+					details: {
+						dataSeederService: !!dataSeederService,
+						emailService: !!emailService,
+						environment: process.env.NODE_ENV,
+						buildPath: path.join(process.cwd(), '.next'),
+						libPath: path.join(process.cwd(), 'lib')
+					}
+				})
+			};
+		}
+
+		// Execute seeding directly
+		const startTime = Date.now();
+		const result = await executeSeedingDirectly(environment);
+		const duration = Date.now() - startTime;
+
+		// Send email notification
+		try {
+			await sendSeedingNotification(result, environment, duration);
+		} catch (emailError) {
+			console.warn('Failed to send email notification:', emailError);
+			// Don't fail the function if email fails
+		}
 
 		// Return success response
 		return {
@@ -50,21 +106,41 @@ exports.handler = async (event, context) => {
 			headers: { ...headers, 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				success: true,
-				message: 'Database seeding triggered successfully',
+				message: 'Database seeding completed successfully',
 				environment,
 				timestamp: new Date().toISOString(),
-				result
+				result: {
+					...result,
+					duration
+				}
 			})
 		};
 
 	} catch (error) {
-		console.error('❌ Error triggering seeding:', error);
+		console.error('❌ Error during seeding:', error);
+
+		// Send failure notification
+		try {
+			if (emailService) {
+				await emailService.sendSeedingSummaryEmail({
+					success: false,
+					environment: event.queryStringParameters?.environment || 'production',
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					errorCount: 1,
+					errors: [error.message],
+					duration: 0
+				});
+			}
+		} catch (emailError) {
+			console.warn('Failed to send failure email:', emailError);
+		}
 
 		return {
 			statusCode: 500,
 			headers: { ...headers, 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				error: 'Failed to trigger database seeding',
+				error: 'Failed to complete database seeding',
 				message: error.message,
 				timestamp: new Date().toISOString()
 			})
@@ -72,75 +148,68 @@ exports.handler = async (event, context) => {
 	}
 };
 
-function executeSeedingScript(environment) {
-	return new Promise((resolve, reject) => {
-		// Determine the script to run
-		const npmScript = environment === 'production' ? 'seed-prod' : 'seed-dev';
+async function executeSeedingDirectly(environment) {
+	console.log(`📜 Starting direct seeding for environment: ${environment}`);
+	
+	// Set environment variables
+	process.env.NODE_ENV = environment;
+	
+	try {
+		// Initialize the data seeder service
+		await dataSeederService.initialize();
 		
-		console.log(`📜 Executing: npm run ${npmScript}`);
+		// Execute the seeding process
+		const seedingResult = await dataSeederService.seedAllData();
+		
+		// Count errors from log file
+		const errorCount = countErrorsFromLog();
+		
+		return {
+			success: true,
+			exitCode: 0,
+			nodesCreated: seedingResult.nodesCreated || 0,
+			relationshipsCreated: seedingResult.relationshipsCreated || 0,
+			errorCount,
+			errors: []
+		};
+		
+	} catch (error) {
+		console.error('Seeding failed:', error);
+		return {
+			success: false,
+			exitCode: 1,
+			nodesCreated: 0,
+			relationshipsCreated: 0,
+			errorCount: 1,
+			errors: [error.message]
+		};
+	} finally {
+		// Clean up connections
+		try {
+			await dataSeederService.cleanup();
+		} catch (cleanupError) {
+			console.warn('Cleanup failed:', cleanupError);
+		}
+	}
+}
 
-		// Execute the seeding script
-		const child = spawn('npm', ['run', npmScript], {
-			cwd: process.cwd(),
-			stdio: ['pipe', 'pipe', 'pipe'],
-			env: { ...process.env, NODE_ENV: environment }
-		});
+async function sendSeedingNotification(result, environment, duration) {
+	if (!emailService) {
+		console.warn('Email service not available');
+		return;
+	}
 
-		let stdout = '';
-		let stderr = '';
-		let nodesCreated = 0;
-		let relationshipsCreated = 0;
+	const summary = {
+		success: result.success,
+		environment,
+		nodesCreated: result.nodesCreated,
+		relationshipsCreated: result.relationshipsCreated,
+		errorCount: result.errorCount,
+		errors: result.errors,
+		duration
+	};
 
-		child.stdout?.on('data', (data) => {
-			const output = data.toString();
-			stdout += output;
-			console.log(`[SEEDING] ${output.trim()}`);
-
-			// Parse output for statistics
-			if (output.includes('✅ Created')) {
-				const match = output.match(/(\d+) nodes/);
-				if (match) nodesCreated = parseInt(match[1]);
-			}
-			if (output.includes('✅ Created')) {
-				const match = output.match(/(\d+) relationships/);
-				if (match) relationshipsCreated = parseInt(match[1]);
-			}
-		});
-
-		child.stderr?.on('data', (data) => {
-			const output = data.toString();
-			stderr += output;
-			console.error(`[SEEDING ERROR] ${output.trim()}`);
-		});
-
-		child.on('close', (code) => {
-			const exitCode = code || 0;
-			const success = exitCode === 0;
-
-			// Count errors from the log file
-			const errorCount = countErrorsFromLog();
-
-			const result = {
-				success,
-				exitCode,
-				nodesCreated,
-				relationshipsCreated,
-				errorCount,
-				errors: success ? [] : [stderr || 'Script execution failed'],
-				duration: Date.now() // You could add timing logic here
-			};
-
-			if (success) {
-				resolve(result);
-			} else {
-				reject(new Error(`Seeding failed with exit code ${exitCode}`));
-			}
-		});
-
-		child.on('error', (error) => {
-			reject(error);
-		});
-	});
+	await emailService.sendSeedingSummaryEmail(summary);
 }
 
 function countErrorsFromLog() {
