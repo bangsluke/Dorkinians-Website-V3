@@ -221,6 +221,10 @@ npm run type-check   # Run TypeScript type checking
 ## Neo4j Queries
 
 - `MATCH ()-[r {graphLabel: 'dorkiniansWebsite'}]->() RETURN count(r) AS totalRelationships` - This will return the total number of relationships in the database for the dorkiniansWebsite graph label
+- `MATCH (p:Player {graphLabel: 'dorkiniansWebsite'}) RETURN p.name as playerName ORDER BY p.name LIMIT 50` - This will return the names of the first 50 players in the database for the dorkiniansWebsite graph label
+- `MATCH (p:Player {name: "Luke Bangs"}) RETURN p` - This will return the node for the player with the exact name "Luke Bangs"
+- `MATCH (p:Player {graphLabel: 'dorkiniansWebsite'}) WHERE p.name CONTAINS "Luke" OR p.name CONTAINS "Bangs" OR p.name CONTAINS "luke" OR p.name CONTAINS "bangs" RETURN p.name as playerName ORDER BY p.name` - This will return the names of the players in the database for the dorkiniansWebsite graph label that contain the string "Luke" or "Bangs" or "luke" or "bangs"
+- `MATCH (p:Player {name: "Luke Bangs"}) OPTIONAL MATCH (p)-[r]->(n) RETURN p.name as playerName, type(r) as relationshipType, labels(n) as nodeLabels, n.name as nodeName ORDER BY type(r)` - Return the player name and all the relationships and nodes that the player has
 
 ## 🚨 Important Notes
 
