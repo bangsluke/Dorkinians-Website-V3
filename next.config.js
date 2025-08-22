@@ -13,9 +13,9 @@ const nextConfig = {
 		domains: ["docs.google.com"],
 	},
 	// Enable API routes for development and production
-	experimental: {
-		appDir: true
-	}
+	// experimental: {
+	// 	appDir: true
+	// }
 };
 
 module.exports = withPWA(nextConfig);
