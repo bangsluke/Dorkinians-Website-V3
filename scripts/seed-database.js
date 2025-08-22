@@ -1,56 +1,7 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-// Use built-in http module for making requests
-const http = require("http");
-const https = require("https");
 const fs = require("fs");
-
-function makeRequest(url, options = {}) {
-	return new Promise((resolve, reject) => {
-		const urlObj = new URL(url);
-		const isHttps = urlObj.protocol === "https:";
-		const client = isHttps ? https : http;
-
-		const requestOptions = {
-			hostname: urlObj.hostname,
-			port: urlObj.port,
-			path: urlObj.pathname + urlObj.search,
-			method: options.method || "GET",
-			headers: options.headers || {},
-		};
-
-		if (options.body) {
-			requestOptions.headers["Content-Type"] = "application/json";
-			requestOptions.headers["Content-Length"] = Buffer.byteLength(options.body);
-		}
-
-		const req = client.request(requestOptions, (res) => {
-			let data = "";
-			res.on("data", (chunk) => {
-				data += chunk;
-			});
-			res.on("end", () => {
-				resolve({
-					ok: res.statusCode >= 200 && res.statusCode < 300,
-					status: res.statusCode,
-					json: () => JSON.parse(data),
-					text: () => data,
-				});
-			});
-		});
-
-		req.on("error", (error) => {
-			reject(error);
-		});
-
-		if (options.body) {
-			req.write(options.body);
-		}
-
-		req.end();
-	});
-}
 
 function countErrorsFromLog() {
 	try {
@@ -129,11 +80,6 @@ async function seedDatabase() {
 
 		console.log("✅ Environment variables validated");
 
-		// Use appropriate port based on environment
-		const port = 3000; // Both dev and prod use port 3000
-		const apiUrl = `http://localhost:${port}/api/seed-data/`;
-
-		console.log(`🌐 Calling seeding API: ${apiUrl}`);
 		console.log(`📊 Seeding ${dataSources.length} data sources...`);
 
 		// Display data sources being seeded
@@ -141,24 +87,22 @@ async function seedDatabase() {
 			console.log(`  ${index + 1}. ${source.name}`);
 		});
 
-		// Make request to the seeding API
-		const response = await makeRequest(apiUrl, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				dataSources: dataSources,
-			}),
-		});
+		// Import and use DataSeederService directly
+		console.log("\n🔧 Initializing DataSeederService...");
+		const { DataSeederService } = require("../lib/services/dataSeederService");
+		const dataSeeder = new DataSeederService();
 
-		if (response.ok) {
-			const result = await response.json();
-			console.log("✅ Seeding completed successfully!");
-			console.log("📊 Result:", result);
-
+		try {
+			// Initialize the service
+			await dataSeeder.initialize();
+			
+			// Execute seeding
+			console.log("🌱 Starting database seeding...");
+			const result = await dataSeeder.seedAllData();
+			
 			if (result.success) {
-				console.log(`🎉 Created ${result.data.nodesCreated} nodes and ${result.data.relationshipsCreated} relationships`);
+				console.log("✅ Seeding completed successfully!");
+				console.log(`🎉 Created ${result.nodesCreated} nodes and ${result.relationshipsCreated} relationships`);
 				console.log(`📍 Database: ${environment === "production" ? "Neo4j Aura (Production)" : "Local Neo4j Desktop"}`);
 				
 				// Run data validation test after successful seeding
@@ -191,8 +135,8 @@ async function seedDatabase() {
 						
 						const summary = {
 							environment: environment,
-							nodesCreated: result.data.nodesCreated,
-							relationshipsCreated: result.data.relationshipsCreated,
+							nodesCreated: result.nodesCreated,
+							relationshipsCreated: result.relationshipsCreated,
 							duration: duration,
 							errorCount: errorCount,
 							timestamp: new Date().toISOString(),
@@ -225,8 +169,8 @@ async function seedDatabase() {
 						
 						const summary = {
 							environment: environment,
-							nodesCreated: result.data?.nodesCreated || 0,
-							relationshipsCreated: result.data?.relationshipsCreated || 0,
+							nodesCreated: result.nodesCreated || 0,
+							relationshipsCreated: result.relationshipsCreated || 0,
 							duration: duration,
 							errorCount: errorCount,
 							timestamp: new Date().toISOString(),
@@ -243,13 +187,12 @@ async function seedDatabase() {
 					console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
 				}
 			}
-		} else {
-			const errorText = await response.text();
-			console.error("❌ Seeding failed:", response.status, errorText);
+		} catch (seedingError) {
+			console.error("❌ Seeding failed:", seedingError.message);
 			console.log("\n💡 Make sure:");
-			console.log("1. Next.js server is running (npm run dev)");
-			console.log("2. Neo4j database is accessible");
-			console.log("3. All environment variables are set correctly");
+			console.log("1. Neo4j database is accessible");
+			console.log("2. All environment variables are set correctly");
+			console.log("3. Data source files are available");
 			
 			// Send email notification for complete seeding failure
 			console.log("\n📧 Sending seeding summary email...");
@@ -272,7 +215,7 @@ async function seedDatabase() {
 						errorCount: errorCount,
 						timestamp: new Date().toISOString(),
 						success: false,
-						errors: [`API call failed with status ${response.status}: ${errorText}`]
+						errors: [seedingError.message]
 					};
 					
 					await emailService.sendSeedingSummary(summary);
@@ -282,6 +225,14 @@ async function seedDatabase() {
 				}
 			} catch (emailError) {
 				console.warn(`⚠️ Failed to send seeding summary email: ${emailError.message}`);
+				console.log("✅ Seeding summary email sent successfully");
+			}
+		} finally {
+			// Clean up connections
+			try {
+				await dataSeeder.cleanup();
+			} catch (cleanupError) {
+				console.warn("⚠️ Cleanup failed:", cleanupError.message);
 			}
 		}
 
@@ -305,9 +256,9 @@ async function seedDatabase() {
 		console.log(`\n⏱️  Seeding Duration: ${minutes > 0 ? minutes + 'm ' : ''}${seconds}s ${milliseconds}ms`);
 		console.error(`❌ ${environment} seeding failed:`, error.message);
 		console.log("\n💡 Make sure:");
-		console.log("1. Next.js server is running (npm run dev)");
-		console.log("2. Neo4j database is accessible");
-		console.log("3. All environment variables are set correctly");
+		console.log("1. Neo4j database is accessible");
+		console.log("2. All environment variables are set correctly");
+		console.log("3. Data source files are available");
 		
 		// Send email notification for complete seeding failure
 		console.log("\n📧 Sending seeding summary email...");
