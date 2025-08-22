@@ -309,6 +309,56 @@ export class ChatbotService {
 				
 				if (result && Array.isArray(result) && result.length > 0) {
 					console.log(`🔍 First result item:`, result[0]);
+				} else {
+					// Diagnostic: Let's see what players actually exist in the database
+					console.log(`🔍 No results found for ${playerName}. Running diagnostic query...`);
+					const diagnosticQuery = `
+						MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+						RETURN p.name as playerName
+						ORDER BY p.name
+						LIMIT 20
+					`;
+					const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+					console.log(`🔍 Diagnostic: Found ${diagnosticResult.length} players in database:`, diagnosticResult.map(p => p.playerName));
+					
+					// Also check if there are any players with similar names
+					const similarQuery = `
+						MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+						WHERE p.name CONTAINS 'Luke' OR p.name CONTAINS 'Bangs' OR p.name CONTAINS 'luke' OR p.name CONTAINS 'bangs'
+						RETURN p.name as playerName
+						ORDER BY p.name
+					`;
+					const similarResult = await neo4jService.executeQuery(similarQuery);
+					console.log(`🔍 Similar names found:`, similarResult.map(p => p.playerName));
+					
+					// Check if Luke Bangs has any relationships at all
+					const relationshipQuery = `
+						MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+						OPTIONAL MATCH (p)-[r]->(n)
+						RETURN p.name as playerName, type(r) as relationshipType, labels(n) as nodeLabels, n.name as nodeName
+						ORDER BY type(r)
+					`;
+					const relationshipResult = await neo4jService.executeQuery(relationshipQuery, { playerName });
+					console.log(`🔍 Relationships for ${playerName}:`, relationshipResult);
+					
+					// Check if there are any MatchDetail nodes at all
+					const matchDetailQuery = `
+						MATCH (md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
+						RETURN count(md) as totalMatchDetails
+						LIMIT 1
+					`;
+					const matchDetailResult = await neo4jService.executeQuery(matchDetailQuery);
+					console.log(`🔍 Total MatchDetail nodes:`, matchDetailResult);
+					
+					// Check if there are any MatchDetail nodes without graphLabel
+					const noLabelQuery = `
+						MATCH (md:MatchDetail)
+						WHERE NOT EXISTS(md.graphLabel)
+						RETURN count(md) as noLabelMatchDetails
+						LIMIT 1
+					`;
+					const noLabelResult = await neo4jService.executeQuery(noLabelQuery);
+					console.log(`🔍 MatchDetail nodes without graphLabel:`, noLabelResult);
 				}
 				
 				return { type: 'specific_player', data: result, playerName, metric };
