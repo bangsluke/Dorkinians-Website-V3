@@ -30,12 +30,15 @@ export class ChatbotService {
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
-		
+		console.log(`🤖 Processing question: ${context.question}`);
+		console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+		console.log(`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_URI ? "Yes" : "No" : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`);
 
 		try {
 			// Ensure Neo4j connection
 			const connected = await neo4jService.connect();
 			if (!connected) {
+				console.error("❌ Neo4j connection failed in production");
 				return {
 					answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
 					confidence: 0,
