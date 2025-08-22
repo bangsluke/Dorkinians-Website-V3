@@ -8,13 +8,20 @@ class Neo4jService {
 	async connect() {
 		try {
 			const uri = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_URI : process.env.DEV_NEO4J_URI;
-
 			const username = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_USER : process.env.DEV_NEO4J_USER;
-
 			const password = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_PASSWORD : process.env.DEV_NEO4J_PASSWORD;
 
+			console.log(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
+			console.log(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
+			console.log(`🔧 Username configured: ${username ? "Yes" : "No"}`);
+			console.log(`🔧 Password configured: ${password ? "Yes" : "No"}`);
+
 			if (!uri || !username || !password) {
-				throw new Error("Neo4j connection details not configured");
+				const missingVars = [];
+				if (!uri) missingVars.push("URI");
+				if (!username) missingVars.push("USER");
+				if (!password) missingVars.push("PASSWORD");
+				throw new Error(`Neo4j connection details not configured. Missing: ${missingVars.join(", ")}`);
 			}
 
 			this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
