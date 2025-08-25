@@ -339,10 +339,6 @@ exports.handler = async (event, context) => {
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		console.log('🆔 TRIGGER: Generated job ID:', jobId);
 
-		// Generate unique job ID
-		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-		console.log('🆔 TRIGGER: Generated job ID:', jobId);
-
 		// Configure email service with environment variables (available during execution)
 		console.log('📧 EMAIL: Configuring email service...');
 		emailService.configure();
@@ -392,7 +388,6 @@ exports.handler = async (event, context) => {
 				message: 'Database seeding started on Heroku',
 				environment,
 				jobId,
-				jobId,
 				timestamp: new Date().toISOString(),
 				status: 'started',
 				note: 'Seeding is running on Heroku. Check email for completion notification.',
@@ -411,7 +406,6 @@ exports.handler = async (event, context) => {
 				success: false,
 				environment: event.queryStringParameters?.environment || 'production',
 				jobId: 'unknown',
-				jobId: 'unknown',
 				nodesCreated: 0,
 				relationshipsCreated: 0,
 				errorCount: 1,
@@ -427,7 +421,6 @@ exports.handler = async (event, context) => {
 			statusCode: 500,
 			headers: { ...headers, 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				error: 'Failed to start database seeding',
 				error: 'Failed to start database seeding',
 				message: error.message,
 				timestamp: new Date().toISOString()
