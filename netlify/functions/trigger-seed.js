@@ -439,6 +439,10 @@ class SimpleDataSeeder {
 					// Log sample data for debugging
 					if (csvResult.data.length > 0) {
 						console.log(`🔍 Sample data from ${csvResult.name}:`, JSON.stringify(csvResult.data[0], null, 2));
+						console.log(`🔍 Total rows in ${csvResult.name}: ${csvResult.data.length}`);
+						console.log(`🔍 Column headers in ${csvResult.name}:`, Object.keys(csvResult.data[0] || {}));
+					} else {
+						console.log(`⚠️ No data rows found in ${csvResult.name}`);
 					}
 					
 					// Process the data based on source type
@@ -497,7 +501,17 @@ class SimpleDataSeeder {
 					try {
 						const Papa = require('papaparse');
 						const result = Papa.parse(data, { header: true });
-						resolve(result.data.filter(row => Object.values(row).some(val => val && val.trim() !== '')));
+						// Less aggressive filtering - keep rows that have at least one non-empty value
+						// and log the actual data structure for debugging
+						const filteredData = result.data.filter(row => {
+							const hasData = Object.values(row).some(val => val && val.trim() !== '');
+							if (!hasData) {
+								console.log(`🔍 Filtered out empty row:`, JSON.stringify(row));
+							}
+							return hasData;
+						});
+						console.log(`📊 CSV parsed: ${result.data.length} total rows, ${filteredData.length} non-empty rows`);
+						resolve(filteredData);
 					} catch (error) {
 						reject(new Error(`Failed to parse CSV: ${error.message}`));
 					}
