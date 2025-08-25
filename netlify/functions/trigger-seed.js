@@ -705,12 +705,15 @@ class SimpleDataSeeder {
 				}
 				
 				const query = `
-					CREATE (p:Player {
-						id: $id,
-						name: $name,
-						position: $position,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (p:Player {id: $id})
+					ON CREATE SET 
+						p.name = $name,
+						p.position = $position,
+						p.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET
+						p.name = $name,
+						p.position = $position,
+						p.graphLabel = 'dorkiniansWebsite'
 				`;
 				
 				const params = {
@@ -746,13 +749,17 @@ class SimpleDataSeeder {
 				}
 				
 				const query = `
-					CREATE (f:Fixture {
-						id: $id,
-						date: $date,
-						opposition: $opposition,
-						competition: $competition,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (f:Fixture {id: $id})
+					ON CREATE SET 
+						f.date = $date,
+						f.opposition = $opposition,
+						f.competition = $competition,
+						f.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET
+						f.date = $date,
+						f.opposition = $opposition,
+						f.competition = $competition,
+						f.graphLabel = 'dorkiniansWebsite'
 				`;
 				
 				const params = {
@@ -784,13 +791,17 @@ class SimpleDataSeeder {
 				}
 				
 				const query = `
-					CREATE (md:MatchDetail {
-						id: $id,
-						playerName: $playerName,
-						goals: $goals,
-						assists: $assists,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (md:MatchDetail {id: $id})
+					ON CREATE SET 
+						md.playerName = $playerName,
+						md.goals = $goals,
+						md.assists = $assists,
+						md.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET
+						md.playerName = $playerName,
+						md.goals = $goals,
+						md.assists = $assists,
+						md.graphLabel = 'dorkiniansWebsite'
 				`;
 				
 				const params = {
@@ -894,12 +905,15 @@ class SimpleDataSeeder {
 				}
 				
 				const query = `
-					CREATE (st:SeasonTOTW {
-						id: $id,
-						season: $season,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (st:SeasonTOTW {id: $id})
+					ON CREATE SET 
+						st.season = $season,
+						st.playerName = $playerName,
+						st.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET
+						st.season = $season,
+						st.playerName = $playerName,
+						st.graphLabel = 'dorkiniansWebsite'
 				`;
 				
 				const params = {
@@ -930,12 +944,15 @@ class SimpleDataSeeder {
 				}
 				
 				const query = `
-					CREATE (pm:PlayerOfTheMonth {
-						id: $id,
-						month: $month,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (pm:PlayerOfTheMonth {id: $id})
+					ON CREATE SET 
+						pm.month = $month,
+						pm.playerName = $playerName,
+						pm.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET
+						pm.month = $month,
+						pm.playerName = $playerName,
+						pm.graphLabel = 'dorkiniansWebsite'
 				`;
 				
 				const params = {
@@ -1063,11 +1080,24 @@ class SimpleDataSeeder {
 	
 	async clearGraphData() {
 		try {
-			const query = 'MATCH (n {graphLabel: "dorkiniansWebsite"}) DETACH DELETE n';
-			await this.session.run(query);
-			console.log('✅ Existing graph data cleared');
+			// First, delete all relationships
+			const deleteRelationshipsQuery = 'MATCH ()-[r {graphLabel: "dorkiniansWebsite"}] DELETE r';
+			await this.session.run(deleteRelationshipsQuery);
+			console.log('✅ Existing relationships cleared');
+			
+			// Then, delete all nodes
+			const deleteNodesQuery = 'MATCH (n {graphLabel: "dorkiniansWebsite"}) DELETE n';
+			await this.session.run(deleteNodesQuery);
+			console.log('✅ Existing nodes cleared');
+			
+			// Alternative: If the above fails, try a more aggressive approach
+			const fallbackQuery = 'MATCH (n) WHERE n.graphLabel = "dorkiniansWebsite" DETACH DELETE n';
+			await this.session.run(fallbackQuery);
+			console.log('✅ Fallback clearing completed');
+			
 		} catch (error) {
 			console.error('❌ Failed to clear graph data:', error.message);
+			// Continue anyway - MERGE will handle existing nodes
 		}
 	}
 	
