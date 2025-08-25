@@ -24,6 +24,12 @@
     X-Function-Timeout = "1800"
     X-Request-Timeout = "1800"
 
+[functions."seed-status"]
+  timeout = 30
+  [functions."seed-status".headers]
+    X-Function-Timeout = "30"
+    X-Request-Timeout = "30"
+
 # Handle static assets
 [[redirects]]
   from = "/_next/*"
