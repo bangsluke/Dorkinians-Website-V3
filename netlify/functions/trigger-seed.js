@@ -1285,7 +1285,7 @@ exports.handler = async (event, context) => {
 		// Execute seeding directly
 		console.log('🌱 SEEDING: Starting direct seeding execution...');
 		const startTime = Date.now();
-		const result = await executeSeedingDirectly(environment);
+		const result = await executeSeedingDirectly(environment, context);
 		const duration = Date.now() - startTime;
 		console.log('⏱️ TIMING: Seeding execution completed in', duration, 'ms');
 
@@ -1357,7 +1357,7 @@ exports.handler = async (event, context) => {
 	}
 };
 
-async function executeSeedingDirectly(environment) {
+async function executeSeedingDirectly(environment, context) {
 	console.log(`📜 DIRECT: Starting direct seeding for environment: ${environment}`);
 	console.log(`⏰ DIRECT: Remaining time: ${context?.getRemainingTimeInMillis() || 'unknown'} ms`);
 	
