@@ -1,6 +1,4 @@
-import { DataSource } from "../services/dataService";
-
-export const dataSources: DataSource[] = [
+const dataSources = [
 	// Stats Data (Google Sheets CSVs)
 	{
 		name: "TBL_SiteDetails",
@@ -54,10 +52,16 @@ export const dataSources: DataSource[] = [
 	},
 ];
 
-export const getDataSourcesByType = (type: "StatsData" | "FASiteData"): DataSource[] => {
+const getDataSourcesByType = (type) => {
 	return dataSources.filter((source) => source.type === type);
 };
 
-export const getDataSourcesByName = (names: string[]): DataSource[] => {
+const getDataSourcesByName = (names) => {
 	return dataSources.filter((source) => names.includes(source.name));
+};
+
+module.exports = {
+	dataSources,
+	getDataSourcesByType,
+	getDataSourcesByName
 };

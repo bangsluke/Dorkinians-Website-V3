@@ -5,21 +5,13 @@
 	"private": true,
 	"scripts": {
 		"dev": "next dev",
-		"build": "npm run build:lib && next build",
-		"build:lib": "node scripts/build-lib.js",
+		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"type-check": "tsc --noEmit",
-		"seed-dev": "cross-env NODE_ENV=development ts-node -P tsconfig.scripts.json scripts/seed-database.ts development",
-		"seed-dev-reduced": "cross-env NODE_ENV=development ts-node scripts/seed-database-reduced.js development",
-		"seed-prod": "cross-env NODE_ENV=production node scripts/seed-database-simple.js production",
-		"apply-schema": "node scripts/apply-schema.js",
-		"test-headers": "ts-node scripts/test-csv-headers.js",
-		"test-data-validation": "ts-node scripts/test-data-validation.js",
-		"test-function": "node scripts/test-netlify-function.js",
-		"check-env": "ts-node -e \"require('dotenv/config'); console.log('Environment check:'); console.log('NODE_ENV:', process.env.NODE_ENV || 'not set'); console.log('DEV_NEO4J_URI:', process.env.DEV_NEO4J_URI || 'not set'); console.log('PROD_NEO4J_URI:', process.env.PROD_NEO4J_URI || 'not set');\""
+		"apply-schema": "node scripts/apply-schema.js"
 	},
 	"dependencies": {
 		"@headlessui/react": "^1.7.17",
