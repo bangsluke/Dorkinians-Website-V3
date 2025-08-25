@@ -360,14 +360,18 @@ class SimpleDataSeeder {
 
 	async seedAllData() {
 		try {
-			console.log('🌱 Starting actual data seeding process...');
+			console.log('🌱 SEEDER: Starting actual data seeding process...');
+			console.log('⏰ SEEDER: Process start time:', new Date().toISOString());
 			
 			// Import required modules
+			console.log('📦 SEEDER: Importing required modules...');
 			const Papa = require('papaparse');
 			const https = require('https');
 			const http = require('http');
+			console.log('✅ SEEDER: Modules imported successfully');
 			
 			// Data sources configuration - read from config file
+			console.log('📋 SEEDER: Setting up data sources...');
 			const dataSources = [
 				{
 					name: "TBL_SiteDetails",
@@ -410,38 +414,44 @@ class SimpleDataSeeder {
 					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv",
 				}
 			];
+			console.log('✅ SEEDER: Data sources configured:', dataSources.length, 'sources');
 			
 			let totalNodesCreated = 0;
 			let totalRelationshipsCreated = 0;
 			const errors = [];
 			
 			// Clear existing data and apply schema
-			console.log('🗑️ Clearing existing graph data...');
+			console.log('🗑️ SEEDER: Clearing existing graph data...');
 			await this.clearGraphData();
+			console.log('✅ SEEDER: Graph data cleared');
 			
-			console.log('🏗️ Applying database schema...');
+			console.log('🏗️ SEEDER: Applying database schema...');
 			await this.applySchema();
+			console.log('✅ SEEDER: Schema applied');
 			
 			// Fetch all CSV data in parallel for better performance
-			console.log('📥 Fetching all CSV data in parallel...');
+			console.log('📥 SEEDER: Fetching all CSV data in parallel...');
 			const csvDataPromises = dataSources.map(async (dataSource) => {
+				console.log(`📥 SEEDER: Starting fetch for ${dataSource.name}...`);
 				try {
 					const csvData = await this.fetchCSVData(dataSource.url);
+					console.log(`✅ SEEDER: ${dataSource.name} fetched successfully, ${csvData.length} rows`);
 					return { name: dataSource.name, data: csvData, success: true };
 				} catch (error) {
-					console.error(`❌ Failed to fetch ${dataSource.name}: ${error.message}`);
+					console.error(`❌ SEEDER: Failed to fetch ${dataSource.name}: ${error.message}`);
 					return { name: dataSource.name, data: [], success: false, error: error.message };
 				}
 			});
 
+			console.log('⏳ SEEDER: Waiting for all CSV fetches to complete...');
 			const csvResults = await Promise.all(csvDataPromises);
 			const successfulSources = csvResults.filter(r => r.success);
 			const failedSources = csvResults.filter(r => !r.success);
 			
-			console.log(`📊 CSV fetching completed: ${successfulSources.length}/${csvResults.length} successful`);
+			console.log(`📊 SEEDER: CSV fetching completed: ${successfulSources.length}/${csvResults.length} successful`);
 			
 			if (failedSources.length > 0) {
-				console.error(`❌ Failed data sources:`);
+				console.error(`❌ SEEDER: Failed data sources:`);
 				failedSources.forEach(source => {
 					console.error(`   - ${source.name}: ${source.error}`);
 				});
@@ -452,34 +462,36 @@ class SimpleDataSeeder {
 			}
 
 			// Process each data source
+			console.log('🔄 SEEDER: Starting data source processing...');
 			for (const csvResult of csvResults) {
 				if (!csvResult.success) {
 					const errorMsg = `Failed to fetch ${csvResult.name}: ${csvResult.error}`;
-					console.error(`❌ ${errorMsg}`);
+					console.error(`❌ SEEDER: ${errorMsg}`);
 					errors.push(errorMsg);
 					continue;
 				}
 
 				try {
-					console.log(`📊 Processing: ${csvResult.name}`);
+					console.log(`📊 SEEDER: Processing: ${csvResult.name}`);
 					
 					if (csvResult.data.length === 0) {
-						console.log(`ℹ️ No data found for ${csvResult.name}`);
+						console.log(`ℹ️ SEEDER: No data found for ${csvResult.name}`);
 						continue;
 					}
 					
-					console.log(`📥 Processing ${csvResult.data.length} rows from ${csvResult.name}`);
+					console.log(`📥 SEEDER: Processing ${csvResult.data.length} rows from ${csvResult.name}`);
 					
 					// Log sample data for debugging
 					if (csvResult.data.length > 0) {
-						console.log(`🔍 Sample data from ${csvResult.name}:`, JSON.stringify(csvResult.data[0], null, 2));
-						console.log(`🔍 Total rows in ${csvResult.name}: ${csvResult.data.length}`);
-						console.log(`🔍 Column headers in ${csvResult.name}:`, Object.keys(csvResult.data[0] || {}));
+						console.log(`🔍 SEEDER: Sample data from ${csvResult.name}:`, JSON.stringify(csvResult.data[0], null, 2));
+						console.log(`🔍 SEEDER: Total rows in ${csvResult.name}: ${csvResult.data.length}`);
+						console.log(`🔍 SEEDER: Column headers in ${csvResult.name}:`, Object.keys(csvResult.data[0] || {}));
 					} else {
-						console.log(`⚠️ No data rows found in ${csvResult.name}`);
+						console.log(`⚠️ SEEDER: No data rows found in ${csvResult.name}`);
 					}
 					
 					// Process the data based on source type
+					console.log(`⚙️ SEEDER: Calling processDataSource for ${csvResult.name}...`);
 					const result = await this.processDataSource(csvResult.name, csvResult.data);
 					totalNodesCreated += result.nodesCreated;
 					totalRelationshipsCreated += result.relationshipsCreated;
@@ -488,20 +500,21 @@ class SimpleDataSeeder {
 						errors.push(...result.errors);
 					}
 					
-					console.log(`✅ ${csvResult.name}: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
+					console.log(`✅ SEEDER: ${csvResult.name}: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
 				} catch (error) {
 					const errorMsg = `Failed to process ${csvResult.name}: ${error.message}`;
-					console.error(`❌ ${errorMsg}`);
+					console.error(`❌ SEEDER: ${errorMsg}`);
 					errors.push(errorMsg);
 				}
 			}
 			
 			// Create relationships between nodes
-			console.log('🔗 Creating relationships between nodes...');
+			console.log('🔗 SEEDER: Creating relationships between nodes...');
 			const relationshipResult = await this.createAllRelationships();
 			totalRelationshipsCreated += relationshipResult;
 			
-			console.log(`🎉 Seeding completed! Created ${totalNodesCreated} nodes and ${totalRelationshipsCreated} relationships`);
+			console.log(`🎉 SEEDER: Seeding completed! Created ${totalNodesCreated} nodes and ${totalRelationshipsCreated} relationships`);
+			console.log('⏰ SEEDER: Process end time:', new Date().toISOString());
 			
 			return {
 				success: errors.length === 0,
@@ -510,7 +523,8 @@ class SimpleDataSeeder {
 				errors: errors
 			};
 		} catch (error) {
-			console.error('❌ Seeding failed:', error);
+			console.error('❌ SEEDER: Seeding failed:', error);
+			console.error('❌ SEEDER: Stack trace:', error.stack);
 			return {
 				success: false,
 				nodesCreated: 0,
@@ -660,49 +674,68 @@ class SimpleDataSeeder {
 	}
 	
 	async processDataSource(sourceName, csvData) {
+		console.log(`🔄 PROCESS: Starting processDataSource for ${sourceName}`);
+		console.log(`📊 PROCESS: ${sourceName} has ${csvData.length} rows to process`);
+		
 		let nodesCreated = 0;
 		let relationshipsCreated = 0;
 		const errors = [];
 		
 		try {
+			console.log(`⚙️ PROCESS: Calling processDataSourceByType for ${sourceName}...`);
 			switch (sourceName) {
 				case 'TBL_Players':
+					console.log(`👥 PROCESS: Processing TBL_Players with ${csvData.length} rows...`);
 					nodesCreated = await this.createPlayerNodes(csvData);
 					break;
 				case 'TBL_FixturesAndResults':
+					console.log(`🏟️ PROCESS: Processing TBL_FixturesAndResults with ${csvData.length} rows...`);
 					nodesCreated = await this.createFixtureNodes(csvData);
 					break;
 				case 'TBL_MatchDetails':
+					console.log(`⚽ PROCESS: Processing TBL_MatchDetails with ${csvData.length} rows...`);
 					nodesCreated = await this.createMatchDetailNodes(csvData);
 					break;
 				case 'TBL_SiteDetails':
+					console.log(`🌐 PROCESS: Processing TBL_SiteDetails with ${csvData.length} rows...`);
 					nodesCreated = await this.createSiteDetailNodes(csvData);
 					break;
 				case 'TBL_WeeklyTOTW':
+					console.log(`📅 PROCESS: Processing TBL_WeeklyTOTW with ${csvData.length} rows...`);
 					nodesCreated = await this.createWeeklyTOTWNodes(csvData);
 					break;
 				case 'TBL_SeasonTOTW':
+					console.log(`🏆 PROCESS: Processing TBL_SeasonTOTW with ${csvData.length} rows...`);
 					nodesCreated = await this.createSeasonTOTWNodes(csvData);
 					break;
 				case 'TBL_PlayersOfTheMonth':
+					console.log(`👑 PROCESS: Processing TBL_PlayersOfTheMonth with ${csvData.length} rows...`);
 					nodesCreated = await this.createPlayerOfTheMonthNodes(csvData);
 					break;
 				case 'TBL_CaptainsAndAwards':
+					console.log(`🎖️ PROCESS: Processing TBL_CaptainsAndAwards with ${csvData.length} rows...`);
 					nodesCreated = await this.createCaptainAndAwardNodes(csvData);
 					break;
 				case 'TBL_OppositionDetails':
+					console.log(`🤝 PROCESS: Processing TBL_OppositionDetails with ${csvData.length} rows...`);
 					nodesCreated = await this.createOppositionDetailNodes(csvData);
 					break;
 				case 'TBL_TestData':
+					console.log(`🧪 PROCESS: Processing TBL_TestData with ${csvData.length} rows...`);
 					nodesCreated = await this.createTestDataNodes(csvData);
 					break;
 				default:
-					console.log(`⚠️ Unknown data source: ${sourceName}`);
+					console.log(`⚠️ PROCESS: Unknown data source: ${sourceName}`);
 			}
+			console.log(`✅ PROCESS: ${sourceName} processing completed: ${nodesCreated} nodes created`);
 		} catch (error) {
-			errors.push(`Failed to process ${sourceName}: ${error.message}`);
+			const errorMsg = `Failed to process ${sourceName}: ${error.message}`;
+			console.error(`❌ PROCESS: ${errorMsg}`);
+			console.error(`❌ PROCESS: Stack trace for ${sourceName}:`, error.stack);
+			errors.push(errorMsg);
 		}
 		
+		console.log(`📤 PROCESS: Returning result for ${sourceName}: ${nodesCreated} nodes, ${relationshipsCreated} relationships, ${errors.length} errors`);
 		return { nodesCreated, relationshipsCreated, errors };
 	}
 	
@@ -1174,6 +1207,10 @@ const dataSeeder = new SimpleDataSeeder();
 const emailService = new SimpleEmailService();
 
 exports.handler = async (event, context) => {
+	console.log('🚀 FUNCTION START: trigger-seed handler initiated');
+	console.log('📊 Event details:', JSON.stringify(event, null, 2));
+	console.log('⏰ Context remaining time:', context.getRemainingTimeInMillis(), 'ms');
+	
 	// Set CORS headers
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
@@ -1183,8 +1220,8 @@ exports.handler = async (event, context) => {
 
 	// Set up timeout handler for 30-minute limit
 	const timeoutHandler = setTimeout(async () => {
+		console.log('⏰ TIMEOUT HANDLER: Function timeout reached (30 minutes)');
 		try {
-			console.log('⏰ Function timeout reached (30 minutes)');
 			await emailService.sendSeedingSummaryEmail({
 				success: false,
 				environment: event.queryStringParameters?.environment || 'production',
@@ -1194,13 +1231,15 @@ exports.handler = async (event, context) => {
 				errors: ['Function timeout: Seeding process exceeded 30 minutes'],
 				duration: 0
 			});
+			console.log('📧 TIMEOUT: Email notification sent');
 		} catch (emailError) {
-			console.warn('Failed to send timeout email:', emailError);
+			console.warn('⚠️ TIMEOUT: Failed to send timeout email:', emailError);
 		}
 	}, 29 * 60 * 1000); // 29 minutes to ensure email is sent before function timeout
 
 	// Handle preflight request
 	if (event.httpMethod === 'OPTIONS') {
+		console.log('🔄 PREFLIGHT: Handling OPTIONS request');
 		return {
 			statusCode: 200,
 			headers,
@@ -1209,11 +1248,15 @@ exports.handler = async (event, context) => {
 	}
 
 	try {
+		console.log('🔧 MAIN: Starting main execution logic');
+		
 		// Parse request
 		const { environment = 'production', force = false } = event.queryStringParameters || {};
+		console.log('🌍 ENVIRONMENT: Target environment:', environment);
 		
 		// Validate environment
 		if (!['development', 'production'].includes(environment)) {
+			console.log('❌ VALIDATION: Invalid environment detected');
 			return {
 				statusCode: 400,
 				headers: { ...headers, 'Content-Type': 'application/json' },
@@ -1223,36 +1266,45 @@ exports.handler = async (event, context) => {
 			};
 		}
 
-		console.log(`🚀 Triggering database seeding for environment: ${environment}`);
+		console.log(`🚀 TRIGGER: Triggering database seeding for environment: ${environment}`);
 
 		// Configure email service with environment variables (available during execution)
+		console.log('📧 EMAIL: Configuring email service...');
 		emailService.configure();
 
 		// Send start notification
+		console.log('📧 START: Attempting to send start notification...');
 		try {
 			await emailService.sendSeedingStartEmail(environment);
+			console.log('✅ START: Start notification sent successfully');
 		} catch (emailError) {
-			console.warn('Failed to send start notification:', emailError);
+			console.warn('⚠️ START: Failed to send start notification:', emailError);
 			// Don't fail the function if email fails
 		}
 
 		// Execute seeding directly
+		console.log('🌱 SEEDING: Starting direct seeding execution...');
 		const startTime = Date.now();
 		const result = await executeSeedingDirectly(environment);
 		const duration = Date.now() - startTime;
+		console.log('⏱️ TIMING: Seeding execution completed in', duration, 'ms');
 
 		// Send email notification
+		console.log('📧 COMPLETION: Attempting to send completion notification...');
 		try {
 			await sendSeedingNotification(result, environment, duration);
+			console.log('✅ COMPLETION: Completion notification sent successfully');
 		} catch (emailError) {
-			console.warn('Failed to send email notification:', emailError);
+			console.warn('⚠️ COMPLETION: Failed to send email notification:', emailError);
 			// Don't fail the function if email fails
 		}
 
 		// Clear timeout handler
+		console.log('🧹 CLEANUP: Clearing timeout handler...');
 		clearTimeout(timeoutHandler);
 
 		// Return success response
+		console.log('✅ SUCCESS: Returning success response');
 		return {
 			statusCode: 200,
 			headers: { ...headers, 'Content-Type': 'application/json' },
@@ -1269,12 +1321,15 @@ exports.handler = async (event, context) => {
 		};
 
 	} catch (error) {
-		console.error('❌ Error during seeding:', error);
+		console.error('❌ ERROR: Main execution error:', error);
+		console.error('❌ ERROR: Stack trace:', error.stack);
 
 		// Clear timeout handler
+		console.log('🧹 CLEANUP: Clearing timeout handler due to error...');
 		clearTimeout(timeoutHandler);
 
 		// Send failure notification
+		console.log('📧 FAILURE: Attempting to send failure notification...');
 		try {
 			await emailService.sendSeedingSummaryEmail({
 				success: false,
@@ -1285,8 +1340,9 @@ exports.handler = async (event, context) => {
 				errors: [error.message],
 				duration: 0
 			});
+			console.log('✅ FAILURE: Failure notification sent successfully');
 		} catch (emailError) {
-			console.warn('Failed to send failure email:', emailError);
+			console.warn('⚠️ FAILURE: Failed to send failure email:', emailError);
 		}
 
 		return {
@@ -1302,21 +1358,30 @@ exports.handler = async (event, context) => {
 };
 
 async function executeSeedingDirectly(environment) {
-	console.log(`📜 Starting direct seeding for environment: ${environment}`);
+	console.log(`📜 DIRECT: Starting direct seeding for environment: ${environment}`);
+	console.log(`⏰ DIRECT: Remaining time: ${context?.getRemainingTimeInMillis() || 'unknown'} ms`);
 	
 	// Set environment variables
 	process.env.NODE_ENV = environment;
+	console.log('🔧 DIRECT: Environment variables set');
 	
 	try {
+		console.log('🔌 DIRECT: Initializing data seeder service...');
 		// Initialize the data seeder service
 		await dataSeeder.initialize();
+		console.log('✅ DIRECT: Data seeder initialized successfully');
 		
+		console.log('🌱 DIRECT: Executing seeding process...');
 		// Execute the seeding process
 		const seedingResult = await dataSeeder.seedAllData();
+		console.log('✅ DIRECT: Seeding process completed');
 		
+		console.log('📊 DIRECT: Counting errors from log...');
 		// Count errors from log file
 		const errorCount = countErrorsFromLog();
+		console.log('📊 DIRECT: Error count:', errorCount);
 		
+		console.log('📤 DIRECT: Preparing return result...');
 		return {
 			success: true,
 			exitCode: 0,
@@ -1327,7 +1392,8 @@ async function executeSeedingDirectly(environment) {
 		};
 		
 	} catch (error) {
-		console.error('Seeding failed:', error);
+		console.error('❌ DIRECT: Seeding failed:', error);
+		console.error('❌ DIRECT: Stack trace:', error.stack);
 		return {
 			success: false,
 			exitCode: 1,
@@ -1338,10 +1404,12 @@ async function executeSeedingDirectly(environment) {
 		};
 	} finally {
 		// Clean up connections
+		console.log('🧹 DIRECT: Starting cleanup...');
 		try {
 			await dataSeeder.cleanup();
+			console.log('✅ DIRECT: Cleanup completed successfully');
 		} catch (cleanupError) {
-			console.warn('Cleanup failed:', cleanupError);
+			console.warn('⚠️ DIRECT: Cleanup failed:', cleanupError);
 		}
 	}
 }
