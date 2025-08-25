@@ -1,6 +1,24 @@
 const path = require('path');
 const fs = require('fs');
 
+// Import CSV header configuration
+const { getCSVHeaderConfig } = require('./lib/config/csvHeaders');
+
+// Helper functions for dynamic column mapping
+function getColumnValue(row, columnName, fallback = '') {
+    return row[columnName] || fallback;
+}
+
+function validateRequiredColumns(row, requiredColumns, sourceName) {
+    for (const column of requiredColumns) {
+        if (!row[column] || row[column].trim() === '') {
+            console.log(`⚠️ Skipping ${sourceName} row with missing ${column}: ${column}="${row[column]}"`);
+            return false;
+        }
+    }
+    return true;
+}
+
 // Simple email service implementation for Netlify Functions
 class SimpleEmailService {
 	constructor() {
@@ -690,17 +708,17 @@ class SimpleDataSeeder {
 	
 	async createPlayerNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_Players');
 		
 		for (const row of csvData) {
 			try {
 				// Skip players where "ALLOW ON SITE" is FALSE
-				if (row['ALLOW ON SITE'] && row['ALLOW ON SITE'].toLowerCase() === 'false') {
+				if (getColumnValue(row, 'ALLOW ON SITE') && getColumnValue(row, 'ALLOW ON SITE').toLowerCase() === 'false') {
 					continue;
 				}
 				
-				// Skip rows with missing essential data
-				if (!row['PLAYER NAME'] || row['PLAYER NAME'].trim() === '') {
-					console.log(`⚠️ Skipping player row with missing name: PLAYER NAME="${row['PLAYER NAME']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['PLAYER NAME'], 'TBL_Players')) {
 					continue;
 				}
 				
@@ -717,15 +735,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `player_${row['PLAYER NAME'].replace(/\s+/g, '_')}`,
-					name: row['PLAYER NAME'],
-					position: row['MostCommonPosition'] || 'Unknown'
+					id: `player_${getColumnValue(row, 'PLAYER NAME').replace(/\s+/g, '_')}`,
+					name: getColumnValue(row, 'PLAYER NAME'),
+					position: getColumnValue(row, 'MOST COMMON POSITION', 'Unknown')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create player node for ${row['PLAYER NAME']}: ${error.message}`);
+				console.error(`❌ Failed to create player node for ${getColumnValue(row, 'PLAYER NAME')}: ${error.message}`);
 			}
 		}
 		
@@ -734,17 +752,17 @@ class SimpleDataSeeder {
 	
 	async createFixtureNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_FixturesAndResults');
 		
 		for (const row of csvData) {
 			try {
 				// Skip fixtures where "COMP TYPE" is "-" or "OPPOSITION" is "No Game"
-				if (row['COMP TYPE'] === '-' || row['OPPOSITION'] === 'No Game') {
+				if (getColumnValue(row, 'COMP TYPE') === '-' || getColumnValue(row, 'OPPOSITION') === 'No Game') {
 					continue;
 				}
 				
-				// Skip rows with missing essential data
-				if (!row['DATE'] || !row['OPPOSITION'] || row['DATE'].trim() === '' || row['OPPOSITION'].trim() === '') {
-					console.log(`⚠️ Skipping fixture row with missing data: DATE="${row['DATE']}", Opposition="${row['OPPOSITION']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['DATE', 'OPPOSITION'], 'TBL_FixturesAndResults')) {
 					continue;
 				}
 				
@@ -763,16 +781,16 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `fixture_${row['DATE'].replace(/\s+/g, '_')}_${row['OPPOSITION'].replace(/\s+/g, '_')}`,
-					date: row['DATE'],
-					opposition: row['OPPOSITION'],
-					competition: row['COMP TYPE'] || 'Unknown'
+					id: `fixture_${getColumnValue(row, 'DATE').replace(/\s+/g, '_')}_${getColumnValue(row, 'OPPOSITION').replace(/\s+/g, '_')}`,
+					date: getColumnValue(row, 'DATE'),
+					opposition: getColumnValue(row, 'OPPOSITION'),
+					competition: getColumnValue(row, 'COMP TYPE', 'Unknown')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create fixture node for ${row['DATE']}: ${error.message}`);
+				console.error(`❌ Failed to create fixture node for ${getColumnValue(row, 'DATE')}: ${error.message}`);
 			}
 		}
 		
@@ -781,12 +799,12 @@ class SimpleDataSeeder {
 	
 	async createMatchDetailNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_MatchDetails');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['#1 Name'] || row['#1 Name'].trim() === '') {
-					console.log(`⚠️ Skipping match detail row with missing player name: #1 Name="${row['#1 Name']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['PLAYER NAME'], 'TBL_MatchDetails')) {
 					continue;
 				}
 				
@@ -805,16 +823,16 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `matchdetail_${row['#1 Name'].replace(/\s+/g, '_')}_${row['#1 Points'] || '0'}_0`,
-					playerName: row['#1 Name'],
-					goals: row['#1 Points'] || '0',
-					assists: '0'
+					id: `matchdetail_${getColumnValue(row, 'PLAYER NAME').replace(/\s+/g, '_')}_${getColumnValue(row, 'G', '0')}_0`,
+					playerName: getColumnValue(row, 'PLAYER NAME'),
+					goals: getColumnValue(row, 'G', '0'),
+					assists: getColumnValue(row, 'A', '0')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create match detail node for ${row['#1 Name']}: ${error.message}`);
+				console.error(`❌ Failed to create match detail node for ${getColumnValue(row, 'PLAYER NAME')}: ${error.message}`);
 			}
 		}
 		
@@ -823,12 +841,12 @@ class SimpleDataSeeder {
 	
 	async createSiteDetailNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_SiteDetails');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['Title'] || row['Title'].trim() === '') {
-					console.log(`⚠️ Skipping site detail row with missing title: Title="${row['Title']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, [config.expectedHeaders[0]], 'TBL_SiteDetails')) {
 					continue;
 				}
 				
@@ -842,15 +860,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `sitedetail_${row['Title'].replace(/\s+/g, '_')}`,
-					title: row['Title'],
-					value: row['Value'] || 'Unknown'
+					id: `sitedetail_${getColumnValue(row, config.expectedHeaders[0]).replace(/\s+/g, '_')}`,
+					title: getColumnValue(row, config.expectedHeaders[0]),
+					value: getColumnValue(row, config.expectedHeaders[1], 'Unknown')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create site detail node for ${row['Title']}: ${error.message}`);
+				console.error(`❌ Failed to create site detail node for ${getColumnValue(row, config.expectedHeaders[0])}: ${error.message}`);
 				}
 		}
 		
@@ -859,12 +877,12 @@ class SimpleDataSeeder {
 	
 	async createWeeklyTOTWNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_WeeklyTOTW');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['Week'] || !row['Player Name'] || row['Week'].trim() === '' || row['Player Name'].trim() === '') {
-					console.log(`⚠️ Skipping weekly TOTW row with missing data: Week="${row['Week']}", Player="${row['Player Name']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['WEEK', 'STAR MAN'], 'TBL_WeeklyTOTW')) {
 					continue;
 				}
 				
@@ -878,15 +896,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `weeklytotw_${row['Week']}_${row['Player Name'].replace(/\s+/g, '_')}`,
-					week: row['Week'],
-					playerName: row['Player Name']
+					id: `weeklytotw_${getColumnValue(row, 'WEEK')}_${getColumnValue(row, 'STAR MAN').replace(/\s+/g, '_')}`,
+					week: getColumnValue(row, 'WEEK'),
+					playerName: getColumnValue(row, 'STAR MAN')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create weekly TOTW node for ${row['Week']}: ${error.message}`);
+				console.error(`❌ Failed to create weekly TOTW node for ${getColumnValue(row, 'WEEK')}: ${error.message}`);
 			}
 		}
 		
@@ -895,12 +913,12 @@ class SimpleDataSeeder {
 	
 	async createSeasonTOTWNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_SeasonTOTW');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['SEASON'] || !row['STAR MAN'] || row['SEASON'].trim() === '' || row['STAR MAN'].trim() === '') {
-					console.log(`⚠️ Skipping season TOTW row with missing data: SEASON="${row['SEASON']}", STAR MAN="${row['STAR MAN']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['SEASON', 'STAR MAN'], 'TBL_SeasonTOTW')) {
 					continue;
 				}
 				
@@ -917,15 +935,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `seasontotw_${row['SEASON']}_${row['STAR MAN'].replace(/\s+/g, '_')}`,
-					season: row['SEASON'],
-					playerName: row['STAR MAN']
+					id: `seasontotw_${getColumnValue(row, 'SEASON')}_${getColumnValue(row, 'STAR MAN').replace(/\s+/g, '_')}`,
+					season: getColumnValue(row, 'SEASON'),
+					playerName: getColumnValue(row, 'STAR MAN')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create season TOTW node for ${row['SEASON']}: ${error.message}`);
+				console.error(`❌ Failed to create season TOTW node for ${getColumnValue(row, 'SEASON')}: ${error.message}`);
 			}
 		}
 		
@@ -934,12 +952,12 @@ class SimpleDataSeeder {
 	
 	async createPlayerOfTheMonthNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_PlayersOfTheMonth');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['DATE'] || !row['#1 Name'] || row['DATE'].trim() === '' || row['#1 Name'].trim() === '') {
-					console.log(`⚠️ Skipping player of the month row with missing data: DATE="${row['DATE']}", #1 Name="${row['#1 Name']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['DATE', '#1 Name'], 'TBL_PlayersOfTheMonth')) {
 					continue;
 				}
 				
@@ -956,15 +974,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `playerofthemonth_${row['DATE'].replace(/\s+/g, '_')}_${row['#1 Name'].replace(/\s+/g, '_')}`,
-					month: row['DATE'],
-					playerName: row['#1 Name']
+					id: `playerofthemonth_${getColumnValue(row, 'DATE').replace(/\s+/g, '_')}_${getColumnValue(row, '#1 Name').replace(/\s+/g, '_')}`,
+					month: getColumnValue(row, 'DATE'),
+					playerName: getColumnValue(row, '#1 Name')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create player of the month node for ${row['DATE']}: ${error.message}`);
+				console.error(`❌ Failed to create player of the month node for ${getColumnValue(row, 'DATE')}: ${error.message}`);
 			}
 		}
 		
@@ -973,37 +991,32 @@ class SimpleDataSeeder {
 	
 	async createCaptainAndAwardNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_CaptainsAndAwards');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['Season'] || !row['Type'] || !row['Player Name'] || 
-					row['Season'].trim() === '' || row['Type'].trim() === '' || row['Player Name'].trim() === '') {
-					console.log(`⚠️ Skipping captain/award row with missing data: Season="${row['Season']}", Type="${row['Type']}", Player="${row['Player Name']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['Item'], 'TBL_CaptainsAndAwards')) {
 					continue;
 				}
 				
 				const query = `
 					CREATE (ca:CaptainAndAward {
 						id: $id,
-						season: $season,
-						type: $type,
-						playerName: $playerName,
+						item: $item,
 						graphLabel: 'dorkiniansWebsite'
 					})
 				`;
 				
 				const params = {
-					id: `captainaward_${row['Season']}_${row['Type']}_${row['Player Name'].replace(/\s+/g, '_')}`,
-					season: row['Season'],
-					type: row['Type'],
-					playerName: row['Player Name']
+					id: `captainaward_${getColumnValue(row, 'Item').replace(/\s+/g, '_')}`,
+					item: getColumnValue(row, 'Item')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create captain/award node for ${row['Season']}: ${error.message}`);
+				console.error(`❌ Failed to create captain/award node for ${getColumnValue(row, 'Item')}: ${error.message}`);
 			}
 		}
 		
@@ -1012,12 +1025,12 @@ class SimpleDataSeeder {
 	
 	async createOppositionDetailNodes(csvData) {
 		let nodesCreated = 0;
+		const config = getCSVHeaderConfig('TBL_OppositionDetails');
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['Name'] || row['Name'].trim() === '') {
-					console.log(`⚠️ Skipping opposition detail row with missing name: Name="${row['Name']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['OPPOSITION'], 'TBL_OppositionDetails')) {
 					continue;
 				}
 				
@@ -1030,14 +1043,14 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `opposition_${row['Name'].replace(/\s+/g, '_')}`,
-					name: row['Name']
+					id: `opposition_${getColumnValue(row, 'OPPOSITION').replace(/\s+/g, '_')}`,
+					name: getColumnValue(row, 'OPPOSITION')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create opposition detail node for ${row['Name']}: ${error.message}`);
+				console.error(`❌ Failed to create opposition detail node for ${getColumnValue(row, 'OPPOSITION')}: ${error.message}`);
 			}
 		}
 		
@@ -1049,9 +1062,8 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
-				// Skip rows with missing essential data
-				if (!row['Description'] || row['Description'].trim() === '') {
-					console.log(`⚠️ Skipping test data row with missing description: Description="${row['Description']}"`);
+				// Skip rows with missing essential data using dynamic column mapping
+				if (!validateRequiredColumns(row, ['PLAYER NAME'], 'TBL_TestData')) {
 					continue;
 				}
 				
@@ -1064,14 +1076,14 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `testdata_${row['Description'].replace(/\s+/g, '_')}`,
-					description: row['Description']
+					id: `testdata_${getColumnValue(row, 'PLAYER NAME').replace(/\s+/g, '_')}`,
+					description: getColumnValue(row, 'PLAYER NAME')
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create test data node for ${row['Description']}: ${error.message}`);
+				console.error(`❌ Failed to create test data node for ${getColumnValue(row, 'PLAYER NAME')}: ${error.message}`);
 			}
 		}
 		
