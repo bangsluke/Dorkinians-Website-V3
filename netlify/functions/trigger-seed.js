@@ -1218,25 +1218,6 @@ exports.handler = async (event, context) => {
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
 	};
 
-	// Set up timeout handler for 30-minute limit
-	const timeoutHandler = setTimeout(async () => {
-		console.log('⏰ TIMEOUT HANDLER: Function timeout reached (30 minutes)');
-		try {
-			await emailService.sendSeedingSummaryEmail({
-				success: false,
-				environment: event.queryStringParameters?.environment || 'production',
-				nodesCreated: 0,
-				relationshipsCreated: 0,
-				errorCount: 1,
-				errors: ['Function timeout: Seeding process exceeded 30 minutes'],
-				duration: 0
-			});
-			console.log('📧 TIMEOUT: Email notification sent');
-		} catch (emailError) {
-			console.warn('⚠️ TIMEOUT: Failed to send timeout email:', emailError);
-		}
-	}, 29 * 60 * 1000); // 29 minutes to ensure email is sent before function timeout
-
 	// Handle preflight request
 	if (event.httpMethod === 'OPTIONS') {
 		console.log('🔄 PREFLIGHT: Handling OPTIONS request');
@@ -1268,6 +1249,10 @@ exports.handler = async (event, context) => {
 
 		console.log(`🚀 TRIGGER: Triggering database seeding for environment: ${environment}`);
 
+		// Generate unique job ID
+		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+		console.log('🆔 TRIGGER: Generated job ID:', jobId);
+
 		// Configure email service with environment variables (available during execution)
 		console.log('📧 EMAIL: Configuring email service...');
 		emailService.configure();
@@ -1275,48 +1260,51 @@ exports.handler = async (event, context) => {
 		// Send start notification
 		console.log('📧 START: Attempting to send start notification...');
 		try {
-			await emailService.sendSeedingStartEmail(environment);
+			await emailService.sendSeedingStartEmail(environment, jobId);
 			console.log('✅ START: Start notification sent successfully');
 		} catch (emailError) {
 			console.warn('⚠️ START: Failed to send start notification:', emailError);
 			// Don't fail the function if email fails
 		}
 
-		// Execute seeding directly
-		console.log('🌱 SEEDING: Starting direct seeding execution...');
-		const startTime = Date.now();
-		const result = await executeSeedingDirectly(environment, context);
-		const duration = Date.now() - startTime;
-		console.log('⏱️ TIMING: Seeding execution completed in', duration, 'ms');
-
-		// Send email notification
-		console.log('📧 COMPLETION: Attempting to send completion notification...');
+		// Start background seeding process
+		console.log('🌱 BACKGROUND: Starting background seeding process...');
 		try {
-			await sendSeedingNotification(result, environment, duration);
-			console.log('✅ COMPLETION: Completion notification sent successfully');
-		} catch (emailError) {
-			console.warn('⚠️ COMPLETION: Failed to send email notification:', emailError);
-			// Don't fail the function if email fails
+			// Trigger background seeding function
+			const backgroundResponse = await fetch(`${process.env.URL || 'https://dorkinians-website-v3.netlify.app'}/.netlify/functions/background-seed`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					environment,
+					jobId
+				})
+			});
+
+			if (backgroundResponse.ok) {
+				console.log('✅ BACKGROUND: Background seeding started successfully');
+			} else {
+				console.warn('⚠️ BACKGROUND: Background seeding may have failed to start');
+			}
+		} catch (backgroundError) {
+			console.warn('⚠️ BACKGROUND: Failed to start background seeding:', backgroundError);
+			// Continue with immediate response - background process may still work
 		}
 
-		// Clear timeout handler
-		console.log('🧹 CLEANUP: Clearing timeout handler...');
-		clearTimeout(timeoutHandler);
-
-		// Return success response
-		console.log('✅ SUCCESS: Returning success response');
+		// Return immediate response
+		console.log('✅ SUCCESS: Returning immediate response');
 		return {
 			statusCode: 200,
 			headers: { ...headers, 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				success: true,
-				message: 'Database seeding completed successfully',
+				message: 'Database seeding started in background',
 				environment,
+				jobId,
 				timestamp: new Date().toISOString(),
-				result: {
-					...result,
-					duration
-				}
+				status: 'started',
+				note: 'Seeding is running in background. Check email for completion notification.'
 			})
 		};
 
@@ -1324,16 +1312,13 @@ exports.handler = async (event, context) => {
 		console.error('❌ ERROR: Main execution error:', error);
 		console.error('❌ ERROR: Stack trace:', error.stack);
 
-		// Clear timeout handler
-		console.log('🧹 CLEANUP: Clearing timeout handler due to error...');
-		clearTimeout(timeoutHandler);
-
 		// Send failure notification
 		console.log('📧 FAILURE: Attempting to send failure notification...');
 		try {
 			await emailService.sendSeedingSummaryEmail({
 				success: false,
 				environment: event.queryStringParameters?.environment || 'production',
+				jobId: 'unknown',
 				nodesCreated: 0,
 				relationshipsCreated: 0,
 				errorCount: 1,
@@ -1349,7 +1334,7 @@ exports.handler = async (event, context) => {
 			statusCode: 500,
 			headers: { ...headers, 'Content-Type': 'application/json' },
 			body: JSON.stringify({
-				error: 'Failed to complete database seeding',
+				error: 'Failed to start database seeding',
 				message: error.message,
 				timestamp: new Date().toISOString()
 			})
