@@ -1,8 +1,8 @@
 const { DataSeeder } = require('./lib/neo4j');
-const { SimpleEmailService } = require('./lib/services/emailService');
+const { EmailService } = require('./lib/services/emailService');
 const { initializeProgress, setStepProgress, completeProgress } = require('./seed-status');
 
-const emailService = new SimpleEmailService();
+const emailService = new EmailService();
 
 exports.handler = async (event, context) => {
 	console.log('🚀 BACKGROUND: Background seeding function initiated');
