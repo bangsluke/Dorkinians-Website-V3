@@ -2,7 +2,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Import CSV header configuration
-const { getCSVHeaderConfig } = require('../../lib/config/csvHeaders');
+const { getCSVHeaderConfig } = require('./lib/config/csvHeaders');
 
 // Helper functions for dynamic column mapping
 function getColumnValue(row, columnName, fallback = '') {
