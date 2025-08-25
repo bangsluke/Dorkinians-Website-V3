@@ -1,5 +1,5 @@
-const { DataSeeder } = require('../../lib/neo4j/seed');
-const { SimpleEmailService } = require('../../lib/services/emailService');
+const { DataSeeder } = require('./lib/neo4j');
+const { SimpleEmailService } = require('./lib/services/emailService');
 const { initializeProgress, setStepProgress, completeProgress } = require('./seed-status');
 
 const emailService = new SimpleEmailService();
