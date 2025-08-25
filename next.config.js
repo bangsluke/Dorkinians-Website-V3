@@ -8,15 +8,14 @@ const withPWA = require("next-pwa")({
 
 const nextConfig = {
 	// output: 'export', // Disabled to enable API routes
-	trailingSlash: true,
 	images: {
 		unoptimized: true,
 		domains: ["docs.google.com"],
 	},
 	// Enable API routes for development and production
-	experimental: {
-		appDir: true
-	}
+	// experimental: {
+	// 	appDir: true
+	// }
 };
 
 module.exports = withPWA(nextConfig);

@@ -1,24 +1,24 @@
 [build]
   command = "npm run build"
-  publish = "out"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "18"
   NODE_ENV = "production"
 
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
 [functions]
   directory = "netlify/functions"
+
+[functions."trigger-seed"]
+  timeout = 1800
 
 # Handle static assets
 [[redirects]]
   from = "/_next/*"
   to = "/_next/:splat"
-  status = 200
-
-# Handle API routes - only chatbot now
-[[redirects]]
-  from = "/api/chatbot"
-  to = "/.netlify/functions/chatbot"
   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
