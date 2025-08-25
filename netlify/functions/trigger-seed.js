@@ -293,20 +293,14 @@ For detailed error logs, check the Heroku logs.
 const emailService = new SimpleEmailService();
 
 exports.handler = async (event, context) => {
-	console.log('🚀 FUNCTION START: trigger-seed handler initiated');
-	console.log('📊 Event details:', JSON.stringify(event, null, 2));
-	console.log('⏰ Context remaining time:', context.getRemainingTimeInMillis(), 'ms');
-	
-	// Set CORS headers
 	const headers = {
 		'Access-Control-Allow-Origin': '*',
 		'Access-Control-Allow-Headers': 'Content-Type',
-		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+		'Access-Control-Allow-Methods': 'POST, OPTIONS'
 	};
 
-	// Handle preflight request
+	// Handle preflight requests
 	if (event.httpMethod === 'OPTIONS') {
-		console.log('🔄 PREFLIGHT: Handling OPTIONS request');
 		return {
 			statusCode: 200,
 			headers,
@@ -314,27 +308,20 @@ exports.handler = async (event, context) => {
 		};
 	}
 
+	// Only allow POST requests
+	if (event.httpMethod !== 'POST') {
+		return {
+			statusCode: 405,
+			headers,
+			body: JSON.stringify({ error: 'Method not allowed' })
+		};
+	}
+
 	try {
-		console.log('🔧 MAIN: Starting main execution logic');
+		// Force production environment for security
+		const environment = 'production';
+		console.log(`🚀 TRIGGER: Enforcing production environment for database seeding`);
 		
-		// Parse request
-		const { environment = 'production', force = false } = event.queryStringParameters || {};
-		console.log('🌍 ENVIRONMENT: Target environment:', environment);
-		
-		// Validate environment
-		if (!['development', 'production'].includes(environment)) {
-			console.log('❌ VALIDATION: Invalid environment detected');
-			return {
-				statusCode: 400,
-				headers: { ...headers, 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					error: 'Invalid environment. Use "development" or "production"'
-				})
-			};
-		}
-
-		console.log(`🚀 TRIGGER: Triggering database seeding for environment: ${environment}`);
-
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		console.log('🆔 TRIGGER: Generated job ID:', jobId);
@@ -346,7 +333,7 @@ exports.handler = async (event, context) => {
 		// Send start notification
 		console.log('📧 START: Attempting to send start notification...');
 		try {
-			await emailService.sendSeedingStartEmail(environment, jobId);
+			await emailService.sendSeedingStartEmail(environment);
 			console.log('✅ START: Start notification sent successfully');
 		} catch (emailError) {
 			console.warn('⚠️ START: Failed to send start notification:', emailError);
@@ -404,7 +391,7 @@ exports.handler = async (event, context) => {
 		try {
 			await emailService.sendSeedingSummaryEmail({
 				success: false,
-				environment: event.queryStringParameters?.environment || 'production',
+				environment: 'production', // Always production for failure
 				jobId: 'unknown',
 				nodesCreated: 0,
 				relationshipsCreated: 0,
