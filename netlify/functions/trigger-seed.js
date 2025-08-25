@@ -1008,9 +1008,6 @@ class SimpleDataSeeder {
 const dataSeeder = new SimpleDataSeeder();
 const emailService = new SimpleEmailService();
 
-// Configure email service with environment variables
-emailService.configure();
-
 exports.handler = async (event, context) => {
 	// Set CORS headers
 	const headers = {
@@ -1062,6 +1059,9 @@ exports.handler = async (event, context) => {
 		}
 
 		console.log(`🚀 Triggering database seeding for environment: ${environment}`);
+
+		// Configure email service with environment variables (available during execution)
+		emailService.configure();
 
 		// Send start notification
 		try {
