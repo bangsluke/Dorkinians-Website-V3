@@ -436,6 +436,11 @@ class SimpleDataSeeder {
 					
 					console.log(`📥 Processing ${csvResult.data.length} rows from ${csvResult.name}`);
 					
+					// Log sample data for debugging
+					if (csvResult.data.length > 0) {
+						console.log(`🔍 Sample data from ${csvResult.name}:`, JSON.stringify(csvResult.data[0], null, 2));
+					}
+					
 					// Process the data based on source type
 					const result = await this.processDataSource(csvResult.name, csvResult.data);
 					totalNodesCreated += result.nodesCreated;
@@ -560,6 +565,12 @@ class SimpleDataSeeder {
 					continue;
 				}
 				
+				// Skip rows with missing essential data
+				if (!row['Name'] || row['Name'].trim() === '') {
+					console.log(`⚠️ Skipping player row with missing name: Name="${row['Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (p:Player {
 						id: $id,
@@ -570,8 +581,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `player_${row['ID'] || row['Name']}`,
-					name: row['Name'] || 'Unknown',
+					id: `player_${row['Name'].replace(/\s+/g, '_')}`,
+					name: row['Name'],
 					position: row['Position'] || 'Unknown'
 				};
 				
@@ -595,6 +606,12 @@ class SimpleDataSeeder {
 					continue;
 				}
 				
+				// Skip rows with missing essential data
+				if (!row['Date'] || !row['OPPOSITION'] || row['Date'].trim() === '' || row['OPPOSITION'].trim() === '') {
+					console.log(`⚠️ Skipping fixture row with missing data: Date="${row['Date']}", Opposition="${row['OPPOSITION']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (f:Fixture {
 						id: $id,
@@ -606,9 +623,9 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `fixture_${row['ID'] || row['Date']}`,
-					date: row['Date'] || 'Unknown',
-					opposition: row['OPPOSITION'] || 'Unknown',
+					id: `fixture_${row['Date'].replace(/\s+/g, '_')}_${row['OPPOSITION'].replace(/\s+/g, '_')}`,
+					date: row['Date'],
+					opposition: row['OPPOSITION'],
 					competition: row['COMP TYPE'] || 'Unknown'
 				};
 				
@@ -627,6 +644,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Player Name'] || row['Player Name'].trim() === '') {
+					console.log(`⚠️ Skipping match detail row with missing player name: Player Name="${row['Player Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (md:MatchDetail {
 						id: $id,
@@ -638,8 +661,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `matchdetail_${row['ID'] || row['Player Name']}`,
-					playerName: row['Player Name'] || 'Unknown',
+					id: `matchdetail_${row['Player Name'].replace(/\s+/g, '_')}_${row['Goals'] || '0'}_${row['Assists'] || '0'}`,
+					playerName: row['Player Name'],
 					goals: row['Goals'] || '0',
 					assists: row['Assists'] || '0'
 				};
@@ -659,6 +682,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Title'] || row['Title'].trim() === '') {
+					console.log(`⚠️ Skipping site detail row with missing title: Title="${row['Title']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (sd:SiteDetail {
 						id: $id,
@@ -669,8 +698,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `sitedetail_${row['ID'] || row['Title']}`,
-					title: row['Title'] || 'Unknown',
+					id: `sitedetail_${row['Title'].replace(/\s+/g, '_')}`,
+					title: row['Title'],
 					value: row['Value'] || 'Unknown'
 				};
 				
@@ -678,7 +707,7 @@ class SimpleDataSeeder {
 				nodesCreated++;
 			} catch (error) {
 				console.error(`❌ Failed to create site detail node for ${row['Title']}: ${error.message}`);
-			}
+				}
 		}
 		
 		return nodesCreated;
@@ -689,6 +718,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Week'] || !row['Player Name'] || row['Week'].trim() === '' || row['Player Name'].trim() === '') {
+					console.log(`⚠️ Skipping weekly TOTW row with missing data: Week="${row['Week']}", Player="${row['Player Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (wt:WeeklyTOTW {
 						id: $id,
@@ -699,9 +734,9 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `weeklytotw_${row['ID'] || row['Week']}`,
-					week: row['Week'] || 'Unknown',
-					playerName: row['Player Name'] || 'Unknown'
+					id: `weeklytotw_${row['Week']}_${row['Player Name'].replace(/\s+/g, '_')}`,
+					week: row['Week'],
+					playerName: row['Player Name']
 				};
 				
 				await this.session.run(query, params);
@@ -719,6 +754,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Season'] || !row['Player Name'] || row['Season'].trim() === '' || row['Player Name'].trim() === '') {
+					console.log(`⚠️ Skipping season TOTW row with missing data: Season="${row['Season']}", Player="${row['Player Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (st:SeasonTOTW {
 						id: $id,
@@ -729,9 +770,9 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `seasontotw_${row['ID'] || row['Season']}`,
-					season: row['Season'] || 'Unknown',
-					playerName: row['Player Name'] || 'Unknown'
+					id: `seasontotw_${row['Season']}_${row['Player Name'].replace(/\s+/g, '_')}`,
+					season: row['Season'],
+					playerName: row['Player Name']
 				};
 				
 				await this.session.run(query, params);
@@ -749,6 +790,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Month'] || !row['Player Name'] || row['Month'].trim() === '' || row['Player Name'].trim() === '') {
+					console.log(`⚠️ Skipping player of the month row with missing data: Month="${row['Month']}", Player="${row['Player Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (pm:PlayerOfTheMonth {
 						id: $id,
@@ -759,9 +806,9 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `playerofthemonth_${row['ID'] || row['Month']}`,
-					month: row['Month'] || 'Unknown',
-					playerName: row['Player Name'] || 'Unknown'
+					id: `playerofthemonth_${row['Month']}_${row['Player Name'].replace(/\s+/g, '_')}`,
+					month: row['Month'],
+					playerName: row['Player Name']
 				};
 				
 				await this.session.run(query, params);
@@ -779,6 +826,13 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Season'] || !row['Type'] || !row['Player Name'] || 
+					row['Season'].trim() === '' || row['Type'].trim() === '' || row['Player Name'].trim() === '') {
+					console.log(`⚠️ Skipping captain/award row with missing data: Season="${row['Season']}", Type="${row['Type']}", Player="${row['Player Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (ca:CaptainAndAward {
 						id: $id,
@@ -790,10 +844,10 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `captainaward_${row['ID'] || row['Season']}`,
-					season: row['Season'] || 'Unknown',
-					type: row['Type'] || 'Unknown',
-					playerName: row['Player Name'] || 'Unknown'
+					id: `captainaward_${row['Season']}_${row['Type']}_${row['Player Name'].replace(/\s+/g, '_')}`,
+					season: row['Season'],
+					type: row['Type'],
+					playerName: row['Player Name']
 				};
 				
 				await this.session.run(query, params);
@@ -811,6 +865,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Name'] || row['Name'].trim() === '') {
+					console.log(`⚠️ Skipping opposition detail row with missing name: Name="${row['Name']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (od:OppositionDetail {
 						id: $id,
@@ -820,8 +880,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `opposition_${row['ID'] || row['Name']}`,
-					name: row['Name'] || 'Unknown'
+					id: `opposition_${row['Name'].replace(/\s+/g, '_')}`,
+					name: row['Name']
 				};
 				
 				await this.session.run(query, params);
@@ -839,6 +899,12 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Skip rows with missing essential data
+				if (!row['Description'] || row['Description'].trim() === '') {
+					console.log(`⚠️ Skipping test data row with missing description: Description="${row['Description']}"`);
+					continue;
+				}
+				
 				const query = `
 					CREATE (td:TestData {
 						id: $id,
@@ -848,8 +914,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `testdata_${row['ID'] || row['Description']}`,
-					description: row['Description'] || 'Unknown'
+					id: `testdata_${row['Description'].replace(/\s+/g, '_')}`,
+					description: row['Description']
 				};
 				
 				await this.session.run(query, params);
