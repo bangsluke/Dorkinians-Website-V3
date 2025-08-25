@@ -1,5 +1,6 @@
-const { DataSeeder } = require('./lib/neo4j/seed');
-const { SimpleEmailService } = require('./lib/services/emailService');
+const { DataSeeder } = require('../../lib/neo4j/seed');
+const { SimpleEmailService } = require('../../lib/services/emailService');
+const { initializeProgress, setStepProgress, completeProgress } = require('./seed-status');
 
 const emailService = new SimpleEmailService();
 
@@ -51,12 +52,19 @@ exports.handler = async (event, context) => {
 		console.log('🌍 BACKGROUND: Target environment:', environment);
 		console.log('🆔 BACKGROUND: Job ID:', jobId);
 
+		// Initialize progress tracking
+		const totalSteps = 12; // Total steps in seeding process
+		initializeProgress(jobId, totalSteps);
+		console.log('📊 BACKGROUND: Progress tracking initialized');
+
 		// Configure email service
 		console.log('📧 BACKGROUND: Configuring email service...');
+		setStepProgress(jobId, 1, 'Configuring email service');
 		emailService.configure();
 
 		// Send start notification
 		console.log('📧 BACKGROUND: Sending start notification...');
+		setStepProgress(jobId, 2, 'Sending start notification');
 		try {
 			await emailService.sendSeedingStartEmail(environment, jobId);
 			console.log('✅ BACKGROUND: Start notification sent successfully');
@@ -71,8 +79,12 @@ exports.handler = async (event, context) => {
 		const duration = Date.now() - startTime;
 		console.log('⏱️ BACKGROUND: Seeding execution completed in', duration, 'ms');
 
+		// Complete progress tracking
+		completeProgress(jobId, result.success, result);
+
 		// Send completion notification
 		console.log('📧 BACKGROUND: Sending completion notification...');
+		setStepProgress(jobId, totalSteps, 'Sending completion notification');
 		try {
 			await emailService.sendSeedingSummaryEmail({
 				success: result.success,
@@ -103,13 +115,24 @@ exports.handler = async (event, context) => {
 				result: {
 					...result,
 					duration
-				}
+				},
+				statusUrl: `/.netlify/functions/seed-status?jobId=${jobId}`
 			})
 		};
 
 	} catch (error) {
 		console.error('❌ BACKGROUND: Main execution error:', error);
 		console.error('❌ BACKGROUND: Stack trace:', error.stack);
+
+		// Update progress with failure
+		if (event.body) {
+			try {
+				const { jobId } = JSON.parse(event.body);
+				completeProgress(jobId, false, { error: error.message });
+			} catch (parseError) {
+				console.warn('⚠️ BACKGROUND: Could not update progress for failure');
+			}
+		}
 
 		// Send failure notification
 		console.log('📧 BACKGROUND: Attempting to send failure notification...');
@@ -148,22 +171,28 @@ async function executeBackgroundSeeding(environment, jobId) {
 	// Set environment variables
 	process.env.NODE_ENV = environment;
 	console.log('🔧 BACKGROUND: Environment variables set');
+	setStepProgress(jobId, 3, 'Setting environment variables');
 	
 	try {
 		console.log('🔌 BACKGROUND: Initializing data seeder service...');
+		setStepProgress(jobId, 4, 'Initializing data seeder service');
 		const dataSeeder = new DataSeeder();
 		await dataSeeder.initialize();
 		console.log('✅ BACKGROUND: Data seeder initialized successfully');
 		
 		console.log('🌱 BACKGROUND: Executing seeding process...');
+		setStepProgress(jobId, 5, 'Starting data seeding process');
 		const seedingResult = await dataSeeder.seedAllData();
 		console.log('✅ BACKGROUND: Seeding process completed');
+		setStepProgress(jobId, 6, 'Data seeding completed');
 		
 		console.log('📊 BACKGROUND: Counting errors from log...');
+		setStepProgress(jobId, 7, 'Processing results and counting errors');
 		const errorCount = countErrorsFromLog();
 		console.log('📊 BACKGROUND: Error count:', errorCount);
 		
 		console.log('📤 BACKGROUND: Preparing return result...');
+		setStepProgress(jobId, 8, 'Preparing final results');
 		return {
 			success: true,
 			exitCode: 0,
@@ -176,6 +205,7 @@ async function executeBackgroundSeeding(environment, jobId) {
 	} catch (error) {
 		console.error('❌ BACKGROUND: Seeding failed:', error);
 		console.error('❌ BACKGROUND: Stack trace:', error.stack);
+		setStepProgress(jobId, 9, 'Error occurred during seeding');
 		return {
 			success: false,
 			exitCode: 1,
@@ -187,6 +217,7 @@ async function executeBackgroundSeeding(environment, jobId) {
 	} finally {
 		// Clean up connections
 		console.log('🧹 BACKGROUND: Starting cleanup...');
+		setStepProgress(jobId, 10, 'Cleaning up connections and resources');
 		try {
 			if (dataSeeder) {
 				await dataSeeder.cleanup();
@@ -195,6 +226,7 @@ async function executeBackgroundSeeding(environment, jobId) {
 		} catch (cleanupError) {
 			console.warn('⚠️ BACKGROUND: Cleanup failed:', cleanupError);
 		}
+		setStepProgress(jobId, 11, 'Cleanup completed');
 	}
 }
 
