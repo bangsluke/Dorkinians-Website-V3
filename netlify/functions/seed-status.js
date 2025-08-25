@@ -1,5 +1,3 @@
-const { DataSeeder } = require('./lib/neo4j/seed');
-
 // In-memory progress tracking (for demo - in production, use Redis or database)
 const seedingProgress = new Map();
 
