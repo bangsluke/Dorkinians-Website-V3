@@ -1008,6 +1008,9 @@ class SimpleDataSeeder {
 const dataSeeder = new SimpleDataSeeder();
 const emailService = new SimpleEmailService();
 
+// Configure email service with environment variables
+emailService.configure();
+
 exports.handler = async (event, context) => {
 	// Set CORS headers
 	const headers = {
