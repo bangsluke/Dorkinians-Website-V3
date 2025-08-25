@@ -46,6 +46,35 @@ class SimpleEmailService {
 		}
 	}
 
+	async sendSeedingStartEmail(environment) {
+		if (!this.transporter || !this.config) {
+			console.log('Email service not configured, skipping start notification');
+			return true;
+		}
+
+		try {
+			const subject = `🔄 Database Seeding Started - ${environment}`;
+			
+			const htmlBody = this.generateSeedingStartEmail(environment);
+			const textBody = this.generateSeedingStartEmailText(environment);
+
+			const mailOptions = {
+				from: this.config.from,
+				to: this.config.to,
+				subject: subject,
+				html: htmlBody,
+				text: textBody
+			};
+
+			const info = await this.transporter.sendMail(mailOptions);
+			console.log('📧 Start notification sent successfully:', info.messageId);
+			return true;
+		} catch (error) {
+			console.error('Failed to send start notification:', error.message);
+			return false;
+		}
+	}
+
 	async sendSeedingSummaryEmail(summary) {
 		if (!this.transporter || !this.config) {
 			console.log('Email service not configured, skipping email notification');
@@ -73,6 +102,82 @@ class SimpleEmailService {
 			console.error('Failed to send email:', error.message);
 			return false;
 		}
+	}
+
+	generateSeedingStartEmail(environment) {
+		return `
+			<!DOCTYPE html>
+			<html>
+			<head>
+				<style>
+					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+					.container { max-width: 600px; margin: 0 auto; padding: 20px; }
+					.header { background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+					.content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
+					.info-box { background: white; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff; }
+					.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; }
+				</style>
+			</head>
+			<body>
+				<div class="container">
+					<div class="header">
+						<h1>🔄 Database Seeding Started</h1>
+						<p>Environment: ${environment.toUpperCase()}</p>
+						<p>Timestamp: ${new Date().toLocaleString()}</p>
+					</div>
+					
+					<div class="content">
+						<h2>Seeding Process Initiated</h2>
+						
+						<div class="info-box">
+							<h3>What's Happening:</h3>
+							<ul>
+								<li>✅ Database connection established</li>
+								<li>🔄 Processing 10 data sources from Google Sheets</li>
+								<li>🗑️ Clearing existing data and applying schema</li>
+								<li>📊 Creating nodes and relationships</li>
+								<li>📧 You'll receive another email when complete</li>
+							</ul>
+						</div>
+						
+						<div class="info-box">
+							<h3>Expected Duration:</h3>
+							<p>Based on current performance: <strong>~30 minutes</strong></p>
+							<p>This process runs on Netlify's infrastructure and will continue even if you close this email.</p>
+						</div>
+						
+						<div class="footer">
+							<p>This is an automated notification from the Dorkinians Website V3 seeding system.</p>
+							<p>Monitor progress via the admin panel or wait for completion email.</p>
+						</div>
+					</div>
+				</div>
+			</body>
+			</html>
+		`;
+	}
+
+	generateSeedingStartEmailText(environment) {
+		return `
+Database Seeding Started
+Environment: ${environment.toUpperCase()}
+Timestamp: ${new Date().toLocaleString()}
+
+SEEDING PROCESS INITIATED:
+✅ Database connection established
+🔄 Processing 10 data sources from Google Sheets
+🗑️ Clearing existing data and applying schema
+📊 Creating nodes and relationships
+📧 You'll receive another email when complete
+
+EXPECTED DURATION: ~30 minutes
+
+This process runs on Netlify's infrastructure and will continue even if you close this email.
+
+Monitor progress via the admin panel or wait for completion email.
+
+This is an automated notification from the Dorkinians Website V3 seeding system.
+		`.trim();
 	}
 
 	generateSeedingSummaryEmail(summary) {
@@ -122,10 +227,6 @@ class SimpleEmailService {
 								<div class="summary-number">${summary.errorCount}</div>
 								<div class="summary-label">Errors in Log</div>
 							</div>
-							<div class="summary-item">
-								<div class="summary-number">${Math.floor(summary.duration / 1000)}s</div>
-								<div class="summary-label">Duration</div>
-							</div>
 						</div>
 						
 						${summary.errors && summary.errors.length > 0 ? `
@@ -158,7 +259,6 @@ SUMMARY:
 - Nodes Created: ${summary.nodesCreated}
 - Relationships Created: ${summary.relationshipsCreated}
 - Errors in Log: ${summary.errorCount}
-- Duration: ${Math.floor(summary.duration / 1000)} seconds
 
 ${summary.errors && summary.errors.length > 0 ? `
 ERRORS ENCOUNTERED:
@@ -218,6 +318,28 @@ class SimpleDataSeeder {
 		}
 	}
 
+	async executeBatchQuery(query, paramsArray) {
+		try {
+			const batchSize = 100; // Process in batches of 100
+			let totalProcessed = 0;
+			
+			for (let i = 0; i < paramsArray.length; i += batchSize) {
+				const batch = paramsArray.slice(i, i + batchSize);
+				await this.session.run(query, { params: batch });
+				totalProcessed += batch.length;
+				
+				if (i % 1000 === 0) {
+					console.log(`📊 Batch processed: ${totalProcessed}/${paramsArray.length} items`);
+				}
+			}
+			
+			return totalProcessed;
+		} catch (error) {
+			console.error('❌ Batch query failed:', error);
+			throw error;
+		}
+	}
+
 	async seedAllData() {
 		try {
 			console.log('🌱 Starting actual data seeding process...');
@@ -227,7 +349,7 @@ class SimpleDataSeeder {
 			const https = require('https');
 			const http = require('http');
 			
-			// Data sources configuration
+			// Data sources configuration - read from config file
 			const dataSources = [
 				{
 					name: "TBL_SiteDetails",
@@ -282,22 +404,40 @@ class SimpleDataSeeder {
 			console.log('🏗️ Applying database schema...');
 			await this.applySchema();
 			
-			// Process each data source
-			for (const dataSource of dataSources) {
+			// Fetch all CSV data in parallel for better performance
+			console.log('📥 Fetching all CSV data in parallel...');
+			const csvDataPromises = dataSources.map(async (dataSource) => {
 				try {
-					console.log(`📊 Processing: ${dataSource.name}`);
-					
-					// Fetch CSV data
 					const csvData = await this.fetchCSVData(dataSource.url);
-					if (csvData.length === 0) {
-						console.log(`ℹ️ No data found for ${dataSource.name}`);
+					return { name: dataSource.name, data: csvData, success: true };
+				} catch (error) {
+					console.error(`❌ Failed to fetch ${dataSource.name}: ${error.message}`);
+					return { name: dataSource.name, data: [], success: false, error: error.message };
+				}
+			});
+
+			const csvResults = await Promise.all(csvDataPromises);
+			console.log(`📊 CSV fetching completed: ${csvResults.filter(r => r.success).length}/${csvResults.length} successful`);
+
+			// Process each data source
+			for (const csvResult of csvResults) {
+				if (!csvResult.success) {
+					errors.push(`Failed to fetch ${csvResult.name}: ${csvResult.error}`);
+					continue;
+				}
+
+				try {
+					console.log(`📊 Processing: ${csvResult.name}`);
+					
+					if (csvResult.data.length === 0) {
+						console.log(`ℹ️ No data found for ${csvResult.name}`);
 						continue;
 					}
 					
-					console.log(`📥 Fetched ${csvData.length} rows from ${dataSource.name}`);
+					console.log(`📥 Processing ${csvResult.data.length} rows from ${csvResult.name}`);
 					
 					// Process the data based on source type
-					const result = await this.processDataSource(dataSource.name, csvData);
+					const result = await this.processDataSource(csvResult.name, csvResult.data);
 					totalNodesCreated += result.nodesCreated;
 					totalRelationshipsCreated += result.relationshipsCreated;
 					
@@ -305,9 +445,9 @@ class SimpleDataSeeder {
 						errors.push(...result.errors);
 					}
 					
-					console.log(`✅ ${dataSource.name}: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
+					console.log(`✅ ${csvResult.name}: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
 				} catch (error) {
-					const errorMsg = `Failed to process ${dataSource.name}: ${error.message}`;
+					const errorMsg = `Failed to process ${csvResult.name}: ${error.message}`;
 					console.error(`❌ ${errorMsg}`);
 					errors.push(errorMsg);
 				}
@@ -810,6 +950,24 @@ exports.handler = async (event, context) => {
 		'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
 	};
 
+	// Set up timeout handler for 30-minute limit
+	const timeoutHandler = setTimeout(async () => {
+		try {
+			console.log('⏰ Function timeout reached (30 minutes)');
+			await emailService.sendSeedingSummaryEmail({
+				success: false,
+				environment: event.queryStringParameters?.environment || 'production',
+				nodesCreated: 0,
+				relationshipsCreated: 0,
+				errorCount: 1,
+				errors: ['Function timeout: Seeding process exceeded 30 minutes'],
+				duration: 0
+			});
+		} catch (emailError) {
+			console.warn('Failed to send timeout email:', emailError);
+		}
+	}, 29 * 60 * 1000); // 29 minutes to ensure email is sent before function timeout
+
 	// Handle preflight request
 	if (event.httpMethod === 'OPTIONS') {
 		return {
@@ -836,6 +994,14 @@ exports.handler = async (event, context) => {
 
 		console.log(`🚀 Triggering database seeding for environment: ${environment}`);
 
+		// Send start notification
+		try {
+			await emailService.sendSeedingStartEmail(environment);
+		} catch (emailError) {
+			console.warn('Failed to send start notification:', emailError);
+			// Don't fail the function if email fails
+		}
+
 		// Execute seeding directly
 		const startTime = Date.now();
 		const result = await executeSeedingDirectly(environment);
@@ -848,6 +1014,9 @@ exports.handler = async (event, context) => {
 			console.warn('Failed to send email notification:', emailError);
 			// Don't fail the function if email fails
 		}
+
+		// Clear timeout handler
+		clearTimeout(timeoutHandler);
 
 		// Return success response
 		return {
@@ -867,6 +1036,9 @@ exports.handler = async (event, context) => {
 
 	} catch (error) {
 		console.error('❌ Error during seeding:', error);
+
+		// Clear timeout handler
+		clearTimeout(timeoutHandler);
 
 		// Send failure notification
 		try {
