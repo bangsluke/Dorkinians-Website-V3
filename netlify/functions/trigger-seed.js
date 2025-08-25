@@ -417,12 +417,28 @@ class SimpleDataSeeder {
 			});
 
 			const csvResults = await Promise.all(csvDataPromises);
-			console.log(`📊 CSV fetching completed: ${csvResults.filter(r => r.success).length}/${csvResults.length} successful`);
+			const successfulSources = csvResults.filter(r => r.success);
+			const failedSources = csvResults.filter(r => !r.success);
+			
+			console.log(`📊 CSV fetching completed: ${successfulSources.length}/${csvResults.length} successful`);
+			
+			if (failedSources.length > 0) {
+				console.error(`❌ Failed data sources:`);
+				failedSources.forEach(source => {
+					console.error(`   - ${source.name}: ${source.error}`);
+				});
+			}
+			
+			if (successfulSources.length === 0) {
+				throw new Error('All data sources failed to fetch. Check Google Sheets permissions and URLs.');
+			}
 
 			// Process each data source
 			for (const csvResult of csvResults) {
 				if (!csvResult.success) {
-					errors.push(`Failed to fetch ${csvResult.name}: ${csvResult.error}`);
+					const errorMsg = `Failed to fetch ${csvResult.name}: ${csvResult.error}`;
+					console.error(`❌ ${errorMsg}`);
+					errors.push(errorMsg);
 					continue;
 				}
 
@@ -491,6 +507,12 @@ class SimpleDataSeeder {
 			const protocol = url.startsWith('https:') ? require('https') : require('http');
 			
 			protocol.get(url, (res) => {
+				// Check if response is actually CSV
+				const contentType = res.headers['content-type'] || '';
+				if (!contentType.includes('text/csv') && !contentType.includes('text/plain')) {
+					console.warn(`⚠️ Warning: ${url} returned content-type: ${contentType}`);
+				}
+				
 				let data = '';
 				
 				res.on('data', (chunk) => {
@@ -498,11 +520,40 @@ class SimpleDataSeeder {
 				});
 				
 				res.on('end', () => {
+					// Check if data looks like HTML (common error case)
+					if (data.includes('<html') || data.includes('<HTML') || data.includes('<!DOCTYPE')) {
+						console.error(`❌ ${url} returned HTML instead of CSV. This usually means:`);
+						console.error(`   - The Google Sheet is no longer publicly accessible`);
+						console.error(`   - The URL has expired or changed`);
+						console.error(`   - Authentication is now required`);
+						console.error(`   - Sample HTML content: ${data.substring(0, 200)}...`);
+						reject(new Error(`URL returned HTML instead of CSV. Check sheet permissions and URL validity.`));
+						return;
+					}
+					
+					// Check if data looks like CSV
+					if (!data.includes(',') || data.split('\n').length < 2) {
+						console.error(`❌ ${url} returned invalid CSV data. Content preview: ${data.substring(0, 200)}...`);
+						reject(new Error(`Invalid CSV data received. Expected comma-separated values.`));
+						return;
+					}
+					
 					try {
 						const Papa = require('papaparse');
 						const result = Papa.parse(data, { header: true });
-						// Less aggressive filtering - keep rows that have at least one non-empty value
-						// and log the actual data structure for debugging
+						
+						// Validate that we got actual CSV data with proper headers
+						if (result.data.length === 0 || Object.keys(result.data[0] || {}).length === 0) {
+							console.error(`❌ ${url} parsed but has no valid data rows or headers`);
+							reject(new Error(`CSV parsed but contains no valid data rows.`));
+							return;
+						}
+						
+						// Log the actual headers we received
+						const headers = Object.keys(result.data[0] || {});
+						console.log(`📊 CSV headers from ${url}: ${headers.join(', ')}`);
+						
+						// Filter out completely empty rows
 						const filteredData = result.data.filter(row => {
 							const hasData = Object.values(row).some(val => val && val.trim() !== '');
 							if (!hasData) {
@@ -510,13 +561,22 @@ class SimpleDataSeeder {
 							}
 							return hasData;
 						});
+						
 						console.log(`📊 CSV parsed: ${result.data.length} total rows, ${filteredData.length} non-empty rows`);
+						
+						if (filteredData.length === 0) {
+							console.warn(`⚠️ Warning: All rows were filtered out from ${url}`);
+						}
+						
 						resolve(filteredData);
 					} catch (error) {
+						console.error(`❌ Failed to parse CSV from ${url}: ${error.message}`);
+						console.error(`Data preview: ${data.substring(0, 200)}...`);
 						reject(new Error(`Failed to parse CSV: ${error.message}`));
 					}
 				});
 			}).on('error', (error) => {
+				console.error(`❌ Network error fetching ${url}: ${error.message}`);
 				reject(new Error(`Failed to fetch CSV: ${error.message}`));
 			});
 		});
