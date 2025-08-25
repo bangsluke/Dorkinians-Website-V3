@@ -1,0 +1,29 @@
+{
+  "name": "dorkinians-seeder",
+  "version": "1.0.0",
+  "description": "Dorkinians FC Database Seeding Service",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "seed": "node index.js seed",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": "18.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "neo4j-driver": "^5.15.0",
+    "nodemailer": "^7.0.5",
+    "papaparse": "^5.5.3",
+    "dotenv": "^17.2.1",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["neo4j", "seeding", "football", "statistics"],
+  "author": "Dorkinians FC",
+  "license": "MIT"
+}
