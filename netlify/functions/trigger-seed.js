@@ -546,6 +546,11 @@ class SimpleDataSeeder {
 					});
 					
 					res.on('end', () => {
+						console.log(`🔍 Raw data received from ${fetchUrl}:`);
+						console.log(`   - Data length: ${data.length} characters`);
+						console.log(`   - First 500 chars: ${data.substring(0, 500)}`);
+						console.log(`   - Last 200 chars: ${data.substring(Math.max(0, data.length - 200))}`);
+						
 						// Check if data looks like HTML (common error case)
 						if (data.includes('<html') || data.includes('<HTML') || data.includes('<!DOCTYPE')) {
 							console.error(`❌ ${fetchUrl} returned HTML instead of CSV. This usually means:`);
@@ -564,13 +569,32 @@ class SimpleDataSeeder {
 							return;
 						}
 						
+						// Log raw CSV structure
+						const lines = data.split('\n');
+						console.log(`🔍 CSV structure analysis:`);
+						console.log(`   - Total lines: ${lines.length}`);
+						console.log(`   - Line 1 (headers): ${lines[0]}`);
+						console.log(`   - Line 2 (first data): ${lines[1]}`);
+						console.log(`   - Line 3 (second data): ${lines[2]}`);
+						
 						try {
 							const Papa = require('papaparse');
+							console.log(`🔍 Parsing CSV with Papa.parse...`);
 							const result = Papa.parse(data, { header: true });
+							
+							console.log(`🔍 Papa.parse result:`);
+							console.log(`   - Success: ${result.success}`);
+							console.log(`   - Errors: ${result.errors.length}`);
+							if (result.errors.length > 0) {
+								console.log(`   - Error details:`, JSON.stringify(result.errors, null, 2));
+							}
+							console.log(`   - Meta:`, JSON.stringify(result.meta, null, 2));
 							
 							// Validate that we got actual CSV data with proper headers
 							if (result.data.length === 0 || Object.keys(result.data[0] || {}).length === 0) {
 								console.error(`❌ ${fetchUrl} parsed but has no valid data rows or headers`);
+								console.error(`   - Result data length: ${result.data.length}`);
+								console.error(`   - First row keys:`, Object.keys(result.data[0] || {}));
 								reject(new Error(`CSV parsed but contains no valid data rows.`));
 								return;
 							}
@@ -578,6 +602,11 @@ class SimpleDataSeeder {
 							// Log the actual headers we received
 							const headers = Object.keys(result.data[0] || {});
 							console.log(`📊 CSV headers from ${fetchUrl}: ${headers.join(', ')}`);
+							
+							// Log sample parsed data
+							if (result.data.length > 0) {
+								console.log(`🔍 Sample parsed row:`, JSON.stringify(result.data[0], null, 2));
+							}
 							
 							// Filter out completely empty rows
 							const filteredData = result.data.filter(row => {
