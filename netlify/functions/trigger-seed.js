@@ -506,79 +506,109 @@ class SimpleDataSeeder {
 		return new Promise((resolve, reject) => {
 			const protocol = url.startsWith('https:') ? require('https') : require('http');
 			
-			protocol.get(url, (res) => {
-				// Check if response is actually CSV
-				const contentType = res.headers['content-type'] || '';
-				if (!contentType.includes('text/csv') && !contentType.includes('text/plain')) {
-					console.warn(`⚠️ Warning: ${url} returned content-type: ${contentType}`);
-				}
+			const fetchWithRedirect = (fetchUrl, isRedirect = false) => {
+				const options = {
+					headers: {
+						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+						'Accept': 'text/csv,text/plain,*/*',
+						'Accept-Language': 'en-US,en;q=0.9',
+						'Cache-Control': 'no-cache'
+					}
+				};
 				
-				let data = '';
-				
-				res.on('data', (chunk) => {
-					data += chunk;
-				});
-				
-				res.on('end', () => {
-					// Check if data looks like HTML (common error case)
-					if (data.includes('<html') || data.includes('<HTML') || data.includes('<!DOCTYPE')) {
-						console.error(`❌ ${url} returned HTML instead of CSV. This usually means:`);
-						console.error(`   - The Google Sheet is no longer publicly accessible`);
-						console.error(`   - The URL has expired or changed`);
-						console.error(`   - Authentication is now required`);
-						console.error(`   - Sample HTML content: ${data.substring(0, 200)}...`);
-						reject(new Error(`URL returned HTML instead of CSV. Check sheet permissions and URL validity.`));
-						return;
+				protocol.get(fetchUrl, options, (res) => {
+					console.log(`📊 ${isRedirect ? 'Redirect' : 'Initial'} response from ${fetchUrl}: ${res.statusCode}`);
+					
+					// Handle redirects (Google Sheets now uses 307 redirects)
+					if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
+						const location = res.headers.location;
+						if (location) {
+							console.log(`🔄 Following redirect to: ${location}`);
+							// Follow the redirect
+							fetchWithRedirect(location, true);
+							return;
+						} else {
+							reject(new Error(`Redirect response (${res.statusCode}) but no location header`));
+							return;
+						}
 					}
 					
-					// Check if data looks like CSV
-					if (!data.includes(',') || data.split('\n').length < 2) {
-						console.error(`❌ ${url} returned invalid CSV data. Content preview: ${data.substring(0, 200)}...`);
-						reject(new Error(`Invalid CSV data received. Expected comma-separated values.`));
-						return;
+					// Check if response is actually CSV
+					const contentType = res.headers['content-type'] || '';
+					if (!contentType.includes('text/csv') && !contentType.includes('text/plain')) {
+						console.warn(`⚠️ Warning: ${fetchUrl} returned content-type: ${contentType}`);
 					}
 					
-					try {
-						const Papa = require('papaparse');
-						const result = Papa.parse(data, { header: true });
-						
-						// Validate that we got actual CSV data with proper headers
-						if (result.data.length === 0 || Object.keys(result.data[0] || {}).length === 0) {
-							console.error(`❌ ${url} parsed but has no valid data rows or headers`);
-							reject(new Error(`CSV parsed but contains no valid data rows.`));
+					let data = '';
+					
+					res.on('data', (chunk) => {
+						data += chunk;
+					});
+					
+					res.on('end', () => {
+						// Check if data looks like HTML (common error case)
+						if (data.includes('<html') || data.includes('<HTML') || data.includes('<!DOCTYPE')) {
+							console.error(`❌ ${fetchUrl} returned HTML instead of CSV. This usually means:`);
+							console.error(`   - The Google Sheet is no longer publicly accessible`);
+							console.error(`   - The URL has expired or changed`);
+							console.error(`   - Authentication is now required`);
+							console.error(`   - Sample HTML content: ${data.substring(0, 200)}...`);
+							reject(new Error(`URL returned HTML instead of CSV. Check sheet permissions and URL validity.`));
 							return;
 						}
 						
-						// Log the actual headers we received
-						const headers = Object.keys(result.data[0] || {});
-						console.log(`📊 CSV headers from ${url}: ${headers.join(', ')}`);
-						
-						// Filter out completely empty rows
-						const filteredData = result.data.filter(row => {
-							const hasData = Object.values(row).some(val => val && val.trim() !== '');
-							if (!hasData) {
-								console.log(`🔍 Filtered out empty row:`, JSON.stringify(row));
-							}
-							return hasData;
-						});
-						
-						console.log(`📊 CSV parsed: ${result.data.length} total rows, ${filteredData.length} non-empty rows`);
-						
-						if (filteredData.length === 0) {
-							console.warn(`⚠️ Warning: All rows were filtered out from ${url}`);
+						// Check if data looks like CSV
+						if (!data.includes(',') || data.split('\n').length < 2) {
+							console.error(`❌ ${fetchUrl} returned invalid CSV data. Content preview: ${data.substring(0, 200)}...`);
+							reject(new Error(`Invalid CSV data received. Expected comma-separated values.`));
+							return;
 						}
 						
-						resolve(filteredData);
-					} catch (error) {
-						console.error(`❌ Failed to parse CSV from ${url}: ${error.message}`);
-						console.error(`Data preview: ${data.substring(0, 200)}...`);
-						reject(new Error(`Failed to parse CSV: ${error.message}`));
-					}
+						try {
+							const Papa = require('papaparse');
+							const result = Papa.parse(data, { header: true });
+							
+							// Validate that we got actual CSV data with proper headers
+							if (result.data.length === 0 || Object.keys(result.data[0] || {}).length === 0) {
+								console.error(`❌ ${fetchUrl} parsed but has no valid data rows or headers`);
+								reject(new Error(`CSV parsed but contains no valid data rows.`));
+								return;
+							}
+							
+							// Log the actual headers we received
+							const headers = Object.keys(result.data[0] || {});
+							console.log(`📊 CSV headers from ${fetchUrl}: ${headers.join(', ')}`);
+							
+							// Filter out completely empty rows
+							const filteredData = result.data.filter(row => {
+								const hasData = Object.values(row).some(val => val && val.trim() !== '');
+								if (!hasData) {
+									console.log(`🔍 Filtered out empty row:`, JSON.stringify(row));
+								}
+								return hasData;
+							});
+							
+							console.log(`📊 CSV parsed: ${result.data.length} total rows, ${filteredData.length} non-empty rows`);
+							
+							if (filteredData.length === 0) {
+								console.warn(`⚠️ Warning: All rows were filtered out from ${fetchUrl}`);
+							}
+							
+							resolve(filteredData);
+						} catch (error) {
+							console.error(`❌ Failed to parse CSV from ${fetchUrl}: ${error.message}`);
+							console.error(`Data preview: ${data.substring(0, 200)}...`);
+							reject(new Error(`Failed to parse CSV: ${error.message}`));
+						}
+					});
+				}).on('error', (error) => {
+					console.error(`❌ Network error fetching ${fetchUrl}: ${error.message}`);
+					reject(new Error(`Failed to fetch CSV: ${error.message}`));
 				});
-			}).on('error', (error) => {
-				console.error(`❌ Network error fetching ${url}: ${error.message}`);
-				reject(new Error(`Failed to fetch CSV: ${error.message}`));
-			});
+			};
+			
+			// Start the fetch process
+			fetchWithRedirect(url);
 		});
 	}
 	
