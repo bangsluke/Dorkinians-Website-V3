@@ -51,8 +51,8 @@ async function seedDatabase(): Promise<void> {
 	console.log(`📊 Processing all data sources`);
 
 	try {
-		// Set NODE_ENV based on the environment parameter
-		process.env.NODE_ENV = environment;
+		// Note: NODE_ENV is read-only in Next.js, using environment parameter instead
+		const currentEnv = environment;
 
 		// Check environment variables based on the target environment
 		if (environment === "production") {

@@ -50,7 +50,8 @@
 		"eslint": "^8.56.0",
 		"eslint-config-next": "14.0.4",
 		"prettier": "^3.6.2",
-		"ts-node": "^10.9.2"
+		"ts-node": "^10.9.2",
+		"@netlify/functions": "^2.0.0"
 	},
 	"engines": {
 		"node": ">=18.0.0"
