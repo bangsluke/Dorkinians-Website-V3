@@ -1,4 +1,4 @@
-const { DataSeeder } = require('./lib/neo4j');
+const { DataSeederService } = require('./lib/services/dataSeederService');
 const { EmailService } = require('./lib/services/emailService');
 const { initializeProgress, setStepProgress, completeProgress } = require('./seed-status');
 
@@ -176,7 +176,7 @@ async function executeBackgroundSeeding(environment, jobId) {
 	try {
 		console.log('🔌 BACKGROUND: Initializing data seeder service...');
 		setStepProgress(jobId, 4, 'Initializing data seeder service');
-		const dataSeeder = new DataSeeder();
+		const dataSeeder = new DataSeederService();
 		await dataSeeder.initialize();
 		console.log('✅ BACKGROUND: Data seeder initialized successfully');
 		
