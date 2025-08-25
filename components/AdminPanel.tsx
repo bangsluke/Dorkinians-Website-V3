@@ -19,10 +19,11 @@ interface SeedingResult {
 }
 
 export default function AdminPanel() {
-	const [environment, setEnvironment] = useState<'production' | 'development'>('production');
 	const [isLoading, setIsLoading] = useState(false);
 	const [result, setResult] = useState<SeedingResult | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [jobId, setJobId] = useState<string | null>(null);
+	const [statusCheckLoading, setStatusCheckLoading] = useState(false);
 
 	const triggerSeeding = async () => {
 		setIsLoading(true);
@@ -34,7 +35,7 @@ export default function AdminPanel() {
 			setResult({
 				success: true,
 				message: 'Database seeding started successfully',
-				environment,
+				environment: 'production',
 				timestamp: new Date().toISOString(),
 				result: {
 					success: true,
@@ -47,7 +48,7 @@ export default function AdminPanel() {
 				}
 			});
 
-			const response = await fetch(`/.netlify/functions/trigger-seed?environment=${environment}`, {
+			const response = await fetch(`/.netlify/functions/trigger-seed?environment=production`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -58,6 +59,10 @@ export default function AdminPanel() {
 
 			if (response.ok) {
 				setResult(data);
+				// Extract job ID for status checking
+				if (data.jobId) {
+					setJobId(data.jobId);
+				}
 			} else {
 				setError(data.error || 'Failed to trigger seeding');
 			}
@@ -65,6 +70,88 @@ export default function AdminPanel() {
 			setError(err instanceof Error ? err.message : 'Network error');
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const checkStatus = async () => {
+		if (!jobId) {
+			setError('No job ID available. Please trigger seeding first.');
+			return;
+		}
+
+		setStatusCheckLoading(true);
+		setError(null);
+
+		try {
+			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+
+			if (response.ok) {
+				const statusData = await response.json();
+				
+				// Update result with current status
+				if (statusData.status === 'completed' && statusData.result) {
+					setResult({
+						success: true,
+						message: 'Seeding completed successfully',
+						environment: 'production',
+						timestamp: statusData.endTime || new Date().toISOString(),
+						result: {
+							success: statusData.result.success,
+							exitCode: statusData.result.success ? 0 : 1,
+							nodesCreated: statusData.result.nodesCreated || 0,
+							relationshipsCreated: statusData.result.relationshipsCreated || 0,
+							errorCount: statusData.result.errors?.length || 0,
+							errors: statusData.result.errors || [],
+							duration: statusData.result.duration || 0
+						}
+					});
+				} else if (statusData.status === 'failed') {
+					setResult({
+						success: false,
+						message: 'Seeding failed',
+						environment: 'production',
+						timestamp: statusData.endTime || new Date().toISOString(),
+						result: {
+							success: false,
+							exitCode: 1,
+							nodesCreated: 0,
+							relationshipsCreated: 0,
+							errorCount: 1,
+							errors: [statusData.error || 'Unknown error'],
+							duration: 0
+						}
+					});
+				} else {
+					// Still running
+					setResult({
+						success: true,
+						message: `Seeding in progress: ${statusData.currentStep || 'Processing'}`,
+						environment: 'production',
+						timestamp: new Date().toISOString(),
+						result: {
+							success: true,
+							exitCode: 0,
+							nodesCreated: 0,
+							relationshipsCreated: 0,
+							errorCount: 0,
+							errors: [],
+							duration: 0
+						}
+					});
+				}
+			} else {
+				setError('Failed to check status');
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Network error');
+		} finally {
+			setStatusCheckLoading(false);
 		}
 	};
 
@@ -80,23 +167,16 @@ export default function AdminPanel() {
 						<input
 							type="radio"
 							value="production"
-							checked={environment === 'production'}
-							onChange={(e) => setEnvironment(e.target.value as 'production' | 'development')}
+							checked={true}
 							className="mr-2"
+							disabled
 						/>
-						Production
-					</label>
-					<label className="flex items-center">
-						<input
-							type="radio"
-							value="development"
-							checked={environment === 'development'}
-							onChange={(e) => setEnvironment(e.target.value as 'production' | 'development')}
-							className="mr-2"
-						/>
-						Development
+						Production (Live Database)
 					</label>
 				</div>
+				<p className="text-sm text-gray-600 mt-2">
+					⚠️ This will seed the production Neo4j database. Development seeding has been disabled.
+				</p>
 			</div>
 
 			{/* Trigger Button */}
@@ -114,6 +194,21 @@ export default function AdminPanel() {
 				</button>
 			</div>
 
+			{/* Status Check Button */}
+			<div className="mb-6">
+				<button
+					onClick={checkStatus}
+					disabled={statusCheckLoading || !jobId}
+					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+						statusCheckLoading || !jobId
+							? 'bg-gray-400 cursor-not-allowed'
+							: 'bg-purple-600 hover:bg-purple-700'
+					}`}
+				>
+					{statusCheckLoading ? '🔄 Checking Status...' : '🔍 Check Seeding Status'}
+				</button>
+			</div>
+
 			{/* Error Display */}
 			{error && (
 				<div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -125,20 +220,20 @@ export default function AdminPanel() {
 			{/* Result Display */}
 			{result && (
 				<div className={`mb-6 p-4 rounded-lg border ${
-					isLoading 
+					isLoading || statusCheckLoading
 						? 'bg-blue-50 border-blue-200' 
 						: result.result.success 
 							? 'bg-green-50 border-green-200' 
 							: 'bg-red-50 border-red-200'
 				}`}>
 					<h3 className={`text-lg font-semibold mb-3 ${
-						isLoading 
+						isLoading || statusCheckLoading
 							? 'text-blue-800' 
 							: result.result.success 
 								? 'text-green-800' 
 								: 'text-red-800'
 					}`}>
-						{isLoading ? '🔄 Seeding in Progress...' : 'Seeding Result'}
+						{isLoading || statusCheckLoading ? '🔄 Seeding in Progress...' : 'Seeding Result'}
 					</h3>
 					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -166,32 +261,32 @@ export default function AdminPanel() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-blue-600">
-								{isLoading ? '🔄' : result.result.nodesCreated}
+								{isLoading || statusCheckLoading ? '🔄' : result.result.nodesCreated}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading ? 'Processing...' : 'Nodes Created'}
+								{isLoading || statusCheckLoading ? 'Processing...' : 'Nodes Created'}
 							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-green-600">
-								{isLoading ? '🔄' : result.result.relationshipsCreated}
+								{isLoading || statusCheckLoading ? '🔄' : result.result.relationshipsCreated}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading ? 'Processing...' : 'Relationships Created'}
+								{isLoading || statusCheckLoading ? 'Processing...' : 'Relationships Created'}
 							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-red-600">
-								{isLoading ? '🔄' : result.result.errorCount}
+								{isLoading || statusCheckLoading ? '🔄' : result.result.errorCount}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading ? 'Processing...' : 'Errors Found'}
+								{isLoading || statusCheckLoading ? 'Processing...' : 'Errors Found'}
 							</p>
 						</div>
 					</div>
 
 					{/* Progress Indicator */}
-					{isLoading && (
+					{isLoading || statusCheckLoading && (
 						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
 							<div className="flex items-center gap-3">
 								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
