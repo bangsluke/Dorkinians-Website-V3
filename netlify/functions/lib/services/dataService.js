@@ -1,34 +1,21 @@
-import Papa from "papaparse";
-import fs from "fs";
-import path from "path";
+const Papa = require("papaparse");
+const fs = require("fs");
+const path = require("path");
 
-export interface CSVData {
-	[key: string]: string | number;
-}
+class DataService {
+	constructor() {
+		this.cache = new Map();
+		this.cacheStats = { hits: 0, misses: 0, size: 0 };
+	}
 
-// For header-based CSV parsing, data is an object with column names
-export type CSVRow = CSVData;
-
-export interface DataSource {
-	name: string;
-	url: string;
-	type: string;
-	maxRows?: number; // Optional property for reduced seeding mode
-}
-
-export class DataService {
-	private static instance: DataService;
-	private cache: Map<string, any> = new Map();
-	private cacheStats = { hits: 0, misses: 0, size: 0 };
-
-	static getInstance(): DataService {
+	static getInstance() {
 		if (!DataService.instance) {
 			DataService.instance = new DataService();
 		}
 		return DataService.instance;
 	}
 
-	async fetchCSVData(dataSource: DataSource, reducedMode: boolean = false, maxRows: number = 50): Promise<CSVRow[]> {
+	async fetchCSVData(dataSource, reducedMode = false, maxRows = 50) {
 		const cacheKey = `${dataSource.name}-${reducedMode}-${maxRows}`;
 		
 		// Check cache first
@@ -45,7 +32,7 @@ export class DataService {
 				console.log(`📊 Reduced mode: Processing max ${maxRows} rows`);
 			}
 
-			let csvText: string;
+			let csvText;
 
 			// Handle local file URLs
 			if (dataSource.url.startsWith("file://")) {
@@ -73,7 +60,7 @@ export class DataService {
 				transformHeader: (header) => header.trim(),
 			});
 
-			let rows = result.data as CSVRow[];
+			let rows = result.data;
 
 			// Apply row limit if in reduced mode
 			if (reducedMode && maxRows > 0) {
@@ -94,8 +81,8 @@ export class DataService {
 		}
 	}
 
-	async fetchAllDataSources(dataSources: DataSource[]): Promise<Map<string, CSVRow[]>> {
-		const results = new Map<string, CSVRow[]>();
+	async fetchAllDataSources(dataSources) {
+		const results = new Map();
 
 		const promises = dataSources.map(async (source) => {
 			try {
@@ -111,13 +98,13 @@ export class DataService {
 		return results;
 	}
 
-	clearCache(): void {
+	clearCache() {
 		this.cache.clear();
 		this.cacheStats = { hits: 0, misses: 0, size: 0 };
 		console.log("🗑️ Data cache cleared");
 	}
 
-	getCacheStats(): { size: number; sources: string[] } {
+	getCacheStats() {
 		return {
 			size: this.cacheStats.size,
 			sources: Array.from(this.cache.keys()),
@@ -125,4 +112,9 @@ export class DataService {
 	}
 }
 
-export const dataService = DataService.getInstance();
+const dataService = DataService.getInstance();
+
+module.exports = {
+	DataService,
+	dataService
+};
