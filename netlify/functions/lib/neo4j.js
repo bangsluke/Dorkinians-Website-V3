@@ -1,9 +1,11 @@
-import neo4j, { Driver, Session, Record } from "neo4j-driver";
+const neo4j = require("neo4j-driver");
 
 class Neo4jService {
-	private driver: Driver | null = null;
-	private isConnected: boolean = false;
-	private readonly GRAPH_LABEL = "dorkiniansWebsite";
+	constructor() {
+		this.driver = null;
+		this.isConnected = false;
+		this.GRAPH_LABEL = "dorkiniansWebsite";
+	}
 
 	async connect() {
 		try {
@@ -50,7 +52,7 @@ class Neo4jService {
 		}
 	}
 
-	getSession(): Session | null {
+	getSession() {
 		if (!this.driver || !this.isConnected) {
 			console.warn("⚠️ Neo4j not connected");
 			return null;
@@ -58,7 +60,7 @@ class Neo4jService {
 		return this.driver.session();
 	}
 
-	async executeQuery(query: string, params: any = {}) {
+	async executeQuery(query, params = {}) {
 		if (!this.driver) {
 			throw new Error("Neo4j driver not initialized");
 		}
@@ -74,7 +76,7 @@ class Neo4jService {
 		}
 	}
 
-	async runQuery(query: string, params: any = {}) {
+	async runQuery(query, params = {}) {
 		if (!this.driver) {
 			throw new Error("Neo4j driver not initialized");
 		}
@@ -90,7 +92,7 @@ class Neo4jService {
 		}
 	}
 
-	async createNode(label: string, properties: any) {
+	async createNode(label, properties) {
 		if (!this.driver) {
 			throw new Error("Neo4j driver not initialized");
 		}
@@ -100,279 +102,183 @@ class Neo4jService {
 			const nodeProperties = {
 				...properties,
 				graphLabel: this.GRAPH_LABEL,
-				createdAt: new Date().toISOString(),
+				createdAt: new Date().toISOString()
 			};
 
-			const query = `
-        CREATE (n:${label} $properties)
-        RETURN n
-      `;
+			const query = `CREATE (n:${label} $properties) RETURN n`;
 			const result = await session.run(query, { properties: nodeProperties });
-			const node = result.records[0]?.get("n");
-			return node ? node.identity.toString() : null;
+			
+			if (result.records.length > 0) {
+				const node = result.records[0].get('n');
+				console.log(`✅ Created ${label} node:`, node.properties);
+				return node;
+			}
+			return null;
 		} catch (error) {
-			console.error("❌ Node creation failed:", error);
+			console.error(`❌ Failed to create ${label} node:`, error);
 			throw error;
 		} finally {
 			await session.close();
 		}
 	}
 
-	async createNodeIfNotExists(label: string, properties: any) {
+	async createRelationship(fromLabel, fromProps, toLabel, toProps, relationshipType, relProps = {}) {
 		if (!this.driver) {
 			throw new Error("Neo4j driver not initialized");
 		}
 		const session = this.driver.session();
 		try {
-			// Add graphLabel and createdAt to properties
-			const nodeProperties = {
-				...properties,
-				graphLabel: this.GRAPH_LABEL,
-				createdAt: new Date().toISOString(),
-			};
-
 			const query = `
-        MERGE (n:${label} {id: $id, graphLabel: $graphLabel})
-        ON CREATE SET n += $properties
-        RETURN n
-      `;
-			const result = await session.run(query, {
-				id: properties.id,
-				graphLabel: this.GRAPH_LABEL,
-				properties: nodeProperties,
-			});
-			const node = result.records[0]?.get("n");
-			return node ? node.identity.toString() : null;
+				MATCH (from:${fromLabel} $fromProps), (to:${toLabel} $toProps)
+				CREATE (from)-[r:${relationshipType} $relProps]->(to)
+				RETURN r
+			`;
+			const result = await session.run(query, { fromProps, toProps, relProps });
+			
+			if (result.records.length > 0) {
+				const relationship = result.records[0].get('r');
+				console.log(`✅ Created ${relationshipType} relationship:`, relationship.properties);
+				return relationship;
+			}
+			return null;
 		} catch (error) {
-			console.error("❌ Node creation/merge failed:", error);
+			console.error(`❌ Failed to create ${relationshipType} relationship:`, error);
 			throw error;
 		} finally {
 			await session.close();
 		}
 	}
 
-	async ensureNodeExists(label: string, id: string, maxRetries: number = 3): Promise<boolean> {
-		for (let attempt = 1; attempt <= maxRetries; attempt++) {
-			try {
-				const query = `
-          MATCH (n:${label} {id: $id, graphLabel: $graphLabel})
-          RETURN n
-          LIMIT 1
-        `;
-				
-				const result = await this.runQuery(query, { id, graphLabel: this.GRAPH_LABEL });
-				
-				if (result.records.length > 0) {
-					return true;
-				}
-				
-				if (attempt < maxRetries) {
-					console.log(`⏳ Node ${label}:${id} not found, retrying in 100ms (attempt ${attempt}/${maxRetries})`);
-					await new Promise(resolve => setTimeout(resolve, 100));
-				}
-			} catch (error) {
-				console.warn(`⚠️ Error checking node existence (attempt ${attempt}):`, error);
-				if (attempt < maxRetries) {
-					await new Promise(resolve => setTimeout(resolve, 100));
-				}
-			}
-		}
-		
-		return false;
-	}
-
-	async createRelationship(
-		fromLabel: string,
-		fromProps: any,
-		relationshipType: string,
-		toLabel: string,
-		toProps: any,
-		relationshipProps: any = {},
-	) {
+	async findNode(label, properties) {
 		if (!this.driver) {
 			throw new Error("Neo4j driver not initialized");
 		}
 		const session = this.driver.session();
 		try {
-			// Ensure both nodes exist with retry logic
-			const fromNodeExists = await this.ensureNodeExists(fromLabel, fromProps.id);
-			if (!fromNodeExists) {
-				throw new Error(`From node not found after retries: ${fromLabel}:${fromProps.id}`);
-			}
-
-			const toNodeExists = await this.ensureNodeExists(toLabel, toProps.id);
-			if (!toNodeExists) {
-				throw new Error(`To node not found after retries: ${toLabel}:${toProps.id}`);
-			}
-
-			// Check if relationship already exists to prevent duplicates
-			const existingRelQuery = `
-        MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})-[r:${relationshipType}]->(to:${toLabel} {id: $toId, graphLabel: $graphLabel})
-        RETURN r
-        LIMIT 1
-      `;
+			const query = `MATCH (n:${label} $properties) RETURN n LIMIT 1`;
+			const result = await session.run(query, { properties });
 			
-			const existingRel = await session.run(existingRelQuery, {
-				fromId: fromProps.id,
-				toId: toProps.id,
-				graphLabel: this.GRAPH_LABEL,
-			});
-
-			if (existingRel.records.length > 0) {
-				console.log(`ℹ️ Relationship ${relationshipType} already exists between ${fromProps.id} and ${toProps.id}`);
-				return existingRel.records[0].get("r");
+			if (result.records.length > 0) {
+				return result.records[0].get('n');
 			}
-
-			// Create the relationship
-			const createRelQuery = `
-        MATCH (from:${fromLabel} {id: $fromId, graphLabel: $graphLabel})
-        MATCH (to:${toLabel} {id: $toId, graphLabel: $graphLabel})
-        CREATE (from)-[r:${relationshipType} $relProps]->(to)
-        RETURN r
-      `;
-
-			const params = {
-				fromId: fromProps.id,
-				toId: toProps.id,
-				graphLabel: this.GRAPH_LABEL,
-				relProps: {
-					...relationshipProps,
-					graphLabel: this.GRAPH_LABEL,
-					createdAt: new Date().toISOString(),
-				},
-			};
-
-			const result = await session.run(createRelQuery, params);
-			const relationship = result.records[0]?.get("r");
-			
-			if (relationship) {
-				console.log(`✅ Created ${relationshipType} relationship: ${fromProps.id} → ${toProps.id}`);
-			} else {
-				throw new Error(`Failed to create ${relationshipType} relationship between ${fromProps.id} and ${toProps.id}`);
-			}
-			
-			return relationship;
+			return null;
 		} catch (error) {
-			console.error(`❌ Relationship creation failed for ${relationshipType} between ${fromProps.id} and ${toProps.id}:`, error);
+			console.error(`❌ Failed to find ${label} node:`, error);
 			throw error;
 		} finally {
 			await session.close();
 		}
 	}
 
-	// Method to get all nodes with graphLabel
-	async getNodesByGraphLabel(label?: string) {
-		const session = this.getSession();
-		if (!session) {
-			throw new Error("No active Neo4j session");
+	async updateNode(label, matchProps, updateProps) {
+		if (!this.driver) {
+			throw new Error("Neo4j driver not initialized");
 		}
-
+		const session = this.driver.session();
 		try {
-			const nodeLabel = label ? `:${label}` : "";
 			const query = `
-        MATCH (n${nodeLabel} {graphLabel: $graphLabel})
-        RETURN n
-      `;
-
-			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			return result.records.map((record) => record.get("n"));
+				MATCH (n:${label} $matchProps)
+				SET n += $updateProps
+				SET n.updatedAt = datetime()
+				RETURN n
+			`;
+			const result = await session.run(query, { matchProps, updateProps });
+			
+			if (result.records.length > 0) {
+				const node = result.records[0].get('n');
+				console.log(`✅ Updated ${label} node:`, node.properties);
+				return node;
+			}
+			return null;
+		} catch (error) {
+			console.error(`❌ Failed to update ${label} node:`, error);
+			throw error;
 		} finally {
 			await session.close();
 		}
 	}
 
-	async clearGraphData() {
+	async deleteNode(label, properties) {
+		if (!this.driver) {
+			throw new Error("Neo4j driver not initialized");
+		}
+		const session = this.driver.session();
 		try {
-			console.log(`🗑️ Clearing graph data for graphLabel: ${this.GRAPH_LABEL}`);
-
-			const query = `
-        MATCH (n {graphLabel: $graphLabel})
-        OPTIONAL MATCH (n)-[r]-()
-        DELETE r, n
-      `;
-
-			if (!this.driver) {
-				throw new Error("Neo4j driver not initialized");
-			}
-			const session = this.driver.session();
-			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			await session.close();
-
-			console.log(`✅ Only nodes with graphLabel: ${this.GRAPH_LABEL} were affected`);
-
-			return {
-				nodesDeleted: 0, // Simplified for now
-				relationshipsDeleted: 0,
-			};
+			const query = `MATCH (n:${label} $properties) DETACH DELETE n RETURN count(n) as deleted`;
+			const result = await session.run(query, { properties });
+			
+			const deletedCount = result.records[0].get('deleted').toNumber();
+			console.log(`✅ Deleted ${deletedCount} ${label} node(s)`);
+			return deletedCount;
 		} catch (error) {
-			console.error("❌ Failed to clear graph data:", error);
-		}
-	}
-
-	async deleteNodesByLabel(label: string) {
-		try {
-			console.log(`🗑️ Deleting ${label} nodes with graphLabel: ${this.GRAPH_LABEL}`);
-
-			const query = `
-        MATCH (n:${label} {graphLabel: $graphLabel})
-        OPTIONAL MATCH (n)-[r]-()
-        DELETE r, n
-      `;
-
-			if (!this.driver) {
-				throw new Error("Neo4j driver not initialized");
-			}
-			const session = this.driver.session();
-			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			await session.close();
-
-			console.log(`🗑️ Deleted ${label} nodes`);
-			return {
-				nodesDeleted: 0, // Simplified for now
-				relationshipsDeleted: 0,
-			};
-		} catch (error) {
-			console.error(`❌ Failed to delete ${label} nodes:`, error);
-		}
-	}
-
-	// Method to get database statistics for dorkiniansWebsite data only
-	async getDatabaseStats() {
-		const session = this.getSession();
-		if (!session) {
-			throw new Error("No active Neo4j session");
-		}
-
-		try {
-			const query = `
-        MATCH (n {graphLabel: $graphLabel})
-        RETURN 
-          labels(n) as label,
-          count(n) as count
-        ORDER BY count DESC
-      `;
-
-			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			return result.records.map((record) => ({
-				label: record.get("label"),
-				count: record.get("count").toNumber(),
-			}));
+			console.error(`❌ Failed to delete ${label} node:`, error);
+			throw error;
 		} finally {
 			await session.close();
 		}
 	}
 
-	isConnectedStatus(): boolean {
+	async clearAllData() {
+		if (!this.driver) {
+			throw new Error("Neo4j driver not initialized");
+		}
+		const session = this.driver.session();
+		try {
+			const query = `MATCH (n {graphLabel: $graphLabel}) DETACH DELETE n RETURN count(n) as deleted`;
+			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
+			
+			const deletedCount = result.records[0].get('deleted').toNumber();
+			console.log(`🗑️ Cleared ${deletedCount} nodes and relationships`);
+			return deletedCount;
+		} catch (error) {
+			console.error("❌ Failed to clear data:", error);
+			throw error;
+		} finally {
+			await session.close();
+		}
+	}
+
+	async getDataStats() {
+		if (!this.driver) {
+			throw new Error("Neo4j driver not initialized");
+		}
+		const session = this.driver.session();
+		try {
+			const query = `
+				MATCH (n {graphLabel: $graphLabel})
+				RETURN 
+					count(n) as totalNodes,
+					count(DISTINCT labels(n)) as uniqueLabels,
+					count((n)-[r]->()) as totalRelationships
+			`;
+			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
+			
+			if (result.records.length > 0) {
+				const stats = result.records[0];
+				return {
+					totalNodes: stats.get('totalNodes').toNumber(),
+					uniqueLabels: stats.get('uniqueLabels').toNumber(),
+					totalRelationships: stats.get('totalRelationships').toNumber()
+				};
+			}
+			return { totalNodes: 0, uniqueLabels: 0, totalRelationships: 0 };
+		} catch (error) {
+			console.error("❌ Failed to get data stats:", error);
+			throw error;
+		} finally {
+			await session.close();
+		}
+	}
+
+	isConnected() {
 		return this.isConnected;
-	}
-
-	getGraphLabel(): string {
-		return this.GRAPH_LABEL;
 	}
 }
 
-// Export singleton instance
-export const neo4jService = new Neo4jService();
+// Create and export singleton instance
+const neo4jService = new Neo4jService();
 
-// Export for direct use
-export default neo4jService;
+module.exports = {
+	Neo4jService,
+	neo4jService
+};

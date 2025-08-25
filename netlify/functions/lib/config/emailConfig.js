@@ -1,6 +1,6 @@
-import { EmailConfig } from "../services/emailService";
+const { EmailService } = require("../services/emailService");
 
-export const getEmailConfig = (): EmailConfig | null => {
+const getEmailConfig = () => {
 	// Check if email configuration is available
 	const host = process.env.SMTP_SERVER;
 	const port = process.env.SMTP_PORT;
@@ -28,6 +28,11 @@ export const getEmailConfig = (): EmailConfig | null => {
 	};
 };
 
-export const isEmailConfigured = (): boolean => {
+const isEmailConfigured = () => {
 	return getEmailConfig() !== null;
+};
+
+module.exports = {
+	getEmailConfig,
+	isEmailConfigured
 };
