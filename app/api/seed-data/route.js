@@ -1,12 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
-import { dataSeederService } from "@/lib/services/dataSeederService";
-import { dataService } from "@/lib/services/dataService";
-import { csvHeaderValidator } from "@/lib/services/csvHeaderValidator";
-import { emailService } from "@/lib/services/emailService";
-import { getEmailConfig } from "@/lib/config/emailConfig";
-import { getDataSourcesByName } from "@/lib/config/dataSources";
+// CommonJS version of seed-data API route for compatibility
 
-export async function POST(request: NextRequest) {
+const { NextRequest, NextResponse } = require("next/server");
+const { dataSeederService } = require("@/lib/services/dataSeederService");
+const { dataService } = require("@/lib/services/dataService");
+const { csvHeaderValidator } = require("@/lib/services/csvHeaderValidator");
+const { emailService } = require("@/lib/services/emailService");
+const { getEmailConfig } = require("@/lib/config/emailConfig");
+const { getDataSourcesByName } = require("@/lib/config/dataSources");
+
+async function POST(request) {
 	try {
 		const body = await request.json();
 		const { action, dataSources, reducedMode, query, params } = body;
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
 				
 				const result = await neo4jService.runQuery(query, params || {});
 				const data = result.records.map(record => {
-					const obj: { [key: string]: any } = {};
+					const obj = {};
 					record.keys.forEach(key => {
 						obj[String(key)] = record.get(key);
 					});
@@ -101,36 +103,38 @@ export async function POST(request: NextRequest) {
 			console.log("📊 REDUCED MODE: Processing limited rows for testing");
 		}
 
-		// Seed the data with reduced mode flag
-		const result = await dataSeederService.seedAllData(dataSources, reducedMode);
-
-		if (result.success) {
-			console.log(`✅ Data seeding completed: ${result.nodesCreated} nodes, ${result.relationshipsCreated} relationships`);
-		} else {
-			console.log(`⚠️ Data seeding completed with errors: ${result.errors.join(", ")}`);
+		try {
+			// Get the actual data source objects from the names
+			const dataSourceObjects = getDataSourcesByName(dataSources);
+			
+			// Execute the seeding process
+			const result = await dataSeederService.seedAllData(dataSourceObjects, reducedMode);
+			
+			return NextResponse.json({
+				action: "seed",
+				success: result.success,
+				nodesCreated: result.nodesCreated,
+				relationshipsCreated: result.relationshipsCreated,
+				errors: result.errors,
+				unknownNodes: result.unknownNodes,
+				timestamp: new Date().toISOString()
+			});
+			
+		} catch (error) {
+			console.error("❌ Seeding error:", error);
+			return NextResponse.json(
+				{ error: "Seeding failed", details: error instanceof Error ? error.message : String(error) },
+				{ status: 500 }
+			);
 		}
-
-		return NextResponse.json(result);
+		
 	} catch (error) {
-		console.error("❌ Data seeding API error:", error);
-		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+		console.error("❌ Request processing error:", error);
+		return NextResponse.json(
+			{ error: "Request processing failed", details: error instanceof Error ? error.message : String(error) },
+			{ status: 500 }
+		);
 	}
 }
 
-export async function GET() {
-	try {
-		// Get database stats
-		const stats = await dataSeederService.getDatabaseStats();
-		const cacheStats = dataService.getCacheStats();
-
-		return NextResponse.json({
-			database: stats,
-			cache: cacheStats,
-		});
-	} catch (error) {
-		console.error("❌ Stats API error:", error);
-		return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-	}
-}
-
-
+module.exports = { POST };
