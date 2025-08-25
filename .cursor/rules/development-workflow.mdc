@@ -22,6 +22,7 @@ alwaysApply: true
 - **Documentation Synchronization**: Update all related documentation files when making architectural changes
 - **Documentation Status Tracking**: Implement clear status indicators (✅/⚠️/❌) in technical documentation to track implementation progress and system health
 - **Comprehensive Feature Implementation**: When implementing features across multiple components, ensure consistency in implementation and error handling
+- Don't suggest git commands for adding and committing files, simply ask the user to do it manually
 
 ## Module Compatibility
 - Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
