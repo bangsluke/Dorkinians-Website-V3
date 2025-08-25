@@ -30,6 +30,23 @@ export default function AdminPanel() {
 		setResult(null);
 
 		try {
+			// Show immediate feedback that seeding has started
+			setResult({
+				success: true,
+				message: 'Database seeding started successfully',
+				environment,
+				timestamp: new Date().toISOString(),
+				result: {
+					success: true,
+					exitCode: 0,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					errorCount: 0,
+					errors: [],
+					duration: 0
+				}
+			});
+
 			const response = await fetch(`/.netlify/functions/trigger-seed?environment=${environment}`, {
 				method: 'POST',
 				headers: {
@@ -107,8 +124,22 @@ export default function AdminPanel() {
 
 			{/* Result Display */}
 			{result && (
-				<div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-					<h3 className="text-lg font-semibold text-green-800 mb-3">Seeding Result</h3>
+				<div className={`mb-6 p-4 rounded-lg border ${
+					isLoading 
+						? 'bg-blue-50 border-blue-200' 
+						: result.result.success 
+							? 'bg-green-50 border-green-200' 
+							: 'bg-red-50 border-red-200'
+				}`}>
+					<h3 className={`text-lg font-semibold mb-3 ${
+						isLoading 
+							? 'text-blue-800' 
+							: result.result.success 
+								? 'text-green-800' 
+								: 'text-red-800'
+					}`}>
+						{isLoading ? '🔄 Seeding in Progress...' : 'Seeding Result'}
+					</h3>
 					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 						<div>
@@ -134,18 +165,48 @@ export default function AdminPanel() {
 					{/* Statistics */}
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-blue-600">{result.result.nodesCreated}</p>
-							<p className="text-sm text-gray-600">Nodes Created</p>
+							<p className="text-2xl font-bold text-blue-600">
+								{isLoading ? '🔄' : result.result.nodesCreated}
+							</p>
+							<p className="text-sm text-gray-600">
+								{isLoading ? 'Processing...' : 'Nodes Created'}
+							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-green-600">{result.result.relationshipsCreated}</p>
-							<p className="text-sm text-gray-600">Relationships Created</p>
+							<p className="text-2xl font-bold text-green-600">
+								{isLoading ? '🔄' : result.result.relationshipsCreated}
+							</p>
+							<p className="text-sm text-gray-600">
+								{isLoading ? 'Processing...' : 'Relationships Created'}
+							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-red-600">{result.result.errorCount}</p>
-							<p className="text-sm text-gray-600">Errors Found</p>
+							<p className="text-2xl font-bold text-red-600">
+								{isLoading ? '🔄' : result.result.errorCount}
+							</p>
+							<p className="text-sm text-gray-600">
+								{isLoading ? 'Processing...' : 'Errors Found'}
+							</p>
 						</div>
 					</div>
+
+					{/* Progress Indicator */}
+					{isLoading && (
+						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+							<div className="flex items-center gap-3">
+								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+								<div>
+									<p className="font-semibold text-blue-800">Seeding in Progress</p>
+									<p className="text-sm text-blue-600">
+										Processing 10 data sources from Google Sheets...
+									</p>
+									<p className="text-xs text-blue-500 mt-1">
+										Expected duration: ~30 minutes. Check your email for start and completion notifications.
+									</p>
+								</div>
+							</div>
+						</div>
+					)}
 
 					{/* Errors */}
 					{result.result.errors && result.result.errors.length > 0 && (

@@ -88,47 +88,57 @@ class SimpleDataSeeder {
 			const https = require('https');
 			const http = require('http');
 			
-			// Data sources configuration
+			// Use local CSV files for testing (replace with Google Sheets URLs when working)
 			const dataSources = [
 				{
 					name: "TBL_SiteDetails",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=77050817&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_SiteDetails.csv"),
+					local: true
 				},
 				{
 					name: "TBL_Players",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1796371215&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_Players.csv"),
+					local: true
 				},
 				{
 					name: "TBL_FixturesAndResults",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=103750289&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_FixturesAndResults.csv"),
+					local: true
 				},
 				{
 					name: "TBL_MatchDetails",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=564691931&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_MatchDetails.csv"),
+					local: true
 				},
 				{
 					name: "TBL_WeeklyTOTW",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1985336995&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_WeeklyTOTW.csv"),
+					local: true
 				},
 				{
 					name: "TBL_SeasonTOTW",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=91372781&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_SeasonTOTW.csv"),
+					local: true
 				},
 				{
 					name: "TBL_PlayersOfTheMonth",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=2007852556&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_PlayersOfTheMonth.csv"),
+					local: true
 				},
 				{
 					name: "TBL_CaptainsAndAwards",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1753413613&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_CaptainsAndAwards.csv"),
+					local: true
 				},
 				{
 					name: "TBL_OppositionDetails",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1977394709&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_OppositionDetails.csv"),
+					local: true
 				},
 				{
 					name: "TBL_TestData",
-					url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv",
+					url: path.join(__dirname, "..", "example-data", "CSV-examples", "TBL_TestData.csv"),
+					local: true
 				}
 			];
 			
@@ -149,7 +159,7 @@ class SimpleDataSeeder {
 					console.log(`📊 Processing: ${dataSource.name}`);
 					
 					// Fetch CSV data
-					const csvData = await this.fetchCSVData(dataSource.url);
+					const csvData = await this.fetchCSVData(dataSource.url, dataSource.local);
 					if (csvData.length === 0) {
 						console.log(`ℹ️ No data found for ${dataSource.name}`);
 						continue;
@@ -198,29 +208,42 @@ class SimpleDataSeeder {
 		}
 	}
 	
-	async fetchCSVData(url) {
+	async fetchCSVData(url, isLocal = false) {
 		return new Promise((resolve, reject) => {
-			const protocol = url.startsWith('https:') ? require('https') : require('http');
-			
-			protocol.get(url, (res) => {
-				let data = '';
+			if (isLocal) {
+				// Read local CSV file
+				try {
+					const data = fs.readFileSync(url, 'utf8');
+					const Papa = require('papaparse');
+					const result = Papa.parse(data, { header: true });
+					resolve(result.data.filter(row => Object.values(row).some(val => val && val.trim() !== '')));
+				} catch (error) {
+					reject(new Error(`Failed to read local CSV: ${error.message}`));
+				}
+			} else {
+				// Fetch remote CSV
+				const protocol = url.startsWith('https:') ? require('https') : require('http');
 				
-				res.on('data', (chunk) => {
-					data += chunk;
+				protocol.get(url, (res) => {
+					let data = '';
+					
+					res.on('data', (chunk) => {
+						data += chunk;
+					});
+					
+					res.on('end', () => {
+						try {
+							const Papa = require('papaparse');
+							const result = Papa.parse(data, { header: true });
+							resolve(result.data.filter(row => Object.values(row).some(val => val && val.trim() !== '')));
+						} catch (error) {
+							reject(new Error(`Failed to parse CSV: ${error.message}`));
+						}
+					});
+				}).on('error', (error) => {
+					reject(new Error(`Failed to fetch CSV: ${error.message}`));
 				});
-				
-				res.on('end', () => {
-					try {
-						const Papa = require('papaparse');
-						const result = Papa.parse(data, { header: true });
-						resolve(result.data.filter(row => Object.values(row).some(val => val && val.trim() !== '')));
-					} catch (error) {
-						reject(new Error(`Failed to parse CSV: ${error.message}`));
-					}
-				});
-			}).on('error', (error) => {
-				reject(new Error(`Failed to fetch CSV: ${error.message}`));
-			});
+			}
 		});
 	}
 	
@@ -281,25 +304,33 @@ class SimpleDataSeeder {
 					continue;
 				}
 				
+				// Ensure we have a valid ID
+				const playerId = row['ID'] || row['PLAYER NAME'];
+				if (!playerId || playerId.trim() === '') {
+					console.warn(`⚠️ Skipping player with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (p:Player {
-						id: $id,
-						name: $name,
-						position: $position,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (p:Player {id: $id})
+					ON CREATE SET p.name = $name, p.position = $position, p.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET p.name = $name, p.position = $position
 				`;
 				
 				const params = {
-					id: `player_${row['ID'] || row['Name']}`,
-					name: row['Name'] || 'Unknown',
-					position: row['Position'] || 'Unknown'
+					id: playerId, // Use the ID directly from CSV
+					name: row['PLAYER NAME'] || 'Unknown',
+					position: row['MOST COMMON POSITION'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
-				console.error(`❌ Failed to create player node for ${row['Name']}: ${error.message}`);
+				console.error(`❌ Failed to create player node for ${row['PLAYER NAME']}: ${error.message}`);
 			}
 		}
 		
@@ -316,27 +347,34 @@ class SimpleDataSeeder {
 					continue;
 				}
 				
+				// Ensure we have a valid ID
+				const fixtureId = row['ID'] || row['DATE'];
+				if (!fixtureId || fixtureId.trim() === '') {
+					console.warn(`⚠️ Skipping fixture with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (f:Fixture {
-						id: $id,
-						date: $date,
-						opposition: $opposition,
-						competition: $competition,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (f:Fixture {id: $id})
+					ON CREATE SET f.date = $date, f.opposition = $opposition, f.competition = $competition, f.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET f.date = $date, f.opposition = $opposition, f.competition = $competition
 				`;
 				
 				const params = {
-					id: `fixture_${row['ID'] || row['Date']}`,
-					date: row['Date'] || 'Unknown',
+					id: fixtureId, // Use the ID directly from CSV
+					date: row['DATE'] || 'Unknown',
 					opposition: row['OPPOSITION'] || 'Unknown',
 					competition: row['COMP TYPE'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
-				console.error(`❌ Failed to create fixture node for ${row['Date']}: ${error.message}`);
+				console.error(`❌ Failed to create fixture node for ${row['DATE']}: ${error.message}`);
 			}
 		}
 		
@@ -348,27 +386,34 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const matchDetailId = row['ID'] || row['PLAYER NAME'];
+				if (!matchDetailId || matchDetailId.trim() === '') {
+					console.warn(`⚠️ Skipping match detail with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (md:MatchDetail {
-						id: $id,
-						playerName: $playerName,
-						goals: $goals,
-						assists: $assists,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (md:MatchDetail {id: $id})
+					ON CREATE SET md.playerName = $playerName, md.goals = $goals, md.assists = $assists, md.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET md.playerName = $playerName, md.goals = $goals, md.assists = $assists
 				`;
 				
 				const params = {
-					id: `matchdetail_${row['ID'] || row['Player Name']}`,
-					playerName: row['Player Name'] || 'Unknown',
-					goals: row['Goals'] || '0',
-					assists: row['Assists'] || '0'
+					id: matchDetailId, // Use the ID directly from CSV
+					playerName: row['PLAYER NAME'] || 'Unknown',
+					goals: row['GOALS'] || '0',
+					assists: row['ASSISTS'] || '0'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
-				console.error(`❌ Failed to create match detail node for ${row['Player Name']}: ${error.message}`);
+				console.error(`❌ Failed to create match detail node for ${row['PLAYER NAME']}: ${error.message}`);
 			}
 		}
 		
@@ -380,23 +425,31 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const siteDetailId = row['ID'] || row['Title'];
+				if (!siteDetailId || siteDetailId.trim() === '') {
+					console.warn(`⚠️ Skipping site detail with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (sd:SiteDetail {
-						id: $id,
-						title: $title,
-						value: $value,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (sd:SiteDetail {id: $id})
+					ON CREATE SET sd.title = $title, sd.value = $value, sd.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET sd.title = $title, sd.value = $value
 				`;
 				
 				const params = {
-					id: `sitedetail_${row['ID'] || row['Title']}`,
+					id: `sitedetail_${siteDetailId}`,
 					title: row['Title'] || 'Unknown',
 					value: row['Value'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create site detail node for ${row['Title']}: ${error.message}`);
 			}
@@ -410,23 +463,31 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const totwId = row['ID'] || row['Week'];
+				if (!totwId || totwId.trim() === '') {
+					console.warn(`⚠️ Skipping weekly TOTW with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (wt:WeeklyTOTW {
-						id: $id,
-						week: $week,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (wt:WeeklyTOTW {id: $id})
+					ON CREATE SET wt.week = $week, wt.playerName = $playerName, wt.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET wt.week = $week, wt.playerName = $playerName
 				`;
 				
 				const params = {
-					id: `weeklytotw_${row['ID'] || row['Week']}`,
+					id: `weeklytotw_${totwId}`,
 					week: row['Week'] || 'Unknown',
 					playerName: row['Player Name'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create weekly TOTW node for ${row['Week']}: ${error.message}`);
 			}
@@ -440,23 +501,31 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const totwId = row['ID'] || row['Season'];
+				if (!totwId || totwId.trim() === '') {
+					console.warn(`⚠️ Skipping season TOTW with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (st:SeasonTOTW {
-						id: $id,
-						season: $season,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (st:SeasonTOTW {id: $id})
+					ON CREATE SET st.season = $season, st.playerName = $playerName, st.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET st.season = $season, st.playerName = $playerName
 				`;
 				
 				const params = {
-					id: `seasontotw_${row['ID'] || row['Season']}`,
+					id: `seasontotw_${totwId}`,
 					season: row['Season'] || 'Unknown',
 					playerName: row['Player Name'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create season TOTW node for ${row['Season']}: ${error.message}`);
 			}
@@ -470,23 +539,31 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const pomId = row['ID'] || row['Month'];
+				if (!pomId || pomId.trim() === '') {
+					console.warn(`⚠️ Skipping player of the month with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (pm:PlayerOfTheMonth {
-						id: $id,
-						month: $month,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (pm:PlayerOfTheMonth {id: $id})
+					ON CREATE SET pm.month = $month, pm.playerName = $playerName, pm.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET pm.month = $month, pm.playerName = $playerName
 				`;
 				
 				const params = {
-					id: `playerofthemonth_${row['ID'] || row['Month']}`,
+					id: `playerofthemonth_${pomId}`,
 					month: row['Month'] || 'Unknown',
 					playerName: row['Player Name'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create player of the month node for ${row['Month']}: ${error.message}`);
 			}
@@ -500,25 +577,32 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const caId = row['ID'] || row['Season'];
+				if (!caId || caId.trim() === '') {
+					console.warn(`⚠️ Skipping captain/award with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (ca:CaptainAndAward {
-						id: $id,
-						season: $season,
-						type: $type,
-						playerName: $playerName,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (ca:CaptainAndAward {id: $id})
+					ON CREATE SET ca.season = $season, ca.type = $type, ca.playerName = $playerName, ca.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET ca.season = $season, ca.type = $type, ca.playerName = $playerName
 				`;
 				
 				const params = {
-					id: `captainaward_${row['ID'] || row['Season']}`,
+					id: `captainaward_${caId}`,
 					season: row['Season'] || 'Unknown',
 					type: row['Type'] || 'Unknown',
 					playerName: row['Player Name'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create captain/award node for ${row['Season']}: ${error.message}`);
 			}
@@ -532,21 +616,30 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const odId = row['ID'] || row['Name'];
+				if (!odId || odId.trim() === '') {
+					console.warn(`⚠️ Skipping opposition detail with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (od:OppositionDetail {
-						id: $id,
-						name: $name,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (od:OppositionDetail {id: $id})
+					ON CREATE SET od.name = $name, od.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET od.name = $name
 				`;
 				
 				const params = {
-					id: `opposition_${row['ID'] || row['Name']}`,
+					id: `opposition_${odId}`,
 					name: row['Name'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create opposition detail node for ${row['Name']}: ${error.message}`);
 			}
@@ -560,21 +653,30 @@ class SimpleDataSeeder {
 		
 		for (const row of csvData) {
 			try {
+				// Ensure we have a valid ID
+				const tdId = row['ID'] || row['Description'];
+				if (!tdId || tdId.trim() === '') {
+					console.warn(`⚠️ Skipping test data with no ID: ${JSON.stringify(row)}`);
+					continue;
+				}
+				
 				const query = `
-					CREATE (td:TestData {
-						id: $id,
-						description: $description,
-						graphLabel: 'dorkiniansWebsite'
-					})
+					MERGE (td:TestData {id: $id})
+					ON CREATE SET td.description = $description, td.graphLabel = 'dorkiniansWebsite'
+					ON MATCH SET td.description = $description
 				`;
 				
 				const params = {
-					id: `testdata_${row['ID'] || row['Description']}`,
+					id: `testdata_${tdId}`,
 					description: row['Description'] || 'Unknown'
 				};
 				
-				await this.session.run(query, params);
-				nodesCreated++;
+				const result = await this.session.run(query, params);
+				// Check if a node was created or updated
+				const stats = result.summary.counters;
+				if (stats._stats.nodesCreated > 0 || stats._stats.nodesSet > 0) {
+					nodesCreated++;
+				}
 			} catch (error) {
 				console.error(`❌ Failed to create test data node for ${row['Description']}: ${error.message}`);
 			}
@@ -628,7 +730,7 @@ class SimpleDataSeeder {
 				WHERE p.name = md.playerName OR 
 					  p.name = LOWER(md.playerName) OR 
 					  p.name = REPLACE(md.playerName, ' ', '-')
-				CREATE (p)-[:PERFORMED_IN]->(md)
+				MERGE (p)-[:PERFORMED_IN]->(md)
 				RETURN count(*) as count
 			`;
 			
@@ -638,11 +740,13 @@ class SimpleDataSeeder {
 			console.log(`🔗 Created ${count} player-match relationships`);
 			
 			// Create relationships between fixtures and match details
+			// Note: This requires additional data in MatchDetail nodes to link them to fixtures
+			// For now, we'll create a basic relationship based on date matching
 			const fixtureMatchQuery = `
 				MATCH (f:Fixture {graphLabel: 'dorkiniansWebsite'})
 				MATCH (md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
-				WHERE f.id = md.fixtureId OR f.date = md.fixtureDate
-				CREATE (f)-[:CONTAINS]->(md)
+				WHERE f.date = md.fixtureDate OR f.date = md.date
+				MERGE (f)-[:CONTAINS]->(md)
 				RETURN count(*) as count
 			`;
 			
@@ -650,6 +754,22 @@ class SimpleDataSeeder {
 			const fixtureCount = fixtureResult.records[0].get('count').toNumber();
 			totalRelationships += fixtureCount;
 			console.log(`🔗 Created ${fixtureCount} fixture-match relationships`);
+			
+			// Create relationships between players and TOTW entries
+			const playerTOTWQuery = `
+				MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
+				MATCH (totw:WeeklyTOTW {graphLabel: 'dorkiniansWebsite'})
+				WHERE p.name = totw.playerName OR 
+					  p.name = LOWER(totw.playerName) OR 
+					  p.name = REPLACE(totw.playerName, ' ', '-')
+				MERGE (p)-[:ACHIEVED_TOTW]->(totw)
+				RETURN count(*) as count
+			`;
+			
+			const totwResult = await this.session.run(playerTOTWQuery);
+			const totwCount = totwResult.records[0].get('count').toNumber();
+			totalRelationships += totwCount;
+			console.log(`🔗 Created ${totwCount} player-TOTW relationships`);
 			
 		} catch (error) {
 			console.error('❌ Failed to create relationships:', error.message);

@@ -10,7 +10,7 @@
 		"start": "next start",
 		"lint": "next lint",
 		"type-check": "tsc --noEmit",
-		"seed-dev": "cross-env NODE_ENV=development ts-node scripts/seed-database.js development",
+		"seed-dev": "cross-env NODE_ENV=development ts-node -P tsconfig.scripts.json scripts/seed-database.ts development",
 		"seed-dev-reduced": "cross-env NODE_ENV=development ts-node scripts/seed-database-reduced.js development",
 		"seed-prod": "cross-env NODE_ENV=production node scripts/seed-database-simple.js production",
 		"apply-schema": "node scripts/apply-schema.js",
@@ -50,7 +50,8 @@
 		"eslint": "^8.56.0",
 		"eslint-config-next": "14.0.4",
 		"prettier": "^3.6.2",
-		"ts-node": "^10.9.2"
+		"ts-node": "^10.9.2",
+		"@netlify/functions": "^2.0.0"
 	},
 	"engines": {
 		"node": ">=18.0.0"
