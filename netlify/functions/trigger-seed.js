@@ -1080,20 +1080,10 @@ class SimpleDataSeeder {
 	
 	async clearGraphData() {
 		try {
-			// First, delete all relationships
-			const deleteRelationshipsQuery = 'MATCH ()-[r {graphLabel: "dorkiniansWebsite"}] DELETE r';
-			await this.session.run(deleteRelationshipsQuery);
-			console.log('✅ Existing relationships cleared');
-			
-			// Then, delete all nodes
-			const deleteNodesQuery = 'MATCH (n {graphLabel: "dorkiniansWebsite"}) DELETE n';
-			await this.session.run(deleteNodesQuery);
-			console.log('✅ Existing nodes cleared');
-			
-			// Alternative: If the above fails, try a more aggressive approach
-			const fallbackQuery = 'MATCH (n) WHERE n.graphLabel = "dorkiniansWebsite" DETACH DELETE n';
-			await this.session.run(fallbackQuery);
-			console.log('✅ Fallback clearing completed');
+			// Use DETACH DELETE to remove all nodes and relationships in one operation
+			const clearQuery = 'MATCH (n {graphLabel: "dorkiniansWebsite"}) DETACH DELETE n';
+			await this.session.run(clearQuery);
+			console.log('✅ Existing graph data cleared');
 			
 		} catch (error) {
 			console.error('❌ Failed to clear graph data:', error.message);
