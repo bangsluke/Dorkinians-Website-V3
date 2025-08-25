@@ -699,8 +699,8 @@ class SimpleDataSeeder {
 				}
 				
 				// Skip rows with missing essential data
-				if (!row['Name'] || row['Name'].trim() === '') {
-					console.log(`⚠️ Skipping player row with missing name: Name="${row['Name']}"`);
+				if (!row['PLAYER NAME'] || row['PLAYER NAME'].trim() === '') {
+					console.log(`⚠️ Skipping player row with missing name: PLAYER NAME="${row['PLAYER NAME']}"`);
 					continue;
 				}
 				
@@ -714,15 +714,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `player_${row['Name'].replace(/\s+/g, '_')}`,
-					name: row['Name'],
-					position: row['Position'] || 'Unknown'
+					id: `player_${row['PLAYER NAME'].replace(/\s+/g, '_')}`,
+					name: row['PLAYER NAME'],
+					position: row['MostCommonPosition'] || 'Unknown'
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create player node for ${row['Name']}: ${error.message}`);
+				console.error(`❌ Failed to create player node for ${row['PLAYER NAME']}: ${error.message}`);
 			}
 		}
 		
@@ -740,8 +740,8 @@ class SimpleDataSeeder {
 				}
 				
 				// Skip rows with missing essential data
-				if (!row['Date'] || !row['OPPOSITION'] || row['Date'].trim() === '' || row['OPPOSITION'].trim() === '') {
-					console.log(`⚠️ Skipping fixture row with missing data: Date="${row['Date']}", Opposition="${row['OPPOSITION']}"`);
+				if (!row['DATE'] || !row['OPPOSITION'] || row['DATE'].trim() === '' || row['OPPOSITION'].trim() === '') {
+					console.log(`⚠️ Skipping fixture row with missing data: DATE="${row['DATE']}", Opposition="${row['OPPOSITION']}"`);
 					continue;
 				}
 				
@@ -756,8 +756,8 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `fixture_${row['Date'].replace(/\s+/g, '_')}_${row['OPPOSITION'].replace(/\s+/g, '_')}`,
-					date: row['Date'],
+					id: `fixture_${row['DATE'].replace(/\s+/g, '_')}_${row['OPPOSITION'].replace(/\s+/g, '_')}`,
+					date: row['DATE'],
 					opposition: row['OPPOSITION'],
 					competition: row['COMP TYPE'] || 'Unknown'
 				};
@@ -765,7 +765,7 @@ class SimpleDataSeeder {
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create fixture node for ${row['Date']}: ${error.message}`);
+				console.error(`❌ Failed to create fixture node for ${row['DATE']}: ${error.message}`);
 			}
 		}
 		
@@ -778,8 +778,8 @@ class SimpleDataSeeder {
 		for (const row of csvData) {
 			try {
 				// Skip rows with missing essential data
-				if (!row['Player Name'] || row['Player Name'].trim() === '') {
-					console.log(`⚠️ Skipping match detail row with missing player name: Player Name="${row['Player Name']}"`);
+				if (!row['#1 Name'] || row['#1 Name'].trim() === '') {
+					console.log(`⚠️ Skipping match detail row with missing player name: #1 Name="${row['#1 Name']}"`);
 					continue;
 				}
 				
@@ -794,16 +794,16 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `matchdetail_${row['Player Name'].replace(/\s+/g, '_')}_${row['Goals'] || '0'}_${row['Assists'] || '0'}`,
-					playerName: row['Player Name'],
-					goals: row['Goals'] || '0',
-					assists: row['Assists'] || '0'
+					id: `matchdetail_${row['#1 Name'].replace(/\s+/g, '_')}_${row['#1 Points'] || '0'}_0`,
+					playerName: row['#1 Name'],
+					goals: row['#1 Points'] || '0',
+					assists: '0'
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create match detail node for ${row['Player Name']}: ${error.message}`);
+				console.error(`❌ Failed to create match detail node for ${row['#1 Name']}: ${error.message}`);
 			}
 		}
 		
@@ -888,8 +888,8 @@ class SimpleDataSeeder {
 		for (const row of csvData) {
 			try {
 				// Skip rows with missing essential data
-				if (!row['Season'] || !row['Player Name'] || row['Season'].trim() === '' || row['Player Name'].trim() === '') {
-					console.log(`⚠️ Skipping season TOTW row with missing data: Season="${row['Season']}", Player="${row['Player Name']}"`);
+				if (!row['SEASON'] || !row['STAR MAN'] || row['SEASON'].trim() === '' || row['STAR MAN'].trim() === '') {
+					console.log(`⚠️ Skipping season TOTW row with missing data: SEASON="${row['SEASON']}", STAR MAN="${row['STAR MAN']}"`);
 					continue;
 				}
 				
@@ -903,15 +903,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `seasontotw_${row['Season']}_${row['Player Name'].replace(/\s+/g, '_')}`,
-					season: row['Season'],
-					playerName: row['Player Name']
+					id: `seasontotw_${row['SEASON']}_${row['STAR MAN'].replace(/\s+/g, '_')}`,
+					season: row['SEASON'],
+					playerName: row['STAR MAN']
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create season TOTW node for ${row['Season']}: ${error.message}`);
+				console.error(`❌ Failed to create season TOTW node for ${row['SEASON']}: ${error.message}`);
 			}
 		}
 		
@@ -924,8 +924,8 @@ class SimpleDataSeeder {
 		for (const row of csvData) {
 			try {
 				// Skip rows with missing essential data
-				if (!row['Month'] || !row['Player Name'] || row['Month'].trim() === '' || row['Player Name'].trim() === '') {
-					console.log(`⚠️ Skipping player of the month row with missing data: Month="${row['Month']}", Player="${row['Player Name']}"`);
+				if (!row['DATE'] || !row['#1 Name'] || row['DATE'].trim() === '' || row['#1 Name'].trim() === '') {
+					console.log(`⚠️ Skipping player of the month row with missing data: DATE="${row['DATE']}", #1 Name="${row['#1 Name']}"`);
 					continue;
 				}
 				
@@ -939,15 +939,15 @@ class SimpleDataSeeder {
 				`;
 				
 				const params = {
-					id: `playerofthemonth_${row['Month']}_${row['Player Name'].replace(/\s+/g, '_')}`,
-					month: row['Month'],
-					playerName: row['Player Name']
+					id: `playerofthemonth_${row['DATE'].replace(/\s+/g, '_')}_${row['#1 Name'].replace(/\s+/g, '_')}`,
+					month: row['DATE'],
+					playerName: row['#1 Name']
 				};
 				
 				await this.session.run(query, params);
 				nodesCreated++;
 			} catch (error) {
-				console.error(`❌ Failed to create player of the month node for ${row['Month']}: ${error.message}`);
+				console.error(`❌ Failed to create player of the month node for ${row['DATE']}: ${error.message}`);
 			}
 		}
 		
