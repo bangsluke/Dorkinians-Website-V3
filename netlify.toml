@@ -14,6 +14,21 @@
 
 [functions."trigger-seed"]
   timeout = 1800
+  [functions."trigger-seed".headers]
+    X-Function-Timeout = "1800"
+    X-Request-Timeout = "1800"
+
+[functions."background-seed"]
+  timeout = 1800
+  [functions."background-seed".headers]
+    X-Function-Timeout = "1800"
+    X-Request-Timeout = "1800"
+
+[functions."seed-status"]
+  timeout = 30
+  [functions."seed-status".headers]
+    X-Function-Timeout = "30"
+    X-Request-Timeout = "30"
 
 # Handle static assets
 [[redirects]]

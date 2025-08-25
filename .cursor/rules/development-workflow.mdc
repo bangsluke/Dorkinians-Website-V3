@@ -22,6 +22,8 @@ alwaysApply: true
 - **Documentation Synchronization**: Update all related documentation files when making architectural changes
 - **Documentation Status Tracking**: Implement clear status indicators (✅/⚠️/❌) in technical documentation to track implementation progress and system health
 - **Comprehensive Feature Implementation**: When implementing features across multiple components, ensure consistency in implementation and error handling
+- **Incremental Problem Resolution**: Fix one issue completely before addressing the next - avoid parallel debugging of multiple problems
+- **Assumption Verification**: Always verify assumptions through concrete data before implementing solutions - avoid assumption-driven approaches
 
 ## Module Compatibility
 - Verify import/export compatibility between TypeScript and CommonJS before creating test scripts
@@ -77,6 +79,9 @@ alwaysApply: true
 - **Feedback Integration**: Immediately implement user corrections without defending previous decisions or approaches
 - **Solution Validation**: Test user-provided solutions thoroughly to ensure they work as intended before suggesting modifications
 - **User Domain Knowledge Leverage**: When users provide domain-specific solutions (like ID formatting), prioritize their approach over complex technical workarounds
+- **User Command Boundaries**: Never execute version control commands (git add, commit, push) without explicit permission - respect user autonomy
+- **Minimal Artifact Creation**: Create only essential tools needed for immediate problem resolution - avoid over-engineering debug/test artifacts
+- **Evidence-Based Hypothesis**: Verify assumptions through concrete data before implementation - avoid assumption-driven solutions
 
 ## Natural Language Interface Development
 - **Configuration-Driven Mapping**: Use dedicated configuration files for complex natural language mappings (aliases, singular/plural forms) rather than hardcoding logic

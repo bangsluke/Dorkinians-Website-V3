@@ -1,4 +1,25 @@
+<p align="center">
+  <img src="https://i.imgur.com/wMPmx9P.png" alt="Dorkinians FC Logo" width="200"/>
+</p>
+
 # Dorkinians FC Statistics Website
+
+> A mobile-first PWA chatbot statistics website for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
+
+[![Netlify Status](https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status)](https://app.netlify.com/projects/dorkinians-website-v3/deploys)
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Quick Start](#quick-start)
+- [Setting Up](#setting-up)
+- [Prerequisites](#prerequisites)
+- [1. Environment Setup](#1-environment-setup)
+- [2. Install Dependencies](#2-install-dependencies)
+- [3. Test Neo4j Connection](#3-test-neo4j-connection-local-development)
+
+> [Back to Table of Contents](#table-of-contents)
+
 
 A **mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
