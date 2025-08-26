@@ -4,90 +4,124 @@
 
 # Dorkinians FC Statistics Website
 
-> A mobile-first PWA chatbot statistics website for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
+> Mobile-first PWA chatbot statistics website for Dorkinians FC with unified schema architecture.
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status)](https://app.netlify.com/projects/dorkinians-website-v3/deploys)
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
+- [Architecture](#architecture)
 - [Quick Start](#quick-start)
-- [Setting Up](#setting-up)
-- [Prerequisites](#prerequisites)
-- [1. Environment Setup](#1-environment-setup)
-- [2. Install Dependencies](#2-install-dependencies)
-- [3. Test Neo4j Connection](#3-test-neo4j-connection-local-development)
+- [Environment Setup](#environment-setup)
+- [Development Workflow](#development-workflow)
+- [Deployment](#deployment)
+- [Maintenance](#maintenance)
+- [Contributing](#contributing)
+- [Support](#support)
 
-> [Back to Table of Contents](#table-of-contents)
+## Project Overview
 
+**Mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
-A **mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
-
-## 🎯 Project Overview
-
+### **Key Features**
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
 - **PWA Interface**: Progressive Web App with chatbot as primary interface
 - **Natural Language Processing**: Process user questions and return visualized answers
 - **Multiple Screens**: Footer navigation with swipeable sub-screens
-- **Data Sources**: Google Sheets CSV endpoints + FA website data
+- **Unified Data Schema**: Single source of truth for all data definitions via Git submodule
 - **Database**: Neo4j Aura for efficient data storage and querying
 
-## 🚀 Quick Start
+## Architecture
 
-### Development Start
+### **Unified Schema System**
 
-To quickly get started in development mode:
+The project uses a centralized schema approach where all data definitions are maintained in the `database-dorkinians` repository:
 
-1. Start up Neo4j desktop locally
-2. Start the Neo4j graph database (on Neo4j desktop) and use the command `MATCH (n)-[r]->(m) RETURN n, r, m;` to see all nodes and edges or `MATCH (n) RETURN n` to see all nodes
-3. Start the backend by running: `npm run dev` in a terminal - Note: This will generate types from the GraphQL schema in the backend and start up the Python script in development mode
-4. Open up whatever frontend app you are connecting to the backend-server and check that data is coming through
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    V3-Dorkinians-Website                   │
+│  ├── Frontend (Next.js PWA)                               │
+│  ├── Netlify Functions                                    │
+│  └── API Routes                                           │
+└─────────────────────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Git Submodule Integration                     │
+├─────────────────────────────────────────────────────────────┤
+│  database-dorkinians/                                      │
+│  ├── config/schema.js          # Unified schema definition │
+│  ├── services/schemaDrivenSeeder.js                        │
+│  └── (database seeding logic)                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### **Key Components**
+- **Frontend**: Next.js PWA with chatbot interface
+- **Backend Services**: Netlify functions for API endpoints
+- **Database Seeder**: Heroku service using unified schema
+- **Schema Management**: Centralized in database-dorkinians repo
+- **Data Sources**: Google Sheets CSV endpoints + FA website data
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Setting Up
+## Quick Start
 
-### Prerequisites
+### **Development Setup**
 
+1. **Start Neo4j Desktop locally**
+2. **Start Neo4j graph database** on port `7687`
+3. **Run development server**: `npm run dev`
+4. **Access application**: http://localhost:3000
+
+### **Database Verification**
+
+```bash
+# View all nodes and relationships
+MATCH (n)-[r]->(m) RETURN n, r, m;
+
+# View all nodes
+MATCH (n) RETURN n;
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Environment Setup
+
+### **Prerequisites**
 - Node.js 18+
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
 
-### 1. Environment Setup
+### **Neo4j Configuration**
 
-#### Option A: Local Neo4j Desktop (Recommended for Development)
-
-1. Install [Neo4j Desktop](https://neo4j.com/download/)
-2. Create local database: `neo4j` on port `7687`
-3. Update your `.env` file with:
-
+#### **Local Development (Recommended)**
 ```bash
-# Local Development Neo4j Configuration
+# Install Neo4j Desktop
+# Create local database: neo4j on port 7687
+
+# Environment variables
 DEV_NEO4J_URI=bolt://localhost:7687
 DEV_NEO4J_USER=neo4j
 DEV_NEO4J_PASSWORD=password
 DEV_NEO4J_DATABASE=neo4j
+```
 
-# Production Neo4j Configuration (Aura)
+#### **Production (Neo4j Aura)**
+```bash
 PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
 PROD_NEO4J_USER=your-username
 PROD_NEO4J_PASSWORD=your_aura_db_password
 ```
 
-**See [docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md) for detailed setup instructions.**
-
-**Note**: The system uses a single `.env` file with `DEV_` and `PROD_` prefixes for environment-specific values.
-
-#### Option B: Neo4j Aura (Production)
-
-Use your existing Aura database configuration.
-
-# OpenAI API (for chatbot)
-
+### **OpenAI Configuration**
+```bash
 OPENAI_API_KEY=your_openai_api_key_here
+```
 
-# SMTP Configuration (for automated emails)
-
+### **SMTP Configuration**
+```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL_SECURE=false
@@ -95,169 +129,262 @@ SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
+```
 
-````
-
-### 2. Install Dependencies
+### **Installation**
 ```bash
 npm install
-````
-
-### 3. Test Neo4j Connection (Local Development)
-
-```bash
-npm run test-neo4j
-```
-
-### 4. Start Development Server
-
-```bash
-npm run dev
-```
-
-Visit [http://localhost:3000](http://localhost:3000) to see the app.
-
-## 🏗️ Architecture
-
-### Tech Stack
-
-- **Frontend**: Next.js 14 + App Router
-- **Mobile Navigation**: Framer Motion + Hybrid Navigation
-- **UI Components**: Tailwind CSS + Headless UI
-- **Database**: Neo4j Aura
-- **Chatbot**: OpenAI API + Function Calling
-- **Visualization**: Recharts + Custom Components
-- **State Management**: Zustand
-
-### Screen Structure
-
-- **Homepage**: Chatbot input interface
-- **Stats**: Container with 4 swipeable sub-screens
-  - Player Stats
-  - Team Stats
-  - Club Stats
-  - Comparison
-- **TOTW**: Team of the week with interactive graphics
-- **Club Information**: Static content display
-
-### Navigation Pattern
-
-- **Header**: Club logo + settings icon (all screens)
-- **Footer**: 4 main navigation icons
-- **Sub-navigation**: Swipe gestures within Stats page
-
-## 📊 Data Sources
-
-### Google Sheets CSV Endpoints
-
-- **FixturesAndResults**: ~2,400 rows (fixtures, results, team data)
-- **Players**: ~631 rows (player information)
-- **MatchDetails**: ~18,500 rows (individual match statistics)
-- **WeeklyTOTW**: ~308 rows (team of the week selections)
-- **SeasonTOTW**: ~18 rows (season awards)
-- **PlayersOfTheMonth**: ~308 rows (monthly player awards)
-- **Other tables**: ~400 rows total
-
-### Data Volume Projections
-
-- **Current**: ~22,000 total rows
-- **5-year projection**: ~34,000 total rows
-- **Neo4j Aura Free Tier**: 200,000 nodes, 400,000 relationships ✅
-
-## 🔧 Development
-
-### Available Scripts
-
-```bash
+npm run test-neo4j  # Test Neo4j connection
 npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
-npm run type-check   # Run TypeScript type checking
 ```
 
-### Project Structure
+> [Back to Table of Contents](#table-of-contents)
+
+## Development Workflow
+
+### **Schema Updates**
+
+When data structures change:
+
+1. **Update Unified Schema**: Modify `database-dorkinians/config/schema.js`
+2. **Test Changes**: Use database seeder test endpoints
+3. **Deploy Updates**: Push changes to both repositories
+4. **Verify Integration**: Test frontend functionality
+
+### **Managing Schema Changes**
+
+#### **Adding/Removing CSV Columns**
+
+When Google Sheets structure changes:
+
+1. **Update Unified Schema** (in `database-dorkinians` repo):
+   ```bash
+   cd database-dorkinians
+   nano config/schema.js
+   ```
+
+2. **Modify Table Schema**:
+   ```javascript
+   TBL_Players: {
+     csvColumns: {
+       'ID': 'id',
+       'PLAYER NAME': 'name',
+       'NEW COLUMN': 'newProperty',  // Add new columns
+       // Remove old columns from mapping
+     },
+     requiredColumns: ['ID', 'PLAYER NAME'],
+     properties: {
+       id: { type: 'string', required: true },
+       name: { type: 'string', required: true },
+       newProperty: { type: 'string', required: false }, // Add properties
+       // Remove old properties
+     }
+   }
+   ```
+
+3. **Test Schema Changes**:
+   ```bash
+   # Test locally
+   node test-csv.js
+   
+   # Test via API
+   curl -X POST "https://your-heroku-app.herokuapp.com/test-csv" \
+     -H "Content-Type: application/json" \
+     -d '{"url": "YOUR_CSV_URL", "dataSourceName": "TBL_Players"}'
+   ```
+
+4. **Deploy Changes**:
+   ```bash
+   # Commit and push to database-dorkinians
+   git add config/schema.js
+   git commit -m "Update schema for TBL_Players: add new column, remove old column"
+   git push origin main
+   git push heroku main
+   ```
+
+5. **Update V3 Repository**:
+   ```bash
+   cd ../V3-Dorkinians-Website
+   git submodule update --remote
+   git add v3-repo
+   git commit -m "Update database-dorkinians submodule to latest schema"
+   git push origin main
+   ```
+
+#### **Schema Validation**
+
+The system automatically validates:
+- **Column Presence**: Required columns exist
+- **Data Types**: Type conversions work correctly
+- **Required Fields**: Mandatory fields have values
+- **Relationship Rules**: Relationship creation logic
+
+### **Git Submodule Management**
+
+#### **How Submodule Works**
 
 ```
-├── app/                 # Next.js 14 app directory
-│   ├── globals.css     # Global styles with Tailwind
-│   ├── layout.tsx      # Root layout with PWA meta
-│   └── page.tsx        # Homepage with chatbot
-├── components/          # Reusable React components
-├── lib/                 # Utility libraries
-│   └── neo4j.ts        # Neo4j database service
-├── types/               # TypeScript type definitions
-├── public/              # Static assets
-│   └── manifest.json   # PWA manifest
-└── context/             # Project context and documentation
+V3-Dorkinians-Website/
+├── .git/                    # Main repository
+├── v3-repo/                 # Git submodule (database-dorkinians)
+│   ├── config/schema.js     # Unified schema definitions
+│   └── services/            # Database seeding services
+└── lib/config/
+    └── schemaBridge.js      # Bridge to access submodule schema
 ```
 
-## 📱 PWA Features
+#### **Submodule Updates**
 
-- **Service Worker**: Offline-first strategy
-- **App Manifest**: Native app installation
-- **Mobile Optimized**: Touch-friendly interactions
-- **Responsive Design**: Mobile-first breakpoints
+**Automatic Updates (Recommended)**:
+```bash
+git submodule update --remote
+git add v3-repo
+git commit -m "Update database-dorkinians submodule"
+git push origin main
+```
 
-## 🚧 Current Status
+**Manual Updates**:
+```bash
+cd v3-repo
+git pull origin main
+cd ..
+git add v3-repo
+git commit -m "Update database-dorkinians submodule manually"
+git push origin main
+```
 
-### ✅ Completed (Phase 1)
+**Verify Status**:
+```bash
+git submodule status  # Should show: v3-repo <commit-hash> (main)
+```
 
-- [x] Next.js 14 project setup
-- [x] PWA configuration
-- [x] Tailwind CSS setup
-- [x] Basic project structure
-- [x] Homepage chatbot interface
-- [x] Footer navigation
-- [x] Header with logo and settings
-- [x] Neo4j service setup
-- [x] TypeScript type definitions
+#### **Submodule Troubleshooting**
 
-### 🔄 Next Steps (Phase 2)
+**Reset Submodule**:
+```bash
+git submodule deinit v3-repo
+git rm v3-repo
+git commit -m "Remove problematic submodule"
+git submodule add https://github.com/bangsluke/Dorkinians-Website-V2.git v3-repo
+git commit -m "Re-add database-dorkinians submodule"
+git push origin main
+```
 
-- [ ] Navigation framework implementation
-- [ ] Screen routing and transitions
-- [ ] Stats page container structure
-- [ ] Basic screen layouts
+**Check Configuration**:
+```bash
+cat .gitmodules
+# Should show:
+# [submodule "v3-repo"]
+#   path = v3-repo
+#   url = https://github.com/bangsluke/Dorkinians-Website-V2.git
+```
 
-### 📋 Future Phases
+#### **Best Practices**
+1. **Always update submodules after schema changes**
+2. **Test schema integration after submodule updates**
+3. **Keep submodule commits in sync with main repository**
+4. **Document submodule changes in commit messages**
 
-- **Phase 3**: Data integration & chatbot
-- **Phase 4**: Individual screen development
-- **Phase 5**: Performance & PWA optimization
+### **Data Seeding**
 
-## 🛠️ Configuration Files
+**Hybrid Approach**:
+- **Netlify Function**: Lightweight trigger endpoint
+- **Heroku Service**: Long-running seeding process using unified schema
+- **Email Notifications**: Automated status updates during seeding
 
-- **`next.config.js`**: Next.js + PWA configuration
-- **`tailwind.config.js`**: Tailwind CSS with custom theme
-- **`tsconfig.json`**: TypeScript configuration
-- **`package.json`**: Dependencies and scripts
+### **Testing**
 
-## 📚 Documentation
+```bash
+# Frontend tests
+npm test
 
-- **`context/ARCHITECTURE_ANALYSIS.md`**: Complete architecture documentation
-- **`example-data/`**: Sample CSV data and example questions
-- **`data_sources.json`**: Data source URLs and structure
+# API endpoint tests
+npm run test:api
 
-## Neo4j Queries
+# Database seeding tests
+npm run test:seeding
 
-- `MATCH ()-[r {graphLabel: 'dorkiniansWebsite'}]->() RETURN count(r) AS totalRelationships` - This will return the total number of relationships in the database for the dorkiniansWebsite graph label
-- `MATCH (p:Player {graphLabel: 'dorkiniansWebsite'}) RETURN p.name as playerName ORDER BY p.name LIMIT 50` - This will return the names of the first 50 players in the database for the dorkiniansWebsite graph label
-- `MATCH (p:Player {name: "Luke Bangs"}) RETURN p` - This will return the node for the player with the exact name "Luke Bangs"
-- `MATCH (p:Player {graphLabel: 'dorkiniansWebsite'}) WHERE p.name CONTAINS "Luke" OR p.name CONTAINS "Bangs" OR p.name CONTAINS "luke" OR p.name CONTAINS "bangs" RETURN p.name as playerName ORDER BY p.name` - This will return the names of the players in the database for the dorkiniansWebsite graph label that contain the string "Luke" or "Bangs" or "luke" or "bangs"
-- `MATCH (p:Player {name: "Luke Bangs"}) OPTIONAL MATCH (p)-[r]->(n) RETURN p.name as playerName, type(r) as relationshipType, labels(n) as nodeLabels, n.name as nodeName ORDER BY type(r)` - Return the player name and all the relationships and nodes that the player has
+# Schema integration test
+node -e "const { hasUnifiedSchema } = require('./lib/config/schemaBridge'); console.log('Schema available:', hasUnifiedSchema());"
+```
 
-## 🚨 Important Notes
+> [Back to Table of Contents](#table-of-contents)
 
-- **Data Updates**: Google Sheets updated daily, automated refresh desired
-- **Rate Limiting**: Implement caching for Google Sheets API calls
-- **Mobile First**: All development should prioritize mobile experience
-- **Neo4j Limits**: Free tier sufficient for current and projected data volume
+## Deployment
 
-## 🤝 Contributing
+### **Netlify Deployment**
 
-This is a solo developer project. All development follows the architecture outlined in `context/ARCHITECTURE_ANALYSIS.md`.
+1. **Build Configuration**:
+   ```bash
+   npm run build
+   npm run export
+   ```
 
-## 📄 License
+2. **Environment Variables**:
+   - Set all required environment variables in Netlify dashboard
+   - Ensure `HEROKU_SEEDER_URL` points to your database seeder service
 
-Private project for Dorkinians FC.
+3. **Deploy**:
+   ```bash
+   netlify deploy --prod
+   ```
+
+### **Database Seeder Deployment**
+
+**Separate Heroku Service**:
+- **Repository**: `database-dorkinians`
+- **Service**: Long-running Neo4j seeding operations
+- **Integration**: Triggered via Netlify functions
+- **Monitoring**: Email notifications and status endpoints
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Maintenance
+
+### **Regular Tasks**
+
+1. **Schema Review**: Periodically review unified schema configuration
+2. **Data Quality**: Monitor CSV data quality and structure
+3. **Performance**: Track API response times and database query performance
+4. **Security**: Review API access and authentication mechanisms
+
+### **Troubleshooting**
+
+- **Schema Issues**: Check `database-dorkinians/config/schema.js`
+- **Data Problems**: Verify CSV structure and Google Sheets permissions
+- **Performance**: Monitor Neo4j query execution times
+- **Integration**: Test database seeder connectivity
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Contributing
+
+### **Development Guidelines**
+
+1. **Schema Changes**: Always update the unified schema first
+2. **Testing**: Include tests for new functionality
+3. **Documentation**: Update relevant documentation
+4. **Code Quality**: Follow established patterns and linting rules
+
+### **Repository Structure**
+
+- **Frontend**: Next.js components and pages
+- **API**: Netlify functions and API routes
+- **Services**: Business logic and data processing
+- **Configuration**: Environment and schema configuration
+- **Documentation**: Project documentation and guides
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Support
+
+**Technical Issues**:
+
+1. **Schema Issues**: Check unified schema configuration
+2. **Data Problems**: Verify CSV structure and permissions
+3. **Performance**: Monitor database and API performance
+4. **Integration**: Test database seeder connectivity
+
+## License
+
+This project is licensed under the MIT License.
