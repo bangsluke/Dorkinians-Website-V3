@@ -1,8 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 
-// Import CSV header configuration
-const { getCSVHeaderConfig } = require('./lib/config/csvHeaders');
+// Import CSV header configuration via schema bridge
+const { getCSVHeaderConfig } = require('./lib/config/schemaBridge');
 
 // Helper functions for dynamic column mapping
 function getColumnValue(row, columnName, fallback = '') {
