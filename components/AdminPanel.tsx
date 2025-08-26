@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SeedingResult {
 	success: boolean;
 	message: string;
 	environment: string;
 	timestamp: string;
+	status: 'pending' | 'running' | 'completed' | 'failed';
 	result: {
 		success: boolean;
 		exitCode: number;
@@ -24,19 +25,63 @@ export default function AdminPanel() {
 	const [error, setError] = useState<string | null>(null);
 	const [jobId, setJobId] = useState<string | null>(null);
 	const [statusCheckLoading, setStatusCheckLoading] = useState(false);
+	const [lastStatusCheck, setLastStatusCheck] = useState<string | null>(null);
+	const [elapsedTime, setElapsedTime] = useState(0);
+	const startTimeRef = useRef<number | null>(null);
+	const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Timer effect
+	useEffect(() => {
+		if (startTimeRef.current && (result?.status === 'pending' || result?.status === 'running')) {
+			timerRef.current = setInterval(() => {
+				const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
+				setElapsedTime(elapsed);
+			}, 1000);
+		} else {
+			if (timerRef.current) {
+				clearInterval(timerRef.current);
+				timerRef.current = null;
+			}
+		}
+
+		return () => {
+			if (timerRef.current) {
+				clearInterval(timerRef.current);
+			}
+		};
+	}, [result?.status]);
+
+	// Format elapsed time
+	const formatElapsedTime = (seconds: number) => {
+		const hours = Math.floor(seconds / 3600);
+		const minutes = Math.floor((seconds % 3600) / 60);
+		const secs = seconds % 60;
+		
+		if (hours > 0) {
+			return `${hours}h ${minutes}m ${secs}s`;
+		} else if (minutes > 0) {
+			return `${minutes}m ${secs}s`;
+		} else {
+			return `${secs}s`;
+		}
+	};
 
 	const triggerSeeding = async () => {
 		setIsLoading(true);
 		setError(null);
 		setResult(null);
+		setLastStatusCheck(null);
+		setElapsedTime(0);
+		startTimeRef.current = Date.now();
 
 		try {
 			// Show immediate feedback that seeding has started
 			setResult({
 				success: true,
-				message: 'Database seeding started successfully',
+				message: 'Database seeding initiated successfully',
 				environment: 'production',
 				timestamp: new Date().toISOString(),
+				status: 'pending',
 				result: {
 					success: true,
 					exitCode: 0,
@@ -48,23 +93,56 @@ export default function AdminPanel() {
 				}
 			});
 
-			const response = await fetch(`/.netlify/functions/trigger-seed?environment=production`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-			});
+			// Try different paths for the Netlify function
+			const functionPaths = [
+				'/.netlify/functions/trigger-seed',
+				'/api/trigger-seed',
+				'/trigger-seed'
+			];
 
-			const data = await response.json();
-			console.log('Netlify function response:', data);
+			let response = null;
+			let data = null;
+			let successfulPath = '';
 
-			if (response.ok) {
+			for (const path of functionPaths) {
+				try {
+					console.log(`Trying function path: ${path}`);
+					response = await fetch(`${path}?environment=production`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+					});
+
+					if (response.ok) {
+						const contentType = response.headers.get('content-type');
+						if (contentType && contentType.includes('application/json')) {
+							data = await response.json();
+							successfulPath = path;
+							console.log(`✅ Success with path: ${path}`);
+							console.log('Function response:', data);
+							break;
+						} else {
+							console.warn(`Path ${path} returned non-JSON response:`, contentType);
+							const textResponse = await response.text();
+							console.warn('Response preview:', textResponse.substring(0, 200));
+						}
+					} else {
+						console.warn(`Path ${path} returned status:`, response.status);
+					}
+				} catch (pathError) {
+					console.warn(`Path ${path} failed:`, pathError);
+				}
+			}
+
+			if (response && response.ok && data) {
 				// Transform the Netlify function response to match expected format
-				const transformedResult = {
+				const transformedResult: SeedingResult = {
 					success: data.success || false,
-					message: data.message || 'Unknown response',
+					message: `${data.message || 'Seeding process started'} (via ${successfulPath})`,
 					environment: data.environment || 'production',
 					timestamp: data.timestamp || new Date().toISOString(),
+					status: 'running',
 					result: {
 						success: data.success || false,
 						exitCode: data.success ? 0 : 1,
@@ -82,7 +160,7 @@ export default function AdminPanel() {
 					setJobId(data.jobId);
 				}
 			} else {
-				setError(data.error || 'Failed to trigger seeding');
+				throw new Error('Failed to trigger seeding - all function paths failed');
 			}
 		} catch (err) {
 			console.error('Seeding trigger error:', err);
@@ -112,6 +190,7 @@ export default function AdminPanel() {
 
 			if (response.ok) {
 				const statusData = await response.json();
+				console.log('Status check response:', statusData);
 				
 				// Update result with current status
 				if (statusData.status === 'completed' && statusData.result) {
@@ -120,6 +199,7 @@ export default function AdminPanel() {
 						message: 'Seeding completed successfully',
 						environment: 'production',
 						timestamp: statusData.endTime || new Date().toISOString(),
+						status: 'completed',
 						result: {
 							success: statusData.result.success,
 							exitCode: statusData.result.success ? 0 : 1,
@@ -130,12 +210,14 @@ export default function AdminPanel() {
 							duration: statusData.result.duration || 0
 						}
 					});
+					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
 				} else if (statusData.status === 'failed') {
 					setResult({
 						success: false,
 						message: 'Seeding failed',
 						environment: 'production',
 						timestamp: statusData.endTime || new Date().toISOString(),
+						status: 'failed',
 						result: {
 							success: false,
 							exitCode: 1,
@@ -146,26 +228,29 @@ export default function AdminPanel() {
 							duration: 0
 						}
 					});
+					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
 				} else {
 					// Still running
 					setResult({
 						success: true,
-						message: `Seeding in progress: ${statusData.currentStep || 'Processing'}`,
+						message: `Seeding in progress: ${statusData.currentStep || 'Processing data sources'}`,
 						environment: 'production',
 						timestamp: new Date().toISOString(),
+						status: 'running',
 						result: {
 							success: true,
 							exitCode: 0,
-							nodesCreated: 0,
-							relationshipsCreated: 0,
-							errorCount: 0,
-							errors: [],
-							duration: 0
+							nodesCreated: statusData.result?.nodesCreated || 0,
+							relationshipsCreated: statusData.result?.relationshipsCreated || 0,
+							errorCount: statusData.result?.errors?.length || 0,
+							errors: statusData.result?.errors || [],
+							duration: statusData.result?.duration || 0
 						}
 					});
+					setLastStatusCheck(`🔄 Last checked at ${new Date().toLocaleString()}`);
 				}
 			} else {
-				setError('Failed to check status');
+				setError('Failed to check status - Heroku service may be unavailable');
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Network error');
@@ -173,6 +258,32 @@ export default function AdminPanel() {
 			setStatusCheckLoading(false);
 		}
 	};
+
+	const getStatusDisplay = () => {
+		if (!result) return null;
+		
+		switch (result.status) {
+			case 'pending':
+				return { text: '⏳ Pending', color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' };
+			case 'running':
+				return { text: '🔄 Running', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' };
+			case 'completed':
+				return { text: '✅ Completed', color: 'text-green-600', bg: 'bg-green-50 border-green-200' };
+			case 'failed':
+				return { text: '❌ Failed', color: 'text-red-600', bg: 'bg-red-50 border-red-200' };
+			default:
+				return { text: '❓ Unknown', color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' };
+		}
+	};
+
+	const getValueDisplay = (value: number, label: string) => {
+		if (result?.status === 'pending' || result?.status === 'running') {
+			return { display: '⏳', label: `${label} (Pending)` };
+		}
+		return { display: value.toString(), label };
+	};
+
+	const statusInfo = getStatusDisplay();
 
 	return (
 		<div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
@@ -194,7 +305,7 @@ export default function AdminPanel() {
 					</label>
 				</div>
 				<p className="text-sm text-gray-600 mt-2">
-					⚠️ This will seed the production Neo4j database. Development seeding has been disabled.
+					⚠️ This will seed the production Neo4j database with data from Google Sheets. Development seeding has been disabled.
 				</p>
 			</div>
 
@@ -226,6 +337,9 @@ export default function AdminPanel() {
 				>
 					{statusCheckLoading ? '🔄 Checking Status...' : '🔍 Check Seeding Status'}
 				</button>
+				{lastStatusCheck && (
+					<p className="text-sm text-gray-600 mt-2">{lastStatusCheck}</p>
+				)}
 			</div>
 
 			{/* Error Display */}
@@ -238,22 +352,15 @@ export default function AdminPanel() {
 
 			{/* Result Display */}
 			{result && (
-				<div className={`mb-6 p-4 rounded-lg border ${
-					isLoading || statusCheckLoading
-						? 'bg-blue-50 border-blue-200' 
-						: result.result.success 
-							? 'bg-green-50 border-green-200' 
-							: 'bg-red-50 border-red-200'
-				}`}>
-					<h3 className={`text-lg font-semibold mb-3 ${
-						isLoading || statusCheckLoading
-							? 'text-blue-800' 
-							: result.result.success 
-								? 'text-green-800' 
-								: 'text-red-800'
-					}`}>
-						{isLoading || statusCheckLoading ? '🔄 Seeding in Progress...' : 'Seeding Result'}
-					</h3>
+				<div className={`mb-6 p-4 rounded-lg border ${statusInfo?.bg}`}>
+					<div className="flex items-center justify-between mb-3">
+						<h3 className={`text-lg font-semibold ${statusInfo?.color}`}>
+							{result.status === 'running' ? '🔄 Seeding in Progress...' : 'Seeding Status'}
+						</h3>
+						<span className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo?.color} ${statusInfo?.bg}`}>
+							{statusInfo?.text}
+						</span>
+					</div>
 					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 						<div>
@@ -266,13 +373,15 @@ export default function AdminPanel() {
 						</div>
 						<div>
 							<p className="text-sm text-gray-600">Status</p>
-							<p className={`font-semibold ${result.result.success ? 'text-green-600' : 'text-red-600'}`}>
-								{result.result.success ? '✅ Success' : '❌ Failed'}
+							<p className={`font-semibold ${statusInfo?.color}`}>
+								{statusInfo?.text}
 							</p>
 						</div>
 						<div>
-							<p className="text-sm text-gray-600">Exit Code</p>
-							<p className="font-semibold">{result.result.exitCode}</p>
+							<p className="text-sm text-gray-600">Elapsed Time</p>
+							<p className="font-semibold text-blue-600">
+								{elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '0s'}
+							</p>
 						</div>
 					</div>
 
@@ -280,42 +389,48 @@ export default function AdminPanel() {
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-blue-600">
-								{isLoading || statusCheckLoading ? '🔄' : result.result.nodesCreated}
+								{getValueDisplay(result.result.nodesCreated, 'Nodes Created').display}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading || statusCheckLoading ? 'Processing...' : 'Nodes Created'}
+								{getValueDisplay(result.result.nodesCreated, 'Nodes Created').label}
 							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-green-600">
-								{isLoading || statusCheckLoading ? '🔄' : result.result.relationshipsCreated}
+								{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').display}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading || statusCheckLoading ? 'Processing...' : 'Relationships Created'}
+								{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').label}
 							</p>
 						</div>
 						<div className="text-center p-3 bg-white rounded-lg">
 							<p className="text-2xl font-bold text-red-600">
-								{isLoading || statusCheckLoading ? '🔄' : result.result.errorCount}
+								{getValueDisplay(result.result.errorCount, 'Errors Found').display}
 							</p>
 							<p className="text-sm text-gray-600">
-								{isLoading || statusCheckLoading ? 'Processing...' : 'Errors Found'}
+								{getValueDisplay(result.result.errorCount, 'Errors Found').label}
 							</p>
 						</div>
 					</div>
 
 					{/* Progress Indicator */}
-					{isLoading || statusCheckLoading && (
+					{(result.status === 'pending' || result.status === 'running') && (
 						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
 							<div className="flex items-center gap-3">
 								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
 								<div>
 									<p className="font-semibold text-blue-800">Seeding in Progress</p>
 									<p className="text-sm text-blue-600">
-										Processing 10 data sources from Google Sheets...
+										{result.status === 'pending' 
+											? 'Initializing seeding process...' 
+											: 'Processing 10 data sources from Google Sheets...'
+										}
 									</p>
 									<p className="text-xs text-blue-500 mt-1">
-										Expected duration: ~30 minutes. Check your email for start and completion notifications.
+										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: ~30 minutes
+									</p>
+									<p className="text-xs text-blue-500">
+										Check your email for start and completion notifications.
 									</p>
 								</div>
 							</div>
@@ -338,12 +453,25 @@ export default function AdminPanel() {
 
 			{/* Information Section */}
 			<div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-				<h3 className="text-lg font-semibold text-blue-800 mb-2">How It Works</h3>
-				<ul className="text-blue-700 text-sm space-y-1">
-					<li>• This triggers the database seeding process immediately</li>
-					<li>• Seeding runs on Netlify&apos;s infrastructure</li>
-					<li>• Results are displayed in real-time</li>
-					<li>• Use for manual updates or testing</li>
+				<h3 className="text-lg font-semibold text-blue-800 mb-2">How the New Seeding Process Works</h3>
+				<ul className="text-blue-700 text-sm space-y-2">
+					<li>• <strong>Step 1:</strong> Click &ldquo;Trigger Database Seeding&rdquo; to start the process</li>
+					<li>• <strong>Step 2:</strong> The system will show &ldquo;Pending&rdquo; status while initializing</li>
+					<li>• <strong>Step 3:</strong> Status changes to &ldquo;Running&rdquo; as the seeding begins on Heroku</li>
+					<li>• <strong>Step 4:</strong> Use &ldquo;Check Seeding Status&rdquo; to monitor progress and get final results</li>
+					<li>• <strong>Note:</strong> Statistics show &ldquo;Pending&rdquo; until you check the status and seeding completes</li>
+				</ul>
+			</div>
+
+			{/* Technical Details */}
+			<div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+				<h3 className="text-lg font-semibold text-gray-800 mb-2">Technical Details</h3>
+				<ul className="text-gray-700 text-sm space-y-1">
+					<li>• <strong>Netlify Function:</strong> Triggers the seeding process and provides immediate feedback</li>
+					<li>• <strong>Heroku Service:</strong> Runs the actual database seeding with unified schema</li>
+					<li>• <strong>Email Notifications:</strong> Sent at start and completion (if configured)</li>
+					<li>• <strong>Status Updates:</strong> Real-time progress available via status checks</li>
+					<li>• <strong>Timer:</strong> Shows elapsed time since seeding was triggered</li>
 				</ul>
 			</div>
 		</div>
