@@ -360,7 +360,7 @@ exports.handler = async (event, context) => {
 				timestamp: new Date().toISOString(),
 				status: 'started',
 				note: 'Seeding is running on Heroku. Check email for completion notification.',
-				herokuUrl: process.env.HEROKU_SEEDER_URL || 'https://your-heroku-app.herokuapp.com'
+				herokuUrl: process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com'
 			})
 		};
 
