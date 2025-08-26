@@ -326,7 +326,13 @@ exports.handler = async (event, context) => {
 		console.log('🌱 HEROKU: Starting Heroku seeding service...');
 		try {
 			const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-			const response = await fetch(`${herokuUrl}/seed`, {
+			// Ensure no trailing slash to prevent double slashes
+			const cleanHerokuUrl = herokuUrl.replace(/\/$/, '');
+			const fullUrl = `${cleanHerokuUrl}/seed`;
+			console.log('🔗 HEROKU: Full URL being called:', fullUrl);
+			console.log('🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:', process.env.HEROKU_SEEDER_URL);
+			
+			const response = await fetch(fullUrl, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -341,6 +347,10 @@ exports.handler = async (event, context) => {
 				console.log('✅ HEROKU: Heroku seeding service started successfully');
 			} else {
 				console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
+				console.warn('⚠️ HEROKU: Response status:', response.status);
+				console.warn('⚠️ HEROKU: Response status text:', response.statusText);
+				const responseText = await response.text();
+				console.warn('⚠️ HEROKU: Response body:', responseText);
 			}
 		} catch (herokuError) {
 			console.warn('⚠️ HEROKU: Failed to start Heroku seeding service:', herokuError);
