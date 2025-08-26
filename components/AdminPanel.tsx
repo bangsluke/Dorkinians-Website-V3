@@ -333,6 +333,26 @@ export default function AdminPanel() {
 				{lastStatusCheck && (
 					<p className="text-sm text-gray-600 mt-2">{lastStatusCheck}</p>
 				)}
+				{jobId && (
+					<p className="text-xs text-gray-500 mt-1">Current Job ID: {jobId}</p>
+				)}
+				<button
+					onClick={async () => {
+						try {
+							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+							const response = await fetch(`${herokuUrl}/jobs`);
+							const data = await response.json();
+							console.log('All jobs on Heroku:', data);
+							alert(`Total jobs: ${data.totalJobs}\nJob IDs: ${Object.keys(data.jobs).join(', ')}`);
+						} catch (err) {
+							console.error('Failed to fetch jobs:', err);
+							alert('Failed to fetch jobs');
+						}
+					}}
+					className="mt-2 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+				>
+					🔍 Debug: List All Jobs
+				</button>
 			</div>
 
 			{/* Error Display */}
