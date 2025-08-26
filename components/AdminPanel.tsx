@@ -8,6 +8,8 @@ interface SeedingResult {
 	environment: string;
 	timestamp: string;
 	status: 'pending' | 'running' | 'completed' | 'failed';
+	progress?: number;
+	currentStep?: string;
 	result: {
 		success: boolean;
 		exitCode: number;
@@ -27,6 +29,9 @@ export default function AdminPanel() {
 	const [statusCheckLoading, setStatusCheckLoading] = useState(false);
 	const [lastStatusCheck, setLastStatusCheck] = useState<string | null>(null);
 	const [elapsedTime, setElapsedTime] = useState(0);
+	const [showJobsModal, setShowJobsModal] = useState(false);
+	const [jobsData, setJobsData] = useState<any>(null);
+	const [jobsLoading, setJobsLoading] = useState(false);
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -241,6 +246,8 @@ export default function AdminPanel() {
 						environment: 'production',
 						timestamp: result.timestamp, // Keep original trigger time
 						status: 'running',
+						progress: statusData.progress || 0,
+						currentStep: statusData.currentStep || 'Processing data sources',
 						result: {
 							success: true,
 							exitCode: 0,
@@ -338,20 +345,24 @@ export default function AdminPanel() {
 				)}
 				<button
 					onClick={async () => {
+						setJobsLoading(true);
 						try {
 							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
 							const response = await fetch(`${herokuUrl}/jobs`);
 							const data = await response.json();
 							console.log('All jobs on Heroku:', data);
-							alert(`Total jobs: ${data.totalJobs}\nJob IDs: ${Object.keys(data.jobs).join(', ')}`);
+							setJobsData(data);
+							setShowJobsModal(true);
 						} catch (err) {
 							console.error('Failed to fetch jobs:', err);
-							alert('Failed to fetch jobs');
+							setError('Failed to fetch jobs');
+						} finally {
+							setJobsLoading(false);
 						}
 					}}
 					className="mt-2 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
 				>
-					🔍 Debug: List All Jobs
+					{jobsLoading ? '⏳ Loading...' : '🔍 Debug: List All Jobs'}
 				</button>
 			</div>
 
@@ -400,15 +411,29 @@ export default function AdminPanel() {
 						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
 							<div className="flex items-center gap-3">
 								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-								<div>
+								<div className="flex-1">
 									<p className="font-semibold text-blue-800">Seeding in Progress</p>
 									<p className="text-sm text-blue-600">
 										{result.status === 'pending' 
 											? 'Initializing seeding process...' 
-											: 'Processing 10 data sources from Google Sheets...'
+											: result.currentStep || 'Processing 10 data sources from Google Sheets...'
 										}
 									</p>
-									<p className="text-xs text-blue-500 mt-1">
+									{result.progress !== undefined && (
+										<div className="mt-2">
+											<div className="flex justify-between text-xs text-blue-600 mb-1">
+												<span>Progress</span>
+												<span>{result.progress}%</span>
+											</div>
+											<div className="w-full bg-blue-200 rounded-full h-2">
+												<div 
+													className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+													style={{ width: `${result.progress}%` }}
+												></div>
+											</div>
+										</div>
+									)}
+									<p className="text-xs text-blue-500 mt-2">
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: ~30 minutes
 									</p>
 									<p className="text-xs text-blue-500">
@@ -486,6 +511,106 @@ export default function AdminPanel() {
 					<li>• <strong>Timer:</strong> Shows elapsed time since seeding was triggered</li>
 				</ul>
 			</div>
+
+			{/* Jobs Modal */}
+			{showJobsModal && (
+				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+					<div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+						<div className="flex justify-between items-center mb-4">
+							<h3 className="text-lg font-semibold text-gray-800">All Jobs on Heroku</h3>
+							<button
+								onClick={() => setShowJobsModal(false)}
+								className="text-gray-500 hover:text-gray-700 text-xl font-bold"
+							>
+								×
+							</button>
+						</div>
+						
+						{jobsData ? (
+							<div>
+								<div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+									<p className="text-sm text-blue-800">
+										<strong>Total Jobs:</strong> {jobsData.totalJobs}
+									</p>
+								</div>
+								
+								{Object.keys(jobsData.jobs).length > 0 ? (
+									<div className="space-y-3">
+										{Object.entries(jobsData.jobs).map(([jobId, jobData]: [string, any]) => (
+											<div key={jobId} className="p-3 border border-gray-200 rounded-lg">
+												<div className="flex justify-between items-start mb-2">
+													<div className="flex-1">
+														<p className="font-semibold text-gray-800">Job ID: {jobId}</p>
+														<p className="text-sm text-gray-600">
+															Status: <span className={`font-medium ${
+																jobData.status === 'completed' ? 'text-green-600' :
+																jobData.status === 'failed' ? 'text-red-600' :
+																jobData.status === 'running' ? 'text-blue-600' :
+																'text-gray-600'
+															}`}>
+																{jobData.status}
+															</span>
+														</p>
+														{jobData.currentStep && (
+															<p className="text-sm text-gray-600">
+																Current Step: {jobData.currentStep}
+															</p>
+														)}
+														{jobData.progress !== undefined && (
+															<p className="text-sm text-gray-600">
+																Progress: {jobData.progress}%
+															</p>
+														)}
+														{jobData.startTime && (
+														<p className="text-sm text-gray-600">
+															Started: {new Date(jobData.startTime).toLocaleString()}
+														</p>
+														)}
+													</div>
+													<button
+														onClick={async () => {
+															try {
+																const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+																const response = await fetch(`${herokuUrl}/status/${jobId}`);
+																const statusData = await response.json();
+																console.log(`Status for ${jobId}:`, statusData);
+																alert(`Job ${jobId} Status:\n${JSON.stringify(statusData, null, 2)}`);
+															} catch (err) {
+																console.error(`Failed to check status for ${jobId}:`, err);
+																alert(`Failed to check status for ${jobId}`);
+															}
+														}}
+														className="ml-3 px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded"
+													>
+														Check Status
+													</button>
+												</div>
+											</div>
+										))}
+									</div>
+								) : (
+									<div className="text-center py-8 text-gray-500">
+										<p>No jobs found</p>
+									</div>
+								)}
+							</div>
+						) : (
+							<div className="text-center py-8 text-gray-500">
+								<p>Loading jobs...</p>
+							</div>
+						)}
+						
+						<div className="mt-6 flex justify-end">
+							<button
+								onClick={() => setShowJobsModal(false)}
+								className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded"
+							>
+								Close
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

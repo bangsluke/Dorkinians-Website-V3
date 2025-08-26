@@ -84,8 +84,14 @@ class SimpleEmailService {
 		try {
 			const subject = `Database Seeding ${summary.success ? 'Success' : 'Failed'} - ${summary.environment}`;
 			
-			const htmlBody = this.generateSeedingSummaryEmail(summary);
-			const textBody = this.generateSeedingSummaryEmailText(summary);
+			// Add finish timestamp if not present
+			const summaryWithFinishTime = {
+				...summary,
+				finishTime: summary.finishTime || new Date().toISOString()
+			};
+			
+			const htmlBody = this.generateSeedingSummaryEmail(summaryWithFinishTime);
+			const textBody = this.generateSeedingSummaryEmailText(summaryWithFinishTime);
 
 			const mailOptions = {
 				from: this.config.from,
@@ -208,7 +214,8 @@ This is an automated notification from the Dorkinians Website V3 seeding system.
 					<div class="header">
 						<h1>${statusIcon} Database Seeding ${statusText}</h1>
 						<p>Environment: ${summary.environment.toUpperCase()}</p>
-						<p>Timestamp: ${new Date(summary.timestamp).toLocaleString()}</p>
+						<p>Started: ${new Date(summary.timestamp).toLocaleString()}</p>
+						<p>Finished: ${new Date(summary.finishTime).toLocaleString()}</p>
 					</div>
 					
 					<div class="content">
@@ -253,7 +260,8 @@ This is an automated notification from the Dorkinians Website V3 seeding system.
 		return `
 Database Seeding ${statusText}
 Environment: ${summary.environment.toUpperCase()}
-Timestamp: ${new Date(summary.timestamp).toLocaleString()}
+Started: ${new Date(summary.timestamp).toLocaleString()}
+Finished: ${new Date(summary.finishTime).toLocaleString()}
 
 SUMMARY:
 - Nodes Created: ${summary.nodesCreated}
