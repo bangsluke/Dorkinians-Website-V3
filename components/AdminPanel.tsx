@@ -270,6 +270,59 @@ export default function AdminPanel() {
 		}
 	};
 
+	const checkStatusForJob = async (specificJobId: string) => {
+		setStatusCheckLoading(true);
+		setError(null);
+
+		try {
+			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+			const response = await fetch(`${herokuUrl}/status/${specificJobId}`, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+			});
+
+			if (response.ok) {
+				const statusData = await response.json();
+				console.log('Status check response for specific job:', statusData);
+				
+				// Create a new result for this specific job
+				const newResult: SeedingResult = {
+					success: statusData.status !== 'failed',
+					message: statusData.status === 'completed' ? 'Seeding completed successfully' : 
+							 statusData.status === 'failed' ? 'Seeding failed' : 
+							 `Seeding in progress: ${statusData.currentStep || 'Processing data sources'}`,
+					environment: 'production',
+					timestamp: statusData.startTime || new Date().toISOString(),
+					status: statusData.status === 'completed' ? 'completed' : 
+							statusData.status === 'failed' ? 'failed' : 
+							statusData.status === 'running' ? 'running' : 'pending',
+					progress: statusData.progress,
+					currentStep: statusData.currentStep,
+					result: {
+						success: statusData.status === 'completed',
+						exitCode: statusData.status === 'completed' ? 0 : 1,
+						nodesCreated: statusData.result?.nodesCreated || 0,
+						relationshipsCreated: statusData.result?.relationshipsCreated || 0,
+						errorCount: statusData.result?.errors?.length || 0,
+						errors: statusData.result?.errors || [],
+						duration: statusData.result?.duration || 0
+					}
+				};
+				
+				setResult(newResult);
+				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
+			} else {
+				setError('Failed to check status - Heroku service may be unavailable');
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Network error');
+		} finally {
+			setStatusCheckLoading(false);
+		}
+	};
+
 	const getStatusDisplay = () => {
 		if (!result) return null;
 		
@@ -536,7 +589,14 @@ export default function AdminPanel() {
 								
 								{Object.keys(jobsData.jobs).length > 0 ? (
 									<div className="space-y-3">
-										{Object.entries(jobsData.jobs).map(([jobId, jobData]: [string, any]) => (
+										{Object.entries(jobsData.jobs)
+											.sort(([, a], [, b]) => {
+												// Sort by startTime descending (most recent first)
+												const timeA = (a as any).startTime ? new Date((a as any).startTime).getTime() : 0;
+												const timeB = (b as any).startTime ? new Date((b as any).startTime).getTime() : 0;
+												return timeB - timeA;
+											})
+											.map(([jobId, jobData]: [string, any]) => (
 											<div key={jobId} className="p-3 border border-gray-200 rounded-lg">
 												<div className="flex justify-between items-start mb-2">
 													<div className="flex-1">
@@ -568,17 +628,12 @@ export default function AdminPanel() {
 														)}
 													</div>
 													<button
-														onClick={async () => {
-															try {
-																const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-																const response = await fetch(`${herokuUrl}/status/${jobId}`);
-																const statusData = await response.json();
-																console.log(`Status for ${jobId}:`, statusData);
-																alert(`Job ${jobId} Status:\n${JSON.stringify(statusData, null, 2)}`);
-															} catch (err) {
-																console.error(`Failed to check status for ${jobId}:`, err);
-																alert(`Failed to check status for ${jobId}`);
-															}
+														onClick={() => {
+															// Close modal and set up status checking for this job
+															setShowJobsModal(false);
+															setJobId(jobId);
+															// Trigger status check for this specific job
+															checkStatusForJob(jobId);
 														}}
 														className="ml-3 px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded"
 													>
