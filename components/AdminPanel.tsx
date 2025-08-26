@@ -355,7 +355,7 @@ export default function AdminPanel() {
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 						<div>
 							<p className="text-sm text-gray-600">Environment</p>
-							<p className="font-semibold">{result.environment}</p>
+							<p className="font-semibold">{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
 						</div>
 						<div>
 							<p className="text-sm text-gray-600">Timestamp</p>
