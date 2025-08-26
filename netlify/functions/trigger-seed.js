@@ -325,7 +325,7 @@ exports.handler = async (event, context) => {
 		// Trigger Heroku seeding service
 		console.log('🌱 HEROKU: Starting Heroku seeding service...');
 		try {
-			const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://your-heroku-app.herokuapp.com';
+			const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
 			const response = await fetch(`${herokuUrl}/seed`, {
 				method: 'POST',
 				headers: {
