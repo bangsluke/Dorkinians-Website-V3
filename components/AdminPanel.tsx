@@ -56,9 +56,27 @@ export default function AdminPanel() {
 			});
 
 			const data = await response.json();
+			console.log('Netlify function response:', data);
 
 			if (response.ok) {
-				setResult(data);
+				// Transform the Netlify function response to match expected format
+				const transformedResult = {
+					success: data.success || false,
+					message: data.message || 'Unknown response',
+					environment: data.environment || 'production',
+					timestamp: data.timestamp || new Date().toISOString(),
+					result: {
+						success: data.success || false,
+						exitCode: data.success ? 0 : 1,
+						nodesCreated: 0, // Will be updated when status is checked
+						relationshipsCreated: 0, // Will be updated when status is checked
+						errorCount: 0,
+						errors: [],
+						duration: 0
+					}
+				};
+				
+				setResult(transformedResult);
 				// Extract job ID for status checking
 				if (data.jobId) {
 					setJobId(data.jobId);
@@ -67,6 +85,7 @@ export default function AdminPanel() {
 				setError(data.error || 'Failed to trigger seeding');
 			}
 		} catch (err) {
+			console.error('Seeding trigger error:', err);
 			setError(err instanceof Error ? err.message : 'Network error');
 		} finally {
 			setIsLoading(false);
