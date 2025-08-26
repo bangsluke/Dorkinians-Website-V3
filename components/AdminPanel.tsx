@@ -193,12 +193,12 @@ export default function AdminPanel() {
 				console.log('Status check response:', statusData);
 				
 				// Update result with current status
-				if (statusData.status === 'completed' && statusData.result) {
+				if (statusData.status === 'completed' && statusData.result && result) {
 					setResult({
 						success: true,
 						message: 'Seeding completed successfully',
 						environment: 'production',
-						timestamp: statusData.endTime || new Date().toISOString(),
+						timestamp: result.timestamp, // Keep original trigger time
 						status: 'completed',
 						result: {
 							success: statusData.result.success,
@@ -211,12 +211,12 @@ export default function AdminPanel() {
 						}
 					});
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
-				} else if (statusData.status === 'failed') {
+				} else if (statusData.status === 'failed' && result) {
 					setResult({
 						success: false,
 						message: 'Seeding failed',
 						environment: 'production',
-						timestamp: statusData.endTime || new Date().toISOString(),
+						timestamp: result.timestamp, // Keep original trigger time
 						status: 'failed',
 						result: {
 							success: false,
@@ -229,13 +229,17 @@ export default function AdminPanel() {
 						}
 					});
 					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
-				} else {
+				} else if (statusData.status === 'not_found') {
+					setResult(null); // Clear result if not found
+					setError('Job ID not found. Please trigger seeding again.');
+					setLastStatusCheck(`❌ Job ID not found. Please trigger seeding again.`);
+				} else if (result) {
 					// Still running
 					setResult({
 						success: true,
 						message: `Seeding in progress: ${statusData.currentStep || 'Processing data sources'}`,
 						environment: 'production',
-						timestamp: new Date().toISOString(),
+						timestamp: result.timestamp, // Keep original trigger time
 						status: 'running',
 						result: {
 							success: true,
@@ -289,28 +293,8 @@ export default function AdminPanel() {
 		<div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
 			<h2 className="text-2xl font-bold text-gray-900 mb-6">Database Seeding Admin Panel</h2>
 			
-			{/* Configuration Section */}
-			<div className="mb-6 p-4 bg-gray-50 rounded-lg">
-				<h3 className="text-lg font-semibold text-gray-800 mb-3">Configuration</h3>
-				<div className="flex items-center space-x-4">
-					<label className="flex items-center">
-						<input
-							type="radio"
-							value="production"
-							checked={true}
-							className="mr-2"
-							disabled
-						/>
-						Production (Live Database)
-					</label>
-				</div>
-				<p className="text-sm text-gray-600 mt-2">
-					⚠️ This will seed the production Neo4j database with data from Google Sheets. Development seeding has been disabled.
-				</p>
-			</div>
-
-			{/* Trigger Button */}
-			<div className="mb-6">
+{/* Trigger Button */}
+<div className="mb-6">
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
@@ -323,6 +307,15 @@ export default function AdminPanel() {
 					{isLoading ? '🔄 Triggering...' : '🚀 Trigger Database Seeding'}
 				</button>
 			</div>
+
+			{/* Configuration Section */}
+			<div className="mb-6 p-4 bg-gray-50 rounded-lg">
+				<p className="text-sm text-gray-600 mt-2">
+					⚠️ This will seed the production Neo4j database with data from Google Sheets.
+				</p>
+			</div>
+
+			
 
 			{/* Status Check Button */}
 			<div className="mb-6">
@@ -353,19 +346,16 @@ export default function AdminPanel() {
 			{/* Result Display */}
 			{result && (
 				<div className={`mb-6 p-4 rounded-lg border ${statusInfo?.bg}`}>
-					<div className="flex items-center justify-between mb-3">
+					<div className="mb-3">
 						<h3 className={`text-lg font-semibold ${statusInfo?.color}`}>
 							{result.status === 'running' ? '🔄 Seeding in Progress...' : 'Seeding Status'}
 						</h3>
-						<span className={`px-3 py-1 rounded-full text-sm font-medium ${statusInfo?.color} ${statusInfo?.bg}`}>
-							{statusInfo?.text}
-						</span>
 					</div>
 					
 					<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 						<div>
 							<p className="text-sm text-gray-600">Environment</p>
-							<p className="font-semibold">{result.environment}</p>
+							<p className="font-semibold">{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
 						</div>
 						<div>
 							<p className="text-sm text-gray-600">Timestamp</p>
@@ -384,6 +374,32 @@ export default function AdminPanel() {
 							</p>
 						</div>
 					</div>
+
+					{/* Progress Indicator - Moved above statistics */}
+					{(result.status === 'pending' || result.status === 'running') && (
+						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+							<div className="flex items-center gap-3">
+								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+								<div>
+									<p className="font-semibold text-blue-800">Seeding in Progress</p>
+									<p className="text-sm text-blue-600">
+										{result.status === 'pending' 
+											? 'Initializing seeding process...' 
+											: 'Processing 10 data sources from Google Sheets...'
+										}
+									</p>
+									<p className="text-xs text-blue-500 mt-1">
+										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: ~30 minutes
+									</p>
+									<p className="text-xs text-blue-500">
+										Check your email for start and completion notifications.
+									</p>
+								</div>
+							</div>
+						</div>
+					)}
+
+
 
 					{/* Statistics */}
 					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
@@ -412,30 +428,6 @@ export default function AdminPanel() {
 							</p>
 						</div>
 					</div>
-
-					{/* Progress Indicator */}
-					{(result.status === 'pending' || result.status === 'running') && (
-						<div className="mb-4 p-4 bg-blue-100 border border-blue-300 rounded-lg">
-							<div className="flex items-center gap-3">
-								<div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-								<div>
-									<p className="font-semibold text-blue-800">Seeding in Progress</p>
-									<p className="text-sm text-blue-600">
-										{result.status === 'pending' 
-											? 'Initializing seeding process...' 
-											: 'Processing 10 data sources from Google Sheets...'
-										}
-									</p>
-									<p className="text-xs text-blue-500 mt-1">
-										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: ~30 minutes
-									</p>
-									<p className="text-xs text-blue-500">
-										Check your email for start and completion notifications.
-									</p>
-								</div>
-							</div>
-						</div>
-					)}
 
 					{/* Errors */}
 					{result.result.errors && result.result.errors.length > 0 && (
