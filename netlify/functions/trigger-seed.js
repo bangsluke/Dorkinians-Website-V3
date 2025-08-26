@@ -1,24 +1,6 @@
 const path = require('path');
 const fs = require('fs');
 
-// Import CSV header configuration via schema bridge
-const { getCSVHeaderConfig } = require('./lib/config/schemaBridge');
-
-// Helper functions for dynamic column mapping
-function getColumnValue(row, columnName, fallback = '') {
-    return row[columnName] || fallback;
-}
-
-function validateRequiredColumns(row, requiredColumns, sourceName) {
-    for (const column of requiredColumns) {
-        if (!row[column] || row[column].trim() === '') {
-            console.log(`⚠️ Skipping ${sourceName} row with missing ${column}: ${column}="${row[column]}"`);
-            return false;
-        }
-    }
-    return true;
-}
-
 // Simple email service implementation for Netlify Functions
 class SimpleEmailService {
 	constructor() {
