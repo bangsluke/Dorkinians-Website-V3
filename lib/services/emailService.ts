@@ -247,7 +247,7 @@ export class EmailService {
         <li>For access failures: 
           <ul>
             <li>Check Google Sheets permissions and publishing settings</li>
-            <li>Verify URLs and GIDs in <code>lib/config/dataSources.ts</code></li>
+            <li>Verify URLs and GIDs in <code>netlify/functions/lib/config/dataSources.js</code></li>
             <li>Test URLs manually in a browser</li>
           </ul>
         </li>
@@ -405,7 +405,7 @@ REQUIRED ACTIONS:
 		if (summary.accessFailures.length > 0) {
 			text += `${summary.headerFailures.length > 0 ? "2" : "1"}. For access failures:
    - Check Google Sheets permissions and publishing settings
-   - Verify URLs and GIDs in lib/config/dataSources.ts
+   - Verify URLs and GIDs in netlify/functions/lib/config/dataSources.js
    - Test URLs manually in a browser
 `;
 		}

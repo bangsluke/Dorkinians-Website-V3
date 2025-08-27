@@ -25,6 +25,12 @@
 - **User Intent Alignment**: Validate schema design assumptions against user requirements before implementation
 - **Performance vs. Complexity**: Complex graph relationships should only be created when they provide clear analytical value
 
+## Query Generation & Safety
+- **Query Generation Safety**: Always validate and filter input properties before generating database queries, especially with dynamic schemas
+- **Cypher Query Construction**: Explicitly filter out system properties (like 'id') when building Neo4j SET clauses
+- **Property Filtering**: Implement robust property filtering to prevent invalid Cypher syntax and ensure query safety
+- **Dynamic Query Validation**: Test generated queries with sample data before execution to catch syntax errors early
+
 ## Environment Management
 - **Environment Isolation Testing**: Test each Neo4j environment independently before assuming cross-compatibility
 - Validate production vs development credentials, connections, and data flow separately

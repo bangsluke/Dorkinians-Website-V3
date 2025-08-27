@@ -320,15 +320,8 @@ exports.handler = async (event, context) => {
 		console.log('📧 EMAIL: Configuring email service...');
 		emailService.configure();
 
-		// Send start notification
-		console.log('📧 START: Attempting to send start notification...');
-		try {
-			await emailService.sendSeedingStartEmail(environment);
-			console.log('✅ START: Start notification sent successfully');
-		} catch (emailError) {
-			console.warn('⚠️ START: Failed to send start notification:', emailError);
-			// Don't fail the function if email fails
-		}
+		// Note: Start notification is sent by Heroku service after seeding begins
+		console.log('📧 START: Start notification will be sent by Heroku service');
 
 		// Trigger Heroku seeding service
 		console.log('🌱 HEROKU: Starting Heroku seeding service...');
@@ -377,7 +370,7 @@ exports.handler = async (event, context) => {
 				jobId,
 				timestamp: new Date().toISOString(),
 				status: 'started',
-				note: 'Seeding is running on Heroku. Check email for completion notification.',
+				note: 'Seeding is running on Heroku. Check email for start and completion notifications.',
 				herokuUrl: process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com'
 			})
 		};
