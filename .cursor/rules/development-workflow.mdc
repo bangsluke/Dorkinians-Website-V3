@@ -83,6 +83,12 @@ alwaysApply: true
 - **Minimal Artifact Creation**: Create only essential tools needed for immediate problem resolution - avoid over-engineering debug/test artifacts
 - **Evidence-Based Hypothesis**: Verify assumptions through concrete data before implementation - avoid assumption-driven solutions
 
+## Service Architecture & Integration
+- **Service Responsibility Principle**: Each service should have a single, clearly defined responsibility. When services interact, document which service owns which actions/notifications
+- **Email Notification Architecture**: Centralize email sending in the service that performs the work, not in trigger services
+- **Schema Synchronization Pattern**: For cross-repository schema sharing, prefer simple file copying with automation over complex dependency management systems
+- **Service Interaction Documentation**: Clearly document the flow of responsibility between services to prevent duplicate actions and notifications
+
 ## Natural Language Interface Development
 - **Configuration-Driven Mapping**: Use dedicated configuration files for complex natural language mappings (aliases, singular/plural forms) rather than hardcoding logic
 - **Context-Aware Pattern Detection**: Consider full phrase context when implementing pattern matching, not just individual keywords
