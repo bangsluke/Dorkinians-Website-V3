@@ -6,7 +6,7 @@ const { dataService } = require("@/lib/services/dataService");
 const { csvHeaderValidator } = require("@/lib/services/csvHeaderValidator");
 const { emailService } = require("@/lib/services/emailService");
 const { getEmailConfig } = require("@/lib/config/emailConfig");
-const { getDataSourcesByName } = require("@/lib/config/dataSources");
+const { getDataSourcesByName } = require("../../netlify/functions/lib/config/dataSources");
 
 async function POST(request) {
 	try {
@@ -66,7 +66,7 @@ async function POST(request) {
 					console.log("⚠️ Email service not configured - CSV header validation failures will not be emailed");
 				}
 
-				// Validate CSV headers using correct URLs from dataSources.ts
+				// Validate CSV headers using correct URLs from netlify/functions/lib/config/dataSources.js
 				const dataSourceObjects = getDataSourcesByName(dataSources);
 				const headerValidationResult = await csvHeaderValidator.validateAllCSVHeaders(dataSourceObjects);
 

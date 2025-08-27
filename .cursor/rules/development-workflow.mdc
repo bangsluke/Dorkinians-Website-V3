@@ -82,6 +82,15 @@ alwaysApply: true
 - **User Command Boundaries**: Never execute version control commands (git add, commit, push) without explicit permission - respect user autonomy
 - **Minimal Artifact Creation**: Create only essential tools needed for immediate problem resolution - avoid over-engineering debug/test artifacts
 - **Evidence-Based Hypothesis**: Verify assumptions through concrete data before implementation - avoid assumption-driven solutions
+- **Automation-First Principle**: Always prefer automated, zero-intervention solutions over manual scripts or processes
+- **Documentation Consolidation Principle**: Consolidate related information into single, comprehensive files rather than creating multiple specialized documents
+- **User Pattern Recognition**: Identify and follow the user's established architectural preferences (consolidation, automation, single source of truth)
+
+## Service Architecture & Integration
+- **Service Responsibility Principle**: Each service should have a single, clearly defined responsibility. When services interact, document which service owns which actions/notifications
+- **Email Notification Architecture**: Centralize email sending in the service that performs the work, not in trigger services
+- **Schema Synchronization Pattern**: For cross-repository schema sharing, prefer simple file copying with automation over complex dependency management systems
+- **Service Interaction Documentation**: Clearly document the flow of responsibility between services to prevent duplicate actions and notifications
 
 ## Natural Language Interface Development
 - **Configuration-Driven Mapping**: Use dedicated configuration files for complex natural language mappings (aliases, singular/plural forms) rather than hardcoding logic

@@ -28,6 +28,7 @@
     - [OpenAI Configuration](#openai-configuration)
     - [SMTP Configuration](#smtp-configuration)
     - [Installation](#installation)
+  - [Git Hooks Synchronization](#git-hooks-synchronization)
   - [Development Workflow](#development-workflow)
     - [Schema Updates](#schema-updates)
     - [Managing Schema Changes](#managing-schema-changes)
@@ -38,6 +39,8 @@
   - [Deployment](#deployment)
     - [Netlify Deployment](#netlify-deployment)
     - [Database Seeder Deployment](#database-seeder-deployment)
+  - [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
+  - [Email Configuration](#email-configuration)
   - [Maintenance](#maintenance)
     - [Regular Tasks](#regular-tasks)
     - [Troubleshooting](#troubleshooting)
@@ -88,10 +91,15 @@ The project uses a centralized schema approach where all data definitions are ma
 
 **Schema Alignment Process**:
 1. **Edit schema in `database-dorkinians/config/schema.js`**
-2. **Copy updated schema to `V3-Dorkinians-Website/lib/config/schema.js`**
+2. **Commit changes** - Git hook automatically copies to `V3-Dorkinians-Website/lib/config/schema.js`
 3. **Deploy both repositories**
 
-See `lib/config/SCHEMA_ALIGNMENT.md` for detailed instructions.
+**Data Sources Alignment Process**:
+1. **Edit data sources in `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`**
+2. **Commit changes** - Git hook automatically copies to `database-dorkinians/config/dataSources.js`
+3. **Deploy both repositories**
+
+> **Note**: The system now uses Git hooks for automatic synchronization. See [Git Hooks Synchronization](#git-hooks-synchronization) section below.
 
 ### Key Components
 - **Frontend**: Next.js PWA with chatbot interface
@@ -185,6 +193,92 @@ npm install
 npm run test-neo4j  # Test Neo4j connection
 npm run dev          # Start development server
 ```
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Git Hooks Synchronization
+
+The project uses Git `post-commit` hooks to automatically keep configuration files in sync between repositories without manual intervention.
+
+### **How It Works**
+
+**Schema Changes**: When `database-dorkinians/config/schema.js` is modified and committed, it automatically copies to `V3-Dorkinians-Website/lib/config/schema.js`
+
+**Data Sources Changes**: When `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` is modified and committed, it automatically copies to `database-dorkinians/config/dataSources.js`
+
+### **Git Hooks**
+
+- **`database-dorkinians/.git/hooks/post-commit`**: Syncs schema to V3-Dorkinians-Website
+- **`V3-Dorkinians-Website/.git/hooks/post-commit`**: Syncs data sources to database-dorkinians
+
+### **Workflow Examples**
+
+**Updating Schema:**
+```bash
+# 1. Edit the schema in database-dorkinians
+cd database-dorkinians
+# Edit config/schema.js
+
+# 2. Commit the changes
+git add config/schema.js
+git commit -m "Update schema: add new field"
+
+# 3. Git hook automatically copies to V3-Dorkinians-Website
+# 4. Commit the synced file in V3-Dorkinians-Website
+cd ../V3-Dorkinians-Website
+git add lib/config/schema.js
+git commit -m "Sync schema from database-dorkinians"
+```
+
+**Updating Data Sources:**
+```bash
+# 1. Edit data sources in V3-Dorkinians-Website
+cd V3-Dorkinians-Website
+# Edit netlify/functions/lib/config/dataSources.js
+
+# 2. Commit the changes
+git add netlify/functions/lib/config/dataSources.js
+git commit -m "Update data sources: add new Google Sheet"
+
+# 3. Git hook automatically copies to database-dorkinians
+# 4. Commit the synced file in database-dorkinians
+cd ../database-dorkinians
+git add config/dataSources.js
+git commit -m "Sync data sources from V3-Dorkinians-Website"
+```
+
+### **Benefits**
+
+✅ **Zero Manual Intervention**: Files sync automatically on commit  
+✅ **Real-time Updates**: Changes are immediately reflected across repositories  
+✅ **Clear Ownership**: Each file has a single source of truth  
+✅ **Version Control**: All sync operations are tracked in Git history  
+✅ **Error Prevention**: Warning headers prevent accidental direct edits  
+
+### **Troubleshooting Git Hooks**
+
+**Git Hook Not Working:**
+1. **Check File Permissions**: Ensure the hook file is executable
+   ```bash
+   # On Windows
+   attrib -R .git/hooks/post-commit
+   
+   # On Unix/Linux/Mac
+   chmod +x .git/hooks/post-commit
+   ```
+
+2. **Verify Repository Structure**: Both repositories must be in the same parent directory
+   ```
+   /parent-directory/
+   ├── database-dorkinians/
+   └── V3-Dorkinians-Website/
+   ```
+
+**Manual Sync Required (if Git hooks fail):**
+1. **Schema**: Copy `database-dorkinians/config/schema.js` to `V3-Dorkinians-Website/lib/config/schema.js`
+2. **Data Sources**: Copy `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` to `database-dorkinians/config/dataSources.js`
+3. **Update Headers**: Add the appropriate warning header to the target file
+4. **Commit Changes**: Commit the manually synced files
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -326,6 +420,108 @@ node -e "console.log('Schema integration test - check database seeding functiona
 - **Service**: Long-running Neo4j seeding operations
 - **Integration**: Triggered via Netlify functions
 - **Monitoring**: Email notifications and status endpoints
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Cron Setup for Automated Database Updates
+
+The system supports automated daily database updates using external cron services.
+
+### **External Cron Service Setup**
+
+**Using cron-job.org (Free):**
+1. Sign up at [cron-job.org](https://cron-job.org)
+2. Create new cronjob:
+   - **Title**: `Dorkinians Daily Database Update`
+   - **URL**: `https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production`
+   - **Schedule**: Daily at 5:00 AM (`0 5 * * *`)
+   - **Timeout**: 1800 seconds (30 minutes)
+   - **Retry**: 3 attempts on failure
+
+**Alternative Services:**
+- EasyCron: [easycron.com](https://easycron.com)
+- Cronitor: [cronitor.io](https://cronitor.io)
+- UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
+
+### **Manual Testing**
+
+```bash
+# Test the function directly
+curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production"
+```
+
+### **Expected Response**
+```json
+{
+  "success": true,
+  "message": "Database seeding completed successfully",
+  "environment": "production",
+  "timestamp": "2024-01-01T06:00:00.000Z",
+  "result": {
+    "success": true,
+    "exitCode": 0,
+    "nodesCreated": 1500,
+    "relationshipsCreated": 3000
+  }
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Email Configuration
+
+The system sends automated email notifications for CSV header validation failures and seeding completion.
+
+### **Required Environment Variables**
+
+```bash
+# Email Configuration for Notifications
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_EMAIL_SECURE=false
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=your-email@gmail.com
+SMTP_TO_EMAIL=your-email@gmail.com
+```
+
+### **Email Provider Examples**
+
+**Gmail:**
+```bash
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_EMAIL_SECURE=false
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password  # Use App Password, not regular password
+```
+
+**Outlook/Hotmail:**
+```bash
+SMTP_SERVER=smtp-mail.outlook.com
+SMTP_PORT=587
+SMTP_EMAIL_SECURE=false
+SMTP_USERNAME=your-email@outlook.com
+SMTP_PASSWORD=your-password
+```
+
+### **Gmail App Password Setup**
+
+1. Enable 2-Factor Authentication on your Google account
+2. Go to Google Account settings → Security → App passwords
+3. Generate an app password for "Mail"
+4. Use this app password in `SMTP_PASSWORD` (not your regular Gmail password)
+
+### **What Happens When Headers Change**
+
+1. **Validation Fails**: Seeding process stops immediately
+2. **Email Sent**: Detailed notification with:
+   - Which data sources failed
+   - Expected vs. actual headers
+   - Missing and extra headers
+   - Direct links to CSV files
+3. **Logging**: All failures logged to `logs/seeding-errors.log`
+4. **Seeding Halted**: Database remains unchanged until headers are fixed
 
 > [Back to Table of Contents](#table-of-contents)
 
