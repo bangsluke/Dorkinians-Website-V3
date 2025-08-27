@@ -626,8 +626,7 @@ export default function AdminPanel() {
 															Started: {new Date(jobData.startTime).toLocaleString()}
 														</p>
 														)}
-													</div>
-													<button
+														<button
 														onClick={() => {
 															// Close modal and set up status checking for this job
 															setShowJobsModal(false);
@@ -639,6 +638,8 @@ export default function AdminPanel() {
 													>
 														Check Status
 													</button>
+													</div>
+													
 												</div>
 											</div>
 										))}
