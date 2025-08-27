@@ -10,15 +10,42 @@
 
 ## Table of Contents
 
-- [Project Overview](#project-overview)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Environment Setup](#environment-setup)
-- [Development Workflow](#development-workflow)
-- [Deployment](#deployment)
-- [Maintenance](#maintenance)
-- [Contributing](#contributing)
-- [Support](#support)
+- [Dorkinians FC Statistics Website](#dorkinians-fc-statistics-website)
+  - [Table of Contents](#table-of-contents)
+  - [Project Overview](#project-overview)
+    - [**Key Features**](#key-features)
+  - [Architecture](#architecture)
+    - [**Unified Schema System**](#unified-schema-system)
+    - [**Key Components**](#key-components)
+  - [Quick Start](#quick-start)
+    - [**Development Setup**](#development-setup)
+    - [**Database Verification**](#database-verification)
+  - [Environment Setup](#environment-setup)
+    - [**Prerequisites**](#prerequisites)
+    - [**Neo4j Configuration**](#neo4j-configuration)
+      - [**Local Development (Recommended)**](#local-development-recommended)
+      - [**Production (Neo4j Aura)**](#production-neo4j-aura)
+    - [**OpenAI Configuration**](#openai-configuration)
+    - [**SMTP Configuration**](#smtp-configuration)
+    - [**Installation**](#installation)
+  - [Development Workflow](#development-workflow)
+    - [**Schema Updates**](#schema-updates)
+    - [**Managing Schema Changes**](#managing-schema-changes)
+      - [**Adding/Removing CSV Columns**](#addingremoving-csv-columns)
+      - [**Schema Validation**](#schema-validation)
+    - [**Data Seeding**](#data-seeding)
+    - [**Testing**](#testing)
+  - [Deployment](#deployment)
+    - [**Netlify Deployment**](#netlify-deployment)
+    - [**Database Seeder Deployment**](#database-seeder-deployment)
+  - [Maintenance](#maintenance)
+    - [**Regular Tasks**](#regular-tasks)
+    - [**Troubleshooting**](#troubleshooting)
+  - [Contributing](#contributing)
+    - [**Development Guidelines**](#development-guidelines)
+    - [**Repository Structure**](#repository-structure)
+  - [Support](#support)
+  - [License](#license)
 
 ## Project Overview
 
@@ -29,7 +56,7 @@
 - **PWA Interface**: Progressive Web App with chatbot as primary interface
 - **Natural Language Processing**: Process user questions and return visualized answers
 - **Multiple Screens**: Footer navigation with swipeable sub-screens
-- **Unified Data Schema**: Single source of truth for all data definitions via Git submodule
+- **Unified Data Schema**: Single source of truth for all data definitions
 - **Database**: Neo4j Aura for efficient data storage and querying
 
 ## Architecture
@@ -48,13 +75,13 @@ The project uses a centralized schema approach where all data definitions are ma
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────┐
-│              Git Submodule Integration                     │
+│              Database Integration                          │
 ├─────────────────────────────────────────────────────────────┤
 │  database-dorkinians/                                      │
 │  ├── config/schema.js          # Unified schema definition │
 │  ├── services/schemaDrivenSeeder.js                        │
 │  └── (database seeding logic)                              │
-└─────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────┘
 ```
 
 ### **Key Components**
@@ -75,6 +102,8 @@ The project uses a centralized schema approach where all data definitions are ma
 3. **Run development server**: `npm run dev`
 4. **Access application**: http://localhost:3000
 
+> [Back to Table of Contents](#table-of-contents)
+
 ### **Database Verification**
 
 ```bash
@@ -94,6 +123,8 @@ MATCH (n) RETURN n;
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
 
+> [Back to Table of Contents](#table-of-contents)
+
 ### **Neo4j Configuration**
 
 #### **Local Development (Recommended)**
@@ -108,6 +139,8 @@ DEV_NEO4J_PASSWORD=password
 DEV_NEO4J_DATABASE=neo4j
 ```
 
+> [Back to Table of Contents](#table-of-contents)
+
 #### **Production (Neo4j Aura)**
 ```bash
 PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
@@ -115,10 +148,14 @@ PROD_NEO4J_USER=your-username
 PROD_NEO4J_PASSWORD=your_aura_db_password
 ```
 
+> [Back to Table of Contents](#table-of-contents)
+
 ### **OpenAI Configuration**
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 ```
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **SMTP Configuration**
 ```bash
@@ -130,6 +167,8 @@ SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
 ```
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **Installation**
 ```bash
@@ -150,6 +189,8 @@ When data structures change:
 2. **Test Changes**: Use database seeder test endpoints
 3. **Deploy Updates**: Push changes to both repositories
 4. **Verify Integration**: Test frontend functionality
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **Managing Schema Changes**
 
@@ -209,7 +250,9 @@ When Google Sheets structure changes:
    git add v3-repo
    git commit -m "Update database-dorkinians submodule to latest schema"
    git push origin main
-   ```
+```
+
+> [Back to Table of Contents](#table-of-contents)
 
 #### **Schema Validation**
 
@@ -219,71 +262,9 @@ The system automatically validates:
 - **Required Fields**: Mandatory fields have values
 - **Relationship Rules**: Relationship creation logic
 
-### **Git Submodule Management**
 
-#### **How Submodule Works**
 
-```
-V3-Dorkinians-Website/
-├── .git/                    # Main repository
-├── v3-repo/                 # Git submodule (database-dorkinians)
-│   ├── config/schema.js     # Unified schema definitions
-│   └── services/            # Database seeding services
-└── lib/config/
-    └── schemaBridge.js      # Bridge to access submodule schema
-```
 
-#### **Submodule Updates**
-
-**Automatic Updates (Recommended)**:
-```bash
-git submodule update --remote
-git add v3-repo
-git commit -m "Update database-dorkinians submodule"
-git push origin main
-```
-
-**Manual Updates**:
-```bash
-cd v3-repo
-git pull origin main
-cd ..
-git add v3-repo
-git commit -m "Update database-dorkinians submodule manually"
-git push origin main
-```
-
-**Verify Status**:
-```bash
-git submodule status  # Should show: v3-repo <commit-hash> (main)
-```
-
-#### **Submodule Troubleshooting**
-
-**Reset Submodule**:
-```bash
-git submodule deinit v3-repo
-git rm v3-repo
-git commit -m "Remove problematic submodule"
-git submodule add https://github.com/bangsluke/Dorkinians-Website-V2.git v3-repo
-git commit -m "Re-add database-dorkinians submodule"
-git push origin main
-```
-
-**Check Configuration**:
-```bash
-cat .gitmodules
-# Should show:
-# [submodule "v3-repo"]
-#   path = v3-repo
-#   url = https://github.com/bangsluke/Dorkinians-Website-V2.git
-```
-
-#### **Best Practices**
-1. **Always update submodules after schema changes**
-2. **Test schema integration after submodule updates**
-3. **Keep submodule commits in sync with main repository**
-4. **Document submodule changes in commit messages**
 
 ### **Data Seeding**
 
@@ -291,6 +272,8 @@ cat .gitmodules
 - **Netlify Function**: Lightweight trigger endpoint
 - **Heroku Service**: Long-running seeding process using unified schema
 - **Email Notifications**: Automated status updates during seeding
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **Testing**
 
@@ -305,7 +288,7 @@ npm run test:api
 npm run test:seeding
 
 # Schema integration test
-node -e "const { hasUnifiedSchema } = require('./lib/config/schemaBridge'); console.log('Schema available:', hasUnifiedSchema());"
+node -e "console.log('Schema integration test - check database seeding functionality');"
 ```
 
 > [Back to Table of Contents](#table-of-contents)
@@ -327,7 +310,9 @@ node -e "const { hasUnifiedSchema } = require('./lib/config/schemaBridge'); cons
 3. **Deploy**:
    ```bash
    netlify deploy --prod
-   ```
+```
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **Database Seeder Deployment**
 
@@ -348,6 +333,8 @@ node -e "const { hasUnifiedSchema } = require('./lib/config/schemaBridge'); cons
 3. **Performance**: Track API response times and database query performance
 4. **Security**: Review API access and authentication mechanisms
 
+> [Back to Table of Contents](#table-of-contents)
+
 ### **Troubleshooting**
 
 - **Schema Issues**: Check `database-dorkinians/config/schema.js`
@@ -365,6 +352,8 @@ node -e "const { hasUnifiedSchema } = require('./lib/config/schemaBridge'); cons
 2. **Testing**: Include tests for new functionality
 3. **Documentation**: Update relevant documentation
 4. **Code Quality**: Follow established patterns and linting rules
+
+> [Back to Table of Contents](#table-of-contents)
 
 ### **Repository Structure**
 
