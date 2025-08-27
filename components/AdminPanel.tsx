@@ -32,8 +32,16 @@ export default function AdminPanel() {
 	const [showJobsModal, setShowJobsModal] = useState(false);
 	const [jobsData, setJobsData] = useState<any>(null);
 	const [jobsLoading, setJobsLoading] = useState(false);
+	
+	// Live count state for real-time updates
+	const [liveNodesCreated, setLiveNodesCreated] = useState(0);
+	const [liveRelationshipsCreated, setLiveRelationshipsCreated] = useState(0);
+	const [liveErrorCount, setLiveErrorCount] = useState(0);
+	const [isLiveCounting, setIsLiveCounting] = useState(false);
+	
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
+	const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Timer effect
 	useEffect(() => {
@@ -56,6 +64,28 @@ export default function AdminPanel() {
 		};
 	}, [result?.status]);
 
+	// Auto-refresh effect for live counting
+	useEffect(() => {
+		if (result?.status === 'running' && jobId && !isLiveCounting) {
+			setIsLiveCounting(true);
+			// Start auto-refresh every 5 seconds for running jobs
+			autoRefreshRef.current = setInterval(() => {
+				checkStatus();
+			}, 5000);
+		} else if (result?.status !== 'running' && autoRefreshRef.current) {
+			// Stop auto-refresh when job is no longer running
+			clearInterval(autoRefreshRef.current);
+			autoRefreshRef.current = null;
+			setIsLiveCounting(false);
+		}
+
+		return () => {
+			if (autoRefreshRef.current) {
+				clearInterval(autoRefreshRef.current);
+			}
+		};
+	}, [result?.status, jobId, isLiveCounting]);
+
 	// Format elapsed time
 	const formatElapsedTime = (seconds: number) => {
 		const hours = Math.floor(seconds / 3600);
@@ -77,6 +107,9 @@ export default function AdminPanel() {
 		setResult(null);
 		setLastStatusCheck(null);
 		setElapsedTime(0);
+		setLiveNodesCreated(0);
+		setLiveRelationshipsCreated(0);
+		setLiveErrorCount(0);
 		startTimeRef.current = Date.now();
 
 		try {
@@ -199,6 +232,11 @@ export default function AdminPanel() {
 				
 				// Update result with current status
 				if (statusData.status === 'completed' && statusData.result && result) {
+					// Update live counters with final values
+					setLiveNodesCreated(statusData.result.nodesCreated || 0);
+					setLiveRelationshipsCreated(statusData.result.relationshipsCreated || 0);
+					setLiveErrorCount(statusData.result.errors?.length || 0);
+					
 					setResult({
 						success: true,
 						message: 'Seeding completed successfully',
@@ -217,6 +255,11 @@ export default function AdminPanel() {
 					});
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
 				} else if (statusData.status === 'failed' && result) {
+					// Update live counters with final values
+					setLiveNodesCreated(0);
+					setLiveRelationshipsCreated(0);
+					setLiveErrorCount(1);
+					
 					setResult({
 						success: false,
 						message: 'Seeding failed',
@@ -239,7 +282,15 @@ export default function AdminPanel() {
 					setError('Job ID not found. Please trigger seeding again.');
 					setLastStatusCheck(`❌ Job ID not found. Please trigger seeding again.`);
 				} else if (result) {
-					// Still running
+					// Still running - update live counters with current progress
+					const currentNodes = statusData.result?.nodesCreated || 0;
+					const currentRelationships = statusData.result?.relationshipsCreated || 0;
+					const currentErrors = statusData.result?.errors?.length || 0;
+					
+					setLiveNodesCreated(currentNodes);
+					setLiveRelationshipsCreated(currentRelationships);
+					setLiveErrorCount(currentErrors);
+					
 					setResult({
 						success: true,
 						message: `Seeding in progress: ${statusData.currentStep || 'Processing data sources'}`,
@@ -251,9 +302,9 @@ export default function AdminPanel() {
 						result: {
 							success: true,
 							exitCode: 0,
-							nodesCreated: statusData.result?.nodesCreated || 0,
-							relationshipsCreated: statusData.result?.relationshipsCreated || 0,
-							errorCount: statusData.result?.errors?.length || 0,
+							nodesCreated: currentNodes,
+							relationshipsCreated: currentRelationships,
+							errorCount: currentErrors,
 							errors: statusData.result?.errors || [],
 							duration: statusData.result?.duration || 0
 						}
@@ -301,8 +352,8 @@ export default function AdminPanel() {
 					progress: statusData.progress,
 					currentStep: statusData.currentStep,
 					result: {
-						success: statusData.status === 'completed',
-						exitCode: statusData.status === 'completed' ? 0 : 1,
+						success: statusData.status !== 'failed',
+						exitCode: statusData.status === 'failed' ? 1 : 0,
 						nodesCreated: statusData.result?.nodesCreated || 0,
 						relationshipsCreated: statusData.result?.relationshipsCreated || 0,
 						errorCount: statusData.result?.errors?.length || 0,
@@ -312,9 +363,16 @@ export default function AdminPanel() {
 				};
 				
 				setResult(newResult);
+				setJobId(specificJobId);
+				
+				// Update live counters
+				setLiveNodesCreated(statusData.result?.nodesCreated || 0);
+				setLiveRelationshipsCreated(statusData.result?.relationshipsCreated || 0);
+				setLiveErrorCount(statusData.result?.errors?.length || 0);
+				
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
 			} else {
-				setError('Failed to check status - Heroku service may be unavailable');
+				setError('Failed to check status for specific job');
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Network error');
@@ -328,15 +386,15 @@ export default function AdminPanel() {
 		
 		switch (result.status) {
 			case 'pending':
-				return { text: '⏳ Pending', color: 'text-yellow-600', bg: 'bg-yellow-50 border-yellow-200' };
+				return { text: 'Pending', color: 'text-yellow-600', bg: 'border-yellow-200 bg-yellow-50' };
 			case 'running':
-				return { text: '🔄 Running', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-200' };
+				return { text: 'Running', color: 'text-blue-600', bg: 'border-blue-200 bg-blue-50' };
 			case 'completed':
-				return { text: '✅ Completed', color: 'text-green-600', bg: 'bg-green-50 border-green-200' };
+				return { text: 'Completed', color: 'text-green-600', bg: 'border-green-200 bg-green-50' };
 			case 'failed':
-				return { text: '❌ Failed', color: 'text-red-600', bg: 'bg-red-50 border-red-200' };
+				return { text: 'Failed', color: 'text-red-600', bg: 'border-red-200 bg-red-50' };
 			default:
-				return { text: '❓ Unknown', color: 'text-gray-600', bg: 'bg-gray-50 border-gray-200' };
+				return { text: 'Unknown', color: 'text-gray-600', bg: 'border-gray-200 bg-gray-50' };
 		}
 	};
 
@@ -353,8 +411,8 @@ export default function AdminPanel() {
 		<div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
 			<h2 className="text-2xl font-bold text-gray-900 mb-6">Database Seeding Admin Panel</h2>
 			
-{/* Trigger Button */}
-<div className="mb-6">
+			{/* Trigger Button */}
+			<div className="mb-6">
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
@@ -374,8 +432,6 @@ export default function AdminPanel() {
 					⚠️ This will seed the production Neo4j database with data from Google Sheets.
 				</p>
 			</div>
-
-			
 
 			{/* Status Check Button */}
 			<div className="mb-6">
@@ -492,40 +548,84 @@ export default function AdminPanel() {
 									<p className="text-xs text-blue-500">
 										Check your email for start and completion notifications.
 									</p>
+									{isLiveCounting && (
+										<p className="text-xs text-green-600 font-medium mt-2">
+											🔄 Auto-refresh active - Live updates every 5 seconds
+										</p>
+									)}
 								</div>
 							</div>
 						</div>
 					)}
 
+					{/* Live Count Statistics */}
+					{(result.status === 'running' || result.status === 'completed') && (
+						<div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+							<h4 className="text-md font-semibold text-green-800 mb-3">📊 Live Count Statistics</h4>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
+									<p className="text-2xl font-bold text-blue-600">
+										{result.status === 'running' ? liveNodesCreated : result.result.nodesCreated}
+									</p>
+									<p className="text-sm text-gray-600">Nodes Created</p>
+									{result.status === 'running' && (
+										<p className="text-xs text-green-600">🔄 Live</p>
+									)}
+								</div>
+								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
+									<p className="text-2xl font-bold text-green-600">
+										{result.status === 'running' ? liveRelationshipsCreated : result.result.relationshipsCreated}
+									</p>
+									<p className="text-sm text-gray-600">Relationships Created</p>
+									{result.status === 'running' && (
+										<p className="text-xs text-green-600">🔄 Live</p>
+									)}
+								</div>
+								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
+									<p className="text-2xl font-bold text-red-600">
+										{result.status === 'running' ? liveErrorCount : result.result.errorCount}
+									</p>
+									<p className="text-sm text-gray-600">Errors Found</p>
+									{result.status === 'running' && (
+										<p className="text-xs text-green-600">🔄 Live</p>
+									)}
+								</div>
+							</div>
+						</div>
+					)}
 
-
-					{/* Statistics */}
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-blue-600">
-								{getValueDisplay(result.result.nodesCreated, 'Nodes Created').display}
-							</p>
-							<p className="text-sm text-gray-600">
-								{getValueDisplay(result.result.nodesCreated, 'Nodes Created').label}
-							</p>
+					{/* Final Statistics */}
+					{result.status === 'completed' && (
+						<div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+							<h4 className="text-md font-semibold text-blue-800 mb-3">🎯 Final Results</h4>
+							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+								<div className="text-center p-3 bg-white rounded-lg">
+									<p className="text-2xl font-bold text-blue-600">
+										{getValueDisplay(result.result.nodesCreated, 'Nodes Created').display}
+									</p>
+									<p className="text-sm text-gray-600">
+										{getValueDisplay(result.result.nodesCreated, 'Nodes Created').label}
+									</p>
+								</div>
+								<div className="text-center p-3 bg-white rounded-lg">
+									<p className="text-2xl font-bold text-green-600">
+										{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').display}
+									</p>
+									<p className="text-sm text-gray-600">
+										{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').label}
+									</p>
+								</div>
+								<div className="text-center p-3 bg-white rounded-lg">
+									<p className="text-2xl font-bold text-red-600">
+										{getValueDisplay(result.result.errorCount, 'Errors Found').display}
+									</p>
+									<p className="text-sm text-gray-600">
+										{getValueDisplay(result.result.errorCount, 'Errors Found').label}
+									</p>
+								</div>
+							</div>
 						</div>
-						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-green-600">
-								{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').display}
-							</p>
-							<p className="text-sm text-gray-600">
-								{getValueDisplay(result.result.relationshipsCreated, 'Relationships Created').label}
-							</p>
-						</div>
-						<div className="text-center p-3 bg-white rounded-lg">
-							<p className="text-2xl font-bold text-red-600">
-								{getValueDisplay(result.result.errorCount, 'Errors Found').display}
-							</p>
-							<p className="text-sm text-gray-600">
-								{getValueDisplay(result.result.errorCount, 'Errors Found').label}
-							</p>
-						</div>
-					</div>
+					)}
 
 					{/* Errors */}
 					{result.result.errors && result.result.errors.length > 0 && (
@@ -549,7 +649,8 @@ export default function AdminPanel() {
 					<li>• <strong>Step 2:</strong> The system will show &ldquo;Pending&rdquo; status while initializing</li>
 					<li>• <strong>Step 3:</strong> Status changes to &ldquo;Running&rdquo; as the seeding begins on Heroku</li>
 					<li>• <strong>Step 4:</strong> Use &ldquo;Check Seeding Status&rdquo; to monitor progress and get final results</li>
-					<li>• <strong>Note:</strong> Statistics show &ldquo;Pending&rdquo; until you check the status and seeding completes</li>
+					<li>• <strong>Live Updates:</strong> Statistics update automatically every 5 seconds during seeding</li>
+					<li>• <strong>Note:</strong> Live counts show real-time progress during seeding</li>
 				</ul>
 			</div>
 
@@ -561,6 +662,7 @@ export default function AdminPanel() {
 					<li>• <strong>Heroku Service:</strong> Runs the actual database seeding with unified schema</li>
 					<li>• <strong>Email Notifications:</strong> Sent at start and completion (if configured)</li>
 					<li>• <strong>Status Updates:</strong> Real-time progress available via status checks</li>
+					<li>• <strong>Live Counting:</strong> Auto-refresh every 5 seconds during active seeding</li>
 					<li>• <strong>Timer:</strong> Shows elapsed time since seeding was triggered</li>
 				</ul>
 			</div>
