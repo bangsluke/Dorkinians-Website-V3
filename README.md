@@ -62,13 +62,16 @@
 
 ### Unified Schema System
 
-The project uses a centralized schema approach where all data definitions are maintained in the `database-dorkinians` repository:
+The project uses a centralized schema approach where all data definitions are maintained in the `database-dorkinians` repository. To ensure consistency, the schema is manually copied to this repository.
+
+**Important**: This repository contains a copy of the schema that must be kept in sync with `database-dorkinians/config/schema.js`.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    V3-Dorkinians-Website                   │
 │  ├── Frontend (Next.js PWA)                               │
 │  ├── Netlify Functions                                    │
+│  ├── lib/config/schema.js    # Schema copy (keep aligned) │
 │  └── API Routes                                           │
 └─────────────────────────────────────────────────────────────┘
                                  │
@@ -77,11 +80,18 @@ The project uses a centralized schema approach where all data definitions are ma
 │              Database Integration                          │
 ├─────────────────────────────────────────────────────────────┤
 │  database-dorkinians/                                      │
-│  ├── config/schema.js          # Unified schema definition │
+│  ├── config/schema.js          # Unified schema (source)  │
 │  ├── services/schemaDrivenSeeder.js                        │
 │  └── (database seeding logic)                              │
 └─────────────────────────────────────────────┘
 ```
+
+**Schema Alignment Process**:
+1. **Edit schema in `database-dorkinians/config/schema.js`**
+2. **Copy updated schema to `V3-Dorkinians-Website/lib/config/schema.js`**
+3. **Deploy both repositories**
+
+See `lib/config/SCHEMA_ALIGNMENT.md` for detailed instructions.
 
 ### Key Components
 - **Frontend**: Next.js PWA with chatbot interface
