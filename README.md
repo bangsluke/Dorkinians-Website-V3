@@ -13,45 +13,44 @@
 - [Dorkinians FC Statistics Website](#dorkinians-fc-statistics-website)
   - [Table of Contents](#table-of-contents)
   - [Project Overview](#project-overview)
-    - [**Key Features**](#key-features)
+    - [Key Features](#key-features)
   - [Architecture](#architecture)
-    - [**Unified Schema System**](#unified-schema-system)
-    - [**Key Components**](#key-components)
+    - [Unified Schema System](#unified-schema-system)
+    - [Key Components](#key-components)
   - [Quick Start](#quick-start)
-    - [**Development Setup**](#development-setup)
-    - [**Database Verification**](#database-verification)
+    - [Development Setup](#development-setup)
+    - [Database Verification](#database-verification)
   - [Environment Setup](#environment-setup)
-    - [**Prerequisites**](#prerequisites)
-    - [**Neo4j Configuration**](#neo4j-configuration)
-      - [**Local Development (Recommended)**](#local-development-recommended)
-      - [**Production (Neo4j Aura)**](#production-neo4j-aura)
-    - [**OpenAI Configuration**](#openai-configuration)
-    - [**SMTP Configuration**](#smtp-configuration)
-    - [**Installation**](#installation)
+    - [Prerequisites](#prerequisites)
+    - [Neo4j Configuration](#neo4j-configuration)
+      - [Local Development (Recommended)](#local-development-recommended)
+      - [Production (Neo4j Aura)](#production-neo4j-aura)
+    - [OpenAI Configuration](#openai-configuration)
+    - [SMTP Configuration](#smtp-configuration)
+    - [Installation](#installation)
   - [Development Workflow](#development-workflow)
-    - [**Schema Updates**](#schema-updates)
-    - [**Managing Schema Changes**](#managing-schema-changes)
-      - [**Adding/Removing CSV Columns**](#addingremoving-csv-columns)
-      - [**Schema Validation**](#schema-validation)
-    - [**Data Seeding**](#data-seeding)
-    - [**Testing**](#testing)
+    - [Schema Updates](#schema-updates)
+    - [Managing Schema Changes](#managing-schema-changes)
+      - [Adding/Removing CSV Columns](#addingremoving-csv-columns)
+      - [Schema Validation](#schema-validation)
+    - [Data Seeding](#data-seeding)
+    - [Testing](#testing)
   - [Deployment](#deployment)
-    - [**Netlify Deployment**](#netlify-deployment)
-    - [**Database Seeder Deployment**](#database-seeder-deployment)
+    - [Netlify Deployment](#netlify-deployment)
+    - [Database Seeder Deployment](#database-seeder-deployment)
   - [Maintenance](#maintenance)
-    - [**Regular Tasks**](#regular-tasks)
-    - [**Troubleshooting**](#troubleshooting)
+    - [Regular Tasks](#regular-tasks)
+    - [Troubleshooting](#troubleshooting)
   - [Contributing](#contributing)
-    - [**Development Guidelines**](#development-guidelines)
-    - [**Repository Structure**](#repository-structure)
+    - [Development Guidelines](#development-guidelines)
+    - [Repository Structure](#repository-structure)
   - [Support](#support)
-  - [License](#license)
 
 ## Project Overview
 
 **Mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
-### **Key Features**
+### Key Features
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
 - **PWA Interface**: Progressive Web App with chatbot as primary interface
 - **Natural Language Processing**: Process user questions and return visualized answers
@@ -61,7 +60,7 @@
 
 ## Architecture
 
-### **Unified Schema System**
+### Unified Schema System
 
 The project uses a centralized schema approach where all data definitions are maintained in the `database-dorkinians` repository:
 
@@ -84,7 +83,7 @@ The project uses a centralized schema approach where all data definitions are ma
 └─────────────────────────────────────────────┘
 ```
 
-### **Key Components**
+### Key Components
 - **Frontend**: Next.js PWA with chatbot interface
 - **Backend Services**: Netlify functions for API endpoints
 - **Database Seeder**: Heroku service using unified schema
@@ -95,7 +94,7 @@ The project uses a centralized schema approach where all data definitions are ma
 
 ## Quick Start
 
-### **Development Setup**
+### Development Setup
 
 1. **Start Neo4j Desktop locally**
 2. **Start Neo4j graph database** on port `7687`
@@ -104,7 +103,7 @@ The project uses a centralized schema approach where all data definitions are ma
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Database Verification**
+### Database Verification
 
 ```bash
 # View all nodes and relationships
@@ -118,16 +117,16 @@ MATCH (n) RETURN n;
 
 ## Environment Setup
 
-### **Prerequisites**
+### Prerequisites
 - Node.js 18+
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Neo4j Configuration**
+### Neo4j Configuration
 
-#### **Local Development (Recommended)**
+#### Local Development (Recommended)
 ```bash
 # Install Neo4j Desktop
 # Create local database: neo4j on port 7687
@@ -141,7 +140,7 @@ DEV_NEO4J_DATABASE=neo4j
 
 > [Back to Table of Contents](#table-of-contents)
 
-#### **Production (Neo4j Aura)**
+#### Production (Neo4j Aura)
 ```bash
 PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
 PROD_NEO4J_USER=your-username
@@ -150,14 +149,14 @@ PROD_NEO4J_PASSWORD=your_aura_db_password
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **OpenAI Configuration**
+### OpenAI Configuration
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **SMTP Configuration**
+### SMTP Configuration
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -170,7 +169,7 @@ SMTP_TO_EMAIL=recipient@example.com
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Installation**
+### Installation
 ```bash
 npm install
 npm run test-neo4j  # Test Neo4j connection
@@ -181,7 +180,7 @@ npm run dev          # Start development server
 
 ## Development Workflow
 
-### **Schema Updates**
+### Schema Updates
 
 When data structures change:
 
@@ -192,9 +191,9 @@ When data structures change:
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Managing Schema Changes**
+### Managing Schema Changes
 
-#### **Adding/Removing CSV Columns**
+#### Adding/Removing CSV Columns
 
 When Google Sheets structure changes:
 
@@ -250,11 +249,11 @@ When Google Sheets structure changes:
    git add v3-repo
    git commit -m "Update database-dorkinians submodule to latest schema"
    git push origin main
-```
+   ```
 
 > [Back to Table of Contents](#table-of-contents)
 
-#### **Schema Validation**
+#### Schema Validation
 
 The system automatically validates:
 - **Column Presence**: Required columns exist
@@ -262,11 +261,7 @@ The system automatically validates:
 - **Required Fields**: Mandatory fields have values
 - **Relationship Rules**: Relationship creation logic
 
-
-
-
-
-### **Data Seeding**
+### Data Seeding
 
 **Hybrid Approach**:
 - **Netlify Function**: Lightweight trigger endpoint
@@ -275,7 +270,7 @@ The system automatically validates:
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Testing**
+### Testing
 
 ```bash
 # Frontend tests
@@ -295,7 +290,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 
 ## Deployment
 
-### **Netlify Deployment**
+### Netlify Deployment
 
 1. **Build Configuration**:
    ```bash
@@ -310,11 +305,11 @@ node -e "console.log('Schema integration test - check database seeding functiona
 3. **Deploy**:
    ```bash
    netlify deploy --prod
-```
+   ```
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Database Seeder Deployment**
+### Database Seeder Deployment
 
 **Separate Heroku Service**:
 - **Repository**: `database-dorkinians`
@@ -326,7 +321,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 
 ## Maintenance
 
-### **Regular Tasks**
+### Regular Tasks
 
 1. **Schema Review**: Periodically review unified schema configuration
 2. **Data Quality**: Monitor CSV data quality and structure
@@ -335,7 +330,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Troubleshooting**
+### Troubleshooting
 
 - **Schema Issues**: Check `database-dorkinians/config/schema.js`
 - **Data Problems**: Verify CSV structure and Google Sheets permissions
@@ -346,7 +341,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 
 ## Contributing
 
-### **Development Guidelines**
+### Development Guidelines
 
 1. **Schema Changes**: Always update the unified schema first
 2. **Testing**: Include tests for new functionality
@@ -355,7 +350,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 
 > [Back to Table of Contents](#table-of-contents)
 
-### **Repository Structure**
+### Repository Structure
 
 - **Frontend**: Next.js components and pages
 - **API**: Netlify functions and API routes
@@ -374,6 +369,4 @@ node -e "console.log('Schema integration test - check database seeding functiona
 3. **Performance**: Monitor database and API performance
 4. **Integration**: Test database seeder connectivity
 
-## License
-
-This project is licensed under the MIT License.
+> [Back to Table of Contents](#table-of-contents)
