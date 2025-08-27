@@ -6,7 +6,7 @@ const { dataService } = require("@/lib/services/dataService");
 const { csvHeaderValidator } = require("@/lib/services/csvHeaderValidator");
 const { emailService } = require("@/lib/services/emailService");
 const { getEmailConfig } = require("@/lib/config/emailConfig");
-const { getDataSourcesByName } = require("../../netlify/functions/lib/config/dataSources");
+const { getDataSourcesByName } = require("@/lib/config/dataSources");
 
 async function POST(request) {
 	try {
