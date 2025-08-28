@@ -377,11 +377,11 @@ export default function AdminPanel() {
 			</div>
 
 			{/* Status Check Button */}
-			<div className="mb-6">
+			<div className="mb-6 ">
 				<button
 					onClick={checkStatus}
 					disabled={statusCheckLoading || !jobId}
-					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+					className={`px-6 py-3 mr-4 rounded-lg font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId
 							? 'bg-gray-400 cursor-not-allowed'
 							: 'bg-purple-600 hover:bg-purple-700'
@@ -389,12 +389,6 @@ export default function AdminPanel() {
 				>
 					{statusCheckLoading ? '🔄 Checking Status...' : '🔍 Check Seeding Status'}
 				</button>
-				{lastStatusCheck && (
-					<p className="text-sm text-gray-600 mt-2">{lastStatusCheck}</p>
-				)}
-				{jobId && (
-					<p className="text-xs text-gray-500 mt-1">Current Job ID: {jobId}</p>
-				)}
 				<button
 					onClick={async () => {
 						setJobsLoading(true);
@@ -416,6 +410,13 @@ export default function AdminPanel() {
 				>
 					{jobsLoading ? '⏳ Loading...' : '🔍 Debug: List All Jobs'}
 				</button>
+				{lastStatusCheck && (
+					<p className="text-sm text-gray-600 mt-2">{lastStatusCheck}</p>
+				)}
+				{jobId && (
+					<p className="text-xs text-gray-500 mt-1">Current Job ID: {jobId}</p>
+				)}
+				
 			</div>
 
 			{/* Error Display */}
@@ -545,25 +546,14 @@ export default function AdminPanel() {
 
 			{/* Information Section */}
 			<div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-				<h3 className="text-lg font-semibold text-blue-800 mb-2">How the New Seeding Process Works</h3>
+				<h3 className="text-lg font-semibold text-blue-800 mb-2">How the Database Seeding Process Works</h3>
 				<ul className="text-blue-700 text-sm space-y-2">
-					<li>• <strong>Step 1:</strong> Click &ldquo;Trigger Database Seeding&rdquo; to start the process</li>
+					<li>• <strong>Step 1:</strong> Click &ldquo;Trigger Database Seeding&rdquo; to start the process. This triggers the Netlify function to make the call to Heroku and provides immediate feedback that the database seeding process has started</li>
 					<li>• <strong>Step 2:</strong> The system will show &ldquo;Pending&rdquo; status while initializing</li>
 					<li>• <strong>Step 3:</strong> Status changes to &ldquo;Running&rdquo; as the seeding begins on Heroku</li>
 					<li>• <strong>Step 4:</strong> Use &ldquo;Check Seeding Status&rdquo; to monitor progress and get final results</li>
-					<li>• <strong>Note:</strong> Check your email for start and completion notifications</li>
-				</ul>
-			</div>
-
-			{/* Technical Details */}
-			<div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-				<h3 className="text-lg font-semibold text-gray-800 mb-2">Technical Details</h3>
-				<ul className="text-gray-700 text-sm space-y-1">
-					<li>• <strong>Netlify Function:</strong> Triggers the seeding process and provides immediate feedback</li>
-					<li>• <strong>Heroku Service:</strong> Runs the actual database seeding with unified schema</li>
-					<li>• <strong>Email Notifications:</strong> Sent at start and completion (if configured)</li>
-					<li>• <strong>Status Updates:</strong> Real-time progress available via status checks</li>
-					<li>• <strong>Timer:</strong> Shows elapsed time since seeding was triggered</li>
+					<li>• <strong>Step 5:</strong> If you need to check the status of a specific job, use &ldquo;Debug: List All Jobs&rdquo; to view all jobs and their statuses. Click on the job ID to check its current status.</li>
+					<li>• <strong>Note:</strong> Check your email for completion notifications</li>
 				</ul>
 			</div>
 
