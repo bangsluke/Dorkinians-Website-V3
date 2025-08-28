@@ -33,15 +33,8 @@ export default function AdminPanel() {
 	const [jobsData, setJobsData] = useState<any>(null);
 	const [jobsLoading, setJobsLoading] = useState(false);
 	
-	// Live count state for real-time updates
-	const [liveNodesCreated, setLiveNodesCreated] = useState(0);
-	const [liveRelationshipsCreated, setLiveRelationshipsCreated] = useState(0);
-	const [liveErrorCount, setLiveErrorCount] = useState(0);
-	const [isLiveCounting, setIsLiveCounting] = useState(false);
-	
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
-	const autoRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Timer effect
 	useEffect(() => {
@@ -64,28 +57,6 @@ export default function AdminPanel() {
 		};
 	}, [result?.status]);
 
-	// Auto-refresh effect for live counting
-	useEffect(() => {
-		if (result?.status === 'running' && jobId && !isLiveCounting) {
-			setIsLiveCounting(true);
-			// Start auto-refresh every 5 seconds for running jobs
-			autoRefreshRef.current = setInterval(() => {
-				checkStatus();
-			}, 5000);
-		} else if (result?.status !== 'running' && autoRefreshRef.current) {
-			// Stop auto-refresh when job is no longer running
-			clearInterval(autoRefreshRef.current);
-			autoRefreshRef.current = null;
-			setIsLiveCounting(false);
-		}
-
-		return () => {
-			if (autoRefreshRef.current) {
-				clearInterval(autoRefreshRef.current);
-			}
-		};
-	}, [result?.status, jobId, isLiveCounting]);
-
 	// Format elapsed time
 	const formatElapsedTime = (seconds: number) => {
 		const hours = Math.floor(seconds / 3600);
@@ -107,9 +78,6 @@ export default function AdminPanel() {
 		setResult(null);
 		setLastStatusCheck(null);
 		setElapsedTime(0);
-		setLiveNodesCreated(0);
-		setLiveRelationshipsCreated(0);
-		setLiveErrorCount(0);
 		startTimeRef.current = Date.now();
 
 		try {
@@ -232,11 +200,6 @@ export default function AdminPanel() {
 				
 				// Update result with current status
 				if (statusData.status === 'completed' && statusData.result && result) {
-					// Update live counters with final values
-					setLiveNodesCreated(statusData.result.nodesCreated || 0);
-					setLiveRelationshipsCreated(statusData.result.relationshipsCreated || 0);
-					setLiveErrorCount(statusData.result.errors?.length || 0);
-					
 					setResult({
 						success: true,
 						message: 'Seeding completed successfully',
@@ -255,11 +218,6 @@ export default function AdminPanel() {
 					});
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
 				} else if (statusData.status === 'failed' && result) {
-					// Update live counters with final values
-					setLiveNodesCreated(0);
-					setLiveRelationshipsCreated(0);
-					setLiveErrorCount(1);
-					
 					setResult({
 						success: false,
 						message: 'Seeding failed',
@@ -282,15 +240,6 @@ export default function AdminPanel() {
 					setError('Job ID not found. Please trigger seeding again.');
 					setLastStatusCheck(`❌ Job ID not found. Please trigger seeding again.`);
 				} else if (result) {
-					// Still running - update live counters with current progress
-					const currentNodes = statusData.result?.nodesCreated || 0;
-					const currentRelationships = statusData.result?.relationshipsCreated || 0;
-					const currentErrors = statusData.result?.errors?.length || 0;
-					
-					setLiveNodesCreated(currentNodes);
-					setLiveRelationshipsCreated(currentRelationships);
-					setLiveErrorCount(currentErrors);
-					
 					setResult({
 						success: true,
 						message: `Seeding in progress: ${statusData.currentStep || 'Processing data sources'}`,
@@ -302,9 +251,9 @@ export default function AdminPanel() {
 						result: {
 							success: true,
 							exitCode: 0,
-							nodesCreated: currentNodes,
-							relationshipsCreated: currentRelationships,
-							errorCount: currentErrors,
+							nodesCreated: statusData.result?.nodesCreated || 0,
+							relationshipsCreated: statusData.result?.relationshipsCreated || 0,
+							errorCount: statusData.result?.errors?.length || 0,
 							errors: statusData.result?.errors || [],
 							duration: statusData.result?.duration || 0
 						}
@@ -364,12 +313,6 @@ export default function AdminPanel() {
 				
 				setResult(newResult);
 				setJobId(specificJobId);
-				
-				// Update live counters
-				setLiveNodesCreated(statusData.result?.nodesCreated || 0);
-				setLiveRelationshipsCreated(statusData.result?.relationshipsCreated || 0);
-				setLiveErrorCount(statusData.result?.errors?.length || 0);
-				
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
 			} else {
 				setError('Failed to check status for specific job');
@@ -469,7 +412,7 @@ export default function AdminPanel() {
 							setJobsLoading(false);
 						}
 					}}
-					className="mt-2 px-3 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded"
+					className="mt-2 px-6 py-3 rounded-lg font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700"
 				>
 					{jobsLoading ? '⏳ Loading...' : '🔍 Debug: List All Jobs'}
 				</button>
@@ -548,47 +491,6 @@ export default function AdminPanel() {
 									<p className="text-xs text-blue-500">
 										Check your email for start and completion notifications.
 									</p>
-									{isLiveCounting && (
-										<p className="text-xs text-green-600 font-medium mt-2">
-											🔄 Auto-refresh active - Live updates every 5 seconds
-										</p>
-									)}
-								</div>
-							</div>
-						</div>
-					)}
-
-					{/* Live Count Statistics */}
-					{(result.status === 'running' || result.status === 'completed') && (
-						<div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-							<h4 className="text-md font-semibold text-green-800 mb-3">📊 Live Count Statistics</h4>
-							<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
-									<p className="text-2xl font-bold text-blue-600">
-										{result.status === 'running' ? liveNodesCreated : result.result.nodesCreated}
-									</p>
-									<p className="text-sm text-gray-600">Nodes Created</p>
-									{result.status === 'running' && (
-										<p className="text-xs text-green-600">🔄 Live</p>
-									)}
-								</div>
-								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
-									<p className="text-2xl font-bold text-green-600">
-										{result.status === 'running' ? liveRelationshipsCreated : result.result.relationshipsCreated}
-									</p>
-									<p className="text-sm text-gray-600">Relationships Created</p>
-									{result.status === 'running' && (
-										<p className="text-xs text-green-600">🔄 Live</p>
-									)}
-								</div>
-								<div className="text-center p-3 bg-white rounded-lg border border-green-200">
-									<p className="text-2xl font-bold text-red-600">
-										{result.status === 'running' ? liveErrorCount : result.result.errorCount}
-									</p>
-									<p className="text-sm text-gray-600">Errors Found</p>
-									{result.status === 'running' && (
-										<p className="text-xs text-green-600">🔄 Live</p>
-									)}
 								</div>
 							</div>
 						</div>
@@ -649,8 +551,7 @@ export default function AdminPanel() {
 					<li>• <strong>Step 2:</strong> The system will show &ldquo;Pending&rdquo; status while initializing</li>
 					<li>• <strong>Step 3:</strong> Status changes to &ldquo;Running&rdquo; as the seeding begins on Heroku</li>
 					<li>• <strong>Step 4:</strong> Use &ldquo;Check Seeding Status&rdquo; to monitor progress and get final results</li>
-					<li>• <strong>Live Updates:</strong> Statistics update automatically every 5 seconds during seeding</li>
-					<li>• <strong>Note:</strong> Live counts show real-time progress during seeding</li>
+					<li>• <strong>Note:</strong> Check your email for start and completion notifications</li>
 				</ul>
 			</div>
 
@@ -662,7 +563,6 @@ export default function AdminPanel() {
 					<li>• <strong>Heroku Service:</strong> Runs the actual database seeding with unified schema</li>
 					<li>• <strong>Email Notifications:</strong> Sent at start and completion (if configured)</li>
 					<li>• <strong>Status Updates:</strong> Real-time progress available via status checks</li>
-					<li>• <strong>Live Counting:</strong> Auto-refresh every 5 seconds during active seeding</li>
 					<li>• <strong>Timer:</strong> Shows elapsed time since seeding was triggered</li>
 				</ul>
 			</div>
