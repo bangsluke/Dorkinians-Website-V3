@@ -15,3 +15,10 @@
 | How many goals did the 2nd team score during the 2017/18 season?                | NumberCard           | FASiteData  |
 | Which team has conceded the fewest goals in history?                            | Table                | StatsData   |
 | How many awards have I won?                                                     | Table                | StatsData   |
+| What player have I played with most whilst playing in the 3s?                   | Table                | StatsData   |
+| How many leagues have I won?                                                    | NumberCard           | StatsData and FASiteData |
+| How many times have I played Old Hamptonians?                                   | NumberCard           | StatsData   |
+| How many goals has Oli Goddard scored in the Premier?                           | NumberCard           | StatsData   |
+| How many assists has Oli Goddard scored at Pixham?                              | NumberCard           | StatsData   |
+| What was my most prolific season?                                               | Table                | StatsData   |
+
