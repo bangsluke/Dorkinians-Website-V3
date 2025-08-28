@@ -229,63 +229,63 @@ export class ChatbotService {
 			
 			// Build query with case-insensitive player name matching
 			let query = `
-				MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-				WHERE p.name = $playerName OR p.name = $playerNameLower OR p.name = $playerNameHyphen
-				MATCH (p)-[:PERFORMED_IN]->(md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
+				MATCH (p:Player)
+				WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 			`;
 			
 			let returnClause = '';
 			switch (metric) {
 				case 'APP':
-					returnClause = 'RETURN p.name as playerName, count(md) as value';
+					returnClause = 'RETURN p.playerName as playerName, count(md) as value';
 					break;
 				case 'MIN':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
 					break;
 				case 'G':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
 					break;
 				case 'A':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
 					break;
 				case 'MOM':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.manOfMatch IS NULL OR md.manOfMatch = "" THEN 0 ELSE md.manOfMatch END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = "" THEN 0 ELSE md.mom END), 0) as value';
 					break;
 				case 'Y':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCard IS NULL OR md.yellowCard = "" THEN 0 ELSE md.yellowCard END), 0) as value';
 					break;
 				case 'R':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCard IS NULL OR md.redCard = "" THEN 0 ELSE md.redCard END), 0) as value';
 					break;
 				case 'SAVES':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = "" THEN 0 ELSE md.saves END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = "" THEN 0 ELSE md.saves END), 0) as value';
 					break;
 				case 'OG':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
 					break;
 				case 'C':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END), 0) as value';
 					break;
 				case 'CLS':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = "" THEN 0 ELSE md.cleanSheet END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = "" THEN 0 ELSE md.cleanSheet END), 0) as value';
 					break;
 				case 'PSC':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
 					break;
 				case 'PM':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
 					break;
 				case 'PCO':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
 					break;
 				case 'PSV':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
 					break;
 				case 'FTP':
-					returnClause = 'RETURN p.name as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
 					break;
 				default:
-					returnClause = 'RETURN p.name as playerName, count(md) as value';
+					returnClause = 'RETURN p.playerName as playerName, count(md) as value';
 			}
 			
 			query += ' ' + returnClause;
@@ -313,9 +313,9 @@ export class ChatbotService {
 					// Diagnostic: Let's see what players actually exist in the database
 					console.log(`🔍 No results found for ${playerName}. Running diagnostic query...`);
 					const diagnosticQuery = `
-						MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-						RETURN p.name as playerName
-						ORDER BY p.name
+						MATCH (p:Player)
+						RETURN p.playerName as playerName
+						ORDER BY p.playerName
 						LIMIT 20
 					`;
 					const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
@@ -323,19 +323,19 @@ export class ChatbotService {
 					
 					// Also check if there are any players with similar names
 					const similarQuery = `
-						MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-						WHERE p.name CONTAINS 'Luke' OR p.name CONTAINS 'Bangs' OR p.name CONTAINS 'luke' OR p.name CONTAINS 'bangs'
-						RETURN p.name as playerName
-						ORDER BY p.name
+						MATCH (p:Player)
+						WHERE p.playerName CONTAINS 'Luke' OR p.playerName CONTAINS 'Bangs' OR p.playerName CONTAINS 'luke' OR p.playerName CONTAINS 'bangs'
+						RETURN p.playerName as playerName
+						ORDER BY p.playerName
 					`;
 					const similarResult = await neo4jService.executeQuery(similarQuery);
 					console.log(`🔍 Similar names found:`, similarResult.map(p => p.playerName));
 					
 					// Check if Luke Bangs has any relationships at all
 					const relationshipQuery = `
-						MATCH (p:Player {name: $playerName, graphLabel: 'dorkiniansWebsite'})
+						MATCH (p:Player {playerName: $playerName})
 						OPTIONAL MATCH (p)-[r]->(n)
-						RETURN p.name as playerName, type(r) as relationshipType, labels(n) as nodeLabels, n.name as nodeName
+						RETURN p.playerName as playerName, type(r) as relationshipType, labels(n) as nodeLabels, n.name as nodeName
 						ORDER BY type(r)
 					`;
 					const relationshipResult = await neo4jService.executeQuery(relationshipQuery, { playerName });
@@ -343,7 +343,7 @@ export class ChatbotService {
 					
 					// Check if there are any MatchDetail nodes at all
 					const matchDetailQuery = `
-						MATCH (md:MatchDetail {graphLabel: 'dorkiniansWebsite'})
+						MATCH (md:MatchDetail)
 						RETURN count(md) as totalMatchDetails
 						LIMIT 1
 					`;
@@ -372,9 +372,9 @@ export class ChatbotService {
 		
 		// Fallback to general player query
 		const query = `
-      MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-      WHERE p.NAME IS NOT NULL
-      RETURN p.NAME as name, p.source as source
+      MATCH (p:Player)
+      WHERE p.playerName IS NOT NULL
+      RETURN p.playerName as name, p.id as source
       LIMIT 50
     `;
 
@@ -385,7 +385,7 @@ export class ChatbotService {
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
 		const query = `
-      MATCH (t:Team {graphLabel: 'dorkiniansWebsite'})
+      MATCH (t:Team)
       RETURN t.name as name, t.league as league
       LIMIT 20
     `;
@@ -396,7 +396,7 @@ export class ChatbotService {
 
 	private async queryClubData(entities: string[], metrics: string[]): Promise<any> {
 		const query = `
-      MATCH (c:Club {graphLabel: 'dorkiniansWebsite'})
+      MATCH (c:Club)
       RETURN c.name as name, c.captain as captain, c.awards as awards
       LIMIT 10
     `;
@@ -407,8 +407,8 @@ export class ChatbotService {
 
 	private async queryFixtureData(entities: string[], metrics: string[]): Promise<any> {
 		const query = `
-      MATCH (f:Fixture {graphLabel: 'dorkiniansWebsite'})
-      RETURN f.homeTeam as homeTeam, f.awayTeam as awayTeam, f.date as date, f.score as score
+      MATCH (f:Fixture)
+      RETURN f.team as homeTeam, f.opposition as awayTeam, f.date as date, f.result as score
       ORDER BY f.date DESC
       LIMIT 20
     `;
@@ -419,10 +419,10 @@ export class ChatbotService {
 
 	private async queryComparisonData(entities: string[], metrics: string[]): Promise<any> {
 		const query = `
-      MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-      WHERE p.NAME IS NOT NULL
-      RETURN p.NAME as name, p.team as team, p.goals as goals, p.assists as assists
-      ORDER BY p.goals DESC
+      MATCH (p:Player)
+      WHERE p.playerName IS NOT NULL
+      RETURN p.playerName as name, p.mostPlayedForTeam as team, p.id as goals, p.id as assists
+      ORDER BY p.id DESC
       LIMIT 10
     `;
 
@@ -433,8 +433,8 @@ export class ChatbotService {
 	private async queryGeneralData(): Promise<any> {
 		// Query for general information about the database
 		const query = `
-      MATCH (p:Player {graphLabel: 'dorkiniansWebsite'})
-      WHERE p.NAME IS NOT NULL
+      MATCH (p:Player)
+      WHERE p.playerName IS NOT NULL
       RETURN count(p) as playerCount
     `;
 
