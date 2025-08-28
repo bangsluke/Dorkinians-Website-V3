@@ -32,6 +32,7 @@ export default function AdminPanel() {
 	const [showJobsModal, setShowJobsModal] = useState(false);
 	const [jobsData, setJobsData] = useState<any>(null);
 	const [jobsLoading, setJobsLoading] = useState(false);
+	const [lastCompletedJobDuration, setLastCompletedJobDuration] = useState<number | null>(null);
 	
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -217,6 +218,7 @@ export default function AdminPanel() {
 						}
 					});
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
+					setLastCompletedJobDuration(statusData.result.duration || 0);
 				} else if (statusData.status === 'failed' && result) {
 					setResult({
 						success: false,
@@ -235,6 +237,7 @@ export default function AdminPanel() {
 						}
 					});
 					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
+					setLastCompletedJobDuration(0); // Reset duration for failed jobs
 				} else if (statusData.status === 'not_found') {
 					setResult(null); // Clear result if not found
 					setError('Job ID not found. Please trigger seeding again.');
@@ -314,6 +317,11 @@ export default function AdminPanel() {
 				setResult(newResult);
 				setJobId(specificJobId);
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
+				
+				// Update last completed job duration if this job completed successfully
+				if (statusData.status === 'completed' && statusData.result?.duration) {
+					setLastCompletedJobDuration(statusData.result.duration);
+				}
 			} else {
 				setError('Failed to check status for specific job');
 			}
@@ -487,7 +495,7 @@ export default function AdminPanel() {
 										</div>
 									)}
 									<p className="text-xs text-blue-500 mt-2">
-										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: ~30 minutes
+										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration: {lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : '~30 minutes'}
 									</p>
 									<p className="text-xs text-blue-500">
 										Check your email for start and completion notifications.
