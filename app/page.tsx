@@ -47,8 +47,8 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-8'>
-										<h1 className='text-xl font-bold text-gray-900 mb-6'>Welcome to Dorkinians FC</h1>
-										<p className='text-m text-gray-600 max-w-md mx-auto'>
+										<h1 className='text-xl font-bold text-white mb-6'>Welcome to Dorkinians FC Statistics</h1>
+										<p className='text-m text-gray-300 max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
 									</motion.div>
@@ -123,13 +123,17 @@ export default function HomePage() {
 	};
 
 	return (
-		<div className='min-h-screen bg-gray-50'>
+		<div className='min-h-screen'>
 			{/* Header */}
 			<Header onSettingsClick={() => console.log("Settings clicked")} />
 
 			{/* Main Content */}
 			<main className='pt-20 pb-24 px-4 h-screen'>
-				<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+				<div className='frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden'>
+					<div className='h-full overflow-y-auto'>
+						<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+					</div>
+				</div>
 			</main>
 
 			{/* Footer Navigation */}

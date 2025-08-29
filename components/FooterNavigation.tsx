@@ -16,7 +16,7 @@ export default function FooterNavigation() {
 
 	return (
 		<motion.nav
-			className='fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200'
+			className='fixed bottom-0 left-0 right-0 z-50 frosted-glass w-full'
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
@@ -30,7 +30,7 @@ export default function FooterNavigation() {
 							key={item.id}
 							onClick={() => setMainPage(item.id)}
 							className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-colors ${
-								isActive ? "text-dorkinians-blue bg-blue-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+								isActive ? "text-dorkinians-blue bg-white/30" : "text-white hover:text-gray-200 hover:bg-white/20"
 							}`}
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}>
