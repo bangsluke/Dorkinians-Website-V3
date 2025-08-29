@@ -39,7 +39,18 @@ export async function POST(request: NextRequest) {
 		// Process the question
 		const response = await chatbotService.processQuestion(body);
 
-		return NextResponse.json(response, { headers: corsHeaders });
+		// Add debugging information to the response for client-side visibility
+		const debugResponse = {
+			...response,
+			debug: {
+				question: body.question,
+				userContext: body.userContext,
+				timestamp: new Date().toISOString(),
+				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || 'None'}`
+			}
+		};
+
+		return NextResponse.json(debugResponse, { headers: corsHeaders });
 	} catch (error) {
 		console.error("❌ Chatbot API error:", error);
 
