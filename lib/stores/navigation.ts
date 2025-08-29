@@ -22,27 +22,27 @@ interface NavigationState {
 	// Swipe navigation helpers
 	nextStatsSubPage: () => void;
 	previousStatsSubPage: () => void;
+	// Initialization
+	initializeFromStorage: () => void;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
-	// Initial state - load from localStorage if available
+	// Initial state
 	currentMainPage: "home",
 	currentStatsSubPage: "player-stats",
-	selectedPlayer: (() => {
-		if (typeof window !== 'undefined') {
-			const saved = localStorage.getItem('dorkinians-selected-player');
-			return saved || null;
-		}
-		return null;
-	})(),
-	isPlayerSelected: (() => {
-		if (typeof window !== 'undefined') {
-			const saved = localStorage.getItem('dorkinians-selected-player');
-			return !!saved;
-		}
-		return false;
-	})(),
+	selectedPlayer: null,
+	isPlayerSelected: false,
 	isEditMode: false,
+
+	// Initialize from localStorage after mount
+	initializeFromStorage: () => {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem('dorkinians-selected-player');
+			if (saved) {
+				set({ selectedPlayer: saved, isPlayerSelected: true });
+			}
+		}
+	},
 
 	// Main page navigation
 	setMainPage: (page: MainPage) => {
