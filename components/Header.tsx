@@ -2,12 +2,19 @@
 
 import { motion } from "framer-motion";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
 }
 
 export default function Header({ onSettingsClick }: HeaderProps) {
+	const { setMainPage } = useNavigationStore();
+
+	const handleLogoClick = () => {
+		setMainPage("home");
+	};
+
 	return (
 		<motion.header
 			className='fixed top-0 left-0 right-0 z-50 frosted-glass w-full'
@@ -16,7 +23,12 @@ export default function Header({ onSettingsClick }: HeaderProps) {
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
 			<div className='flex items-center justify-between px-4 py-3'>
 				{/* Club Logo */}
-				<motion.div className='flex items-center space-x-2' whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+				<motion.div 
+					className='flex items-center space-x-2 cursor-pointer' 
+					whileHover={{ scale: 1.05 }} 
+					whileTap={{ scale: 0.95 }}
+					onClick={handleLogoClick}
+					title="Click to return to homepage">
 					<div className='w-8 h-8 bg-dorkinians-blue rounded-full flex items-center justify-center'>
 						<span className='text-white font-bold text-sm'>D</span>
 					</div>
