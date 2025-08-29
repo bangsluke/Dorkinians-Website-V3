@@ -135,6 +135,54 @@ export const metricConfigs: MetricConfig[] = [
 		plural: 'fantasy points',
 		aliases: ['fantasy point', 'fantasy points', 'fpl points', 'fpl point', 'fantasy football points'],
 		description: 'Fantasy football points earned'
+	},
+	{
+		key: 'TOTW',
+		displayName: 'team of the week',
+		singular: 'team of the week',
+		plural: 'teams of the week',
+		aliases: ['team of the week', 'teams of the week', 'weekly totw', 'weekly team of the week', 'weekly selection'],
+		description: 'Weekly team of the week selections'
+	},
+	{
+		key: 'SEASON_TOTW',
+		displayName: 'season team of the week',
+		singular: 'season team of the week',
+		plural: 'season teams of the week',
+		aliases: ['season totw', 'season team of the week', 'season selection', 'yearly totw'],
+		description: 'Season team of the week selections'
+	},
+	{
+		key: 'POTM',
+		displayName: 'player of the month',
+		singular: 'player of the month',
+		plural: 'players of the month',
+		aliases: ['player of the month', 'players of the month', 'monthly player', 'monthly award'],
+		description: 'Player of the month awards'
+	},
+	{
+		key: 'CAPTAIN',
+		displayName: 'captain awards',
+		singular: 'captain award',
+		plural: 'captain awards',
+		aliases: ['captain award', 'captain awards', 'captaincy', 'captain selection'],
+		description: 'Captain awards and selections'
+	},
+	{
+		key: 'CO_PLAYERS',
+		displayName: 'co-players',
+		singular: 'co-player',
+		plural: 'co-players',
+		aliases: ['co-player', 'co-players', 'teammates', 'played with', 'team mates'],
+		description: 'Players who have played together'
+	},
+	{
+		key: 'OPPONENTS',
+		displayName: 'opponents',
+		singular: 'opponent',
+		plural: 'opponents',
+		aliases: ['opponent', 'opponents', 'played against', 'faced', 'versus'],
+		description: 'Opponents played against'
 	}
 ];
 
