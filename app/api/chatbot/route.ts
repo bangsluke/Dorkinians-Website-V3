@@ -36,17 +36,23 @@ export async function POST(request: NextRequest) {
 		console.log(`🤖 Extracted player context: ${selectedPlayer}`);
 		console.log(`🤖 Actual question: ${body.question}`);
 
-		// Process the question
+		// Process the question with enhanced debugging
 		const response = await chatbotService.processQuestion(body);
 
-		// Add debugging information to the response for client-side visibility
+		// Add comprehensive debugging information to the response for client-side visibility
 		const debugResponse = {
 			...response,
 			debug: {
 				question: body.question,
 				userContext: body.userContext,
 				timestamp: new Date().toISOString(),
-				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || 'None'}`
+				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || 'None'}`,
+				// Add detailed processing information
+				processingDetails: {
+					questionAnalysis: await chatbotService.getQuestionAnalysis(body.question, body.userContext),
+					cypherQueries: await chatbotService.getExecutedQueries(),
+					processingSteps: await chatbotService.getProcessingSteps()
+				}
 			}
 		};
 
