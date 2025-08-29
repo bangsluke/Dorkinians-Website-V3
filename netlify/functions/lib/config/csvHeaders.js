@@ -24,7 +24,7 @@ const csvHeaderConfigs = [
 	},
 	{
 		name: "TBL_Players",
-		expectedHeaders: ["ID","PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"],
+		expectedHeaders: ["ID", "PLAYER NAME", "ALLOW ON SITE", "MOST PLAYED FOR TEAM", "MOST COMMON POSITION"],
 		description: "Player information with privacy flags and team/position data",
 	},
 	{
@@ -66,7 +66,7 @@ const csvHeaderConfigs = [
 		name: "TBL_TestData",
 		expectedHeaders: ["PLAYER NAME", "TEST VALUE", "DATE"],
 		description: "Test data for development and debugging",
-	}
+	},
 ];
 
 function getCSVHeaderConfig(name) {
@@ -80,5 +80,5 @@ function getAllCSVHeaderConfigs() {
 module.exports = {
 	getCSVHeaderConfig,
 	getAllCSVHeaderConfigs,
-	csvHeaderConfigs
+	csvHeaderConfigs,
 };

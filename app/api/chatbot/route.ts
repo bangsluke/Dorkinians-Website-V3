@@ -18,10 +18,7 @@ export async function POST(request: NextRequest) {
 		const { question } = body;
 
 		if (!question || typeof question !== "string") {
-			return NextResponse.json(
-				{ error: "Question is required and must be a string" }, 
-				{ status: 400, headers: corsHeaders }
-			);
+			return NextResponse.json({ error: "Question is required and must be a string" }, { status: 400, headers: corsHeaders });
 		}
 
 		console.log(`🤖 Received question: ${question}`);
@@ -45,7 +42,7 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error("❌ Chatbot API error:", error);
-		
+
 		// Return a user-friendly error response
 		const errorResponse = {
 			answer: "I'm sorry, I'm having trouble processing your question right now. Please try again in a moment.",

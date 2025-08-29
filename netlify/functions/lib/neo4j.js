@@ -102,14 +102,14 @@ class Neo4jService {
 			const nodeProperties = {
 				...properties,
 				graphLabel: this.GRAPH_LABEL,
-				createdAt: new Date().toISOString()
+				createdAt: new Date().toISOString(),
 			};
 
 			const query = `CREATE (n:${label} $properties) RETURN n`;
 			const result = await session.run(query, { properties: nodeProperties });
-			
+
 			if (result.records.length > 0) {
-				const node = result.records[0].get('n');
+				const node = result.records[0].get("n");
 				console.log(`✅ Created ${label} node:`, node.properties);
 				return node;
 			}
@@ -134,9 +134,9 @@ class Neo4jService {
 				RETURN r
 			`;
 			const result = await session.run(query, { fromProps, toProps, relProps });
-			
+
 			if (result.records.length > 0) {
-				const relationship = result.records[0].get('r');
+				const relationship = result.records[0].get("r");
 				console.log(`✅ Created ${relationshipType} relationship:`, relationship.properties);
 				return relationship;
 			}
@@ -157,9 +157,9 @@ class Neo4jService {
 		try {
 			const query = `MATCH (n:${label} $properties) RETURN n LIMIT 1`;
 			const result = await session.run(query, { properties });
-			
+
 			if (result.records.length > 0) {
-				return result.records[0].get('n');
+				return result.records[0].get("n");
 			}
 			return null;
 		} catch (error) {
@@ -183,9 +183,9 @@ class Neo4jService {
 				RETURN n
 			`;
 			const result = await session.run(query, { matchProps, updateProps });
-			
+
 			if (result.records.length > 0) {
-				const node = result.records[0].get('n');
+				const node = result.records[0].get("n");
 				console.log(`✅ Updated ${label} node:`, node.properties);
 				return node;
 			}
@@ -206,8 +206,8 @@ class Neo4jService {
 		try {
 			const query = `MATCH (n:${label} $properties) DETACH DELETE n RETURN count(n) as deleted`;
 			const result = await session.run(query, { properties });
-			
-			const deletedCount = result.records[0].get('deleted').toNumber();
+
+			const deletedCount = result.records[0].get("deleted").toNumber();
 			console.log(`✅ Deleted ${deletedCount} ${label} node(s)`);
 			return deletedCount;
 		} catch (error) {
@@ -226,8 +226,8 @@ class Neo4jService {
 		try {
 			const query = `MATCH (n {graphLabel: $graphLabel}) DETACH DELETE n RETURN count(n) as deleted`;
 			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			
-			const deletedCount = result.records[0].get('deleted').toNumber();
+
+			const deletedCount = result.records[0].get("deleted").toNumber();
 			console.log(`🗑️ Cleared ${deletedCount} nodes and relationships`);
 			return deletedCount;
 		} catch (error) {
@@ -252,13 +252,13 @@ class Neo4jService {
 					count((n)-[r]->()) as totalRelationships
 			`;
 			const result = await session.run(query, { graphLabel: this.GRAPH_LABEL });
-			
+
 			if (result.records.length > 0) {
 				const stats = result.records[0];
 				return {
-					totalNodes: stats.get('totalNodes').toNumber(),
-					uniqueLabels: stats.get('uniqueLabels').toNumber(),
-					totalRelationships: stats.get('totalRelationships').toNumber()
+					totalNodes: stats.get("totalNodes").toNumber(),
+					uniqueLabels: stats.get("uniqueLabels").toNumber(),
+					totalRelationships: stats.get("totalRelationships").toNumber(),
 				};
 			}
 			return { totalNodes: 0, uniqueLabels: 0, totalRelationships: 0 };
@@ -280,5 +280,5 @@ const neo4jService = new Neo4jService();
 
 module.exports = {
 	Neo4jService,
-	neo4jService
+	neo4jService,
 };

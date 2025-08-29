@@ -159,25 +159,25 @@ class Neo4jService {
           RETURN n
           LIMIT 1
         `;
-				
+
 				const result = await this.runQuery(query, { id, graphLabel: this.GRAPH_LABEL });
-				
+
 				if (result.records.length > 0) {
 					return true;
 				}
-				
+
 				if (attempt < maxRetries) {
 					console.log(`⏳ Node ${label}:${id} not found, retrying in 100ms (attempt ${attempt}/${maxRetries})`);
-					await new Promise(resolve => setTimeout(resolve, 100));
+					await new Promise((resolve) => setTimeout(resolve, 100));
 				}
 			} catch (error) {
 				console.warn(`⚠️ Error checking node existence (attempt ${attempt}):`, error);
 				if (attempt < maxRetries) {
-					await new Promise(resolve => setTimeout(resolve, 100));
+					await new Promise((resolve) => setTimeout(resolve, 100));
 				}
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -211,7 +211,7 @@ class Neo4jService {
         RETURN r
         LIMIT 1
       `;
-			
+
 			const existingRel = await session.run(existingRelQuery, {
 				fromId: fromProps.id,
 				toId: toProps.id,
@@ -244,13 +244,13 @@ class Neo4jService {
 
 			const result = await session.run(createRelQuery, params);
 			const relationship = result.records[0]?.get("r");
-			
+
 			if (relationship) {
 				console.log(`✅ Created ${relationshipType} relationship: ${fromProps.id} → ${toProps.id}`);
 			} else {
 				throw new Error(`Failed to create ${relationshipType} relationship between ${fromProps.id} and ${toProps.id}`);
 			}
-			
+
 			return relationship;
 		} catch (error) {
 			console.error(`❌ Relationship creation failed for ${relationshipType} between ${fromProps.id} and ${toProps.id}:`, error);

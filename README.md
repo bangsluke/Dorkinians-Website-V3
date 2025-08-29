@@ -55,6 +55,7 @@
 **Mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
 ### Key Features
+
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
 - **PWA Interface**: Progressive Web App with chatbot as primary interface
 - **Natural Language Processing**: Process user questions and return visualized answers
@@ -69,6 +70,7 @@
 The project uses a **single source of truth** architecture where configuration files are automatically synchronized between repositories using Git hooks. This ensures perfect consistency without manual intervention.
 
 **Single Source of Truth Locations:**
+
 - **Schema**: `database-dorkinians/config/schema.js` (master) → automatically copied to `V3-Dorkinians-Website/lib/config/schema.js`
 - **Data Sources**: `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` (master) → automatically copied to:
   - `database-dorkinians/config/dataSources.js` (for database seeder)
@@ -97,11 +99,13 @@ The project uses a **single source of truth** architecture where configuration f
 ```
 
 **Schema Alignment Process**:
+
 1. **Edit schema in `database-dorkinians/config/schema.js`**
 2. **Run sync script** - `npm run sync-config` copies to `V3-Dorkinians-Website/lib/config/schema.js`
 3. **Deploy both repositories**
 
 **Data Sources Alignment Process**:
+
 1. **Edit data sources in `database-dorkinians/config/dataSources.js`**
 2. **Run sync script** - `npm run sync-config` copies to both V3-Dorkinians-Website locations
 3. **Deploy both repositories**
@@ -114,9 +118,9 @@ The project implements a **manual synchronization system** where each configurat
 
 ### **Master File Locations**
 
-| Configuration | Master Location | Auto-Synced To |
-|---------------|-----------------|----------------|
-| **Schema** | `database-dorkinians/config/schema.js` | `V3-Dorkinians-Website/lib/config/schema.js` |
+| Configuration    | Master Location                             | Auto-Synced To                                                                                                          |
+| ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Schema**       | `database-dorkinians/config/schema.js`      | `V3-Dorkinians-Website/lib/config/schema.js`                                                                            |
 | **Data Sources** | `database-dorkinians/config/dataSources.js` | `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` + `V3-Dorkinians-Website/lib/config/dataSources.js` |
 
 ### **Why This Architecture?**
@@ -125,7 +129,7 @@ The project implements a **manual synchronization system** where each configurat
 ✅ **Perfect Consistency**: All locations always have identical content  
 ✅ **Clear Ownership**: Each file has one definitive source  
 ✅ **Controlled Updates**: Changes propagate when you choose to sync  
-✅ **Build Compatibility**: Local builds work without path resolution issues  
+✅ **Build Compatibility**: Local builds work without path resolution issues
 
 ### **How It Works**
 
@@ -137,6 +141,7 @@ The project implements a **manual synchronization system** where each configurat
 > [Back to Table of Contents](#table-of-contents)
 
 ### Key Components
+
 - **Frontend**: Next.js PWA with chatbot interface
 - **Backend Services**: Netlify functions for API endpoints
 - **Database Seeder**: Heroku service using unified schema
@@ -171,6 +176,7 @@ MATCH (n) RETURN n;
 ## Environment Setup
 
 ### Prerequisites
+
 - Node.js 18+
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
@@ -180,6 +186,7 @@ MATCH (n) RETURN n;
 ### Neo4j Configuration
 
 #### Local Development (Recommended)
+
 ```bash
 # Install Neo4j Desktop
 # Create local database: neo4j on port 7687
@@ -194,6 +201,7 @@ DEV_NEO4J_DATABASE=neo4j
 > [Back to Table of Contents](#table-of-contents)
 
 #### Production (Neo4j Aura)
+
 ```bash
 PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
 PROD_NEO4J_USER=your-username
@@ -203,6 +211,7 @@ PROD_NEO4J_PASSWORD=your_aura_db_password
 > [Back to Table of Contents](#table-of-contents)
 
 ### OpenAI Configuration
+
 ```bash
 OPENAI_API_KEY=your_openai_api_key_here
 ```
@@ -210,6 +219,7 @@ OPENAI_API_KEY=your_openai_api_key_here
 > [Back to Table of Contents](#table-of-contents)
 
 ### SMTP Configuration
+
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -223,6 +233,7 @@ SMTP_TO_EMAIL=recipient@example.com
 > [Back to Table of Contents](#table-of-contents)
 
 ### Installation
+
 ```bash
 npm install
 npm run test-neo4j  # Test Neo4j connection
@@ -240,6 +251,7 @@ The project uses npm scripts to manually synchronize configuration files between
 **Manual Sync**: Run `npm run sync-config` to copy all configuration files from `database-dorkinians/config/` to the appropriate locations in `V3-Dorkinians-Website`
 
 **Files Synced**:
+
 - `config/schema.js` → `V3-Dorkinians-Website/lib/config/schema.js`
 - `config/dataSources.js` → `V3-Dorkinians-Website/lib/config/dataSources.js`
 - `config/dataSources.js` → `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`
@@ -252,6 +264,7 @@ The project uses npm scripts to manually synchronize configuration files between
 ### **Workflow Examples**
 
 **Updating Schema:**
+
 ```bash
 # 1. Edit the schema in database-dorkinians (MASTER LOCATION)
 cd database-dorkinians
@@ -270,6 +283,7 @@ git commit -m "Sync schema from database-dorkinians"
 ```
 
 **Updating Data Sources:**
+
 ```bash
 # 1. Edit data sources in database-dorkinians (MASTER LOCATION)
 cd database-dorkinians
@@ -295,12 +309,14 @@ git commit -m "Sync data sources from database-dorkinians"
 ✅ **Flexible**: Sync when you want, not on every commit  
 ✅ **Maintainable**: Easy to modify and debug  
 ✅ **Cross-platform**: Works on Windows, Mac, and Linux  
-✅ **Perfect Consistency**: All locations always have identical content  
+✅ **Perfect Consistency**: All locations always have identical content
 
 ### **Troubleshooting**
 
 **Sync Script Not Working:**
+
 1. **Check Repository Structure**: Both repositories must be in the same parent directory
+
    ```
    /parent-directory/
    ├── database-dorkinians/
@@ -308,21 +324,24 @@ git commit -m "Sync data sources from database-dorkinians"
    ```
 
 2. **Verify Node.js**: Ensure Node.js is installed and accessible
+
    ```bash
    node --version
    npm --version
    ```
 
 3. **Check File Permissions**: Ensure the sync script is readable
+
    ```bash
    # On Windows
    dir scripts\sync-config.js
-   
+
    # On Unix/Linux/Mac
    ls -la scripts/sync-config.js
    ```
 
 **Manual Sync Required (if npm script fails):**
+
 1. **Schema**: Copy `database-dorkinians/config/schema.js` to `V3-Dorkinians-Website/lib/config/schema.js`
 2. **Data Sources**: Copy `database-dorkinians/config/dataSources.js` to both V3-Dorkinians-Website locations
 3. **Update Headers**: Add the appropriate warning header to the target files
@@ -351,12 +370,14 @@ When data structures change:
 When Google Sheets structure changes:
 
 1. **Update Unified Schema** (in `database-dorkinians` repo):
+
    ```bash
    cd database-dorkinians
    nano config/schema.js
    ```
 
 2. **Modify Table Schema**:
+
    ```javascript
    TBL_Players: {
      csvColumns: {
@@ -376,10 +397,11 @@ When Google Sheets structure changes:
    ```
 
 3. **Test Schema Changes**:
+
    ```bash
    # Test locally
    node test-csv.js
-   
+
    # Test via API
    curl -X POST "https://your-heroku-app.herokuapp.com/test-csv" \
      -H "Content-Type: application/json" \
@@ -387,6 +409,7 @@ When Google Sheets structure changes:
    ```
 
 4. **Deploy Changes**:
+
    ```bash
    # Commit and push to database-dorkinians
    git add config/schema.js
@@ -409,6 +432,7 @@ When Google Sheets structure changes:
 #### Schema Validation
 
 The system automatically validates:
+
 - **Column Presence**: Required columns exist
 - **Data Types**: Type conversions work correctly
 - **Required Fields**: Mandatory fields have values
@@ -417,6 +441,7 @@ The system automatically validates:
 ### Data Seeding
 
 **Hybrid Approach**:
+
 - **Netlify Function**: Lightweight trigger endpoint
 - **Heroku Service**: Long-running seeding process using unified schema
 - **Email Notifications**: Automated status updates during seeding
@@ -446,6 +471,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 ### Netlify Deployment
 
 1. **Build Configuration**:
+
    ```bash
    npm run build
    npm run export
@@ -465,6 +491,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 ### Database Seeder Deployment
 
 **Separate Heroku Service**:
+
 - **Repository**: `database-dorkinians`
 - **Service**: Long-running Neo4j seeding operations
 - **Integration**: Triggered via Netlify functions
@@ -479,6 +506,7 @@ The system supports automated daily database updates using external cron service
 ### **External Cron Service Setup**
 
 **Using cron-job.org (Free):**
+
 1. Sign up at [cron-job.org](https://cron-job.org)
 2. Create new cronjob:
    - **Title**: `Dorkinians Daily Database Update`
@@ -488,6 +516,7 @@ The system supports automated daily database updates using external cron service
    - **Retry**: 3 attempts on failure
 
 **Alternative Services:**
+
 - EasyCron: [easycron.com](https://easycron.com)
 - Cronitor: [cronitor.io](https://cronitor.io)
 - UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
@@ -500,18 +529,19 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 ```
 
 ### **Expected Response**
+
 ```json
 {
-  "success": true,
-  "message": "Database seeding completed successfully",
-  "environment": "production",
-  "timestamp": "2024-01-01T06:00:00.000Z",
-  "result": {
-    "success": true,
-    "exitCode": 0,
-    "nodesCreated": 1500,
-    "relationshipsCreated": 3000
-  }
+	"success": true,
+	"message": "Database seeding completed successfully",
+	"environment": "production",
+	"timestamp": "2024-01-01T06:00:00.000Z",
+	"result": {
+		"success": true,
+		"exitCode": 0,
+		"nodesCreated": 1500,
+		"relationshipsCreated": 3000
+	}
 }
 ```
 
@@ -537,6 +567,7 @@ SMTP_TO_EMAIL=your-email@gmail.com
 ### **Email Provider Examples**
 
 **Gmail:**
+
 ```bash
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
@@ -546,6 +577,7 @@ SMTP_PASSWORD=your-app-password  # Use App Password, not regular password
 ```
 
 **Outlook/Hotmail:**
+
 ```bash
 SMTP_SERVER=smtp-mail.outlook.com
 SMTP_PORT=587

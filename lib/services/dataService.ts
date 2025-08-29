@@ -30,7 +30,7 @@ export class DataService {
 
 	async fetchCSVData(dataSource: DataSource, reducedMode: boolean = false, maxRows: number = 50): Promise<CSVRow[]> {
 		const cacheKey = `${dataSource.name}-${reducedMode}-${maxRows}`;
-		
+
 		// Check cache first
 		if (this.cache.has(cacheKey)) {
 			this.cacheStats.hits++;
@@ -52,11 +52,11 @@ export class DataService {
 				const filePath = dataSource.url.replace("file://", "");
 				const fullPath = path.resolve(process.cwd(), filePath);
 				console.log(`📁 Reading local file: ${fullPath}`);
-				
+
 				if (!fs.existsSync(fullPath)) {
 					throw new Error(`Local file not found: ${fullPath}`);
 				}
-				
+
 				csvText = fs.readFileSync(fullPath, "utf-8");
 			} else {
 				// Handle remote URLs
