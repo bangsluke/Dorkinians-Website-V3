@@ -51,9 +51,9 @@ export default function HomePage() {
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -20 }}
-						className='flex flex-col h-full px-6'>
+						className='flex flex-col h-full px-6 md:px-6'>
 						{/* Top Section: Welcome Header and Player Selection */}
-						<div className='pt-8 pb-6'>
+						<div className='pt-4 pb-4 md:pt-8 md:pb-6'>
 							{/* Welcome Header and Subtitle */}
 							<AnimatePresence mode='wait'>
 								{!isPlayerSelected && (
@@ -62,9 +62,9 @@ export default function HomePage() {
 										initial={{ opacity: 1, y: 0 }}
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
-										className='text-center mb-8'>
-										<h1 className='text-xl font-bold text-white mb-6'>Welcome to Dorkinians FC</h1>
-										<p className='text-m text-gray-300 max-w-md mx-auto'>
+										className='text-center mb-4 md:mb-8'>
+										<h1 className='text-lg md:text-xl font-bold text-white mb-3 md:mb-6'>Welcome to Dorkinians FC</h1>
+										<p className='text-sm md:text-base text-gray-300 max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
 									</motion.div>
@@ -108,16 +108,16 @@ export default function HomePage() {
 							</AnimatePresence>
 						</div>
 
-						{/* Chatbot Interface - Positioned below with fade-in animation */}
+						{/* Chatbot Interface - Positioned at top below player name */}
 						<AnimatePresence mode='wait'>
 							{showChatbot && (
 								<motion.div
 									key='chatbot'
-									initial={{ opacity: 0, y: 50 }}
+									initial={{ opacity: 0, y: 20 }}
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ duration: 0.6, delay: 0.2 }}
-									className='flex-1 flex items-center justify-center'>
-									<div className='w-full max-w-2xl mx-auto'>
+									className='w-full'>
+									<div className='w-[95%] md:w-full max-w-lg md:max-w-2xl mx-auto'>
 										<ChatbotInterface />
 									</div>
 								</motion.div>

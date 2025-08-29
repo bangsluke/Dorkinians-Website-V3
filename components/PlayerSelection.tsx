@@ -126,13 +126,13 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.5 }}
 				className='text-center'>
-				<div className='flex items-center justify-center space-x-3'>
-					<h2 className='text-xl font-semibold text-white'>{selectedPlayer}</h2>
+				<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+					<h2 className='text-lg md:text-xl font-semibold text-white'>{selectedPlayer}</h2>
 					<button
 						onClick={onEditClick}
-						className='p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+						className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
-						<PencilIcon className='h-5 w-5' />
+						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
 			</motion.div>
