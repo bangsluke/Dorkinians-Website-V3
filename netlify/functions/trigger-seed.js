@@ -332,6 +332,9 @@ exports.handler = async (event, context) => {
 		console.log('🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:', process.env.HEROKU_SEEDER_URL);
 		
 		// Fire-and-forget: don't wait for response to prevent timeout
+		console.log('🌱 HEROKU: Making POST request to:', fullUrl);
+		console.log('🌱 HEROKU: Request payload:', JSON.stringify({ environment, jobId }));
+		
 		fetch(fullUrl, {
 			method: 'POST',
 			headers: {
@@ -341,16 +344,28 @@ exports.handler = async (event, context) => {
 				environment,
 				jobId
 			})
-		}).then(response => {
+		}).then(async response => {
+			console.log('🌱 HEROKU: Response received - Status:', response.status);
+			console.log('🌱 HEROKU: Response headers:', Object.fromEntries(response.headers.entries()));
+			
 			if (response.ok) {
+				const responseBody = await response.text();
 				console.log('✅ HEROKU: Heroku seeding service started successfully');
+				console.log('✅ HEROKU: Response body:', responseBody);
 			} else {
+				const responseBody = await response.text();
 				console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
 				console.warn('⚠️ HEROKU: Response status:', response.status);
 				console.warn('⚠️ HEROKU: Response status text:', response.statusText);
+				console.warn('⚠️ HEROKU: Response body:', responseBody);
 			}
 		}).catch(herokuError => {
-			console.warn('⚠️ HEROKU: Failed to start Heroku seeding service:', herokuError);
+			console.error('❌ HEROKU: Failed to start Heroku seeding service:', herokuError);
+			console.error('❌ HEROKU: Error details:', {
+				name: herokuError.name,
+				message: herokuError.message,
+				stack: herokuError.stack
+			});
 		});
 
 		// Return immediate response
