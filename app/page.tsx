@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
@@ -15,13 +15,6 @@ export default function HomePage() {
 	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
 
-	// Auto-show chatbot if player is already selected (from localStorage)
-	useEffect(() => {
-		if (isPlayerSelected && selectedPlayer) {
-			setShowChatbot(true);
-		}
-	}, [isPlayerSelected, selectedPlayer]);
-
 	const handlePlayerSelect = (playerName: string) => {
 		selectPlayer(playerName);
 		// Trigger chatbot reveal after a brief delay
@@ -34,9 +27,7 @@ export default function HomePage() {
 	};
 
 	const handleClearPlayer = () => {
-		// This will clear localStorage and reset state
-		useNavigationStore.getState().clearPlayerSelection();
-		setShowChatbot(false);
+		// This function can be empty if not needed, but it's required by the component
 	};
 
 	const renderCurrentPage = () => {
@@ -60,7 +51,7 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-8'>
-										<h1 className='text-xl font-bold text-white mb-6'>Welcome to Dorkinians FC Statistics</h1>
+										<h1 className='text-xl font-bold text-white mb-6'>Welcome to Dorkinians FC</h1>
 										<p className='text-m text-gray-300 max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
@@ -92,7 +83,7 @@ export default function HomePage() {
 										initial={{ opacity: 0, y: 20 }}
 										animate={{ opacity: 1, y: 0 }}
 										transition={{ duration: 0.5 }}
-										className='text-center'>
+										className='w-full'>
 										<PlayerSelection
 											onPlayerSelect={handlePlayerSelect}
 											onEditClick={handleEditClick}
@@ -144,7 +135,7 @@ export default function HomePage() {
 
 			{/* Main Content */}
 			<main className='pt-20 pb-24 px-4 h-screen'>
-				<div className='frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden'>
+				<div className='frosted-container'>
 					<div className='h-full overflow-y-auto'>
 						<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
 					</div>
