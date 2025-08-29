@@ -143,22 +143,22 @@ export default function ChatbotInterface() {
 	return (
 		<div className='w-full max-w-2xl'>
 			{/* Question Input */}
-			<form onSubmit={handleSubmit} className='space-y-4'>
-				<div className='flex space-x-2'>
+			<form onSubmit={handleSubmit} className='space-y-3 md:space-y-4'>
+				<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
 					<input
 						type='text'
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player stats, team performance, or club information...'
-						className='dark-chat-input flex-1'
+						className='dark-chat-input w-full text-sm md:text-base'
 						disabled={isLoading}
 					/>
 					<button
 						type='submit'
 						disabled={!question.trim() || isLoading}
-						className='dark-chat-button disabled:opacity-50 disabled:cursor-not-allowed'>
+						className='dark-chat-button disabled:opacity-50 disabled:cursor-not-allowed px-3 md:px-4 py-2 md:py-2 text-sm md:text-base w-full md:w-auto'>
 						{isLoading ? (
-							<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+							<svg className='animate-spin h-4 w-4 md:h-5 md:w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
 								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
 							</svg>
@@ -168,7 +168,7 @@ export default function ChatbotInterface() {
 					</button>
 				</div>
 
-				<p className='text-sm text-yellow-300 mt-2 text-center'>
+				<p className='text-xs md:text-sm text-yellow-300 mt-2 text-center'>
 					Try: &ldquo;How many players are in the club?&rdquo; or &ldquo;Who are the players?&rdquo;
 				</p>
 			</form>
@@ -199,21 +199,21 @@ export default function ChatbotInterface() {
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
-						className='dark-dropdown rounded-lg p-6 shadow-sm'>
+						className='dark-dropdown rounded-lg p-4 md:p-6 shadow-sm'>
 						{/* Answer */}
-						<div className='mb-4'>
-							<h3 className='font-semibold text-white mb-2'>Answer:</h3>
-							<p className='text-yellow-100'>{response.answer}</p>
+						<div className='mb-3 md:mb-4'>
+							<h3 className='font-semibold text-white mb-2 text-sm md:text-base'>Answer:</h3>
+							<p className='text-yellow-100 text-sm md:text-base'>{response.answer}</p>
 						</div>
 
 						{/* Confidence */}
-						<div className='mb-4'>
+						<div className='mb-3 md:mb-4'>
 							<div className='flex items-center space-x-2'>
-								<span className='text-sm text-yellow-300'>Confidence:</span>
+								<span className='text-xs md:text-sm text-yellow-300'>Confidence:</span>
 								<div className='flex-1 bg-yellow-400/20 rounded-full h-2'>
 									<div className='bg-green-400 h-2 rounded-full transition-all duration-300' style={{ width: `${response.confidence * 100}%` }}></div>
 								</div>
-								<span className='text-sm text-yellow-300'>{Math.round(response.confidence * 100)}%</span>
+								<span className='text-xs md:text-sm text-yellow-300'>{Math.round(response.confidence * 100)}%</span>
 							</div>
 						</div>
 
@@ -225,9 +225,9 @@ export default function ChatbotInterface() {
 
 			{/* Conversation History */}
 			{conversationHistory.length > 0 && (
-				<div className='mt-8'>
-					<h3 className='font-semibold text-white mb-4'>Previous Conversations</h3>
-					<div className='space-y-3 overflow-y-auto max-h-60 pr-2'>
+				<div className='mt-6 md:mt-8'>
+					<h3 className='font-semibold text-white mb-3 md:mb-4 text-sm md:text-base'>Previous Conversations</h3>
+					<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2'>
 						{conversationHistory
 							.slice(-5)
 							.reverse()
@@ -237,7 +237,7 @@ export default function ChatbotInterface() {
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className='dark-dropdown rounded-lg p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+									className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
 									onClick={() => {
 										setQuestion(conv.question);
 										// Focus the input after setting the question
@@ -250,10 +250,10 @@ export default function ChatbotInterface() {
 										}, 0);
 									}}>
 									<div className='flex items-start justify-between mb-2'>
-										<p className='font-medium text-white text-sm'>Q: {conv.question}</p>
+										<p className='font-medium text-white text-xs md:text-sm'>Q: {conv.question}</p>
 										<span className='text-xs text-yellow-300'>{new Date(conv.timestamp).toLocaleTimeString()}</span>
 									</div>
-									<p className='text-sm text-yellow-100'>{conv.response.answer}</p>
+									<p className='text-xs md:text-sm text-yellow-100'>{conv.response.answer}</p>
 								</motion.div>
 							))}
 					</div>
