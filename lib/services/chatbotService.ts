@@ -32,6 +32,7 @@ export class ChatbotService {
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
 		console.log(`🤖 Processing question: ${context.question}`);
 		console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+		console.log(`👤 User context: ${context.userContext || 'None'}`);
 		console.log(
 			`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? (process.env.PROD_NEO4J_URI ? "Yes" : "No") : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`,
 		);
@@ -53,6 +54,7 @@ export class ChatbotService {
 			console.log(`🔍 Question analysis:`, analysis);
 
 			// Query the database
+			console.log(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
 			console.log(`📊 Query result:`, data);
 
@@ -255,34 +257,34 @@ export class ChatbotService {
 		try {
 			console.log(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
-			switch (type) {
-				case "player":
-					console.log(`🔍 Calling queryPlayerData...`);
-					const playerResult = await this.queryPlayerData(entities, metrics);
-					console.log(`🔍 queryPlayerData returned:`, playerResult);
-					return playerResult;
-				case "team":
-					console.log(`🔍 Calling queryTeamData...`);
-					return await this.queryTeamData(entities, metrics);
-				case "club":
-					console.log(`🔍 Calling queryClubData...`);
-					return await this.queryClubData(entities, metrics);
-				case "fixture":
-					console.log(`🔍 Calling queryFixtureData...`);
-					return await this.queryFixtureData(entities, metrics);
-				case "comparison":
-					console.log(`🔍 Calling queryComparisonData...`);
-					return await this.queryComparisonData(entities, metrics);
-				case "streak":
-					console.log(`🔍 Calling queryStreakData...`);
-					return await this.queryStreakData(entities, metrics);
-				case "double_game":
-					console.log(`🔍 Calling queryDoubleGameData...`);
-					return await this.queryDoubleGameData(entities, metrics);
-				default:
-					console.log(`🔍 Calling queryGeneralData...`);
-					return await this.queryGeneralData();
-			}
+					switch (type) {
+			case "player":
+				console.log(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
+				const playerResult = await this.queryPlayerData(entities, metrics);
+				console.log(`🔍 queryPlayerData returned:`, playerResult);
+				return playerResult;
+			case "team":
+				console.log(`🔍 Calling queryTeamData...`);
+				return await this.queryTeamData(entities, metrics);
+			case "club":
+				console.log(`🔍 Calling queryClubData...`);
+				return await this.queryClubData(entities, metrics);
+			case "fixture":
+				console.log(`🔍 Calling queryFixtureData...`);
+				return await this.queryFixtureData(entities, metrics);
+			case "comparison":
+				console.log(`🔍 Calling queryComparisonData...`);
+				return await this.queryComparisonData(entities, metrics);
+			case "streak":
+				console.log(`🔍 Calling queryStreakData...`);
+				return await this.queryStreakData(entities, metrics);
+			case "double_game":
+				console.log(`🔍 Calling queryDoubleGameData...`);
+				return await this.queryDoubleGameData(entities, metrics);
+			default:
+				console.log(`🔍 Calling queryGeneralData...`);
+				return await this.queryGeneralData();
+		}
 		} catch (error) {
 			console.error("❌ Data query failed:", error);
 			return null;
@@ -411,7 +413,7 @@ export class ChatbotService {
 			}
 
 			query += " " + returnClause;
-			console.log(`🔍 Final query: ${query}`);
+			console.log(`🔍 Final Cypher query: ${query}`);
 
 			try {
 				// Create case-insensitive name variations for matching
@@ -512,16 +514,50 @@ export class ChatbotService {
 	}
 
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
-		console.log(`🔍 Querying for team ${teamNumber}, metric: ${metric}`);
+		console.log(`🔍 queryTeamSpecificPlayerData called with teamNumber: ${teamNumber}, metric: ${metric}`);
 
 		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
 		const teamName = `${teamNumber} Team`;
+		console.log(`🔍 Looking for team: ${teamName}`);
 
+		// First, let's check what teams actually exist in the Fixture data
+		console.log(`🔍 Running diagnostic query to see available teams...`);
+		const diagnosticQuery = `
+			MATCH (f:Fixture)
+			WHERE f.team IS NOT NULL
+			RETURN DISTINCT f.team as teamName
+			ORDER BY f.team
+		`;
+		
+		try {
+			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+			console.log(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
+			
+			// Check if our target team exists
+			const teamExists = diagnosticResult.some(r => r.teamName === teamName);
+			console.log(`🔍 Team "${teamName}" exists: ${teamExists}`);
+			
+			if (!teamExists) {
+				console.log(`🔍 Team "${teamName}" not found. Available teams:`, diagnosticResult.map(r => r.teamName));
+				return { 
+					type: "team_not_found", 
+					data: [], 
+					teamName, 
+					metric,
+					availableTeams: diagnosticResult.map(r => r.teamName),
+					message: `Team "${teamName}" not found. Available teams: ${diagnosticResult.map(r => r.teamName).join(', ')}`
+				};
+			}
+		} catch (error: any) {
+			console.error(`❌ Diagnostic query failed:`, error);
+		}
+
+		// Now build the actual query using the correct data structure
+		// We'll query MatchDetail nodes directly, filtering by team property
 		const query = `
-			MATCH (t:Team {name: $teamName})
-			MATCH (t)<-[:PLAYS_FOR]-(p:Player)
-			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
 			WHERE md.team = $teamName
+			WITH p, md
 			RETURN p.playerName as playerName, 
 				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} != "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
 				   count(md) as appearances
@@ -529,12 +565,23 @@ export class ChatbotService {
 			LIMIT 10
 		`;
 
+		console.log(`🔍 Final team-specific query:`, query);
+		console.log(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
-			return { type: "team_specific", data: result, teamName, metric };
-		} catch (error) {
-			console.error("❌ Error querying team-specific player data:", error);
-			return null;
+			console.log(`🔍 Team-specific query result:`, result);
+			
+			if (result && result.length > 0) {
+				console.log(`🔍 Found ${result.length} players for team ${teamName}`);
+				return { type: "team_specific", data: result, teamName, metric };
+			} else {
+				console.log(`🔍 No players found for team ${teamName}`);
+				return { type: "team_specific", data: [], teamName, metric, message: `No players found for team ${teamName}` };
+			}
+		} catch (error: any) {
+			console.error(`❌ Error querying team-specific player data:`, error);
+			return { type: "error", data: [], teamName, metric, error: error.message };
 		}
 	}
 
@@ -741,6 +788,12 @@ export class ChatbotService {
 					data: data.data,
 					config: { columns: ["playerName", "value", "appearances"] },
 				};
+			} else if (data && data.type === "team_not_found") {
+				// Team not found - provide helpful information
+				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(', ')}.`;
+			} else if (data && data.type === "error") {
+				// Error occurred during query
+				answer = `I encountered an error while looking up team information: ${data.error}.`;
 			} else if (data && data.type === "general_players" && data.data && data.data.length > 0) {
 				if (data.data[0].playerCount) {
 					// General player count question
