@@ -175,30 +175,29 @@ export async function POST(request: NextRequest) {
       // Don't fail the function if email fails
     }
 
-    // Trigger Heroku seeding service
+    // Trigger Heroku seeding service (fire-and-forget)
     console.log('🌱 HEROKU: Starting Heroku seeding service...');
-    try {
-      const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-      const response = await fetch(`${herokuUrl}/seed`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          environment,
-          jobId
-        })
-      });
-
+    const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+    
+    // Fire-and-forget: don't wait for response to prevent timeout
+    fetch(`${herokuUrl}/seed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        environment,
+        jobId
+      })
+    }).then(response => {
       if (response.ok) {
         console.log('✅ HEROKU: Heroku seeding service started successfully');
       } else {
         console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
       }
-    } catch (herokuError) {
+    }).catch(herokuError => {
       console.warn('⚠️ HEROKU: Failed to start Heroku seeding service:', herokuError);
-      // Continue with immediate response - Heroku process may still work
-    }
+    });
 
     // Return immediate response
     console.log('✅ SUCCESS: Returning immediate response');
