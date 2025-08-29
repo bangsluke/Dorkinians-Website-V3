@@ -414,7 +414,13 @@ exports.handler = async (event, context) => {
 			} else {
 				console.error('❌ HEROKU: Failed to communicate with Heroku after all retries');
 			}
+		}).catch(error => {
+			console.error('❌ HEROKU: Unexpected error in callHeroku:', error);
 		});
+
+		// Add a small delay to allow the Heroku call to start
+		console.log('⏳ HEROKU: Allowing time for Heroku call to initiate...');
+		await new Promise(resolve => setTimeout(resolve, 1000));
 
 		// Return immediate response
 		console.log('✅ SUCCESS: Returning immediate response');
