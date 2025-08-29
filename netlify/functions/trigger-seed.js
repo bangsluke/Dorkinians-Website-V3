@@ -320,6 +320,17 @@ exports.handler = async (event, context) => {
 		const environment = "production";
 		console.log(`🚀 TRIGGER: Enforcing production environment for database seeding`);
 
+		// Parse request body to get email configuration
+		let requestBody = {};
+		try {
+			requestBody = JSON.parse(event.body || '{}');
+		} catch (error) {
+			console.warn("⚠️ TRIGGER: Failed to parse request body:", error.message);
+		}
+		
+		const emailConfig = requestBody.emailConfig || {};
+		console.log("📧 TRIGGER: Email configuration received:", emailConfig);
+
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 		console.log("🆔 TRIGGER: Generated job ID:", jobId);
@@ -328,8 +339,33 @@ exports.handler = async (event, context) => {
 		console.log("📧 EMAIL: Configuring email service...");
 		emailService.configure();
 
-		// Note: Start notification is sent by Heroku service after seeding begins
-		console.log("📧 START: Start notification will be sent by Heroku service");
+		// Send start notification if requested
+		if (emailConfig.sendEmailAtStart && emailConfig.emailAddress) {
+			console.log("📧 START: Sending start notification email...");
+			try {
+				// Temporarily override the email service recipient
+				const originalTo = emailService.config?.to;
+				if (emailService.config) {
+					emailService.config.to = emailConfig.emailAddress;
+				}
+				
+				const startEmailSent = await emailService.sendSeedingStartEmail(environment);
+				if (startEmailSent) {
+					console.log("✅ START: Start notification email sent successfully");
+				} else {
+					console.warn("⚠️ START: Failed to send start notification email");
+				}
+				
+				// Restore original recipient
+				if (emailService.config && originalTo) {
+					emailService.config.to = originalTo;
+				}
+			} catch (error) {
+				console.error("❌ START: Error sending start notification email:", error.message);
+			}
+		} else {
+			console.log("📧 START: Start notification not requested or no email address provided");
+		}
 
 		// Trigger Heroku seeding service (fire-and-forget)
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
@@ -341,7 +377,15 @@ exports.handler = async (event, context) => {
 
 		// Fire-and-forget: don't wait for response to prevent timeout
 		console.log("🌱 HEROKU: Making POST request to:", fullUrl);
-		console.log("🌱 HEROKU: Request payload:", JSON.stringify({ environment, jobId }));
+		console.log("🌱 HEROKU: Request payload:", JSON.stringify({ 
+			environment, 
+			jobId,
+			emailConfig: {
+				emailAddress: emailConfig.emailAddress,
+				sendEmailAtStart: emailConfig.sendEmailAtStart,
+				sendEmailAtCompletion: emailConfig.sendEmailAtCompletion
+			}
+		}));
 
 		// Enhanced fetch with timeout and retry logic
 		const fetchWithTimeout = async (url, options, timeout = 30000) => {

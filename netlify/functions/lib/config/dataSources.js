@@ -1,25 +1,25 @@
 /**
  * Data Sources Configuration for Dorkinians Website (Netlify Functions)
- *
+ * 
  * ⚠️  DO NOT MODIFY THIS FILE DIRECTLY ⚠️
  * This file is automatically copied from database-dorkinians/config/dataSources.js
- *
+ * 
  * To update data sources:
  * 1. Edit the file in database-dorkinians/config/dataSources.js
  * 2. Run: npm run sync-config
  * 3. This file will be automatically updated
- *
- * Auto-synced on 2025-08-29T11:10:44.479Z
+ * 
+ * Auto-synced on 2025-08-29T14:51:14.717Z
  */
 /**
  * Master
  * Data Sources Configuration for Dorkinians Database
- *
+ * 
  * This file defines:
  * 1. CSV data source URLs for Google Sheets
  * 2. Data source types and metadata
  * 3. Helper functions for filtering and querying
- *
+ * 
  * TEST: Git hook should now work with batch file (enhanced debugging)
  */
 
@@ -82,7 +82,7 @@ const dataSources = [
 		type: "FASiteData",
 		season: "2016-17",
 		team: "1st XI",
-		category: "results",
+		category: "results"
 	},
 	{
 		name: "FA_2016-17_1stXI_Table",
@@ -90,7 +90,7 @@ const dataSources = [
 		type: "FASiteData",
 		season: "2016-17",
 		team: "1st XI",
-		category: "table",
+		category: "table"
 	},
 	{
 		name: "FA_2016-17_2ndXI_Results",
@@ -98,7 +98,7 @@ const dataSources = [
 		type: "FASiteData",
 		season: "2016-17",
 		team: "2nd XI",
-		category: "results",
+		category: "results"
 	},
 	{
 		name: "FA_2016-17_2ndXI_Table",
@@ -106,8 +106,8 @@ const dataSources = [
 		type: "FASiteData",
 		season: "2016-17",
 		team: "2nd XI",
-		category: "table",
-	},
+		category: "table"
+	}
 ];
 
 const getDataSourcesByType = (type) => {
@@ -121,5 +121,5 @@ const getDataSourcesByName = (names) => {
 module.exports = {
 	dataSources,
 	getDataSourcesByType,
-	getDataSourcesByName,
+	getDataSourcesByName
 };
