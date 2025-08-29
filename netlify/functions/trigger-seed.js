@@ -335,37 +335,85 @@ exports.handler = async (event, context) => {
 		console.log('🌱 HEROKU: Making POST request to:', fullUrl);
 		console.log('🌱 HEROKU: Request payload:', JSON.stringify({ environment, jobId }));
 		
-		fetch(fullUrl, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				environment,
-				jobId
-			})
-		}).then(async response => {
-			console.log('🌱 HEROKU: Response received - Status:', response.status);
-			console.log('🌱 HEROKU: Response headers:', Object.fromEntries(response.headers.entries()));
+		// Enhanced fetch with timeout and retry logic
+		const fetchWithTimeout = async (url, options, timeout = 30000) => {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), timeout);
 			
-			if (response.ok) {
-				const responseBody = await response.text();
-				console.log('✅ HEROKU: Heroku seeding service started successfully');
-				console.log('✅ HEROKU: Response body:', responseBody);
-			} else {
-				const responseBody = await response.text();
-				console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
-				console.warn('⚠️ HEROKU: Response status:', response.status);
-				console.warn('⚠️ HEROKU: Response status text:', response.statusText);
-				console.warn('⚠️ HEROKU: Response body:', responseBody);
+			try {
+				const response = await fetch(url, {
+					...options,
+					signal: controller.signal
+				});
+				clearTimeout(timeoutId);
+				return response;
+			} catch (error) {
+				clearTimeout(timeoutId);
+				throw error;
 			}
-		}).catch(herokuError => {
-			console.error('❌ HEROKU: Failed to start Heroku seeding service:', herokuError);
-			console.error('❌ HEROKU: Error details:', {
-				name: herokuError.name,
-				message: herokuError.message,
-				stack: herokuError.stack
-			});
+		};
+
+		// Attempt to call Heroku with retry logic
+		const callHeroku = async (retryCount = 0, maxRetries = 3) => {
+			try {
+				console.log(`🌱 HEROKU: Attempt ${retryCount + 1}/${maxRetries + 1} to call Heroku...`);
+				
+				const response = await fetchWithTimeout(fullUrl, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'User-Agent': 'Netlify-Function/1.0'
+					},
+					body: JSON.stringify({
+						environment,
+						jobId
+					})
+				}, 30000); // 30 second timeout
+				
+				console.log('🌱 HEROKU: Response received - Status:', response.status);
+				console.log('🌱 HEROKU: Response headers:', Object.fromEntries(response.headers.entries()));
+				
+				if (response.ok) {
+					const responseBody = await response.text();
+					console.log('✅ HEROKU: Heroku seeding service started successfully');
+					console.log('✅ HEROKU: Response body:', responseBody);
+					return true;
+				} else {
+					const responseBody = await response.text();
+					console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
+					console.warn('⚠️ HEROKU: Response status:', response.status);
+					console.warn('⚠️ HEROKU: Response status text:', response.statusText);
+					console.warn('⚠️ HEROKU: Response body:', responseBody);
+					return false;
+				}
+			} catch (error) {
+				console.error(`❌ HEROKU: Attempt ${retryCount + 1} failed:`, error.message);
+				
+				if (retryCount < maxRetries) {
+					const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+					console.log(`🔄 HEROKU: Retrying in ${delay}ms...`);
+					await new Promise(resolve => setTimeout(resolve, delay));
+					return callHeroku(retryCount + 1, maxRetries);
+				} else {
+					console.error('❌ HEROKU: All retry attempts failed');
+					console.error('❌ HEROKU: Final error details:', {
+						name: error.name,
+						message: error.message,
+						stack: error.stack,
+						code: error.code
+					});
+					return false;
+				}
+			}
+		};
+
+		// Start the Heroku call process
+		callHeroku().then(success => {
+			if (success) {
+				console.log('✅ HEROKU: Successfully communicated with Heroku');
+			} else {
+				console.error('❌ HEROKU: Failed to communicate with Heroku after all retries');
+			}
 		});
 
 		// Return immediate response
