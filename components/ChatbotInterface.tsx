@@ -83,6 +83,14 @@ export default function ChatbotInterface() {
 					timestamp: data.debug.timestamp,
 					serverLogs: data.debug.serverLogs
 				});
+				
+				// Log detailed processing information if available
+				if (data.debug.processingDetails) {
+					console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
+					console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES:`, data.debug.processingDetails.cypherQueries);
+					console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
+					console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
+				}
 			}
 			
 			// Log the response structure for debugging
@@ -91,6 +99,7 @@ export default function ChatbotInterface() {
 				confidence: data.confidence,
 				hasVisualization: !!data.visualization,
 				hasDebug: !!data.debug,
+				hasProcessingDetails: !!(data.debug?.processingDetails),
 				responseType: typeof data
 			});
 			
@@ -251,10 +260,38 @@ export default function ChatbotInterface() {
 											<div><strong>Context:</strong> {(response as any).debug.userContext || 'None'}</div>
 											<div><strong>Timestamp:</strong> {(response as any).debug.timestamp}</div>
 											<div><strong>Server Logs:</strong> {(response as any).debug.serverLogs}</div>
+											
+											{/* Detailed Processing Information */}
+											{(response as any).debug.processingDetails && (
+												<>
+													<div className='mt-2 pt-2 border-t border-gray-600/30'>
+														<div><strong>Question Type:</strong> {(response as any).debug.processingDetails.questionAnalysis?.type || 'Unknown'}</div>
+														<div><strong>Extracted Entities:</strong> {(response as any).debug.processingDetails.questionAnalysis?.entities?.join(', ') || 'None'}</div>
+														<div><strong>Extracted Metrics:</strong> {(response as any).debug.processingDetails.questionAnalysis?.metrics?.join(', ') || 'None'}</div>
+														
+														{(response as any).debug.processingDetails.queryBreakdown && (
+															<>
+																<div><strong>Player Name:</strong> {(response as any).debug.processingDetails.queryBreakdown.playerName || 'None'}</div>
+																<div><strong>Team:</strong> {(response as any).debug.processingDetails.queryBreakdown.team || 'None'}</div>
+																<div><strong>Stat Entity:</strong> {(response as any).debug.processingDetails.queryBreakdown.statEntity || 'None'}</div>
+															</>
+														)}
+														
+														{(response as any).debug.processingDetails.cypherQueries && (response as any).debug.processingDetails.cypherQueries.length > 0 && (
+															<div><strong>Cypher Queries:</strong> {(response as any).debug.processingDetails.cypherQueries.length} executed</div>
+														)}
+														
+														{(response as any).debug.processingDetails.processingSteps && (response as any).debug.processingDetails.processingSteps.length > 0 && (
+															<div><strong>Processing Steps:</strong> {(response as any).debug.processingDetails.processingSteps.length} completed</div>
+														)}
+													</div>
+												</>
+											)}
 										</>
 									)}
 									<div><strong>Response Type:</strong> {typeof response}</div>
 									<div><strong>Has Visualization:</strong> {!!response.visualization ? 'Yes' : 'No'}</div>
+									<div><strong>Has Processing Details:</strong> {!!(response as any).debug?.processingDetails ? 'Yes' : 'No'}</div>
 								</div>
 							</div>
 						)}
