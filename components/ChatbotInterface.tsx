@@ -23,20 +23,24 @@ export default function ChatbotInterface() {
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
-		const saved = localStorage.getItem("chatbotConversations");
-		if (saved) {
-			try {
-				const parsed = JSON.parse(saved);
-				setConversationHistory(parsed);
-			} catch (err) {
-				console.error("Failed to parse saved conversations:", err);
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem("chatbotConversations");
+			if (saved) {
+				try {
+					const parsed = JSON.parse(saved);
+					setConversationHistory(parsed);
+				} catch (err) {
+					console.error("Failed to parse saved conversations:", err);
+				}
 			}
 		}
 	}, []);
 
 	// Save conversation history to localStorage whenever it changes
 	useEffect(() => {
-		localStorage.setItem("chatbotConversations", JSON.stringify(conversationHistory));
+		if (typeof window !== 'undefined') {
+			localStorage.setItem("chatbotConversations", JSON.stringify(conversationHistory));
+		}
 	}, [conversationHistory]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
