@@ -23,25 +23,34 @@ export default function ChatbotInterface() {
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
-		const saved = localStorage.getItem("chatbotConversations");
-		if (saved) {
-			try {
-				const parsed = JSON.parse(saved);
-				setConversationHistory(parsed);
-			} catch (err) {
-				console.error("Failed to parse saved conversations:", err);
+		console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem("chatbotConversations");
+			if (saved) {
+				try {
+					const parsed = JSON.parse(saved);
+					setConversationHistory(parsed);
+				} catch (err) {
+					console.error("Failed to parse saved conversations:", err);
+				}
 			}
 		}
-	}, []);
+	}, [selectedPlayer]);
 
 	// Save conversation history to localStorage whenever it changes
 	useEffect(() => {
-		localStorage.setItem("chatbotConversations", JSON.stringify(conversationHistory));
+		if (typeof window !== 'undefined') {
+			localStorage.setItem("chatbotConversations", JSON.stringify(conversationHistory));
+		}
 	}, [conversationHistory]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		if (!question.trim() || isLoading) return;
+
+		// Client-side logging for debugging
+		console.log(`🤖 Frontend: Sending question: ${question.trim()}`);
+		console.log(`🤖 Frontend: Player context: ${selectedPlayer || 'None'}`);
 
 		setIsLoading(true);
 		setError(null);
@@ -64,6 +73,7 @@ export default function ChatbotInterface() {
 			}
 
 			const data: ChatbotResponse = await res.json();
+			console.log(`🤖 Frontend: Received response:`, data);
 			setResponse(data);
 
 			// Save to conversation history with player context
@@ -75,6 +85,7 @@ export default function ChatbotInterface() {
 			};
 			setConversationHistory((prev) => [...prev, newConversation]);
 		} catch (err) {
+			console.error(`🤖 Frontend: Error occurred:`, err);
 			setError(err instanceof Error ? err.message : "An error occurred");
 		} finally {
 			setIsLoading(false);

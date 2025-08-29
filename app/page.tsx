@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
@@ -12,8 +12,20 @@ import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 
 export default function HomePage() {
-	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode } = useNavigationStore();
+	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
+
+	// Initialize from localStorage after mount
+	useEffect(() => {
+		initializeFromStorage();
+	}, [initializeFromStorage]);
+
+	// Show chatbot when player is loaded from localStorage
+	useEffect(() => {
+		if (isPlayerSelected && selectedPlayer) {
+			setShowChatbot(true);
+		}
+	}, [isPlayerSelected, selectedPlayer]);
 
 	const handlePlayerSelect = (playerName: string) => {
 		selectPlayer(playerName);
