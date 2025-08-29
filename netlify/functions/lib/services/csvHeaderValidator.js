@@ -227,5 +227,5 @@ const csvHeaderValidator = CSVHeaderValidator.getInstance();
 
 module.exports = {
 	CSVHeaderValidator,
-	csvHeaderValidator
+	csvHeaderValidator,
 };

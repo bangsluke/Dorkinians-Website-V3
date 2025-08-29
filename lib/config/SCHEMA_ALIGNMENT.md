@@ -3,6 +3,7 @@
 ## Overview
 
 This document explains how to keep the schema files aligned between the two repositories:
+
 - `database-dorkinians/config/schema.js` (source of truth)
 - `V3-Dorkinians-Website/lib/config/schema.js` (copy for alignment)
 
@@ -23,28 +24,33 @@ This document explains how to keep the schema files aligned between the two repo
 The repository includes several automation options to keep schemas in sync:
 
 #### Option 1: NPM Script (Recommended)
+
 ```bash
 cd database-dorkinians
 npm run sync-schema
 ```
 
 #### Option 2: PowerShell Script (Windows)
+
 ```powershell
 cd database-dorkinians
 .\scripts\sync-schema.ps1
 ```
 
 #### Option 3: Batch File (Windows - Double-click)
+
 ```bash
 # Simply double-click scripts/sync-schema.bat
 ```
 
 #### Option 4: VS Code Tasks
+
 - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
 - Type "Tasks: Run Task"
 - Select "Sync Schema to V3-Dorkinians-Website"
 
 #### Option 5: Git Pre-commit Hook
+
 The pre-commit hook automatically syncs the schema when you commit changes to `config/schema.js`.
 
 ### Manual Step-by-Step Process (Fallback)
@@ -52,6 +58,7 @@ The pre-commit hook automatically syncs the schema when you commit changes to `c
 If automation fails, use the manual process:
 
 1. **Make changes in database-dorkinians:**
+
    ```bash
    cd database-dorkinians
    # Edit config/schema.js
@@ -61,6 +68,7 @@ If automation fails, use the manual process:
    ```
 
 2. **Copy the updated schema to V3-Dorkinians-Website:**
+
    ```bash
    cd ../V3-Dorkinians-Website
    # Copy the entire content of database-dorkinians/config/schema.js
@@ -84,6 +92,7 @@ If automation fails, use the manual process:
 ## Schema Dependencies
 
 The following files in V3-Dorkinians-Website depend on the schema:
+
 - `lib/config/schemaBridge.js` - Main schema bridge
 - `lib/services/csvHeaderValidator.js` - CSV validation
 - `lib/services/dataSeederService.js` - Data seeding logic
@@ -92,6 +101,7 @@ The following files in V3-Dorkinians-Website depend on the schema:
 ## Validation
 
 After copying the schema, verify alignment by:
+
 1. Checking that both files have identical content
 2. Running any tests in V3-Dorkinians-Website
 3. Ensuring the Admin Panel can access schema information
@@ -99,6 +109,7 @@ After copying the schema, verify alignment by:
 ## Future Improvements
 
 Consider these alternatives for better schema management:
+
 1. **NPM Package**: Publish schema as a package that both repos can depend on
 2. **Git Submodules**: Properly implement submodules with authentication
 3. **Shared Repository**: Move schema to a dedicated shared repository
