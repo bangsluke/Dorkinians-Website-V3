@@ -29,7 +29,7 @@
     - [OpenAI Configuration](#openai-configuration)
     - [SMTP Configuration](#smtp-configuration)
     - [Installation](#installation)
-  - [Git Hooks Synchronization](#git-hooks-synchronization)
+  - [NPM Script Synchronization](#npm-script-synchronization)
   - [Development Workflow](#development-workflow)
     - [Schema Updates](#schema-updates)
     - [Managing Schema Changes](#managing-schema-changes)
@@ -80,7 +80,7 @@ The project uses a **single source of truth** architecture where configuration f
 │  ├── Frontend (Next.js PWA)                               │
 │  ├── Netlify Functions                                    │
 │  ├── lib/config/schema.js    # Auto-synced from database  │
-│  ├── lib/config/dataSources.js # Auto-synced from netlify │
+│  ├── lib/config/dataSources.js # Auto-synced from database │
 │  └── API Routes                                           │
 └─────────────────────────────────────────────────────────────┘
                                  │
@@ -90,7 +90,7 @@ The project uses a **single source of truth** architecture where configuration f
 ├─────────────────────────────────────────────────────────────┤
 │  database-dorkinians/                                      │
 │  ├── config/schema.js          # Master schema (source)   │
-│  ├── config/dataSources.js     # Auto-synced from V3      │
+│  ├── config/dataSources.js     # Master data sources (source) │
 │  ├── services/schemaDrivenSeeder.js                        │
 │  └── (database seeding logic)                              │
 └─────────────────────────────────────────────┘
@@ -98,40 +98,40 @@ The project uses a **single source of truth** architecture where configuration f
 
 **Schema Alignment Process**:
 1. **Edit schema in `database-dorkinians/config/schema.js`**
-2. **Commit changes** - Git hook automatically copies to `V3-Dorkinians-Website/lib/config/schema.js`
+2. **Run sync script** - `npm run sync-config` copies to `V3-Dorkinians-Website/lib/config/schema.js`
 3. **Deploy both repositories**
 
 **Data Sources Alignment Process**:
-1. **Edit data sources in `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`**
-2. **Commit changes** - Git hook automatically copies to `database-dorkinians/config/dataSources.js`
+1. **Edit data sources in `database-dorkinians/config/dataSources.js`**
+2. **Run sync script** - `npm run sync-config` copies to both V3-Dorkinians-Website locations
 3. **Deploy both repositories**
 
-> **Note**: The system now uses Git hooks for automatic synchronization. See [Git Hooks Synchronization](#git-hooks-synchronization) section below.
+> **Note**: The system now uses npm scripts for manual synchronization. See [NPM Script Synchronization](#npm-script-synchronization) section below.
 
 ## Single Source of Truth Architecture
 
-The project implements a **zero-manual-intervention** synchronization system where each configuration file has exactly one master location and is automatically distributed to all required locations.
+The project implements a **manual synchronization system** where each configuration file has exactly one master location and is distributed to all required locations using npm scripts.
 
 ### **Master File Locations**
 
 | Configuration | Master Location | Auto-Synced To |
 |---------------|-----------------|----------------|
 | **Schema** | `database-dorkinians/config/schema.js` | `V3-Dorkinians-Website/lib/config/schema.js` |
-| **Data Sources** | `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` | `database-dorkinians/config/dataSources.js` + `V3-Dorkinians-Website/lib/config/dataSources.js` |
+| **Data Sources** | `database-dorkinians/config/dataSources.js` | `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` + `V3-Dorkinians-Website/lib/config/dataSources.js` |
 
 ### **Why This Architecture?**
 
 ✅ **Eliminates Manual Sync Errors**: No more forgetting to copy files between repositories  
 ✅ **Perfect Consistency**: All locations always have identical content  
 ✅ **Clear Ownership**: Each file has one definitive source  
-✅ **Automatic Updates**: Changes propagate instantly on commit  
+✅ **Controlled Updates**: Changes propagate when you choose to sync  
 ✅ **Build Compatibility**: Local builds work without path resolution issues  
 
 ### **How It Works**
 
 1. **Edit Master File**: Make changes in the designated master location
-2. **Commit Changes**: Git hook automatically detects the change
-3. **Auto-Sync**: File is copied to all required locations with proper headers
+2. **Run Sync Script**: Execute `npm run sync-config` to copy files
+3. **Manual Sync**: Files are copied to all required locations with proper headers
 4. **Build Success**: All repositories have access to the latest configuration
 
 > [Back to Table of Contents](#table-of-contents)
@@ -231,22 +231,23 @@ npm run dev          # Start development server
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Git Hooks Synchronization
+## NPM Script Synchronization
 
-The project uses Git `post-commit` hooks to automatically keep configuration files in sync between repositories without manual intervention.
+The project uses npm scripts to manually synchronize configuration files between repositories. This approach provides full control over when synchronization occurs and eliminates the complexity of Git hooks.
 
 ### **How It Works**
 
-**Schema Changes**: When `database-dorkinians/config/schema.js` is modified and committed, it automatically copies to `V3-Dorkinians-Website/lib/config/schema.js`
+**Manual Sync**: Run `npm run sync-config` to copy all configuration files from `database-dorkinians/config/` to the appropriate locations in `V3-Dorkinians-Website`
 
-**Data Sources Changes**: When `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` is modified and committed, it automatically copies to:
-- `database-dorkinians/config/dataSources.js` (for the database seeder)
-- `V3-Dorkinians-Website/lib/config/dataSources.js` (for local build compatibility)
+**Files Synced**:
+- `config/schema.js` → `V3-Dorkinians-Website/lib/config/schema.js`
+- `config/dataSources.js` → `V3-Dorkinians-Website/lib/config/dataSources.js`
+- `config/dataSources.js` → `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`
 
-### **Git Hooks**
+### **NPM Scripts**
 
-- **`database-dorkinians/.git/hooks/post-commit`**: Syncs schema to V3-Dorkinians-Website
-- **`V3-Dorkinians-Website/.git/hooks/post-commit`**: Syncs data sources to database-dorkinians
+- **`database-dorkinians`**: `npm run sync-config` - runs the sync script
+- **`V3-Dorkinians-Website`**: `npm run sync-config` - runs the sync from the other repo
 
 ### **Workflow Examples**
 
@@ -256,63 +257,75 @@ The project uses Git `post-commit` hooks to automatically keep configuration fil
 cd database-dorkinians
 # Edit config/schema.js
 
-# 2. Commit the changes
-git add config/schema.js
-git commit -m "Update schema: add new field"
+# 2. Run sync script
+npm run sync-config
 
-# 3. Git hook automatically copies to V3-Dorkinians-Website
-# 4. Deploy both repositories with synchronized configuration
+# 3. Review changes in V3-Dorkinians-Website
+cd ../V3-Dorkinians-Website
+git status
+
+# 4. Commit the synced files
+git add lib/config/schema.js
+git commit -m "Sync schema from database-dorkinians"
 ```
 
 **Updating Data Sources:**
 ```bash
-# 1. Edit data sources in V3-Dorkinians-Website (MASTER LOCATION)
-cd V3-Dorkinians-Website
-# Edit netlify/functions/lib/config/dataSources.js
+# 1. Edit data sources in database-dorkinians (MASTER LOCATION)
+cd database-dorkinians
+# Edit config/dataSources.js
 
-# 2. Commit the changes
-git add netlify/functions/lib/config/dataSources.js
-git commit -m "Update data sources: add new Google Sheet"
+# 2. Run sync script
+npm run sync-config
 
-# 3. Git hook automatically copies to:
-#    - database-dorkinians/config/dataSources.js (for database seeder)
-#    - V3-Dorkinians-Website/lib/config/dataSources.js (for local builds)
-# 4. Deploy both repositories with synchronized configuration
+# 3. Review changes in V3-Dorkinians-Website
+cd ../V3-Dorkinians-Website
+git status
+
+# 4. Commit the synced files
+git add lib/config/dataSources.js netlify/functions/lib/config/dataSources.js
+git commit -m "Sync data sources from database-dorkinians"
 ```
 
 ### **Benefits**
 
-✅ **Zero Manual Intervention**: Files sync automatically on commit  
-✅ **Real-time Updates**: Changes are immediately reflected across repositories  
-✅ **Clear Ownership**: Each file has a single source of truth  
-✅ **Version Control**: All sync operations are tracked in Git history  
-✅ **Error Prevention**: Warning headers prevent accidental direct edits  
-✅ **Build Compatibility**: Local builds work without import path issues  
+✅ **Reliable**: No Git hook failures or PowerShell issues  
+✅ **Simple**: One command to sync everything  
+✅ **Visible**: You see exactly what's being synced  
+✅ **Flexible**: Sync when you want, not on every commit  
+✅ **Maintainable**: Easy to modify and debug  
+✅ **Cross-platform**: Works on Windows, Mac, and Linux  
 ✅ **Perfect Consistency**: All locations always have identical content  
 
-### **Troubleshooting Git Hooks**
+### **Troubleshooting**
 
-**Git Hook Not Working:**
-1. **Check File Permissions**: Ensure the hook file is executable
-   ```bash
-   # On Windows
-   attrib -R .git/hooks/post-commit
-   
-   # On Unix/Linux/Mac
-   chmod +x .git/hooks/post-commit
-   ```
-
-2. **Verify Repository Structure**: Both repositories must be in the same parent directory
+**Sync Script Not Working:**
+1. **Check Repository Structure**: Both repositories must be in the same parent directory
    ```
    /parent-directory/
    ├── database-dorkinians/
    └── V3-Dorkinians-Website/
    ```
 
-**Manual Sync Required (if Git hooks fail):**
+2. **Verify Node.js**: Ensure Node.js is installed and accessible
+   ```bash
+   node --version
+   npm --version
+   ```
+
+3. **Check File Permissions**: Ensure the sync script is readable
+   ```bash
+   # On Windows
+   dir scripts\sync-config.js
+   
+   # On Unix/Linux/Mac
+   ls -la scripts/sync-config.js
+   ```
+
+**Manual Sync Required (if npm script fails):**
 1. **Schema**: Copy `database-dorkinians/config/schema.js` to `V3-Dorkinians-Website/lib/config/schema.js`
-2. **Data Sources**: Copy `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` to `database-dorkinians/config/dataSources.js`
-3. **Update Headers**: Add the appropriate warning header to the target file
+2. **Data Sources**: Copy `database-dorkinians/config/dataSources.js` to both V3-Dorkinians-Website locations
+3. **Update Headers**: Add the appropriate warning header to the target files
 4. **Commit Changes**: Commit the manually synced files
 
 > [Back to Table of Contents](#table-of-contents)
@@ -324,9 +337,10 @@ git commit -m "Update data sources: add new Google Sheet"
 When data structures change:
 
 1. **Update Unified Schema**: Modify `database-dorkinians/config/schema.js`
-2. **Test Changes**: Use database seeder test endpoints
-3. **Deploy Updates**: Push changes to both repositories
-4. **Verify Integration**: Test frontend functionality
+2. **Sync Configuration**: Run `npm run sync-config` to copy to V3-Dorkinians-Website
+3. **Test Changes**: Use database seeder test endpoints
+4. **Deploy Updates**: Push changes to both repositories
+5. **Verify Integration**: Test frontend functionality
 
 > [Back to Table of Contents](#table-of-contents)
 
