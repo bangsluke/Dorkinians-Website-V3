@@ -30,12 +30,12 @@ export default function FooterNavigation() {
 							key={item.id}
 							onClick={() => setMainPage(item.id)}
 							className={`flex flex-col items-center space-y-1 px-3 py-2 rounded-lg transition-colors ${
-								isActive ? "text-dorkinians-blue bg-white/30" : "text-white hover:text-gray-200 hover:bg-white/20"
+								isActive ? "text-yellow-400 bg-yellow-400/20" : "text-white hover:text-yellow-300 hover:bg-white/20"
 							}`}
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}>
-							<Icon className={`w-6 h-6 ${isActive ? "text-dorkinians-blue" : ""}`} />
-							<span className={`text-xs font-medium ${isActive ? "text-dorkinians-blue" : ""}`}>{item.label}</span>
+							<Icon className={`w-6 h-6 ${isActive ? "text-yellow-400" : ""}`} />
+							<span className={`text-xs font-medium ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
 						</motion.button>
 					);
 				})}
