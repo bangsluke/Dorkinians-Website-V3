@@ -20,6 +20,13 @@ export default function HomePage() {
 		initializeFromStorage();
 	}, [initializeFromStorage]);
 
+	// Show chatbot when player is loaded from localStorage
+	useEffect(() => {
+		if (isPlayerSelected && selectedPlayer) {
+			setShowChatbot(true);
+		}
+	}, [isPlayerSelected, selectedPlayer]);
+
 	const handlePlayerSelect = (playerName: string) => {
 		selectPlayer(playerName);
 		// Trigger chatbot reveal after a brief delay
