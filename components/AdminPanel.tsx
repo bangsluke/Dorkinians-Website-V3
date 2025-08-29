@@ -196,10 +196,17 @@ export default function AdminPanel() {
 		setStatusCheckLoading(true);
 		setError(null);
 
+		let controller: AbortController | null = null;
+		let timeoutId: NodeJS.Timeout | null = null;
+
 		try {
 			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			controller = new AbortController();
+			timeoutId = setTimeout(() => {
+				if (controller && !controller.signal.aborted) {
+					controller.abort();
+				}
+			}, 10000); // 10 second timeout
 			
 			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
 				method: 'GET',
@@ -209,8 +216,6 @@ export default function AdminPanel() {
 				mode: 'cors',
 				signal: controller.signal
 			});
-			
-			clearTimeout(timeoutId);
 
 			if (response.ok) {
 				const statusData = await response.json();
@@ -296,6 +301,15 @@ export default function AdminPanel() {
 			}
 			setError(`Status check failed: ${errorMessage}`);
 		} finally {
+			// Ensure proper cleanup of timeout and controller
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
+			if (controller && !controller.signal.aborted) {
+				controller.abort();
+			}
+			controller = null;
 			setStatusCheckLoading(false);
 		}
 	};
@@ -304,10 +318,17 @@ export default function AdminPanel() {
 		setStatusCheckLoading(true);
 		setError(null);
 
+		let controller: AbortController | null = null;
+		let timeoutId: NodeJS.Timeout | null = null;
+
 		try {
 			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			controller = new AbortController();
+			timeoutId = setTimeout(() => {
+				if (controller && !controller.signal.aborted) {
+					controller.abort();
+				}
+			}, 10000); // 10 second timeout
 			
 			const response = await fetch(`${herokuUrl}/status/${specificJobId}`, {
 				method: 'GET',
@@ -318,8 +339,6 @@ export default function AdminPanel() {
 				signal: controller.signal
 			});
 			
-			clearTimeout(timeoutId);
-
 			if (response.ok) {
 				const statusData = await response.json();
 				console.log('Status check response for specific job:', statusData);
@@ -370,6 +389,15 @@ export default function AdminPanel() {
 			}
 			setError(`Status check failed: ${errorMessage}`);
 		} finally {
+			// Ensure proper cleanup of timeout and controller
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
+			if (controller && !controller.signal.aborted) {
+				controller.abort();
+			}
+			controller = null;
 			setStatusCheckLoading(false);
 		}
 	};
@@ -443,10 +471,18 @@ export default function AdminPanel() {
 					onClick={async () => {
 						setJobsLoading(true);
 						setError(null);
+						
+						let controller: AbortController | null = null;
+						let timeoutId: NodeJS.Timeout | null = null;
+
 						try {
 							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-							const controller = new AbortController();
-							const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+							controller = new AbortController();
+							timeoutId = setTimeout(() => {
+								if (controller && !controller.signal.aborted) {
+									controller.abort();
+								}
+							}, 10000); // 10 second timeout
 							
 							const response = await fetch(`${herokuUrl}/jobs`, {
 								method: 'GET',
@@ -456,8 +492,6 @@ export default function AdminPanel() {
 								mode: 'cors',
 								signal: controller.signal
 							});
-							
-							clearTimeout(timeoutId);
 							
 							if (response.ok) {
 								const data = await response.json();
@@ -479,6 +513,15 @@ export default function AdminPanel() {
 							}
 							setError(`Failed to fetch jobs: ${errorMessage}`);
 						} finally {
+							// Ensure proper cleanup of timeout and controller
+							if (timeoutId) {
+								clearTimeout(timeoutId);
+								timeoutId = null;
+							}
+							if (controller && !controller.signal.aborted) {
+								controller.abort();
+							}
+							controller = null;
 							setJobsLoading(false);
 						}
 					}}
