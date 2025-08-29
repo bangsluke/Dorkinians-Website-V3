@@ -21,6 +21,11 @@ export interface QuestionContext {
 
 export class ChatbotService {
 	private static instance: ChatbotService;
+	
+	// Debug tracking properties
+	private lastQuestionAnalysis: any = null;
+	private lastExecutedQueries: string[] = [];
+	private lastProcessingSteps: string[] = [];
 
 	static getInstance(): ChatbotService {
 		if (!ChatbotService.instance) {
@@ -52,6 +57,11 @@ export class ChatbotService {
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
+		// Clear debug tracking for new question
+		this.lastQuestionAnalysis = null;
+		this.lastExecutedQueries = [];
+		this.lastProcessingSteps = [];
+		
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
 		this.logToBoth(`👤 User context: ${context.userContext || 'None'}`);
@@ -77,14 +87,17 @@ export class ChatbotService {
 
 			// Analyze the question
 			const analysis = this.analyzeQuestion(context.question, context.userContext);
+			this.lastQuestionAnalysis = analysis; // Store for debugging
 			this.logToBoth(`🔍 Question analysis:`, analysis);
 			
 			// Client-side logging for question analysis
 			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
 
 			// Query the database
+			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
 			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
+			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || 'null'}`);
 			this.logToBoth(`📊 Query result:`, data);
 			
 			// Client-side logging for query results
@@ -574,6 +587,9 @@ export class ChatbotService {
 		// Log the diagnostic query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 DIAGNOSTIC CYPHER QUERY:`, diagnosticQuery);
 		
+		// Store query for debugging
+		this.lastExecutedQueries.push(`DIAGNOSTIC: ${diagnosticQuery}`);
+		
 		try {
 			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
@@ -619,6 +635,10 @@ export class ChatbotService {
 		// Log the main Cypher query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
 		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
+		
+		// Store query for debugging
+		this.lastExecutedQueries.push(`MAIN: ${query}`);
+		this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ teamName, metric, metricField: this.getMetricField(metric) })}`);
 
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
@@ -1124,6 +1144,19 @@ export class ChatbotService {
 			console.error("❌ Error querying opponents:", error);
 			return null;
 		}
+	}
+	
+	// Debug methods for exposing processing information
+	public getQuestionAnalysis(question: string, userContext?: string): any {
+		return this.lastQuestionAnalysis;
+	}
+	
+	public getExecutedQueries(): string[] {
+		return this.lastExecutedQueries;
+	}
+	
+	public getProcessingSteps(): string[] {
+		return this.lastProcessingSteps;
 	}
 }
 
