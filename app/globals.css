@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+	--dorkinians-green: #1C8841;
+	--dorkinians-yellow: #F9ED32;
+	--dorkinians-green-dark: #1a7a3a;
+	--dorkinians-green-darker: #156b32;
+
+	--field-bg: rgba(0,0,0,.55);
+}
+
 @layer base {
 	html {
 		font-family: "Inter", system-ui, sans-serif;
@@ -82,15 +91,14 @@
 	}
 
 	.frosted-glass {
-		background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%), rgba(22,22,22,.40);
-		border: 1px solid rgba(255,255,255,.16);
+		background: linear-gradient(180deg, rgba(255,255,255,.2), transparent 22%), rgba(22,22,22,.40);
 		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
 		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
 	}
 
 	.frosted-glass-dark {
-		background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%), rgba(0,0,0,.55);
+		background: linear-gradient(180deg, rgba(255,255,255,.2), transparent 40%), rgba(0,0,0,.55);
 		border: 1px solid rgba(255,255,255,.08);
 		backdrop-filter: blur(28px) saturate(140%);
 		-webkit-backdrop-filter: blur(28px) saturate(140%);
@@ -99,7 +107,7 @@
 
 	/* Dark input components with Dorkinians brand colors */
 	.dark-input {
-		background: #3E1509;
+		background: var(--field-bg);
 		color: #f3f3f3;
 		border-radius: 14px;
 		padding: 12px 16px;
@@ -117,7 +125,7 @@
 	}
 
 	.dark-button {
-		background: linear-gradient(135deg, #1C8841 0%, #1a7a3a 100%);
+		background: linear-gradient(135deg, var(--dorkinians-green) 0%, var(--dorkinians-green-dark) 100%);
 		color: white;
 		border-radius: 14px;
 		padding: 12px 24px;
@@ -127,7 +135,7 @@
 	}
 
 	.dark-button:hover {
-		background: linear-gradient(135deg, #1a7a3a 0%, #156b32 100%);
+		background: linear-gradient(135deg, var(--dorkinians-green-dark) 0%, var(--dorkinians-green-darker) 100%);
 		border-color: rgba(249, 237, 50, 0.5);
 		transform: translateY(-1px);
 		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
@@ -138,14 +146,14 @@
 	}
 
 	.dark-dropdown {
-		background: #3E1509;
+		background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05));
 		color: #f3f3f3;
 		border-radius: 14px;
 		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
 	}
 
 	.dark-dropdown-option {
-		background: #3E1509;
+		background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05));
 		color: #f3f3f3;
 		padding: 12px 16px;
 		transition: all 0.2s ease;
@@ -153,18 +161,18 @@
 
 	.dark-dropdown-option:hover {
 		background: rgba(249, 237, 50, 0.1);
-		color: #F9ED32;
+		color: var(--dorkinians-yellow);
 	}
 
 	.dark-dropdown-option.selected {
 		background: rgba(28, 136, 65, 0.3);
-		color: #F9ED32;
-		border-left: 3px solid #1C8841;
+		color: var(--dorkinians-yellow);
+		border-left: 3px solid var(--dorkinians-green);
 	}
 
 	/* Chat interface dark styling */
 	.dark-chat-input {
-		background: #3E1509;
+		background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05));
 		color: #f3f3f3;
 		border-radius: 14px;
 		padding: 16px;
@@ -178,7 +186,7 @@
 	}
 
 	.dark-chat-button {
-		background: linear-gradient(135deg, #1C8841 0%, #1a7a3a 100%);
+		background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05));
 		color: white;
 		border-radius: 14px;
 		padding: 16px 24px;
@@ -188,19 +196,32 @@
 	}
 
 	.dark-chat-button:hover {
-		background: linear-gradient(135deg, #1a7a3a 0%, #156b32 100%);
+		background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(255,255,255,.25));
 		border-color: rgba(249, 237, 50, 0.5);
 		transform: translateY(-1px);
 		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
 	}
 
 	.dark-chat-button:disabled {
-		background: rgba(62, 21, 9, 0.6);
+		bbackground: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.05));
 		border-color: rgba(249, 237, 50, 0.1);
 		color: rgba(249, 237, 50, 0.5);
 		cursor: not-allowed;
 		transform: none;
 		box-shadow: none;
+	}
+
+	/* Responsive frosted glass container */
+	.frosted-container {
+		@apply frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden;
+	}
+
+	@media (min-width: 768px) {
+		.frosted-container {
+			width: 70%;
+			margin-left: auto;
+			margin-right: auto;
+		}
 	}
 }
 
