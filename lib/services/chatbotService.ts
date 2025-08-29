@@ -21,6 +21,11 @@ export interface QuestionContext {
 
 export class ChatbotService {
 	private static instance: ChatbotService;
+	
+	// Debug tracking properties
+	private lastQuestionAnalysis: any = null;
+	private lastExecutedQueries: string[] = [];
+	private lastProcessingSteps: string[] = [];
 
 	static getInstance(): ChatbotService {
 		if (!ChatbotService.instance) {
@@ -41,24 +46,32 @@ export class ChatbotService {
 		}
 
 		// Client-side logging (will show in browser console)
-		if (typeof window !== 'undefined') {
-			if (level === 'log') {
-				console.log(message, data);
-			} else if (level === 'warn') {
-				console.warn(message, data);
-			} else {
-				console.error(message, data);
-			}
+		// Note: This will always log to client console for debugging purposes
+		if (level === 'log') {
+			console.log(`🤖 [CLIENT] ${message}`, data);
+		} else if (level === 'warn') {
+			console.warn(`🤖 [CLIENT] ${message}`, data);
+		} else {
+			console.error(`🤖 [CLIENT] ${message}`, data);
 		}
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
+		// Clear debug tracking for new question
+		this.lastQuestionAnalysis = null;
+		this.lastExecutedQueries = [];
+		this.lastProcessingSteps = [];
+		
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
 		this.logToBoth(`👤 User context: ${context.userContext || 'None'}`);
 		this.logToBoth(
 			`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? (process.env.PROD_NEO4J_URI ? "Yes" : "No") : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`,
 		);
+		
+		// Client-side logging for question processing
+		console.log(`🤖 [CLIENT] 🤖 Processing question: ${context.question}`);
+		console.log(`🤖 [CLIENT] 👤 User context: ${context.userContext || 'None'}`);
 
 		try {
 			// Ensure Neo4j connection
@@ -74,12 +87,21 @@ export class ChatbotService {
 
 			// Analyze the question
 			const analysis = this.analyzeQuestion(context.question, context.userContext);
+			this.lastQuestionAnalysis = analysis; // Store for debugging
 			this.logToBoth(`🔍 Question analysis:`, analysis);
+			
+			// Client-side logging for question analysis
+			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
 
 			// Query the database
+			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
 			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
+			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || 'null'}`);
 			this.logToBoth(`📊 Query result:`, data);
+			
+			// Client-side logging for query results
+			console.log(`🤖 [CLIENT] 📊 Query result:`, data);
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
@@ -538,11 +560,20 @@ export class ChatbotService {
 	}
 
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
-		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: ${teamNumber}, metric: ${metric}`);
+		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
 		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
 		const teamName = `${teamNumber} Team`;
-		this.logToBoth(`🔍 Looking for team: ${teamName}`);
+		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
+		
+		// Log the exact team number format for debugging
+		this.logToBoth(`🔍 Team number format analysis:`, {
+			original: teamNumber,
+			length: teamNumber.length,
+			containsNumbers: /\d/.test(teamNumber),
+			containsOrdinal: /(st|nd|rd|th)/.test(teamNumber),
+			finalTeamName: teamName
+		});
 
 		// First, let's check what teams actually exist in the Fixture data
 		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
@@ -553,8 +584,16 @@ export class ChatbotService {
 			ORDER BY f.team
 		`;
 		
+		// Log the diagnostic query for client-side debugging
+		console.log(`🤖 [CLIENT] 🔍 DIAGNOSTIC CYPHER QUERY:`, diagnosticQuery);
+		
+		// Store query for debugging
+		this.lastExecutedQueries.push(`DIAGNOSTIC: ${diagnosticQuery}`);
+		
 		try {
+			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
 			this.logToBoth(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
 			
 			// Check if our target team exists
@@ -563,6 +602,7 @@ export class ChatbotService {
 			
 			if (!teamExists) {
 				this.logToBoth(`🔍 Team "${teamName}" not found. Available teams:`, diagnosticResult.map(r => r.teamName));
+				this.logToBoth(`🔍 Returning team_not_found response`);
 				return { 
 					type: "team_not_found", 
 					data: [], 
@@ -591,6 +631,14 @@ export class ChatbotService {
 
 		this.logToBoth(`🔍 Final team-specific query:`, query);
 		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+		
+		// Log the main Cypher query for client-side debugging
+		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
+		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
+		
+		// Store query for debugging
+		this.lastExecutedQueries.push(`MAIN: ${query}`);
+		this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ teamName, metric, metricField: this.getMetricField(metric) })}`);
 
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
@@ -758,6 +806,14 @@ export class ChatbotService {
 	}
 
 	private async generateResponse(question: string, data: any, analysis: any): Promise<ChatbotResponse> {
+		this.logToBoth(`🔍 generateResponse called with:`, {
+			question,
+			dataType: data?.type,
+			dataKeys: data ? Object.keys(data) : 'null',
+			analysisType: analysis?.type,
+			analysisEntities: analysis?.entities
+		});
+		
 		let answer = "";
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
@@ -814,6 +870,7 @@ export class ChatbotService {
 				};
 			} else if (data && data.type === "team_not_found") {
 				// Team not found - provide helpful information
+				this.logToBoth(`🔍 Handling team_not_found case:`, data);
 				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(', ')}.`;
 			} else if (data && data.type === "error") {
 				// Error occurred during query
@@ -1087,6 +1144,19 @@ export class ChatbotService {
 			console.error("❌ Error querying opponents:", error);
 			return null;
 		}
+	}
+	
+	// Debug methods for exposing processing information
+	public getQuestionAnalysis(question: string, userContext?: string): any {
+		return this.lastQuestionAnalysis;
+	}
+	
+	public getExecutedQueries(): string[] {
+		return this.lastExecutedQueries;
+	}
+	
+	public getProcessingSteps(): string[] {
+		return this.lastProcessingSteps;
 	}
 }
 

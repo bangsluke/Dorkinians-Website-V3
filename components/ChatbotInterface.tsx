@@ -72,8 +72,28 @@ export default function ChatbotInterface() {
 				throw new Error(`HTTP error! status: ${res.status}`);
 			}
 
-			const data: ChatbotResponse = await res.json();
+			const data: ChatbotResponse & { debug?: any } = await res.json();
 			console.log(`🤖 Frontend: Received response:`, data);
+			
+			// Enhanced client-side logging for debugging
+			if (data.debug) {
+				console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+					question: data.debug.question,
+					userContext: data.debug.userContext,
+					timestamp: data.debug.timestamp,
+					serverLogs: data.debug.serverLogs
+				});
+			}
+			
+			// Log the response structure for debugging
+			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
+				answer: data.answer,
+				confidence: data.confidence,
+				hasVisualization: !!data.visualization,
+				hasDebug: !!data.debug,
+				responseType: typeof data
+			});
+			
 			setResponse(data);
 
 			// Save to conversation history with player context
@@ -219,6 +239,25 @@ export default function ChatbotInterface() {
 
 						{/* Visualization */}
 						{response.visualization && renderVisualization(response.visualization)}
+						
+						{/* Debug Information - Only show in development or when explicitly enabled */}
+						{(process.env.NODE_ENV === 'development' || (response as any).debug) && (
+							<div className='mt-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg'>
+								<h4 className='font-semibold text-gray-300 mb-2 text-xs'>🔍 Debug Info</h4>
+								<div className='text-xs text-gray-400 space-y-1'>
+									{(response as any).debug && (
+										<>
+											<div><strong>Question:</strong> {(response as any).debug.question}</div>
+											<div><strong>Context:</strong> {(response as any).debug.userContext || 'None'}</div>
+											<div><strong>Timestamp:</strong> {(response as any).debug.timestamp}</div>
+											<div><strong>Server Logs:</strong> {(response as any).debug.serverLogs}</div>
+										</>
+									)}
+									<div><strong>Response Type:</strong> {typeof response}</div>
+									<div><strong>Has Visualization:</strong> {!!response.visualization ? 'Yes' : 'No'}</div>
+								</div>
+							</div>
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>
