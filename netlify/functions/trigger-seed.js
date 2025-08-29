@@ -323,40 +323,35 @@ exports.handler = async (event, context) => {
 		// Note: Start notification is sent by Heroku service after seeding begins
 		console.log('📧 START: Start notification will be sent by Heroku service');
 
-		// Trigger Heroku seeding service
+		// Trigger Heroku seeding service (fire-and-forget)
 		console.log('🌱 HEROKU: Starting Heroku seeding service...');
-		try {
-			const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-			// Ensure no trailing slash to prevent double slashes
-			const cleanHerokuUrl = herokuUrl.replace(/\/$/, '');
-			const fullUrl = `${cleanHerokuUrl}/seed`;
-			console.log('🔗 HEROKU: Full URL being called:', fullUrl);
-			console.log('🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:', process.env.HEROKU_SEEDER_URL);
-			
-			const response = await fetch(fullUrl, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify({
-					environment,
-					jobId
-				})
-			});
-
+		const herokuUrl = process.env.HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+		const cleanHerokuUrl = herokuUrl.replace(/\/$/, '');
+		const fullUrl = `${cleanHerokuUrl}/seed`;
+		console.log('🔗 HEROKU: Full URL being called:', fullUrl);
+		console.log('🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:', process.env.HEROKU_SEEDER_URL);
+		
+		// Fire-and-forget: don't wait for response to prevent timeout
+		fetch(fullUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				environment,
+				jobId
+			})
+		}).then(response => {
 			if (response.ok) {
 				console.log('✅ HEROKU: Heroku seeding service started successfully');
 			} else {
 				console.warn('⚠️ HEROKU: Heroku seeding service may have failed to start');
 				console.warn('⚠️ HEROKU: Response status:', response.status);
 				console.warn('⚠️ HEROKU: Response status text:', response.statusText);
-				const responseText = await response.text();
-				console.warn('⚠️ HEROKU: Response body:', responseText);
 			}
-		} catch (herokuError) {
+		}).catch(herokuError => {
 			console.warn('⚠️ HEROKU: Failed to start Heroku seeding service:', herokuError);
-			// Continue with immediate response - Heroku process may still work
-		}
+		});
 
 		// Return immediate response
 		console.log('✅ SUCCESS: Returning immediate response');
