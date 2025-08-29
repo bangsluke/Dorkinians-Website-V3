@@ -12,11 +12,12 @@ const samplePlayers = ["Luke Bangs", "Kieran Mackrell", "Oli Goddard", "Al Thom"
 interface PlayerSelectionProps {
 	onPlayerSelect: (playerName: string) => void;
 	onEditClick: () => void;
+	onClearPlayer: () => void;
 	selectedPlayer: string | null;
 	isEditMode: boolean;
 }
 
-export default function PlayerSelection({ onPlayerSelect, onEditClick, selectedPlayer, isEditMode }: PlayerSelectionProps) {
+export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPlayer, selectedPlayer, isEditMode }: PlayerSelectionProps) {
 	const [localSelectedPlayer, setLocalSelectedPlayer] = useState("");
 	const [isSubmitted, setIsSubmitted] = useState(false);
 	const [query, setQuery] = useState("");
@@ -132,6 +133,14 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, selectedP
 						className='p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
 						<PencilIcon className='h-5 w-5' />
+					</button>
+					<button
+						onClick={onClearPlayer}
+						className='p-2 text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-full transition-colors'
+						title='Clear player selection'>
+						<svg className='h-5 w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+							<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
+						</svg>
 					</button>
 				</div>
 			</motion.div>
