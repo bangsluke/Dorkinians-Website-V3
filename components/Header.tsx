@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Cog6ToothIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import Image from "next/image";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
@@ -29,8 +30,14 @@ export default function Header({ onSettingsClick }: HeaderProps) {
 					whileTap={{ scale: 0.95 }}
 					onClick={handleLogoClick}
 					title="Click to return to homepage">
-					<div className='w-8 h-8 bg-dorkinians-blue rounded-full flex items-center justify-center'>
-						<span className='text-white font-bold text-sm'>D</span>
+					<div className='w-8 h-8 flex items-center justify-center'>
+						<Image 
+							src="/icons/icon-32x32.png" 
+							alt="Dorkinians FC Logo" 
+							width={32} 
+							height={32}
+							className="rounded-full"
+						/>
 					</div>
 					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
 				</motion.div>
