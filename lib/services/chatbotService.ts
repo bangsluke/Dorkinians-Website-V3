@@ -26,6 +26,7 @@ export class ChatbotService {
 	private lastQuestionAnalysis: any = null;
 	private lastExecutedQueries: string[] = [];
 	private lastProcessingSteps: string[] = [];
+	private lastQueryBreakdown: any = null;
 
 	static getInstance(): ChatbotService {
 		if (!ChatbotService.instance) {
@@ -61,6 +62,7 @@ export class ChatbotService {
 		this.lastQuestionAnalysis = null;
 		this.lastExecutedQueries = [];
 		this.lastProcessingSteps = [];
+		this.lastQueryBreakdown = null;
 		
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
@@ -85,13 +87,26 @@ export class ChatbotService {
 				};
 			}
 
-			// Analyze the question
-			const analysis = this.analyzeQuestion(context.question, context.userContext);
-			this.lastQuestionAnalysis = analysis; // Store for debugging
-			this.logToBoth(`🔍 Question analysis:`, analysis);
-			
-			// Client-side logging for question analysis
-			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
+					// Analyze the question
+		const analysis = this.analyzeQuestion(context.question, context.userContext);
+		this.lastQuestionAnalysis = analysis; // Store for debugging
+		
+		// Create detailed breakdown for debugging
+		this.lastQueryBreakdown = {
+			playerName: context.userContext || 'None',
+			team: analysis.entities.find(e => /\d+(?:st|nd|rd|th)?/.test(e)) || 'None',
+			statEntity: analysis.metrics[0] || 'None',
+			questionType: analysis.type,
+			extractedEntities: analysis.entities,
+			extractedMetrics: analysis.metrics
+		};
+		
+		this.logToBoth(`🔍 Question analysis:`, analysis);
+		this.logToBoth(`🔍 Query breakdown:`, this.lastQueryBreakdown);
+		
+		// Client-side logging for question analysis
+		console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
+		console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
@@ -629,16 +644,33 @@ export class ChatbotService {
 			LIMIT 10
 		`;
 
+		// Create detailed query breakdown for debugging
+		const queryBreakdown = {
+			playerName: this.lastQueryBreakdown?.playerName || 'Unknown',
+			team: teamName,
+			statEntity: metric,
+			metricField: this.getMetricField(metric),
+			fullCypherQuery: query,
+			queryParameters: { teamName, metric, metricField: this.getMetricField(metric) },
+			queryExplanation: `Querying MatchDetail nodes for team "${teamName}" to find players with highest ${metric} (${this.getMetricField(metric)})`
+		};
+		
+		// Update the query breakdown with the actual query details
+		this.lastQueryBreakdown = { ...this.lastQueryBreakdown, ...queryBreakdown };
+
 		this.logToBoth(`🔍 Final team-specific query:`, query);
 		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+		this.logToBoth(`🔍 Query breakdown:`, queryBreakdown);
 		
 		// Log the main Cypher query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
 		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
+		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, queryBreakdown);
 		
 		// Store query for debugging
 		this.lastExecutedQueries.push(`MAIN: ${query}`);
 		this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ teamName, metric, metricField: this.getMetricField(metric) })}`);
+		this.lastExecutedQueries.push(`BREAKDOWN: ${JSON.stringify(queryBreakdown)}`);
 
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
@@ -1157,6 +1189,15 @@ export class ChatbotService {
 	
 	public getProcessingSteps(): string[] {
 		return this.lastProcessingSteps;
+	}
+	
+	public getProcessingDetails(): any {
+		return {
+			questionAnalysis: this.lastQuestionAnalysis,
+			cypherQueries: this.lastExecutedQueries,
+			processingSteps: this.lastProcessingSteps,
+			queryBreakdown: this.lastQueryBreakdown
+		};
 	}
 }
 
