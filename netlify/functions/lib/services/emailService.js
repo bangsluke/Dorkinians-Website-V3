@@ -18,7 +18,7 @@ class EmailService {
 		this.config = {
 			host: process.env.SMTP_SERVER,
 			port: parseInt(process.env.SMTP_PORT) || 587,
-			secure: process.env.SMTP_EMAIL_SECURE === 'true',
+			secure: process.env.SMTP_EMAIL_SECURE === "true",
 			auth: {
 				user: process.env.SMTP_USERNAME,
 				pass: process.env.SMTP_PASSWORD,
@@ -28,7 +28,7 @@ class EmailService {
 		};
 
 		if (!this.config.host || !this.config.auth.user || !this.config.auth.pass) {
-			console.warn('⚠️ EMAIL: Missing required SMTP configuration');
+			console.warn("⚠️ EMAIL: Missing required SMTP configuration");
 			return;
 		}
 
@@ -42,14 +42,14 @@ class EmailService {
 			},
 			tls: {
 				rejectUnauthorized: process.env.NODE_ENV === "production",
-				...((process.env.NODE_ENV !== "production") && {
+				...(process.env.NODE_ENV !== "production" && {
 					rejectUnauthorized: false,
-					checkServerIdentity: () => undefined
-				})
+					checkServerIdentity: () => undefined,
+				}),
 			},
 		});
 
-		console.log('📧 EMAIL: Email service configured successfully');
+		console.log("📧 EMAIL: Email service configured successfully");
 	}
 
 	async sendCSVHeaderValidationFailure(failures) {
@@ -93,12 +93,12 @@ class EmailService {
 		}
 	}
 
-	async sendSeedingStartEmail(environment, jobId = 'unknown') {
+	async sendSeedingStartEmail(environment, jobId = "unknown") {
 		try {
-			console.log('📧 EMAIL: Sending seeding start email...');
-			
+			console.log("📧 EMAIL: Sending seeding start email...");
+
 			if (!this.transporter || !this.config) {
-				console.warn('⚠️ EMAIL: Email service not configured');
+				console.warn("⚠️ EMAIL: Email service not configured");
 				return;
 			}
 
@@ -114,30 +114,39 @@ class EmailService {
 					<p><strong>Status:</strong> Seeding process is now running in the background</p>
 					<hr>
 					<p><em>This is an automated notification. The seeding process will continue running and you will receive a completion email when it finishes.</em></p>
-				`
+				`,
 			};
 
 			const info = await this.transporter.sendMail(mailOptions);
-			console.log('✅ EMAIL: Start notification sent successfully:', info.messageId);
+			console.log("✅ EMAIL: Start notification sent successfully:", info.messageId);
 			return info.messageId;
 		} catch (error) {
-			console.error('❌ EMAIL: Failed to send start notification:', error);
+			console.error("❌ EMAIL: Failed to send start notification:", error);
 			throw error;
 		}
 	}
 
-	async sendSeedingSummaryEmail({ success, environment, jobId = 'unknown', nodesCreated, relationshipsCreated, errorCount, errors, duration }) {
+	async sendSeedingSummaryEmail({
+		success,
+		environment,
+		jobId = "unknown",
+		nodesCreated,
+		relationshipsCreated,
+		errorCount,
+		errors,
+		duration,
+	}) {
 		try {
-			console.log('📧 EMAIL: Sending seeding summary email...');
-			
+			console.log("📧 EMAIL: Sending seeding summary email...");
+
 			if (!this.transporter || !this.config) {
-				console.warn('⚠️ EMAIL: Email service not configured');
+				console.warn("⚠️ EMAIL: Email service not configured");
 				return;
 			}
 
-			const statusIcon = success ? '✅' : '❌';
-			const statusText = success ? 'Completed Successfully' : 'Failed';
-			const durationText = duration ? `${Math.round(duration / 1000)} seconds` : 'Unknown';
+			const statusIcon = success ? "✅" : "❌";
+			const statusText = success ? "Completed Successfully" : "Failed";
+			const durationText = duration ? `${Math.round(duration / 1000)} seconds` : "Unknown";
 
 			const mailOptions = {
 				from: this.config.from,
@@ -156,23 +165,27 @@ class EmailService {
 					<p><strong>Relationships Created:</strong> ${relationshipsCreated}</p>
 					<p><strong>Error Count:</strong> ${errorCount}</p>
 					
-					${errors && errors.length > 0 ? `
+					${
+						errors && errors.length > 0
+							? `
 						<h3>❌ Errors Encountered</h3>
 						<ul>
-							${errors.map(error => `<li>${error}</li>`).join('')}
+							${errors.map((error) => `<li>${error}</li>`).join("")}
 						</ul>
-					` : ''}
+					`
+							: ""
+					}
 					
 					<hr>
 					<p><em>This is an automated notification from the Dorkinians FC Statistics Website seeding system.</em></p>
-				`
+				`,
 			};
 
 			const info = await this.transporter.sendMail(mailOptions);
-			console.log('✅ EMAIL: Summary email sent successfully:', info.messageId);
+			console.log("✅ EMAIL: Summary email sent successfully:", info.messageId);
 			return info.messageId;
 		} catch (error) {
-			console.error('❌ EMAIL: Failed to send summary email:', error);
+			console.error("❌ EMAIL: Failed to send summary email:", error);
 			throw error;
 		}
 	}
@@ -203,19 +216,19 @@ class EmailService {
 					</tr>
 			`;
 
-			summary.headerFailures.forEach(failure => {
+			summary.headerFailures.forEach((failure) => {
 				htmlBody += `
 					<tr>
 						<td style="padding: 8px;">${failure.sourceName}</td>
-						<td style="padding: 8px;">${failure.expectedHeaders.join(', ')}</td>
-						td style="padding: 8px;">${failure.actualHeaders.join(', ')}</td>
-						<td style="padding: 8px;">${failure.missingHeaders.join(', ')}</td>
-						<td style="padding: 8px;">${failure.extraHeaders.join(', ')}</td>
+						<td style="padding: 8px;">${failure.expectedHeaders.join(", ")}</td>
+						td style="padding: 8px;">${failure.actualHeaders.join(", ")}</td>
+						<td style="padding: 8px;">${failure.missingHeaders.join(", ")}</td>
+						<td style="padding: 8px;">${failure.extraHeaders.join(", ")}</td>
 					</tr>
 				`;
 			});
 
-			htmlBody += '</table>';
+			htmlBody += "</table>";
 		}
 
 		if (summary.accessFailures.length > 0) {
@@ -229,7 +242,7 @@ class EmailService {
 					</tr>
 			`;
 
-			summary.accessFailures.forEach(failure => {
+			summary.accessFailures.forEach((failure) => {
 				htmlBody += `
 					<tr>
 						td style="padding: 8px;">${failure.sourceName}</td>
@@ -239,7 +252,7 @@ class EmailService {
 				`;
 			});
 
-			htmlBody += '</table>';
+			htmlBody += "</table>";
 		}
 
 		htmlBody += `
@@ -266,7 +279,7 @@ class EmailService {
 					<h2>🧪 Test Email</h2>
 					<p>This is a test email to verify the email service configuration.</p>
 					<p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
-					<p><strong>Environment:</strong> ${process.env.NODE_ENV || 'unknown'}</p>
+					<p><strong>Environment:</strong> ${process.env.NODE_ENV || "unknown"}</p>
 					<hr>
 					<p><em>If you receive this email, the email service is working correctly.</em></p>
 				`,
@@ -287,5 +300,5 @@ const emailService = new EmailService();
 
 module.exports = {
 	EmailService,
-	emailService
+	emailService,
 };

@@ -16,35 +16,38 @@ async function POST(request) {
 		// Handle custom query execution
 		if (action === "query" && query) {
 			console.log("🔍 Executing custom Neo4j query...");
-			
+
 			try {
 				const { neo4jService } = await import("@/lib/neo4j");
 				const connected = await neo4jService.connect();
-				
+
 				if (!connected) {
 					return NextResponse.json({ error: "Neo4j connection failed" }, { status: 500 });
 				}
-				
+
 				const result = await neo4jService.runQuery(query, params || {});
-				const data = result.records.map(record => {
+				const data = result.records.map((record) => {
 					const obj = {};
-					record.keys.forEach(key => {
+					record.keys.forEach((key) => {
 						obj[String(key)] = record.get(key);
 					});
 					return obj;
 				});
-				
+
 				return NextResponse.json({
 					action: "query",
 					success: true,
-					data: data
+					data: data,
 				});
 			} catch (error) {
 				console.error("❌ Query execution error:", error);
-				return NextResponse.json({ 
-					error: "Query execution failed", 
-					details: error instanceof Error ? error.message : String(error) 
-				}, { status: 500 });
+				return NextResponse.json(
+					{
+						error: "Query execution failed",
+						details: error instanceof Error ? error.message : String(error),
+					},
+					{ status: 500 },
+				);
 			}
 		}
 
@@ -106,10 +109,10 @@ async function POST(request) {
 		try {
 			// Get the actual data source objects from the names
 			const dataSourceObjects = getDataSourcesByName(dataSources);
-			
+
 			// Execute the seeding process
 			const result = await dataSeederService.seedAllData(dataSourceObjects, reducedMode);
-			
+
 			return NextResponse.json({
 				action: "seed",
 				success: result.success,
@@ -117,22 +120,17 @@ async function POST(request) {
 				relationshipsCreated: result.relationshipsCreated,
 				errors: result.errors,
 				unknownNodes: result.unknownNodes,
-				timestamp: new Date().toISOString()
+				timestamp: new Date().toISOString(),
 			});
-			
 		} catch (error) {
 			console.error("❌ Seeding error:", error);
-			return NextResponse.json(
-				{ error: "Seeding failed", details: error instanceof Error ? error.message : String(error) },
-				{ status: 500 }
-			);
+			return NextResponse.json({ error: "Seeding failed", details: error instanceof Error ? error.message : String(error) }, { status: 500 });
 		}
-		
 	} catch (error) {
 		console.error("❌ Request processing error:", error);
 		return NextResponse.json(
 			{ error: "Request processing failed", details: error instanceof Error ? error.message : String(error) },
-			{ status: 500 }
+			{ status: 500 },
 		);
 	}
 }

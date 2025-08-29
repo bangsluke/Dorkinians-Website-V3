@@ -34,5 +34,5 @@ const isEmailConfigured = () => {
 
 module.exports = {
 	getEmailConfig,
-	isEmailConfigured
+	isEmailConfigured,
 };
