@@ -194,6 +194,27 @@ export class ChatbotService {
 			if (lowerQuestion.includes("own goals")) metrics.push("OG");
 			if (lowerQuestion.includes("conceded")) metrics.push("C");
 			if (lowerQuestion.includes("fantasy")) metrics.push("FTP");
+			
+			// New enhanced metrics
+			if (lowerQuestion.includes("team of the week") || lowerQuestion.includes("totw")) {
+				if (lowerQuestion.includes("season")) {
+					metrics.push("SEASON_TOTW");
+				} else {
+					metrics.push("TOTW");
+				}
+			}
+			if (lowerQuestion.includes("player of the month") || lowerQuestion.includes("potm")) {
+				metrics.push("POTM");
+			}
+			if (lowerQuestion.includes("captain") || lowerQuestion.includes("captain awards")) {
+				metrics.push("CAPTAIN");
+			}
+			if (lowerQuestion.includes("co-players") || lowerQuestion.includes("played with") || lowerQuestion.includes("teammates")) {
+				metrics.push("CO_PLAYERS");
+			}
+			if (lowerQuestion.includes("opponents") || lowerQuestion.includes("played against") || lowerQuestion.includes("vs")) {
+				metrics.push("OPPONENTS");
+			}
 		}
 		
 		// Debug logging
@@ -261,6 +282,31 @@ export class ChatbotService {
 			// Check if this is a team-specific question (e.g., "3rd team")
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
 				return await this.queryTeamSpecificPlayerData(playerName, metric);
+			}
+			
+			// Check for special queries that can use enhanced relationship properties
+			if (metric === 'TOTW' || metric === 'WEEKLY_TOTW') {
+				return await this.queryPlayerTOTWData(playerName, 'weekly');
+			}
+			
+			if (metric === 'SEASON_TOTW') {
+				return await this.queryPlayerTOTWData(playerName, 'season');
+			}
+			
+			if (metric === 'POTM' || metric === 'PLAYER_OF_THE_MONTH') {
+				return await this.queryPlayerOfTheMonthData(playerName);
+			}
+			
+			if (metric === 'CAPTAIN' || metric === 'CAPTAIN_AWARDS') {
+				return await this.queryPlayerCaptainAwardsData(playerName);
+			}
+			
+			if (metric === 'CO_PLAYERS' || metric === 'PLAYED_WITH') {
+				return await this.queryPlayerCoPlayersData(playerName);
+			}
+			
+			if (metric === 'OPPONENTS' || metric === 'PLAYED_AGAINST') {
+				return await this.queryPlayerOpponentsData(playerName);
 			}
 			
 			// Build query with case-insensitive player name matching
@@ -666,6 +712,92 @@ export class ChatbotService {
 						config: { columns: ["name"] },
 					};
 				}
+			} else if (data && data.type === 'totw_awards' && data.data && data.data.length > 0) {
+				// TOTW awards query
+				const totwData = data.data[0];
+				const periodText = data.period === 'weekly' ? 'weekly' : 'season';
+				const starManText = totwData.starManAwards > 0 ? `, including ${totwData.starManAwards} star man awards` : '';
+				answer = `${data.playerName} has been selected for ${totwData.totalAwards} ${periodText} team of the week selections${starManText}.`;
+				
+				// Create visualization with award details
+				if (totwData.awardDetails && totwData.awardDetails.length > 0) {
+					visualization = {
+						type: "table",
+						data: totwData.awardDetails,
+						config: { 
+							columns: ["awardId", "isStarMan", "ftpScore", "position"],
+							title: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`
+						},
+					};
+				}
+			} else if (data && data.type === 'potm_awards' && data.data && data.data.length > 0) {
+				// Player of the Month awards query
+				const potmData = data.data[0];
+				answer = `${data.playerName} has won ${potmData.totalAwards} Player of the Month awards.`;
+				
+				// Create visualization with award details
+				if (potmData.awardDetails && potmData.awardDetails.length > 0) {
+					visualization = {
+						type: "table",
+						data: potmData.awardDetails,
+						config: { 
+							columns: ["awardId", "position", "monthlyPoints"],
+							title: "Player of the Month Awards"
+						},
+					};
+				}
+			} else if (data && data.type === 'captain_awards' && data.data && data.data.length > 0) {
+				// Captain awards query
+				const captainData = data.data[0];
+				answer = `${data.playerName} has won ${captainData.totalAwards} captain awards.`;
+				
+				// Create visualization with award details
+				if (captainData.awardDetails && captainData.awardDetails.length > 0) {
+					visualization = {
+						type: "table",
+						data: captainData.awardDetails,
+						config: { 
+							columns: ["awardId", "season"],
+							title: "Captain Awards"
+						},
+					};
+				}
+			} else if (data && data.type === 'co_players' && data.data && data.data.length > 0) {
+				// Co-players query
+				const coPlayersData = data.data[0];
+				if (coPlayersData.coPlayers && coPlayersData.coPlayers.length > 0) {
+					const coPlayerNames = coPlayersData.coPlayers.map((cp: any) => cp.coPlayerName).join(", ");
+					answer = `${data.playerName} has played with ${coPlayersData.coPlayers.length} different co-players: ${coPlayerNames}.`;
+					
+					visualization = {
+						type: "table",
+						data: coPlayersData.coPlayers,
+						config: { 
+							columns: ["coPlayerName", "timesPlayedWith", "lastPlayedWith"],
+							title: "Co-Players"
+						},
+					};
+				} else {
+					answer = `${data.playerName} hasn't played with any co-players yet.`;
+				}
+			} else if (data && data.type === 'opponents' && data.data && data.data.length > 0) {
+				// Opponents query
+				const opponentsData = data.data[0];
+				if (opponentsData.opponents && opponentsData.opponents.length > 0) {
+					const opponentNames = opponentsData.opponents.map((opp: any) => opp.opponentName).join(", ");
+					answer = `${data.playerName} has played against ${opponentsData.opponents.length} different opponents: ${opponentNames}.`;
+					
+					visualization = {
+						type: "table",
+						data: opponentsData.opponents,
+						config: { 
+							columns: ["opponentName", "timesPlayedAgainst", "lastPlayedAgainst"],
+							title: "Opponents"
+						},
+					};
+				} else {
+					answer = `${data.playerName} hasn't played against any opponents yet.`;
+				}
 			}
 		} else if (analysis.type === "general") {
 			if (data[0]?.playerCount) {
@@ -715,6 +847,117 @@ export class ChatbotService {
 			sources: [], // Always hide technical sources as per mandatory rules
 			visualization,
 		};
+	}
+
+	// Enhanced query methods for new relationship properties
+	private async queryPlayerTOTWData(playerName: string, period: 'weekly' | 'season'): Promise<any> {
+		console.log(`🔍 Querying for TOTW awards for player: ${playerName}, period: ${period}`);
+		const relationshipType = period === 'weekly' ? 'IN_WEEKLY_TOTW' : 'IN_SEASON_TOTW';
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[r:${relationshipType}]->(award)
+			RETURN p.playerName as playerName, 
+				   count(award) as totalAwards,
+				   sum(CASE WHEN r.isStarMan THEN 1 ELSE 0 END) as starManAwards,
+				   collect({
+					   awardId: award.id,
+					   isStarMan: r.isStarMan,
+					   ftpScore: r.ftpScore,
+					   position: r.position
+				   }) as awardDetails
+		`;
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'totw_awards', data: result, playerName, period };
+		} catch (error) {
+			console.error('❌ Error querying TOTW awards:', error);
+			return null;
+		}
+	}
+
+	private async queryPlayerOfTheMonthData(playerName: string): Promise<any> {
+		console.log(`🔍 Querying for Player of the Month awards for player: ${playerName}`);
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[r:IN_PLAYER_OF_THE_MONTH]->(award)
+			RETURN p.playerName as playerName, 
+				   count(award) as totalAwards,
+				   collect({
+					   awardId: award.id,
+					   position: r.position,
+					   monthlyPoints: r.monthlyPoints
+				   }) as awardDetails
+		`;
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'potm_awards', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying Player of the Month awards:', error);
+			return null;
+		}
+	}
+
+	private async queryPlayerCaptainAwardsData(playerName: string): Promise<any> {
+		console.log(`🔍 Querying for Captain awards for player: ${playerName}`);
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[r:HAS_CAPTAIN_AWARDS]->(award)
+			RETURN p.playerName as playerName, 
+				   count(award) as totalAwards,
+				   collect({
+					   awardId: award.id,
+					   season: r.season
+				   }) as awardDetails
+		`;
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'captain_awards', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying Captain awards:', error);
+			return null;
+		}
+	}
+
+	private async queryPlayerCoPlayersData(playerName: string): Promise<any> {
+		console.log(`🔍 Querying for co-players for player: ${playerName}`);
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[r:PLAYED_WITH]->(coPlayer:Player)
+			RETURN p.playerName as playerName, 
+				   collect({
+					   coPlayerName: coPlayer.playerName,
+					   timesPlayedWith: r.timesPlayedWith,
+					   lastPlayedWith: r.lastPlayedWith
+				   }) as coPlayers
+		`;
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'co_players', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying co-players:', error);
+			return null;
+		}
+	}
+
+	private async queryPlayerOpponentsData(playerName: string): Promise<any> {
+		console.log(`🔍 Querying for opponents for player: ${playerName}`);
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[r:PLAYED_AGAINST]->(opponent:OppositionDetail)
+			RETURN p.playerName as playerName, 
+				   collect({
+					   opponentName: opponent.opposition,
+					   timesPlayedAgainst: r.timesPlayedAgainst,
+					   lastPlayedAgainst: r.lastPlayedAgainst
+				   }) as opponents
+		`;
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'opponents', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying opponents:', error);
+			return null;
+		}
 	}
 }
 
