@@ -58,6 +58,16 @@ export default function AdminPanel() {
 		};
 	}, [result?.status]);
 
+	// Cleanup function for component unmount
+	useEffect(() => {
+		return () => {
+			// Clear any remaining timeouts
+			if (timerRef.current) {
+				clearInterval(timerRef.current);
+			}
+		};
+	}, []);
+
 	// Format elapsed time
 	const formatElapsedTime = (seconds: number) => {
 		const hours = Math.floor(seconds / 3600);
@@ -188,12 +198,19 @@ export default function AdminPanel() {
 
 		try {
 			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			
 			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',
 				},
+				mode: 'cors',
+				signal: controller.signal
 			});
+			
+			clearTimeout(timeoutId);
 
 			if (response.ok) {
 				const statusData = await response.json();
@@ -264,10 +281,20 @@ export default function AdminPanel() {
 					setLastStatusCheck(`🔄 Last checked at ${new Date().toLocaleString()}`);
 				}
 			} else {
-				setError('Failed to check status - Heroku service may be unavailable');
+				const errorText = await response.text().catch(() => 'Unknown error');
+				setError(`Failed to check status - HTTP ${response.status}: ${errorText}`);
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Network error');
+			console.error('Status check error:', err);
+			let errorMessage = 'Network error';
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					errorMessage = 'Request timed out after 10 seconds';
+				} else {
+					errorMessage = err.message;
+				}
+			}
+			setError(`Status check failed: ${errorMessage}`);
 		} finally {
 			setStatusCheckLoading(false);
 		}
@@ -279,12 +306,19 @@ export default function AdminPanel() {
 
 		try {
 			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			
 			const response = await fetch(`${herokuUrl}/status/${specificJobId}`, {
 				method: 'GET',
 				headers: {
 					'Content-Type': 'application/json',
 				},
+				mode: 'cors',
+				signal: controller.signal
 			});
+			
+			clearTimeout(timeoutId);
 
 			if (response.ok) {
 				const statusData = await response.json();
@@ -326,7 +360,15 @@ export default function AdminPanel() {
 				setError('Failed to check status for specific job');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Network error');
+			let errorMessage = 'Network error';
+			if (err instanceof Error) {
+				if (err.name === 'AbortError') {
+					errorMessage = 'Request timed out after 10 seconds';
+				} else {
+					errorMessage = err.message;
+				}
+			}
+			setError(`Status check failed: ${errorMessage}`);
 		} finally {
 			setStatusCheckLoading(false);
 		}
@@ -400,16 +442,42 @@ export default function AdminPanel() {
 				<button
 					onClick={async () => {
 						setJobsLoading(true);
+						setError(null);
 						try {
 							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://database-dorkinians-4bac3364a645.herokuapp.com';
-							const response = await fetch(`${herokuUrl}/jobs`);
-							const data = await response.json();
-							console.log('All jobs on Heroku:', data);
-							setJobsData(data);
-							setShowJobsModal(true);
+							const controller = new AbortController();
+							const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+							
+							const response = await fetch(`${herokuUrl}/jobs`, {
+								method: 'GET',
+								headers: {
+									'Content-Type': 'application/json',
+								},
+								mode: 'cors',
+								signal: controller.signal
+							});
+							
+							clearTimeout(timeoutId);
+							
+							if (response.ok) {
+								const data = await response.json();
+								console.log('All jobs on Heroku:', data);
+								setJobsData(data);
+								setShowJobsModal(true);
+							} else {
+								throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+							}
 						} catch (err) {
 							console.error('Failed to fetch jobs:', err);
-							setError('Failed to fetch jobs');
+							let errorMessage = 'Failed to fetch jobs';
+							if (err instanceof Error) {
+								if (err.name === 'AbortError') {
+									errorMessage = 'Request timed out after 10 seconds';
+								} else {
+									errorMessage = err.message;
+								}
+							}
+							setError(`Failed to fetch jobs: ${errorMessage}`);
 						} finally {
 							setJobsLoading(false);
 						}
