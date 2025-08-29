@@ -10,7 +10,7 @@ interface HeaderProps {
 export default function Header({ onSettingsClick }: HeaderProps) {
 	return (
 		<motion.header
-			className='fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200'
+			className='fixed top-0 left-0 right-0 z-50 frosted-glass w-full'
 			initial={{ y: -100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
@@ -20,16 +20,16 @@ export default function Header({ onSettingsClick }: HeaderProps) {
 					<div className='w-8 h-8 bg-dorkinians-blue rounded-full flex items-center justify-center'>
 						<span className='text-white font-bold text-sm'>D</span>
 					</div>
-					<span className='font-bold text-lg text-gray-900'>Dorkinians FC</span>
+					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
 				</motion.div>
 
 				{/* Settings Icon */}
 				<motion.button
 					onClick={onSettingsClick}
-					className='p-2 rounded-full hover:bg-gray-100 transition-colors'
+					className='p-2 rounded-full hover:bg-white/20 transition-colors'
 					whileHover={{ scale: 1.1 }}
 					whileTap={{ scale: 0.9 }}>
-					<Cog6ToothIcon className='w-6 h-6 text-gray-600' />
+					<Cog6ToothIcon className='w-6 h-6 text-white' />
 				</motion.button>
 			</div>
 		</motion.header>

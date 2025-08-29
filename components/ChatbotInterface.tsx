@@ -87,14 +87,14 @@ export default function ChatbotInterface() {
 		switch (visualization.type) {
 			case "table":
 				return (
-					<div className='mt-4 p-4 bg-gray-50 rounded-lg'>
-						<h4 className='font-semibold text-gray-900 mb-2'>Player Information</h4>
+					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+						<h4 className='font-semibold text-white mb-2'>Player Information</h4>
 						<div className='overflow-x-auto'>
 							<table className='min-w-full text-sm'>
 								<thead>
-									<tr className='border-b border-gray-200'>
+									<tr className='border-b border-yellow-400/20'>
 										{visualization.config?.columns?.map((col: string) => (
-											<th key={col} className='text-left py-2 px-3 font-medium text-gray-700'>
+											<th key={col} className='text-left py-2 px-3 font-medium text-yellow-300'>
 												{col === "name" ? "Player Name" : col}
 											</th>
 										))}
@@ -102,9 +102,9 @@ export default function ChatbotInterface() {
 								</thead>
 								<tbody>
 									{visualization.data?.slice(0, 5).map((row: any, index: number) => (
-										<tr key={index} className='border-b border-gray-100'>
+										<tr key={index} className='border-b border-yellow-400/10'>
 											{visualization.config?.columns?.map((col: string) => (
-												<td key={col} className='py-2 px-3 text-gray-600'>
+												<td key={col} className='py-2 px-3 text-white'>
 													{row[col] || "-"}
 												</td>
 											))}
@@ -118,9 +118,9 @@ export default function ChatbotInterface() {
 
 			case "chart":
 				return (
-					<div className='mt-4 p-4 bg-gray-50 rounded-lg'>
-						<h4 className='font-semibold text-gray-900 mb-2'>Chart Visualization</h4>
-						<p className='text-gray-600'>Chart data available: {JSON.stringify(visualization.data)}</p>
+					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+						<h4 className='font-semibold text-white mb-2'>Chart Visualization</h4>
+						<p className='text-yellow-300'>Chart data available: {JSON.stringify(visualization.data)}</p>
 					</div>
 				);
 
@@ -139,13 +139,13 @@ export default function ChatbotInterface() {
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player stats, team performance, or club information...'
-						className='flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+						className='dark-chat-input flex-1'
 						disabled={isLoading}
 					/>
 					<button
 						type='submit'
 						disabled={!question.trim() || isLoading}
-						className='px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors'>
+						className='dark-chat-button disabled:opacity-50 disabled:cursor-not-allowed'>
 						{isLoading ? (
 							<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
@@ -157,7 +157,7 @@ export default function ChatbotInterface() {
 					</button>
 				</div>
 
-				<p className='text-sm text-gray-500 mt-2 text-center'>
+				<p className='text-sm text-yellow-300 mt-2 text-center'>
 					Try: &ldquo;How many players are in the club?&rdquo; or &ldquo;Who are the players?&rdquo;
 				</p>
 			</form>
@@ -167,8 +167,8 @@ export default function ChatbotInterface() {
 				{isLoading && (
 					<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className='text-center py-8'>
 						<div className='inline-flex items-center space-x-2'>
-							<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600'></div>
-							<span className='text-gray-600'>Thinking...</span>
+							<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400'></div>
+							<span className='text-yellow-300'>Thinking...</span>
 						</div>
 					</motion.div>
 				)}
@@ -178,8 +178,8 @@ export default function ChatbotInterface() {
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
-						className='bg-red-50 border border-red-200 rounded-lg p-4 mb-4'>
-						<p className='text-red-800 text-sm'>❌ {error}</p>
+						className='bg-red-900/20 border border-red-400/30 rounded-lg p-4 mb-4'>
+						<p className='text-red-300 text-sm'>❌ {error}</p>
 					</motion.div>
 				)}
 
@@ -188,21 +188,21 @@ export default function ChatbotInterface() {
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
-						className='bg-white border border-gray-200 rounded-lg p-6 shadow-sm'>
+						className='dark-dropdown rounded-lg p-6 shadow-sm'>
 						{/* Answer */}
 						<div className='mb-4'>
-							<h3 className='font-semibold text-gray-900 mb-2'>Answer:</h3>
-							<p className='text-gray-700'>{response.answer}</p>
+							<h3 className='font-semibold text-white mb-2'>Answer:</h3>
+							<p className='text-yellow-100'>{response.answer}</p>
 						</div>
 
 						{/* Confidence */}
 						<div className='mb-4'>
 							<div className='flex items-center space-x-2'>
-								<span className='text-sm text-gray-600'>Confidence:</span>
-								<div className='flex-1 bg-gray-200 rounded-full h-2'>
-									<div className='bg-blue-600 h-2 rounded-full transition-all duration-300' style={{ width: `${response.confidence * 100}%` }}></div>
+								<span className='text-sm text-yellow-300'>Confidence:</span>
+								<div className='flex-1 bg-yellow-400/20 rounded-full h-2'>
+									<div className='bg-green-400 h-2 rounded-full transition-all duration-300' style={{ width: `${response.confidence * 100}%` }}></div>
 								</div>
-								<span className='text-sm text-gray-600'>{Math.round(response.confidence * 100)}%</span>
+								<span className='text-sm text-yellow-300'>{Math.round(response.confidence * 100)}%</span>
 							</div>
 						</div>
 
@@ -215,7 +215,7 @@ export default function ChatbotInterface() {
 			{/* Conversation History */}
 			{conversationHistory.length > 0 && (
 				<div className='mt-8'>
-					<h3 className='font-semibold text-gray-900 mb-4'>Previous Conversations</h3>
+					<h3 className='font-semibold text-white mb-4'>Previous Conversations</h3>
 					<div className='space-y-3 overflow-y-auto max-h-60 pr-2'>
 						{conversationHistory
 							.slice(-5)
@@ -226,7 +226,7 @@ export default function ChatbotInterface() {
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className='bg-gray-50 border border-gray-200 rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition-colors'
+									className='dark-dropdown rounded-lg p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
 									onClick={() => {
 										setQuestion(conv.question);
 										// Focus the input after setting the question
@@ -239,10 +239,10 @@ export default function ChatbotInterface() {
 										}, 0);
 									}}>
 									<div className='flex items-start justify-between mb-2'>
-										<p className='font-medium text-gray-900 text-sm'>Q: {conv.question}</p>
-										<span className='text-xs text-gray-500'>{new Date(conv.timestamp).toLocaleTimeString()}</span>
+										<p className='font-medium text-white text-sm'>Q: {conv.question}</p>
+										<span className='text-xs text-yellow-300'>{new Date(conv.timestamp).toLocaleTimeString()}</span>
 									</div>
-									<p className='text-sm text-gray-600'>{conv.response.answer}</p>
+									<p className='text-sm text-yellow-100'>{conv.response.answer}</p>
 								</motion.div>
 							))}
 					</div>
