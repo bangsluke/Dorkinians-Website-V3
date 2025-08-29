@@ -29,10 +29,34 @@ export class ChatbotService {
 		return ChatbotService.instance;
 	}
 
+	// Helper method to log to both server and client consoles
+	private logToBoth(message: string, data?: any, level: 'log' | 'warn' | 'error' = 'log') {
+		// Server-side logging
+		if (level === 'log') {
+			console.log(message, data);
+		} else if (level === 'warn') {
+			console.warn(message, data);
+		} else {
+			console.error(message, data);
+		}
+
+		// Client-side logging (will show in browser console)
+		if (typeof window !== 'undefined') {
+			if (level === 'log') {
+				console.log(message, data);
+			} else if (level === 'warn') {
+				console.warn(message, data);
+			} else {
+				console.error(message, data);
+			}
+		}
+	}
+
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
-		console.log(`🤖 Processing question: ${context.question}`);
-		console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-		console.log(
+		this.logToBoth(`🤖 Processing question: ${context.question}`);
+		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
+		this.logToBoth(`👤 User context: ${context.userContext || 'None'}`);
+		this.logToBoth(
 			`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? (process.env.PROD_NEO4J_URI ? "Yes" : "No") : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`,
 		);
 
@@ -50,19 +74,20 @@ export class ChatbotService {
 
 			// Analyze the question
 			const analysis = this.analyzeQuestion(context.question, context.userContext);
-			console.log(`🔍 Question analysis:`, analysis);
+			this.logToBoth(`🔍 Question analysis:`, analysis);
 
 			// Query the database
+			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
-			console.log(`📊 Query result:`, data);
+			this.logToBoth(`📊 Query result:`, data);
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
-			console.log(`💬 Generated response:`, response);
+			this.logToBoth(`💬 Generated response:`, response);
 
 			return response;
 		} catch (error) {
-			console.error("❌ Error processing question:", error);
+			this.logToBoth("❌ Error processing question:", error, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				confidence: 0,
@@ -249,48 +274,48 @@ export class ChatbotService {
 	}
 
 	private async queryRelevantData(analysis: any): Promise<any> {
-		console.log(`🔍 queryRelevantData called with analysis:`, analysis);
+		this.logToBoth(`🔍 queryRelevantData called with analysis:`, analysis);
 		const { type, entities, metrics } = analysis;
 
 		try {
-			console.log(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
+			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
-			switch (type) {
-				case "player":
-					console.log(`🔍 Calling queryPlayerData...`);
-					const playerResult = await this.queryPlayerData(entities, metrics);
-					console.log(`🔍 queryPlayerData returned:`, playerResult);
-					return playerResult;
-				case "team":
-					console.log(`🔍 Calling queryTeamData...`);
-					return await this.queryTeamData(entities, metrics);
-				case "club":
-					console.log(`🔍 Calling queryClubData...`);
-					return await this.queryClubData(entities, metrics);
-				case "fixture":
-					console.log(`🔍 Calling queryFixtureData...`);
-					return await this.queryFixtureData(entities, metrics);
-				case "comparison":
-					console.log(`🔍 Calling queryComparisonData...`);
-					return await this.queryComparisonData(entities, metrics);
-				case "streak":
-					console.log(`🔍 Calling queryStreakData...`);
-					return await this.queryStreakData(entities, metrics);
-				case "double_game":
-					console.log(`🔍 Calling queryDoubleGameData...`);
-					return await this.queryDoubleGameData(entities, metrics);
-				default:
-					console.log(`🔍 Calling queryGeneralData...`);
-					return await this.queryGeneralData();
-			}
+					switch (type) {
+			case "player":
+				this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
+				const playerResult = await this.queryPlayerData(entities, metrics);
+				this.logToBoth(`🔍 queryPlayerData returned:`, playerResult);
+				return playerResult;
+			case "team":
+				this.logToBoth(`🔍 Calling queryTeamData...`);
+				return await this.queryTeamData(entities, metrics);
+			case "club":
+				this.logToBoth(`🔍 Calling queryClubData...`);
+				return await this.queryClubData(entities, metrics);
+			case "fixture":
+				this.logToBoth(`🔍 Calling queryFixtureData...`);
+				return await this.queryFixtureData(entities, metrics);
+			case "comparison":
+				this.logToBoth(`🔍 Calling queryComparisonData...`);
+				return await this.queryComparisonData(entities, metrics);
+			case "streak":
+				this.logToBoth(`🔍 Calling queryStreakData...`);
+				return await this.queryStreakData(entities, metrics);
+			case "double_game":
+				this.logToBoth(`🔍 Calling queryDoubleGameData...`);
+				return await this.queryDoubleGameData(entities, metrics);
+			default:
+				this.logToBoth(`🔍 Calling queryGeneralData...`);
+				return await this.queryGeneralData();
+		}
 		} catch (error) {
-			console.error("❌ Data query failed:", error);
+			this.logToBoth("❌ Data query failed:", error, 'error');
 			return null;
 		}
 	}
 
 	private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
-		console.log(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
+		this.logToBoth(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
 
 		// Check if we have entities (player names) to query
 		if (entities.length === 0) {
@@ -302,10 +327,11 @@ export class ChatbotService {
 			const playerName = entities[0];
 			const metric = metrics[0];
 
-			console.log(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
+			this.logToBoth(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
 
 			// Check if this is a team-specific question (e.g., "3rd team")
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
+				this.logToBoth(`🔍 Detected team-specific question for team: ${playerName}`);
 				return await this.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
@@ -411,14 +437,14 @@ export class ChatbotService {
 			}
 
 			query += " " + returnClause;
-			console.log(`🔍 Final query: ${query}`);
+			this.logToBoth(`🔍 Final Cypher query: ${query}`);
 
 			try {
 				// Create case-insensitive name variations for matching
 				const playerNameLower = String(playerName).toLowerCase();
 				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
 
-				console.log(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
+				this.logToBoth(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
 
 				const result = await neo4jService.executeQuery(query, {
 					playerName,
@@ -426,14 +452,14 @@ export class ChatbotService {
 					playerNameHyphen,
 				});
 
-				console.log(`🔍 Player query result for ${playerName}:`, result);
-				console.log(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : "not array"}`);
+				this.logToBoth(`🔍 Player query result for ${playerName}:`, result);
+				this.logToBoth(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : "not array"}`);
 
 				if (result && Array.isArray(result) && result.length > 0) {
-					console.log(`🔍 First result item:`, result[0]);
+					this.logToBoth(`🔍 First result item:`, result[0]);
 				} else {
 					// Diagnostic: Let's see what players actually exist in the database
-					console.log(`🔍 No results found for ${playerName}. Running diagnostic query...`);
+					this.logToBoth(`🔍 No results found for ${playerName}. Running diagnostic query...`);
 					const diagnosticQuery = `
 						MATCH (p:Player)
 						RETURN p.playerName as playerName
@@ -441,7 +467,7 @@ export class ChatbotService {
 						LIMIT 20
 					`;
 					const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
-					console.log(
+					this.logToBoth(
 						`🔍 Diagnostic: Found ${diagnosticResult.length} players in database:`,
 						diagnosticResult.map((p) => p.playerName),
 					);
@@ -454,7 +480,7 @@ export class ChatbotService {
 						ORDER BY p.playerName
 					`;
 					const similarResult = await neo4jService.executeQuery(similarQuery);
-					console.log(
+					this.logToBoth(
 						`🔍 Similar names found:`,
 						similarResult.map((p) => p.playerName),
 					);
@@ -467,7 +493,7 @@ export class ChatbotService {
 						ORDER BY type(r)
 					`;
 					const relationshipResult = await neo4jService.executeQuery(relationshipQuery, { playerName });
-					console.log(`🔍 Relationships for ${playerName}:`, relationshipResult);
+					this.logToBoth(`🔍 Relationships for ${playerName}:`, relationshipResult);
 
 					// Check if there are any MatchDetail nodes at all
 					const matchDetailQuery = `
@@ -476,7 +502,7 @@ export class ChatbotService {
 						LIMIT 1
 					`;
 					const matchDetailResult = await neo4jService.executeQuery(matchDetailQuery);
-					console.log(`🔍 Total MatchDetail nodes:`, matchDetailResult);
+					this.logToBoth(`🔍 Total MatchDetail nodes:`, matchDetailResult);
 
 					// Check if there are any MatchDetail nodes without graphLabel
 					const noLabelQuery = `
@@ -486,17 +512,17 @@ export class ChatbotService {
 						LIMIT 1
 					`;
 					const noLabelResult = await neo4jService.executeQuery(noLabelQuery);
-					console.log(`🔍 MatchDetail nodes without graphLabel:`, noLabelResult);
+					this.logToBoth(`🔍 MatchDetail nodes without graphLabel:`, noLabelResult);
 				}
 
 				return { type: "specific_player", data: result, playerName, metric };
 			} catch (error) {
-				console.error("❌ Error querying specific player data:", error);
+				this.logToBoth("❌ Error querying specific player data:", error, 'error');
 				return null;
 			}
 		}
 
-		console.log(`🔍 No specific player query, falling back to general player query`);
+		this.logToBoth(`🔍 No specific player query, falling back to general player query`);
 
 		// Fallback to general player query
 		const query = `
@@ -512,16 +538,50 @@ export class ChatbotService {
 	}
 
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
-		console.log(`🔍 Querying for team ${teamNumber}, metric: ${metric}`);
+		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: ${teamNumber}, metric: ${metric}`);
 
 		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
 		const teamName = `${teamNumber} Team`;
+		this.logToBoth(`🔍 Looking for team: ${teamName}`);
 
+		// First, let's check what teams actually exist in the Fixture data
+		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
+		const diagnosticQuery = `
+			MATCH (f:Fixture)
+			WHERE f.team IS NOT NULL
+			RETURN DISTINCT f.team as teamName
+			ORDER BY f.team
+		`;
+		
+		try {
+			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+			this.logToBoth(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
+			
+			// Check if our target team exists
+			const teamExists = diagnosticResult.some(r => r.teamName === teamName);
+			this.logToBoth(`🔍 Team "${teamName}" exists: ${teamExists}`);
+			
+			if (!teamExists) {
+				this.logToBoth(`🔍 Team "${teamName}" not found. Available teams:`, diagnosticResult.map(r => r.teamName));
+				return { 
+					type: "team_not_found", 
+					data: [], 
+					teamName, 
+					metric,
+					availableTeams: diagnosticResult.map(r => r.teamName),
+					message: `Team "${teamName}" not found. Available teams: ${diagnosticResult.map(r => r.teamName).join(', ')}`
+				};
+			}
+		} catch (error: any) {
+			this.logToBoth(`❌ Diagnostic query failed:`, error, 'error');
+		}
+
+		// Now build the actual query using the correct data structure
+		// We'll query MatchDetail nodes directly, filtering by team property
 		const query = `
-			MATCH (t:Team {name: $teamName})
-			MATCH (t)<-[:PLAYS_FOR]-(p:Player)
-			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
 			WHERE md.team = $teamName
+			WITH p, md
 			RETURN p.playerName as playerName, 
 				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} != "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
 				   count(md) as appearances
@@ -529,12 +589,23 @@ export class ChatbotService {
 			LIMIT 10
 		`;
 
+		this.logToBoth(`🔍 Final team-specific query:`, query);
+		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
-			return { type: "team_specific", data: result, teamName, metric };
-		} catch (error) {
-			console.error("❌ Error querying team-specific player data:", error);
-			return null;
+			this.logToBoth(`🔍 Team-specific query result:`, result);
+			
+			if (result && result.length > 0) {
+				this.logToBoth(`🔍 Found ${result.length} players for team ${teamName}`);
+				return { type: "team_specific", data: result, teamName, metric };
+			} else {
+				this.logToBoth(`🔍 No players found for team ${teamName}`);
+				return { type: "team_specific", data: [], teamName, metric, message: `No players found for team ${teamName}` };
+			}
+		} catch (error: any) {
+			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
+			return { type: "error", data: [], teamName, metric, error: error.message };
 		}
 	}
 
@@ -741,6 +812,12 @@ export class ChatbotService {
 					data: data.data,
 					config: { columns: ["playerName", "value", "appearances"] },
 				};
+			} else if (data && data.type === "team_not_found") {
+				// Team not found - provide helpful information
+				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(', ')}.`;
+			} else if (data && data.type === "error") {
+				// Error occurred during query
+				answer = `I encountered an error while looking up team information: ${data.error}.`;
 			} else if (data && data.type === "general_players" && data.data && data.data.length > 0) {
 				if (data.data[0].playerCount) {
 					// General player count question

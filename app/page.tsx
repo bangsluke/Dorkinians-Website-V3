@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
@@ -15,6 +15,13 @@ export default function HomePage() {
 	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
 
+	// Auto-show chatbot if player is already selected (from localStorage)
+	useEffect(() => {
+		if (isPlayerSelected && selectedPlayer) {
+			setShowChatbot(true);
+		}
+	}, [isPlayerSelected, selectedPlayer]);
+
 	const handlePlayerSelect = (playerName: string) => {
 		selectPlayer(playerName);
 		// Trigger chatbot reveal after a brief delay
@@ -23,6 +30,12 @@ export default function HomePage() {
 
 	const handleEditClick = () => {
 		enterEditMode();
+		setShowChatbot(false);
+	};
+
+	const handleClearPlayer = () => {
+		// This will clear localStorage and reset state
+		useNavigationStore.getState().clearPlayerSelection();
 		setShowChatbot(false);
 	};
 
@@ -68,6 +81,7 @@ export default function HomePage() {
 										<PlayerSelection
 											onPlayerSelect={handlePlayerSelect}
 											onEditClick={handleEditClick}
+											onClearPlayer={handleClearPlayer}
 											selectedPlayer={selectedPlayer}
 											isEditMode={isEditMode}
 										/>
@@ -82,6 +96,7 @@ export default function HomePage() {
 										<PlayerSelection
 											onPlayerSelect={handlePlayerSelect}
 											onEditClick={handleEditClick}
+											onClearPlayer={handleClearPlayer}
 											selectedPlayer={selectedPlayer}
 											isEditMode={isEditMode}
 										/>

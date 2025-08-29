@@ -25,11 +25,23 @@ interface NavigationState {
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
-	// Initial state
+	// Initial state - load from localStorage if available
 	currentMainPage: "home",
 	currentStatsSubPage: "player-stats",
-	selectedPlayer: null,
-	isPlayerSelected: false,
+	selectedPlayer: (() => {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem('dorkinians-selected-player');
+			return saved || null;
+		}
+		return null;
+	})(),
+	isPlayerSelected: (() => {
+		if (typeof window !== 'undefined') {
+			const saved = localStorage.getItem('dorkinians-selected-player');
+			return !!saved;
+		}
+		return false;
+	})(),
 	isEditMode: false,
 
 	// Main page navigation
@@ -51,10 +63,18 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	// Player selection actions
 	selectPlayer: (playerName: string) => {
+		// Save to localStorage
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('dorkinians-selected-player', playerName);
+		}
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
 	},
 
 	clearPlayerSelection: () => {
+		// Remove from localStorage
+		if (typeof window !== 'undefined') {
+			localStorage.removeItem('dorkinians-selected-player');
+		}
 		set({ selectedPlayer: null, isPlayerSelected: false, isEditMode: false });
 	},
 
