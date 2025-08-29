@@ -41,14 +41,13 @@ export class ChatbotService {
 		}
 
 		// Client-side logging (will show in browser console)
-		if (typeof window !== 'undefined') {
-			if (level === 'log') {
-				console.log(message, data);
-			} else if (level === 'warn') {
-				console.warn(message, data);
-			} else {
-				console.error(message, data);
-			}
+		// Note: This will always log to client console for debugging purposes
+		if (level === 'log') {
+			console.log(`🤖 [CLIENT] ${message}`, data);
+		} else if (level === 'warn') {
+			console.warn(`🤖 [CLIENT] ${message}`, data);
+		} else {
+			console.error(`🤖 [CLIENT] ${message}`, data);
 		}
 	}
 
@@ -59,6 +58,10 @@ export class ChatbotService {
 		this.logToBoth(
 			`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? (process.env.PROD_NEO4J_URI ? "Yes" : "No") : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`,
 		);
+		
+		// Client-side logging for question processing
+		console.log(`🤖 [CLIENT] 🤖 Processing question: ${context.question}`);
+		console.log(`🤖 [CLIENT] 👤 User context: ${context.userContext || 'None'}`);
 
 		try {
 			// Ensure Neo4j connection
@@ -75,11 +78,17 @@ export class ChatbotService {
 			// Analyze the question
 			const analysis = this.analyzeQuestion(context.question, context.userContext);
 			this.logToBoth(`🔍 Question analysis:`, analysis);
+			
+			// Client-side logging for question analysis
+			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
 
 			// Query the database
 			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
 			this.logToBoth(`📊 Query result:`, data);
+			
+			// Client-side logging for query results
+			console.log(`🤖 [CLIENT] 📊 Query result:`, data);
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
@@ -562,6 +571,9 @@ export class ChatbotService {
 			ORDER BY f.team
 		`;
 		
+		// Log the diagnostic query for client-side debugging
+		console.log(`🤖 [CLIENT] 🔍 DIAGNOSTIC CYPHER QUERY:`, diagnosticQuery);
+		
 		try {
 			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
@@ -603,6 +615,10 @@ export class ChatbotService {
 
 		this.logToBoth(`🔍 Final team-specific query:`, query);
 		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+		
+		// Log the main Cypher query for client-side debugging
+		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
+		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
 
 		try {
 			const result = await neo4jService.executeQuery(query, { teamName });
