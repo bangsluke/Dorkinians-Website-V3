@@ -9,6 +9,58 @@
 
 	body {
 		@apply bg-gray-50 text-gray-900;
+		background: #0f0f0f;
+		color: #f3f3f3;
+	}
+
+	/* Mobile-first gradient background using Dorkinians brand colors */
+	body::before {
+		content: "";
+		position: fixed;
+		inset: 0;
+		z-index: -1;
+		background:
+			radial-gradient(600px 500px at 25% 25%, rgba(28, 136, 65, 0.8) 0%, rgba(15, 15, 15, 0.6) 30%, rgba(10, 10, 10, 0.4) 60%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+			radial-gradient(500px 400px at 75% 75%, rgba(249, 237, 50, 0.7) 0%, rgba(15, 15, 15, 0.5) 35%, rgba(10, 10, 10, 0.3) 65%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+			radial-gradient(700px 600px at 50% 50%, rgba(28, 136, 65, 0.3) 0%, rgba(15, 15, 15, 0.4) 40%, rgba(10, 10, 10, 0.3) 70%, rgba(5, 5, 5, 0.2) 90%, transparent 100%),
+			radial-gradient(800px 700px at 15% 85%, rgba(249, 237, 50, 0.4) 0%, rgba(15, 15, 15, 0.5) 30%, rgba(10, 10, 10, 0.3) 60%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+			radial-gradient(900px 800px at 85% 15%, rgba(28, 136, 65, 0.5) 0%, rgba(15, 15, 15, 0.6) 25%, rgba(10, 10, 10, 0.4) 55%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+			radial-gradient(1000px 900px at 50% 50%, rgba(15, 15, 15, 0.8) 0%, rgba(10, 10, 10, 0.6) 30%, rgba(5, 5, 5, 0.4) 60%, rgba(0, 0, 0, 0.2) 85%, transparent 100%),
+			radial-gradient(1200px 1000px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+		filter: blur(15px) saturate(110%);
+		transform: scale(1.02);
+	}
+
+	/* Desktop gradient background */
+	@media (min-width: 768px) {
+		body::before {
+			background:
+				radial-gradient(1200px 900px at 20% 30%, rgba(28, 136, 65, 0.8) 0%, rgba(15, 15, 15, 0.6) 30%, rgba(10, 10, 10, 0.4) 60%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+				radial-gradient(1000px 800px at 80% 70%, rgba(249, 237, 50, 0.7) 0%, rgba(15, 15, 15, 0.5) 35%, rgba(10, 10, 10, 0.3) 65%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+				radial-gradient(1400px 1000px at 50% 50%, rgba(28, 136, 65, 0.3) 0%, rgba(15, 15, 15, 0.4) 40%, rgba(10, 10, 10, 0.3) 70%, rgba(5, 5, 5, 0.2) 90%, transparent 100%),
+				radial-gradient(1600px 1200px at 10% 80%, rgba(249, 237, 50, 0.4) 0%, rgba(15, 15, 15, 0.5) 30%, rgba(10, 10, 10, 0.3) 60%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+				radial-gradient(1800px 1400px at 90% 20%, rgba(28, 136, 65, 0.5) 0%, rgba(15, 15, 15, 0.6) 25%, rgba(10, 10, 10, 0.4) 55%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+				radial-gradient(2000px 1600px at 50% 50%, rgba(15, 15, 15, 0.8) 0%, rgba(10, 10, 10, 0.6) 30%, rgba(5, 5, 5, 0.4) 60%, rgba(0, 0, 0, 0.2) 85%, transparent 100%),
+				radial-gradient(2200px 1800px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+			filter: blur(20px) saturate(120%);
+			transform: scale(1.05);
+		}
+	}
+
+	/* Large desktop gradient background */
+	@media (min-width: 1280px) {
+		body::before {
+			background:
+				radial-gradient(1600px 1200px at 20% 30%, rgba(28, 136, 65, 0.8) 0%, rgba(15, 15, 15, 0.6) 30%, rgba(10, 10, 10, 0.4) 60%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+				radial-gradient(1400px 1000px at 80% 70%, rgba(249, 237, 50, 0.7) 0%, rgba(15, 15, 15, 0.5) 35%, rgba(10, 10, 10, 0.3) 65%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+				radial-gradient(1800px 1400px at 50% 50%, rgba(28, 136, 65, 0.3) 0%, rgba(15, 15, 15, 0.4) 40%, rgba(10, 10, 10, 0.3) 70%, rgba(5, 5, 5, 0.2) 90%, transparent 100%),
+				radial-gradient(2000px 1600px at 10% 80%, rgba(249, 237, 50, 0.4) 0%, rgba(15, 15, 15, 0.5) 30%, rgba(10, 10, 10, 0.3) 60%, rgba(5, 5, 5, 0.1) 85%, transparent 100%),
+				radial-gradient(2200px 1800px at 90% 20%, rgba(28, 136, 65, 0.5) 0%, rgba(15, 15, 15, 0.6) 25%, rgba(10, 10, 10, 0.4) 55%, rgba(5, 5, 5, 0.2) 80%, transparent 100%),
+				radial-gradient(2400px 2000px at 50% 50%, rgba(15, 15, 15, 0.8) 0%, rgba(10, 10, 10, 0.6) 30%, rgba(5, 5, 5, 0.4) 60%, rgba(0, 0, 0, 0.2) 85%, transparent 100%),
+				radial-gradient(2800px 2400px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+			filter: blur(25px) saturate(130%);
+			transform: scale(1.08);
+		}
 	}
 }
 
@@ -27,6 +79,128 @@
 
 	.input-field {
 		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent;
+	}
+
+	.frosted-glass {
+		background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%), rgba(22,22,22,.40);
+		border: 1px solid rgba(255,255,255,.16);
+		backdrop-filter: blur(28px) saturate(140%);
+		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+	}
+
+	.frosted-glass-dark {
+		background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 22%), rgba(0,0,0,.55);
+		border: 1px solid rgba(255,255,255,.08);
+		backdrop-filter: blur(28px) saturate(140%);
+		-webkit-backdrop-filter: blur(28px) saturate(140%);
+		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+	}
+
+	/* Dark input components with Dorkinians brand colors */
+	.dark-input {
+		background: #3E1509;
+		color: #f3f3f3;
+		border-radius: 14px;
+		padding: 12px 16px;
+		transition: all 0.2s ease;
+	}
+
+	.dark-input:focus {
+		outline: none;
+		border-color: rgba(249, 237, 50, 0.4);
+		box-shadow: 0 0 0 3px rgba(249, 237, 50, 0.1);
+	}
+
+	.dark-input::placeholder {
+		color: rgba(249, 237, 50, 0.5);
+	}
+
+	.dark-button {
+		background: linear-gradient(135deg, #1C8841 0%, #1a7a3a 100%);
+		color: white;
+		border-radius: 14px;
+		padding: 12px 24px;
+		font-weight: 600;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+
+	.dark-button:hover {
+		background: linear-gradient(135deg, #1a7a3a 0%, #156b32 100%);
+		border-color: rgba(249, 237, 50, 0.5);
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
+	}
+
+	.dark-button:active {
+		transform: translateY(0);
+	}
+
+	.dark-dropdown {
+		background: #3E1509;
+		color: #f3f3f3;
+		border-radius: 14px;
+		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+	}
+
+	.dark-dropdown-option {
+		background: #3E1509;
+		color: #f3f3f3;
+		padding: 12px 16px;
+		transition: all 0.2s ease;
+	}
+
+	.dark-dropdown-option:hover {
+		background: rgba(249, 237, 50, 0.1);
+		color: #F9ED32;
+	}
+
+	.dark-dropdown-option.selected {
+		background: rgba(28, 136, 65, 0.3);
+		color: #F9ED32;
+		border-left: 3px solid #1C8841;
+	}
+
+	/* Chat interface dark styling */
+	.dark-chat-input {
+		background: #3E1509;
+		color: #f3f3f3;
+		border-radius: 14px;
+		padding: 16px;
+		transition: all 0.2s ease;
+	}
+
+	.dark-chat-input:focus {
+		outline: none;
+		border-color: rgba(249, 237, 50, 0.4);
+		box-shadow: 0 0 0 3px rgba(249, 237, 50, 0.1);
+	}
+
+	.dark-chat-button {
+		background: linear-gradient(135deg, #1C8841 0%, #1a7a3a 100%);
+		color: white;
+		border-radius: 14px;
+		padding: 16px 24px;
+		font-weight: 600;
+		transition: all 0.2s ease;
+		cursor: pointer;
+	}
+
+	.dark-chat-button:hover {
+		background: linear-gradient(135deg, #1a7a3a 0%, #156b32 100%);
+		border-color: rgba(249, 237, 50, 0.5);
+		transform: translateY(-1px);
+		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
+	}
+
+	.dark-chat-button:disabled {
+		background: rgba(62, 21, 9, 0.6);
+		border-color: rgba(249, 237, 50, 0.1);
+		color: rgba(249, 237, 50, 0.5);
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: none;
 	}
 }
 
