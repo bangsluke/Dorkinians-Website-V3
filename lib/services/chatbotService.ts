@@ -538,11 +538,20 @@ export class ChatbotService {
 	}
 
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
-		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: ${teamNumber}, metric: ${metric}`);
+		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
 		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
 		const teamName = `${teamNumber} Team`;
-		this.logToBoth(`🔍 Looking for team: ${teamName}`);
+		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
+		
+		// Log the exact team number format for debugging
+		this.logToBoth(`🔍 Team number format analysis:`, {
+			original: teamNumber,
+			length: teamNumber.length,
+			containsNumbers: /\d/.test(teamNumber),
+			containsOrdinal: /(st|nd|rd|th)/.test(teamNumber),
+			finalTeamName: teamName
+		});
 
 		// First, let's check what teams actually exist in the Fixture data
 		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
@@ -554,7 +563,9 @@ export class ChatbotService {
 		`;
 		
 		try {
+			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
 			this.logToBoth(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
 			
 			// Check if our target team exists
@@ -563,6 +574,7 @@ export class ChatbotService {
 			
 			if (!teamExists) {
 				this.logToBoth(`🔍 Team "${teamName}" not found. Available teams:`, diagnosticResult.map(r => r.teamName));
+				this.logToBoth(`🔍 Returning team_not_found response`);
 				return { 
 					type: "team_not_found", 
 					data: [], 
@@ -758,6 +770,14 @@ export class ChatbotService {
 	}
 
 	private async generateResponse(question: string, data: any, analysis: any): Promise<ChatbotResponse> {
+		this.logToBoth(`🔍 generateResponse called with:`, {
+			question,
+			dataType: data?.type,
+			dataKeys: data ? Object.keys(data) : 'null',
+			analysisType: analysis?.type,
+			analysisEntities: analysis?.entities
+		});
+		
 		let answer = "";
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
@@ -814,6 +834,7 @@ export class ChatbotService {
 				};
 			} else if (data && data.type === "team_not_found") {
 				// Team not found - provide helpful information
+				this.logToBoth(`🔍 Handling team_not_found case:`, data);
 				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(', ')}.`;
 			} else if (data && data.type === "error") {
 				// Error occurred during query
