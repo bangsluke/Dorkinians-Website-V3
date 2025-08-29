@@ -47,7 +47,7 @@ export class ChatbotService {
 			}
 
 			// Analyze the question
-			const analysis = this.analyzeQuestion(context.question);
+			const analysis = this.analyzeQuestion(context.question, context.userContext);
 			console.log(`🔍 Question analysis:`, analysis);
 
 			// Query the database
@@ -69,8 +69,8 @@ export class ChatbotService {
 		}
 	}
 
-	private analyzeQuestion(question: string): {
-		type: "player" | "team" | "club" | "fixture" | "comparison" | "general";
+	private analyzeQuestion(question: string, userContext?: string): {
+		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general";
 		entities: string[];
 		metrics: string[];
 		timeRange?: string;
@@ -78,7 +78,7 @@ export class ChatbotService {
 		const lowerQuestion = question.toLowerCase();
 
 		// Determine question type
-		let type: "player" | "team" | "club" | "fixture" | "comparison" | "general" = "general";
+		let type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general" = "general";
 
 		if (lowerQuestion.includes("player") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || 
 			lowerQuestion.includes("assists") || lowerQuestion.includes("appearances") || lowerQuestion.includes("minutes") || 
@@ -94,6 +94,10 @@ export class ChatbotService {
 			type = "fixture";
 		} else if (lowerQuestion.includes("compare") || lowerQuestion.includes("vs")) {
 			type = "comparison";
+		} else if (lowerQuestion.includes("streak") || lowerQuestion.includes("consecutive") || lowerQuestion.includes("in a row")) {
+			type = "streak";
+		} else if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
+			type = "double_game";
 		}
 
 		// Extract player names from various question formats
@@ -126,6 +130,22 @@ export class ChatbotService {
 			playerNameMatch = question.match(/^([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom|yellow cards?|red cards?|saves?|own goals?|conceded|clean sheets?|penalties|fantasy points)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 4: "I" pronoun handling - use selected player from context
+		if (entities.length === 0 && (lowerQuestion.includes("i") || lowerQuestion.includes("i've") || lowerQuestion.includes("i have") || lowerQuestion.includes("me"))) {
+			if (userContext) {
+				entities.push(userContext);
+			}
+			// No fallback - if no context, entities will remain empty
+		}
+
+		// Pattern 5: Team-specific questions like "3rd team" or "2s"
+		if (entities.length === 0) {
+			const teamMatch = question.match(/(\d+(?:st|nd|rd|th)?)\s*team/);
+			if (teamMatch) {
+				entities.push(teamMatch[1]);
 			}
 		}
 
@@ -207,6 +227,12 @@ export class ChatbotService {
 				case "comparison":
 					console.log(`🔍 Calling queryComparisonData...`);
 					return await this.queryComparisonData(entities, metrics);
+				case "streak":
+					console.log(`🔍 Calling queryStreakData...`);
+					return await this.queryStreakData(entities, metrics);
+				case "double_game":
+					console.log(`🔍 Calling queryDoubleGameData...`);
+					return await this.queryDoubleGameData(entities, metrics);
 				default:
 					console.log(`🔍 Calling queryGeneralData...`);
 					return await this.queryGeneralData();
@@ -220,12 +246,22 @@ export class ChatbotService {
 	private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
 		console.log(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
 		
+		// Check if we have entities (player names) to query
+		if (entities.length === 0) {
+			return { type: 'no_context', data: [], message: 'No player context provided' };
+		}
+		
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
 			const metric = metrics[0];
 			
 			console.log(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
+			
+			// Check if this is a team-specific question (e.g., "3rd team")
+			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
+				return await this.queryTeamSpecificPlayerData(playerName, metric);
+			}
 			
 			// Build query with case-insensitive player name matching
 			let query = `
@@ -383,6 +419,55 @@ export class ChatbotService {
 		return { type: 'general_players', data: result };
 	}
 
+	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
+		console.log(`🔍 Querying for team ${teamNumber}, metric: ${metric}`);
+		
+		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
+		const teamName = `${teamNumber} Team`;
+		
+		const query = `
+			MATCH (t:Team {name: $teamName})
+			MATCH (t)<-[:PLAYS_FOR]-(p:Player)
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE md.team = $teamName
+			RETURN p.playerName as playerName, 
+				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} != "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
+				   count(md) as appearances
+			ORDER BY value DESC
+			LIMIT 10
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { teamName });
+			return { type: 'team_specific', data: result, teamName, metric };
+		} catch (error) {
+			console.error('❌ Error querying team-specific player data:', error);
+			return null;
+		}
+	}
+
+	private getMetricField(metric: string): string {
+		const fieldMap: { [key: string]: string } = {
+			'G': 'goals',
+			'A': 'assists',
+			'APP': 'appearances',
+			'MIN': 'minutes',
+			'MOM': 'mom',
+			'Y': 'yellowCard',
+			'R': 'redCard',
+			'SAVES': 'saves',
+			'OG': 'ownGoals',
+			'C': 'conceded',
+			'CLS': 'cleanSheet',
+			'PSC': 'penaltiesScored',
+			'PM': 'penaltiesMissed',
+			'PCO': 'penaltiesConceded',
+			'PSV': 'penaltiesSaved',
+			'FTP': 'fantasyPoints'
+		};
+		return fieldMap[metric] || 'goals';
+	}
+
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
 		const query = `
       MATCH (t:Team)
@@ -430,6 +515,73 @@ export class ChatbotService {
 		return result;
 	}
 
+	private async queryStreakData(entities: string[], metrics: string[]): Promise<any> {
+		if (entities.length === 0) {
+			return { type: 'no_context', data: [], message: 'No player context provided' };
+		}
+		
+		const playerName = entities[0];
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE md.date IS NOT NULL
+			WITH p, md
+			ORDER BY md.date ASC
+			WITH p, collect(md.date) as dates
+			WITH p, dates, [i in range(0, size(dates)-1) | 
+				CASE 
+					WHEN i = 0 THEN 1
+					WHEN date(dates[i]) = date(dates[i-1]) + duration({days: 1}) THEN 1
+					ELSE 0
+				END
+			] as consecutiveFlags
+			WITH p, dates, consecutiveFlags, 
+				reduce(s = [], x in consecutiveFlags | 
+					CASE 
+						WHEN x = 1 THEN s + [1]
+						ELSE [1]
+					END
+				) as streakLengths
+			RETURN p.playerName as playerName, 
+				   max([length in streakLengths | length]) as longestStreak,
+				   size(dates) as totalGames
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'streak', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying streak data:', error);
+			return null;
+		}
+	}
+
+	private async queryDoubleGameData(entities: string[], metrics: string[]): Promise<any> {
+		if (entities.length === 0) {
+			return { type: 'no_context', data: [], message: 'No player context provided' };
+		}
+		
+		const playerName = entities[0];
+		const query = `
+			MATCH (p:Player {playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE md.date IS NOT NULL
+			WITH p, md.date as gameDate, count(md) as gamesOnDate
+			WHERE gamesOnDate > 1
+			RETURN p.playerName as playerName, 
+				   count(DISTINCT gameDate) as doubleGameWeeks,
+				   collect(DISTINCT gameDate) as doubleGameDates
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: 'double_game', data: result, playerName };
+		} catch (error) {
+			console.error('❌ Error querying double game data:', error);
+			return null;
+		}
+	}
+
 	private async queryGeneralData(): Promise<any> {
 		// Query for general information about the database
 		const query = `
@@ -447,8 +599,14 @@ export class ChatbotService {
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
 		if (!data || data.length === 0) {
-			answer =
-				"I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
+			// Check if this is a player question without context
+			if (analysis.type === "player" && analysis.entities.length === 0 && 
+				(question.toLowerCase().includes("i") || question.toLowerCase().includes("i've") || 
+				 question.toLowerCase().includes("i have") || question.toLowerCase().includes("me"))) {
+				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
+			} else {
+				answer = "I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
+			}
 			return {
 				answer,
 				confidence: 0.15, // Never show 0% confidence
@@ -459,8 +617,10 @@ export class ChatbotService {
 
 		// Handle different types of questions with strict club-focused responses
 		if (analysis.type === "player") {
-			// Check if this is a specific player query
-			if (data && data.type === 'specific_player' && data.data && data.data.length > 0) {
+			// Check if this is a no-context case
+			if (data && data.type === 'no_context') {
+				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
+			} else if (data && data.type === 'specific_player' && data.data && data.data.length > 0) {
 				const playerData = data.data[0];
 				const playerName = data.playerName;
 				const metric = data.metric;
@@ -469,6 +629,20 @@ export class ChatbotService {
 				// Use the metric configuration for proper display names
 				const metricName = getMetricDisplayName(metric, value);
 				answer = `${playerName} has ${value} ${metricName}.`;
+			} else if (data && data.type === 'team_specific' && data.data && data.data.length > 0) {
+				// Team-specific query (e.g., "3rd team goals")
+				const teamName = data.teamName;
+				const metric = data.metric;
+				const topPlayer = data.data[0];
+				const metricName = getMetricDisplayName(metric, topPlayer.value);
+				
+				answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+				
+				visualization = {
+					type: "table",
+					data: data.data,
+					config: { columns: ["playerName", "value", "appearances"] },
+				};
 			} else if (data && data.type === 'general_players' && data.data && data.data.length > 0) {
 				if (data.data[0].playerCount) {
 					// General player count question
@@ -505,6 +679,34 @@ export class ChatbotService {
 			answer = `I found club information including details about captains and awards.`;
 		} else if (analysis.type === "fixture") {
 			answer = `I found ${data.length} fixture records in the club's match history.`;
+		} else if (analysis.type === "streak") {
+			if (data && data.type === 'no_context') {
+				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
+			} else if (data && data.type === 'streak' && data.data && data.data.length > 0) {
+				const streakData = data.data[0];
+				answer = `${data.playerName} has played ${streakData.totalGames} games with a longest consecutive streak of ${streakData.longestStreak} games.`;
+				visualization = {
+					type: "stats",
+					data: { longestStreak: streakData.longestStreak, totalGames: streakData.totalGames },
+					config: { title: "Consecutive Streak" },
+				};
+			} else {
+				answer = `I found ${data.length} player streak records.`;
+			}
+		} else if (analysis.type === "double_game") {
+			if (data && data.type === 'no_context') {
+				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
+			} else if (data && data.type === 'double_game' && data.data && data.data.length > 0) {
+				const doubleGameData = data.data[0];
+				answer = `${data.playerName} has played in ${doubleGameData.doubleGameWeeks} double game weeks.`;
+				visualization = {
+					type: "stats",
+					data: { doubleGameWeeks: doubleGameData.doubleGameWeeks },
+					config: { title: "Double Game Weeks" },
+				};
+			} else {
+				answer = `I found ${data.length} player double game week records.`;
+			}
 		}
 
 		return {
