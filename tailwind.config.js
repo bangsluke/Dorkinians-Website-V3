@@ -4,9 +4,8 @@ module.exports = {
 	theme: {
 		extend: {
 			colors: {
-				"dorkinians-blue": "#1e40af",
-				"dorkinians-red": "#dc2626",
-				"dorkinians-gold": "#f59e0b",
+				"dorkinians-green": "#1C8841",
+				"dorkinians-yellow": "#F9ED32",
 			},
 			fontFamily: {
 				sans: ["Inter", "system-ui", "sans-serif"],

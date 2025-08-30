@@ -14,6 +14,11 @@ const navigationItems = [
 export default function FooterNavigation() {
 	const { currentMainPage, setMainPage } = useNavigationStore();
 
+	// Hide footer navigation on settings page
+	if (currentMainPage === "settings") {
+		return null;
+	}
+
 	return (
 		<motion.nav
 			className='fixed bottom-0 left-0 right-0 z-50 frosted-glass w-full'

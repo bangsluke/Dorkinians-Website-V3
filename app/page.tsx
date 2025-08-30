@@ -6,14 +6,17 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
 import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
-import TOTW from "@/components/pages/TOTW";
-import ClubInfo from "@/components/pages/ClubInfo";
+import TOTWContainer from "@/components/TOTWContainer";
+import ClubInfoContainer from "@/components/ClubInfoContainer";
+import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
+import UpdateToast from "@/components/UpdateToast";
 
 export default function HomePage() {
-	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage } = useNavigationStore();
+	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage, setMainPage } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
+	const [showUpdateToast, setShowUpdateToast] = useState(true);
 
 	// Initialize from localStorage after mount
 	useEffect(() => {
@@ -40,6 +43,10 @@ export default function HomePage() {
 
 	const handleClearPlayer = () => {
 		// This function can be empty if not needed, but it's required by the component
+	};
+
+	const handleSettingsClick = () => {
+		window.location.href = "/settings";
 	};
 
 	const renderCurrentPage = () => {
@@ -130,10 +137,13 @@ export default function HomePage() {
 				return <StatsContainer />;
 
 			case "totw":
-				return <TOTW />;
+				return <TOTWContainer />;
 
 			case "club-info":
-				return <ClubInfo />;
+				return <ClubInfoContainer />;
+
+			case "settings":
+				return <Settings />;
 
 			default:
 				return null;
@@ -141,21 +151,28 @@ export default function HomePage() {
 	};
 
 	return (
-		<div className='min-h-screen'>
-			{/* Header */}
-			<Header onSettingsClick={() => console.log("Settings clicked")} />
+		<>
+			<div className='min-h-screen'>
+				{/* Header */}
+				<Header onSettingsClick={handleSettingsClick} />
 
-			{/* Main Content */}
-			<main className='pt-20 pb-24 px-4 h-screen'>
-				<div className='frosted-container'>
-					<div className='h-full overflow-y-auto'>
-						<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+				{/* Main Content */}
+				<main className='pt-20 pb-24 px-4 h-screen'>
+					<div className='frosted-container'>
+						<div className='h-full overflow-y-auto'>
+							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+						</div>
 					</div>
-				</div>
-			</main>
+				</main>
 
-			{/* Footer Navigation */}
-			<FooterNavigation />
-		</div>
+				{/* Footer Navigation */}
+				<FooterNavigation />
+			</div>
+
+			{/* Update Toast */}
+			{showUpdateToast && (
+				<UpdateToast onClose={() => setShowUpdateToast(false)} />
+			)}
+		</>
 	);
 }
