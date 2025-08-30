@@ -96,7 +96,6 @@ export default function ChatbotInterface() {
 			// Log the response structure for debugging
 			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
 				answer: data.answer,
-				confidence: data.confidence,
 				hasVisualization: !!data.visualization,
 				hasDebug: !!data.debug,
 				hasProcessingDetails: !!(data.debug?.processingDetails),
@@ -235,16 +234,7 @@ export default function ChatbotInterface() {
 							<p className='text-yellow-100 text-sm md:text-base'>{response.answer}</p>
 						</div>
 
-						{/* Confidence */}
-						<div className='mb-3 md:mb-4'>
-							<div className='flex items-center space-x-2'>
-								<span className='text-xs md:text-sm text-yellow-300'>Confidence:</span>
-								<div className='flex-1 bg-yellow-400/20 rounded-full h-2'>
-									<div className='bg-green-400 h-2 rounded-full transition-all duration-300' style={{ width: `${response.confidence * 100}%` }}></div>
-								</div>
-								<span className='text-xs md:text-sm text-yellow-300'>{Math.round(response.confidence * 100)}%</span>
-							</div>
-						</div>
+
 
 						{/* Visualization */}
 						{response.visualization && renderVisualization(response.visualization)}
