@@ -32,7 +32,7 @@ export default function Header({ onSettingsClick }: HeaderProps) {
 					title="Click to return to homepage">
 					<div className='w-8 h-8 flex items-center justify-center'>
 						<Image 
-							src="/icons/icon-32x32.png" 
+							src="/icons/icon-96x96.png" 
 							alt="Dorkinians FC Logo" 
 							width={32} 
 							height={32}
