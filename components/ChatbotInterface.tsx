@@ -197,7 +197,7 @@ export default function ChatbotInterface() {
 				</div>
 
 				<p className='text-xs md:text-sm text-yellow-300 mt-2 text-center'>
-					Try: &ldquo;How many players are in the club?&rdquo; or &ldquo;Who are the players?&rdquo;
+					Try: &ldquo;How many appearances have I made?&rdquo; or &ldquo;Which team have I played for most?&rdquo;
 				</p>
 			</form>
 

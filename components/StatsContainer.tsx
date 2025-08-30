@@ -36,17 +36,19 @@ export default function StatsContainer() {
 
 	return (
 		<div className='h-full overflow-hidden'>
-			{/* Stats Sub-Page Indicator */}
-			<div className='flex justify-center space-x-2 py-4'>
+			{/* Stats Sub-Page Dot Indicators */}
+			<div className='flex justify-center space-x-3 py-4 pb-0'>
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
 						onClick={() => setStatsSubPage(page.id)}
-						className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-							currentStatsSubPage === page.id ? "bg-dorkinians-blue text-white" : "bg-gray-200 text-gray-600 hover:bg-gray-300"
-						}`}>
-						{page.label}
-					</button>
+						className={`w-2 h-2 rounded-full transition-all duration-200 ${
+							currentStatsSubPage === page.id 
+								? "bg-dorkinians-yellow scale-125" 
+								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
+						}`}
+						aria-label={`Go to ${page.label}`}
+					/>
 				))}
 			</div>
 
