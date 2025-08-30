@@ -11,10 +11,12 @@ import ClubInfoContainer from "@/components/ClubInfoContainer";
 import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
+import UpdateToast from "@/components/UpdateToast";
 
 export default function HomePage() {
 	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage, setMainPage } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
+	const [showUpdateToast, setShowUpdateToast] = useState(true);
 
 	// Initialize from localStorage after mount
 	useEffect(() => {
@@ -149,21 +151,28 @@ export default function HomePage() {
 	};
 
 	return (
-		<div className='min-h-screen'>
-			{/* Header */}
-			<Header onSettingsClick={handleSettingsClick} />
+		<>
+			<div className='min-h-screen'>
+				{/* Header */}
+				<Header onSettingsClick={handleSettingsClick} />
 
-			{/* Main Content */}
-			<main className='pt-20 pb-24 px-4 h-screen'>
-				<div className='frosted-container'>
-					<div className='h-full overflow-y-auto'>
-						<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+				{/* Main Content */}
+				<main className='pt-20 pb-24 px-4 h-screen'>
+					<div className='frosted-container'>
+						<div className='h-full overflow-y-auto'>
+							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+						</div>
 					</div>
-				</div>
-			</main>
+				</main>
 
-			{/* Footer Navigation */}
-			<FooterNavigation />
-		</div>
+				{/* Footer Navigation */}
+				<FooterNavigation />
+			</div>
+
+			{/* Update Toast */}
+			{showUpdateToast && (
+				<UpdateToast onClose={() => setShowUpdateToast(false)} />
+			)}
+		</>
 	);
 }

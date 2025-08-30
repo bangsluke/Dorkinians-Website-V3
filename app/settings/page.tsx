@@ -1,15 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { 
 	HomeIcon, 
 	ChartBarIcon, 
 	TrophyIcon, 
 	InformationCircleIcon,
-	ArrowLeftIcon
+	ArrowLeftIcon,
+	ArrowPathIcon
 } from "@heroicons/react/24/outline";
 import Header from "@/components/Header";
+import { pwaUpdateService } from "@/lib/services/pwaUpdateService";
+import UpdateToast from "@/components/UpdateToast";
 
 const navigationItems = [
 	{ 
@@ -54,6 +58,8 @@ const navigationItems = [
 
 export default function SettingsPage() {
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
+	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 
 	const handleNavigationClick = (pageId: string) => {
 		setMainPage(pageId as any);
@@ -83,6 +89,28 @@ export default function SettingsPage() {
 	const handleSettingsClick = () => {
 		window.location.href = "/";
 	};
+
+	const handleCheckForUpdate = async () => {
+		setIsCheckingUpdate(true);
+		setUpdateStatus(null);
+		
+		try {
+			const updateInfo = await pwaUpdateService.checkForUpdates();
+			if (updateInfo.isUpdateAvailable) {
+				setUpdateStatus(`Update available: Version ${updateInfo.version}`);
+				// Show update toast on settings page
+				setShowUpdateToast(true);
+			} else {
+				setUpdateStatus("No updates available");
+			}
+		} catch (error) {
+			setUpdateStatus("Error checking for updates");
+		} finally {
+			setIsCheckingUpdate(false);
+		}
+	};
+
+	const [showUpdateToast, setShowUpdateToast] = useState(false);
 
 	return (
 		<>
@@ -166,6 +194,37 @@ export default function SettingsPage() {
 					<div className='mt-12 space-y-4'>
 						<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
 						<div className='space-y-3'>
+							{/* Check for Updates */}
+							<div className='p-4 rounded-lg bg-white/10'>
+								<div className='flex items-center justify-between'>
+									<div>
+										<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
+										<p className='text-sm text-gray-300'>Check if a new version is available</p>
+										{updateStatus && (
+											<p className='text-xs text-dorkinians-yellow mt-1'>{updateStatus}</p>
+										)}
+									</div>
+									<motion.button
+										onClick={handleCheckForUpdate}
+										disabled={isCheckingUpdate}
+										className='px-4 py-2 bg-dorkinians-yellow text-dorkinians-blue font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+										whileHover={{ scale: 1.05 }}
+										whileTap={{ scale: 0.95 }}>
+										{isCheckingUpdate ? (
+											<div className='flex items-center space-x-2'>
+												<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
+												<span>Checking...</span>
+											</div>
+										) : (
+											<div className='flex items-center space-x-2'>
+												<ArrowPathIcon className='w-4 h-4' />
+												<span>Check</span>
+											</div>
+										)}
+									</motion.button>
+								</div>
+							</div>
+							
 							<div className='p-4 rounded-lg bg-white/10'>
 								<h3 className='text-lg font-semibold text-white mb-2'>Theme</h3>
 								<p className='text-sm text-gray-300'>Customize the app appearance</p>
@@ -180,8 +239,20 @@ export default function SettingsPage() {
 							</div>
 						</div>
 					</div>
+
+					{/* Version Information */}
+					<div className='mt-8 text-center'>
+						<p className='text-xs text-gray-400'>
+							Version 1.1.1
+						</p>
+					</div>
 				</div>
 			</div>
+
+			{/* Update Toast */}
+			{showUpdateToast && (
+				<UpdateToast onClose={() => setShowUpdateToast(false)} />
+			)}
 		</>
 	);
 }
