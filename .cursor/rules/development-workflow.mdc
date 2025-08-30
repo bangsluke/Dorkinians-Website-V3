@@ -100,6 +100,7 @@ alwaysApply: true
 - **Type Detection Comprehensiveness**: When extending functionality to new domains, ensure all type detection logic is updated comprehensively
 - **Response Intent Matching**: Response language should mirror user's question structure and terminology - only use superlative language when user explicitly requests it
 - **Question Pattern Analysis**: Question analysis must handle all variations of user input patterns - implement comprehensive pattern matching for entity extraction
+- **Interrogative Question Handling**: Design pattern matching to handle questions starting with interrogative words (What, How, When, Where, Why, Which, Who) - implement specific patterns before general ones
 
 ## Data Architecture & Validation
 - **Data Schema Validation Protocol**: Always verify database schema matches code assumptions before implementing queries - run diagnostic queries to confirm data structure before building production logic
@@ -108,3 +109,10 @@ alwaysApply: true
 
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps
+
+## Testing & Quality Assurance
+- **Jest Test Isolation Protocol**: Always use exact directory paths for test isolation (e.g., `--testPathPattern="__tests__/basic"` not `--testPathPattern=basic`) to prevent unintended test file execution
+- **Environment Variable Verification**: Always verify environment variables are loaded in Jest before assuming they exist - use `dotenv` configuration in `jest.setup.js` for production database testing
+- **Test File Discovery Debugging**: When Jest runs unexpected test files, check for module caching issues and use `--clearCache` to resolve test discovery problems
+- **Regex Pattern Hierarchy**: In conditional logic systems, specific patterns must precede general patterns to prevent incorrect matches - implement negative lookahead for pattern exclusion
+- **User Intent Clarification**: Verify technical approach matches user requirements before implementation - distinguish between mocked testing and real database testing scenarios
