@@ -67,7 +67,6 @@ export async function POST(request: NextRequest) {
 		// Return a user-friendly error response
 		const errorResponse = {
 			answer: "I'm sorry, I'm having trouble processing your question right now. Please try again in a moment.",
-			confidence: 0.1,
 			sources: [],
 			visualization: undefined,
 		};
