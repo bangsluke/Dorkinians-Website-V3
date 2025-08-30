@@ -911,11 +911,29 @@ export class ChatbotService {
 				const topPlayer = data.data[0];
 				const metricName = getMetricDisplayName(metric, topPlayer.value);
 
-				answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+				// Check if user asked for "the most" or similar superlative terms
+				const questionLower = question.toLowerCase();
+				const usesSuperlative = questionLower.includes("the most") || 
+					questionLower.includes("highest") || 
+					questionLower.includes("best") || 
+					questionLower.includes("top");
+				
+				if (usesSuperlative) {
+					answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+				} else {
+					answer = `For the ${teamName}, ${topPlayer.playerName} has scored ${topPlayer.value} ${metricName}.`;
+				}
 
+				// Sanitize data for visualization to prevent React errors
+				const sanitizedData = data.data.map((item: any) => ({
+					playerName: String(item.playerName || 'Unknown'),
+					value: Number(item.value || 0),
+					appearances: Number(item.appearances || 0)
+				}));
+				
 				visualization = {
 					type: "table",
-					data: data.data,
+					data: sanitizedData,
 					config: { columns: ["playerName", "value", "appearances"] },
 				};
 			} else if (data && data.type === "team_not_found") {
