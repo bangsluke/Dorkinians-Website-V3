@@ -14,6 +14,7 @@ import {
 import Header from "@/components/Header";
 import { pwaUpdateService } from "@/lib/services/pwaUpdateService";
 import UpdateToast from "@/components/UpdateToast";
+import { appConfig } from "@/lib/config/app";
 
 const navigationItems = [
 	{ 
@@ -243,7 +244,7 @@ export default function SettingsPage() {
 					{/* Version Information */}
 					<div className='mt-8 text-center'>
 						<p className='text-xs text-gray-400'>
-							Version 1.1.1
+							Version {appConfig.version}
 						</p>
 					</div>
 				</div>

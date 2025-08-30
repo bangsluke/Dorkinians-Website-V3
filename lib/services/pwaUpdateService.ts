@@ -1,3 +1,5 @@
+import { appConfig } from "@/lib/config/app";
+
 export interface UpdateInfo {
 	isUpdateAvailable: boolean;
 	version?: string;
@@ -49,7 +51,7 @@ class PWAUpdateService {
 							
 							const updateInfo: UpdateInfo = {
 								isUpdateAvailable: hasUpdate,
-								version: hasUpdate ? '1.0.1' : undefined,
+								version: hasUpdate ? appConfig.version : undefined,
 								releaseNotes: hasUpdate ? 'Bug fixes and performance improvements' : undefined
 							};
 							resolve(updateInfo);
@@ -72,7 +74,7 @@ class PWAUpdateService {
 		if (this.updateCallback) {
 			this.updateCallback({
 				isUpdateAvailable: true,
-				version: '1.0.1',
+				version: appConfig.version,
 				releaseNotes: 'Bug fixes and performance improvements'
 			});
 		}
