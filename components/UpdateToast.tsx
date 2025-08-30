@@ -15,6 +15,9 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 	const [showDismissMessage, setShowDismissMessage] = useState(false);
 
 	useEffect(() => {
+		// Only run on client side
+		if (typeof window === 'undefined') return;
+
 		// Listen for updates
 		pwaUpdateService.onUpdateAvailable((info) => {
 			setUpdateInfo(info);
@@ -54,6 +57,9 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 			onClose();
 		}, 3000);
 	};
+
+	// Don't render on server side
+	if (typeof window === 'undefined') return null;
 
 	if (!updateInfo?.isUpdateAvailable) {
 		return null;
