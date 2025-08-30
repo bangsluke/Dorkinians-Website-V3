@@ -22,3 +22,8 @@
 | How many assists has Oli Goddard scored at Pixham?                              | NumberCard           | StatsData   |
 | What was my most prolific season?                                               | Table                | StatsData   |
 | What team have I played for most?                                               | Table                | StatsData   |
+| How many penalties has Oli Goddard taken?                                       | NumberCard           | StatsData   |
+| What is Kieran Mackrell's penalty record?                                       | NumberCard           | StatsData   |
+| What is Luke Bangs' penalty conversion rate?                                    | NumberCard           | StatsData   |
+| How many goals have I scored away from home?                                    | NumberCard           | StatsData   |
+| How many times has Luke played?                                                 | NumberCard           | StatsData   |
