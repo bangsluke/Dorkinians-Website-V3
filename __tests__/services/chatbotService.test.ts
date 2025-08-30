@@ -12,8 +12,14 @@ describe('ChatbotService', () => {
     // Fetch reference data from TBL_TestData for validation
     try {
       referenceData = await fetchTestData();
-      console.log('✅ Reference data loaded:', referenceData.length, 'players');
-      console.log('🧪 Testing against real production database');
+      const isVerbose = process.env.JEST_VERBOSE === 'true';
+      
+      if (isVerbose) {
+        console.log('✅ Reference data loaded:', referenceData.length, 'players');
+        console.log('🧪 Testing against real production database');
+      } else {
+        console.log('📊 Reference data loaded:', referenceData.length, 'players');
+      }
     } catch (error) {
       console.error('❌ Failed to load reference data:', error);
       throw error;

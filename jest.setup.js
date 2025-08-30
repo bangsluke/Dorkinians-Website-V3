@@ -10,15 +10,17 @@ process.env.DEV_NEO4J_PASSWORD = process.env.PROD_NEO4J_PASSWORD || 'password';
 // Global test timeout - increased for database operations
 jest.setTimeout(60000);
 
-// Enable real console output for debugging database operations
-// global.console = {
-//   ...console,
-//   log: jest.fn(),
-//   warn: jest.fn(),
-//   error: jest.fn(),
-// };
+// Conditional logging based on JEST_VERBOSE environment variable
+const isVerbose = process.env.JEST_VERBOSE === 'true';
 
-console.log('🧪 Jest setup: Testing against production database');
-console.log('🔗 Neo4j URI:', process.env.DEV_NEO4J_URI);
-console.log('👤 Neo4j User:', process.env.DEV_NEO4J_USER);
-console.log('⏱️  Test timeout:', 60000, 'ms');
+if (isVerbose) {
+  // Enable real console output for debugging database operations
+  console.log('🧪 Jest setup: Testing against production database');
+  console.log('🔗 Neo4j URI:', process.env.DEV_NEO4J_URI);
+  console.log('👤 Neo4j User:', process.env.DEV_NEO4J_USER);
+  console.log('⏱️  Test timeout:', 60000, 'ms');
+  console.log('📝 Verbose mode: ENABLED - Detailed logging active');
+} else {
+  // Clean, minimal output for regular test runs
+  console.log('🧪 Jest setup: Production database testing configured');
+}

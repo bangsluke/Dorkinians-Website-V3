@@ -21,12 +21,17 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   // Production database testing configuration
   testTimeout: 60000,
-  // Enable verbose output for database operations
-  verbose: true,
+  // Verbose output controlled by environment variable
+  verbose: process.env.JEST_VERBOSE === 'true',
   // Handle async operations properly
   forceExit: true,
   // Clean up after tests
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  // Custom reporter for clean output
+  reporters: [
+    'default',
+    process.env.JEST_VERBOSE === 'true' ? undefined : '<rootDir>/__tests__/reporters/summaryReporter.js'
+  ].filter(Boolean),
 };

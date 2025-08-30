@@ -67,8 +67,12 @@ export const FALLBACK_TEST_DATA: TestPlayerData[] = [
 export async function fetchTestData(): Promise<TestPlayerData[]> {
   const testDataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv';
   
+  const isVerbose = process.env.JEST_VERBOSE === 'true';
+  
   try {
-    console.log('🔍 Attempting to fetch reference data from:', testDataUrl);
+    if (isVerbose) {
+      console.log('🔍 Attempting to fetch reference data from:', testDataUrl);
+    }
     
     const response = await fetch(testDataUrl);
     if (!response.ok) {
@@ -76,17 +80,22 @@ export async function fetchTestData(): Promise<TestPlayerData[]> {
     }
     
     const csvText = await response.text();
-    console.log('📊 CSV content length:', csvText.length);
-    console.log('📊 CSV preview:', csvText.substring(0, 200));
+    
+    if (isVerbose) {
+      console.log('📊 CSV content length:', csvText.length);
+      console.log('📊 CSV preview:', csvText.substring(0, 200));
+    }
     
     const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
     
-    if (parsed.errors.length > 0) {
+    if (parsed.errors.length > 0 && isVerbose) {
       console.warn('⚠️ CSV parsing warnings:', parsed.errors);
     }
     
-    console.log('📊 Parsed reference data rows:', parsed.data.length);
-    console.log('📊 First row:', parsed.data[0]);
+    if (isVerbose) {
+      console.log('📊 Parsed reference data rows:', parsed.data.length);
+      console.log('📊 First row:', parsed.data[0]);
+    }
     
     const processedData = parsed.data.map((row: any) => ({
       playerName: String(row.playerName || row.PlayerName || row.name || ''),
@@ -101,17 +110,27 @@ export async function fetchTestData(): Promise<TestPlayerData[]> {
       fantasyPoints: Number(row.fantasyPoints || row.FantasyPoints || row.FTP || 0),
     })).filter(player => player.playerName && player.playerName.trim() !== '');
     
-    console.log('✅ Processed reference data:', processedData.length, 'players');
+    if (isVerbose) {
+      console.log('✅ Processed reference data:', processedData.length, 'players');
+    } else {
+      console.log('📊 Reference data loaded:', processedData.length, 'players');
+    }
     
     if (processedData.length === 0) {
-      console.warn('⚠️ No valid reference data found, using fallback data');
+      if (isVerbose) {
+        console.warn('⚠️ No valid reference data found, using fallback data');
+      }
       return FALLBACK_TEST_DATA;
     }
     
     return processedData;
   } catch (error) {
-    console.error('❌ Error fetching reference data:', error);
-    console.warn('⚠️ Using fallback reference data');
+    if (isVerbose) {
+      console.error('❌ Error fetching reference data:', error);
+      console.warn('⚠️ Using fallback reference data');
+    } else {
+      console.log('📊 Using fallback reference data');
+    }
     return FALLBACK_TEST_DATA;
   }
 }

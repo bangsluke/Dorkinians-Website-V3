@@ -9,8 +9,14 @@ describe('Chatbot Integration Tests', () => {
     // Fetch reference data from TBL_TestData for validation
     try {
       referenceData = await fetchTestData();
-      console.log('✅ Integration reference data loaded:', referenceData.length, 'players');
-      console.log('🧪 Integration testing against real production database');
+      const isVerbose = process.env.JEST_VERBOSE === 'true';
+      
+      if (isVerbose) {
+        console.log('✅ Integration reference data loaded:', referenceData.length, 'players');
+        console.log('🧪 Integration testing against real production database');
+      } else {
+        console.log('📊 Integration data loaded:', referenceData.length, 'players');
+      }
     } catch (error) {
       console.error('❌ Failed to load integration reference data:', error);
       throw error;
