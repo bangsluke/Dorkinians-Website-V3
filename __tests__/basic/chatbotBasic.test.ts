@@ -109,7 +109,7 @@ describe('ChatbotService Basic Tests', () => {
       if (processingDetails?.questionAnalysis) {
         expect(processingDetails.questionAnalysis.type).toBe('player');
         expect(processingDetails.questionAnalysis.entities).toContain('Luke Bangs');
-        expect(processingDetails.questionAnalysis.metrics).toContain('G');
+        expect(processingDetails.questionAnalysis.metrics).toContain('AllGSC');
       }
     });
 
@@ -153,4 +153,35 @@ describe('ChatbotService Basic Tests', () => {
       });
     });
   });
+
+	test('Should handle penalty record questions with enhanced logic', async () => {
+		const question = 'What is Luke Bangs penalty conversion rate?';
+		const context: QuestionContext = {
+			question,
+			userContext: 'Luke Bangs',
+		};
+
+		const response = await chatbotService.processQuestion(context);
+
+		// Should return penalty record information
+		expect(response.answer).toBeTruthy();
+		expect(response.answer).toContain('Luke Bangs');
+		expect(response.answer).toContain('penalties');
+		expect(response.answer).toContain('conversion rate');
+	}, 30000);
+
+	test('Should handle points context questions with enhanced logic', async () => {
+		const question = 'How many points does Luke Bangs have?';
+		const context: QuestionContext = {
+			question,
+			userContext: 'Luke Bangs',
+		};
+
+		const response = await chatbotService.processQuestion(context);
+
+		// Should return fantasy points information with clarification
+		expect(response.answer).toBeTruthy();
+		expect(response.answer).toContain('Luke Bangs');
+		expect(response.answer).toContain('fantasy points');
+	}, 30000);
 });
