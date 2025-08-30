@@ -1056,7 +1056,7 @@ export class ChatbotService {
 				const metric = data.metric;
 				const value = playerData.value;
 
-				// Get appearances for context (excluding appearances themselves, but including assists as they're a main stat)
+				// Get appearances for context (excluding appearances themselves)
 				let appearancesContext = "";
 				if (metric !== "APP") {
 					try {
