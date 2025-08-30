@@ -169,7 +169,6 @@ export interface ChatbotResponse {
 	answer: string;
 	chartComponent?: ChartComponent;
 	dataSource: string;
-	confidence: number;
 }
 
 export interface DataUpdateResponse {

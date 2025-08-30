@@ -2,6 +2,11 @@ import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
 import natural from 'natural';
 import nlp from 'compromise';
+import { 
+	getAppropriateVerb, 
+	getResponseTemplate, 
+	formatNaturalResponse
+} from "../config/naturalLanguageResponses";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -11,7 +16,6 @@ export interface ChatbotResponse {
 		data: any;
 		config?: any;
 	};
-	confidence: number;
 	sources: string[];
 }
 
@@ -82,11 +86,10 @@ export class ChatbotService {
 			const connected = await neo4jService.connect();
 			if (!connected) {
 				console.error("❌ Neo4j connection failed in production");
-				return {
-					answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
-					confidence: 0,
-					sources: [],
-				};
+							return {
+				answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
+				sources: [],
+			};
 			}
 
 					// Analyze the question
@@ -129,7 +132,6 @@ export class ChatbotService {
 			this.logToBoth("❌ Error processing question:", error, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
-				confidence: 0,
 				sources: [],
 			};
 		}
@@ -1038,7 +1040,6 @@ export class ChatbotService {
 			}
 			return {
 				answer,
-				confidence: 0.15, // Never show 0% confidence
 				sources: [], // Always hide technical sources
 				visualization,
 			};
@@ -1055,9 +1056,56 @@ export class ChatbotService {
 				const metric = data.metric;
 				const value = playerData.value;
 
-				// Use the metric configuration for proper display names
+				// Get appearances for context (excluding assists and appearances themselves)
+				let appearancesContext = "";
+				if (metric !== "A" && metric !== "APP") {
+					try {
+						const appearancesQuery = `
+							MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+							RETURN count(md) as appearances
+						`;
+						const appearancesResult = await neo4jService.executeQuery(appearancesQuery, { playerName });
+						if (appearancesResult && appearancesResult.length > 0) {
+							const appearances = appearancesResult[0].appearances;
+							appearancesContext = ` in ${appearances} appearance${appearances !== 1 ? 's' : ''}`;
+						}
+					} catch (error) {
+						this.logToBoth(`⚠️ Could not fetch appearances for ${playerName}:`, error);
+					}
+				}
+
+				// Use natural language response generation with appearances context
 				const metricName = getMetricDisplayName(metric, value);
-				answer = `${playerName} has ${value} ${metricName}.`;
+				
+				// Get appearances count for template
+				let appearancesCount: number | undefined;
+				if (appearancesContext) {
+					const match = appearancesContext.match(/in (\d+) appearance/);
+					if (match) {
+						appearancesCount = parseInt(match[1]);
+					}
+				}
+				
+				// Use template with appearances if available, otherwise fallback
+				let template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
+				if (!template || !appearancesCount) {
+					template = getResponseTemplate('player_stats', 'Basic player statistics');
+				}
+				
+				if (template) {
+					answer = formatNaturalResponse(
+						template.template,
+						playerName,
+						metric,
+						value,
+						metricName,
+						undefined, // teamName
+						appearancesCount
+					);
+				} else {
+					// Fallback to simple format with appearances
+					answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${value} ${metricName}${appearancesContext}.`;
+				}
 			} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
 				// Team-specific query (e.g., "3rd team goals")
 				const teamName = data.teamName;
@@ -1073,9 +1121,46 @@ export class ChatbotService {
 					questionLower.includes("top");
 				
 				if (usesSuperlative) {
-					answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+					// Use comparison template for superlative questions
+					const template = getResponseTemplate('comparison', 'Player comparison (highest)');
+					if (template) {
+						answer = formatNaturalResponse(
+							template.template,
+							topPlayer.playerName,
+							metric,
+							topPlayer.value,
+							metricName,
+							teamName
+						);
+						// Replace team context since comparison template doesn't have it
+						answer = `For the ${teamName}, ${answer}`;
+					} else {
+						answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+					}
 				} else {
-					answer = `For the ${teamName}, ${topPlayer.playerName} has scored ${topPlayer.value} ${metricName}.`;
+					// Use team-specific template for regular questions
+					const template = getResponseTemplate('team_specific', 'Team-specific player statistics');
+					if (template) {
+						answer = formatNaturalResponse(
+							template.template,
+							topPlayer.playerName,
+							metric,
+							topPlayer.value,
+							metricName,
+							teamName
+						);
+						// Add appearances context if available and not assists/appearances
+						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+							answer = answer.replace('.', ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}.`);
+						}
+					} else {
+						// Add appearances context if available and not assists/appearances
+						let appearancesContext = "";
+						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+							appearancesContext = ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}`;
+						}
+						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}${appearancesContext}.`;
+					}
 				}
 
 				// Sanitize data for visualization to prevent React errors
@@ -1251,7 +1336,6 @@ export class ChatbotService {
 
 		return {
 			answer,
-			confidence: data.length > 0 ? 0.85 : 0.15, // High confidence when data found, never 0%
 			sources: [], // Always hide technical sources as per mandatory rules
 			visualization,
 		};
