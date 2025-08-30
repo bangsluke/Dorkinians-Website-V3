@@ -1,6 +1,9 @@
 // Jest setup file
 require('@testing-library/jest-dom');
 
+// Load environment variables from .env file
+require('dotenv').config({ path: '.env' });
+
 // Production database environment variables for real testing
 process.env.NODE_ENV = 'test';
 process.env.DEV_NEO4J_URI = process.env.PROD_NEO4J_URI || 'bolt://localhost:7687';

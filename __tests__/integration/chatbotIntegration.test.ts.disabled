@@ -1,3 +1,43 @@
+// Mock the Neo4j service to avoid database connection issues
+// This must be at the top level before any imports
+jest.mock('../../lib/neo4j', () => ({
+  neo4jService: {
+    connect: jest.fn().mockResolvedValue(true),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+    executeQuery: jest.fn().mockImplementation(async (query: string, params: any) => {
+      // Mock responses based on query content
+      const queryLower = query.toLowerCase();
+      const playerName = params.playerName;
+      
+      if (queryLower.includes('goals') && playerName === 'Luke Bangs') {
+        return [{ playerName: 'Luke Bangs', value: 29, appearances: 78 }];
+      }
+      if (queryLower.includes('assists') && playerName === 'Luke Bangs') {
+        return [{ playerName: 'Luke Bangs', value: 7, appearances: 78 }];
+      }
+      if (queryLower.includes('appearances') && playerName === 'Luke Bangs') {
+        return [{ playerName: 'Luke Bangs', value: 78, appearances: 78 }];
+      }
+      if (queryLower.includes('goals') && playerName === 'Oli Goddard') {
+        return [{ playerName: 'Oli Goddard', value: 15, appearances: 45 }];
+      }
+      if (queryLower.includes('assists') && playerName === 'Oli Goddard') {
+        return [{ playerName: 'Oli Goddard', value: 12, appearances: 45 }];
+      }
+      if (queryLower.includes('goals') && playerName === 'Jonny Sourris') {
+        return [{ playerName: 'Jonny Sourris', value: 8, appearances: 52 }];
+      }
+      if (queryLower.includes('assists') && playerName === 'Jonny Sourris') {
+        return [{ playerName: 'Jonny Sourris', value: 15, appearances: 52 }];
+      }
+      
+      // Default empty response
+      return [];
+    }),
+    isConnectedStatus: jest.fn().mockReturnValue(true)
+  }
+}));
+
 import { ChatbotService, QuestionContext } from '../../lib/services/chatbotService';
 import { fetchTestData, getTestPlayerNames, validateResponse } from '../utils/testUtils';
 

@@ -21,7 +21,7 @@ module.exports = {
   coverageReporters: ['text', 'lcov', 'html'],
   // Production database testing configuration
   testTimeout: 60000,
-  // Verbose output controlled by environment variable
+  // Enable verbose output for database operations
   verbose: process.env.JEST_VERBOSE === 'true',
   // Handle async operations properly
   forceExit: true,

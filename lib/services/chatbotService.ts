@@ -212,10 +212,20 @@ export class ChatbotService {
 			}
 		}
 
-		// Pattern 3: "Luke Bangs goals" or "Luke Bangs appearances"
+		// Pattern 3a: "What are Luke Bangs goals?" or "What is Luke Bangs assists?"
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/^([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom|yellow cards?|red cards?|saves?|own goals?|conceded|clean sheets?|penalties|fantasy points)/,
+				/What (?:are|is) ([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom|yellow cards?|red cards?|saves?|own goals?|conceded|clean sheets?|penalties|fantasy points)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 3b: "Luke Bangs goals" or "Luke Bangs appearances" (but NOT starting with interrogative words)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/^(?!What|How|When|Where|Why|Which|Who)([A-Za-z\s]+) (?:goals|assists|appearances|minutes|man of the match|mom|yellow cards?|red cards?|saves?|own goals?|conceded|clean sheets?|penalties|fantasy points)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -553,7 +563,7 @@ export class ChatbotService {
 					// Check if there are any MatchDetail nodes without graphLabel
 					const noLabelQuery = `
 						MATCH (md:MatchDetail)
-						WHERE NOT EXISTS(md.graphLabel)
+						WHERE md.graphLabel IS NULL
 						RETURN count(md) as noLabelMatchDetails
 						LIMIT 1
 					`;

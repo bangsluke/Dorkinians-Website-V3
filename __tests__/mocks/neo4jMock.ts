@@ -1,100 +1,207 @@
-import { TestPlayerData } from '../utils/testUtils';
+/**
+ * Mock Neo4j Service for Testing Chatbot Performance
+ * Provides realistic data responses without requiring a live database connection
+ */
+
+export interface MockPlayerStats {
+  goals: number;
+  assists: number;
+  appearances: number;
+  yellowCards: number;
+  redCards: number;
+  cleanSheets: number;
+  penaltiesScored: number;
+  penaltiesMissed: number;
+  fantasyPoints: number;
+}
+
+export interface MockMatchDetail {
+  playerName: string;
+  team: string;
+  goals: number;
+  assists: number;
+  appearances: number;
+  date: string;
+}
+
+// Mock player statistics data
+const MOCK_PLAYER_STATS: Record<string, MockPlayerStats> = {
+  'Luke Bangs': {
+    goals: 29,
+    assists: 7,
+    appearances: 78,
+    yellowCards: 5,
+    redCards: 0,
+    cleanSheets: 3,
+    penaltiesScored: 2,
+    penaltiesMissed: 1,
+    fantasyPoints: 156
+  },
+  'Oli Goddard': {
+    goals: 15,
+    assists: 12,
+    appearances: 45,
+    yellowCards: 3,
+    redCards: 0,
+    cleanSheets: 0,
+    penaltiesScored: 1,
+    penaltiesMissed: 0,
+    fantasyPoints: 98
+  },
+  'Jonny Sourris': {
+    goals: 8,
+    assists: 15,
+    appearances: 52,
+    yellowCards: 2,
+    redCards: 0,
+    cleanSheets: 0,
+    penaltiesScored: 0,
+    penaltiesMissed: 0,
+    fantasyPoints: 87
+  }
+};
+
+// Mock match details for team-specific queries
+const MOCK_MATCH_DETAILS: MockMatchDetail[] = [
+  {
+    playerName: 'Luke Bangs',
+    team: '3rd XI',
+    goals: 8,
+    assists: 2,
+    appearances: 68,
+    date: '2023-01-01'
+  },
+  {
+    playerName: 'Luke Bangs',
+    team: '4th XI',
+    goals: 12,
+    assists: 3,
+    appearances: 60,
+    date: '2023-01-01'
+  },
+  {
+    playerName: 'Oli Goddard',
+    team: '2nd XI',
+    goals: 5,
+    assists: 8,
+    appearances: 25,
+    date: '2023-01-01'
+  },
+  {
+    playerName: 'Jonny Sourris',
+    team: '1st XI',
+    goals: 3,
+    assists: 7,
+    appearances: 30,
+    date: '2023-01-01'
+  }
+];
 
 export class MockNeo4jService {
-  private testData: TestPlayerData[] = [];
-  private connected: boolean = false;
-
-  constructor(testData: TestPlayerData[]) {
-    this.testData = testData;
-  }
+  private isConnected: boolean = false;
 
   async connect(): Promise<boolean> {
-    this.connected = true;
+    // Simulate connection delay
+    await new Promise(resolve => setTimeout(resolve, 100));
+    this.isConnected = true;
     return true;
   }
 
-  async executeQuery(query: string, params?: any): Promise<any[]> {
-    if (!this.connected) {
-      throw new Error('Not connected to Neo4j');
+  async disconnect(): Promise<void> {
+    this.isConnected = false;
+  }
+
+  async run(cypher: string, params: any = {}): Promise<any> {
+    if (!this.isConnected) {
+      throw new Error('Not connected to database');
     }
 
-    // Parse the query to understand what data to return
-    const queryLower = query.toLowerCase();
+    // Simulate query processing delay
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    // Parse Cypher query to determine response
+    const response = this.parseCypherQuery(cypher, params);
+    return response;
+  }
+
+  private parseCypherQuery(cypher: string, params: any): any {
+    const query = cypher.toLowerCase();
     
-    // Extract player name from params or query
-    let playerName = params?.playerName;
-    if (!playerName && params?.playerNameLower) {
-      playerName = params.playerNameLower;
+    // Player statistics queries
+    if (query.includes('match (p:player)') && query.includes('return p')) {
+      const playerName = params.playerName;
+      if (playerName && MOCK_PLAYER_STATS[playerName]) {
+        return {
+          records: [{
+            get: (key: string) => ({
+              properties: {
+                playerName,
+                ...MOCK_PLAYER_STATS[playerName]
+              }
+            })
+          }]
+        };
+      }
     }
 
-    // Find player data
-    const playerData = this.testData.find(p => 
-      p.playerName.toLowerCase() === playerName?.toLowerCase()
-    );
-
-    if (!playerData) {
-      return [];
+    // Team-specific queries
+    if (query.includes('match (m:matchdetail)') && query.includes('team')) {
+      const playerName = params.playerName;
+      const teamFilter = query.includes('3rd') ? '3rd XI' : 
+                        query.includes('4th') ? '4th XI' : 
+                        query.includes('2nd') ? '2nd XI' : 
+                        query.includes('1st') ? '1st XI' : null;
+      
+      if (playerName && teamFilter) {
+        const teamMatches = MOCK_MATCH_DETAILS.filter(
+          m => m.playerName === playerName && m.team === teamFilter
+        );
+        
+        if (teamMatches.length > 0) {
+          const match = teamMatches[0];
+          return {
+            records: [{
+              get: (key: string) => ({
+                properties: {
+                  playerName: match.playerName,
+                  team: match.team,
+                  goals: match.goals,
+                  assists: match.assists,
+                  appearances: match.appearances
+                }
+              })
+            }]
+          };
+        }
+      }
     }
 
-    // Handle different query types based on content
-    if (queryLower.includes('count(md)')) {
-      // Appearances query
-      return [{ playerName: playerData.playerName, value: playerData.appearances }];
-    } else if (queryLower.includes('sum') && queryLower.includes('goals')) {
-      // Goals query
-      return [{ playerName: playerData.playerName, value: playerData.goals }];
-    } else if (queryLower.includes('sum') && queryLower.includes('assists')) {
-      // Assists query
-      return [{ playerName: playerData.playerName, value: playerData.assists }];
-    } else if (queryLower.includes('sum') && queryLower.includes('yellowcard')) {
-      // Yellow cards query
-      return [{ playerName: playerData.playerName, value: playerData.yellowCards }];
-    } else if (queryLower.includes('sum') && queryLower.includes('redcard')) {
-      // Red cards query
-      return [{ playerName: playerData.playerName, value: playerData.redCards }];
-    } else if (queryLower.includes('sum') && queryLower.includes('cleansheet')) {
-      // Clean sheets query
-      return [{ playerName: playerData.playerName, value: playerData.cleanSheets }];
-    } else if (queryLower.includes('sum') && queryLower.includes('penaltiesscored')) {
-      // Penalties scored query
-      return [{ playerName: playerData.playerName, value: playerData.penaltiesScored }];
-    } else if (queryLower.includes('sum') && queryLower.includes('penaltiesmissed')) {
-      // Penalties missed query
-      return [{ playerName: playerData.playerName, value: playerData.penaltiesMissed }];
-    } else if (queryLower.includes('sum') && queryLower.includes('fantasypoints')) {
-      // Fantasy points query
-      return [{ playerName: playerData.playerName, value: playerData.fantasyPoints }];
-    } else if (queryLower.includes('sum') && queryLower.includes('minutes')) {
-      // Minutes query (mock data)
-      return [{ playerName: playerData.playerName, value: playerData.appearances * 90 }];
-    } else if (queryLower.includes('sum') && queryLower.includes('mom')) {
-      // Man of the match query (mock data)
-      return [{ playerName: playerData.playerName, value: Math.floor(playerData.appearances / 10) }];
-    } else if (queryLower.includes('sum') && queryLower.includes('saves')) {
-      // Saves query (mock data for goalkeepers)
-      return [{ playerName: playerData.playerName, value: Math.floor(playerData.appearances * 3) }];
-    } else if (queryLower.includes('sum') && queryLower.includes('owngoals')) {
-      // Own goals query (mock data)
-      return [{ playerName: playerData.playerName, value: Math.floor(playerData.appearances / 20) }];
-    } else if (queryLower.includes('sum') && queryLower.includes('conceded')) {
-      // Conceded goals query (mock data)
-      return [{ playerName: playerData.playerName, value: Math.floor(playerData.appearances * 1.5) }];
+    // Aggregation queries
+    if (query.includes('sum(') || query.includes('count(')) {
+      const playerName = params.playerName;
+      if (playerName && MOCK_PLAYER_STATS[playerName]) {
+        const stats = MOCK_PLAYER_STATS[playerName];
+        
+        if (query.includes('goals')) {
+          return { records: [{ get: () => ({ low: stats.goals }) }] };
+        }
+        if (query.includes('assists')) {
+          return { records: [{ get: () => ({ low: stats.assists }) }] };
+        }
+        if (query.includes('appearances')) {
+          return { records: [{ get: () => ({ low: stats.appearances }) }] };
+        }
+      }
     }
 
-    // Default fallback
-    return [{ playerName: playerData.playerName, value: 0 }];
+    // Default empty response
+    return { records: [] };
   }
 
-  async close(): Promise<void> {
-    this.connected = false;
-  }
-
-  isConnected(): boolean {
-    return this.connected;
+  getConnectionStatus(): boolean {
+    return this.isConnected;
   }
 }
 
-// Mock factory function
-export function createMockNeo4jService(testData: TestPlayerData[]): MockNeo4jService {
-  return new MockNeo4jService(testData);
-}
+// Export singleton instance
+export const mockNeo4jService = new MockNeo4jService();
