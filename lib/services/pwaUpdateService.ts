@@ -16,6 +16,9 @@ class PWAUpdateService {
 	}
 
 	private initializeUpdateListener() {
+		// Only run on client side
+		if (typeof window === 'undefined') return;
+
 		// Listen for the beforeinstallprompt event
 		window.addEventListener('beforeinstallprompt', (e) => {
 			e.preventDefault();
@@ -38,6 +41,12 @@ class PWAUpdateService {
 
 	public checkForUpdates(): Promise<UpdateInfo> {
 		return new Promise((resolve) => {
+			// Only run on client side
+			if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+				resolve({ isUpdateAvailable: false });
+				return;
+			}
+
 			if ('serviceWorker' in navigator) {
 				navigator.serviceWorker.getRegistration().then((registration) => {
 					if (registration) {
@@ -81,6 +90,9 @@ class PWAUpdateService {
 	}
 
 	public async performUpdate(): Promise<boolean> {
+		// Only run on client side
+		if (typeof window === 'undefined') return false;
+
 		if (this.deferredPrompt) {
 			this.deferredPrompt.prompt();
 			const { outcome } = await this.deferredPrompt.userChoice;

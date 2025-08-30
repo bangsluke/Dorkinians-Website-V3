@@ -12,9 +12,11 @@ import {
 	ArrowPathIcon
 } from "@heroicons/react/24/outline";
 import Header from "@/components/Header";
-import { pwaUpdateService } from "@/lib/services/pwaUpdateService";
-import UpdateToast from "@/components/UpdateToast";
 import { appConfig } from "@/lib/config/app";
+import dynamic from "next/dynamic";
+
+// Dynamically import PWA components to avoid SSR issues
+const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
 
 const navigationItems = [
 	{ 
@@ -96,6 +98,8 @@ export default function SettingsPage() {
 		setUpdateStatus(null);
 		
 		try {
+			// Dynamically import PWA service to avoid SSR issues
+			const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
 			const updateInfo = await pwaUpdateService.checkForUpdates();
 			if (updateInfo.isUpdateAvailable) {
 				setUpdateStatus(`Update available: Version ${updateInfo.version}`);
