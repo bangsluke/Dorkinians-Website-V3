@@ -6,8 +6,8 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
 import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
-import TOTW from "@/components/pages/TOTW";
-import ClubInfo from "@/components/pages/ClubInfo";
+import TOTWContainer from "@/components/TOTWContainer";
+import ClubInfoContainer from "@/components/ClubInfoContainer";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 
@@ -130,10 +130,10 @@ export default function HomePage() {
 				return <StatsContainer />;
 
 			case "totw":
-				return <TOTW />;
+				return <TOTWContainer />;
 
 			case "club-info":
-				return <ClubInfo />;
+				return <ClubInfoContainer />;
 
 			default:
 				return null;
