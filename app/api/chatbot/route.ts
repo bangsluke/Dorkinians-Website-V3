@@ -39,6 +39,9 @@ export async function POST(request: NextRequest) {
 		// Process the question with enhanced debugging
 		const response = await chatbotService.processQuestion(body);
 
+		// Get the detailed processing information that was captured during execution
+		const processingDetails = await chatbotService.getProcessingDetails();
+
 		// Add comprehensive debugging information to the response for client-side visibility
 		const debugResponse = {
 			...response,
@@ -49,9 +52,10 @@ export async function POST(request: NextRequest) {
 				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || 'None'}`,
 				// Add detailed processing information
 				processingDetails: {
-					questionAnalysis: await chatbotService.getQuestionAnalysis(body.question, body.userContext),
-					cypherQueries: await chatbotService.getExecutedQueries(),
-					processingSteps: await chatbotService.getProcessingSteps()
+					questionAnalysis: processingDetails.questionAnalysis,
+					cypherQueries: processingDetails.cypherQueries,
+					processingSteps: processingDetails.processingSteps,
+					queryBreakdown: processingDetails.queryBreakdown
 				}
 			}
 		};
@@ -63,7 +67,6 @@ export async function POST(request: NextRequest) {
 		// Return a user-friendly error response
 		const errorResponse = {
 			answer: "I'm sorry, I'm having trouble processing your question right now. Please try again in a moment.",
-			confidence: 0.1,
 			sources: [],
 			visualization: undefined,
 		};

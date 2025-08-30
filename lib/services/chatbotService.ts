@@ -1,5 +1,12 @@
 import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import natural from 'natural';
+import nlp from 'compromise';
+import { 
+	getAppropriateVerb, 
+	getResponseTemplate, 
+	formatNaturalResponse
+} from "../config/naturalLanguageResponses";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -9,7 +16,6 @@ export interface ChatbotResponse {
 		data: any;
 		config?: any;
 	};
-	confidence: number;
 	sources: string[];
 }
 
@@ -26,6 +32,7 @@ export class ChatbotService {
 	private lastQuestionAnalysis: any = null;
 	private lastExecutedQueries: string[] = [];
 	private lastProcessingSteps: string[] = [];
+	private lastQueryBreakdown: any = null;
 
 	static getInstance(): ChatbotService {
 		if (!ChatbotService.instance) {
@@ -61,6 +68,7 @@ export class ChatbotService {
 		this.lastQuestionAnalysis = null;
 		this.lastExecutedQueries = [];
 		this.lastProcessingSteps = [];
+		this.lastQueryBreakdown = null;
 		
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
@@ -78,20 +86,32 @@ export class ChatbotService {
 			const connected = await neo4jService.connect();
 			if (!connected) {
 				console.error("❌ Neo4j connection failed in production");
-				return {
-					answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
-					confidence: 0,
-					sources: [],
-				};
+							return {
+				answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
+				sources: [],
+			};
 			}
 
-			// Analyze the question
-			const analysis = this.analyzeQuestion(context.question, context.userContext);
-			this.lastQuestionAnalysis = analysis; // Store for debugging
-			this.logToBoth(`🔍 Question analysis:`, analysis);
-			
-			// Client-side logging for question analysis
-			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
+					// Analyze the question
+		const analysis = this.analyzeQuestion(context.question, context.userContext);
+		this.lastQuestionAnalysis = analysis; // Store for debugging
+		
+		// Create detailed breakdown for debugging
+		this.lastQueryBreakdown = {
+			playerName: context.userContext || 'None',
+			team: analysis.entities.find(e => /\d+(?:st|nd|rd|th)?/.test(e)) || 'None',
+			statEntity: analysis.metrics[0] || 'None',
+			questionType: analysis.type,
+			extractedEntities: analysis.entities,
+			extractedMetrics: analysis.metrics
+		};
+		
+		this.logToBoth(`🔍 Question analysis:`, analysis);
+		this.logToBoth(`🔍 Query breakdown:`, this.lastQueryBreakdown);
+		
+		// Client-side logging for question analysis
+		console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
+		console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
@@ -112,7 +132,6 @@ export class ChatbotService {
 			this.logToBoth("❌ Error processing question:", error, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
-				confidence: 0,
 				sources: [],
 			};
 		}
@@ -214,11 +233,16 @@ export class ChatbotService {
 			// No fallback - if no context, entities will remain empty
 		}
 
-		// Pattern 5: Team-specific questions like "3rd team" or "2s"
-		if (entities.length === 0) {
-			const teamMatch = question.match(/(\d+(?:st|nd|rd|th)?)\s*team/);
-			if (teamMatch) {
-				entities.push(teamMatch[1]);
+		// Enhanced team pattern recognition using Compromise and Natural
+		// Pattern 5: Team-specific questions with enhanced matching
+		if (entities.length === 0 || this.isTeamQuestion(question)) {
+			const extractedTeam = this.extractTeamEntity(question);
+			if (extractedTeam) {
+				if (entities.length > 0) {
+					entities[0] = extractedTeam; // Replace first entity with team
+				} else {
+					entities.push(extractedTeam);
+				}
 			}
 		}
 
@@ -562,26 +586,24 @@ export class ChatbotService {
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
 		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
-		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
-		const teamName = `${teamNumber} Team`;
+		// Enhanced team name normalization using Natural library
+		const teamName = this.normalizeTeamName(teamNumber);
 		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
 		
-		// Log the exact team number format for debugging
-		this.logToBoth(`🔍 Team number format analysis:`, {
+		// Log the team normalization process for debugging
+		this.logToBoth(`🔍 Team normalization analysis:`, {
 			original: teamNumber,
-			length: teamNumber.length,
-			containsNumbers: /\d/.test(teamNumber),
-			containsOrdinal: /(st|nd|rd|th)/.test(teamNumber),
-			finalTeamName: teamName
+			normalized: teamName,
+			normalizationMethod: this.getNormalizationMethod(teamNumber, teamName)
 		});
 
-		// First, let's check what teams actually exist in the Fixture data
+		// First, let's check what teams actually exist in the MatchDetail data
 		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
 		const diagnosticQuery = `
-			MATCH (f:Fixture)
-			WHERE f.team IS NOT NULL
-			RETURN DISTINCT f.team as teamName
-			ORDER BY f.team
+			MATCH (md:MatchDetail)
+			WHERE md.team IS NOT NULL
+			RETURN DISTINCT md.team as teamName
+			ORDER BY md.team
 		`;
 		
 		// Log the diagnostic query for client-side debugging
@@ -594,7 +616,7 @@ export class ChatbotService {
 			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
 			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
-			this.logToBoth(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
+			this.logToBoth(`🔍 Available teams in MatchDetail data:`, diagnosticResult.map(r => r.teamName));
 			
 			// Check if our target team exists
 			const teamExists = diagnosticResult.some(r => r.teamName === teamName);
@@ -617,39 +639,57 @@ export class ChatbotService {
 		}
 
 		// Now build the actual query using the correct data structure
-		// We'll query MatchDetail nodes directly, filtering by team property
+		// We'll query MatchDetail nodes directly, filtering by team property AND player context
 		const query = `
-			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 			WHERE md.team = $teamName
 			WITH p, md
 			RETURN p.playerName as playerName, 
-				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} != "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
+				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} <> "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
 				   count(md) as appearances
-			ORDER BY value DESC
-			LIMIT 10
 		`;
+
+		// Create detailed query breakdown for debugging
+		const queryBreakdown = {
+			playerName: this.lastQueryBreakdown?.playerName || 'Unknown',
+			team: teamName,
+			statEntity: metric,
+			metricField: this.getMetricField(metric),
+			fullCypherQuery: query,
+			queryParameters: { teamName, metric, metricField: this.getMetricField(metric) },
+			queryExplanation: `Querying MatchDetail nodes for team "${teamName}" to find players with highest ${metric} (${this.getMetricField(metric)})`
+		};
+		
+		// Update the query breakdown with the actual query details
+		this.lastQueryBreakdown = { ...this.lastQueryBreakdown, ...queryBreakdown };
 
 		this.logToBoth(`🔍 Final team-specific query:`, query);
 		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
+		this.logToBoth(`🔍 Query breakdown:`, queryBreakdown);
 		
 		// Log the main Cypher query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
 		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
+		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, queryBreakdown);
 		
 		// Store query for debugging
 		this.lastExecutedQueries.push(`MAIN: ${query}`);
 		this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ teamName, metric, metricField: this.getMetricField(metric) })}`);
+		this.lastExecutedQueries.push(`BREAKDOWN: ${JSON.stringify(queryBreakdown)}`);
 
 		try {
-			const result = await neo4jService.executeQuery(query, { teamName });
+			// Get the player name from the query breakdown context
+			const playerName = this.lastQueryBreakdown?.playerName || 'Unknown';
+			
+			const result = await neo4jService.executeQuery(query, { teamName, playerName });
 			this.logToBoth(`🔍 Team-specific query result:`, result);
 			
 			if (result && result.length > 0) {
-				this.logToBoth(`🔍 Found ${result.length} players for team ${teamName}`);
-				return { type: "team_specific", data: result, teamName, metric };
+				this.logToBoth(`🔍 Found ${result.length} results for ${playerName} in team ${teamName}`);
+				return { type: "team_specific", data: result, teamName, metric, playerName };
 			} else {
-				this.logToBoth(`🔍 No players found for team ${teamName}`);
-				return { type: "team_specific", data: [], teamName, metric, message: `No players found for team ${teamName}` };
+				this.logToBoth(`🔍 No results found for ${playerName} in team ${teamName}`);
+				return { type: "team_specific", data: [], teamName, metric, playerName, message: `No results found for ${playerName} in team ${teamName}` };
 			}
 		} catch (error: any) {
 			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
@@ -677,6 +717,172 @@ export class ChatbotService {
 			FTP: "fantasyPoints",
 		};
 		return fieldMap[metric] || "goals";
+	}
+
+	/**
+	 * Enhanced team name normalization using Natural library for fuzzy matching
+	 * Handles various team name formats: "3rd", "3s", "Thirds", "3", etc.
+	 */
+	private normalizeTeamName(input: string): string {
+		const lowerInput = input.toLowerCase().trim();
+		
+		// Direct ordinal matches
+		const ordinalMatch = lowerInput.match(/^(\d+)(?:st|nd|rd|th)?$/);
+		if (ordinalMatch) {
+			const number = parseInt(ordinalMatch[1]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Abbreviated forms like "3s", "2s"
+		const abbreviatedMatch = lowerInput.match(/^(\d+)s?$/);
+		if (abbreviatedMatch) {
+			const number = parseInt(abbreviatedMatch[1]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Word-based forms like "Thirds", "Seconds", "Firsts"
+		const wordForms: { [key: string]: string } = {
+			'first': '1st XI',
+			'firsts': '1st XI',
+			'second': '2nd XI',
+			'seconds': '2nd XI',
+			'third': '3rd XI',
+			'thirds': '3rd XI',
+			'fourth': '4th XI',
+			'fourths': '4th XI',
+			'fifth': '5th XI',
+			'fifths': '5th XI',
+			'sixth': '6th XI',
+			'sixths': '6th XI',
+			'seventh': '7th XI',
+			'sevenths': '7th XI',
+			'eighth': '8th XI',
+			'eighths': '8th XI',
+			'vets': 'Vets XI',
+			'veterans': 'Vets XI'
+		};
+
+		if (wordForms[lowerInput]) {
+			return wordForms[lowerInput];
+		}
+
+		// Fuzzy matching for close matches
+		const teamNames = Object.keys(wordForms);
+		const bestMatch = teamNames.reduce((best, current) => {
+			const distance = natural.JaroWinklerDistance(lowerInput, current);
+			return distance > best.score ? { name: current, score: distance } : best;
+		}, { name: '', score: 0 });
+
+		// If we have a good fuzzy match (threshold: 0.8)
+		if (bestMatch.score > 0.8) {
+			return wordForms[bestMatch.name];
+		}
+
+		// Fallback: try to extract number and convert to ordinal
+		const numberMatch = lowerInput.match(/\d+/);
+		if (numberMatch) {
+			const number = parseInt(numberMatch[0]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Final fallback: return as-is with XI suffix
+		return `${input} XI`;
+	}
+
+	/**
+	 * Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
+	 */
+	private getOrdinalSuffix(num: number): string {
+		const j = num % 10;
+		const k = num % 100;
+		if (j === 1 && k !== 11) return 'st';
+		if (j === 2 && k !== 12) return 'nd';
+		if (j === 3 && k !== 13) return 'rd';
+		return 'th';
+	}
+
+	/**
+	 * Check if the question is about a specific team
+	 */
+	private isTeamQuestion(question: string): boolean {
+		const lowerQuestion = question.toLowerCase();
+		
+		// Team-related keywords
+		const teamKeywords = [
+			'team', 's', 'st', 'nd', 'rd', 'th',
+			'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth',
+			'firsts', 'seconds', 'thirds', 'fourths', 'fifths', 'sixths', 'sevenths', 'eighths',
+			'vets', 'veterans'
+		];
+		
+		return teamKeywords.some(keyword => lowerQuestion.includes(keyword));
+	}
+
+	/**
+	 * Extract team entity using Compromise for better NLP parsing
+	 */
+	private extractTeamEntity(question: string): string | null {
+		// Use Compromise to parse the question
+		const doc = nlp(question);
+		
+		// Look for numbers
+		const numbers = doc.numbers().out('array');
+		
+		// Look for team-related words
+		const teamWords = doc.match('(first|second|third|fourth|fifth|sixth|seventh|eighth|vets|veterans)').out('array');
+		
+		// Priority 1: Team words (e.g., "thirds", "seconds")
+		if (teamWords.length > 0) {
+			return teamWords[0];
+		}
+		
+		// Priority 2: Numbers followed by 's' or 'team' (e.g., "3s", "3 team")
+		if (numbers.length > 0) {
+			const number = numbers[0];
+			const afterNumber = question.substring(question.indexOf(number) + number.length).trim();
+			
+			// Check if followed by 's', 'team', or space
+			if (afterNumber.startsWith('s') || afterNumber.startsWith(' team') || afterNumber.startsWith(' ')) {
+				return number;
+			}
+		}
+		
+		// Priority 3: Regex fallback for complex patterns
+		const patterns = [
+			/(\d+(?:st|nd|rd|th)?)\s*team/,           // "3rd team"
+			/for the (\d+(?:st|nd|rd|th)?)\s*team/,   // "for the 3rd team"
+			/(\d+)s/,                                  // "3s"
+			/for the (\d+)s/,                          // "for the 3s"
+			/for the (\d+)/,                           // "for the 3"
+			/(\d+)\s*team/                             // "3 team"
+		];
+		
+		for (const pattern of patterns) {
+			const match = question.match(pattern);
+			if (match) {
+				return match[1];
+			}
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Get the method used for team name normalization (for debugging)
+	 */
+	private getNormalizationMethod(original: string, normalized: string): string {
+		const lowerOriginal = original.toLowerCase().trim();
+		
+		if (lowerOriginal.match(/^\d+(?:st|nd|rd|th)?$/)) return 'ordinal_match';
+		if (lowerOriginal.match(/^\d+s?$/)) return 'abbreviated_match';
+		if (['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'vets', 'veterans'].includes(lowerOriginal)) return 'word_form_match';
+		if (natural.JaroWinklerDistance(lowerOriginal, 'third') > 0.8) return 'fuzzy_match';
+		if (lowerOriginal.match(/\d+/)) return 'number_extraction';
+		
+		return 'fallback';
 	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
@@ -834,7 +1040,6 @@ export class ChatbotService {
 			}
 			return {
 				answer,
-				confidence: 0.15, // Never show 0% confidence
 				sources: [], // Always hide technical sources
 				visualization,
 			};
@@ -851,9 +1056,56 @@ export class ChatbotService {
 				const metric = data.metric;
 				const value = playerData.value;
 
-				// Use the metric configuration for proper display names
+				// Get appearances for context (excluding assists and appearances themselves)
+				let appearancesContext = "";
+				if (metric !== "A" && metric !== "APP") {
+					try {
+						const appearancesQuery = `
+							MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+							RETURN count(md) as appearances
+						`;
+						const appearancesResult = await neo4jService.executeQuery(appearancesQuery, { playerName });
+						if (appearancesResult && appearancesResult.length > 0) {
+							const appearances = appearancesResult[0].appearances;
+							appearancesContext = ` in ${appearances} appearance${appearances !== 1 ? 's' : ''}`;
+						}
+					} catch (error) {
+						this.logToBoth(`⚠️ Could not fetch appearances for ${playerName}:`, error);
+					}
+				}
+
+				// Use natural language response generation with appearances context
 				const metricName = getMetricDisplayName(metric, value);
-				answer = `${playerName} has ${value} ${metricName}.`;
+				
+				// Get appearances count for template
+				let appearancesCount: number | undefined;
+				if (appearancesContext) {
+					const match = appearancesContext.match(/in (\d+) appearance/);
+					if (match) {
+						appearancesCount = parseInt(match[1]);
+					}
+				}
+				
+				// Use template with appearances if available, otherwise fallback
+				let template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
+				if (!template || !appearancesCount) {
+					template = getResponseTemplate('player_stats', 'Basic player statistics');
+				}
+				
+				if (template) {
+					answer = formatNaturalResponse(
+						template.template,
+						playerName,
+						metric,
+						value,
+						metricName,
+						undefined, // teamName
+						appearancesCount
+					);
+				} else {
+					// Fallback to simple format with appearances
+					answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${value} ${metricName}${appearancesContext}.`;
+				}
 			} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
 				// Team-specific query (e.g., "3rd team goals")
 				const teamName = data.teamName;
@@ -861,11 +1113,66 @@ export class ChatbotService {
 				const topPlayer = data.data[0];
 				const metricName = getMetricDisplayName(metric, topPlayer.value);
 
-				answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+				// Check if user asked for "the most" or similar superlative terms
+				const questionLower = question.toLowerCase();
+				const usesSuperlative = questionLower.includes("the most") || 
+					questionLower.includes("highest") || 
+					questionLower.includes("best") || 
+					questionLower.includes("top");
+				
+				if (usesSuperlative) {
+					// Use comparison template for superlative questions
+					const template = getResponseTemplate('comparison', 'Player comparison (highest)');
+					if (template) {
+						answer = formatNaturalResponse(
+							template.template,
+							topPlayer.playerName,
+							metric,
+							topPlayer.value,
+							metricName,
+							teamName
+						);
+						// Replace team context since comparison template doesn't have it
+						answer = `For the ${teamName}, ${answer}`;
+					} else {
+						answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+					}
+				} else {
+					// Use team-specific template for regular questions
+					const template = getResponseTemplate('team_specific', 'Team-specific player statistics');
+					if (template) {
+						answer = formatNaturalResponse(
+							template.template,
+							topPlayer.playerName,
+							metric,
+							topPlayer.value,
+							metricName,
+							teamName
+						);
+						// Add appearances context if available and not assists/appearances
+						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+							answer = answer.replace('.', ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}.`);
+						}
+					} else {
+						// Add appearances context if available and not assists/appearances
+						let appearancesContext = "";
+						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+							appearancesContext = ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}`;
+						}
+						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}${appearancesContext}.`;
+					}
+				}
 
+				// Sanitize data for visualization to prevent React errors
+				const sanitizedData = data.data.map((item: any) => ({
+					playerName: String(item.playerName || 'Unknown'),
+					value: Number(item.value || 0),
+					appearances: Number(item.appearances || 0)
+				}));
+				
 				visualization = {
 					type: "table",
-					data: data.data,
+					data: sanitizedData,
 					config: { columns: ["playerName", "value", "appearances"] },
 				};
 			} else if (data && data.type === "team_not_found") {
@@ -1029,7 +1336,6 @@ export class ChatbotService {
 
 		return {
 			answer,
-			confidence: data.length > 0 ? 0.85 : 0.15, // High confidence when data found, never 0%
 			sources: [], // Always hide technical sources as per mandatory rules
 			visualization,
 		};
@@ -1157,6 +1463,15 @@ export class ChatbotService {
 	
 	public getProcessingSteps(): string[] {
 		return this.lastProcessingSteps;
+	}
+	
+	public getProcessingDetails(): any {
+		return {
+			questionAnalysis: this.lastQuestionAnalysis,
+			cypherQueries: this.lastExecutedQueries,
+			processingSteps: this.lastProcessingSteps,
+			queryBreakdown: this.lastQueryBreakdown
+		};
 	}
 }
 

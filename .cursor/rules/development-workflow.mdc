@@ -98,6 +98,13 @@ alwaysApply: true
 - **Specific-Before-General Logic**: In conditional logic systems, always check specific conditions before general ones to prevent false matches
 - **Multiple Question Format Support**: Design natural language interfaces to handle various question formats users naturally employ
 - **Type Detection Comprehensiveness**: When extending functionality to new domains, ensure all type detection logic is updated comprehensively
+- **Response Intent Matching**: Response language should mirror user's question structure and terminology - only use superlative language when user explicitly requests it
+- **Question Pattern Analysis**: Question analysis must handle all variations of user input patterns - implement comprehensive pattern matching for entity extraction
+
+## Data Architecture & Validation
+- **Data Schema Validation Protocol**: Always verify database schema matches code assumptions before implementing queries - run diagnostic queries to confirm data structure before building production logic
+- **Frontend Data Sanitization**: Sanitize all data before passing to React components to prevent runtime errors - convert database values to appropriate JavaScript types with fallbacks
+- **Data Structure Verification**: Validate data structure at each pipeline boundary to catch issues early and provide clear error messages
 
 - **Tool Error Handling**: Always have a fallback approach when automated tools encounter issues
 - **Verification Protocol**: Verify all changes were applied correctly before proceeding to next steps
