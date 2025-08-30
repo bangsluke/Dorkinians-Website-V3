@@ -1,6 +1,6 @@
 export default function PlayerStats() {
 	return (
-		<div className='p-6 text-center'>
+		<div className='p-4 text-center'>
 			<h2 className='text-2xl font-bold text-white mb-4'>Player Stats</h2>
 			<p className='text-white'>Player statistics and performance data will be displayed here.</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>

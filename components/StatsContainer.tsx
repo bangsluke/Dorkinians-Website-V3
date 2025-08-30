@@ -37,12 +37,12 @@ export default function StatsContainer() {
 	return (
 		<div className='h-full overflow-hidden'>
 			{/* Stats Sub-Page Dot Indicators */}
-			<div className='flex justify-center space-x-3 py-6'>
+			<div className='flex justify-center space-x-3 py-4 pb-0'>
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
 						onClick={() => setStatsSubPage(page.id)}
-						className={`w-3 h-3 rounded-full transition-all duration-200 ${
+						className={`w-2 h-2 rounded-full transition-all duration-200 ${
 							currentStatsSubPage === page.id 
 								? "bg-dorkinians-yellow scale-125" 
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"

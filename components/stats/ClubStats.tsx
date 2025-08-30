@@ -1,6 +1,6 @@
 export default function ClubStats() {
 	return (
-		<div className='p-6 text-center'>
+		<div className='p-4 text-center'>
 			<h2 className='text-2xl font-bold text-white mb-4'>Club Stats</h2>
 			<p className='text-white'>Overall club statistics and achievements will be displayed here.</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>

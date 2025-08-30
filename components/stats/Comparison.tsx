@@ -1,6 +1,6 @@
 export default function Comparison() {
 	return (
-		<div className='p-6 text-center'>
+		<div className='p-4 text-center'>
 			<h2 className='text-2xl font-bold text-white mb-4'>Player Comparison</h2>
 			<p className='text-white'>Compare statistics between different players will be displayed here.</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
