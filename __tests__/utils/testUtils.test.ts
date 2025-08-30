@@ -10,6 +10,17 @@ describe('TestUtils Debug Tests', () => {
   test('STAT_TEST_CONFIGS should have 70 entries', () => {
     console.log('🔍 STAT_TEST_CONFIGS length:', STAT_TEST_CONFIGS.length);
     console.log('🔍 STAT_TEST_CONFIGS keys:', STAT_TEST_CONFIGS.map(config => config.key));
+    
+    // Check for any undefined or null entries
+    const validEntries = STAT_TEST_CONFIGS.filter(entry => entry && entry.key);
+    console.log('🔍 Valid entries:', validEntries.length);
+    
+    // Check for any malformed entries
+    const malformedEntries = STAT_TEST_CONFIGS.filter(entry => !entry || !entry.key || !entry.metric);
+    if (malformedEntries.length > 0) {
+      console.log('⚠️ Malformed entries:', malformedEntries);
+    }
+    
     expect(STAT_TEST_CONFIGS.length).toBe(70);
   });
 
@@ -34,5 +45,19 @@ describe('TestUtils Debug Tests', () => {
     const validation = validateResponse(response, 78, statConfig, 'Luke Bangs');
     console.log('🔍 Validation result:', validation);
     expect(validation.isValid).toBe(true);
+  });
+
+  test('All stat configs should have required properties', () => {
+    STAT_TEST_CONFIGS.forEach((config, index) => {
+      expect(config).toHaveProperty('key');
+      expect(config).toHaveProperty('metric');
+      expect(config).toHaveProperty('questionTemplate');
+      expect(config).toHaveProperty('responsePattern');
+      expect(config).toHaveProperty('description');
+      
+      if (!config.key || !config.metric) {
+        console.log(`⚠️ Entry ${index} missing required properties:`, config);
+      }
+    });
   });
 });
