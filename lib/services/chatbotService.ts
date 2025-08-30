@@ -230,10 +230,27 @@ export class ChatbotService {
 		}
 
 		// Pattern 5: Team-specific questions like "3rd team" or "2s"
-		if (entities.length === 0) {
-			const teamMatch = question.match(/(\d+(?:st|nd|rd|th)?)\s*team/);
-			if (teamMatch) {
+		// Always check for team patterns, regardless of existing entities
+		const teamMatch = question.match(/(\d+(?:st|nd|rd|th)?)\s*team/);
+		if (teamMatch) {
+			// If we already have entities, replace them with the team (for team-specific queries)
+			// If no entities, add the team
+			if (entities.length > 0) {
+				entities[0] = teamMatch[1]; // Replace first entity with team
+			} else {
 				entities.push(teamMatch[1]);
+			}
+		}
+		
+		// Pattern 5b: "for the X team" format
+		const forTeamMatch = question.match(/for the (\d+(?:st|nd|rd|th)?)\s*team/);
+		if (forTeamMatch) {
+			// If we already have entities, replace them with the team
+			// If no entities, add the team
+			if (entities.length > 0) {
+				entities[0] = forTeamMatch[1]; // Replace first entity with team
+			} else {
+				entities.push(forTeamMatch[1]);
 			}
 		}
 
@@ -577,8 +594,8 @@ export class ChatbotService {
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
 		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
-		// Convert team number to team name (e.g., "3rd" -> "3rd Team")
-		const teamName = `${teamNumber} Team`;
+		// Convert team number to team name (e.g., "3rd" -> "3rd XI")
+		const teamName = `${teamNumber} XI`;
 		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
 		
 		// Log the exact team number format for debugging
@@ -590,13 +607,13 @@ export class ChatbotService {
 			finalTeamName: teamName
 		});
 
-		// First, let's check what teams actually exist in the Fixture data
+		// First, let's check what teams actually exist in the MatchDetail data
 		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
 		const diagnosticQuery = `
-			MATCH (f:Fixture)
-			WHERE f.team IS NOT NULL
-			RETURN DISTINCT f.team as teamName
-			ORDER BY f.team
+			MATCH (md:MatchDetail)
+			WHERE md.team IS NOT NULL
+			RETURN DISTINCT md.team as teamName
+			ORDER BY md.team
 		`;
 		
 		// Log the diagnostic query for client-side debugging
@@ -609,7 +626,7 @@ export class ChatbotService {
 			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
 			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
-			this.logToBoth(`🔍 Available teams in Fixture data:`, diagnosticResult.map(r => r.teamName));
+			this.logToBoth(`🔍 Available teams in MatchDetail data:`, diagnosticResult.map(r => r.teamName));
 			
 			// Check if our target team exists
 			const teamExists = diagnosticResult.some(r => r.teamName === teamName);
@@ -632,16 +649,14 @@ export class ChatbotService {
 		}
 
 		// Now build the actual query using the correct data structure
-		// We'll query MatchDetail nodes directly, filtering by team property
+		// We'll query MatchDetail nodes directly, filtering by team property AND player context
 		const query = `
-			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 			WHERE md.team = $teamName
 			WITH p, md
 			RETURN p.playerName as playerName, 
-				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} != "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
+				   sum(CASE WHEN md.${this.getMetricField(metric)} IS NOT NULL AND md.${this.getMetricField(metric)} <> "" THEN toInteger(md.${this.getMetricField(metric)}) ELSE 0 END) as value,
 				   count(md) as appearances
-			ORDER BY value DESC
-			LIMIT 10
 		`;
 
 		// Create detailed query breakdown for debugging
@@ -673,15 +688,18 @@ export class ChatbotService {
 		this.lastExecutedQueries.push(`BREAKDOWN: ${JSON.stringify(queryBreakdown)}`);
 
 		try {
-			const result = await neo4jService.executeQuery(query, { teamName });
+			// Get the player name from the query breakdown context
+			const playerName = this.lastQueryBreakdown?.playerName || 'Unknown';
+			
+			const result = await neo4jService.executeQuery(query, { teamName, playerName });
 			this.logToBoth(`🔍 Team-specific query result:`, result);
 			
 			if (result && result.length > 0) {
-				this.logToBoth(`🔍 Found ${result.length} players for team ${teamName}`);
-				return { type: "team_specific", data: result, teamName, metric };
+				this.logToBoth(`🔍 Found ${result.length} results for ${playerName} in team ${teamName}`);
+				return { type: "team_specific", data: result, teamName, metric, playerName };
 			} else {
-				this.logToBoth(`🔍 No players found for team ${teamName}`);
-				return { type: "team_specific", data: [], teamName, metric, message: `No players found for team ${teamName}` };
+				this.logToBoth(`🔍 No results found for ${playerName} in team ${teamName}`);
+				return { type: "team_specific", data: [], teamName, metric, playerName, message: `No results found for ${playerName} in team ${teamName}` };
 			}
 		} catch (error: any) {
 			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
