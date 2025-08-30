@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type MainPage = "home" | "stats" | "totw" | "club-info";
+export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "match-information" | "club-captains" | "club-awards" | "useful-links";

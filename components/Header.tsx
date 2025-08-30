@@ -1,15 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Cog6ToothIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Image from "next/image";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
+	isSettingsPage?: boolean;
 }
 
-export default function Header({ onSettingsClick }: HeaderProps) {
+export default function Header({ onSettingsClick, isSettingsPage = false }: HeaderProps) {
 	const { setMainPage } = useNavigationStore();
 
 	const handleLogoClick = () => {
@@ -42,13 +43,18 @@ export default function Header({ onSettingsClick }: HeaderProps) {
 					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
 				</motion.div>
 
-				{/* Settings Icon */}
+				{/* Settings/Close Icon */}
 				<motion.button
 					onClick={onSettingsClick}
 					className='p-2 rounded-full hover:bg-white/20 transition-colors'
 					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.9 }}>
-					<Cog6ToothIcon className='w-6 h-6 text-white' />
+					whileTap={{ scale: 0.9 }}
+					title={isSettingsPage ? "Close settings" : "Open settings"}>
+					{isSettingsPage ? (
+						<XMarkIcon className='w-6 h-6 text-white' />
+					) : (
+						<Cog6ToothIcon className='w-6 h-6 text-white' />
+					)}
 				</motion.button>
 			</div>
 		</motion.header>

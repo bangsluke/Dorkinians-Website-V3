@@ -8,10 +8,15 @@ import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
 import TOTWContainer from "@/components/TOTWContainer";
 import ClubInfoContainer from "@/components/ClubInfoContainer";
+import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 
 export default function HomePage() {
-	const { currentMainPage } = useNavigationStore();
+	const { currentMainPage, setMainPage } = useNavigationStore();
+
+	const handleSettingsClick = () => {
+		setMainPage("settings");
+	};
 
 	const renderCurrentPage = () => {
 		switch (currentMainPage) {
@@ -42,6 +47,9 @@ export default function HomePage() {
 			case "club-info":
 				return <ClubInfoContainer />;
 
+			case "settings":
+				return <Settings />;
+
 			default:
 				return null;
 		}
@@ -50,7 +58,7 @@ export default function HomePage() {
 	return (
 		<div className='min-h-screen bg-gray-50'>
 			{/* Header */}
-			<Header onSettingsClick={() => console.log("Settings clicked")} />
+			<Header onSettingsClick={handleSettingsClick} />
 
 			{/* Main Content */}
 			<main className='pt-20 pb-24 px-4 h-screen'>

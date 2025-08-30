@@ -8,11 +8,12 @@ import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
 import TOTWContainer from "@/components/TOTWContainer";
 import ClubInfoContainer from "@/components/ClubInfoContainer";
+import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 
 export default function HomePage() {
-	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage } = useNavigationStore();
+	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage, setMainPage } = useNavigationStore();
 	const [showChatbot, setShowChatbot] = useState(false);
 
 	// Initialize from localStorage after mount
@@ -40,6 +41,10 @@ export default function HomePage() {
 
 	const handleClearPlayer = () => {
 		// This function can be empty if not needed, but it's required by the component
+	};
+
+	const handleSettingsClick = () => {
+		window.location.href = "/settings";
 	};
 
 	const renderCurrentPage = () => {
@@ -135,6 +140,9 @@ export default function HomePage() {
 			case "club-info":
 				return <ClubInfoContainer />;
 
+			case "settings":
+				return <Settings />;
+
 			default:
 				return null;
 		}
@@ -143,7 +151,7 @@ export default function HomePage() {
 	return (
 		<div className='min-h-screen'>
 			{/* Header */}
-			<Header onSettingsClick={() => console.log("Settings clicked")} />
+			<Header onSettingsClick={handleSettingsClick} />
 
 			{/* Main Content */}
 			<main className='pt-20 pb-24 px-4 h-screen'>
