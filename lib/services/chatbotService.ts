@@ -1,5 +1,7 @@
 import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import natural from 'natural';
+import nlp from 'compromise';
 
 export interface ChatbotResponse {
 	answer: string;
@@ -229,28 +231,16 @@ export class ChatbotService {
 			// No fallback - if no context, entities will remain empty
 		}
 
-		// Pattern 5: Team-specific questions like "3rd team" or "2s"
-		// Always check for team patterns, regardless of existing entities
-		const teamMatch = question.match(/(\d+(?:st|nd|rd|th)?)\s*team/);
-		if (teamMatch) {
-			// If we already have entities, replace them with the team (for team-specific queries)
-			// If no entities, add the team
-			if (entities.length > 0) {
-				entities[0] = teamMatch[1]; // Replace first entity with team
-			} else {
-				entities.push(teamMatch[1]);
-			}
-		}
-		
-		// Pattern 5b: "for the X team" format
-		const forTeamMatch = question.match(/for the (\d+(?:st|nd|rd|th)?)\s*team/);
-		if (forTeamMatch) {
-			// If we already have entities, replace them with the team
-			// If no entities, add the team
-			if (entities.length > 0) {
-				entities[0] = forTeamMatch[1]; // Replace first entity with team
-			} else {
-				entities.push(forTeamMatch[1]);
+		// Enhanced team pattern recognition using Compromise and Natural
+		// Pattern 5: Team-specific questions with enhanced matching
+		if (entities.length === 0 || this.isTeamQuestion(question)) {
+			const extractedTeam = this.extractTeamEntity(question);
+			if (extractedTeam) {
+				if (entities.length > 0) {
+					entities[0] = extractedTeam; // Replace first entity with team
+				} else {
+					entities.push(extractedTeam);
+				}
 			}
 		}
 
@@ -594,17 +584,15 @@ export class ChatbotService {
 	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
 		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
-		// Convert team number to team name (e.g., "3rd" -> "3rd XI")
-		const teamName = `${teamNumber} XI`;
+		// Enhanced team name normalization using Natural library
+		const teamName = this.normalizeTeamName(teamNumber);
 		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
 		
-		// Log the exact team number format for debugging
-		this.logToBoth(`🔍 Team number format analysis:`, {
+		// Log the team normalization process for debugging
+		this.logToBoth(`🔍 Team normalization analysis:`, {
 			original: teamNumber,
-			length: teamNumber.length,
-			containsNumbers: /\d/.test(teamNumber),
-			containsOrdinal: /(st|nd|rd|th)/.test(teamNumber),
-			finalTeamName: teamName
+			normalized: teamName,
+			normalizationMethod: this.getNormalizationMethod(teamNumber, teamName)
 		});
 
 		// First, let's check what teams actually exist in the MatchDetail data
@@ -727,6 +715,172 @@ export class ChatbotService {
 			FTP: "fantasyPoints",
 		};
 		return fieldMap[metric] || "goals";
+	}
+
+	/**
+	 * Enhanced team name normalization using Natural library for fuzzy matching
+	 * Handles various team name formats: "3rd", "3s", "Thirds", "3", etc.
+	 */
+	private normalizeTeamName(input: string): string {
+		const lowerInput = input.toLowerCase().trim();
+		
+		// Direct ordinal matches
+		const ordinalMatch = lowerInput.match(/^(\d+)(?:st|nd|rd|th)?$/);
+		if (ordinalMatch) {
+			const number = parseInt(ordinalMatch[1]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Abbreviated forms like "3s", "2s"
+		const abbreviatedMatch = lowerInput.match(/^(\d+)s?$/);
+		if (abbreviatedMatch) {
+			const number = parseInt(abbreviatedMatch[1]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Word-based forms like "Thirds", "Seconds", "Firsts"
+		const wordForms: { [key: string]: string } = {
+			'first': '1st XI',
+			'firsts': '1st XI',
+			'second': '2nd XI',
+			'seconds': '2nd XI',
+			'third': '3rd XI',
+			'thirds': '3rd XI',
+			'fourth': '4th XI',
+			'fourths': '4th XI',
+			'fifth': '5th XI',
+			'fifths': '5th XI',
+			'sixth': '6th XI',
+			'sixths': '6th XI',
+			'seventh': '7th XI',
+			'sevenths': '7th XI',
+			'eighth': '8th XI',
+			'eighths': '8th XI',
+			'vets': 'Vets XI',
+			'veterans': 'Vets XI'
+		};
+
+		if (wordForms[lowerInput]) {
+			return wordForms[lowerInput];
+		}
+
+		// Fuzzy matching for close matches
+		const teamNames = Object.keys(wordForms);
+		const bestMatch = teamNames.reduce((best, current) => {
+			const distance = natural.JaroWinklerDistance(lowerInput, current);
+			return distance > best.score ? { name: current, score: distance } : best;
+		}, { name: '', score: 0 });
+
+		// If we have a good fuzzy match (threshold: 0.8)
+		if (bestMatch.score > 0.8) {
+			return wordForms[bestMatch.name];
+		}
+
+		// Fallback: try to extract number and convert to ordinal
+		const numberMatch = lowerInput.match(/\d+/);
+		if (numberMatch) {
+			const number = parseInt(numberMatch[0]);
+			const suffix = this.getOrdinalSuffix(number);
+			return `${number}${suffix} XI`;
+		}
+
+		// Final fallback: return as-is with XI suffix
+		return `${input} XI`;
+	}
+
+	/**
+	 * Get ordinal suffix for numbers (1st, 2nd, 3rd, etc.)
+	 */
+	private getOrdinalSuffix(num: number): string {
+		const j = num % 10;
+		const k = num % 100;
+		if (j === 1 && k !== 11) return 'st';
+		if (j === 2 && k !== 12) return 'nd';
+		if (j === 3 && k !== 13) return 'rd';
+		return 'th';
+	}
+
+	/**
+	 * Check if the question is about a specific team
+	 */
+	private isTeamQuestion(question: string): boolean {
+		const lowerQuestion = question.toLowerCase();
+		
+		// Team-related keywords
+		const teamKeywords = [
+			'team', 's', 'st', 'nd', 'rd', 'th',
+			'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth',
+			'firsts', 'seconds', 'thirds', 'fourths', 'fifths', 'sixths', 'sevenths', 'eighths',
+			'vets', 'veterans'
+		];
+		
+		return teamKeywords.some(keyword => lowerQuestion.includes(keyword));
+	}
+
+	/**
+	 * Extract team entity using Compromise for better NLP parsing
+	 */
+	private extractTeamEntity(question: string): string | null {
+		// Use Compromise to parse the question
+		const doc = nlp(question);
+		
+		// Look for numbers
+		const numbers = doc.numbers().out('array');
+		
+		// Look for team-related words
+		const teamWords = doc.match('(first|second|third|fourth|fifth|sixth|seventh|eighth|vets|veterans)').out('array');
+		
+		// Priority 1: Team words (e.g., "thirds", "seconds")
+		if (teamWords.length > 0) {
+			return teamWords[0];
+		}
+		
+		// Priority 2: Numbers followed by 's' or 'team' (e.g., "3s", "3 team")
+		if (numbers.length > 0) {
+			const number = numbers[0];
+			const afterNumber = question.substring(question.indexOf(number) + number.length).trim();
+			
+			// Check if followed by 's', 'team', or space
+			if (afterNumber.startsWith('s') || afterNumber.startsWith(' team') || afterNumber.startsWith(' ')) {
+				return number;
+			}
+		}
+		
+		// Priority 3: Regex fallback for complex patterns
+		const patterns = [
+			/(\d+(?:st|nd|rd|th)?)\s*team/,           // "3rd team"
+			/for the (\d+(?:st|nd|rd|th)?)\s*team/,   // "for the 3rd team"
+			/(\d+)s/,                                  // "3s"
+			/for the (\d+)s/,                          // "for the 3s"
+			/for the (\d+)/,                           // "for the 3"
+			/(\d+)\s*team/                             // "3 team"
+		];
+		
+		for (const pattern of patterns) {
+			const match = question.match(pattern);
+			if (match) {
+				return match[1];
+			}
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Get the method used for team name normalization (for debugging)
+	 */
+	private getNormalizationMethod(original: string, normalized: string): string {
+		const lowerOriginal = original.toLowerCase().trim();
+		
+		if (lowerOriginal.match(/^\d+(?:st|nd|rd|th)?$/)) return 'ordinal_match';
+		if (lowerOriginal.match(/^\d+s?$/)) return 'abbreviated_match';
+		if (['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'vets', 'veterans'].includes(lowerOriginal)) return 'word_form_match';
+		if (natural.JaroWinklerDistance(lowerOriginal, 'third') > 0.8) return 'fuzzy_match';
+		if (lowerOriginal.match(/\d+/)) return 'number_extraction';
+		
+		return 'fallback';
 	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
