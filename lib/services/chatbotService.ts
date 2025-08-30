@@ -1056,9 +1056,9 @@ export class ChatbotService {
 				const metric = data.metric;
 				const value = playerData.value;
 
-				// Get appearances for context (excluding assists and appearances themselves)
+				// Get appearances for context (excluding appearances themselves, but including assists as they're a main stat)
 				let appearancesContext = "";
-				if (metric !== "A" && metric !== "APP") {
+				if (metric !== "APP") {
 					try {
 						const appearancesQuery = `
 							MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
@@ -1149,14 +1149,14 @@ export class ChatbotService {
 							metricName,
 							teamName
 						);
-						// Add appearances context if available and not assists/appearances
-						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+						// Add appearances context if available and not appearances themselves
+						if (metric !== "APP" && topPlayer.appearances) {
 							answer = answer.replace('.', ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}.`);
 						}
 					} else {
-						// Add appearances context if available and not assists/appearances
+						// Add appearances context if available and not appearances themselves
 						let appearancesContext = "";
-						if (metric !== "A" && metric !== "APP" && topPlayer.appearances) {
+						if (metric !== "APP" && topPlayer.appearances) {
 							appearancesContext = ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}`;
 						}
 						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}${appearancesContext}.`;
