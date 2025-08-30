@@ -151,6 +151,7 @@ export class ChatbotService {
 		// Determine question type
 		let type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general" = "general";
 
+		// First, check if we have player-specific content indicators
 		if (
 			lowerQuestion.includes("player") ||
 			lowerQuestion.includes("scored") ||
@@ -166,7 +167,11 @@ export class ChatbotService {
 			lowerQuestion.includes("conceded") ||
 			lowerQuestion.includes("clean sheets") ||
 			lowerQuestion.includes("penalties") ||
-			lowerQuestion.includes("fantasy")
+			lowerQuestion.includes("fantasy") ||
+			lowerQuestion.includes("away games") ||
+			lowerQuestion.includes("home games") ||
+			lowerQuestion.includes("most prolific season") ||
+			lowerQuestion.includes("most common position")
 		) {
 			type = "player";
 		} else if (lowerQuestion.includes("team") || lowerQuestion.includes("finish")) {
@@ -300,6 +305,12 @@ export class ChatbotService {
 			if (lowerQuestion.includes("own goals")) metrics.push("OG");
 			if (lowerQuestion.includes("conceded")) metrics.push("C");
 			if (lowerQuestion.includes("fantasy")) metrics.push("FTP");
+			
+			// Additional metrics for comprehensive testing
+			if (lowerQuestion.includes("away games")) metrics.push("APP");
+			if (lowerQuestion.includes("home games")) metrics.push("APP");
+			if (lowerQuestion.includes("most prolific season")) metrics.push("MostProlificSeason");
+			if (lowerQuestion.includes("most common position")) metrics.push("MostCommonPosition");
 
 			// New enhanced metrics
 			if (lowerQuestion.includes("team of the week") || lowerQuestion.includes("totw")) {
@@ -321,6 +332,11 @@ export class ChatbotService {
 			if (lowerQuestion.includes("opponents") || lowerQuestion.includes("played against") || lowerQuestion.includes("vs")) {
 				metrics.push("OPPONENTS");
 			}
+		}
+
+		// Override type to "player" if we have both entities and metrics
+		if (entities.length > 0 && metrics.length > 0) {
+			type = "player";
 		}
 
 		// Debug logging
