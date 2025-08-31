@@ -10,48 +10,63 @@
 
 ## Table of Contents
 
-- [Dorkinians FC Statistics Website](#dorkinians-fc-statistics-website)
-  - [Table of Contents](#table-of-contents)
-  - [Project Overview](#project-overview)
-    - [Key Features](#key-features)
-  - [Architecture](#architecture)
-    - [Unified Schema System](#unified-schema-system)
-    - [Single Source of Truth Architecture](#single-source-of-truth-architecture)
-    - [Key Components](#key-components)
-  - [Quick Start](#quick-start)
-    - [Development Setup](#development-setup)
-    - [Database Verification](#database-verification)
-  - [Environment Setup](#environment-setup)
-    - [Prerequisites](#prerequisites)
-    - [Neo4j Configuration](#neo4j-configuration)
-      - [Local Development (Recommended)](#local-development-recommended)
-      - [Production (Neo4j Aura)](#production-neo4j-aura)
-    - [OpenAI Configuration](#openai-configuration)
-    - [SMTP Configuration](#smtp-configuration)
-    - [Installation](#installation)
-  - [NPM Script Synchronization](#npm-script-synchronization)
-  - [Development Workflow](#development-workflow)
-    - [Schema Updates](#schema-updates)
-    - [Managing Schema Changes](#managing-schema-changes)
-      - [Adding/Removing CSV Columns](#addingremoving-csv-columns)
-      - [Schema Validation](#schema-validation)
-    - [Data Seeding](#data-seeding)
-    - [Testing](#testing)
-  - [Deployment](#deployment)
-    - [Netlify Deployment](#netlify-deployment)
-    - [Database Seeder Deployment](#database-seeder-deployment)
-  - [PWA Release Process](#pwa-release-process)
-    - [Version Management](#version-management)
-    - [Release Checklist](#release-checklist)
-  - [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
-  - [Email Configuration](#email-configuration)
-  - [Maintenance](#maintenance)
-    - [Regular Tasks](#regular-tasks)
-    - [Troubleshooting](#troubleshooting)
-  - [Contributing](#contributing)
-    - [Development Guidelines](#development-guidelines)
-    - [Repository Structure](#repository-structure)
-  - [Support](#support)
+- [Table of Contents](#table-of-contents)
+- [Project Overview](#project-overview)
+  - [Key Features](#key-features)
+- [Quick Start](#quick-start)
+  - [Development Start](#development-start)
+  - [Production Start](#production-start)
+  - [Database Verification](#database-verification)
+- [Architecture](#architecture)
+  - [Unified Schema System](#unified-schema-system)
+- [Single Source of Truth Architecture](#single-source-of-truth-architecture)
+  - [**Master File Locations**](#master-file-locations)
+  - [**Why This Architecture?**](#why-this-architecture)
+  - [**How It Works**](#how-it-works)
+  - [Key Components](#key-components)
+- [Environment Setup](#environment-setup)
+  - [Prerequisites](#prerequisites)
+  - [Neo4j Configuration](#neo4j-configuration)
+    - [Local Development (Recommended)](#local-development-recommended)
+    - [Production (Neo4j Aura)](#production-neo4j-aura)
+  - [OpenAI Configuration](#openai-configuration)
+  - [SMTP Configuration](#smtp-configuration)
+  - [Installation](#installation)
+- [NPM Script Synchronization](#npm-script-synchronization)
+  - [**How It Works**](#how-it-works-1)
+  - [**NPM Scripts**](#npm-scripts)
+  - [**Workflow Examples**](#workflow-examples)
+  - [**Benefits**](#benefits)
+  - [**Troubleshooting**](#troubleshooting)
+- [Development Workflow](#development-workflow)
+  - [Schema Updates](#schema-updates)
+  - [Managing Schema Changes](#managing-schema-changes)
+    - [Adding/Removing CSV Columns](#addingremoving-csv-columns)
+    - [Schema Validation](#schema-validation)
+  - [Data Seeding](#data-seeding)
+  - [Testing](#testing)
+- [Deployment](#deployment)
+  - [Netlify Deployment](#netlify-deployment)
+  - [Database Seeder Deployment](#database-seeder-deployment)
+- [PWA Release Process](#pwa-release-process)
+  - [Version Management](#version-management)
+  - [Release Checklist](#release-checklist)
+- [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
+  - [**External Cron Service Setup**](#external-cron-service-setup)
+  - [**Manual Testing**](#manual-testing)
+  - [**Expected Response**](#expected-response)
+- [Email Configuration](#email-configuration)
+  - [**Required Environment Variables**](#required-environment-variables)
+  - [**Email Provider Examples**](#email-provider-examples)
+  - [**Gmail App Password Setup**](#gmail-app-password-setup)
+  - [**What Happens When Headers Change**](#what-happens-when-headers-change)
+- [Maintenance](#maintenance)
+  - [Regular Tasks](#regular-tasks)
+  - [Troubleshooting](#troubleshooting-1)
+- [Contributing](#contributing)
+  - [Development Guidelines](#development-guidelines)
+  - [Repository Structure](#repository-structure)
+- [Support](#support)
 
 ## Project Overview
 
@@ -65,6 +80,38 @@
 - **Multiple Screens**: Footer navigation with swipeable sub-screens
 - **Unified Data Schema**: Single source of truth for all data definitions
 - **Database**: Neo4j Aura for efficient data storage and querying
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Quick Start
+
+### Development Start
+
+1. Start Neo4j Desktop locally
+2. Run development server: `npm run dev`
+3. Access application: http://localhost:3000 and review
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Production Start
+
+1. Check that the [Neo4j Aura database](https://console-preview.neo4j.io/projects/7a5b41a0-6373-5c3c-9fcf-48b80d5d38f2/instances) is running
+2. Access application: https://dorkinians-website-v3.netlify.app and review
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Database Verification
+
+- To view all nodes, run the following query:
+  - `MATCH (n) RETURN n;`
+- To view all nodes and relationships, run the following query:
+  - `MATCH (n)-[r]->(m) RETURN n, r, m;`
+- To count all nodes with the Dorkinians Website label by type, run the following query:
+  - `MATCH (n) WHERE n.graphLabel = 'dorkiniansWebsite' RETURN labels(n) AS NodeType, count(n) AS Count ORDER BY Count DESC`
+- To find a specific player by name and see all of their relationships, run the following query: 
+  - `MATCH (player {playerName: 'Luke Bangs', graphLabel: 'dorkiniansWebsite'})-[r]-(connected) RETURN player, r, connected;`
+
+> [Back to Table of Contents](#table-of-contents)
 
 ## Architecture
 
@@ -150,29 +197,6 @@ The project implements a **manual synchronization system** where each configurat
 - **Database Seeder**: Heroku service using unified schema
 - **Schema Management**: Centralized in database-dorkinians repo
 - **Data Sources**: Google Sheets CSV endpoints + FA website data
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Quick Start
-
-### Development Setup
-
-1. **Start Neo4j Desktop locally**
-2. **Start Neo4j graph database** on port `7687`
-3. **Run development server**: `npm run dev`
-4. **Access application**: http://localhost:3000
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Database Verification
-
-```bash
-# View all nodes and relationships
-MATCH (n)-[r]->(m) RETURN n, r, m;
-
-# View all nodes
-MATCH (n) RETURN n;
-```
 
 > [Back to Table of Contents](#table-of-contents)
 
