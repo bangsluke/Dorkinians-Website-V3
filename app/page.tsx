@@ -124,7 +124,7 @@ export default function HomePage() {
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ duration: 0.6, delay: 0.2 }}
 									className='w-full'>
-									<div className='w-[95%] md:w-full max-w-lg md:max-w-2xl mx-auto'>
+									<div className='w-full max-w-lg md:max-w-2xl mx-auto'>
 										<ChatbotInterface />
 									</div>
 								</motion.div>
@@ -157,7 +157,7 @@ export default function HomePage() {
 				<Header onSettingsClick={handleSettingsClick} />
 
 				{/* Main Content */}
-				<main className='pt-16 pb-28 px-4 h-screen'>
+				<main className='main-content-container'>
 					<div className='frosted-container'>
 						<div className='h-full overflow-y-auto'>
 							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
