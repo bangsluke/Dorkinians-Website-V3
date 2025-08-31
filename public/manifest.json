@@ -1,15 +1,15 @@
 {
   "name": "Dorkinians FC Stats",
   "short_name": "Dorkinians Stats",
-  "description": "Dorkinians FC Statistics and Chatbot - Mobile-first PWA",
+  "description": "Dorkinians FC Statistics Website",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1C8841",
+  "background_color": "#000000",
+  "theme_color": "#F9ED32",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en-GB",
-  "categories": ["sports", "utilities"],
+  "categories": ["sports", "utilities", "stats", "football"],
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
