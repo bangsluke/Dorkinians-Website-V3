@@ -221,6 +221,20 @@
 	}
 }
 
+/* Style the main content container with the frosted glass */
+.main-content-container {
+	padding: 64px 16px 100px 16px;
+	height: 100vh;
+}
+
+/* Desktop main content container */
+@media (min-width: 768px) {
+	.main-content-container {
+		padding: 64px 16px 76px 16px;
+	}
+}
+
+
 .CTA {
 	background:  linear-gradient(135deg, var(--dorkinians-yellow) 0%, var(--dorkinians-yellow-dark) 100%);
 color: var(--text-dark);
@@ -243,4 +257,48 @@ transition: background-color 200ms ease;
 	.text-balance {
 		text-wrap: balance;
 	}
+}
+
+/* Global Scrollbar Styling */
+::-webkit-scrollbar {
+	width: 12px;
+	background: transparent;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background-color: rgba(255, 255, 255, 0.15);
+	border-radius: 6px;
+	border: 2px solid transparent;
+	background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background-color: rgba(255, 255, 255, 0.25);
+}
+
+::-webkit-scrollbar-button {
+	background-color: rgba(255, 255, 255, 0.15);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-button:hover {
+	background-color: rgba(255, 255, 255, 0.25);
+}
+
+::-webkit-scrollbar-button:single-button:vertical:decrement {
+	height: 16px;
+}
+
+::-webkit-scrollbar-button:single-button:vertical:increment {
+	height: 16px;
+}
+
+/* Firefox scrollbar styling */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }

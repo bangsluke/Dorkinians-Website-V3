@@ -157,7 +157,7 @@ export default function HomePage() {
 				<Header onSettingsClick={handleSettingsClick} />
 
 				{/* Main Content */}
-				<main className='pt-16 pb-28 px-4 h-screen'>
+				<main className='main-content-container'>
 					<div className='frosted-container'>
 						<div className='h-full overflow-y-auto'>
 							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>

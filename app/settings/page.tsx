@@ -123,7 +123,7 @@ export default function SettingsPage() {
 			<Header onSettingsClick={handleSettingsClick} isSettingsPage={true} />
 
 			{/* Settings Content */}
-			<div className='h-full flex flex-col px-6 md:px-[15%]'>
+			<div className='h-full flex flex-col md:px-[15%]'>
 				{/* Header */}
 				<div className='flex items-center pt-2 pb-2'>
 					<motion.button
@@ -137,7 +137,7 @@ export default function SettingsPage() {
 				</div>
 
 				{/* Navigation List */}
-				<div className='flex-1 pb-6 overflow-y-auto'>
+				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 					<div className='space-y-4'>
 						<h2 className='text-lg font-semibold text-white pt-2 pb-2'>Available Screens</h2>
 						{navigationItems.map((item) => {
