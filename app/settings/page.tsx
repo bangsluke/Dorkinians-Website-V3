@@ -123,9 +123,9 @@ export default function SettingsPage() {
 			<Header onSettingsClick={handleSettingsClick} isSettingsPage={true} />
 
 			{/* Settings Content */}
-			<div className='h-full flex flex-col'>
+			<div className='h-full flex flex-col px-6 md:px-[15%]'>
 				{/* Header */}
-				<div className='flex items-center p-6 pt-2 pb-2'>
+				<div className='flex items-center pt-2 pb-2'>
 					<motion.button
 						onClick={handleBackClick}
 						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
@@ -137,7 +137,7 @@ export default function SettingsPage() {
 				</div>
 
 				{/* Navigation List */}
-				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
+				<div className='flex-1 pb-6 overflow-y-auto'>
 					<div className='space-y-4'>
 						<h2 className='text-lg font-semibold text-white pt-2 pb-2'>Available Screens</h2>
 						{navigationItems.map((item) => {
@@ -201,7 +201,7 @@ export default function SettingsPage() {
 						<div className='space-y-3'>
 							{/* Check for Updates */}
 							<div className='p-4 rounded-lg bg-white/10'>
-								<div className='flex items-center justify-between'>
+								<div className='flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0'>
 									<div>
 										<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
 										<p className='text-sm text-gray-300'>Check if a new version is available</p>
@@ -212,7 +212,7 @@ export default function SettingsPage() {
 									<motion.button
 										onClick={handleCheckForUpdate}
 										disabled={isCheckingUpdate}
-										className='CTA'
+										className='CTA self-center md:self-auto w-fit md:w-auto'
 										whileHover={{ scale: 1.05 }}
 										whileTap={{ scale: 0.95 }}>
 										{isCheckingUpdate ? (
