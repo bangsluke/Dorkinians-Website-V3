@@ -1,6 +1,3 @@
-const path = require("path");
-const fs = require("fs");
-
 // Simple email service implementation for Netlify Functions
 class SimpleEmailService {
 	constructor() {
@@ -329,7 +326,17 @@ exports.handler = async (event, context) => {
 		}
 		
 		const emailConfig = requestBody.emailConfig || {};
-		console.log("📧 TRIGGER: Email configuration received:", emailConfig);
+		
+		// Detect if this is a cron job call (no email config) and set defaults
+		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
+		if (isCronJob) {
+			console.log("🕐 TRIGGER: Detected cron job call - setting default email configuration");
+			emailConfig.emailAddress = "bangsluke@gmail.com";
+			emailConfig.sendEmailAtStart = false;
+			emailConfig.sendEmailAtCompletion = true;
+		}
+		
+		console.log("📧 TRIGGER: Final email configuration:", emailConfig);
 
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -421,6 +428,11 @@ exports.handler = async (event, context) => {
 						body: JSON.stringify({
 							environment,
 							jobId,
+							emailConfig: {
+								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
+								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
+								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true
+							}
 						}),
 					},
 					30000,
