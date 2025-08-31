@@ -125,7 +125,7 @@ export default function SettingsPage() {
 			{/* Settings Content */}
 			<div className='h-full flex flex-col'>
 				{/* Header */}
-				<div className='flex items-center mb-8 p-6 pb-0'>
+				<div className='flex items-center p-6 pt-2 pb-2'>
 					<motion.button
 						onClick={handleBackClick}
 						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
@@ -133,13 +133,13 @@ export default function SettingsPage() {
 						whileTap={{ scale: 0.9 }}>
 						<ArrowLeftIcon className='w-6 h-6 text-white' />
 					</motion.button>
-					<h1 className='text-3xl font-bold text-white'>Settings</h1>
+					<h1 className='text-2xl font-bold text-white'>Settings</h1>
 				</div>
 
 				{/* Navigation List */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 					<div className='space-y-4'>
-						<h2 className='text-xl font-semibold text-white mb-6'>Available Screens</h2>
+						<h2 className='text-lg font-semibold text-white pt-2 pb-2'>Available Screens</h2>
 						{navigationItems.map((item) => {
 							const Icon = item.icon;
 							return (
@@ -212,7 +212,7 @@ export default function SettingsPage() {
 									<motion.button
 										onClick={handleCheckForUpdate}
 										disabled={isCheckingUpdate}
-										className='px-4 py-2 bg-dorkinians-yellow text-dorkinians-blue font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
+										className='CTA'
 										whileHover={{ scale: 1.05 }}
 										whileTap={{ scale: 0.95 }}>
 										{isCheckingUpdate ? (

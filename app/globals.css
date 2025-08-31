@@ -3,12 +3,17 @@
 @tailwind utilities;
 
 :root {
-	--dorkinians-green: #1C8841;
 	--dorkinians-yellow: #F9ED32;
+	--dorkinians-yellow-dark: #e5d12e;
+	--dorkinians-yellow-darker: #cfbf29;
+	--dorkinians-green: #1C8841;
 	--dorkinians-green-dark: #1a7a3a;
 	--dorkinians-green-darker: #156b32;
 
 	--field-bg: rgba(0,0,0,.55);
+
+	--text-light: #f3f3f3;
+	--text-dark: #0f0f0f;
 }
 
 @layer base {
@@ -74,8 +79,11 @@
 }
 
 @layer components {
-	.btn-primary {
-		@apply bg-dorkinians-blue hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+	/* Frosted glass - applied to frosted container further down */
+	.frosted-glass {
+		background-color: rgba(255, 255, 255, 0.15);
+		backdrop-filter: blur(30px) ;
+		-webkit-backdrop-filter: blur(30px);
 	}
 
 	.btn-secondary {
@@ -90,12 +98,7 @@
 		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent;
 	}
 
-	/* Frosted glass - applied to frosted container further down */
-	.frosted-glass {
-		background-color: rgba(255, 255, 255, 0.15);
-		backdrop-filter: blur(30px) ;
-		-webkit-backdrop-filter: blur(30px);
-	}
+	
 
 	/* Dark input components with Dorkinians brand colors */
 	.dark-input {
@@ -216,6 +219,24 @@
 			margin-right: auto;
 		}
 	}
+}
+
+.CTA {
+	background:  linear-gradient(135deg, var(--dorkinians-yellow) 0%, var(--dorkinians-yellow-dark) 100%);
+color: var(--text-dark);
+font-weight: 500;
+padding: 8px 16px;
+border-radius: 8px;
+transition: background-color 200ms ease;
+}
+
+.CTA:hover {
+    background: linear-gradient(135deg, var(--dorkinians-yellow-dark) 0%, var(--dorkinians-yellow-darker) 100%);
+}
+
+.CTA:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 @layer utilities {
