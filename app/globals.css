@@ -90,19 +90,11 @@
 		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent;
 	}
 
+	/* Frosted glass - applied to frosted container further down */
 	.frosted-glass {
-		background: linear-gradient(180deg, rgba(255,255,255,.2), transparent 22%), rgba(22,22,22,.40);
-		backdrop-filter: blur(28px) saturate(140%);
-		-webkit-backdrop-filter: blur(28px) saturate(140%);
-		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
-	}
-
-	.frosted-glass-dark {
-		background: linear-gradient(180deg, rgba(255,255,255,.2), transparent 40%), rgba(0,0,0,.55);
-		border: 1px solid rgba(255,255,255,.08);
-		backdrop-filter: blur(28px) saturate(140%);
-		-webkit-backdrop-filter: blur(28px) saturate(140%);
-		box-shadow: 0 10px 25px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.35);
+		background-color: rgba(255, 255, 255, 0.15);
+		backdrop-filter: blur(30px) ;
+		-webkit-backdrop-filter: blur(30px);
 	}
 
 	/* Dark input components with Dorkinians brand colors */
@@ -216,6 +208,7 @@
 		@apply frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden;
 	}
 
+	/* Desktop frosted glass container */
 	@media (min-width: 768px) {
 		.frosted-container {
 			width: 70%;
