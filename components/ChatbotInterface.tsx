@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 
 interface SavedConversation {
 	question: string;
@@ -184,14 +185,14 @@ export default function ChatbotInterface() {
 					<button
 						type='submit'
 						disabled={!question.trim() || isLoading}
-						className='CTA px-3 md:px-4 py-2 md:py-2 text-sm md:text-base w-full md:w-auto'>
+						className='CTA px-3 md:px-4 py-2 md:py-2 text-sm md:text-base w-full md:w-auto hidden md:block'>
 						{isLoading ? (
 							<svg className='animate-spin h-4 w-4 md:h-5 md:w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
 								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
 							</svg>
 						) : (
-							"Ask"
+							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
 						)}
 					</button>
 				</div>

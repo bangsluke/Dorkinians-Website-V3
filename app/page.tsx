@@ -124,7 +124,7 @@ export default function HomePage() {
 									animate={{ opacity: 1, y: 0 }}
 									transition={{ duration: 0.6, delay: 0.2 }}
 									className='w-full'>
-									<div className='w-[95%] md:w-full max-w-lg md:max-w-2xl mx-auto'>
+									<div className='w-full max-w-lg md:max-w-2xl mx-auto'>
 										<ChatbotInterface />
 									</div>
 								</motion.div>
