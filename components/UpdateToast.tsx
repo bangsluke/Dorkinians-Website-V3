@@ -65,6 +65,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 		return null;
 	}
 
+
 	return (
 		<AnimatePresence>
 			<motion.div
@@ -72,7 +73,7 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 				animate={{ y: 0, opacity: 1 }}
 				exit={{ y: 100, opacity: 0 }}
 				transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				className="fixed bottom-28 left-4 right-4 z-50">
+				className="fixed bottom-26 left-4 right-4 z-50">
 				
 				{/* Update Available Toast */}
 				{!showDismissMessage && (

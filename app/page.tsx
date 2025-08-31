@@ -70,7 +70,7 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4 md:mb-8'>
-										<h1 className='text-lg md:text-xl font-bold text-white mb-3 md:mb-6'>Welcome to Dorkinians FC</h1>
+										<h1 className='text-lg md:text-xl font-bold text-white mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
 										<p className='text-sm md:text-base text-gray-300 max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
@@ -157,7 +157,7 @@ export default function HomePage() {
 				<Header onSettingsClick={handleSettingsClick} />
 
 				{/* Main Content */}
-				<main className='pt-20 pb-24 px-4 h-screen'>
+				<main className='pt-16 pb-28 px-4 h-screen'>
 					<div className='frosted-container'>
 						<div className='h-full overflow-y-auto'>
 							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>

@@ -21,11 +21,11 @@ export default function FooterNavigation() {
 
 	return (
 		<motion.nav
-			className='fixed bottom-0 left-0 right-0 z-50 frosted-glass w-full'
+			className='fixed bottom-0 left-0 right-0 z-50 w-full'
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-			<div className='flex items-center justify-around px-2 py-3 pb-4 md:pb-3'>
+			<div className='flex items-center justify-around px-2 py-2 pb-4 md:pb-3'>
 				{navigationItems.map((item) => {
 					const Icon = item.icon;
 					const isActive = currentMainPage === item.id;

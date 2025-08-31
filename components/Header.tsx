@@ -19,7 +19,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false }: Head
 
 	return (
 		<motion.header
-			className='fixed top-0 left-0 right-0 z-50 frosted-glass w-full'
+			className='fixed top-0 left-0 right-0 z-50 w-full'
 			initial={{ y: -100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
