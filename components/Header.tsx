@@ -19,11 +19,11 @@ export default function Header({ onSettingsClick, isSettingsPage = false }: Head
 
 	return (
 		<motion.header
-			className='fixed top-0 left-0 right-0 z-50 frosted-glass w-full'
+			className='fixed top-0 left-0 right-0 z-50 w-full'
 			initial={{ y: -100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-			<div className='flex items-center justify-between px-4 py-3'>
+			<div className='flex items-center justify-between px-4 md:px-[15%] py-3'>
 				{/* Club Logo */}
 				<motion.div 
 					className='flex items-center space-x-2 cursor-pointer' 
