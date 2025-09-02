@@ -369,6 +369,14 @@ class Neo4jService {
 	getGraphLabel(): string {
 		return this.GRAPH_LABEL;
 	}
+
+	async createAllRelationships(): Promise<number> {
+		console.log("🔗 Creating relationships between nodes...");
+		// This is a placeholder implementation
+		// In a real implementation, you would create relationships between different node types
+		// For now, we'll return 0 to indicate no relationships were created
+		return 0;
+	}
 }
 
 // Export singleton instance
