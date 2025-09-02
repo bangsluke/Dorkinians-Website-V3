@@ -1,5 +1,5 @@
-=== SEEDING RUN STARTED: 2025-09-02T18:55:44.819Z ===
-[2025-09-02T18:56:06.145Z] CSV Header Validation Failed
+=== SEEDING RUN STARTED: 2025-09-02T19:54:11.004Z ===
+[2025-09-02T19:54:31.541Z] CSV Header Validation Failed
 Details: {
   "totalSources": 3,
   "validSources": 0,
