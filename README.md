@@ -16,13 +16,14 @@
 - [Quick Start](#quick-start)
   - [Development Start](#development-start)
   - [Production Start](#production-start)
+  - [Database Seeding](#database-seeding)
   - [Database Verification](#database-verification)
 - [Architecture](#architecture)
   - [Unified Schema System](#unified-schema-system)
 - [Single Source of Truth Architecture](#single-source-of-truth-architecture)
-  - [**Master File Locations**](#master-file-locations)
-  - [**Why This Architecture?**](#why-this-architecture)
-  - [**How It Works**](#how-it-works)
+  - [Master File Locations](#master-file-locations)
+  - [Why This Architecture?](#why-this-architecture)
+  - [How It Works](#how-it-works)
   - [Key Components](#key-components)
 - [Environment Setup](#environment-setup)
   - [Prerequisites](#prerequisites)
@@ -33,11 +34,11 @@
   - [SMTP Configuration](#smtp-configuration)
   - [Installation](#installation)
 - [NPM Script Synchronization](#npm-script-synchronization)
-  - [**How It Works**](#how-it-works-1)
-  - [**NPM Scripts**](#npm-scripts)
-  - [**Workflow Examples**](#workflow-examples)
-  - [**Benefits**](#benefits)
-  - [**Troubleshooting**](#troubleshooting)
+  - [How It Works](#how-it-works-1)
+  - [NPM Scripts](#npm-scripts)
+  - [Workflow Examples](#workflow-examples)
+  - [Benefits](#benefits)
+  - [Troubleshooting](#troubleshooting)
 - [Development Workflow](#development-workflow)
   - [Schema Updates](#schema-updates)
   - [Managing Schema Changes](#managing-schema-changes)
@@ -52,14 +53,14 @@
   - [Version Management](#version-management)
   - [Release Checklist](#release-checklist)
 - [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
-  - [**External Cron Service Setup**](#external-cron-service-setup)
-  - [**Manual Testing**](#manual-testing)
-  - [**Expected Response**](#expected-response)
+  - [External Cron Service Setup](#external-cron-service-setup)
+  - [Manual Testing](#manual-testing)
+  - [Expected Response](#expected-response)
 - [Email Configuration](#email-configuration)
-  - [**Required Environment Variables**](#required-environment-variables)
-  - [**Email Provider Examples**](#email-provider-examples)
-  - [**Gmail App Password Setup**](#gmail-app-password-setup)
-  - [**What Happens When Headers Change**](#what-happens-when-headers-change)
+  - [Required Environment Variables](#required-environment-variables)
+  - [Email Provider Examples](#email-provider-examples)
+  - [Gmail App Password Setup](#gmail-app-password-setup)
+  - [What Happens When Headers Change](#what-happens-when-headers-change)
 - [Maintenance](#maintenance)
   - [Regular Tasks](#regular-tasks)
   - [Troubleshooting](#troubleshooting-1)
@@ -99,6 +100,16 @@
 2. Access application: https://dorkinians-website-v3.netlify.app and review
 
 > [Back to Table of Contents](#table-of-contents)
+
+### Database Seeding
+
+- To seed the development database, ensure that the Neo4j Desktop database is running and then visit the admin panel (https://dorkinians-website-v3.netlify.app/admin) and click the "Seed Development Database" button.
+- To seed the production database, visit the admin panel (https://dorkinians-website-v3.netlify.app/admin) and click the "Trigger Production Seeding" button.
+
+> Note: You are unable to seed the development database from the production app as the elements are hidden.
+
+> [Back to Table of Contents](#table-of-contents)
+
 
 ### Database Verification
 
@@ -166,14 +177,14 @@ The project uses a **single source of truth** architecture where configuration f
 
 The project implements a **manual synchronization system** where each configuration file has exactly one master location and is distributed to all required locations using npm scripts.
 
-### **Master File Locations**
+### Master File Locations
 
 | Configuration    | Master Location                             | Auto-Synced To                                                                                                          |
 | ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | **Schema**       | `database-dorkinians/config/schema.js`      | `V3-Dorkinians-Website/lib/config/schema.js`                                                                            |
 | **Data Sources** | `database-dorkinians/config/dataSources.js` | `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` + `V3-Dorkinians-Website/lib/config/dataSources.js` |
 
-### **Why This Architecture?**
+### Why This Architecture?
 
 ✅ **Eliminates Manual Sync Errors**: No more forgetting to copy files between repositories  
 ✅ **Perfect Consistency**: All locations always have identical content  
@@ -181,7 +192,7 @@ The project implements a **manual synchronization system** where each configurat
 ✅ **Controlled Updates**: Changes propagate when you choose to sync  
 ✅ **Build Compatibility**: Local builds work without path resolution issues
 
-### **How It Works**
+### How It Works
 
 1. **Edit Master File**: Make changes in the designated master location
 2. **Run Sync Script**: Execute `npm run sync-config` to copy files
@@ -273,7 +284,7 @@ npm run dev          # Start development server
 
 The project uses npm scripts to manually synchronize configuration files between repositories. This approach provides full control over when synchronization occurs and eliminates the complexity of Git hooks.
 
-### **How It Works**
+### How It Works
 
 **Manual Sync**: Run `npm run sync-config` to copy all configuration files from `database-dorkinians/config/` to the appropriate locations in `V3-Dorkinians-Website`
 
@@ -283,12 +294,12 @@ The project uses npm scripts to manually synchronize configuration files between
 - `config/dataSources.js` → `V3-Dorkinians-Website/lib/config/dataSources.js`
 - `config/dataSources.js` → `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`
 
-### **NPM Scripts**
+### NPM Scripts
 
 - **`database-dorkinians`**: `npm run sync-config` - runs the sync script
 - **`V3-Dorkinians-Website`**: `npm run sync-config` - runs the sync from the other repo
 
-### **Workflow Examples**
+### Workflow Examples
 
 **Updating Schema:**
 
@@ -328,7 +339,7 @@ git add lib/config/dataSources.js netlify/functions/lib/config/dataSources.js
 git commit -m "Sync data sources from database-dorkinians"
 ```
 
-### **Benefits**
+### Benefits
 
 ✅ **Reliable**: No Git hook failures or PowerShell issues  
 ✅ **Simple**: One command to sync everything  
@@ -338,7 +349,7 @@ git commit -m "Sync data sources from database-dorkinians"
 ✅ **Cross-platform**: Works on Windows, Mac, and Linux  
 ✅ **Perfect Consistency**: All locations always have identical content
 
-### **Troubleshooting**
+### Troubleshooting
 
 **Sync Script Not Working:**
 
@@ -593,7 +604,7 @@ export const appConfig = {
 
 The system supports automated daily database updates using external cron services.
 
-### **External Cron Service Setup**
+### External Cron Service Setup
 
 **Using cron-job.org (Free):**
 
@@ -611,14 +622,14 @@ The system supports automated daily database updates using external cron service
 - Cronitor: [cronitor.io](https://cronitor.io)
 - UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
 
-### **Manual Testing**
+### Manual Testing
 
 ```bash
 # Test the function directly
 curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production"
 ```
 
-### **Expected Response**
+### Expected Response
 
 ```json
 {
@@ -641,7 +652,7 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 
 The system sends automated email notifications for CSV header validation failures and seeding completion.
 
-### **Required Environment Variables**
+### Required Environment Variables
 
 ```bash
 # Email Configuration for Notifications
@@ -654,7 +665,7 @@ SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=your-email@gmail.com
 ```
 
-### **Email Provider Examples**
+### Email Provider Examples
 
 **Gmail:**
 
@@ -676,14 +687,14 @@ SMTP_USERNAME=your-email@outlook.com
 SMTP_PASSWORD=your-password
 ```
 
-### **Gmail App Password Setup**
+### Gmail App Password Setup
 
 1. Enable 2-Factor Authentication on your Google account
 2. Go to Google Account settings → Security → App passwords
 3. Generate an app password for "Mail"
 4. Use this app password in `SMTP_PASSWORD` (not your regular Gmail password)
 
-### **What Happens When Headers Change**
+### What Happens When Headers Change
 
 1. **Validation Fails**: Seeding process stops immediately
 2. **Email Sent**: Detailed notification with:

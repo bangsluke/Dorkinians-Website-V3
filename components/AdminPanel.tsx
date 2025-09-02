@@ -39,6 +39,9 @@ export default function AdminPanel() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 
+	// Check if we're in development mode
+	const isDevelopment = process.env.NODE_ENV === 'development';
+
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -85,6 +88,145 @@ export default function AdminPanel() {
 			return `${minutes}m ${secs}s`;
 		} else {
 			return `${secs}s`;
+		}
+	};
+
+	const checkDevStatus = async () => {
+		// Only allow in development mode
+		if (!isDevelopment) {
+			console.warn("⚠️ Development status check only available in development mode");
+			return;
+		}
+
+		setStatusCheckLoading(true);
+		setError(null);
+
+		try {
+			console.log("🔍 DEV STATUS: Checking development database status...");
+			
+			const response = await fetch("/api/seed-dev-status", {
+				method: "GET",
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+
+			const data = await response.json();
+			console.log("✅ DEV STATUS: Status retrieved:", data);
+
+			setLastStatusCheck(`Development DB Status: ${data.connected ? 'Connected' : 'Disconnected'} - ${data.stats?.length || 0} node types found`);
+
+		} catch (error) {
+			console.error("❌ DEV STATUS: Error:", error);
+			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+			setError(`Development status check failed: ${errorMessage}`);
+		} finally {
+			setStatusCheckLoading(false);
+		}
+	};
+
+	const triggerDevSeeding = async () => {
+		// Only allow in development mode
+		if (!isDevelopment) {
+			console.warn("⚠️ Development seeding only available in development mode");
+			return;
+		}
+
+		setIsLoading(true);
+		setError(null);
+		setResult(null);
+		setLastStatusCheck(null);
+		setElapsedTime(0);
+		startTimeRef.current = Date.now();
+
+		try {
+			// Show immediate feedback that seeding has started
+			setResult({
+				success: true,
+				message: "Development database seeding initiated successfully",
+				environment: "development",
+				timestamp: new Date().toISOString(),
+				status: "running",
+				result: {
+					success: true,
+					exitCode: 0,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					errorCount: 0,
+					errors: [],
+					duration: 0,
+				},
+			});
+
+			console.log("🌱 DEV SEEDING: Starting development database seeding...");
+			
+			const response = await fetch("/api/seed-dev", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					dataSources: ["TBL_Players", "TBL_FixturesAndResults", "TBL_MatchDetails"],
+					reducedMode: true,
+					clearFirst: true,
+					emailAddress: emailAddress,
+				}),
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+			}
+
+			const data = await response.json();
+			console.log("✅ DEV SEEDING: Seeding completed:", data);
+
+			// Update result with actual data
+			setResult({
+				success: data.success,
+				message: data.success ? "Development database seeding completed successfully" : "Development database seeding completed with errors",
+				environment: data.environment,
+				timestamp: data.timestamp,
+				status: "completed",
+				result: {
+					success: data.success,
+					exitCode: data.success ? 0 : 1,
+					nodesCreated: data.nodesCreated,
+					relationshipsCreated: data.relationshipsCreated,
+					errorCount: data.errors?.length || 0,
+					errors: data.errors || [],
+					duration: Math.floor((Date.now() - startTimeRef.current!) / 1000),
+				},
+			});
+
+		} catch (error) {
+			console.error("❌ DEV SEEDING: Error:", error);
+			const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+			setError(`Development seeding failed: ${errorMessage}`);
+			
+			setResult({
+				success: false,
+				message: "Development database seeding failed",
+				environment: "development",
+				timestamp: new Date().toISOString(),
+				status: "failed",
+				result: {
+					success: false,
+					exitCode: 1,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					errorCount: 1,
+					errors: [errorMessage],
+					duration: Math.floor((Date.now() - startTimeRef.current!) / 1000),
+				},
+			});
+		} finally {
+			setIsLoading(false);
 		}
 	};
 
@@ -492,32 +634,64 @@ export default function AdminPanel() {
 				</div>
 			</div>
 
-			{/* Trigger Button */}
-			<div className='mb-6'>
+			{/* Trigger Buttons */}
+			<div className='mb-6 flex gap-4'>
+				{isDevelopment && (
+					<button
+						onClick={triggerDevSeeding}
+						disabled={isLoading}
+						className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+							isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+						}`}>
+						{isLoading ? "🔄 Seeding..." : "🌱 Seed Development Database"}
+					</button>
+				)}
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
 					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
-					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Database Seeding"}
+					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
 				</button>
 			</div>
 
 			{/* Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<p className='text-sm text-gray-600 mt-2'>⚠️ This will seed the production Neo4j database with data from Google Sheets.</p>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Database Seeding Options</h3>
+				<div className='space-y-2'>
+					{isDevelopment && (
+						<div className='flex items-start'>
+							<span className='text-green-600 font-semibold mr-2'>🌱 Development:</span>
+							<p className='text-sm text-gray-600'>Seeds the development Neo4j database (DEV_NEO4J_*) with test data. Safe for local development.</p>
+						</div>
+					)}
+					<div className='flex items-start'>
+						<span className='text-blue-600 font-semibold mr-2'>🚀 Production:</span>
+						<p className='text-sm text-gray-600'>⚠️ Triggers production database seeding via Heroku service. Only use for production deployments.</p>
+					</div>
+				</div>
 			</div>
 
-			{/* Status Check Button */}
-			<div className='mb-6 '>
+			{/* Status Check Buttons */}
+			<div className='mb-6 flex gap-4'>
+				{isDevelopment && (
+					<button
+						onClick={checkDevStatus}
+						disabled={statusCheckLoading}
+						className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+							statusCheckLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+						}`}>
+						{statusCheckLoading ? "🔄 Checking..." : "🔍 Check Dev DB Status"}
+					</button>
+				)}
 				<button
 					onClick={checkStatus}
 					disabled={statusCheckLoading || !jobId}
-					className={`px-6 py-3 mr-4 rounded-lg font-semibold text-white transition-colors ${
+					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
 					}`}>
-					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Seeding Status"}
+					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Production Status"}
 				</button>
 				<button
 					onClick={async () => {
