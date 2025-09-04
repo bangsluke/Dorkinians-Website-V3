@@ -6,9 +6,10 @@ async function applySchema() {
 	console.log("🏗️ Applying Neo4j Database Schema...");
 
 	// Get environment variables
-	const uri = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_URI : process.env.DEV_NEO4J_URI;
-	const username = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_USER : process.env.DEV_NEO4J_USER;
-	const password = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_PASSWORD : process.env.DEV_NEO4J_PASSWORD;
+	// All environments now use Neo4j Aura
+	const uri = process.env.PROD_NEO4J_URI;
+	const username = process.env.PROD_NEO4J_USER;
+	const password = process.env.PROD_NEO4J_PASSWORD;
 
 	if (!uri || !username || !password) {
 		console.error("❌ Missing Neo4j environment variables");

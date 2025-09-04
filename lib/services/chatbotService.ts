@@ -74,7 +74,7 @@ export class ChatbotService {
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
 		this.logToBoth(`👤 User context: ${context.userContext || 'None'}`);
 		this.logToBoth(
-			`🔗 Neo4j URI configured: ${process.env.NODE_ENV === "production" ? (process.env.PROD_NEO4J_URI ? "Yes" : "No") : process.env.DEV_NEO4J_URI ? "Yes" : "No"}`,
+			`🔗 Neo4j URI configured: ${process.env.PROD_NEO4J_URI ? "Yes" : "No"}`,
 		);
 		
 		// Client-side logging for question processing

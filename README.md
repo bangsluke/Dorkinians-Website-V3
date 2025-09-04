@@ -103,10 +103,8 @@
 
 ### Database Seeding
 
-- To seed the development database, ensure that the Neo4j Desktop database is running and then visit the admin panel (https://dorkinians-website-v3.netlify.app/admin) and click the "Seed Development Database" button.
-- To seed the production database, visit the admin panel (https://dorkinians-website-v3.netlify.app/admin) and click the "Trigger Production Seeding" button.
-
-> Note: You are unable to seed the development database from the production app as the elements are hidden.
+- To seed the database, visit the admin panel (https://dorkinians-website-v3.netlify.app/admin) and click the "Trigger Production Seeding" button.
+- All environments now use the same Neo4j Aura database for consistency.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -223,17 +221,16 @@ The project implements a **manual synchronization system** where each configurat
 
 ### Neo4j Configuration
 
-#### Local Development (Recommended)
+#### Development Environment
 
 ```bash
-# Install Neo4j Desktop
-# Create local database: neo4j on port 7687
+# All environments now use Neo4j Aura for consistency
+# No local Neo4j Desktop required
 
-# Environment variables
-DEV_NEO4J_URI=bolt://localhost:7687
-DEV_NEO4J_USER=neo4j
-DEV_NEO4J_PASSWORD=password
-DEV_NEO4J_DATABASE=neo4j
+# Environment variables (same as production)
+PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
+PROD_NEO4J_USER=neo4j
+PROD_NEO4J_PASSWORD=your-aura-password
 ```
 
 > [Back to Table of Contents](#table-of-contents)

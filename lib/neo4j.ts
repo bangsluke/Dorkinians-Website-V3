@@ -7,9 +7,11 @@ class Neo4jService {
 
 	async connect() {
 		try {
-			const uri = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_URI : process.env.DEV_NEO4J_URI;
-			const username = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_USER : process.env.DEV_NEO4J_USER;
-			const password = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_PASSWORD : process.env.DEV_NEO4J_PASSWORD;
+			// Use Neo4j Aura for both production and development
+			// This ensures consistent data access across environments
+			const uri = process.env.PROD_NEO4J_URI;
+			const username = process.env.PROD_NEO4J_USER;
+			const password = process.env.PROD_NEO4J_PASSWORD;
 
 			console.log(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
 			console.log(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
@@ -18,10 +20,10 @@ class Neo4jService {
 
 			if (!uri || !username || !password) {
 				const missingVars = [];
-				if (!uri) missingVars.push("URI");
-				if (!username) missingVars.push("USER");
-				if (!password) missingVars.push("PASSWORD");
-				throw new Error(`Neo4j connection details not configured. Missing: ${missingVars.join(", ")}`);
+				if (!uri) missingVars.push("PROD_NEO4J_URI");
+				if (!username) missingVars.push("PROD_NEO4J_USER");
+				if (!password) missingVars.push("PROD_NEO4J_PASSWORD");
+				throw new Error(`Neo4j Aura connection details not configured. Missing: ${missingVars.join(", ")}`);
 			}
 
 			this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
@@ -30,12 +32,12 @@ class Neo4jService {
 			await this.driver.verifyConnectivity();
 			this.isConnected = true;
 
-			console.log("✅ Neo4j connection established");
+			console.log("✅ Neo4j Aura connection established");
 			console.log(`📍 Connected to: ${uri}`);
 			console.log(`🏷️ Graph Label: ${this.GRAPH_LABEL}`);
 			return true;
 		} catch (error) {
-			console.error("❌ Neo4j connection failed:", error);
+			console.error("❌ Neo4j Aura connection failed:", error);
 			this.isConnected = false;
 			return false;
 		}
@@ -46,13 +48,13 @@ class Neo4jService {
 			await this.driver.close();
 			this.driver = null;
 			this.isConnected = false;
-			console.log("🔌 Neo4j connection closed");
+			console.log("🔌 Neo4j Aura connection closed");
 		}
 	}
 
 	getSession(): Session | null {
 		if (!this.driver || !this.isConnected) {
-			console.warn("⚠️ Neo4j not connected");
+			console.warn("⚠️ Neo4j Aura not connected");
 			return null;
 		}
 		return this.driver.session();
