@@ -85,8 +85,10 @@ export default function HomePage() {
 	};
 
 	const renderCurrentPage = () => {
+		console.log('🏠 [HomePage] renderCurrentPage called with currentMainPage:', currentMainPage);
 		switch (currentMainPage) {
 			case "home":
+				console.log('🏠 [HomePage] Rendering home page');
 				return (
 					<motion.div
 						key='home'
@@ -179,18 +181,59 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				return currentMainPage === "stats" ? <StatsContainer /> : null;
+				console.log('📊 [HomePage] Rendering stats page');
+				return (
+					<motion.div
+						key='stats'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<StatsContainer />
+					</motion.div>
+				);
 
 			case "totw":
-				return <TOTWContainer />;
+				console.log('🏆 [HomePage] Rendering TOTW page');
+				return (
+					<motion.div
+						key='totw'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<TOTWContainer />
+					</motion.div>
+				);
 
 			case "club-info":
-				return <ClubInfoContainer />;
+				console.log('ℹ️ [HomePage] Rendering club-info page');
+				return (
+					<motion.div
+						key='club-info'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<ClubInfoContainer />
+					</motion.div>
+				);
 
 			case "settings":
-				return <Settings />;
+				console.log('⚙️ [HomePage] Rendering settings page');
+				return (
+					<motion.div
+						key='settings'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<Settings />
+					</motion.div>
+				);
 
 			default:
+				console.log('❌ [HomePage] Unknown page:', currentMainPage);
 				return null;
 		}
 	};
@@ -205,7 +248,9 @@ export default function HomePage() {
 				<main className='main-content-container'>
 					<div className='frosted-container'>
 						<div className='h-full overflow-y-auto'>
-							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+							<AnimatePresence mode='wait'>
+								{renderCurrentPage()}
+							</AnimatePresence>
 						</div>
 					</div>
 				</main>
