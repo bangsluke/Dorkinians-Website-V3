@@ -90,6 +90,13 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
+		// Prevent Listbox from handling space key and other text input keys
+		if (e.key === " " || e.key.length === 1) {
+			e.stopPropagation();
+			return;
+		}
+		
+		// Only handle Enter key for player selection
 		if (e.key === "Enter" && localSelectedPlayer.trim()) {
 			// Find the player object that matches the selected name
 			const selectedPlayerObj = allPlayers.find(p => p.playerName && p.playerName === localSelectedPlayer.trim());
@@ -135,7 +142,15 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'>
+								<Listbox.Options 
+									className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
+									onKeyDown={(e) => {
+										// Prevent Listbox from handling text input keys
+										if (e.key === " " || e.key.length === 1) {
+											e.stopPropagation();
+										}
+									}}
+								>
 									<div className='px-3 py-2'>
 																			<input
 										ref={inputRef}
@@ -144,6 +159,17 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										value={query}
 										onChange={(e) => setQuery(e.target.value)}
 										onKeyDown={handleKeyDown}
+										onKeyUp={(e) => {
+											// Prevent event bubbling for text input keys
+											if (e.key === " " || e.key.length === 1) {
+												e.stopPropagation();
+											}
+										}}
+										onInput={(e) => {
+											// Ensure all input including spaces is properly handled
+											const target = e.target as HTMLInputElement;
+											setQuery(target.value);
+										}}
 										enterKeyHint='search'
 										className='dark-input w-full text-sm'
 									/>
@@ -239,7 +265,15 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'>
+							<Listbox.Options 
+								className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
+								onKeyDown={(e) => {
+									// Prevent Listbox from handling text input keys
+									if (e.key === " " || e.key.length === 1) {
+										e.stopPropagation();
+									}
+								}}
+							>
 								<div className='px-3 py-2'>
 									<input
 										ref={inputRef}
@@ -248,6 +282,17 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										value={query}
 										onChange={(e) => setQuery(e.target.value)}
 										onKeyDown={handleKeyDown}
+										onKeyUp={(e) => {
+											// Prevent event bubbling for text input keys
+											if (e.key === " " || e.key.length === 1) {
+												e.stopPropagation();
+											}
+										}}
+										onInput={(e) => {
+											// Ensure all input including spaces is properly handled
+											const target = e.target as HTMLInputElement;
+											setQuery(target.value);
+										}}
 										enterKeyHint='search'
 										className='dark-input w-full text-sm'
 									/>
