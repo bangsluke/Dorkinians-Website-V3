@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { motion, PanInfo } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
 import ClubInformation from "./club-info/ClubInformation";
@@ -65,7 +66,7 @@ export default function ClubInfoContainer() {
 				dragConstraints={{ left: 0, right: 0 }}
 				onDragEnd={handleDragEnd}
 				className='h-full'>
-				{clubInfoSubPages[currentIndex]?.component()}
+				{clubInfoSubPages[currentIndex] ? React.createElement(clubInfoSubPages[currentIndex].component) : null}
 			</motion.div>
 		</div>
 	);
