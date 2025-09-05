@@ -1,4 +1,33 @@
+"use client";
+
+import { useNavigationStore } from "@/lib/stores/navigation";
+import { PencilIcon } from "@heroicons/react/24/outline";
+
 export default function Comparison() {
+	const { selectedPlayer, enterEditMode, setMainPage } = useNavigationStore();
+
+	const handleEditClick = () => {
+		enterEditMode();
+		setMainPage("home");
+	};
+
+	if (!selectedPlayer) {
+		return (
+			<div className='h-full flex items-center justify-center p-4'>
+				<div className='text-center'>
+					<h2 className='text-lg md:text-2xl font-bold text-white mb-2 md:mb-4'>Player Comparison</h2>
+					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
+					<button
+						onClick={handleEditClick}
+						className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+						title='Select a player'>
+						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+					</button>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className='p-4 text-center'>
 			<h2 className='text-2xl font-bold text-white mb-4'>Player Comparison</h2>

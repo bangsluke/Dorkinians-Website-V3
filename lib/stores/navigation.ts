@@ -173,26 +173,29 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			currentMainPage: get().currentMainPage
 		});
 		
+		const currentPage = get().currentMainPage;
+		
 		set({ currentMainPage: page });
-		// Reset stats sub-page when leaving stats
-		if (page !== "stats") {
+		
+		// Reset sub-pages only when actually leaving those pages
+		if (currentPage === "stats" && page !== "stats") {
 			set({ currentStatsSubPage: "player-stats" });
 		}
-		// Reset TOTW sub-page when leaving TOTW
-		if (page !== "totw") {
+		if (currentPage === "totw" && page !== "totw") {
 			set({ currentTOTWSubPage: "totw" });
 		}
-		// Reset Club Info sub-page when leaving Club Info
-		if (page !== "club-info") {
+		if (currentPage === "club-info" && page !== "club-info") {
 			set({ currentClubInfoSubPage: "club-information" });
 		}
-		// Only clear player selection when leaving home page, not when returning to it
-		const currentPage = get().currentMainPage;
-		if (currentPage === "home" && page !== "home") {
-			console.log('🔄 [Navigation] Leaving home page, clearing player selection');
+		
+		// Only clear player selection when leaving home page to non-stats pages
+		if (currentPage === "home" && page !== "home" && page !== "stats") {
+			console.log('🔄 [Navigation] Leaving home page for non-stats page, clearing player selection');
 			set({ selectedPlayer: null, isPlayerSelected: false });
 		} else if (page === "home") {
 			console.log('🏠 [Navigation] Returning to home page, preserving player selection');
+		} else if (page === "stats") {
+			console.log('📊 [Navigation] Navigating to stats page, preserving player selection');
 		}
 		
 		console.log('📊 [Navigation] State after change:', {
@@ -241,7 +244,19 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	enterEditMode: () => {
-		set({ isEditMode: true, isPlayerSelected: false });
+		// Clear player from localStorage
+		if (typeof window !== 'undefined') {
+			localStorage.removeItem('dorkinians-selected-player');
+			localStorage.removeItem('dorkinians-cached-player-data');
+		}
+		// Clear all player-related state
+		set({ 
+			isEditMode: true, 
+			isPlayerSelected: false,
+			selectedPlayer: null,
+			cachedPlayerData: null,
+			isLoadingPlayerData: false
+		});
 	},
 
 	// Player data actions
@@ -296,12 +311,13 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	// Swipe navigation within stats
 	nextStatsSubPage: () => {
-		const { currentStatsSubPage, isPlayerSelected } = get();
-		// Build the available pages based on current state
+		const { currentStatsSubPage } = get();
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Comparison
 		const availablePages: StatsSubPage[] = [
-			...(isPlayerSelected ? ["player-stats" as StatsSubPage, "comparison" as StatsSubPage] : []),
+			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,
-			"club-stats" as StatsSubPage
+			"club-stats" as StatsSubPage,
+			"comparison" as StatsSubPage
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const nextIndex = (currentIndex + 1) % availablePages.length;
@@ -309,12 +325,13 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	previousStatsSubPage: () => {
-		const { currentStatsSubPage, isPlayerSelected } = get();
-		// Build the available pages based on current state
+		const { currentStatsSubPage } = get();
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Comparison
 		const availablePages: StatsSubPage[] = [
-			...(isPlayerSelected ? ["player-stats" as StatsSubPage, "comparison" as StatsSubPage] : []),
+			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,
-			"club-stats" as StatsSubPage
+			"club-stats" as StatsSubPage,
+			"comparison" as StatsSubPage
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const prevIndex = currentIndex === 0 ? availablePages.length - 1 : currentIndex - 1;

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { motion, PanInfo } from "framer-motion";
 import { useEffect } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
@@ -20,29 +21,24 @@ const playerPages = [
 ];
 
 export default function StatsContainer() {
-	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, isPlayerSelected, currentMainPage } = useNavigationStore();
+	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
 
-	// Conditionally include Player Stats and Comparison only when a player is selected
-	const statsSubPages = isPlayerSelected ? [...playerPages, ...basePages] : basePages;
+	// Always show all 4 sub-pages: Player Stats, Team Stats, Club Stats, Comparison
+	const statsSubPages = [...playerPages, ...basePages];
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
 	
-	// If current page is not in the available pages (e.g., player-stats when no player selected), 
-	// default to the first available page
+	// If current page is not found, default to the first page (Player Stats)
 	const validCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
 	const currentPage = statsSubPages[validCurrentIndex];
 
-	// Auto-switch to a valid page if current page is not available
+	// Auto-switch to Player Stats if current page is not found
 	useEffect(() => {
-		// Only run this effect if we're actually on the stats page
 		if (currentMainPage === "stats" && currentIndex < 0) {
-			if (statsSubPages.length > 0) {
-				const firstPage = statsSubPages[0];
-				console.log('🔄 [StatsContainer] Current page not available, switching to:', firstPage.id);
-				setStatsSubPage(firstPage.id);
-			}
+			console.log('🔄 [StatsContainer] Current page not found, switching to Player Stats');
+			setStatsSubPage("player-stats");
 		}
-	}, [currentMainPage, currentIndex, statsSubPages, setStatsSubPage]);
+	}, [currentMainPage, currentIndex, setStatsSubPage]);
 
 
 	const handleDragEnd = (event: any, info: PanInfo) => {
@@ -89,7 +85,7 @@ export default function StatsContainer() {
 				dragConstraints={{ left: 0, right: 0 }}
 				onDragEnd={handleDragEnd}
 				className='h-full'>
-				{currentPage?.component ? currentPage.component() : null}
+				{currentPage ? React.createElement(currentPage.component) : null}
 			</motion.div>
 		</div>
 	);
