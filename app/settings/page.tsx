@@ -12,7 +12,7 @@ import {
 	ArrowPathIcon
 } from "@heroicons/react/24/outline";
 import Header from "@/components/Header";
-import { appConfig } from "@/lib/config/app";
+import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
 
 // Dynamically import PWA components to avoid SSR issues

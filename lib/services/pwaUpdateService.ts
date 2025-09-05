@@ -1,4 +1,4 @@
-import { appConfig } from "@/lib/config/app";
+import { appConfig } from "@/config/config";
 
 export interface UpdateInfo {
 	isUpdateAvailable: boolean;
