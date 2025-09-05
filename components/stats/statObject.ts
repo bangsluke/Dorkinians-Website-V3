@@ -1,8 +1,8 @@
 // Globally define an object containing stat objects that can be referenced in other functions.
 const statObject = {
     APP: {
-      statName: "Appearances",
-      displayText: "Appearances:", // The text displayed at all times on the page.
+      statName: "appearances",
+      displayText: "Appearances", // The text displayed at all times on the page.
       shortText: "Apps", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of appearances made by the player.",
@@ -12,8 +12,8 @@ const statObject = {
       iconName: "Appearance-Icon",
     },
     MIN: {
-      statName: "Minutes",
-      displayText: "Minutes played:", // The text displayed at all times on the page.
+      statName: "minutes",
+      displayText: "Minutes played", // The text displayed at all times on the page.
       shortText: "Mins", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of minutes played by the player.",
@@ -23,8 +23,8 @@ const statObject = {
       iconName: "Minutes-Icon",
     },
     MOM: {
-      statName: "Man of the Matches",
-      displayText: "Man of the Matches:", // The text displayed at all times on the page.
+      statName: "mom",
+      displayText: "Man of the Matches", // The text displayed at all times on the page.
       shortText: "MoMs", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -35,8 +35,8 @@ const statObject = {
       iconName: "MoM-Icon",
     },
     AllGSC: {
-      statName: "Goals Scored",
-      displayText: "Goals scored:", // The text displayed at all times on the page.
+      statName: "allGoalsScored",
+      displayText: "All Goals Scored", // The text displayed at all times on the page.
       shortText: "Goals", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -47,8 +47,8 @@ const statObject = {
       iconName: "Goals-Icon",
     },
     G: {
-      statName: "Open Play Goals Scored",
-      displayText: "Open Play Goals scored:", // The text displayed at all times on the page.
+      statName: "openPlayGoalsScored",
+      displayText: "Open Play Goals Scored", // The text displayed at all times on the page.
       shortText: "OP Goals", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -59,8 +59,8 @@ const statObject = {
       iconName: "Goals-Icon",
     },
     A: {
-      statName: "Assists",
-      displayText: "Assists provided:", // The text displayed at all times on the page.
+      statName: "assists",
+      displayText: "Assists provided", // The text displayed at all times on the page.
       shortText: "Assists", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of assists provided by the player.",
@@ -70,8 +70,8 @@ const statObject = {
       iconName: "Assists-Icon",
     },
     Y: {
-      statName: "Yellow Cards",
-      displayText: "Yellow cards received:", // The text displayed at all times on the page.
+      statName: "yellowCards",
+      displayText: "Yellow Cards Received", // The text displayed at all times on the page.
       shortText: "Yel", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of yellow cards received by the player.",
@@ -81,8 +81,8 @@ const statObject = {
       iconName: "YellowCard-Icon",
     },
     R: {
-      statName: "Red Cards",
-      displayText: "Red cards received:", // The text displayed at all times on the page.
+      statName: "redCards",
+      displayText: "Red Cards Received", // The text displayed at all times on the page.
       shortText: "Red", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of red cards received by the player.",
@@ -92,8 +92,8 @@ const statObject = {
       iconName: "RedCard-Icon",
     },
     SAVES: {
-      statName: "Saves",
-      displayText: "Saves produced:", // The text displayed at all times on the page.
+      statName: "saves",
+      displayText: "Saves Produced", // The text displayed at all times on the page.
       shortText: "SAVEs", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of saves made whilst playing as a Keeper.",
@@ -103,8 +103,8 @@ const statObject = {
       iconName: "PenaltiesSaved-Icon",
     },
     OG: {
-      statName: "Own Goals",
-      displayText: "Own goals scored:", // The text displayed at all times on the page.
+      statName: "ownGoals",
+      displayText: "Own Goals Scored", // The text displayed at all times on the page.
       shortText: "OGs", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of own goals scored by the player.",
@@ -114,8 +114,8 @@ const statObject = {
       iconName: "OwnGoal-Icon",
     },
     C: {
-      statName: "Conceded",
-      displayText: "Goals conceded:", // The text displayed at all times on the page.
+      statName: "conceded",
+      displayText: "Goals Conceded", // The text displayed at all times on the page.
       shortText: "Con", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -126,8 +126,8 @@ const statObject = {
       iconName: "Conceded-Icon",
     },
     CLS: {
-      statName: "Clean Sheets",
-      displayText: "Clean sheets achieved:", // The text displayed at all times on the page.
+      statName: "cleanSheets",
+      displayText: "Clean Sheets Achieved", // The text displayed at all times on the page.
       shortText: "CLS", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of clean sheets achieved by the player.",
@@ -137,8 +137,8 @@ const statObject = {
       iconName: "CleanSheet-Icon",
     },
     PSC: {
-      statName: "Penalties Scored",
-      displayText: "Penalties scored:", // The text displayed at all times on the page.
+      statName: "penaltiesScored",
+      displayText: "Penalties Scored", // The text displayed at all times on the page.
       shortText: "Pens", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of penalties scored by the player.",
@@ -148,8 +148,8 @@ const statObject = {
       iconName: "PenaltiesScored-Icon",
     },
     PM: {
-      statName: "Penalties Missed",
-      displayText: "Penalties missed:", // The text displayed at all times on the page.
+      statName: "penaltiesMissed",
+      displayText: "Penalties Missed", // The text displayed at all times on the page.
       shortText: "Pens Mis", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of penalties missed by the player.",
@@ -159,8 +159,8 @@ const statObject = {
       iconName: "PenaltiesMissed-Icon",
     },
     PCO: {
-      statName: "Penalties Conceded",
-      displayText: "Penalties conceded:", // The text displayed at all times on the page.
+      statName: "penaltiesConceded",
+      displayText: "Penalties Conceded", // The text displayed at all times on the page.
       shortText: "Pens Con", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of penalties conceded by the player.",
@@ -170,8 +170,8 @@ const statObject = {
       iconName: "PenaltiesConceded-Icon",
     },
     PSV: {
-      statName: "Penalties Saved",
-      displayText: "Penalties saved:", // The text displayed at all times on the page.
+      statName: "penaltiesSaved",
+      displayText: "Penalties Saved", // The text displayed at all times on the page.
       shortText: "Pens Save", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of penalties saved by the player.",
@@ -181,8 +181,8 @@ const statObject = {
       iconName: "PenaltiesSaved-Icon",
     },
     FTP: {
-      statName: "Fantasy Points",
-      displayText: "Fantasy points achieved:", // The text displayed at all times on the page.
+      statName: "fantasyPoints",
+      displayText: "Fantasy Points Achieved", // The text displayed at all times on the page.
       shortText: "FTP", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of fantasy points achieved by the player.",
@@ -192,8 +192,8 @@ const statObject = {
       iconName: "FantasyPoints-Icon",
     },
     GperAPP: {
-      statName: "Goals Per Appearance",
-      displayText: "Goals per app:", // The text displayed at all times on the page.
+      statName: "goalsPerApp",
+      displayText: "Goals Per Appearance", // The text displayed at all times on the page.
       shortText: "GperApp", // Used for short displays such as on the Comparison tab.
       statFormat: "Decimal2",
       description:
@@ -204,8 +204,8 @@ const statObject = {
       iconName: "GoalsPerAppearance-Icon",
     },
     CperAPP: {
-      statName: "Conceded Per Appearance",
-      displayText: "Goals conceded per app:", // The text displayed at all times on the page.
+      statName: "concededPerApp",
+      displayText: "Goals Conceded Per Appearance", // The text displayed at all times on the page.
       shortText: "CperApp", // Used for short displays such as on the Comparison tab.
       statFormat: "Decimal2",
       description:
@@ -216,8 +216,8 @@ const statObject = {
       iconName: "ConcededPerAppearance-Icon",
     },
     MperG: {
-      statName: "Minutes Per Goal",
-      displayText: "Minutes per goal scored:", // The text displayed at all times on the page.
+      statName: "minutesPerGoal",
+      displayText: "Minutes Per Goal Scored", // The text displayed at all times on the page.
       shortText: "MperG", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -228,8 +228,8 @@ const statObject = {
       iconName: "MinutesPerGoal-Icon",
     },
     MperCLS: {
-      statName: "Minutes Per Clean Sheet",
-      displayText: "Minutes per clean sheet:", // The text displayed at all times on the page.
+      statName: "minutesPerCleanSheet",
+      displayText: "Minutes Per Clean Sheet", // The text displayed at all times on the page.
       shortText: "MperCLS", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description:
@@ -240,8 +240,8 @@ const statObject = {
       iconName: "MinutesPerCleanSheet-Icon",
     },
     FTPperAPP: {
-      statName: "Fantasy Points Per Appearance",
-      displayText: "Fantasy points per app:", // The text displayed at all times on the page.
+      statName: "fantasyPointsPerApp",
+      displayText: "Fantasy Points Per Appearance", // The text displayed at all times on the page.
       shortText: "FTPperApp", // Used for short displays such as on the Comparison tab.
       statFormat: "Decimal2",
       description:
@@ -252,8 +252,8 @@ const statObject = {
       iconName: "FantasyPointsPerAppearance-Icon",
     },
     DIST: {
-      statName: "Distance Travelled",
-      displayText: "Distance travelled:", // The text displayed at all times on the page.
+      statName: "distance",
+      displayText: "Distance Travelled", // The text displayed at all times on the page.
       shortText: "Dist", // Used for short displays such as on the Comparison tab.
       statFormat: "Decimal1",
       description:
@@ -263,9 +263,9 @@ const statObject = {
       statCategory: "Appearance Stat",
       iconName: "DistanceTravelled-Icon",
     },
-    "Games%Won": {
-      statName: "Percentage Games Won",
-      displayText: "% games won:", // The text displayed at all times on the page.
+    "Games%Won": {  
+      statName: "gamesWon",
+      displayText: "% Games Won", // The text displayed at all times on the page.
       shortText: "% Won", // Used for short displays such as on the Comparison tab.
       statFormat: "Percentage",
       description: "The percentage of games won by the player.",
@@ -275,8 +275,8 @@ const statObject = {
       iconName: "PercentageGamesWon-Icon",
     },
     HomeGames: {
-      statName: "Home Games",
-      displayText: "Home games:", // The text displayed at all times on the page.
+      statName: "homeGames",
+      displayText: "Home Games", // The text displayed at all times on the page.
       shortText: "H Apps", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of home games played by the player.",
@@ -286,8 +286,8 @@ const statObject = {
       iconName: "HomeGames-Icon",
     },
     HomeWins: {
-      statName: "Home Wins",
-      displayText: "Home wins:", // The text displayed at all times on the page.
+      statName: "homeWins",
+      displayText: "Home Wins", // The text displayed at all times on the page.
       shortText: "H Wins", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of home games won by the player.",
@@ -297,8 +297,8 @@ const statObject = {
       iconName: "HomeWins-Icon",
     },
     "HomeGames%Won": {
-      statName: "Percentage Home Games Won",
-      displayText: "% home games won:", // The text displayed at all times on the page.
+      statName: "homeGamesPercentWon",
+      displayText: "% Home Games Won", // The text displayed at all times on the page.
       shortText: "% H Won", // Used for short displays such as on the Comparison tab.
       statFormat: "Percentage",
       description: "The percentage of home games won by the player.",
@@ -308,8 +308,8 @@ const statObject = {
       iconName: "PercentageHomeGamesWon-Icon",
     },
     AwayGames: {
-      statName: "Away Games",
-      displayText: "Away games:", // The text displayed at all times on the page.
+      statName: "awayGames",
+      displayText: "Away Games", // The text displayed at all times on the page.
       shortText: "A Apps", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of away games played by the player.",
@@ -319,8 +319,8 @@ const statObject = {
       iconName: "AwayGames-Icon",
     },
     AwayWins: {
-      statName: "Away Wins",
-      displayText: "Away wins:", // The text displayed at all times on the page.
+      statName: "awayWins",
+      displayText: "Away Wins", // The text displayed at all times on the page.
       shortText: "A Wins", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of away games won by the player.",
@@ -330,8 +330,8 @@ const statObject = {
       iconName: "AwayWins-Icon",
     },
     "AwayGames%Won": {
-      statName: "Percentage Away Games Won",
-      displayText: "% away games won:", // The text displayed at all times on the page.
+      statName: "awayGamesPercentWon",
+      displayText: "% Away Games Won", // The text displayed at all times on the page.
       shortText: "% A Won", // Used for short displays such as on the Comparison tab.
       statFormat: "Percentage",
       description: "The percentage of away games won by the player.",
@@ -341,8 +341,8 @@ const statObject = {
       iconName: "PercentageAwayGamesWon-Icon",
     },
     MostPlayedForTeam: {
-      statName: "Most Played for Team",
-      displayText: "Most played for team:", // The text displayed at all times on the page.
+      statName: "mostPlayedForTeam",
+      displayText: "Most Played For Team", // The text displayed at all times on the page.
       shortText: "Most Play", // Used for short displays such as on the Comparison tab.
       statFormat: "String",
       description: "The Dorkinians team that the player has appeared for most.",
@@ -352,8 +352,8 @@ const statObject = {
       iconName: "MostPlayedForTeam-Icon",
     },
     NumberTeamsPlayedFor: {
-      statName: "Number of Teams Played for",
-      displayText: "Number teams played for:", // The text displayed at all times on the page.
+      statName: "numberTeamsPlayedFor",
+      displayText: "Number Teams Played For", // The text displayed at all times on the page.
       shortText: "# Teams", // Used for short displays such as on the Comparison tab.
       statFormat: "String",
       description:
@@ -364,8 +364,8 @@ const statObject = {
       iconName: "NumberTeamsPlayedFor-Icon",
     },
     NumberSeasonsPlayedFor: {
-      statName: "Number of Seasons Played for",
-      displayText: "Number seasons played for:", // The text displayed at all times on the page.
+      statName: "numberSeasonsPlayedFor",
+      displayText: "Number Seasons Played For", // The text displayed at all times on the page.
       shortText: "# Seasons", // Used for short displays such as on the Comparison tab.
       statFormat: "String",
       description:
@@ -376,8 +376,8 @@ const statObject = {
       iconName: "NumberSeasonsPlayedFor-Icon",
     },
     MostScoredForTeam: {
-      statName: "Most Scored for Team",
-      displayText: "Most scored for team:", // The text displayed at all times on the page.
+      statName: "mostScoredForTeam",
+      displayText: "Most Scored For Team", // The text displayed at all times on the page.
       shortText: "Most G", // Used for short displays such as on the Comparison tab.
       statFormat: "String",
       description: "The Dorkinians team that the player has scored the most for.",
