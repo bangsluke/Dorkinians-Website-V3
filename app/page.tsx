@@ -40,19 +40,23 @@ export default function HomePage() {
 		initializeFromStorage();
 	}, [initializeFromStorage]);
 
-	// Show chatbot when player is loaded from localStorage
+	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
 		console.log('🤖 [HomePage] Chatbot useEffect triggered with:', {
 			isPlayerSelected,
 			selectedPlayer,
+			isEditMode,
 			showChatbot
 		});
 		
-		if (isPlayerSelected && selectedPlayer) {
+		if (isPlayerSelected && selectedPlayer && !isEditMode) {
 			console.log('✅ [HomePage] Showing chatbot for player:', selectedPlayer);
 			setShowChatbot(true);
+		} else {
+			console.log('❌ [HomePage] Hiding chatbot - isPlayerSelected:', isPlayerSelected, 'selectedPlayer:', selectedPlayer, 'isEditMode:', isEditMode);
+			setShowChatbot(false);
 		}
-	}, [isPlayerSelected, selectedPlayer]);
+	}, [isPlayerSelected, selectedPlayer, isEditMode]);
 
 	// Validate and refresh player data on app load and when player changes
 	useEffect(() => {
@@ -109,29 +113,14 @@ export default function HomePage() {
 								)}
 							</AnimatePresence>
 
-							{/* Player Selection or Player Name Display */}
+							{/* Player Selection or Player Name Display - Hide when chatbot is visible */}
 							<AnimatePresence mode='wait'>
-								{!isPlayerSelected ? (
+								{!showChatbot && (
 									<motion.div
 										key='player-selection'
 										initial={{ opacity: 0, y: 20 }}
 										animate={{ opacity: 1, y: 0 }}
 										exit={{ opacity: 0, y: -20 }}
-										transition={{ duration: 0.5 }}
-										className='w-full'>
-										<PlayerSelection
-											onPlayerSelect={handlePlayerSelect}
-											onEditClick={handleEditClick}
-											onClearPlayer={handleClearPlayer}
-											selectedPlayer={selectedPlayer}
-											isEditMode={isEditMode}
-										/>
-									</motion.div>
-								) : (
-									<motion.div
-										key='player-name'
-										initial={{ opacity: 0, y: 20 }}
-										animate={{ opacity: 1, y: 0 }}
 										transition={{ duration: 0.5 }}
 										className='w-full'>
 										<PlayerSelection
