@@ -40,19 +40,23 @@ export default function HomePage() {
 		initializeFromStorage();
 	}, [initializeFromStorage]);
 
-	// Show chatbot when player is loaded from localStorage
+	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
 		console.log('🤖 [HomePage] Chatbot useEffect triggered with:', {
 			isPlayerSelected,
 			selectedPlayer,
+			isEditMode,
 			showChatbot
 		});
 		
-		if (isPlayerSelected && selectedPlayer) {
+		if (isPlayerSelected && selectedPlayer && !isEditMode) {
 			console.log('✅ [HomePage] Showing chatbot for player:', selectedPlayer);
 			setShowChatbot(true);
+		} else {
+			console.log('❌ [HomePage] Hiding chatbot - isPlayerSelected:', isPlayerSelected, 'selectedPlayer:', selectedPlayer, 'isEditMode:', isEditMode);
+			setShowChatbot(false);
 		}
-	}, [isPlayerSelected, selectedPlayer]);
+	}, [isPlayerSelected, selectedPlayer, isEditMode]);
 
 	// Validate and refresh player data on app load and when player changes
 	useEffect(() => {
@@ -81,8 +85,10 @@ export default function HomePage() {
 	};
 
 	const renderCurrentPage = () => {
+		console.log('🏠 [HomePage] renderCurrentPage called with currentMainPage:', currentMainPage);
 		switch (currentMainPage) {
 			case "home":
+				console.log('🏠 [HomePage] Rendering home page');
 				return (
 					<motion.div
 						key='home'
@@ -111,7 +117,7 @@ export default function HomePage() {
 
 							{/* Player Selection or Player Name Display */}
 							<AnimatePresence mode='wait'>
-								{!isPlayerSelected ? (
+								{(!showChatbot || isEditMode) && (
 									<motion.div
 										key='player-selection'
 										initial={{ opacity: 0, y: 20 }}
@@ -127,20 +133,30 @@ export default function HomePage() {
 											isEditMode={isEditMode}
 										/>
 									</motion.div>
-								) : (
+								)}
+							</AnimatePresence>
+
+							{/* Player Name Display when chatbot is visible and not in edit mode */}
+							<AnimatePresence mode='wait'>
+								{showChatbot && !isEditMode && selectedPlayer && (
 									<motion.div
-										key='player-name'
+										key='player-name-display'
 										initial={{ opacity: 0, y: 20 }}
 										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -20 }}
 										transition={{ duration: 0.5 }}
-										className='w-full'>
-										<PlayerSelection
-											onPlayerSelect={handlePlayerSelect}
-											onEditClick={handleEditClick}
-											onClearPlayer={handleClearPlayer}
-											selectedPlayer={selectedPlayer}
-											isEditMode={isEditMode}
-										/>
+										className='text-center mb-4'>
+										<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+											<h2 className='text-lg md:text-xl font-semibold text-white'>{selectedPlayer}</h2>
+											<button
+												onClick={handleEditClick}
+												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+												title='Edit player selection'>
+												<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+													<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+												</svg>
+											</button>
+										</div>
 									</motion.div>
 								)}
 							</AnimatePresence>
@@ -165,18 +181,59 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				return currentMainPage === "stats" ? <StatsContainer /> : null;
+				console.log('📊 [HomePage] Rendering stats page');
+				return (
+					<motion.div
+						key='stats'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<StatsContainer />
+					</motion.div>
+				);
 
 			case "totw":
-				return <TOTWContainer />;
+				console.log('🏆 [HomePage] Rendering TOTW page');
+				return (
+					<motion.div
+						key='totw'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<TOTWContainer />
+					</motion.div>
+				);
 
 			case "club-info":
-				return <ClubInfoContainer />;
+				console.log('ℹ️ [HomePage] Rendering club-info page');
+				return (
+					<motion.div
+						key='club-info'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<ClubInfoContainer />
+					</motion.div>
+				);
 
 			case "settings":
-				return <Settings />;
+				console.log('⚙️ [HomePage] Rendering settings page');
+				return (
+					<motion.div
+						key='settings'
+						initial={{ opacity: 0, y: 20 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -20 }}
+						className='h-full'>
+						<Settings />
+					</motion.div>
+				);
 
 			default:
+				console.log('❌ [HomePage] Unknown page:', currentMainPage);
 				return null;
 		}
 	};
@@ -191,7 +248,9 @@ export default function HomePage() {
 				<main className='main-content-container'>
 					<div className='frosted-container'>
 						<div className='h-full overflow-y-auto'>
-							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
+							<AnimatePresence mode='wait'>
+								{renderCurrentPage()}
+							</AnimatePresence>
 						</div>
 					</div>
 				</main>
