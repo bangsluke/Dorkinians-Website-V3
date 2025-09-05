@@ -6,6 +6,7 @@ import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
+import { homepageQuestions } from "@/config/config";
 
 interface SavedConversation {
 	question: string;
@@ -21,6 +22,7 @@ export default function ChatbotInterface() {
 	const [response, setResponse] = useState<ChatbotResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
+	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
@@ -30,18 +32,25 @@ export default function ChatbotInterface() {
 			if (saved) {
 				try {
 					const parsed = JSON.parse(saved);
-					setConversationHistory(parsed);
+					// Keep only the last 3 conversations
+					const lastThree = parsed.slice(-3);
+					setConversationHistory(lastThree);
+					setShowExampleQuestions(false);
 				} catch (err) {
 					console.error("Failed to parse saved conversations:", err);
+					setShowExampleQuestions(true);
 				}
+			} else {
+				setShowExampleQuestions(true);
 			}
 		}
 	}, [selectedPlayer]);
 
-	// Save conversation history to localStorage whenever it changes
+	// Save conversation history to localStorage whenever it changes (keep only last 3)
 	useEffect(() => {
 		if (typeof window !== 'undefined') {
-			localStorage.setItem("chatbotConversations", JSON.stringify(conversationHistory));
+			const lastThree = conversationHistory.slice(-3);
+			localStorage.setItem("chatbotConversations", JSON.stringify(lastThree));
 		}
 	}, [conversationHistory]);
 
@@ -112,7 +121,12 @@ export default function ChatbotInterface() {
 				timestamp: Date.now(),
 				playerContext: selectedPlayer || undefined,
 			};
-			setConversationHistory((prev) => [...prev, newConversation]);
+			setConversationHistory((prev) => {
+				const updated = [...prev, newConversation];
+				// Keep only the last 3 conversations
+				return updated.slice(-3);
+			});
+			setShowExampleQuestions(false);
 		} catch (err) {
 			console.error(`🤖 Frontend: Error occurred:`, err);
 			setError(err instanceof Error ? err.message : "An error occurred");
@@ -179,7 +193,7 @@ export default function ChatbotInterface() {
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player stats, team performance, or club information...'
-						className='dark-chat-input w-full text-sm md:text-base'
+						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
 						disabled={isLoading}
 					/>
 					<button
@@ -197,9 +211,6 @@ export default function ChatbotInterface() {
 					</button>
 				</div>
 
-				<p className='text-xs md:text-sm text-yellow-300 mt-2 text-center'>
-					Try: &ldquo;How many appearances have I made?&rdquo; or &ldquo;Which team have I played for most?&rdquo;
-				</p>
 			</form>
 
 			{/* Response Display */}
@@ -290,23 +301,22 @@ export default function ChatbotInterface() {
 				)}
 			</AnimatePresence>
 
-			{/* Conversation History */}
-			{conversationHistory.length > 0 && (
-				<div className='mt-6 md:mt-8'>
-					<h3 className='font-semibold text-white mb-3 md:mb-4 text-sm md:text-base'>Previous Conversations</h3>
-					<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2'>
-						{conversationHistory
-							.slice(-5)
-							.reverse()
-							.map((conv, index) => (
+			{/* Questions Section - Show example questions when no past questions, or past questions when available */}
+			<div className='mt-6 md:mt-8'>
+				{/* Show example questions when no past conversations exist */}
+				{conversationHistory.length === 0 && (
+					<div>
+						<h3 className='font-semibold text-white mb-3 md:mb-4 text-sm md:text-base'>Try these questions:</h3>
+						<div className='space-y-2 md:space-y-3'>
+							{homepageQuestions.map((q, index) => (
 								<motion.div
-									key={conv.timestamp}
+									key={q.id}
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
 									className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
 									onClick={() => {
-										setQuestion(conv.question);
+										setQuestion(q.question);
 										// Focus the input after setting the question
 										setTimeout(() => {
 											const input = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -316,16 +326,92 @@ export default function ChatbotInterface() {
 											}
 										}, 0);
 									}}>
-									<div className='flex items-start justify-between mb-2'>
-										<p className='font-medium text-white text-xs md:text-sm'>Q: {conv.question}</p>
-										<span className='text-xs text-yellow-300'>{new Date(conv.timestamp).toLocaleTimeString()}</span>
-									</div>
-									<p className='text-xs md:text-sm text-yellow-100'>{conv.response.answer}</p>
+																	<div className='mb-2'>
+									<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
+								</div>
+									<p className='text-xs md:text-sm text-yellow-100'>{q.description}</p>
 								</motion.div>
 							))}
+						</div>
 					</div>
-				</div>
-			)}
+				)}
+
+				{/* Show past conversations when they exist */}
+				{conversationHistory.length > 0 && (
+					<div>
+						<div className='flex items-center justify-between mb-3 md:mb-4'>
+							<h3 className='font-semibold text-white text-sm md:text-base'>Previous Conversations</h3>
+							<button
+								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
+								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
+							>
+								{showExampleQuestions ? 'Hide' : 'Show'} example questions
+							</button>
+						</div>
+						
+						{/* Show past conversations or example questions based on toggle */}
+						{!showExampleQuestions ? (
+							<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2'>
+								{conversationHistory
+									.slice(-3)
+									.reverse()
+									.map((conv, index) => (
+										<motion.div
+											key={conv.timestamp}
+											initial={{ opacity: 0, x: -20 }}
+											animate={{ opacity: 1, x: 0 }}
+											transition={{ delay: index * 0.1 }}
+											className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+											onClick={() => {
+												setQuestion(conv.question);
+												// Focus the input after setting the question
+												setTimeout(() => {
+													const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+													if (input) {
+														input.focus();
+														input.setSelectionRange(0, input.value.length);
+													}
+												}, 0);
+											}}>
+											<div className='flex items-start justify-between mb-2'>
+												<p className='font-medium text-white text-xs md:text-sm'>Q: {conv.question}</p>
+												<span className='text-xs text-yellow-300'>{new Date(conv.timestamp).toLocaleTimeString()}</span>
+											</div>
+											<p className='text-xs md:text-sm text-yellow-100'>{conv.response.answer}</p>
+										</motion.div>
+									))}
+							</div>
+						) : (
+							<div className='space-y-2 md:space-y-3'>
+								{homepageQuestions.map((q, index) => (
+									<motion.div
+										key={q.id}
+										initial={{ opacity: 0, x: -20 }}
+										animate={{ opacity: 1, x: 0 }}
+										transition={{ delay: index * 0.1 }}
+										className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+										onClick={() => {
+											setQuestion(q.question);
+											// Focus the input after setting the question
+											setTimeout(() => {
+												const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+												if (input) {
+													input.focus();
+													input.setSelectionRange(0, input.value.length);
+												}
+											}, 0);
+										}}>
+																		<div className='mb-2'>
+									<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
+								</div>
+										<p className='text-xs md:text-sm text-yellow-100'>{q.description}</p>
+									</motion.div>
+								))}
+							</div>
+						)}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 }

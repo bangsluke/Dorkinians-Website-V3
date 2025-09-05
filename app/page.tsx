@@ -113,9 +113,9 @@ export default function HomePage() {
 								)}
 							</AnimatePresence>
 
-							{/* Player Selection or Player Name Display - Hide when chatbot is visible */}
+							{/* Player Selection or Player Name Display */}
 							<AnimatePresence mode='wait'>
-								{!showChatbot && (
+								{(!showChatbot || isEditMode) && (
 									<motion.div
 										key='player-selection'
 										initial={{ opacity: 0, y: 20 }}
@@ -130,6 +130,31 @@ export default function HomePage() {
 											selectedPlayer={selectedPlayer}
 											isEditMode={isEditMode}
 										/>
+									</motion.div>
+								)}
+							</AnimatePresence>
+
+							{/* Player Name Display when chatbot is visible and not in edit mode */}
+							<AnimatePresence mode='wait'>
+								{showChatbot && !isEditMode && selectedPlayer && (
+									<motion.div
+										key='player-name-display'
+										initial={{ opacity: 0, y: 20 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -20 }}
+										transition={{ duration: 0.5 }}
+										className='text-center mb-4'>
+										<div className='flex items-center justify-center space-x-2 md:space-x-3'>
+											<h2 className='text-lg md:text-xl font-semibold text-white'>{selectedPlayer}</h2>
+											<button
+												onClick={handleEditClick}
+												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+												title='Edit player selection'>
+												<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+													<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' />
+												</svg>
+											</button>
+										</div>
 									</motion.div>
 								)}
 							</AnimatePresence>
