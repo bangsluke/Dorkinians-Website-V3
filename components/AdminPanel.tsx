@@ -39,6 +39,9 @@ export default function AdminPanel() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 
+	// Check if we're in development mode
+	const isDevelopment = process.env.NODE_ENV === 'development';
+
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -87,6 +90,8 @@ export default function AdminPanel() {
 			return `${secs}s`;
 		}
 	};
+
+
 
 	const triggerSeeding = async () => {
 		setIsLoading(true);
@@ -492,32 +497,38 @@ export default function AdminPanel() {
 				</div>
 			</div>
 
-			{/* Trigger Button */}
-			<div className='mb-6'>
+			{/* Trigger Buttons */}
+			<div className='mb-6 flex gap-4'>
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
 					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
-					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Database Seeding"}
+					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
 				</button>
 			</div>
 
 			{/* Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<p className='text-sm text-gray-600 mt-2'>⚠️ This will seed the production Neo4j database with data from Google Sheets.</p>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Database Seeding Options</h3>
+				<div className='space-y-2'>
+					<div className='flex items-start'>
+						<span className='text-blue-600 font-semibold mr-2'>🚀 Production:</span>
+						<p className='text-sm text-gray-600'>⚠️ Triggers production database seeding via Heroku service. Only use for production deployments.</p>
+					</div>
+				</div>
 			</div>
 
-			{/* Status Check Button */}
-			<div className='mb-6 '>
+			{/* Status Check Buttons */}
+			<div className='mb-6 flex gap-4'>
 				<button
 					onClick={checkStatus}
 					disabled={statusCheckLoading || !jobId}
-					className={`px-6 py-3 mr-4 rounded-lg font-semibold text-white transition-colors ${
+					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
 					}`}>
-					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Seeding Status"}
+					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Production Status"}
 				</button>
 				<button
 					onClick={async () => {
