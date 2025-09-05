@@ -14,7 +14,24 @@ import PlayerSelection from "@/components/PlayerSelection";
 import UpdateToast from "@/components/UpdateToast";
 
 export default function HomePage() {
-	const { currentMainPage, selectedPlayer, isPlayerSelected, isEditMode, selectPlayer, enterEditMode, initializeFromStorage, setMainPage } = useNavigationStore();
+	const { 
+		currentMainPage, 
+		selectedPlayer, 
+		isPlayerSelected, 
+		isEditMode, 
+		selectPlayer, 
+		enterEditMode, 
+		initializeFromStorage, 
+		validateAndRefreshPlayerData,
+		setMainPage 
+	} = useNavigationStore();
+	
+	console.log('🏠 [HomePage] Component rendered with state:', {
+		currentMainPage,
+		selectedPlayer,
+		isPlayerSelected,
+		isEditMode
+	});
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 
@@ -25,10 +42,24 @@ export default function HomePage() {
 
 	// Show chatbot when player is loaded from localStorage
 	useEffect(() => {
+		console.log('🤖 [HomePage] Chatbot useEffect triggered with:', {
+			isPlayerSelected,
+			selectedPlayer,
+			showChatbot
+		});
+		
 		if (isPlayerSelected && selectedPlayer) {
+			console.log('✅ [HomePage] Showing chatbot for player:', selectedPlayer);
 			setShowChatbot(true);
 		}
 	}, [isPlayerSelected, selectedPlayer]);
+
+	// Validate and refresh player data on app load and when player changes
+	useEffect(() => {
+		if (selectedPlayer) {
+			validateAndRefreshPlayerData(selectedPlayer);
+		}
+	}, [selectedPlayer, validateAndRefreshPlayerData]);
 
 	const handlePlayerSelect = (playerName: string) => {
 		selectPlayer(playerName);
@@ -134,7 +165,7 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				return <StatsContainer />;
+				return currentMainPage === "stats" ? <StatsContainer /> : null;
 
 			case "totw":
 				return <TOTWContainer />;

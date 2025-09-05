@@ -1,23 +1,45 @@
 "use client";
 
+import React from "react";
 import { motion, PanInfo } from "framer-motion";
+import { useEffect } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import PlayerStats from "./stats/PlayerStats";
 import TeamStats from "./stats/TeamStats";
 import ClubStats from "./stats/ClubStats";
 import Comparison from "./stats/Comparison";
 
-const statsSubPages = [
-	{ id: "player-stats" as StatsSubPage, component: PlayerStats, label: "Player Stats" },
+// Define page arrays outside component to avoid dependency issues
+const basePages = [
 	{ id: "team-stats" as StatsSubPage, component: TeamStats, label: "Team Stats" },
 	{ id: "club-stats" as StatsSubPage, component: ClubStats, label: "Club Stats" },
+];
+
+const playerPages = [
+	{ id: "player-stats" as StatsSubPage, component: PlayerStats, label: "Player Stats" },
 	{ id: "comparison" as StatsSubPage, component: Comparison, label: "Comparison" },
 ];
 
 export default function StatsContainer() {
-	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage } = useNavigationStore();
+	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
+
+	// Always show all 4 sub-pages: Player Stats, Team Stats, Club Stats, Comparison
+	const statsSubPages = [...playerPages, ...basePages];
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
+	
+	// If current page is not found, default to the first page (Player Stats)
+	const validCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
+	const currentPage = statsSubPages[validCurrentIndex];
+
+	// Auto-switch to Player Stats if current page is not found
+	useEffect(() => {
+		if (currentMainPage === "stats" && currentIndex < 0) {
+			console.log('🔄 [StatsContainer] Current page not found, switching to Player Stats');
+			setStatsSubPage("player-stats");
+		}
+	}, [currentMainPage, currentIndex, setStatsSubPage]);
+
 
 	const handleDragEnd = (event: any, info: PanInfo) => {
 		const swipeThreshold = 50;
@@ -54,7 +76,7 @@ export default function StatsContainer() {
 
 			{/* Swipeable Content */}
 			<motion.div
-				key={currentStatsSubPage}
+				key={currentPage?.id || 'default'}
 				initial={{ x: 300, opacity: 0 }}
 				animate={{ x: 0, opacity: 1 }}
 				exit={{ x: -300, opacity: 0 }}
@@ -63,7 +85,7 @@ export default function StatsContainer() {
 				dragConstraints={{ left: 0, right: 0 }}
 				onDragEnd={handleDragEnd}
 				className='h-full'>
-				{statsSubPages[currentIndex]?.component()}
+				{currentPage ? React.createElement(currentPage.component) : null}
 			</motion.div>
 		</div>
 	);

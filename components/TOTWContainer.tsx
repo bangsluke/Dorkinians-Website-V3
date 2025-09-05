@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { motion, PanInfo } from "framer-motion";
 import { useNavigationStore, type TOTWSubPage } from "@/lib/stores/navigation";
 import TeamOfTheWeek from "./totw/TeamOfTheWeek";
@@ -59,7 +60,7 @@ export default function TOTWContainer() {
 				dragConstraints={{ left: 0, right: 0 }}
 				onDragEnd={handleDragEnd}
 				className='h-full'>
-				{totwSubPages[currentIndex]?.component()}
+				{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}
 			</motion.div>
 		</div>
 	);
