@@ -1,5 +1,5 @@
 // Globally define an object containing stat objects that can be referenced in other functions.
-const statObject = {
+export const statObject = {
     APP: {
       statName: "appearances",
       displayText: "Appearances", // The text displayed at all times on the page.
@@ -21,6 +21,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Appearance Stat",
       iconName: "Minutes-Icon",
+      statUnit: "mins",
     },
     MOM: {
       statName: "mom",
@@ -94,7 +95,7 @@ const statObject = {
     SAVES: {
       statName: "saves",
       displayText: "Saves Produced", // The text displayed at all times on the page.
-      shortText: "SAVEs", // Used for short displays such as on the Comparison tab.
+      shortText: "Saves", // Used for short displays such as on the Comparison tab.
       statFormat: "Integer",
       description: "The number of saves made whilst playing as a Keeper.",
       statHigherBetterBoolean: true,
@@ -226,6 +227,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Per App/Minute Stat",
       iconName: "MinutesPerGoal-Icon",
+      statUnit: "mins",
     },
     MperCLS: {
       statName: "minutesPerCleanSheet",
@@ -238,6 +240,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Per App/Minute Stat",
       iconName: "MinutesPerCleanSheet-Icon",
+      statUnit: "mins",
     },
     FTPperAPP: {
       statName: "fantasyPointsPerApp",
@@ -262,6 +265,7 @@ const statObject = {
       numberDecimalPlaces: 1,
       statCategory: "Appearance Stat",
       iconName: "DistanceTravelled-Icon",
+      statUnit: "miles",
     },
     "Games%Won": {  
       statName: "gamesWon",
@@ -273,6 +277,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Results Stat",
       iconName: "PercentageGamesWon-Icon",
+      statUnit: "%",
     },
     HomeGames: {
       statName: "homeGames",
@@ -306,6 +311,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Results Stat",
       iconName: "PercentageHomeGamesWon-Icon",
+      statUnit: "%",
     },
     AwayGames: {
       statName: "awayGames",
@@ -339,6 +345,7 @@ const statObject = {
       numberDecimalPlaces: 0,
       statCategory: "Results Stat",
       iconName: "PercentageAwayGamesWon-Icon",
+      statUnit: "%",
     },
     MostPlayedForTeam: {
       statName: "mostPlayedForTeam",
