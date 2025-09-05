@@ -9,9 +9,10 @@ class Neo4jService {
 
 	async connect() {
 		try {
-			const uri = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_URI : process.env.DEV_NEO4J_URI;
-			const username = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_USER : process.env.DEV_NEO4J_USER;
-			const password = process.env.NODE_ENV === "production" ? process.env.PROD_NEO4J_PASSWORD : process.env.DEV_NEO4J_PASSWORD;
+			// All environments now use Neo4j Aura
+			const uri = process.env.PROD_NEO4J_URI;
+			const username = process.env.PROD_NEO4J_USER;
+			const password = process.env.PROD_NEO4J_PASSWORD;
 
 			console.log(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
 			console.log(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
