@@ -9,7 +9,11 @@ import {
   XMarkIcon
 } from '@heroicons/react/24/outline';
 
-// Using global BeforeInstallPromptEvent type
+// Define BeforeInstallPromptEvent type
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
 
 export default function PWAInstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -206,14 +210,14 @@ export default function PWAInstallButton() {
                       <div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
                         2
                       </div>
-                      <p className='text-sm'>Scroll down and tap <strong>"Add to Home Screen"</strong></p>
+                      <p className='text-sm'>Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong></p>
                     </div>
                     
                     <div className='flex items-start space-x-3'>
                       <div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
                         3
                       </div>
-                      <p className='text-sm'>Tap <strong>"Add"</strong> to confirm</p>
+                      <p className='text-sm'>Tap <strong>&quot;Add&quot;</strong> to confirm</p>
                     </div>
                   </>
                 ) : (
@@ -222,14 +226,14 @@ export default function PWAInstallButton() {
                       <div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
                         1
                       </div>
-                      <p className='text-sm'>Look for the <strong>install icon</strong> in your browser's address bar (Chrome: ⊕, Edge: ⊕, Firefox: ⊕)</p>
+                      <p className='text-sm'>Look for the <strong>install icon</strong> in your browser&apos;s address bar (Chrome: ⊕, Edge: ⊕, Firefox: ⊕)</p>
                     </div>
                     
                     <div className='flex items-start space-x-3'>
                       <div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
                         2
                       </div>
-                      <p className='text-sm'>Click the install icon and select <strong>"Install"</strong> when prompted</p>
+                      <p className='text-sm'>Click the install icon and select <strong>&quot;Install&quot;</strong> when prompted</p>
                     </div>
                     
                     <div className='flex items-start space-x-3'>

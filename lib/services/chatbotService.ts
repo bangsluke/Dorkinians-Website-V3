@@ -1,6 +1,6 @@
 import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
-import natural from 'natural';
+import * as natural from 'natural';
 import nlp from 'compromise';
 import { 
 	getAppropriateVerb, 
@@ -155,6 +155,7 @@ export class ChatbotService {
 		timeRange?: string;
 		message?: string;
 	} {
+		console.log("🔍 analyzeQuestion called with:", { question, userContext });
 		const lowerQuestion = question.toLowerCase();
 
 		// Determine question type
@@ -394,19 +395,33 @@ export class ChatbotService {
 
 		// Extract metrics using the configuration with context awareness
 		const metrics: string[] = [];
+		// console.log("🔍 Starting metrics detection, metrics.length:", metrics.length);
 
 		// Enhanced advanced metrics detection for comprehensive testing (check these FIRST)
 		if (metrics.length === 0) {
+			console.log("🔍 Starting advanced metrics detection for question:", question);
 			// Goals per appearance
 			if (lowerQuestion.includes("goals") && lowerQuestion.includes("per appearance")) {
+				// console.log("🔍 GperAPP detected");
 				metrics.push("GperAPP");
 			}
 			// Conceded per appearance
 			else if (lowerQuestion.includes("concede") && (lowerQuestion.includes("per match") || lowerQuestion.includes("per appearance"))) {
+				// console.log("🔍 CperAPP detected");
 				metrics.push("CperAPP");
 			}
-			// Minutes per goal
-			else if (lowerQuestion.includes("minutes") && (lowerQuestion.includes("per goal") || (lowerQuestion.includes("take") && lowerQuestion.includes("score")) || (lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")))) {
+			// Minutes per goal - enhanced pattern matching
+			else if (lowerQuestion.includes("minutes") && (
+				lowerQuestion.includes("per goal") || 
+				(lowerQuestion.includes("take") && lowerQuestion.includes("score")) || 
+				(lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("average") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("on average") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score"))
+			)) {
+				console.log("🔍 MperG detected for question:", question);
 				metrics.push("MperG");
 			}
 			// Minutes per clean sheet
@@ -925,6 +940,34 @@ export class ChatbotService {
 				case "DIST":
 					// Distance - get from Player node
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
+					break;
+				case "HomeGames":
+					// Home games - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGames, 0) as value";
+					break;
+				case "AwayGames":
+					// Away games - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGames, 0) as value";
+					break;
+				case "HomeWins":
+					// Home wins - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeWins, 0) as value";
+					break;
+				case "AwayWins":
+					// Away wins - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayWins, 0) as value";
+					break;
+				case "HomeGames%Won":
+					// Home games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGamesPercentWon, 0) as value";
+					break;
+				case "AwayGames%Won":
+					// Away games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGamesPercentWon, 0) as value";
+					break;
+				case "Games%Won":
+					// Games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.gamesPercentWon, 0) as value";
 					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
