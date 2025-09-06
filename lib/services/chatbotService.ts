@@ -216,10 +216,30 @@ export class ChatbotService {
 			}
 		}
 
+		// Pattern 2c: "How many goals on average has Luke Bangs scored per appearance?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?has (.*?) (?:scored|got|made|played|won|received|conceded|kept|missed|saved|earned|received|given|booked|cautioned|dismissed|sent off|let in|allowed|kept|converted|failed|gave away|stopped|earned|collected|accumulated)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 2d: "How many goals on average does Luke Bangs concede per match?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?does (.*?) (?:score|concede|play|win|receive|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
 		// Pattern 2b: "How many penalties has Jonny Sourris missed?" (more natural format)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) has (.*?) (?:scored|got|made|played|won|received|conceded|kept|missed|saved|earned|received|given|booked|cautioned|dismissed|sent off|let in|allowed|kept|converted|failed|gave away|stopped|earned|collected|accumulated)/,
+				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) has ([A-Z][a-z]+(?: [A-Z][a-z]+)*) (?:scored|got|made|played|won|received|conceded|kept|missed|saved|earned|received|given|booked|cautioned|dismissed|sent off|let in|allowed|kept|converted|failed|gave away|stopped|earned|collected|accumulated)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -260,6 +280,66 @@ export class ChatbotService {
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
 				/How many times has ([A-Za-z\s]+) (?:played|scored|assisted|appeared|won|received|conceded|kept|missed|saved|earned|given|booked|cautioned|dismissed|sent off|let in|allowed|converted|failed|gave away|stopped|collected|accumulated)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:minutes|goals|assists|appearances|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) does it take (?:on average )?for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to (?:score|assist|play|win|receive|concede|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 7: "What is Luke Bangs most played for team?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/What is ([A-Za-z\s]+) (?:most played for team|most scored for team|most common position|most prolific season|number of teams played for|number of seasons played for)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 8: "How many home games has Luke Bangs played?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:home|away) (?:games|goals|wins|appearances) has ([A-Za-z\s]+) (?:played|scored|won|made)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9: "How many 1s appearances has Luke Bangs made?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:1s|2s|3s|4s|5s|6s|7s|8s) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:2016\/17|2017\/18|2018\/19|2019\/20|2020\/21|2021\/22) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 11: "How many goalkeeper appearances has Luke Bangs made?" (positional comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:goalkeeper|defender|midfielder|forward) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -315,7 +395,188 @@ export class ChatbotService {
 		// Extract metrics using the configuration with context awareness
 		const metrics: string[] = [];
 
-		// Enhanced goals detection FIRST (before other patterns)
+		// Enhanced advanced metrics detection for comprehensive testing (check these FIRST)
+		if (metrics.length === 0) {
+			// Goals per appearance
+			if (lowerQuestion.includes("goals") && lowerQuestion.includes("per appearance")) {
+				metrics.push("GperAPP");
+			}
+			// Conceded per appearance
+			else if (lowerQuestion.includes("concede") && lowerQuestion.includes("per match")) {
+				metrics.push("CperAPP");
+			}
+			// Minutes per goal
+			else if (lowerQuestion.includes("minutes") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) {
+				metrics.push("MperG");
+			}
+			// Minutes per clean sheet
+			else if (lowerQuestion.includes("minutes") && lowerQuestion.includes("clean sheet")) {
+				metrics.push("MperCLS");
+			}
+			// Fantasy points per appearance
+			else if (lowerQuestion.includes("fantasy points") && lowerQuestion.includes("per appearance")) {
+				metrics.push("FTPperAPP");
+			}
+			// Distance
+			else if (lowerQuestion.includes("distance")) {
+				metrics.push("DIST");
+			}
+			// Home games
+			else if (lowerQuestion.includes("home games")) {
+				metrics.push("HomeGames");
+			}
+			// Away games
+			else if (lowerQuestion.includes("away games")) {
+				metrics.push("AwayGames");
+			}
+			// Home wins
+			else if (lowerQuestion.includes("home wins")) {
+				metrics.push("HomeWins");
+			}
+			// Away wins
+			else if (lowerQuestion.includes("away wins")) {
+				metrics.push("AwayWins");
+			}
+			// Home games percentage won
+			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("percent")) {
+				metrics.push("HomeGames%Won");
+			}
+			// Away games percentage won
+			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("percent")) {
+				metrics.push("AwayGames%Won");
+			}
+			// Games percentage won
+			else if (lowerQuestion.includes("games") && lowerQuestion.includes("percent")) {
+				metrics.push("Games%Won");
+			}
+			// Team-specific appearances
+			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("appearances")) {
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("2s") && lowerQuestion.includes("appearances")) {
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("3s") && lowerQuestion.includes("appearances")) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("4s") && lowerQuestion.includes("appearances")) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("5s") && lowerQuestion.includes("appearances")) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("6s") && lowerQuestion.includes("appearances")) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("7s") && lowerQuestion.includes("appearances")) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("appearances")) {
+				metrics.push("8sApps");
+			}
+			// Team-specific goals
+			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("goals")) {
+				metrics.push("1sGoals");
+			}
+			else if (lowerQuestion.includes("2s") && lowerQuestion.includes("goals")) {
+				metrics.push("2sGoals");
+			}
+			else if (lowerQuestion.includes("3s") && lowerQuestion.includes("goals")) {
+				metrics.push("3sGoals");
+			}
+			else if (lowerQuestion.includes("4s") && lowerQuestion.includes("goals")) {
+				metrics.push("4sGoals");
+			}
+			else if (lowerQuestion.includes("5s") && lowerQuestion.includes("goals")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("6s") && lowerQuestion.includes("goals")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("7s") && lowerQuestion.includes("goals")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
+				metrics.push("8sGoals");
+			}
+			// Seasonal appearances
+			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("appearances")) {
+				metrics.push("2016/17Apps");
+			}
+			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("appearances")) {
+				metrics.push("2017/18Apps");
+			}
+			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("appearances")) {
+				metrics.push("2018/19Apps");
+			}
+			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("appearances")) {
+				metrics.push("2019/20Apps");
+			}
+			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("appearances")) {
+				metrics.push("2020/21Apps");
+			}
+			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("appearances")) {
+				metrics.push("2021/22Apps");
+			}
+			// Seasonal goals
+			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("goals")) {
+				metrics.push("2016/17Goals");
+			}
+			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("goals")) {
+				metrics.push("2017/18Goals");
+			}
+			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("goals")) {
+				metrics.push("2018/19Goals");
+			}
+			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("goals")) {
+				metrics.push("2019/20Goals");
+			}
+			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("goals")) {
+				metrics.push("2020/21Goals");
+			}
+			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("goals")) {
+				metrics.push("2021/22Goals");
+			}
+			// Positional stats
+			else if (lowerQuestion.includes("goalkeeper")) {
+				metrics.push("GK");
+			}
+			else if (lowerQuestion.includes("defender")) {
+				metrics.push("DEF");
+			}
+			else if (lowerQuestion.includes("midfielder")) {
+				metrics.push("MID");
+			}
+			else if (lowerQuestion.includes("forward")) {
+				metrics.push("FWD");
+			}
+			// Most played for team
+			else if (lowerQuestion.includes("most played for team")) {
+				metrics.push("MostPlayedForTeam");
+			}
+			// Most scored for team
+			else if (lowerQuestion.includes("most scored for team")) {
+				metrics.push("MostScoredForTeam");
+			}
+			// Number of teams played for
+			else if (lowerQuestion.includes("number of teams played for")) {
+				metrics.push("NumberTeamsPlayedFor");
+			}
+			// Number of seasons played for
+			else if (lowerQuestion.includes("number of seasons played for")) {
+				metrics.push("NumberSeasonsPlayedFor");
+			}
+			// Most prolific season
+			else if (lowerQuestion.includes("most prolific season")) {
+				metrics.push("MostProlificSeason");
+			}
+			// Most common position
+			else if (lowerQuestion.includes("most common position")) {
+				metrics.push("MostCommonPosition");
+			}
+		}
+
+		// Enhanced goals detection (after advanced metrics)
 		if (lowerQuestion.includes("goals")) {
 			// Enhanced goals logic: default to total goals (open play + penalties)
 			if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
@@ -373,6 +634,7 @@ export class ChatbotService {
 				}
 			}
 		}
+
 
 		// Fallback metric detection for remaining cases
 		if (metrics.length === 0) {

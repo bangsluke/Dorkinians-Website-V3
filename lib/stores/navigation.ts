@@ -312,7 +312,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Swipe navigation within stats
 	nextStatsSubPage: () => {
 		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Comparison
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,
@@ -326,7 +326,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	previousStatsSubPage: () => {
 		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Comparison
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,

@@ -28,7 +28,7 @@
 - [Environment Setup](#environment-setup)
   - [Prerequisites](#prerequisites)
   - [Neo4j Configuration](#neo4j-configuration)
-    - [Local Development (Recommended)](#local-development-recommended)
+    - [Development Environment](#development-environment)
     - [Production (Neo4j Aura)](#production-neo4j-aura)
   - [OpenAI Configuration](#openai-configuration)
   - [SMTP Configuration](#smtp-configuration)
@@ -540,16 +540,16 @@ node -e "console.log('Schema integration test - check database seeding functiona
 The application uses a centralized version management system to ensure consistency across all components:
 
 **Version Sources:**
-- **Primary**: `lib/config/app.ts` - Main app configuration
+- **Primary**: `config/config.ts` - Main app configuration
 - **Secondary**: `package.json` - NPM package version (should match app config)
 
 **Files to Update for New Release:**
-1. `lib/config/app.ts` - Update `version` field
+1. `config/config.ts` - Update `version` field
 2. `package.json` - Update `version` field to match
 
 **Example:**
 ```typescript
-// lib/config/app.ts
+// config/config.ts
 export const appConfig = {
 	version: "1.1.3", // Update this
 	name: "Dorkinians FC",
@@ -569,31 +569,17 @@ export const appConfig = {
 ### Release Checklist
 
 **Before Release:**
-- [ ] Update version in `lib/config/app.ts`
+- [ ] Update version in `config/config.ts`
 - [ ] Update version in `package.json`
 - [ ] Test PWA update flow locally
 - [ ] Verify version displays correctly in settings page
 - [ ] Check that update toasts show correct version number
-
-**Release Process:**
-1. **Version Update**: Update both version files
-2. **Commit Changes**: Commit with descriptive message
-   ```bash
-   git add lib/config/app.ts package.json
-   git commit -m "Release v1.1.3: [describe changes]"
-   git tag v1.1.3
-   git push origin main --tags
-   ```
-3. **Deploy**: Push to trigger Netlify deployment
-4. **Verify**: Check that new version appears in PWA update toasts
 
 **Post-Release:**
 - [ ] Verify PWA update notifications work
 - [ ] Test update flow on mobile devices
 - [ ] Monitor for any version-related issues
 
-> [Back to Table of Contents](#table-of-contents)
-- **Monitoring**: Email notifications and status endpoints
 
 > [Back to Table of Contents](#table-of-contents)
 

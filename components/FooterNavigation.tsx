@@ -37,7 +37,7 @@ export default function FooterNavigation() {
 								console.log('🔘 [FooterNavigation] Button clicked:', item.id);
 								setMainPage(item.id);
 							}}
-							className={`flex items-center space-x-2 md:space-x-2 space-y-1 md:space-y-0 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${
+							className={`flex items-center justify-center space-y-1 md:space-y-0 md:space-x-2 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${
 								isActive ? "text-yellow-400 bg-yellow-400/20" : "text-white hover:text-yellow-300 hover:bg-white/20"
 							}`}
 							whileHover={{ scale: 1.05 }}

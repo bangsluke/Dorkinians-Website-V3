@@ -130,13 +130,13 @@ export default function PlayerStats() {
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
-				<div className='flex items-center justify-between mb-2 md:mb-4'>
-					<h2 className='text-lg md:text-2xl font-bold text-white'>
+				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+					<h2 className='text-lg md:text-2xl font-bold text-white text-center'>
 						Player Stats - {selectedPlayer}
 					</h2>
 					<button
 						onClick={handleEditClick}
-						className='flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
 						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
