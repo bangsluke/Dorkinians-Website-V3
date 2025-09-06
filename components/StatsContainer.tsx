@@ -10,21 +10,15 @@ import ClubStats from "./stats/ClubStats";
 import Comparison from "./stats/Comparison";
 
 // Define page arrays outside component to avoid dependency issues
-const basePages = [
+const statsSubPages = [
+	{ id: "player-stats" as StatsSubPage, component: PlayerStats, label: "Player Stats" },
 	{ id: "team-stats" as StatsSubPage, component: TeamStats, label: "Team Stats" },
 	{ id: "club-stats" as StatsSubPage, component: ClubStats, label: "Club Stats" },
-];
-
-const playerPages = [
-	{ id: "player-stats" as StatsSubPage, component: PlayerStats, label: "Player Stats" },
-	{ id: "comparison" as StatsSubPage, component: Comparison, label: "Comparison" },
+	{ id: "comparison" as StatsSubPage, component: Comparison, label: "Player Comparison" },
 ];
 
 export default function StatsContainer() {
 	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
-
-	// Always show all 4 sub-pages: Player Stats, Team Stats, Club Stats, Comparison
-	const statsSubPages = [...playerPages, ...basePages];
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
 	
