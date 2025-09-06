@@ -402,11 +402,11 @@ export class ChatbotService {
 				metrics.push("GperAPP");
 			}
 			// Conceded per appearance
-			else if (lowerQuestion.includes("concede") && lowerQuestion.includes("per match")) {
+			else if (lowerQuestion.includes("concede") && (lowerQuestion.includes("per match") || lowerQuestion.includes("per appearance"))) {
 				metrics.push("CperAPP");
 			}
 			// Minutes per goal
-			else if (lowerQuestion.includes("minutes") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) {
+			else if (lowerQuestion.includes("minutes") && (lowerQuestion.includes("per goal") || (lowerQuestion.includes("take") && lowerQuestion.includes("score")) || (lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")))) {
 				metrics.push("MperG");
 			}
 			// Minutes per clean sheet
@@ -418,7 +418,7 @@ export class ChatbotService {
 				metrics.push("FTPperAPP");
 			}
 			// Distance
-			else if (lowerQuestion.includes("distance")) {
+			else if (lowerQuestion.includes("distance") || lowerQuestion.includes("travelled")) {
 				metrics.push("DIST");
 			}
 			// Home games
@@ -577,10 +577,12 @@ export class ChatbotService {
 		}
 
 		// Enhanced goals detection (after advanced metrics)
-		if (lowerQuestion.includes("goals")) {
+		if (metrics.length === 0 && lowerQuestion.includes("goals")) {
 			// Enhanced goals logic: check for specific goal types first
 			if (lowerQuestion.includes("own goals")) {
 				metrics.push("OG"); // Own goals
+			} else if (lowerQuestion.includes("conceded")) {
+				metrics.push("C"); // Goals conceded
 			} else if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
 				metrics.push("G"); // Goals from open play only
 			} else if (lowerQuestion.includes("penalty") || lowerQuestion.includes("spot kick")) {
@@ -590,7 +592,7 @@ export class ChatbotService {
 			}
 		}
 		// Check penalties (more specific) after goals
-		else if (lowerQuestion.includes("penalties")) {
+		else if (metrics.length === 0 && lowerQuestion.includes("penalties")) {
 			if (lowerQuestion.includes("missed") || lowerQuestion.includes("failed")) {
 				metrics.push("PM"); // Penalties missed
 			} else if (lowerQuestion.includes("conceded") || lowerQuestion.includes("gave away")) {
@@ -607,7 +609,7 @@ export class ChatbotService {
 		}
 
 		// Enhanced points detection with context awareness
-		if (lowerQuestion.includes("points")) {
+		if (metrics.length === 0 && lowerQuestion.includes("points")) {
 			// Check if this is about team points (game results) or individual fantasy points
 			if (lowerQuestion.includes("team") || lowerQuestion.includes("league") || lowerQuestion.includes("table")) {
 				// Team context - could be game points (W/D/L) but we don't have that data yet
@@ -620,7 +622,7 @@ export class ChatbotService {
 		}
 		
 		// Enhanced penalty record detection
-		if (lowerQuestion.includes("penalty") && (lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))) {
+		if (metrics.length === 0 && lowerQuestion.includes("penalty") && (lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))) {
 			metrics.push("penaltyRecord");
 		}
 
@@ -849,12 +851,12 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
 					break;
 				case "C":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END), 0) as value';
+					// Goals conceded - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.conceded, 0) as value";
 					break;
 				case "CLS":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = "" THEN 0 ELSE md.cleanSheet END), 0) as value';
+					// Clean sheets - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.cleanSheets, 0) as value";
 					break;
 				case "PSC":
 					returnClause =
@@ -873,8 +875,8 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
 					break;
 				case "FTP":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
+					// Fantasy points - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value";
 					break;
 				case "AllGSC":
 				case "totalGoals":
@@ -899,6 +901,30 @@ export class ChatbotService {
 					// Context-aware points - default to Fantasy Points for individual players
 					returnClause =
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
+					break;
+				case "GperAPP":
+					// Goals per appearance - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.goalsPerApp, 0) as value";
+					break;
+				case "CperAPP":
+					// Conceded per appearance - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.concededPerApp, 0) as value";
+					break;
+				case "MperG":
+					// Minutes per goal - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, 0) as value";
+					break;
+				case "MperCLS":
+					// Minutes per clean sheet - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerCleanSheet, 0) as value";
+					break;
+				case "FTPperAPP":
+					// Fantasy points per appearance - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPointsPerApp, 0) as value";
+					break;
+				case "DIST":
+					// Distance - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
 					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
@@ -1510,8 +1536,26 @@ export class ChatbotService {
 						answer = `${playerName} has not taken any penalties yet.`;
 					}
 				} else {
+					// Round values for specific metrics
+					let roundedValue = value;
+					if (metric === "FTP") {
+						roundedValue = Math.round(value); // Round fantasy points to nearest integer
+					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
+						roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
+					} else if (metric === "MperG" || metric === "MperCLS") {
+						roundedValue = Math.round(value); // Round minutes per goal/clean sheet to nearest integer
+					} else if (metric === "DIST") {
+						roundedValue = Math.round(value); // Round distance to nearest integer
+					}
+					
+					// Format value with commas for thousands
+					let formattedValue = roundedValue;
+					if (metric === "MIN" || metric === "DIST") {
+						formattedValue = roundedValue.toLocaleString();
+					}
+					
 					// Use natural language response generation with appearances context for regular metrics
-					const metricName = getMetricDisplayName(metric, value);
+					const metricName = getMetricDisplayName(metric, roundedValue);
 					
 					// Get appearances count for template
 					let appearancesCount: number | undefined;
@@ -1522,9 +1566,28 @@ export class ChatbotService {
 						}
 					}
 					
-					// Use template with appearances if available, otherwise fallback
-					let template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
-					if (!template || !appearancesCount) {
+					// Choose appropriate template based on metric type
+					let template: any = null;
+					
+					if (metric === "MperG") {
+						template = getResponseTemplate('player_stats', 'Minutes per goal');
+					} else if (metric === "MperCLS") {
+						template = getResponseTemplate('player_stats', 'Minutes per clean sheet');
+					} else if (metric === "DIST") {
+						template = getResponseTemplate('player_stats', 'Distance travelled');
+					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
+						template = getResponseTemplate('player_stats', 'Per appearance statistics');
+					} else if (appearancesCount) {
+						// Alternate between "appearances" and "matches" for variety
+						const useMatches = Math.random() < 0.5;
+						if (useMatches) {
+							// Use a custom template with "matches" instead of "appearances"
+							answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName} in ${appearancesCount} matches.`;
+							return { answer, sources: [], visualization };
+						} else {
+							template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
+						}
+					} else {
 						template = getResponseTemplate('player_stats', 'Basic player statistics');
 					}
 					
@@ -1533,14 +1596,14 @@ export class ChatbotService {
 							template.template,
 							playerName,
 							metric,
-							value,
+							formattedValue,
 							metricName,
 							undefined, // teamName
 							appearancesCount
 						);
 					} else {
 						// Fallback to simple format with appearances
-						answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${value} ${metricName}${appearancesContext}.`;
+						answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName}${appearancesContext}.`;
 					}
 				}
 				

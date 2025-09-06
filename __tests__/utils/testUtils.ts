@@ -113,7 +113,7 @@ export const STAT_TEST_CONFIGS = [
   {
     key: 'G',
     metric: 'goals',
-    questionTemplate: 'How many goals has {playerName} scored?',
+    questionTemplate: 'How many goals has {playerName} scored from open play?',
     responsePattern: /(\d+)/,
     description: 'Goals'
   },
