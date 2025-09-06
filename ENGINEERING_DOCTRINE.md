@@ -74,6 +74,24 @@
 - **Rationale**: Makes components more testable and maintainable
 - **Implementation**: Use custom hooks for data fetching, Zustand for global state, and pure components for presentation
 
+## Documentation Standards
+
+### Markdown Documentation Protocol
+- **Rule**: When creating or updating documentation, always follow the user's established formatting standards from the beginning
+- **Rationale**: Prevents the need for user corrections and ensures consistency across all documentation
+- **Implementation**: 
+  - Include comprehensive Table of Contents with all subsections (H2, H3, H4) and proper anchor links
+  - Add "Back to Table of Contents" navigation links between all major sections
+  - Follow the user's specific markdown structure requirements consistently
+
+### Documentation Integration Protocol
+- **Rule**: When merging content from multiple sources, ensure all structural elements are comprehensive and match established standards
+- **Rationale**: Prevents incomplete integration that requires user enhancement
+- **Implementation**: 
+  - Anticipate the full depth of documentation structure needed
+  - Include all subsections in table of contents, not just major sections
+  - Verify complete integration before considering the task complete
+
 ## Quality Gates
 
 ### Pre-Deployment Checklist
@@ -83,9 +101,16 @@
 4. No HTML validation errors
 5. No hydration mismatches
 6. All user-reported issues resolved
+7. Documentation follows established formatting standards
 
 ### Testing Protocol
 1. Test the specific failing scenario reported by user
 2. Test related functionality to ensure no regressions
 3. Verify console logs show expected behavior
 4. Confirm no new errors introduced
+
+### Documentation Verification Protocol
+1. Table of Contents includes all subsections with proper anchor links
+2. Navigation links are present between all major sections
+3. Formatting matches user's established standards
+4. No redundant or duplicate documentation files remain
