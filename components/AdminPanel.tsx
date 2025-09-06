@@ -39,6 +39,10 @@ export default function AdminPanel() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 
+	// Chatbot test state
+	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
+	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
+
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === 'development';
 
@@ -448,6 +452,42 @@ export default function AdminPanel() {
 		return { display: value.toString(), label };
 	};
 
+	const triggerChatbotTest = async () => {
+		setChatbotTestLoading(true);
+		setError(null);
+		setChatbotTestResult(null);
+
+		try {
+			const response = await fetch('/api/chatbot-test', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					emailAddress: emailAddress,
+				}),
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				setChatbotTestResult({
+					success: true,
+					message: 'Chatbot test completed successfully',
+					timestamp: new Date().toISOString(),
+					...data
+				});
+			} else {
+				const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+				throw new Error(errorData.message || `HTTP ${response.status}`);
+			}
+		} catch (err) {
+			console.error('Chatbot test error:', err);
+			setError(err instanceof Error ? err.message : 'Network error');
+		} finally {
+			setChatbotTestLoading(false);
+		}
+	};
+
 	const statusInfo = getStatusDisplay();
 
 	return (
@@ -498,7 +538,7 @@ export default function AdminPanel() {
 			</div>
 
 			{/* Trigger Buttons */}
-			<div className='mb-6 flex gap-4'>
+			<div className='mb-6 flex gap-4 flex-wrap'>
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
@@ -506,6 +546,14 @@ export default function AdminPanel() {
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
 					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
+				</button>
+				<button
+					onClick={triggerChatbotTest}
+					disabled={chatbotTestLoading}
+					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+						chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+					}`}>
+					{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
 				</button>
 			</div>
 
@@ -700,6 +748,41 @@ export default function AdminPanel() {
 							</ul>
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* Chatbot Test Results */}
+			{chatbotTestResult && (
+				<div className={`mb-6 p-4 rounded-lg border ${chatbotTestResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+					<div className='mb-3'>
+						<h3 className={`text-lg font-semibold ${chatbotTestResult.success ? 'text-green-600' : 'text-red-600'}`}>
+							{chatbotTestResult.success ? '✅ Chatbot Test Completed' : '❌ Chatbot Test Failed'}
+						</h3>
+						<p className='text-sm text-gray-600'>Completed at: {new Date(chatbotTestResult.timestamp).toLocaleString()}</p>
+					</div>
+					
+					<div className='space-y-2'>
+						<p className='text-sm'><strong>Message:</strong> {chatbotTestResult.message}</p>
+						{chatbotTestResult.totalTests && (
+							<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-4'>
+								<div className='text-center p-3 bg-white rounded-lg'>
+									<p className='text-2xl font-bold text-blue-600'>{chatbotTestResult.totalTests}</p>
+									<p className='text-sm text-gray-600'>Total Tests</p>
+								</div>
+								<div className='text-center p-3 bg-white rounded-lg'>
+									<p className='text-2xl font-bold text-green-600'>{chatbotTestResult.passedTests || 0}</p>
+									<p className='text-sm text-gray-600'>Passed</p>
+								</div>
+								<div className='text-center p-3 bg-white rounded-lg'>
+									<p className='text-2xl font-bold text-red-600'>{chatbotTestResult.failedTests || 0}</p>
+									<p className='text-sm text-gray-600'>Failed</p>
+								</div>
+							</div>
+						)}
+						{chatbotTestResult.successRate && (
+							<p className='text-sm mt-2'><strong>Success Rate:</strong> {chatbotTestResult.successRate}%</p>
+						)}
+					</div>
 				</div>
 			)}
 
