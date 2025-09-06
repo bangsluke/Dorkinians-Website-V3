@@ -9,11 +9,15 @@ import {
 	TrophyIcon, 
 	InformationCircleIcon,
 	ArrowLeftIcon,
-	ArrowPathIcon
+	ArrowPathIcon,
+	BugAntIcon,
+	ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 import Header from "@/components/Header";
 import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
+import FeedbackModal from "@/components/modals/FeedbackModal";
+import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 
 // Dynamically import PWA components to avoid SSR issues
 const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
@@ -63,6 +67,8 @@ export default function SettingsPage() {
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
 	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
 	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 
 	const handleNavigationClick = (pageId: string) => {
 		setMainPage(pageId as any);
@@ -126,13 +132,6 @@ export default function SettingsPage() {
 			<div className='h-full flex flex-col md:px-[15%]'>
 				{/* Header */}
 				<div className='flex items-center pt-2 pb-2'>
-					<motion.button
-						onClick={handleBackClick}
-						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
-						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.9 }}>
-						<ArrowLeftIcon className='w-6 h-6 text-white' />
-					</motion.button>
 					<h1 className='text-2xl font-bold text-white'>Settings</h1>
 				</div>
 
@@ -230,18 +229,49 @@ export default function SettingsPage() {
 								</div>
 							</div>
 							
-							<div className='p-4 rounded-lg bg-white/10'>
-								<h3 className='text-lg font-semibold text-white mb-2'>Theme</h3>
-								<p className='text-sm text-gray-300'>Customize the app appearance</p>
-							</div>
-							<div className='p-4 rounded-lg bg-white/10'>
-								<h3 className='text-lg font-semibold text-white mb-2'>Notifications</h3>
-								<p className='text-sm text-gray-300'>Manage push notifications</p>
-							</div>
-							<div className='p-4 rounded-lg bg-white/10'>
-								<h3 className='text-lg font-semibold text-white mb-2'>Data & Privacy</h3>
-								<p className='text-sm text-gray-300'>Manage your data and privacy settings</p>
-							</div>
+							{/* Report Bug/Feature Request */}
+							<motion.button
+								onClick={() => setShowFeedbackModal(true)}
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center space-x-3'>
+									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+										<BugAntIcon className='w-5 h-5 text-dorkinians-yellow' />
+									</div>
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-white mb-1'>Report Bug / Request Feature</h3>
+										<p className='text-sm text-gray-300'>Send feedback or report issues</p>
+									</div>
+									<div className='text-dorkinians-yellow'>
+										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+										</svg>
+									</div>
+								</div>
+							</motion.button>
+
+							{/* Data & Privacy */}
+							<motion.button
+								onClick={() => setShowDataPrivacyModal(true)}
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center space-x-3'>
+									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+										<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
+									</div>
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-white mb-1'>Data & Privacy</h3>
+										<p className='text-sm text-gray-300'>Request data removal</p>
+									</div>
+									<div className='text-dorkinians-yellow'>
+										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+										</svg>
+									</div>
+								</div>
+							</motion.button>
 						</div>
 					</div>
 
@@ -258,6 +288,16 @@ export default function SettingsPage() {
 			{showUpdateToast && (
 				<UpdateToast onClose={() => setShowUpdateToast(false)} />
 			)}
+
+			{/* Modals */}
+			<FeedbackModal 
+				isOpen={showFeedbackModal} 
+				onClose={() => setShowFeedbackModal(false)} 
+			/>
+			<DataPrivacyModal 
+				isOpen={showDataPrivacyModal} 
+				onClose={() => setShowDataPrivacyModal(false)} 
+			/>
 		</>
 	);
 }
