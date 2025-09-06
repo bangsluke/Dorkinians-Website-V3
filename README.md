@@ -20,6 +20,11 @@
   - [Database Verification](#database-verification)
 - [Architecture](#architecture)
   - [Unified Schema System](#unified-schema-system)
+- [Tech Stack & Architecture](#tech-stack--architecture)
+  - [Core Technologies](#core-technologies)
+  - [Data Layer Strategy](#data-layer-strategy)
+  - [PWA Implementation](#pwa-implementation)
+  - [Screen Architecture](#screen-architecture)
 - [Single Source of Truth Architecture](#single-source-of-truth-architecture)
   - [Master File Locations](#master-file-locations)
   - [Why This Architecture?](#why-this-architecture)
@@ -206,6 +211,112 @@ The project implements a **manual synchronization system** where each configurat
 - **Database Seeder**: Heroku service using unified schema
 - **Schema Management**: Centralized in database-dorkinians repo
 - **Data Sources**: Google Sheets CSV endpoints + FA website data
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Tech Stack & Architecture
+
+### Core Technologies
+
+**Frontend: Next.js 14 + App Router**
+- **PWA Support**: Built-in PWA capabilities with `next-pwa`
+- **Mobile Performance**: Automatic code splitting, image optimization, static generation
+- **Developer Experience**: Familiar React patterns, excellent TypeScript support
+- **Deployment**: Optimized for Netlify with edge functions
+- **Mobile-First**: Built-in responsive design patterns
+
+**Mobile Navigation: Framer Motion + Hybrid Navigation**
+- **Native Feel**: Smooth animations matching iOS/Android
+- **Main Navigation**: Footer icon-based navigation between primary pages
+- **Sub-Navigation**: Swipe gestures within specific pages (e.g., Stats sub-screens)
+- **Gesture Support**: Natural mobile interactions for content exploration
+- **Performance**: Hardware-accelerated animations
+
+**UI Components: Tailwind CSS + Headless UI**
+- **Mobile Optimization**: Touch-friendly component sizing (44px minimum)
+- **Responsive Design**: Automatic mobile-first breakpoints
+- **Accessibility**: Built-in mobile accessibility features
+- **Performance**: Minimal CSS bundle size
+
+**Backend: Next.js API Routes + Edge Runtime**
+- **Unified Stack**: Single codebase, shared types
+- **Edge Functions**: Global distribution, minimal latency
+- **CSV Processing**: Built-in fetch API for Google Sheets
+- **Cost**: No additional hosting costs
+
+**Database: Neo4j Aura**
+- **Data Volume**: Handle 50k+ rows × 50 columns efficiently
+- **Query Performance**: Graph database excels at complex sports statistics
+- **Data Relationships**: Natural fit for player-team-fixture relationships
+- **Scheduled Updates**: Built-in job scheduling with email notifications
+- **Existing Infrastructure**: Already available in your environment
+
+**Chatbot: Custom NLP + Natural Language Processing**
+- **Natural Language**: Superior understanding of sports queries
+- **Function Calling**: Structured data extraction and query planning
+- **Cost**: Pay-per-use, estimated $5-20/month for low traffic
+- **Integration**: Easy API integration with Next.js
+- **Libraries**: `natural` for fuzzy matching, `compromise` for text parsing
+
+**Visualization: Recharts + Custom Components**
+- **React Native**: Seamless Next.js integration
+- **Performance**: Lightweight, optimized for mobile
+- **Customization**: Easy to create reusable chart components
+- **Bundle Size**: Tree-shakeable, minimal impact
+
+**State Management: Zustand**
+- **Mobile Performance**: Lightweight state management
+- **Offline Support**: Easy integration with PWA caching
+- **Navigation State**: Manage screen transitions and data
+
+### Data Layer Strategy
+
+**Hybrid Caching Strategy:**
+1. **Static Generation**: Pre-build common queries at build time
+2. **ISR (Incremental Static Regeneration)**: Update data every 6-12 hours
+3. **Edge Caching**: Cache responses at CDN level
+4. **Client Caching**: Store processed data in IndexedDB for offline
+5. **Database Storage**: Neo4j for complex queries and data relationships
+
+**Update Strategy:**
+- **Automated Refresh**: Daily scheduled jobs (configurable frequency)
+- **Failure Notifications**: Email alerts on update failures
+- **Data Validation**: Schema validation and error handling
+- **Incremental Updates**: Smart updates vs. full refresh
+
+### PWA Implementation
+
+**Core Features:**
+- **Service Worker**: Offline-first strategy with background sync
+- **App Manifest**: Native app feel and installation prompts
+- **Background Sync**: Data updates when connection restored
+- **Push Notifications**: New stats and update notifications
+
+**Mobile-Specific Features:**
+- **Touch Interactions**: Footer icon navigation, swipe within pages, tap to expand
+- **Responsive Design**: Mobile-first breakpoints, landscape/portrait support
+- **Touch Targets**: 44px minimum button sizes
+- **Thumb Navigation**: Optimized for one-handed use
+- **Navigation Pattern**: Footer icons for main pages, swipe for sub-content
+- **Header Access**: Club logo and settings always visible, consistent branding
+
+### Screen Architecture
+
+**Main Pages (Footer Navigation):**
+1. **Homepage**: Chatbot input bar centered on screen
+2. **Stats**: Container page with swipeable sub-screens
+3. **TOTW**: Team of the week with clickable SVG graphics
+4. **Club Information**: Static content (captains, awards, etc.)
+
+**Stats Page Sub-Screens (Swipeable):**
+- **Player Stats**: Filterable player statistics with graphical components
+- **Team Stats**: Team-specific statistics and analytics
+- **Club Stats**: Club-wide analytics and statistics
+- **Comparison**: Side-by-side player statistics comparison
+
+**Header Elements (All Screens):**
+- **Club Logo**: Visible across all screens
+- **Settings Icon**: Accessible from header on all pages
 
 > [Back to Table of Contents](#table-of-contents)
 
