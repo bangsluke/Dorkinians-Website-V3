@@ -101,6 +101,40 @@ const EMAIL_CONFIG = {
 
 const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL;
 
+// Check if the development server is running
+async function checkServerHealth() {
+  try {
+    const response = await fetch('http://localhost:3000/api/chatbot', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        question: 'How many goals has Luke Bangs scored?',
+        userContext: 'Luke Bangs'
+      })
+    });
+    
+    if (!response.ok) {
+      console.log(`❌ Server responded with status: ${response.status}`);
+      return false;
+    }
+    
+    const data = await response.json();
+    // Check if we get a valid response (not empty or error)
+    if (!data.answer || data.answer.trim() === '') {
+      console.log('❌ Server returned empty response');
+      return false;
+    }
+    
+    console.log('✅ Server is running and responding correctly');
+    return true;
+  } catch (error) {
+    console.log(`❌ Server connection failed: ${error.message}`);
+    return false;
+  }
+}
+
 // Alternative approach: Create comprehensive test data for all players
 async function runTestsProgrammatically() {
   console.log('🧪 Running tests programmatically to capture detailed results...');
@@ -704,6 +738,19 @@ async function sendEmailReport(testResults) {
 
 async function main() {
   console.log('🚀 Starting comprehensive chatbot test with email report...');
+  
+  // Check if server is running first
+  console.log('🔍 Checking if development server is running...');
+  const serverRunning = await checkServerHealth();
+  
+  if (!serverRunning) {
+    console.log('❌ Development server is not running on localhost:3000');
+    console.log('💡 Please start the server with: npm run dev');
+    console.log('📧 Email report will not be sent - server unavailable');
+    return;
+  }
+  
+  console.log('✅ Development server is running');
   
   let finalResults;
   
