@@ -578,8 +578,10 @@ export class ChatbotService {
 
 		// Enhanced goals detection (after advanced metrics)
 		if (lowerQuestion.includes("goals")) {
-			// Enhanced goals logic: default to total goals (open play + penalties)
-			if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
+			// Enhanced goals logic: check for specific goal types first
+			if (lowerQuestion.includes("own goals")) {
+				metrics.push("OG"); // Own goals
+			} else if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
 				metrics.push("G"); // Goals from open play only
 			} else if (lowerQuestion.includes("penalty") || lowerQuestion.includes("spot kick")) {
 				metrics.push("PSC"); // Penalty goals only
@@ -832,11 +834,11 @@ export class ChatbotService {
 					break;
 				case "Y":
 					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCard IS NULL OR md.yellowCard = "" THEN 0 ELSE md.yellowCard END), 0) as value';
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value';
 					break;
 				case "R":
 					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCard IS NULL OR md.redCard = "" THEN 0 ELSE md.redCard END), 0) as value';
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value';
 					break;
 				case "SAVES":
 					returnClause =

@@ -623,6 +623,15 @@ export const findMetricByAlias = (alias: string): MetricConfig | undefined => {
 };
 
 export const getMetricDisplayName = (key: string, value: number): string => {
+	// Import statObject dynamically to avoid circular dependencies
+	const { statObject } = require('../../config/config');
+	
+	// First try to get wordedText from statObject
+	if (statObject && statObject[key] && statObject[key].wordedText) {
+		return statObject[key].wordedText;
+	}
+	
+	// Fallback to original config system
 	const config = getMetricConfig(key);
 	if (!config) return key;
 
