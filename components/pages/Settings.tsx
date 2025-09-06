@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import PWAInstallButton from "@/components/PWAInstallButton";
 import { 
 	HomeIcon, 
 	ChartBarIcon, 
@@ -150,24 +151,12 @@ export default function Settings() {
 					})}
 				</div>
 
-				{/* Additional Settings Section */}
+				{/* PWA Install Section */}
 				<div className='mt-12 space-y-4'>
-					<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
-					<div className='space-y-3'>
-						<div className='p-4 rounded-lg bg-white/10'>
-							<h3 className='text-lg font-semibold text-white mb-2'>Theme</h3>
-							<p className='text-sm text-gray-300'>Customize the app appearance</p>
-						</div>
-						<div className='p-4 rounded-lg bg-white/10'>
-							<h3 className='text-lg font-semibold text-white mb-2'>Notifications</h3>
-							<p className='text-sm text-gray-300'>Manage push notifications</p>
-						</div>
-						<div className='p-4 rounded-lg bg-white/10'>
-							<h3 className='text-lg font-semibold text-white mb-2'>Data & Privacy</h3>
-							<p className='text-sm text-gray-300'>Manage your data and privacy settings</p>
-						</div>
-					</div>
+					<h2 className='text-xl font-semibold text-white mb-6'>Install App</h2>
+					<PWAInstallButton />
 				</div>
+
 			</div>
 		</div>
 	);
