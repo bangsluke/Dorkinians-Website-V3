@@ -230,7 +230,7 @@ export class ChatbotService {
 		// Pattern 2d: "How many goals on average does Luke Bangs concede per match?" (comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?does (.*?) (?:score|concede|play|win|receive|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?does ([A-Z][a-z]+(?: [A-Z][a-z]+)*) (?:score|concede|play|win|receive|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -277,20 +277,20 @@ export class ChatbotService {
 			}
 		}
 		
-		// Enhanced Pattern 5: "How many times has Luke played?" (simplified format)
+		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many times has ([A-Za-z\s]+) (?:played|scored|assisted|appeared|won|received|conceded|kept|missed|saved|earned|given|booked|cautioned|dismissed|sent off|let in|allowed|converted|failed|gave away|stopped|collected|accumulated)/,
+				/for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
 
-		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
+		// Enhanced Pattern 5: "How many times has Luke played?" (simplified format)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:minutes|goals|assists|appearances|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) does it take (?:on average )?for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to (?:score|assist|play|win|receive|concede|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+				/How many times has ([A-Za-z\s]+) (?:played|scored|assisted|appeared|won|received|conceded|kept|missed|saved|earned|given|booked|cautioned|dismissed|sent off|let in|allowed|converted|failed|gave away|stopped|collected|accumulated)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -436,33 +436,33 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("distance") || lowerQuestion.includes("travelled")) {
 				metrics.push("DIST");
 			}
-			// Home games
-			else if (lowerQuestion.includes("home games")) {
-				metrics.push("HomeGames");
-			}
-			// Away games
-			else if (lowerQuestion.includes("away games")) {
-				metrics.push("AwayGames");
-			}
-			// Home wins
-			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
-				metrics.push("HomeWins");
-			}
-			// Away wins
-			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
-				metrics.push("AwayWins");
-			}
-			// Home games percentage won
+			// Home games percentage won (most specific first)
 			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("percent")) {
 				metrics.push("HomeGames%Won");
 			}
-			// Away games percentage won
+			// Away games percentage won (most specific first)
 			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("percent")) {
 				metrics.push("AwayGames%Won");
 			}
-			// Games percentage won
+			// Home wins (specific)
+			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won")) {
+				metrics.push("HomeWins");
+			}
+			// Away wins (specific)
+			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won")) {
+				metrics.push("AwayWins");
+			}
+			// Games percentage won (general)
 			else if (lowerQuestion.includes("games") && lowerQuestion.includes("percent")) {
 				metrics.push("Games%Won");
+			}
+			// Home games (general)
+			else if (lowerQuestion.includes("home games")) {
+				metrics.push("HomeGames");
+			}
+			// Away games (general)
+			else if (lowerQuestion.includes("away games")) {
+				metrics.push("AwayGames");
 			}
 			// Team-specific appearances
 			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("appearances")) {
@@ -927,7 +927,16 @@ export class ChatbotService {
 					break;
 				case "MperG":
 					// Minutes per goal - get from Player node (try both property names for compatibility)
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, p.MperG, 0) as value";
+					// If stored value is 0 or missing, calculate from minutes and goals
+					returnClause = `
+						RETURN p.playerName as playerName, 
+						       CASE 
+						         WHEN coalesce(p.minutesPerGoal, p.MperG, 0) > 0 THEN coalesce(p.minutesPerGoal, p.MperG, 0)
+						         ELSE CASE 
+						           WHEN coalesce(p.goals, 0) > 0 THEN coalesce(p.minutes, 0) / coalesce(p.goals, 1)
+						           ELSE 0
+						         END
+						       END as value`;
 					break;
 				case "MperCLS":
 					// Minutes per clean sheet - get from Player node (try both property names for compatibility)
@@ -1613,7 +1622,13 @@ export class ChatbotService {
 					let template: any = null;
 					
 					if (metric === "MperG") {
-						template = getResponseTemplate('player_stats', 'Minutes per goal');
+						// Special handling for MperG - handle case where player hasn't scored
+						if (roundedValue === 0) {
+							answer = `${playerName} hasn't scored any goals yet, so we can't calculate minutes per goal.`;
+							return { answer, sources: [], visualization };
+						} else {
+							template = getResponseTemplate('player_stats', 'Minutes per goal');
+						}
 					} else if (metric === "MperCLS") {
 						template = getResponseTemplate('player_stats', 'Minutes per clean sheet');
 					} else if (metric === "DIST") {
@@ -1623,6 +1638,14 @@ export class ChatbotService {
 					} else if (metric === "HomeGames" || metric === "AwayGames") {
 						// Special handling for home/away games - no appearances context needed
 						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "HomeWins" || metric === "AwayWins") {
+						// Special handling for home/away wins - no appearances context needed
+						answer = `${playerName} has won ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "HomeGames%Won" || metric === "AwayGames%Won") {
+						// Special handling for home/away games percentage won
+						answer = `${playerName} has won ${formattedValue}% of ${metricName.replace('%', '')}.`;
 						return { answer, sources: [], visualization };
 					} else if (metric === "Games%Won" && appearancesCount) {
 						// Special handling for overall games percentage won - include appearances context

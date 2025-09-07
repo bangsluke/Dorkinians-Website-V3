@@ -289,14 +289,14 @@ export const STAT_TEST_CONFIGS = [
   },
   {
     key: 'AwayGames%Won',
-    metric: 'awayGamesPercentageWon',
+    metric: 'awayGamesPercentWon',
     questionTemplate: 'What percent of away games has {playerName} won?',
     responsePattern: /(\d+(?:\.\d+)?)/,
     description: 'Away Games % Won'
   },
   {
     key: 'Games%Won',
-    metric: 'gamesPercentageWon',
+    metric: 'gamesPercentWon',
     questionTemplate: 'What % of games has {playerName} won?',
     responsePattern: /(\d+(?:\.\d+)?)/,
     description: 'Games % Won'

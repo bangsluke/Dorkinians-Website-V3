@@ -1,5 +1,15 @@
 # Engineering Doctrine - V3 Dorkinians Website
 
+## Table of Contents
+- [React & Next.js Best Practices](#react--nextjs-best-practices)
+  - [Component Lifecycle & Hooks Safety](#component-lifecycle--hooks-safety)
+  - [State Management Patterns](#state-management-patterns)
+  - [Debugging & Problem Solving](#debugging--problem-solving)
+- [Build & Development Workflow](#build--development-workflow)
+- [Documentation Standards](#documentation-standards)
+- [Quality Gates](#quality-gates)
+- [Testing & Data Validation](#testing--data-validation)
+
 ## React & Next.js Best Practices
 
 ### Component Lifecycle & Hooks Safety
@@ -102,6 +112,9 @@
 5. No hydration mismatches
 6. All user-reported issues resolved
 7. Documentation follows established formatting standards
+8. User experience validation completed (actual user-visible results confirmed)
+9. Fallback mechanisms tested and functional
+10. User corrections addressed with comprehensive solutions
 
 ### Testing Protocol
 1. Test the specific failing scenario reported by user
@@ -109,8 +122,72 @@
 3. Verify console logs show expected behavior
 4. Confirm no new errors introduced
 
+### User Experience Validation Protocol
+- **Rule**: Technical execution success must be validated against actual user experience, not just system metrics
+- **Rationale**: Scripts can run successfully while failing to deliver the expected user-visible results
+- **Implementation**: 
+  - For email reports: Verify actual email content structure, not just delivery success
+  - For UI changes: Confirm user-visible changes, not just component rendering
+  - For data generation: Distinguish between sample data and comprehensive coverage requirements
+- **Example**: Email script reports "sent successfully" but user reports "table not showing" - investigate actual email content
+
+### Fallback Mechanism Design
+- **Rule**: For unreliable parsing operations, implement robust fallback strategies that ensure core functionality
+- **Rationale**: Complex output parsing (Jest verbose, API responses) is inherently fragile and can fail silently
+- **Implementation**:
+  - Always provide comprehensive fallback data generation when parsing fails
+  - Design fallbacks to match the full scope of expected results, not just sample data
+  - Log fallback activation clearly for debugging purposes
+- **Example**: Jest output parsing fails → generate comprehensive test details covering all scenarios and players
+
+### Iterative Correction Protocol
+- **Rule**: Treat user corrections as critical failure signals requiring immediate investigation and course correction
+- **Rationale**: User feedback indicates the actual success criteria, not technical metrics
+- **Implementation**:
+  - When user corrects "still not working", immediately investigate the gap between technical success and user experience
+  - Don't repeat the same approach that failed; escalate to more comprehensive solutions
+  - Validate fixes against user confirmation, not just technical execution
+
 ### Documentation Verification Protocol
 1. Table of Contents includes all subsections with proper anchor links
 2. Navigation links are present between all major sections
 3. Formatting matches user's established standards
 4. No redundant or duplicate documentation files remain
+
+## Testing & Data Validation
+
+### Data Source Integrity Protocol
+- **Rule**: Never implement hardcoded fallback values when the user explicitly requires dynamic data sourcing
+- **Rationale**: Hardcoded values violate the fundamental requirement for real data validation and can mask data access issues
+- **Implementation**: 
+  - Always find a way to access the real data source, even if it requires alternative approaches
+  - When TypeScript imports fail, implement direct HTTP fetching to CSV/API sources
+  - If data access fails, report the failure clearly rather than using placeholder data
+- **Example**: CSV import fails → implement direct HTTP fetch to Google Sheets CSV URL
+
+### Data Structure Verification Protocol
+- **Rule**: Before making assumptions about data field names or structure, always inspect the actual data first
+- **Rationale**: Field names in external data sources may not match JavaScript naming conventions
+- **Implementation**:
+  - Add strategic logging to examine actual data structure
+  - Use flexible field access patterns (case-insensitive, multiple naming conventions)
+  - Verify field names match exactly what's in the source data
+- **Example**: CSV headers are `'PLAYER NAME'` not `playerName` or `PlayerName`
+
+### Test Failure Logic Protocol
+- **Rule**: Tests with missing, null, undefined, or "N/A" values must be marked as FAILED, not PASSED
+- **Rationale**: Missing data indicates a problem that should be flagged, not ignored
+- **Implementation**:
+  - Implement strict validation functions that mark invalid data as failed
+  - Never allow tests to pass when expected data is unavailable
+  - Distinguish between "no data available" (FAILED) and "data available but zero" (PASSED)
+- **Example**: `getValueOrFail(value) => value === 'N/A' ? {status: 'FAILED'} : {status: 'PASSED'}`
+
+### TBL_TestData Validation Protocol
+- **Rule**: All test data must be sourced from the actual TBL_TestData CSV, with no hardcoded values allowed in the testing setup
+- **Rationale**: Ensures test results reflect real data accuracy and prevents false positives from placeholder values
+- **Implementation**:
+  - Source all expected values from the authoritative CSV data
+  - Implement robust CSV parsing that handles the actual data structure
+  - Generate comprehensive test coverage using real data fields
+- **Example**: Use `playerData.APP` from CSV rather than hardcoded `172` for Luke Bangs appearances

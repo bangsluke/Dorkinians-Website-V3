@@ -28,3 +28,4 @@
 | How many goals have I scored away from home?                                    | NumberCard           | StatsData   |
 | How many times has Luke played?                                                 | NumberCard           | StatsData   |
 | Have I played more home or away games?                                          | Table                | StatsData   |
+| What percentage of away games have I won?                                       | NumberCard           | StatsData   |
