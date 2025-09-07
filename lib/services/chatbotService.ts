@@ -1,6 +1,6 @@
 import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
-import natural from 'natural';
+import * as natural from 'natural';
 import nlp from 'compromise';
 import { 
 	getAppropriateVerb, 
@@ -155,6 +155,7 @@ export class ChatbotService {
 		timeRange?: string;
 		message?: string;
 	} {
+		console.log("🔍 analyzeQuestion called with:", { question, userContext });
 		const lowerQuestion = question.toLowerCase();
 
 		// Determine question type
@@ -394,19 +395,33 @@ export class ChatbotService {
 
 		// Extract metrics using the configuration with context awareness
 		const metrics: string[] = [];
+		// console.log("🔍 Starting metrics detection, metrics.length:", metrics.length);
 
 		// Enhanced advanced metrics detection for comprehensive testing (check these FIRST)
 		if (metrics.length === 0) {
+			console.log("🔍 Starting advanced metrics detection for question:", question);
 			// Goals per appearance
 			if (lowerQuestion.includes("goals") && lowerQuestion.includes("per appearance")) {
+				// console.log("🔍 GperAPP detected");
 				metrics.push("GperAPP");
 			}
 			// Conceded per appearance
-			else if (lowerQuestion.includes("concede") && lowerQuestion.includes("per match")) {
+			else if (lowerQuestion.includes("concede") && (lowerQuestion.includes("per match") || lowerQuestion.includes("per appearance"))) {
+				// console.log("🔍 CperAPP detected");
 				metrics.push("CperAPP");
 			}
-			// Minutes per goal
-			else if (lowerQuestion.includes("minutes") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) {
+			// Minutes per goal - enhanced pattern matching
+			else if (lowerQuestion.includes("minutes") && (
+				lowerQuestion.includes("per goal") || 
+				(lowerQuestion.includes("take") && lowerQuestion.includes("score")) || 
+				(lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("average") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("on average") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score")) ||
+				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score"))
+			)) {
+				console.log("🔍 MperG detected for question:", question);
 				metrics.push("MperG");
 			}
 			// Minutes per clean sheet
@@ -418,7 +433,7 @@ export class ChatbotService {
 				metrics.push("FTPperAPP");
 			}
 			// Distance
-			else if (lowerQuestion.includes("distance")) {
+			else if (lowerQuestion.includes("distance") || lowerQuestion.includes("travelled")) {
 				metrics.push("DIST");
 			}
 			// Home games
@@ -430,11 +445,11 @@ export class ChatbotService {
 				metrics.push("AwayGames");
 			}
 			// Home wins
-			else if (lowerQuestion.includes("home wins")) {
+			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
 				metrics.push("HomeWins");
 			}
 			// Away wins
-			else if (lowerQuestion.includes("away wins")) {
+			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
 				metrics.push("AwayWins");
 			}
 			// Home games percentage won
@@ -577,9 +592,13 @@ export class ChatbotService {
 		}
 
 		// Enhanced goals detection (after advanced metrics)
-		if (lowerQuestion.includes("goals")) {
-			// Enhanced goals logic: default to total goals (open play + penalties)
-			if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
+		if (metrics.length === 0 && lowerQuestion.includes("goals")) {
+			// Enhanced goals logic: check for specific goal types first
+			if (lowerQuestion.includes("own goals")) {
+				metrics.push("OG"); // Own goals
+			} else if (lowerQuestion.includes("conceded")) {
+				metrics.push("C"); // Goals conceded
+			} else if (lowerQuestion.includes("open play") || lowerQuestion.includes("from play") || lowerQuestion.includes("field goals")) {
 				metrics.push("G"); // Goals from open play only
 			} else if (lowerQuestion.includes("penalty") || lowerQuestion.includes("spot kick")) {
 				metrics.push("PSC"); // Penalty goals only
@@ -588,7 +607,7 @@ export class ChatbotService {
 			}
 		}
 		// Check penalties (more specific) after goals
-		else if (lowerQuestion.includes("penalties")) {
+		else if (metrics.length === 0 && lowerQuestion.includes("penalties")) {
 			if (lowerQuestion.includes("missed") || lowerQuestion.includes("failed")) {
 				metrics.push("PM"); // Penalties missed
 			} else if (lowerQuestion.includes("conceded") || lowerQuestion.includes("gave away")) {
@@ -605,7 +624,7 @@ export class ChatbotService {
 		}
 
 		// Enhanced points detection with context awareness
-		if (lowerQuestion.includes("points")) {
+		if (metrics.length === 0 && lowerQuestion.includes("points")) {
 			// Check if this is about team points (game results) or individual fantasy points
 			if (lowerQuestion.includes("team") || lowerQuestion.includes("league") || lowerQuestion.includes("table")) {
 				// Team context - could be game points (W/D/L) but we don't have that data yet
@@ -618,7 +637,7 @@ export class ChatbotService {
 		}
 		
 		// Enhanced penalty record detection
-		if (lowerQuestion.includes("penalty") && (lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))) {
+		if (metrics.length === 0 && lowerQuestion.includes("penalty") && (lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))) {
 			metrics.push("penaltyRecord");
 		}
 
@@ -832,11 +851,11 @@ export class ChatbotService {
 					break;
 				case "Y":
 					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCard IS NULL OR md.yellowCard = "" THEN 0 ELSE md.yellowCard END), 0) as value';
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value';
 					break;
 				case "R":
 					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCard IS NULL OR md.redCard = "" THEN 0 ELSE md.redCard END), 0) as value';
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value';
 					break;
 				case "SAVES":
 					returnClause =
@@ -847,12 +866,12 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
 					break;
 				case "C":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END), 0) as value';
+					// Goals conceded - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.conceded, 0) as value";
 					break;
 				case "CLS":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.cleanSheet IS NULL OR md.cleanSheet = "" THEN 0 ELSE md.cleanSheet END), 0) as value';
+					// Clean sheets - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.cleanSheets, 0) as value";
 					break;
 				case "PSC":
 					returnClause =
@@ -871,8 +890,8 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
 					break;
 				case "FTP":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
+					// Fantasy points - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value";
 					break;
 				case "AllGSC":
 				case "totalGoals":
@@ -897,6 +916,58 @@ export class ChatbotService {
 					// Context-aware points - default to Fantasy Points for individual players
 					returnClause =
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
+					break;
+				case "GperAPP":
+					// Goals per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.goalsPerApp, p.GperAPP, 0) as value";
+					break;
+				case "CperAPP":
+					// Conceded per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.concededPerApp, p.CperAPP, 0) as value";
+					break;
+				case "MperG":
+					// Minutes per goal - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, p.MperG, 0) as value";
+					break;
+				case "MperCLS":
+					// Minutes per clean sheet - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerCleanSheet, p.MperCLS, 0) as value";
+					break;
+				case "FTPperAPP":
+					// Fantasy points per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPointsPerApp, p.FTPperAPP, 0) as value";
+					break;
+				case "DIST":
+					// Distance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, p.DIST, 0) as value";
+					break;
+				case "HomeGames":
+					// Home games - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGames, 0) as value";
+					break;
+				case "AwayGames":
+					// Away games - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGames, 0) as value";
+					break;
+				case "HomeWins":
+					// Home wins - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeWins, 0) as value";
+					break;
+				case "AwayWins":
+					// Away wins - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayWins, 0) as value";
+					break;
+				case "HomeGames%Won":
+					// Home games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGamesPercentWon, 0) as value";
+					break;
+				case "AwayGames%Won":
+					// Away games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGamesPercentWon, 0) as value";
+					break;
+				case "Games%Won":
+					// Games percentage won - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.gamesPercentWon, 0) as value";
 					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
@@ -1508,8 +1579,26 @@ export class ChatbotService {
 						answer = `${playerName} has not taken any penalties yet.`;
 					}
 				} else {
+					// Round values for specific metrics
+					let roundedValue = value;
+					if (metric === "FTP") {
+						roundedValue = Math.round(value); // Round fantasy points to nearest integer
+					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
+						roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
+					} else if (metric === "MperG" || metric === "MperCLS") {
+						roundedValue = Math.round(value); // Round minutes per goal/clean sheet to nearest integer
+					} else if (metric === "DIST") {
+						roundedValue = Math.round(value); // Round distance to nearest integer
+					}
+					
+					// Format value with commas for thousands
+					let formattedValue = roundedValue;
+					if (metric === "MIN" || metric === "DIST") {
+						formattedValue = roundedValue.toLocaleString();
+					}
+					
 					// Use natural language response generation with appearances context for regular metrics
-					const metricName = getMetricDisplayName(metric, value);
+					const metricName = getMetricDisplayName(metric, roundedValue);
 					
 					// Get appearances count for template
 					let appearancesCount: number | undefined;
@@ -1520,9 +1609,36 @@ export class ChatbotService {
 						}
 					}
 					
-					// Use template with appearances if available, otherwise fallback
-					let template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
-					if (!template || !appearancesCount) {
+					// Choose appropriate template based on metric type
+					let template: any = null;
+					
+					if (metric === "MperG") {
+						template = getResponseTemplate('player_stats', 'Minutes per goal');
+					} else if (metric === "MperCLS") {
+						template = getResponseTemplate('player_stats', 'Minutes per clean sheet');
+					} else if (metric === "DIST") {
+						template = getResponseTemplate('player_stats', 'Distance travelled');
+					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
+						template = getResponseTemplate('player_stats', 'Per appearance statistics');
+					} else if (metric === "HomeGames" || metric === "AwayGames") {
+						// Special handling for home/away games - no appearances context needed
+						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "Games%Won" && appearancesCount) {
+						// Special handling for overall games percentage won - include appearances context
+						answer = `${playerName} has won ${formattedValue}% of the ${appearancesCount} games he has played in.`;
+						return { answer, sources: [], visualization };
+					} else if (appearancesCount) {
+						// Alternate between "appearances" and "matches" for variety
+						const useMatches = Math.random() < 0.5;
+						if (useMatches) {
+							// Use a custom template with "matches" instead of "appearances"
+							answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName} in ${appearancesCount} matches.`;
+							return { answer, sources: [], visualization };
+						} else {
+							template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
+						}
+					} else {
 						template = getResponseTemplate('player_stats', 'Basic player statistics');
 					}
 					
@@ -1531,14 +1647,14 @@ export class ChatbotService {
 							template.template,
 							playerName,
 							metric,
-							value,
+							formattedValue,
 							metricName,
 							undefined, // teamName
 							appearancesCount
 						);
 					} else {
 						// Fallback to simple format with appearances
-						answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${value} ${metricName}${appearancesContext}.`;
+						answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName}${appearancesContext}.`;
 					}
 				}
 				
