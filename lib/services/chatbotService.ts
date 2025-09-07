@@ -445,11 +445,11 @@ export class ChatbotService {
 				metrics.push("AwayGames");
 			}
 			// Home wins
-			else if (lowerQuestion.includes("home wins")) {
+			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
 				metrics.push("HomeWins");
 			}
 			// Away wins
-			else if (lowerQuestion.includes("away wins")) {
+			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
 				metrics.push("AwayWins");
 			}
 			// Home games percentage won
@@ -918,28 +918,28 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END), 0) as value';
 					break;
 				case "GperAPP":
-					// Goals per appearance - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.goalsPerApp, 0) as value";
+					// Goals per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.goalsPerApp, p.GperAPP, 0) as value";
 					break;
 				case "CperAPP":
-					// Conceded per appearance - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.concededPerApp, 0) as value";
+					// Conceded per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.concededPerApp, p.CperAPP, 0) as value";
 					break;
 				case "MperG":
-					// Minutes per goal - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, 0) as value";
+					// Minutes per goal - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, p.MperG, 0) as value";
 					break;
 				case "MperCLS":
-					// Minutes per clean sheet - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerCleanSheet, 0) as value";
+					// Minutes per clean sheet - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerCleanSheet, p.MperCLS, 0) as value";
 					break;
 				case "FTPperAPP":
-					// Fantasy points per appearance - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPointsPerApp, 0) as value";
+					// Fantasy points per appearance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPointsPerApp, p.FTPperAPP, 0) as value";
 					break;
 				case "DIST":
-					// Distance - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
+					// Distance - get from Player node (try both property names for compatibility)
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, p.DIST, 0) as value";
 					break;
 				case "HomeGames":
 					// Home games - get from Player node
@@ -1620,6 +1620,14 @@ export class ChatbotService {
 						template = getResponseTemplate('player_stats', 'Distance travelled');
 					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
 						template = getResponseTemplate('player_stats', 'Per appearance statistics');
+					} else if (metric === "HomeGames" || metric === "AwayGames") {
+						// Special handling for home/away games - no appearances context needed
+						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "Games%Won" && appearancesCount) {
+						// Special handling for overall games percentage won - include appearances context
+						answer = `${playerName} has won ${formattedValue}% of the ${appearancesCount} games he has played in.`;
+						return { answer, sources: [], visualization };
 					} else if (appearancesCount) {
 						// Alternate between "appearances" and "matches" for variety
 						const useMatches = Math.random() < 0.5;

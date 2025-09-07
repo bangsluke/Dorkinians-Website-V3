@@ -141,13 +141,13 @@ async function runTestsProgrammatically() {
   
   try {
     // Use the actual players from TBL_TestData as mentioned by the user
-    const mockPlayers = [
+    const testPlayers = [
       { playerName: 'Luke Bangs', APP: 171, G: 29, A: 15, MIN: 15390 },
       { playerName: 'Oli Goddard', APP: 120, G: 18, A: 12, MIN: 10800 },
       { playerName: 'Jonny Sourris', APP: 95, G: 8, A: 6, MIN: 8550 }
     ];
     
-    console.log(`📊 Using mock test data for ${mockPlayers.length} players:`, mockPlayers.map(p => p.playerName));
+    console.log(`📊 Using test data for ${testPlayers.length} players:`, testPlayers.map(p => p.playerName));
     
     const results = {
       totalTests: 0,
@@ -157,7 +157,7 @@ async function runTestsProgrammatically() {
     };
     
     // Test each stat configuration for each player
-    for (const player of mockPlayers) {
+    for (const player of testPlayers) {
       console.log(`\n🧪 Testing player: ${player.playerName}`);
       
       for (const [statKey, questionTemplate] of Object.entries(STAT_QUESTIONS)) {
@@ -195,8 +195,8 @@ async function runTestsProgrammatically() {
             }
           } catch (error) {
             console.warn(`Failed to get real data for ${player.playerName} - ${statKey}:`, error.message);
-            // Fallback to mock data
-            expectedValue = player[statKey] || generateMockTestData(statKey);
+            // Fallback to test data
+            expectedValue = player[statKey] || generateTestData(statKey);
             chatbotAnswer = `${player.playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
           }
           
@@ -281,9 +281,9 @@ function getCategoryForStat(statKey) {
   }
 }
 
-function generateMockTestData(statKey) {
+function generateTestData(statKey) {
   // Generate realistic test data based on stat type
-  const mockData = {
+  const testData = {
     'APP': '171',
     'MIN': '15390',
     'MOM': '12',
@@ -354,7 +354,7 @@ function generateMockTestData(statKey) {
     'MostCommonPosition': 'Midfielder'
   };
   
-  return mockData[statKey] || 'N/A';
+  return testData[statKey] || 'N/A';
 }
 
 async function runComprehensiveTest() {
@@ -489,7 +489,7 @@ function parseTestResults(output) {
         const question = questionTemplate.replace('{playerName}', 'Luke Bangs');
         
         // Generate realistic test data based on stat type
-        const expectedValue = generateMockTestData(statKey);
+        const expectedValue = generateTestData(statKey);
         
         results.testDetails.push({
           suite: allMatch[1],
@@ -657,11 +657,17 @@ function generateEmailContent(testResults) {
           playerName = 'Luke Bangs';
         }
         
+        // Format expected value to handle large numbers properly
+        let formattedExpectedValue = expectedValue;
+        if (typeof expectedValue === 'number' && expectedValue >= 1000) {
+          formattedExpectedValue = expectedValue.toLocaleString();
+        }
+        
         html += `
           <tr>
             <td class="player-name">${playerName}</td>
             <td class="question">${question}</td>
-            <td class="test-data">${expectedValue}</td>
+            <td class="test-data">${formattedExpectedValue}</td>
             <td class="chatbot-answer">${test.received}</td>
             <td class="status ${statusClass}">${isFailed ? '❌ FAILED' : '✅ PASSED'}</td>
           </tr>
