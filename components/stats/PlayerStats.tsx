@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject } from "./statObject";
+import { statObject } from "@/config/config";
 import Image from "next/image";
 import { useState } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";

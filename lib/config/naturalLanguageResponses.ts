@@ -81,6 +81,24 @@ export const verbMappings: { [key: string]: VerbMapping[] } = {
 	FTP: [
 		{ verb: "earned", alternativeVerbs: ["earned", "scored", "accumulated"], context: "fantasy points" },
 		{ verb: "earned", alternativeVerbs: ["earned", "scored", "accumulated"], context: "fantasy points" }
+	],
+	GperAPP: [
+		{ verb: "averaged", alternativeVerbs: ["averaged", "scored"], context: "goals per appearance" },
+	],
+	CperAPP: [
+		{ verb: "averaged", alternativeVerbs: ["averaged", "conceded"], context: "goals conceded per appearance" },
+	],
+	MperG: [
+		{ verb: "takes", alternativeVerbs: ["takes", "requires"], context: "minutes per goal" },
+	],
+	MperCLS: [
+		{ verb: "takes", alternativeVerbs: ["takes", "requires"], context: "minutes per clean sheet" },
+	],
+	FTPperAPP: [
+		{ verb: "averaged", alternativeVerbs: ["averaged", "earned"], context: "fantasy points per appearance" },
+	],
+	DIST: [
+		{ verb: "travelled", alternativeVerbs: ["travelled", "covered"], context: "distance" },
 	]
 };
 
@@ -106,6 +124,26 @@ export const responseTemplates: { [key: string]: ResponseTemplate[] } = {
 			template: "{playerName} has {verb} {value} {metricName} in {appearances} appearances.",
 			context: "Player statistics with appearances context",
 			examples: ["Luke Bangs has scored 29 goals in 78 appearances.", "Luke Bangs has received 5 yellow cards in 45 appearances."]
+		},
+		{
+			template: "{playerName} has {verb} {value} {metricName}.",
+			context: "Per appearance statistics",
+			examples: ["Luke Bangs has averaged 0.17 goals per appearance.", "Luke Bangs has averaged 2 goals conceded per appearance."]
+		},
+		{
+			template: "It takes {value} minutes on average for {playerName} to score a goal.",
+			context: "Minutes per goal",
+			examples: ["It takes 500 minutes on average for Luke Bangs to score a goal."]
+		},
+		{
+			template: "{playerName} takes {value} minutes per clean sheet in {appearances} appearances.",
+			context: "Minutes per clean sheet",
+			examples: ["Luke Bangs takes 453 minutes per clean sheet in 171 appearances."]
+		},
+		{
+			template: "{playerName} has {verb} {value} miles to get to games.",
+			context: "Distance travelled",
+			examples: ["Luke Bangs has travelled 3,535 miles to get to games."]
 		}
 	],
 	team_specific: [
@@ -138,7 +176,7 @@ export const responseTemplates: { [key: string]: ResponseTemplate[] } = {
 export function getAppropriateVerb(metric: string, value: number): string {
 	const mappings = verbMappings[metric];
 	if (!mappings || mappings.length === 0) {
-		return "has"; // Default fallback
+		return ""; // Empty string to avoid "has has" duplication
 	}
 	
 	// Use the first mapping for now, could be enhanced with context
@@ -181,6 +219,9 @@ export function formatNaturalResponse(
 		.replace('{verb}', verb)
 		.replace('{value}', value.toString())
 		.replace('{metricName}', metricName);
+	
+	// Clean up extra spaces that might be left by empty verbs
+	response = response.replace(/\s+/g, ' ').trim();
 	
 	if (teamName) {
 		response = response.replace('{teamName}', teamName);
