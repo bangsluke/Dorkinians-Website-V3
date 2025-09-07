@@ -279,7 +279,7 @@ export const statObject = {
       displayText: "Clean Sheets Achieved", // The text displayed at all times on the page.
       shortText: "CLS", // Used for short displays such as on the Comparison tab.
       wordedText: "clean sheets", // Used for chatbot responses
-	  statFormat: "Integer",
+      statFormat: "Integer",
       description: "The number of clean sheets achieved by the player.",
       statHigherBetterBoolean: true,
       numberDecimalPlaces: 0,

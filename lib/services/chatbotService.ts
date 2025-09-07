@@ -1,5 +1,6 @@
 import { neo4jService } from "../neo4j";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import { statObject } from "../../config/config";
 import * as natural from 'natural';
 import nlp from 'compromise';
 import { 
@@ -307,6 +308,26 @@ export class ChatbotService {
 			}
 		}
 
+		// Pattern 7.5: "What team has Luke Bangs made the most appearances for?" (team-specific questions)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/What team has ([A-Za-z\s]+) (?:made the most appearances for|scored the most goals for)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 7.6: "How many of the clubs teams has Luke Bangs played for?" (teams count questions)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many of the clubs teams has ([A-Za-z\s]+) played for/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
 		// Pattern 8: "How many home games has Luke Bangs played?" (comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
@@ -573,8 +594,20 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("most scored for team")) {
 				metrics.push("MostScoredForTeam");
 			}
+			// What team has player made the most appearances for
+			else if (lowerQuestion.includes("what team has") && lowerQuestion.includes("made the most appearances for")) {
+				metrics.push("MostPlayedForTeam");
+			}
+			// What team has player scored the most goals for
+			else if (lowerQuestion.includes("what team has") && lowerQuestion.includes("scored the most goals for")) {
+				metrics.push("MostScoredForTeam");
+			}
 			// Number of teams played for
 			else if (lowerQuestion.includes("number of teams played for")) {
+				metrics.push("NumberTeamsPlayedFor");
+			}
+			// How many of the clubs teams has player played for
+			else if (lowerQuestion.includes("how many of the clubs teams has") && lowerQuestion.includes("played for")) {
 				metrics.push("NumberTeamsPlayedFor");
 			}
 			// Number of seasons played for
@@ -1588,16 +1621,25 @@ export class ChatbotService {
 						answer = `${playerName} has not taken any penalties yet.`;
 					}
 				} else {
-					// Round values for specific metrics
+					// Round values based on statObject configuration
 					let roundedValue = value;
-					if (metric === "FTP") {
-						roundedValue = Math.round(value); // Round fantasy points to nearest integer
-					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
-						roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
-					} else if (metric === "MperG" || metric === "MperCLS") {
-						roundedValue = Math.round(value); // Round minutes per goal/clean sheet to nearest integer
-					} else if (metric === "DIST") {
-						roundedValue = Math.round(value); // Round distance to nearest integer
+					
+					// Get stat configuration for this metric
+					const statConfig = statObject[metric as keyof typeof statObject];
+					if (statConfig) {
+						// If statFormat is "Integer", round to the specified number of decimal places
+						if (statConfig.statFormat === "Integer") {
+							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
+							const multiplier = Math.pow(10, decimalPlaces);
+							roundedValue = Math.round(value * multiplier) / multiplier;
+						}
+						// For other formats, keep existing logic or add as needed
+						else if (statConfig.statFormat === "Decimal2") {
+							roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
+						}
+						else if (statConfig.statFormat === "Decimal1") {
+							roundedValue = Math.round(value * 10) / 10; // Round to 1 decimal place
+						}
 					}
 					
 					// Format value with commas for thousands
@@ -1688,6 +1730,52 @@ export class ChatbotService {
 				} else if (metric === "points") {
 					// Clarify that this refers to Fantasy Points
 					answer = answer.replace('.', ' (Fantasy Points).');
+				} else if (metric === "MostPlayedForTeam") {
+					// For "What team has player made the most appearances for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("what team has") && questionLower.includes("made the most appearances for")) {
+						// Get the actual appearances count for that team
+						const teamName = value; // e.g., "3s"
+						const teamAppsKey = `${teamName}Apps`; // e.g., "3sApps"
+						const teamAppsValue = playerData[teamAppsKey] || 0;
+						answer = `${playerName} has made the most appearances for the ${teamName} (${teamAppsValue} appearances).`;
+					}
+				} else if (metric === "MostScoredForTeam") {
+					// For "What team has player scored the most goals for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("what team has") && questionLower.includes("scored the most goals for")) {
+						// Get the actual goals count for that team
+						const teamName = value; // e.g., "4s"
+						const teamGoalsKey = `${teamName}Goals`; // e.g., "4sGoals"
+						const teamGoalsValue = playerData[teamGoalsKey] || 0;
+						answer = `${playerName} has scored the most goals for the ${teamName} (${teamGoalsValue} goals).`;
+					}
+				} else if (metric === "NumberTeamsPlayedFor") {
+					// For "How many of the clubs teams has player played for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) {
+						// Count how many teams the player has played for
+						const teamKeys: string[] = ['1sApps', '2sApps', '3sApps', '4sApps', '5sApps', '6sApps', '7sApps', '8sApps'];
+						let teamsPlayedFor = 0;
+						const teamsList: string[] = [];
+						
+						teamKeys.forEach((teamKey: string) => {
+							const apps = playerData[teamKey] || 0;
+							if (apps > 0) {
+								teamsPlayedFor++;
+								const teamName: string = teamKey.replace('Apps', 's'); // Convert "1sApps" to "1s"
+								teamsList.push(teamName);
+							}
+						});
+						
+						if (teamsPlayedFor === 0) {
+							answer = `${playerName} has not played for any of the club's teams yet.`;
+						} else if (teamsPlayedFor === 1) {
+							answer = `${playerName} has played for 1 of the club's 8 teams (${teamsList[0]}).`;
+						} else {
+							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams (${teamsList.join(', ')}).`;
+						}
+					}
 				}
 				
 				// Enhanced year vs season clarification
