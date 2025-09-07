@@ -18,6 +18,7 @@ export interface ChatbotResponse {
 		config?: any;
 	};
 	sources: string[];
+	cypherQuery?: string;
 }
 
 export interface QuestionContext {
@@ -1011,6 +1012,30 @@ export class ChatbotService {
 					// Games percentage won - get from Player node
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.gamesPercentWon, 0) as value";
 					break;
+				case "MostPlayedForTeam":
+					// Find the team with most appearances for this player
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						WITH p, t, count(md) as appearances
+						ORDER BY appearances DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, t.teamName as value, appearances as appearancesCount`;
+					break;
+				case "MostScoredForTeam":
+					// Find the team with most goals for this player
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						WITH p, t, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+						ORDER BY goals DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, t.teamName as value, goals as goalsCount`;
+					break;
+				case "NumberTeamsPlayedFor":
+					// Count how many different teams this player has played for
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						RETURN p.playerName as playerName, count(DISTINCT t.teamName) as value`;
+					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 			}
@@ -1094,7 +1119,7 @@ export class ChatbotService {
 					this.logToBoth(`🔍 MatchDetail nodes without graphLabel:`, noLabelResult);
 				}
 
-				return { type: "specific_player", data: result, playerName, metric };
+				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth("❌ Error querying specific player data:", error, 'error');
 				return null;
@@ -1734,46 +1759,33 @@ export class ChatbotService {
 					// For "What team has player made the most appearances for?" questions
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("what team has") && questionLower.includes("made the most appearances for")) {
-						// Get the actual appearances count for that team
+						// Use the actual query results from Cypher
 						const teamName = value; // e.g., "3s"
-						const teamAppsKey = `${teamName}Apps`; // e.g., "3sApps"
-						const teamAppsValue = playerData[teamAppsKey] || 0;
-						answer = `${playerName} has made the most appearances for the ${teamName} (${teamAppsValue} appearances).`;
+						const appearancesCount = playerData.appearancesCount || 0;
+						answer = `${playerName} has made the most appearances for the ${teamName} (${appearancesCount} appearances).`;
 					}
 				} else if (metric === "MostScoredForTeam") {
 					// For "What team has player scored the most goals for?" questions
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("what team has") && questionLower.includes("scored the most goals for")) {
-						// Get the actual goals count for that team
+						// Use the actual query results from Cypher
 						const teamName = value; // e.g., "4s"
-						const teamGoalsKey = `${teamName}Goals`; // e.g., "4sGoals"
-						const teamGoalsValue = playerData[teamGoalsKey] || 0;
-						answer = `${playerName} has scored the most goals for the ${teamName} (${teamGoalsValue} goals).`;
+						const goalsCount = playerData.goalsCount || 0;
+						answer = `${playerName} has scored the most goals for the ${teamName} (${goalsCount} goals).`;
 					}
 				} else if (metric === "NumberTeamsPlayedFor") {
 					// For "How many of the clubs teams has player played for?" questions
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) {
-						// Count how many teams the player has played for
-						const teamKeys: string[] = ['1sApps', '2sApps', '3sApps', '4sApps', '5sApps', '6sApps', '7sApps', '8sApps'];
-						let teamsPlayedFor = 0;
-						const teamsList: string[] = [];
-						
-						teamKeys.forEach((teamKey: string) => {
-							const apps = playerData[teamKey] || 0;
-							if (apps > 0) {
-								teamsPlayedFor++;
-								const teamName: string = teamKey.replace('Apps', 's'); // Convert "1sApps" to "1s"
-								teamsList.push(teamName);
-							}
-						});
+						// Use the actual query result from Cypher
+						const teamsPlayedFor = value || 0;
 						
 						if (teamsPlayedFor === 0) {
 							answer = `${playerName} has not played for any of the club's teams yet.`;
 						} else if (teamsPlayedFor === 1) {
-							answer = `${playerName} has played for 1 of the club's 8 teams (${teamsList[0]}).`;
+							answer = `${playerName} has played for 1 of the club's 8 teams.`;
 						} else {
-							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams (${teamsList.join(', ')}).`;
+							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
 				}
@@ -2031,6 +2043,7 @@ export class ChatbotService {
 			answer,
 			sources: [], // Always hide technical sources as per mandatory rules
 			visualization,
+			cypherQuery: data?.cypherQuery, // Include the Cypher query used
 		};
 	}
 

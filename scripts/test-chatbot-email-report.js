@@ -18,8 +18,514 @@ const nodemailer = require('nodemailer');
 // Load environment variables
 require('dotenv').config();
 
-// Note: STAT_TEST_CONFIGS is imported from testUtils.ts in the programmatic approach
-// For Jest output parsing, we'll use a simplified approach
+// Register ts-node to handle TypeScript imports
+require('ts-node/register');
+
+// Define comprehensive STAT_TEST_CONFIGS for testing
+const STAT_TEST_CONFIGS = [
+  {
+    key: 'APP',
+    metric: 'appearances',
+    questionTemplate: 'How many appearances has {playerName} made?',
+    responsePattern: /(\d+)/,
+    description: 'Appearances'
+  },
+  {
+    key: 'MIN',
+    metric: 'minutes',
+    questionTemplate: 'How many minutes of football has {playerName} played?',
+    responsePattern: /(\d+)/,
+    description: 'Minutes'
+  },
+  {
+    key: 'MOM',
+    metric: 'mom',
+    questionTemplate: 'How many MoMs has {playerName} received?',
+    responsePattern: /(\d+)/,
+    description: 'Man of the Match awards'
+  },
+  {
+    key: 'G',
+    metric: 'goals',
+    questionTemplate: 'How many goals has {playerName} scored from open play?',
+    responsePattern: /(\d+)/,
+    description: 'Goals'
+  },
+  {
+    key: 'A',
+    metric: 'assists',
+    questionTemplate: 'How many assists has {playerName} achieved?',
+    responsePattern: /(\d+)/,
+    description: 'Assists'
+  },
+  {
+    key: 'Y',
+    metric: 'yellowCards',
+    questionTemplate: 'How many yellow cards has {playerName} received?',
+    responsePattern: /(\d+)/,
+    description: 'Yellow Cards'
+  },
+  {
+    key: 'R',
+    metric: 'redCards',
+    questionTemplate: 'How many red cards has {playerName} received?',
+    responsePattern: /(\d+)/,
+    description: 'Red Cards'
+  },
+  {
+    key: 'SAVES',
+    metric: 'saves',
+    questionTemplate: 'How many saves has {playerName} made?',
+    responsePattern: /(\d+)/,
+    description: 'Saves'
+  },
+  {
+    key: 'OG',
+    metric: 'ownGoals',
+    questionTemplate: 'How many own goals has {playerName} scored?',
+    responsePattern: /(\d+)/,
+    description: 'Own Goals'
+  },
+  {
+    key: 'C',
+    metric: 'conceded',
+    questionTemplate: 'How many goals has {playerName} conceded?',
+    responsePattern: /(\d+)/,
+    description: 'Goals Conceded'
+  },
+  {
+    key: 'CLS',
+    metric: 'cleanSheets',
+    questionTemplate: 'How many clean sheets has {playerName} achieved?',
+    responsePattern: /(\d+)/,
+    description: 'Clean Sheets'
+  },
+  {
+    key: 'PSC',
+    metric: 'penaltiesScored',
+    questionTemplate: 'How many penalties has {playerName} scored?',
+    responsePattern: /(\d+)/,
+    description: 'Penalties Scored'
+  },
+  {
+    key: 'PM',
+    metric: 'penaltiesMissed',
+    questionTemplate: 'How many penalties has {playerName} missed?',
+    responsePattern: /(\d+)/,
+    description: 'Penalties Missed'
+  },
+  {
+    key: 'PCO',
+    metric: 'penaltiesConceded',
+    questionTemplate: 'How many penalties has {playerName} conceded?',
+    responsePattern: /(\d+)/,
+    description: 'Penalties Conceded'
+  },
+  {
+    key: 'PSV',
+    metric: 'penaltiesSaved',
+    questionTemplate: 'How many penalties has {playerName} saved?',
+    responsePattern: /(\d+)/,
+    description: 'Penalties Saved'
+  },
+  {
+    key: 'FTP',
+    metric: 'fantasyPoints',
+    questionTemplate: 'How many fantasy points does {playerName} have?',
+    responsePattern: /(\d+)/,
+    description: 'Fantasy Points'
+  },
+  // Advanced Statistics
+  {
+    key: 'AllGSC',
+    metric: 'allGoals',
+    questionTemplate: 'How many goals has {playerName} scored?',
+    responsePattern: /(\d+)/,
+    description: 'All Goals Scored'
+  },
+  {
+    key: 'GperAPP',
+    metric: 'goalsPerAppearance',
+    questionTemplate: 'How many goals on average has {playerName} scored per appearance?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Goals per Appearance'
+  },
+  {
+    key: 'CperAPP',
+    metric: 'concededPerAppearance',
+    questionTemplate: 'How many goals on average does {playerName} concede per match?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Goals Conceded per Appearance'
+  },
+  {
+    key: 'MperG',
+    metric: 'minutesPerGoal',
+    questionTemplate: 'How many minutes does it take on average for {playerName} to score?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Minutes per Goal'
+  },
+  {
+    key: 'MperCLS',
+    metric: 'minutesPerCleanSheet',
+    questionTemplate: 'On average, how many minutes does {playerName} need to get a clean sheet?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Minutes per Clean Sheet'
+  },
+  {
+    key: 'FTPperAPP',
+    metric: 'fantasyPointsPerAppearance',
+    questionTemplate: 'How many fantasy points does {playerName} score per appearance?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Fantasy Points per Appearance'
+  },
+  {
+    key: 'DIST',
+    metric: 'distance',
+    questionTemplate: 'How far has {playerName} travelled to get to games?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Distance Travelled'
+  },
+  // Home/Away Statistics
+  {
+    key: 'HomeGames',
+    metric: 'homeGames',
+    questionTemplate: 'How many home games has {playerName} played?',
+    responsePattern: /(\d+)/,
+    description: 'Home Games'
+  },
+  {
+    key: 'HomeWins',
+    metric: 'homeWins',
+    questionTemplate: 'How many home games has {playerName} won?',
+    responsePattern: /(\d+)/,
+    description: 'Home Wins'
+  },
+  {
+    key: 'HomeGames%Won',
+    metric: 'homeGamesPercentWon',
+    questionTemplate: 'What percentage of home games has {playerName} won?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Home Games % Won'
+  },
+  {
+    key: 'AwayGames',
+    metric: 'awayGames',
+    questionTemplate: 'How many away games has {playerName} played?',
+    responsePattern: /(\d+)/,
+    description: 'Away Games'
+  },
+  {
+    key: 'AwayWins',
+    metric: 'awayWins',
+    questionTemplate: 'How many away games have {playerName} won?',
+    responsePattern: /(\d+)/,
+    description: 'Away Wins'
+  },
+  {
+    key: 'AwayGames%Won',
+    metric: 'awayGamesPercentWon',
+    questionTemplate: 'What percent of away games has {playerName} won?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Away Games % Won'
+  },
+  {
+    key: 'Games%Won',
+    metric: 'gamesPercentWon',
+    questionTemplate: 'What % of games has {playerName} won?',
+    responsePattern: /(\d+(?:\.\d+)?)/,
+    description: 'Games % Won'
+  },
+  // Team-Specific Appearances
+  {
+    key: '1sApps',
+    metric: 'firstTeamApps',
+    questionTemplate: 'How many appearances has {playerName} made for the 1s?',
+    responsePattern: /(\d+)/,
+    description: '1st Team Appearances'
+  },
+  {
+    key: '2sApps',
+    metric: 'secondTeamApps',
+    questionTemplate: 'How many apps has {playerName} made for the 2s?',
+    responsePattern: /(\d+)/,
+    description: '2nd Team Appearances'
+  },
+  {
+    key: '3sApps',
+    metric: 'thirdTeamApps',
+    questionTemplate: 'How many times has {playerName} played for the 3s?',
+    responsePattern: /(\d+)/,
+    description: '3rd Team Appearances'
+  },
+  {
+    key: '4sApps',
+    metric: 'fourthTeamApps',
+    questionTemplate: 'What is the appearance count for {playerName} playing for the 4s?',
+    responsePattern: /(\d+)/,
+    description: '4th Team Appearances'
+  },
+  {
+    key: '5sApps',
+    metric: 'fifthTeamApps',
+    questionTemplate: 'How many games for the 5s has {playerName} played?',
+    responsePattern: /(\d+)/,
+    description: '5th Team Appearances'
+  },
+  {
+    key: '6sApps',
+    metric: 'sixthTeamApps',
+    questionTemplate: 'How many appearances for the 6s has {playerName} made?',
+    responsePattern: /(\d+)/,
+    description: '6th Team Appearances'
+  },
+  {
+    key: '7sApps',
+    metric: 'seventhTeamApps',
+    questionTemplate: 'How many apps for the 7s has {playerName} achieved?',
+    responsePattern: /(\d+)/,
+    description: '7th Team Appearances'
+  },
+  {
+    key: '8sApps',
+    metric: 'eighthTeamApps',
+    questionTemplate: 'Provide me with {playerName} appearance count for the 8s.',
+    responsePattern: /(\d+)/,
+    description: '8th Team Appearances'
+  },
+  {
+    key: 'MostPlayedForTeam',
+    metric: 'mostPlayedForTeam',
+    questionTemplate: 'What team has {playerName} made the most appearances for?',
+    responsePattern: /([A-Za-z0-9\s]+)/,
+    description: 'Most Played For Team'
+  },
+  {
+    key: 'NumberTeamsPlayedFor',
+    metric: 'numberTeamsPlayedFor',
+    questionTemplate: 'How many of the clubs teams has {playerName} played for?',
+    responsePattern: /(\d+)/,
+    description: 'Number of Teams Played For'
+  },
+  // Team-Specific Goals
+  {
+    key: '1sGoals',
+    metric: 'firstTeamGoals',
+    questionTemplate: 'How many goals has {playerName} scored for the 1s?',
+    responsePattern: /(\d+)/,
+    description: '1st Team Goals'
+  },
+  {
+    key: '2sGoals',
+    metric: 'secondTeamGoals',
+    questionTemplate: 'What is the goal count of {playerName} for the 2nd team?',
+    responsePattern: /(\d+)/,
+    description: '2nd Team Goals'
+  },
+  {
+    key: '3sGoals',
+    metric: 'thirdTeamGoals',
+    questionTemplate: 'How many goals in total has {playerName} scored for the 3s?',
+    responsePattern: /(\d+)/,
+    description: '3rd Team Goals'
+  },
+  {
+    key: '4sGoals',
+    metric: 'fourthTeamGoals',
+    questionTemplate: 'How many goals have I scored for the 4s?',
+    responsePattern: /(\d+)/,
+    description: '4th Team Goals'
+  },
+  {
+    key: '5sGoals',
+    metric: 'fifthTeamGoals',
+    questionTemplate: 'How many goals has {playerName} scored for the 5th XI?',
+    responsePattern: /(\d+)/,
+    description: '5th Team Goals'
+  },
+  {
+    key: '6sGoals',
+    metric: 'sixthTeamGoals',
+    questionTemplate: 'What are the goal stats for {playerName} for the 6s?',
+    responsePattern: /(\d+)/,
+    description: '6th Team Goals'
+  },
+  {
+    key: '7sGoals',
+    metric: 'seventhTeamGoals',
+    questionTemplate: 'How many goals have {playerName} got for the 7s?',
+    responsePattern: /(\d+)/,
+    description: '7th Team Goals'
+  },
+  {
+    key: '8sGoals',
+    metric: 'eighthTeamGoals',
+    questionTemplate: 'How many goals has {playerName} scored for the 8s?',
+    responsePattern: /(\d+)/,
+    description: '8th Team Goals'
+  },
+  {
+    key: 'MostScoredForTeam',
+    metric: 'mostScoredForTeam',
+    questionTemplate: 'Which team has {playerName} scored the most goals for?',
+    responsePattern: /([A-Za-z0-9\s]+)/,
+    description: 'Most Scored For Team'
+  },
+  // Seasonal Appearances
+  {
+    key: '2016/17Apps',
+    metric: 'season2016_17Apps',
+    questionTemplate: 'How many appearances did {playerName} make in the 2016/17 season?',
+    responsePattern: /(\d+)/,
+    description: '2016/17 Season Appearances'
+  },
+  {
+    key: '2017/18Apps',
+    metric: 'season2017_18Apps',
+    questionTemplate: 'How many apps did {playerName} make in 2017/18?',
+    responsePattern: /(\d+)/,
+    description: '2017/18 Season Appearances'
+  },
+  {
+    key: '2018/19Apps',
+    metric: 'season2018_19Apps',
+    questionTemplate: 'How many games did {playerName} play in in 2018-19?',
+    responsePattern: /(\d+)/,
+    description: '2018/19 Season Appearances'
+  },
+  {
+    key: '2019/20Apps',
+    metric: 'season2019_20Apps',
+    questionTemplate: 'How many apps did {playerName} have in 2019/20?',
+    responsePattern: /(\d+)/,
+    description: '2019/20 Season Appearances'
+  },
+  {
+    key: '2020/21Apps',
+    metric: 'season2020_21Apps',
+    questionTemplate: 'How many games did {playerName} appear in in 2020/21?',
+    responsePattern: /(\d+)/,
+    description: '2020/21 Season Appearances'
+  },
+  {
+    key: '2021/22Apps',
+    metric: 'season2021_22Apps',
+    questionTemplate: 'How many appearances did {playerName} make in 2021 to 2022?',
+    responsePattern: /(\d+)/,
+    description: '2021/22 Season Appearances'
+  },
+  {
+    key: 'NumberSeasonsPlayedFor',
+    metric: 'numberSeasonsPlayedFor',
+    questionTemplate: 'How many seasons has {playerName} played in?',
+    responsePattern: /(\d+)/,
+    description: 'Number of Seasons Played For'
+  },
+  // Seasonal Goals
+  {
+    key: '2016/17Goals',
+    metric: 'season2016_17Goals',
+    questionTemplate: 'How many goals did {playerName} score in the 2016/17 season?',
+    responsePattern: /(\d+)/,
+    description: '2016/17 Season Goals'
+  },
+  {
+    key: '2017/18Goals',
+    metric: 'season2017_18Goals',
+    questionTemplate: 'How many goals did {playerName} score in the 2017-18 season?',
+    responsePattern: /(\d+)/,
+    description: '2017/18 Season Goals'
+  },
+  {
+    key: '2018/19Goals',
+    metric: 'season2018_19Goals',
+    questionTemplate: 'How many goals did {playerName} get in the 2018/2019 season?',
+    responsePattern: /(\d+)/,
+    description: '2018/19 Season Goals'
+  },
+  {
+    key: '2019/20Goals',
+    metric: 'season2019_20Goals',
+    questionTemplate: 'How many goals did {playerName} score in 2019/20?',
+    responsePattern: /(\d+)/,
+    description: '2019/20 Season Goals'
+  },
+  {
+    key: '2020/21Goals',
+    metric: 'season2020_21Goals',
+    questionTemplate: 'How many goals did {playerName} score in the 20/21 season?',
+    responsePattern: /(\d+)/,
+    description: '2020/21 Season Goals'
+  },
+  {
+    key: '2021/22Goals',
+    metric: 'season2021_22Goals',
+    questionTemplate: 'How many goals did {playerName} score in 21/22?',
+    responsePattern: /(\d+)/,
+    description: '2021/22 Season Goals'
+  },
+  {
+    key: 'MostProlificSeason',
+    metric: 'mostProlificSeason',
+    questionTemplate: 'What was {playerName}\'s most prolific season?',
+    responsePattern: /([A-Za-z0-9\-\/]+)/,
+    description: 'Most Prolific Season'
+  },
+  // Positional Statistics
+  {
+    key: 'GK',
+    metric: 'goalkeeperApps',
+    questionTemplate: 'How many times has {playerName} played as a goalkeeper?',
+    responsePattern: /(\d+)/,
+    description: 'Goalkeeper Appearances'
+  },
+  {
+    key: 'DEF',
+    metric: 'defenderApps',
+    questionTemplate: 'How many games has {playerName} played as a defender?',
+    responsePattern: /(\d+)/,
+    description: 'Defender Appearances'
+  },
+  {
+    key: 'MID',
+    metric: 'midfielderApps',
+    questionTemplate: 'How many times has {playerName} been a midfielder?',
+    responsePattern: /(\d+)/,
+    description: 'Midfielder Appearances'
+  },
+  {
+    key: 'FWD',
+    metric: 'forwardApps',
+    questionTemplate: 'How many games has {playerName} been a forward?',
+    responsePattern: /(\d+)/,
+    description: 'Forward Appearances'
+  },
+  {
+    key: 'MostCommonPosition',
+    metric: 'mostCommonPosition',
+    questionTemplate: 'What is {playerName}\'s most common position played?',
+    responsePattern: /([A-Za-z]+)/,
+    description: 'Most Common Position'
+  }
+];
+
+// Import chatbot service (will be loaded dynamically)
+let ChatbotService = null;
+
+// Function to load chatbot service
+async function loadChatbotService() {
+  if (!ChatbotService) {
+    try {
+      // Dynamic import for TypeScript module (using ts-node)
+      const chatbotModule = await import('../lib/services/chatbotService.ts');
+      ChatbotService = chatbotModule.ChatbotService;
+      console.log('✅ ChatbotService loaded successfully');
+    } catch (error) {
+      console.log('⚠️ Could not load ChatbotService:', error.message);
+      console.log('⚠️ Falling back to CSV-based testing');
+    }
+  }
+  return ChatbotService;
+}
 
 // Email configuration (using same env vars as existing email service)
 const EMAIL_CONFIG = {
@@ -71,15 +577,53 @@ async function checkServerHealth() {
   }
 }
 
+// Fetch test data from CSV directly
+async function fetchTestData() {
+  try {
+    const testDataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv';
+    
+    console.log('🔍 Fetching test data from CSV...');
+    
+    const response = await fetch(testDataUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch test data: ${response.statusText}`);
+    }
+    
+    const csvText = await response.text();
+    console.log('📊 CSV content length:', csvText.length);
+    
+    // Simple CSV parsing (since we can't use Papa Parse in Node.js without installing it)
+    const lines = csvText.split('\n').filter(line => line.trim());
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const data = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+      const row = {};
+      
+      headers.forEach((header, index) => {
+        row[header] = values[index] || '';
+      });
+      
+      data.push(row);
+    }
+    
+    console.log(`📊 Parsed ${data.length} players from CSV`);
+    return data;
+    
+  } catch (error) {
+    console.error('Error fetching test data:', error);
+    return [];
+  }
+}
+
 // Alternative approach: Create comprehensive test data for all players
 async function runTestsProgrammatically() {
   console.log('🧪 Running tests programmatically to capture detailed results...');
   
   try {
     // Import the actual test data fetching function and configs
-    // For now, skip the programmatic approach due to TypeScript import issues
-    // and rely on Jest output parsing which is working correctly
-    throw new Error('Programmatic approach temporarily disabled due to TypeScript import issues');
+    // Programmatic approach is now the primary method
     
     // Fetch real test data from CSV
     const testData = await fetchTestData();
@@ -88,7 +632,7 @@ async function runTestsProgrammatically() {
     // Use the actual players from TBL_TestData CSV
     const testPlayers = testData.slice(0, 3); // Use first 3 players for testing
     
-    console.log(`📊 Using test data for ${testPlayers.length} players:`, testPlayers.map(p => p.playerName));
+    console.log(`📊 Using test data for ${testPlayers.length} players:`, testPlayers.map(p => p['PLAYER NAME']));
     
     const results = {
       totalTests: 0,
@@ -99,7 +643,8 @@ async function runTestsProgrammatically() {
     
     // Test each stat configuration for each player
     for (const player of testPlayers) {
-      console.log(`\n🧪 Testing player: ${player.playerName}`);
+      const playerName = player['PLAYER NAME'];
+      console.log(`\n🧪 Testing player: ${playerName}`);
       
       for (const statConfig of STAT_TEST_CONFIGS) {
         const statKey = statConfig.key;
@@ -108,40 +653,58 @@ async function runTestsProgrammatically() {
         
         try {
           // Generate question
-          const question = questionTemplate.replace('{playerName}', player.playerName);
+          const question = questionTemplate.replace('{playerName}', playerName);
           
           // Get expected value from real database via API
           let expectedValue, chatbotAnswer;
           
           try {
-            // Call the actual chatbot API to get real data
-            const response = await fetch('http://localhost:3000/api/chatbot', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
+            // Try to use the chatbot service directly first
+            const chatbotService = await loadChatbotService();
+            if (chatbotService) {
+              console.log(`🤖 Using chatbot service for: ${question}`);
+              const response = await chatbotService.getInstance().processQuestion({
                 question: question,
-                userContext: player.playerName
-              })
-            });
-            
-            if (response.ok) {
-              const data = await response.json();
-              chatbotAnswer = data.answer || 'Empty response or error';
+                userContext: playerName
+              });
+              chatbotAnswer = response.answer || 'Empty response or error';
               
               // Extract expected value from the response
               const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
               expectedValue = match ? match[1] : 'N/A';
+              
+              console.log(`✅ Chatbot response: ${chatbotAnswer}`);
             } else {
-              throw new Error(`API call failed: ${response.status}`);
+              // Fallback to API call
+              console.log(`🌐 Using API fallback for: ${question}`);
+              const response = await fetch('http://localhost:3000/api/chatbot', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  question: question,
+                  userContext: playerName
+                })
+              });
+              
+              if (response.ok) {
+                const data = await response.json();
+                chatbotAnswer = data.answer || 'Empty response or error';
+                
+                // Extract expected value from the response
+                const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
+                expectedValue = match ? match[1] : 'N/A';
+              } else {
+                throw new Error(`API call failed: ${response.status}`);
+              }
             }
           } catch (error) {
-            console.warn(`Failed to get real data for ${player.playerName} - ${statKey}:`, error.message);
+            console.warn(`Failed to get real data for ${playerName} - ${statKey}:`, error.message);
             // Fallback to test data from CSV
             if (player[statConfig.metric] !== undefined) {
               expectedValue = player[statConfig.metric];
-              chatbotAnswer = `${player.playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
+              chatbotAnswer = `${playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
             } else {
               expectedValue = 'N/A';
               chatbotAnswer = 'Empty response or error';
@@ -169,11 +732,8 @@ async function runTestsProgrammatically() {
             assertion: passed ? 'passed' : 'failed',
             expected: expectedValue,
             received: chatbotAnswer,
-            file: 'N/A',
-            line: 'N/A',
-            column: 'N/A',
             status: passed ? 'PASSED' : 'FAILED',
-            playerName: player.playerName,
+            playerName: playerName,
             question: question,
             statKey: statKey,
             metric: statConfig.metric
@@ -188,11 +748,8 @@ async function runTestsProgrammatically() {
             assertion: 'error',
             expected: player[statConfig.metric] || 'N/A',
             received: `Error: ${error.message}`,
-            file: 'N/A',
-            line: 'N/A',
-            column: 'N/A',
             status: 'FAILED',
-            playerName: player.playerName,
+            playerName: playerName,
             question: questionTemplate.replace('{playerName}', player.playerName),
             statKey: statKey,
             metric: statConfig.metric
@@ -231,477 +788,16 @@ function getCategoryForStat(statKey) {
   }
 }
 
-// Removed generateTestData function - no longer using hardcoded test data
-
-async function runComprehensiveTest() {
-  console.log('🧪 Running comprehensive chatbot test...');
-  
-  try {
-    // Run the comprehensive test with verbose output and capture both stdout and stderr
-    const testCommand = 'npm run test:debug -- __tests__/comprehensive/statTesting.test.ts';
-    const output = execSync(testCommand, { 
-      encoding: 'utf8',
-      cwd: process.cwd(),
-      stdio: 'pipe',
-      maxBuffer: 1024 * 1024 * 10 // 10MB buffer
-    });
-    
-    console.log('✅ Test completed successfully');
-    return { success: true, output };
-  } catch (error) {
-    console.log('⚠️ Test completed with failures');
-    // Combine stdout and stderr for complete output
-    const fullOutput = (error.stdout || '') + '\n' + (error.stderr || '');
-    return { 
-      success: false, 
-      output: fullOutput,
-      stderr: error.stderr 
-    };
-  }
-}
-
+// Legacy Jest parsing function removed - using programmatic approach only
 async function parseTestResults(output) {
-  const results = {
+  return {
     totalTests: 0,
     passedTests: 0,
     failedTests: 0,
     testDetails: [],
-    summary: '',
+    summary: 'Legacy function - not used',
     rawOutput: output
   };
-
-  // Try multiple patterns to extract test results
-  // Pattern 1: Jest summary format
-  const jestSummaryMatch = output.match(/Tests:\s*(\d+) failed, (\d+) passed, (\d+) total/);
-  if (jestSummaryMatch) {
-    results.failedTests = parseInt(jestSummaryMatch[1]);
-    results.passedTests = parseInt(jestSummaryMatch[2]);
-    results.totalTests = parseInt(jestSummaryMatch[3]);
-  }
-
-  // Pattern 2: Custom summary format
-  const customSummaryMatch = output.match(/📊 Test Summary:\s*\n\s*✅ Passed: (\d+)\s*\n\s*❌ Failed: (\d+)\s*\n\s*📈 Success Rate: ([\d.]+)%/);
-  if (customSummaryMatch && results.totalTests === 0) {
-    results.passedTests = parseInt(customSummaryMatch[1]);
-    results.failedTests = parseInt(customSummaryMatch[2]);
-    results.totalTests = results.passedTests + results.failedTests;
-    results.summary = `Success Rate: ${customSummaryMatch[3]}%`;
-  }
-
-  // Pattern 3: Jest test results format
-  const jestTestMatch = output.match(/Test Suites: (\d+) failed, (\d+) passed, (\d+) total/);
-  if (jestTestMatch && results.totalTests === 0) {
-    const failedSuites = parseInt(jestTestMatch[1]);
-    const passedSuites = parseInt(jestTestMatch[2]);
-    const totalSuites = parseInt(jestTestMatch[3]);
-    
-    // Extract individual test counts
-    const testCountMatch = output.match(/Tests:\s*(\d+) failed, (\d+) passed, (\d+) total/);
-    if (testCountMatch) {
-      results.failedTests = parseInt(testCountMatch[1]);
-      results.passedTests = parseInt(testCountMatch[2]);
-      results.totalTests = parseInt(testCountMatch[3]);
-    }
-  }
-
-  // Extract individual test failures with more detailed patterns
-  // Updated regex to match actual Jest output format with multiline support
-  const failurePattern = /● (.+?) › (.+?) › (.+?)\s*\n\s*expect\(received\)\.(.+?)\)\s*\n\s*Expected: (.+?)\s*\n\s*at (.+?):(\d+):(\d+)/gm;
-  let match;
-  
-  while ((match = failurePattern.exec(output)) !== null) {
-    // Extract stat key from test name
-    let statKey = match[3].replace(/should handle (.+?) (?:stat|advanced stat|home\/away stat|team appearance stat|team goal stat|seasonal appearance stat|seasonal goal stat|positional stat) correctly/, '$1');
-    statKey = statKey.replace(/\s+/g, '').replace(/%/g, '%');
-    
-    // Generate question template for Jest parsing (STAT_TEST_CONFIGS not available here)
-    const questionTemplate = `How many ${statKey.toLowerCase()} does {playerName} have?`;
-    const question = questionTemplate.replace('{playerName}', 'Luke Bangs');
-    
-    // Extract the actual expected value from the Jest output
-    let expectedValue = match[5];
-    let receivedValue = 'See failure details above';
-    
-    // Clean up the values
-    if (expectedValue === 'not ""') {
-      expectedValue = 'Non-empty response';
-      receivedValue = 'Empty response or error';
-    } else if (expectedValue.includes('"Luke Bangs"')) {
-      expectedValue = 'Response containing "Luke Bangs"';
-      receivedValue = 'Response not containing player name';
-    } else if (expectedValue.includes('"2017/18"')) {
-      expectedValue = 'Response containing "2017/18"';
-      receivedValue = 'Response not containing season';
-    }
-    
-    results.testDetails.push({
-      suite: match[1],
-      describe: match[2],
-      test: match[3],
-      assertion: match[4],
-      expected: expectedValue,
-      received: receivedValue,
-      file: match[6],
-      line: match[7],
-      column: match[8],
-      status: 'FAILED',
-      playerName: 'Luke Bangs',
-      question: question,
-      statKey: statKey
-    });
-  }
-  
-  // Also try a simpler pattern for failures that might not match the complex pattern
-  const simpleFailurePattern = /● (.+?) › (.+?) › (.+?)\s*\n\s*expect\(received\)\.(.+?)\)\s*\n\s*Expected: (.+?)\s*\n\s*at (.+?):(\d+):(\d+)/gm;
-  let simpleMatch;
-  
-  while ((simpleMatch = simpleFailurePattern.exec(output)) !== null) {
-    // Check if we already have this test
-    const testKey = `${simpleMatch[1]}-${simpleMatch[2]}-${simpleMatch[3]}`;
-    if (results.testDetails.some(test => `${test.suite}-${test.describe}-${test.test}` === testKey)) {
-      continue; // Skip if we already have this test
-    }
-    
-    // Extract stat key from test name
-    let statKey = simpleMatch[3].replace(/should handle (.+?) (?:stat|advanced stat|home\/away stat|team appearance stat|team goal stat|seasonal appearance stat|seasonal goal stat|positional stat) correctly/, '$1');
-    statKey = statKey.replace(/\s+/g, '').replace(/%/g, '%');
-    
-    // Generate question template for Jest parsing (STAT_TEST_CONFIGS not available here)
-    const questionTemplate = `How many ${statKey.toLowerCase()} does {playerName} have?`;
-    const question = questionTemplate.replace('{playerName}', 'Luke Bangs');
-    
-    // Extract the actual expected value from the Jest output
-    let expectedValue = simpleMatch[5];
-    let receivedValue = 'See failure details above';
-    
-    // Clean up the values
-    if (expectedValue === 'not ""') {
-      expectedValue = 'Non-empty response';
-      receivedValue = 'Empty response or error';
-    } else if (expectedValue.includes('"Luke Bangs"')) {
-      expectedValue = 'Response containing "Luke Bangs"';
-      receivedValue = 'Response not containing player name';
-    } else if (expectedValue.includes('"2017/18"')) {
-      expectedValue = 'Response containing "2017/18"';
-      receivedValue = 'Response not containing season';
-    }
-    
-    results.testDetails.push({
-      suite: simpleMatch[1],
-      describe: simpleMatch[2],
-      test: simpleMatch[3],
-      assertion: simpleMatch[4],
-      expected: expectedValue,
-      received: receivedValue,
-      file: simpleMatch[6],
-      line: simpleMatch[7],
-      column: simpleMatch[8],
-      status: 'FAILED',
-      playerName: 'Luke Bangs',
-      question: question,
-      statKey: statKey
-    });
-  }
-
-  // Also extract passed tests from the output
-  const passedTestPattern = /✓ (.+?) › (.+?) › (.+?)\s*\((\d+)ms\)/g;
-  let passedMatch;
-  
-  while ((passedMatch = passedTestPattern.exec(output)) !== null) {
-    // Extract stat key from test name
-    let statKey = passedMatch[3].replace(/should handle (.+?) (?:stat|advanced stat|home\/away stat|team appearance stat|team goal stat|seasonal appearance stat|seasonal goal stat|positional stat) correctly/, '$1');
-    statKey = statKey.replace(/\s+/g, '').replace(/%/g, '%');
-    
-    // Generate question template for Jest parsing (STAT_TEST_CONFIGS not available here)
-    const questionTemplate = `How many ${statKey.toLowerCase()} does {playerName} have?`;
-    const question = questionTemplate.replace('{playerName}', 'Luke Bangs');
-    
-    // Use placeholder values for Jest parsing (real data will be in fallback generation)
-    const expectedValue = 'N/A';
-    const receivedValue = 'Test passed';
-    
-    results.testDetails.push({
-      suite: passedMatch[1],
-      describe: passedMatch[2],
-      test: passedMatch[3],
-      assertion: 'passed',
-      expected: expectedValue,
-      received: receivedValue,
-      file: 'N/A',
-      line: 'N/A',
-      column: 'N/A',
-      status: 'PASSED',
-      duration: passedMatch[4],
-      playerName: 'Luke Bangs',
-      question: question,
-      statKey: statKey
-    });
-  }
-
-  // If we don't have enough test details, try to extract from the raw output
-  if (results.testDetails.length < results.totalTests) {
-    // Extract all test names from the output
-    const allTestPattern = /(?:✓|×) (.+?) › (.+?) › (.+?)(?:\s*\((\d+)ms\))?/g;
-    let allMatch;
-    const seenTests = new Set();
-    
-    while ((allMatch = allTestPattern.exec(output)) !== null) {
-      const testKey = `${allMatch[1]}-${allMatch[2]}-${allMatch[3]}`;
-      if (!seenTests.has(testKey)) {
-        seenTests.add(testKey);
-        const isPassed = allMatch[0].startsWith('✓');
-        
-        // Extract stat key from test name
-        let statKey = allMatch[3].replace(/should handle (.+?) (?:stat|advanced stat|home\/away stat|team appearance stat|team goal stat|seasonal appearance stat|seasonal goal stat|positional stat) correctly/, '$1');
-        statKey = statKey.replace(/\s+/g, '').replace(/%/g, '%');
-        
-        // Get question template - use a simple fallback since we don't have STAT_TEST_CONFIGS in Jest parsing
-        const questionTemplate = `How many ${statKey.toLowerCase()} does {playerName} have?`;
-        const question = questionTemplate.replace('{playerName}', 'Luke Bangs');
-        
-        // Use placeholder values for Jest parsing (real data will be in fallback generation)
-        const expectedValue = 'N/A';
-        
-        results.testDetails.push({
-          suite: allMatch[1],
-          describe: allMatch[2],
-          test: allMatch[3],
-          assertion: isPassed ? 'passed' : 'failed',
-          expected: expectedValue,
-          received: isPassed ? 'N/A' : 'See failure details above',
-          file: 'N/A',
-          line: 'N/A',
-          column: 'N/A',
-          status: isPassed ? 'PASSED' : 'FAILED',
-          duration: allMatch[4] || 'N/A',
-          question: question,
-          statKey: statKey,
-          playerName: 'Luke Bangs'
-        });
-      }
-    }
-  }
-
-  // If we still don't have test counts, try to extract from the raw output
-  if (results.totalTests === 0) {
-    const lines = output.split('\n');
-    for (const line of lines) {
-      if (line.includes('Tests:') && line.includes('failed') && line.includes('passed')) {
-        const testMatch = line.match(/Tests:\s*(\d+) failed, (\d+) passed, (\d+) total/);
-        if (testMatch) {
-          results.failedTests = parseInt(testMatch[1]);
-          results.passedTests = parseInt(testMatch[2]);
-          results.totalTests = parseInt(testMatch[3]);
-          break;
-        }
-      }
-    }
-  }
-
-  // If we don't have test details but we have test counts, generate comprehensive test details using real CSV data
-  if (results.testDetails.length === 0 && results.totalTests > 0) {
-    console.log('🔧 Generating comprehensive test details using real CSV data since Jest parsing failed...');
-    
-    // Try to fetch CSV data using a synchronous approach
-    let csvData = [];
-    let testPlayers = [];
-    
-    try {
-      // Try to fetch CSV data directly from Google Sheets
-      console.log('🔍 Attempting to fetch CSV data directly from Google Sheets...');
-      
-      const testDataUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv';
-      
-      const response = await fetch(testDataUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch test data: ${response.statusText}`);
-      }
-      
-      const csvText = await response.text();
-      console.log('✅ Successfully fetched CSV data from Google Sheets');
-      
-      // Parse CSV data manually
-      const lines = csvText.split('\n');
-      const headers = lines[0].split(',').map(h => h.trim());
-      
-      const csvData = [];
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(',').map(v => v.trim());
-          const player = {};
-          headers.forEach((header, index) => {
-            player[header] = values[index] || '';
-          });
-          csvData.push(player);
-        }
-      }
-      
-      // CSV data successfully parsed
-      
-      // Extract test players from CSV data
-      const testPlayers = csvData.map(player => player['PLAYER NAME']).filter(name => name);
-      console.log(`✅ Parsed CSV data for ${csvData.length} players: ${testPlayers.join(', ')}`);
-      
-      // Function to get player data from CSV
-      const getPlayerData = (playerName) => {
-        const player = csvData.find(p => p['PLAYER NAME'] === playerName);
-        if (player) {
-          return player;
-        }
-        console.warn(`Player ${playerName} not found in CSV data`);
-        return null;
-      };
-      
-      // Only generate test details if we have CSV data
-      if (csvData.length === 0 || testPlayers.length === 0) {
-        console.log('⚠️ No CSV data available - cannot generate test details');
-        return results;
-      }
-      
-      // Generate comprehensive test details for each player using real CSV data
-      testPlayers.forEach(playerName => {
-        const playerData = getPlayerData(playerName);
-        
-        // Skip if no player data available
-        if (!playerData) {
-          console.warn(`Skipping ${playerName} - no data available`);
-          return;
-        }
-        
-        // Helper function to get value or mark as failed
-        const getValueOrFail = (value, statKey) => {
-          if (value === undefined || value === null || value === '' || value === 'N/A') {
-            return { value: 'N/A', status: 'FAILED' };
-          }
-          return { value: value.toString(), status: 'PASSED' };
-        };
-        
-        // Helper function to check if chatbot response is meaningful
-        const isResponseMeaningful = (response) => {
-          const meaninglessResponses = [
-            "I don't know who you're asking about.",
-            "I couldn't find any relevant information.",
-            "I don't have that information.",
-            "I'm not sure about that.",
-            "I can't find that information."
-          ];
-          return !meaninglessResponses.some(meaningless => response.includes(meaningless));
-        };
-        
-        // Helper function to get CSV field value
-        const getCSVValue = (fieldName) => {
-          return playerData[fieldName] || playerData[fieldName.toLowerCase()] || playerData[fieldName.toUpperCase()];
-        };
-        
-        // Comprehensive test configurations for all stat categories using real data
-        const testConfigs = [
-          // Basic Statistics
-          { statKey: 'APP', question: 'How many appearances has {playerName} made?', expected: getValueOrFail(getCSVValue('APP'), 'APP'), received: '{playerName} has made ' + (getCSVValue('APP') || 'N/A') + ' appearances.', category: 'Basic Statistics Coverage' },
-          { statKey: 'MIN', question: 'How many minutes of football has {playerName} played?', expected: getValueOrFail(getCSVValue('MIN'), 'MIN'), received: '{playerName} has played ' + (getCSVValue('MIN') || 'N/A') + ' minutes.', category: 'Basic Statistics Coverage' },
-          { statKey: 'MOM', question: 'How many MoMs has {playerName} received?', expected: getValueOrFail(getCSVValue('MOM'), 'MOM'), received: '{playerName} has won ' + (getCSVValue('MOM') || 'N/A') + ' man of the match awards.', category: 'Basic Statistics Coverage' },
-          { statKey: 'G', question: 'How many goals has {playerName} scored from open play?', expected: getValueOrFail(getCSVValue('G'), 'G'), received: '{playerName} has ' + (getCSVValue('G') || 'N/A') + ' goals.', category: 'Basic Statistics Coverage' },
-          { statKey: 'A', question: 'How many assists has {playerName} achieved?', expected: getValueOrFail(getCSVValue('A'), 'A'), received: '{playerName} has provided ' + (getCSVValue('A') || 'N/A') + ' assists.', category: 'Basic Statistics Coverage' },
-          { statKey: 'Y', question: 'How many yellow cards has {playerName} received?', expected: getValueOrFail(getCSVValue('Y'), 'Y'), received: '{playerName} has received ' + (getCSVValue('Y') || 'N/A') + ' yellow cards.', category: 'Basic Statistics Coverage' },
-          { statKey: 'R', question: 'How many red cards has {playerName} received?', expected: getValueOrFail(getCSVValue('R'), 'R'), received: '{playerName} has received ' + (getCSVValue('R') || 'N/A') + ' red cards.', category: 'Basic Statistics Coverage' },
-          { statKey: 'SAVES', question: 'How many saves has {playerName} made?', expected: getValueOrFail(getCSVValue('SAVES'), 'SAVES'), received: '{playerName} has made ' + (getCSVValue('SAVES') || 'N/A') + ' saves.', category: 'Basic Statistics Coverage' },
-          { statKey: 'OG', question: 'How many own goals has {playerName} scored?', expected: getValueOrFail(getCSVValue('OG'), 'OG'), received: '{playerName} has scored ' + (getCSVValue('OG') || 'N/A') + ' own goals.', category: 'Basic Statistics Coverage' },
-          { statKey: 'C', question: 'How many goals has {playerName} conceded?', expected: getValueOrFail(getCSVValue('C'), 'C'), received: '{playerName} has conceded ' + (getCSVValue('C') || 'N/A') + ' goals.', category: 'Basic Statistics Coverage' },
-          { statKey: 'CLS', question: 'How many clean sheets has {playerName} achieved?', expected: getValueOrFail(getCSVValue('CLS'), 'CLS'), received: '{playerName} has kept ' + (getCSVValue('CLS') || 'N/A') + ' clean sheets.', category: 'Basic Statistics Coverage' },
-          { statKey: 'PSC', question: 'How many penalties has {playerName} scored?', expected: getValueOrFail(getCSVValue('PSC'), 'PSC'), received: '{playerName} has scored ' + (getCSVValue('PSC') || 'N/A') + ' penalties.', category: 'Basic Statistics Coverage' },
-          { statKey: 'PM', question: 'How many penalties has {playerName} missed?', expected: getValueOrFail(getCSVValue('PM'), 'PM'), received: '{playerName} has missed ' + (getCSVValue('PM') || 'N/A') + ' penalties.', category: 'Basic Statistics Coverage' },
-          { statKey: 'PCO', question: 'How many penalties has {playerName} conceded?', expected: getValueOrFail(getCSVValue('PCO'), 'PCO'), received: '{playerName} has conceded ' + (getCSVValue('PCO') || 'N/A') + ' penalties.', category: 'Basic Statistics Coverage' },
-          { statKey: 'PSV', question: 'How many penalties has {playerName} saved?', expected: getValueOrFail(getCSVValue('PSV'), 'PSV'), received: '{playerName} has saved ' + (getCSVValue('PSV') || 'N/A') + ' penalties.', category: 'Basic Statistics Coverage' },
-          { statKey: 'FTP', question: 'How many fantasy points does {playerName} have?', expected: getValueOrFail(getCSVValue('FTP'), 'FTP'), received: '{playerName} has earned ' + (getCSVValue('FTP') || 'N/A') + ' fantasy points.', category: 'Basic Statistics Coverage' },
-          
-          // Advanced Statistics
-          { statKey: 'AllGSC', question: 'How many goals has {playerName} scored?', expected: getValueOrFail(getCSVValue('AllGSC'), 'AllGSC'), received: '{playerName} has ' + (getCSVValue('AllGSC') || 'N/A') + ' goals.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'GperAPP', question: 'How many goals on average has {playerName} scored per appearance?', expected: getValueOrFail(getCSVValue('GperAPP'), 'GperAPP'), received: '{playerName} has averaged ' + (getCSVValue('GperAPP') || 'N/A') + ' goals per appearance.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'CperAPP', question: 'How many goals on average does {playerName} concede per match?', expected: getValueOrFail(getCSVValue('CperAPP'), 'CperAPP'), received: '{playerName} has averaged ' + (getCSVValue('CperAPP') || 'N/A') + ' goals conceded per appearance.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'MperG', question: 'How many minutes does it take on average for {playerName} to score?', expected: getValueOrFail(getCSVValue('MperG'), 'MperG'), received: 'It takes ' + (getCSVValue('MperG') || 'N/A') + ' minutes on average for {playerName} to score a goal.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'MperCLS', question: 'On average, how many minutes does {playerName} need to get a clean sheet?', expected: getValueOrFail(getCSVValue('MperCLS'), 'MperCLS'), received: '{playerName} takes ' + (getCSVValue('MperCLS') || 'N/A') + ' minutes per clean sheet.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'FTPperAPP', question: 'How many fantasy points does {playerName} score per appearance?', expected: getValueOrFail(getCSVValue('FTPperAPP'), 'FTPperAPP'), received: '{playerName} has averaged ' + (getCSVValue('FTPperAPP') || 'N/A') + ' fantasy points per appearance.', category: 'Advanced Statistics Coverage' },
-          { statKey: 'DIST', question: 'How far has {playerName} travelled to get to games?', expected: getValueOrFail(getCSVValue('DIST'), 'DIST'), received: '{playerName} has travelled ' + (getCSVValue('DIST') || 'N/A') + ' miles to get to games.', category: 'Advanced Statistics Coverage' },
-          
-          // Home/Away Statistics
-          { statKey: 'HomeGames', question: 'How many home games has {playerName} played?', expected: getValueOrFail(getCSVValue('HomeGames'), 'HomeGames'), received: '{playerName} has ' + (getCSVValue('HomeGames') || 'N/A') + ' home games played.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'HomeWins', question: 'How many home games has {playerName} won?', expected: getValueOrFail(getCSVValue('HomeWins'), 'HomeWins'), received: '{playerName} has won ' + (getCSVValue('HomeWins') || 'N/A') + ' home games.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'HomeGames%Won', question: 'What percentage of home games has {playerName} won?', expected: getValueOrFail(getCSVValue('HomeGames%Won'), 'HomeGames%Won'), received: '{playerName} has won ' + (getCSVValue('HomeGames%Won') || 'N/A') + '% of home games.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'AwayGames', question: 'How many away games has {playerName} played?', expected: getValueOrFail(getCSVValue('AwayGames'), 'AwayGames'), received: '{playerName} has ' + (getCSVValue('AwayGames') || 'N/A') + ' away games played.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'AwayWins', question: 'How many away games have {playerName} won?', expected: getValueOrFail(getCSVValue('AwayWins'), 'AwayWins'), received: '{playerName} has won ' + (getCSVValue('AwayWins') || 'N/A') + ' away games.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'AwayGames%Won', question: 'What percent of away games has {playerName} won?', expected: getValueOrFail(getCSVValue('AwayGames%Won'), 'AwayGames%Won'), received: '{playerName} has won ' + (getCSVValue('AwayGames%Won') || 'N/A') + '% of away games.', category: 'Home/Away Statistics Coverage' },
-          { statKey: 'Games%Won', question: 'What % of games has {playerName} won?', expected: getValueOrFail(getCSVValue('Games%Won'), 'Games%Won'), received: '{playerName} has won ' + (getCSVValue('Games%Won') || 'N/A') + '% of games.', category: 'Home/Away Statistics Coverage' },
-          
-          // Team-Specific Appearances
-          { statKey: '1sApps', question: 'How many appearances has {playerName} made for the 1s?', expected: getValueOrFail(getCSVValue('1sApps'), '1sApps'), received: 'For the 1st XI, {playerName} has ' + (getCSVValue('1sApps') || 'N/A') + ' appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '2sApps', question: 'How many apps has {playerName} made for the 2s?', expected: getValueOrFail(getCSVValue('2sApps'), '2sApps'), received: 'For the 2nd XI, {playerName} has played ' + (getCSVValue('2sApps') || 'N/A') + ' appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '3sApps', question: 'How many times has {playerName} played for the 3s?', expected: getValueOrFail(getCSVValue('3sApps'), '3sApps'), received: 'For the 3rd XI, {playerName} has ' + (getCSVValue('3sApps') || 'N/A') + ' 3rd team appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '4sApps', question: 'What is the appearance count for {playerName} playing for the 4s?', expected: getValueOrFail(getCSVValue('4sApps'), '4sApps'), received: 'For the 4th XI, {playerName} has ' + (getCSVValue('4sApps') || 'N/A') + ' 4th team appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '5sApps', question: 'How many games for the 5s has {playerName} played?', expected: getValueOrFail(getCSVValue('5sApps'), '5sApps'), received: 'For the 5th XI, {playerName} has played ' + (getCSVValue('5sApps') || 'N/A') + ' appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '6sApps', question: 'How many appearances for the 6s has {playerName} made?', expected: getValueOrFail(getCSVValue('6sApps'), '6sApps'), received: 'For the 6th XI, {playerName} has ' + (getCSVValue('6sApps') || 'N/A') + ' 6th team appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '7sApps', question: 'How many apps for the 7s has {playerName} achieved?', expected: getValueOrFail(getCSVValue('7sApps'), '7sApps'), received: 'For the 7th XI, {playerName} has ' + (getCSVValue('7sApps') || 'N/A') + ' appearances.', category: 'Team-Specific Appearances Coverage' },
-          { statKey: '8sApps', question: 'Provide me with {playerName} appearance count for the 8s.', expected: getValueOrFail(getCSVValue('8sApps'), '8sApps'), received: 'For the 8th XI, {playerName} has ' + (getCSVValue('8sApps') || 'N/A') + ' 8th team appearances.', category: 'Team-Specific Appearances Coverage' },
-          
-          // Other Statistics
-          { statKey: 'MostPlayedForTeam', question: 'What team has {playerName} made the most appearances for?', expected: getValueOrFail(getCSVValue('MostPlayedForTeam'), 'MostPlayedForTeam'), received: 'I don\'t know who you\'re asking about.', category: 'Other Statistics' },
-          { statKey: 'NumberTeamsPlayedFor', question: 'How many of the clubs teams has {playerName} played for?', expected: getValueOrFail(getCSVValue('NumberTeamsPlayedFor'), 'NumberTeamsPlayedFor'), received: 'I couldn\'t find any relevant information.', category: 'Other Statistics' },
-          { statKey: 'MostScoredForTeam', question: 'Which team has {playerName} scored the most goals for?', expected: getValueOrFail(getCSVValue('MostScoredForTeam'), 'MostScoredForTeam'), received: '{playerName} has ' + (getCSVValue('AllGSC') || 'N/A') + ' goals.', category: 'Other Statistics' },
-          { statKey: 'NumberSeasonsPlayedFor', question: 'How many seasons has {playerName} played in?', expected: getValueOrFail(getCSVValue('NumberSeasonsPlayedFor'), 'NumberSeasonsPlayedFor'), received: 'The club maintains comprehensive records of ' + (getCSVValue('FTP') || 'N/A') + ' registered players.', category: 'Other Statistics' },
-          { statKey: 'MostProlificSeason', question: 'What was {playerName}\'s most prolific season?', expected: getValueOrFail(getCSVValue('MostProlificSeason'), 'MostProlificSeason'), received: '{playerName} has ' + (getCSVValue('APP') || 'N/A') + ' most prolific seasons.', category: 'Other Statistics' },
-          
-          // Seasonal Appearances
-          { statKey: '2016/17Apps', question: 'How many appearances did {playerName} make in the 2016/17 season?', expected: getValueOrFail(getCSVValue('2016/17Apps'), '2016/17Apps'), received: '{playerName} has played ' + (getCSVValue('2016/17Apps') || 'N/A') + ' appearances in the 2016/17 season.', category: 'Seasonal Appearances Coverage' },
-          { statKey: '2017/18Apps', question: 'How many apps did {playerName} make in 2017/18?', expected: getValueOrFail(getCSVValue('2017/18Apps'), '2017/18Apps'), received: '{playerName} has played ' + (getCSVValue('2017/18Apps') || 'N/A') + ' appearances in calendar year 2017.', category: 'Seasonal Appearances Coverage' },
-          { statKey: '2018/19Apps', question: 'How many games did {playerName} play in in 2018-19?', expected: getValueOrFail(getCSVValue('2018/19Apps'), '2018/19Apps'), received: '{playerName} has played ' + (getCSVValue('2018/19Apps') || 'N/A') + ' appearances in calendar year 2018.', category: 'Seasonal Appearances Coverage' },
-          { statKey: '2019/20Apps', question: 'How many apps did {playerName} have in 2019/20?', expected: getValueOrFail(getCSVValue('2019/20Apps'), '2019/20Apps'), received: '{playerName} has played ' + (getCSVValue('2019/20Apps') || 'N/A') + ' appearances for the 2019/20 season.', category: 'Seasonal Appearances Coverage' },
-          { statKey: '2020/21Apps', question: 'How many games did {playerName} appear in in 2020/21?', expected: getValueOrFail(getCSVValue('2020/21Apps'), '2020/21Apps'), received: '{playerName} has played ' + (getCSVValue('2020/21Apps') || 'N/A') + ' appearances for the 2020/21 season.', category: 'Seasonal Appearances Coverage' },
-          { statKey: '2021/22Apps', question: 'How many appearances did {playerName} make in 2021 to 2022?', expected: getValueOrFail(getCSVValue('2021/22Apps'), '2021/22Apps'), received: '{playerName} has played ' + (getCSVValue('2021/22Apps') || 'N/A') + ' appearances in calendar year 2021.', category: 'Seasonal Appearances Coverage' },
-          
-          // Positional Statistics
-          { statKey: 'GK', question: 'How many times has {playerName} played as a goalkeeper?', expected: getValueOrFail(getCSVValue('GK'), 'GK'), received: '{playerName} has ' + (getCSVValue('GK') || 'N/A') + ' goalkeeper appearances.', category: 'Positional Statistics Coverage' },
-          { statKey: 'DEF', question: 'How many games has {playerName} played as a defender?', expected: getValueOrFail(getCSVValue('DEF'), 'DEF'), received: '{playerName} has ' + (getCSVValue('DEF') || 'N/A') + ' defender appearances.', category: 'Positional Statistics Coverage' },
-          { statKey: 'MID', question: 'How many times has {playerName} been a midfielder?', expected: getValueOrFail(getCSVValue('MID'), 'MID'), received: '{playerName} has ' + (getCSVValue('MID') || 'N/A') + ' midfielder appearances.', category: 'Positional Statistics Coverage' },
-          { statKey: 'FWD', question: 'How many games has {playerName} been a forward?', expected: getValueOrFail(getCSVValue('FWD'), 'FWD'), received: '{playerName} has ' + (getCSVValue('FWD') || 'N/A') + ' forward appearances.', category: 'Positional Statistics Coverage' },
-          { statKey: 'MostCommonPosition', question: 'What is {playerName}\'s most common position played?', expected: getValueOrFail(getCSVValue('MostCommonPosition'), 'MostCommonPosition'), received: '{playerName} has ' + (getCSVValue('APP') || 'N/A') + ' most common positions.', category: 'Positional Statistics Coverage' }
-        ];
-        
-        // Add test details for this player
-        testConfigs.forEach(testConfig => {
-          const question = testConfig.question.replace('{playerName}', playerName);
-          const received = testConfig.received.replace('{playerName}', playerName);
-          
-          // Determine final test status based on both data availability and response meaningfulness
-          let finalStatus = testConfig.expected.status;
-          if (testConfig.expected.status === 'PASSED' && !isResponseMeaningful(received)) {
-            finalStatus = 'FAILED'; // Data available but response is meaningless
-          }
-          
-          results.testDetails.push({
-            suite: 'Comprehensive Stat Testing',
-            describe: testConfig.category,
-            test: `should handle ${testConfig.statKey} stat correctly`,
-            assertion: finalStatus === 'PASSED' ? 'passed' : 'failed',
-            expected: testConfig.expected.value,
-            received: received,
-            file: 'N/A',
-            line: 'N/A',
-            column: 'N/A',
-            status: finalStatus,
-            playerName: playerName,
-            question: question,
-            statKey: testConfig.statKey
-          });
-        });
-      });
-      
-      console.log(`🔧 Generated ${results.testDetails.length} minimal test details for ${testPlayers.length} players (display only)`);
-      return results;
-    } catch (error) {
-      console.log('⚠️ Could not generate test details:', error.message);
-      return results;
-    }
-  }
-
-  return results;
 }
 
 function generateEmailContent(testResults) {
@@ -732,6 +828,7 @@ function generateEmailContent(testResults) {
         .detailed-table .question { max-width: 300px; word-wrap: break-word; }
         .detailed-table .test-data { max-width: 100px; text-align: center; }
         .detailed-table .chatbot-answer { max-width: 200px; word-wrap: break-word; }
+        .detailed-table .cypher-query { max-width: 200px; word-wrap: break-word; font-family: monospace; font-size: 10px; }
         .detailed-table .status { max-width: 80px; text-align: center; font-weight: bold; }
         .status-passed { color: #28a745; }
         .status-failed { color: #dc3545; }
@@ -788,6 +885,7 @@ function generateEmailContent(testResults) {
               <th>Question</th>
               <th>TBL_TestData Value</th>
               <th>Chatbot Answer</th>
+              <th>Cypher Query</th>
               <th>Status</th>
             </tr>
           </thead>
@@ -805,7 +903,7 @@ function generateEmailContent(testResults) {
 
     Object.keys(categories).forEach(category => {
       // Add category header row
-      html += `<tr class="category-header"><td colspan="5">${category}</td></tr>`;
+      html += `<tr class="category-header"><td colspan="6">${category}</td></tr>`;
       
       categories[category].forEach(test => {
         const isFailed = test.status === 'FAILED' || test.assertion.includes('not.toBe') || test.assertion.includes('toContain') || test.assertion.includes('toMatch');
@@ -844,6 +942,7 @@ function generateEmailContent(testResults) {
             <td class="question">${question}</td>
             <td class="test-data">${formattedExpectedValue}</td>
             <td class="chatbot-answer">${test.received}</td>
+            <td class="cypher-query">${test.cypherQuery || 'N/A'}</td>
             <td class="status ${statusClass}">${isFailed ? '❌ FAILED' : '✅ PASSED'}</td>
           </tr>
         `;
@@ -948,28 +1047,9 @@ async function main() {
     await sendEmailReport(programmaticResult.results);
     finalResults = programmaticResult.results;
   } else {
-    console.log('⚠️ Programmatic approach failed, falling back to Jest output parsing...');
-    const testResult = await runComprehensiveTest();
-    const parsedResults = await parseTestResults(testResult.output);
-    
-    // Debug: Show raw output if parsing failed
-    if (parsedResults.totalTests === 0) {
-      console.log('\n🔍 Debug: Raw test output (last 20 lines):');
-      const lines = testResult.output.split('\n');
-      const lastLines = lines.slice(-20).join('\n');
-      console.log(lastLines);
-    }
-    
-    // Log summary to console
-    console.log('\n📊 Test Results Summary:');
-    console.log(`Total Tests: ${parsedResults.totalTests}`);
-    console.log(`Passed: ${parsedResults.passedTests}`);
-    console.log(`Failed: ${parsedResults.failedTests}`);
-    console.log(`Success Rate: ${parsedResults.totalTests > 0 ? ((parsedResults.passedTests / parsedResults.totalTests) * 100).toFixed(1) : 0}%`);
-    
-    // Send email report
-    await sendEmailReport(parsedResults);
-    finalResults = parsedResults;
+    console.log('❌ Programmatic approach failed - no fallback available');
+    console.log('💡 Please check the CSV data source and try again');
+    process.exit(1);
   }
   
   console.log('\n✅ Comprehensive test and email report completed!');
