@@ -109,3 +109,6 @@ tsconfig.tsbuildinfo
 
 # CSV Example Data
 example-data/CSV-examples/
+
+# Log Files
+logs/

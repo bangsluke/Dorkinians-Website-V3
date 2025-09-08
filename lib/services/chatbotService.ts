@@ -143,6 +143,7 @@ export class ChatbotService {
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				sources: [],
+				cypherQuery: 'N/A',
 			};
 		}
 	}
@@ -773,6 +774,12 @@ export class ChatbotService {
 		const { type, entities, metrics } = analysis;
 
 		try {
+			// Ensure Neo4j connection before querying
+			const connected = await neo4jService.connect();
+			if (!connected) {
+				this.logToBoth("❌ Neo4j connection failed in queryRelevantData", 'error');
+				return null;
+			}
 			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
 					switch (type) {
@@ -1155,7 +1162,14 @@ export class ChatbotService {
 				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth("❌ Error querying specific player data:", error, 'error');
-				return null;
+				return { 
+					type: "error", 
+					data: [], 
+					playerName, 
+					metric, 
+					cypherQuery: 'N/A',
+					error: error.message 
+				};
 			}
 		}
 
@@ -1614,6 +1628,17 @@ export class ChatbotService {
 		let answer = "";
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
+		// Handle error responses
+		if (data && data.type === "error") {
+			answer = `I encountered an error while processing your question: ${data.error}`;
+			return {
+				answer,
+				sources: [],
+				visualization,
+				cypherQuery: data.cypherQuery || 'N/A',
+			};
+		}
+
 		if (!data || data.length === 0) {
 			// Check if this is a player question without context
 			if (
@@ -1633,7 +1658,7 @@ export class ChatbotService {
 				answer,
 				sources: [], // Always hide technical sources
 				visualization,
-				cypherQuery: data?.cypherQuery,
+				cypherQuery: 'N/A',
 			};
 		}
 
