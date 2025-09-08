@@ -714,8 +714,8 @@ async function runTestsProgrammatically() {
           } catch (error) {
             console.warn(`Failed to get real data for ${playerName} - ${statKey}:`, error.message);
             // Fallback to test data from CSV
-            if (player[statConfig.metric] !== undefined) {
-              expectedValue = player[statConfig.metric];
+            if (player[statConfig.key] !== undefined) {
+              expectedValue = player[statConfig.key];
               chatbotAnswer = `${playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
             } else {
               expectedValue = 'N/A';
@@ -748,7 +748,7 @@ async function runTestsProgrammatically() {
             playerName: playerName,
             question: question,
             statKey: statKey,
-            metric: statConfig.metric,
+            metric: statConfig.key,
             cypherQuery: cypherQuery
           });
           
@@ -759,14 +759,14 @@ async function runTestsProgrammatically() {
             describe: getCategoryForStat(statKey),
             test: `should handle ${statKey} stat correctly`,
             assertion: 'error',
-            expected: player[statConfig.metric] || 'N/A',
+            expected: player[statConfig.key] || 'N/A',
             received: `Error: ${error.message}`,
             status: 'FAILED',
             playerName: playerName,
             question: questionTemplate.replace('{playerName}', player.playerName),
             statKey: statKey,
             cypherQuery: 'N/A',
-            metric: statConfig.metric
+            metric: statConfig.key
           });
         }
       }

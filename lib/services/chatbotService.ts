@@ -537,55 +537,38 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
-			// Seasonal appearances
-			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("appearances")) {
-				metrics.push("2016/17Apps");
+			// Dynamic seasonal metrics detection
+			// Check for any season pattern (e.g., "2017/18", "2022/23", "2016-17", "2021-22")
+			const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
+			const seasonMatch = lowerQuestion.match(seasonPattern);
+			
+			if (seasonMatch) {
+				const fullYear1 = seasonMatch[1]; // e.g., "2017"
+				const year2 = seasonMatch[2]; // e.g., "18" or "2018"
+				
+				// Normalize to YYYY/YY format
+				const normalizedSeason = year2.length === 2 ? 
+					`${fullYear1}/${year2}` : 
+					`${fullYear1}/${year2.slice(2)}`;
+				
+				if (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps") || lowerQuestion.includes("games")) {
+					metrics.push(`${normalizedSeason}Apps`);
+				} else if (lowerQuestion.includes("goals")) {
+					metrics.push(`${normalizedSeason}Goals`);
+				}
 			}
-			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("appearances")) {
-				metrics.push("2017/18Apps");
-			}
-			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("appearances")) {
-				metrics.push("2018/19Apps");
-			}
-			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("appearances")) {
-				metrics.push("2019/20Apps");
-			}
-			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("appearances")) {
-				metrics.push("2020/21Apps");
-			}
-			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("appearances")) {
-				metrics.push("2021/22Apps");
-			}
-			// Seasonal goals
-			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("goals")) {
-				metrics.push("2016/17Goals");
-			}
-			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("goals")) {
-				metrics.push("2017/18Goals");
-			}
-			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("goals")) {
-				metrics.push("2018/19Goals");
-			}
-			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("goals")) {
-				metrics.push("2019/20Goals");
-			}
-			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("goals")) {
-				metrics.push("2020/21Goals");
-			}
-			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("goals")) {
-				metrics.push("2021/22Goals");
-			}
+			
 			// Positional stats
-			else if (lowerQuestion.includes("goalkeeper")) {
+			if (lowerQuestion.includes("goalkeeper") || lowerQuestion.includes("GK") || lowerQuestion.includes("playing in goal") || lowerQuestion.includes("in goal")) {
 				metrics.push("GK");
 			}
-			else if (lowerQuestion.includes("defender")) {
+			else if (lowerQuestion.includes("defender") || lowerQuestion.includes("DEF") || lowerQuestion.includes("playing in defence") || lowerQuestion.includes("in defence") || lowerQuestion.includes("in defense")) {
 				metrics.push("DEF");
 			}
-			else if (lowerQuestion.includes("midfielder")) {
+			else if (lowerQuestion.includes("midfielder") || lowerQuestion.includes("MID") || lowerQuestion.includes("playing in midfield") || lowerQuestion.includes("in midfield")) {
 				metrics.push("MID");
 			}
-			else if (lowerQuestion.includes("forward")) {
+			else if (lowerQuestion.includes("forward") || lowerQuestion.includes("FWD") || lowerQuestion.includes("playing up front") || lowerQuestion.includes("playing in attack") || lowerQuestion.includes("attacker") || lowerQuestion.includes("striker") || lowerQuestion.includes("up front") || lowerQuestion.includes("in attack")) {
 				metrics.push("FWD");
 			}
 			// Most played for team
@@ -1076,7 +1059,27 @@ export class ChatbotService {
 						LIMIT 1
 						RETURN p.playerName as playerName, position as value, appearances as appearancesCount`;
 					break;
+				// Dynamic seasonal metrics - handle any season pattern
 				default:
+					// Check if this is a seasonal metric (e.g., "2017/18Apps", "2022/23Goals")
+					const seasonalMatch = metric.match(/^(\d{4}\/\d{2})(Apps|Goals)$/);
+					if (seasonalMatch) {
+						const season = seasonalMatch[1]; // e.g., "2017/18"
+						const statType = seasonalMatch[2]; // e.g., "Apps" or "Goals"
+						
+						if (statType === "Apps") {
+							returnClause = `
+								WHERE md.season = '${season}'
+								RETURN p.playerName as playerName, count(md) as value`;
+						} else if (statType === "Goals") {
+							returnClause = `
+								WHERE md.season = '${season}'
+								RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+						}
+						break;
+					}
+					
+					// If not a seasonal metric, fall through to the original default case
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 			}
 

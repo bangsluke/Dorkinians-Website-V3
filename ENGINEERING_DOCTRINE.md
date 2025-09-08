@@ -191,3 +191,30 @@
   - Implement robust CSV parsing that handles the actual data structure
   - Generate comprehensive test coverage using real data fields
 - **Example**: Use `playerData.APP` from CSV rather than hardcoded `172` for Luke Bangs appearances
+
+### External Service Connection Protocol
+- **Rule**: Always verify connection state before executing operations on external services (databases, APIs, etc.)
+- **Rationale**: External service failures cause cascading errors that are difficult to debug without proper connection verification
+- **Implementation**:
+  - Add connection checks at the entry point of service operations
+  - Return structured error responses when connections fail
+  - Log connection attempts and failures for debugging
+- **Example**: Neo4j queries fail with "driver not initialized" → add `await neo4jService.connect()` before query execution
+
+### Structured Error Handling Protocol
+- **Rule**: Return structured error objects with context rather than `null` or generic failures
+- **Rationale**: Structured errors enable proper error handling downstream and provide debugging context
+- **Implementation**:
+  - Return error objects with `type: "error"`, `error: message`, and `cypherQuery: "N/A"`
+  - Handle error types explicitly in response generation
+  - Preserve error context through the call chain
+- **Example**: `queryPlayerData` returns `{type: "error", data: [], error: "Connection failed"}` instead of `null`
+
+### Evidence-Based Debugging Protocol
+- **Rule**: Use systematic analysis (logs, targeted searches) before creating debugging tools
+- **Rationale**: Log analysis reveals patterns and root causes more efficiently than creating multiple debug scripts
+- **Implementation**:
+  - Analyze existing logs and error patterns first
+  - Use grep/search tools to identify specific failure points
+  - Create targeted fixes based on evidence rather than assumptions
+- **Example**: Analyze test failure logs to identify "No Cypher Query" pattern before creating debug scripts
