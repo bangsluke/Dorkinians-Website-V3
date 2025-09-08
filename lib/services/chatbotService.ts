@@ -1,5 +1,6 @@
-import { neo4jService } from "../neo4j";
+import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import { statObject } from "../../config/config";
 import * as natural from 'natural';
 import nlp from 'compromise';
 import { 
@@ -17,6 +18,7 @@ export interface ChatbotResponse {
 		config?: any;
 	};
 	sources: string[];
+	cypherQuery?: string;
 }
 
 export interface QuestionContext {
@@ -138,9 +140,15 @@ export class ChatbotService {
 			return response;
 		} catch (error) {
 			this.logToBoth("❌ Error processing question:", error, 'error');
+			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
+			this.logToBoth("❌ Question that failed:", question, 'error');
+			this.logToBoth("❌ User context:", userContext, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				sources: [],
+				cypherQuery: 'N/A',
+				error: error instanceof Error ? error.message : String(error),
+				errorStack: error instanceof Error ? error.stack : undefined
 			};
 		}
 	}
@@ -230,7 +238,7 @@ export class ChatbotService {
 		// Pattern 2d: "How many goals on average does Luke Bangs concede per match?" (comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?does (.*?) (?:score|concede|play|win|receive|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+				/How many (?:goals|assists|appearances|minutes|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties scored?|penalties missed?|penalties conceded?|penalties saved?|fantasy points?) (?:on average )?does ([A-Z][a-z]+(?: [A-Z][a-z]+)*) (?:score|concede|play|win|receive|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -277,6 +285,16 @@ export class ChatbotService {
 			}
 		}
 		
+		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
 		// Enhanced Pattern 5: "How many times has Luke played?" (simplified format)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
@@ -287,20 +305,30 @@ export class ChatbotService {
 			}
 		}
 
-		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
+		// Pattern 7: "What is Luke Bangs most played for team?" (comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:minutes|goals|assists|appearances|man of the match awards?|yellow cards?|red cards?|saves?|own goals?|conceded goals?|clean sheets?|penalties|fantasy points?) does it take (?:on average )?for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to (?:score|assist|play|win|receive|concede|keep|miss|save|earn|give|book|caution|dismiss|let in|allow|convert|fail|give away|stop|collect|accumulate)/,
+				/What is ([A-Za-z\s]+) (?:most played for team|most scored for team|most common position|most prolific season|number of teams played for|number of seasons played for)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
 
-		// Pattern 7: "What is Luke Bangs most played for team?" (comprehensive test templates)
+		// Pattern 7.5: "What team has Luke Bangs made the most appearances for?" (team-specific questions)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/What is ([A-Za-z\s]+) (?:most played for team|most scored for team|most common position|most prolific season|number of teams played for|number of seasons played for)/,
+				/What team has ([A-Za-z\s]+) (?:made the most appearances for|scored the most goals for)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 7.6: "How many of the clubs teams has Luke Bangs played for?" (teams count questions)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many of the clubs teams has ([A-Za-z\s]+) played for/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -327,10 +355,62 @@ export class ChatbotService {
 			}
 		}
 
-		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
+		// Pattern 9a: "How many apps has Luke Bangs made for the 2s?" (team-specific comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
-				/How many (?:2016\/17|2017\/18|2018\/19|2019\/20|2020\/21|2021\/22) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
+				/How many (?:apps|appearances|goals) has ([A-Za-z\s]+) (?:made|scored) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, 'info');
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9b: "Provide me with Luke Bangs appearance count for the 8s." (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/Provide me with ([A-Za-z\s]+) (?:appearance count|goal count) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9c: "What is the goal count of Luke Bangs for the 2nd team?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/What is the (?:goal count|appearance count) of ([A-Za-z\s]+) for the (?:1st|2nd|3rd|4th|5th|6th|7th|8th) team/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9d: "How many times has Jonny Sourris played for the 3s?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many times has ([A-Za-z\s]+) played for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9e: "How many goals in total has Jonny Sourris scored for the 3s?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many goals in total has ([A-Za-z\s]+) scored for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
+		if (entities.length === 0) {
+			// Dynamic seasonal pattern - matches any year/year format (e.g., 2016/17, 2022/23, 2030/31)
+			playerNameMatch = question.match(
+				/How many (?:20\d{2}\/\d{2}) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -382,14 +462,11 @@ export class ChatbotService {
 
 		// Enhanced team pattern recognition using Compromise and Natural
 		// Pattern 5: Team-specific questions with enhanced matching
-		if (entities.length === 0 || this.isTeamQuestion(question)) {
+		// Only extract team if we don't have a player name already
+		if (entities.length === 0) {
 			const extractedTeam = this.extractTeamEntity(question);
 			if (extractedTeam) {
-				if (entities.length > 0) {
-					entities[0] = extractedTeam; // Replace first entity with team
-				} else {
-					entities.push(extractedTeam);
-				}
+				entities.push(extractedTeam);
 			}
 		}
 
@@ -436,57 +513,138 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("distance") || lowerQuestion.includes("travelled")) {
 				metrics.push("DIST");
 			}
-			// Home games
-			else if (lowerQuestion.includes("home games")) {
-				metrics.push("HomeGames");
-			}
-			// Away games
-			else if (lowerQuestion.includes("away games")) {
-				metrics.push("AwayGames");
-			}
-			// Home wins
-			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
-				metrics.push("HomeWins");
-			}
-			// Away wins
-			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won") && !lowerQuestion.includes("percent")) {
-				metrics.push("AwayWins");
-			}
-			// Home games percentage won
+			// Home games percentage won (most specific first)
 			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("percent")) {
 				metrics.push("HomeGames%Won");
 			}
-			// Away games percentage won
+			// Away games percentage won (most specific first)
 			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("percent")) {
 				metrics.push("AwayGames%Won");
 			}
-			// Games percentage won
+			// Home wins (specific)
+			else if (lowerQuestion.includes("home games") && lowerQuestion.includes("won")) {
+				metrics.push("HomeWins");
+			}
+			// Away wins (specific)
+			else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won")) {
+				metrics.push("AwayWins");
+			}
+			// Games percentage won (general)
 			else if (lowerQuestion.includes("games") && lowerQuestion.includes("percent")) {
 				metrics.push("Games%Won");
 			}
+			// Home games (general)
+			else if (lowerQuestion.includes("home games")) {
+				metrics.push("HomeGames");
+			}
+			// Away games (general)
+			else if (lowerQuestion.includes("away games")) {
+				metrics.push("AwayGames");
+			}
 			// Team-specific appearances
-			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("1sApps");
 			}
-			else if (lowerQuestion.includes("2s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("2sApps");
 			}
-			else if (lowerQuestion.includes("3s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("3sApps");
 			}
-			else if (lowerQuestion.includes("4s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("4sApps");
 			}
-			else if (lowerQuestion.includes("5s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("5sApps");
 			}
-			else if (lowerQuestion.includes("6s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("6sApps");
 			}
-			else if (lowerQuestion.includes("7s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("7sApps");
 			}
-			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "for the Xs" pattern
+			else if (lowerQuestion.includes("for the 1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, 'info');
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("for the 2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, 'info');
+				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, 'info');
+				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
+				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("for the 3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("for the 4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("for the 5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("for the 6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("for the 7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("for the 8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, 'info');
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "played for the Xs" pattern
+			else if (lowerQuestion.includes("played for the 1s")) {
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("played for the 2s")) {
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("played for the 3s")) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("played for the 4s")) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("played for the 5s")) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("played for the 6s")) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("played for the 7s")) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("played for the 8s")) {
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "for the Xth team" pattern
+			else if (lowerQuestion.includes("for the 1st team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("for the 2nd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("for the 3rd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("for the 4th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("for the 5th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("for the 6th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("for the 7th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("for the 8th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("8sApps");
 			}
 			// Team-specific goals
@@ -514,55 +672,113 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
-			// Seasonal appearances
-			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("appearances")) {
-				metrics.push("2016/17Apps");
+			// Team-specific goals with "for the Xs" pattern
+			else if (lowerQuestion.includes("for the 1s") && lowerQuestion.includes("goals")) {
+				metrics.push("1sGoals");
 			}
-			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("appearances")) {
-				metrics.push("2017/18Apps");
+			else if (lowerQuestion.includes("for the 2s") && lowerQuestion.includes("goals")) {
+				metrics.push("2sGoals");
 			}
-			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("appearances")) {
-				metrics.push("2018/19Apps");
+			else if (lowerQuestion.includes("for the 3s") && lowerQuestion.includes("goals")) {
+				metrics.push("3sGoals");
 			}
-			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("appearances")) {
-				metrics.push("2019/20Apps");
+			else if (lowerQuestion.includes("for the 4s") && lowerQuestion.includes("goals")) {
+				metrics.push("4sGoals");
 			}
-			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("appearances")) {
-				metrics.push("2020/21Apps");
+			else if (lowerQuestion.includes("for the 5s") && lowerQuestion.includes("goals")) {
+				metrics.push("5sGoals");
 			}
-			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("appearances")) {
-				metrics.push("2021/22Apps");
+			else if (lowerQuestion.includes("for the 6s") && lowerQuestion.includes("goals")) {
+				metrics.push("6sGoals");
 			}
-			// Seasonal goals
-			else if (lowerQuestion.includes("2016/17") && lowerQuestion.includes("goals")) {
-				metrics.push("2016/17Goals");
+			else if (lowerQuestion.includes("for the 7s") && lowerQuestion.includes("goals")) {
+				metrics.push("7sGoals");
 			}
-			else if (lowerQuestion.includes("2017/18") && lowerQuestion.includes("goals")) {
-				metrics.push("2017/18Goals");
+			else if (lowerQuestion.includes("for the 8s") && lowerQuestion.includes("goals")) {
+				metrics.push("8sGoals");
 			}
-			else if (lowerQuestion.includes("2018/19") && lowerQuestion.includes("goals")) {
-				metrics.push("2018/19Goals");
+			// Team-specific goals with "scored for the Xs" pattern
+			else if (lowerQuestion.includes("scored for the 1s")) {
+				metrics.push("1sGoals");
 			}
-			else if (lowerQuestion.includes("2019/20") && lowerQuestion.includes("goals")) {
-				metrics.push("2019/20Goals");
+			else if (lowerQuestion.includes("scored for the 2s")) {
+				metrics.push("2sGoals");
 			}
-			else if (lowerQuestion.includes("2020/21") && lowerQuestion.includes("goals")) {
-				metrics.push("2020/21Goals");
+			else if (lowerQuestion.includes("scored for the 3s")) {
+				metrics.push("3sGoals");
 			}
-			else if (lowerQuestion.includes("2021/22") && lowerQuestion.includes("goals")) {
-				metrics.push("2021/22Goals");
+			else if (lowerQuestion.includes("scored for the 4s")) {
+				metrics.push("4sGoals");
 			}
+			else if (lowerQuestion.includes("scored for the 5s")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 6s")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 7s")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 8s")) {
+				metrics.push("8sGoals");
+			}
+			// Team-specific goals with "for the Xth team" pattern
+			else if (lowerQuestion.includes("for the 1st team") && lowerQuestion.includes("goals")) {
+				metrics.push("1sGoals");
+			}
+			else if (lowerQuestion.includes("for the 2nd team") && lowerQuestion.includes("goals")) {
+				metrics.push("2sGoals");
+			}
+			else if (lowerQuestion.includes("for the 3rd team") && lowerQuestion.includes("goals")) {
+				metrics.push("3sGoals");
+			}
+			else if (lowerQuestion.includes("for the 4th team") && lowerQuestion.includes("goals")) {
+				metrics.push("4sGoals");
+			}
+			else if (lowerQuestion.includes("for the 5th team") && lowerQuestion.includes("goals")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("for the 6th team") && lowerQuestion.includes("goals")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("for the 7th team") && lowerQuestion.includes("goals")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("for the 8th team") && lowerQuestion.includes("goals")) {
+				metrics.push("8sGoals");
+			}
+			// Dynamic seasonal metrics detection
+			// Check for any season pattern (e.g., "2017/18", "2022/23", "2016-17", "2021-22")
+			const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
+			const seasonMatch = lowerQuestion.match(seasonPattern);
+			
+			if (seasonMatch) {
+				const fullYear1 = seasonMatch[1]; // e.g., "2017"
+				const year2 = seasonMatch[2]; // e.g., "18" or "2018"
+				
+				// Normalize to YYYY/YY format
+				const normalizedSeason = year2.length === 2 ? 
+					`${fullYear1}/${year2}` : 
+					`${fullYear1}/${year2.slice(2)}`;
+				
+				if (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps") || lowerQuestion.includes("games")) {
+					metrics.push(`${normalizedSeason}Apps`);
+				} else if (lowerQuestion.includes("goals")) {
+					metrics.push(`${normalizedSeason}Goals`);
+				}
+			}
+			
 			// Positional stats
-			else if (lowerQuestion.includes("goalkeeper")) {
+			if (lowerQuestion.includes("goalkeeper") || lowerQuestion.includes("GK") || lowerQuestion.includes("playing in goal") || lowerQuestion.includes("in goal")) {
 				metrics.push("GK");
 			}
-			else if (lowerQuestion.includes("defender")) {
+			else if (lowerQuestion.includes("defender") || lowerQuestion.includes("DEF") || lowerQuestion.includes("playing in defence") || lowerQuestion.includes("in defence") || lowerQuestion.includes("in defense")) {
 				metrics.push("DEF");
 			}
-			else if (lowerQuestion.includes("midfielder")) {
+			else if (lowerQuestion.includes("midfielder") || lowerQuestion.includes("MID") || lowerQuestion.includes("playing in midfield") || lowerQuestion.includes("in midfield")) {
 				metrics.push("MID");
 			}
-			else if (lowerQuestion.includes("forward")) {
+			else if (lowerQuestion.includes("forward") || lowerQuestion.includes("FWD") || lowerQuestion.includes("playing up front") || lowerQuestion.includes("playing in attack") || lowerQuestion.includes("attacker") || lowerQuestion.includes("striker") || lowerQuestion.includes("up front") || lowerQuestion.includes("in attack")) {
 				metrics.push("FWD");
 			}
 			// Most played for team
@@ -573,8 +789,20 @@ export class ChatbotService {
 			else if (lowerQuestion.includes("most scored for team")) {
 				metrics.push("MostScoredForTeam");
 			}
+			// What team has player made the most appearances for
+			else if (lowerQuestion.includes("what team has") && lowerQuestion.includes("made the most appearances for")) {
+				metrics.push("MostPlayedForTeam");
+			}
+			// What team has player scored the most goals for
+			else if (lowerQuestion.includes("what team has") && lowerQuestion.includes("scored the most goals for")) {
+				metrics.push("MostScoredForTeam");
+			}
 			// Number of teams played for
 			else if (lowerQuestion.includes("number of teams played for")) {
+				metrics.push("NumberTeamsPlayedFor");
+			}
+			// How many of the clubs teams has player played for
+			else if (lowerQuestion.includes("how many of the clubs teams has") && lowerQuestion.includes("played for")) {
 				metrics.push("NumberTeamsPlayedFor");
 			}
 			// Number of seasons played for
@@ -623,6 +851,14 @@ export class ChatbotService {
 			}
 		}
 
+		// Debug: Log the question and lowerQuestion for team-specific debugging
+		if (lowerQuestion.includes("for the 2s") || lowerQuestion.includes("for the 8s")) {
+			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, 'info');
+		}
+
 		// Enhanced points detection with context awareness
 		if (metrics.length === 0 && lowerQuestion.includes("points")) {
 			// Check if this is about team points (game results) or individual fantasy points
@@ -664,10 +900,10 @@ export class ChatbotService {
 			if (lowerQuestion.includes("man of the match")) metrics.push("MOM");
 			
 			// Enhanced year vs season detection
-			if (lowerQuestion.includes("2021") || lowerQuestion.includes("2022") || lowerQuestion.includes("2020") || 
-				lowerQuestion.includes("2019") || lowerQuestion.includes("2018") || lowerQuestion.includes("2017") || 
-				lowerQuestion.includes("2016")) {
-				// Check if this is a season reference (e.g., "2021/22", "21/22", "2021-22")
+			// Dynamic seasonal detection - check for any year pattern (20XX)
+			const yearPattern = /20\d{2}/;
+			if (yearPattern.test(lowerQuestion)) {
+				// Check if this is a season reference (e.g., "2021/22", "21/22", "2021-22", "2030/31")
 				const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
 				const seasonMatch = question.match(seasonPattern);
 				if (seasonMatch) {
@@ -739,6 +975,12 @@ export class ChatbotService {
 		const { type, entities, metrics } = analysis;
 
 		try {
+			// Ensure Neo4j connection before querying
+			const connected = await neo4jService.connect();
+			if (!connected) {
+				this.logToBoth("❌ Neo4j connection failed in queryRelevantData", 'error');
+				return null;
+			}
 			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
 					switch (type) {
@@ -831,7 +1073,9 @@ export class ChatbotService {
 			let returnClause = "";
 			switch (metric) {
 				case "APP":
+					this.logToBoth("🔍 APP metric detected - constructing return clause", 'info');
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					this.logToBoth("🔍 APP return clause constructed:", returnClause, 'info');
 					break;
 				case "MIN":
 					returnClause =
@@ -927,7 +1171,16 @@ export class ChatbotService {
 					break;
 				case "MperG":
 					// Minutes per goal - get from Player node (try both property names for compatibility)
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.minutesPerGoal, p.MperG, 0) as value";
+					// If stored value is 0 or missing, calculate from minutes and goals
+					returnClause = `
+						RETURN p.playerName as playerName, 
+						       CASE 
+						         WHEN coalesce(p.minutesPerGoal, p.MperG, 0) > 0 THEN coalesce(p.minutesPerGoal, p.MperG, 0)
+						         ELSE CASE 
+						           WHEN coalesce(p.goals, 0) > 0 THEN coalesce(p.minutes, 0) / coalesce(p.goals, 1)
+						           ELSE 0
+						         END
+						       END as value`;
 					break;
 				case "MperCLS":
 					// Minutes per clean sheet - get from Player node (try both property names for compatibility)
@@ -942,39 +1195,259 @@ export class ChatbotService {
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, p.DIST, 0) as value";
 					break;
 				case "HomeGames":
-					// Home games - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGames, 0) as value";
+					// Home games - count matches where player played at home
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "AwayGames":
-					// Away games - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGames, 0) as value";
+					// Away games - count matches where player played away
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "HomeWins":
-					// Home wins - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeWins, 0) as value";
+					// Home wins - count matches where player played at home and won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home' AND f.result = 'W'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "AwayWins":
-					// Away wins - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayWins, 0) as value";
+					// Away wins - count matches where player played away and won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away' AND f.result = 'W'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "HomeGames%Won":
-					// Home games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGamesPercentWon, 0) as value";
+					// Home games percentage won - calculate percentage of home games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						WITH p, count(md) as totalHomeGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as homeWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalHomeGames > 0 THEN toFloat(homeWins) / toFloat(totalHomeGames) ELSE 0.0 END as value";
 					break;
 				case "AwayGames%Won":
-					// Away games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGamesPercentWon, 0) as value";
+					// Away games percentage won - calculate percentage of away games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						WITH p, count(md) as totalAwayGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalAwayGames > 0 THEN toFloat(awayWins) / toFloat(totalAwayGames) ELSE 0.0 END as value";
 					break;
 				case "Games%Won":
-					// Games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.gamesPercentWon, 0) as value";
+					// Games percentage won - calculate percentage of all games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date
+						WITH p, count(md) as totalGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as totalWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalGames > 0 THEN toFloat(totalWins) / toFloat(totalGames) ELSE 0.0 END as value";
 					break;
+				case "MostPlayedForTeam":
+					// Find the team with most appearances for this player
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						WITH p, t, count(md) as appearances
+						ORDER BY appearances DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, t.teamName as value, appearances as appearancesCount`;
+					break;
+				case "MostScoredForTeam":
+					// Find the team with most goals for this player
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						WITH p, t, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+						ORDER BY goals DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, t.teamName as value, goals as goalsCount`;
+					break;
+				case "NumberTeamsPlayedFor":
+					// Count how many different teams this player has played for
+					returnClause = `
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
+						RETURN p.playerName as playerName, count(DISTINCT t.teamName) as value`;
+					break;
+				case "GK":
+					// Goalkeeper appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'GK'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "DEF":
+					// Defender appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'DEF'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "MID":
+					// Midfielder appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'MID'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "FWD":
+					// Forward appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'FWD'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "MostCommonPosition":
+					// Find the most common position played by this player (class field)
+					returnClause = `
+						WHERE md.class IS NOT NULL AND md.class <> ''
+						WITH p, md.class as position, count(md) as appearances
+						ORDER BY appearances DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, position as value, appearances as appearancesCount`;
+					break;
+				// Team-specific appearances
+				case "1sApps":
+					returnClause = `
+						WHERE md.team = '1s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "2sApps":
+					returnClause = `
+						WHERE md.team = '2s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "3sApps":
+					returnClause = `
+						WHERE md.team = '3s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "4sApps":
+					returnClause = `
+						WHERE md.team = '4s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "5sApps":
+					returnClause = `
+						WHERE md.team = '5s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "6sApps":
+					returnClause = `
+						WHERE md.team = '6s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "7sApps":
+					returnClause = `
+						WHERE md.team = '7s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "8sApps":
+					returnClause = `
+						WHERE md.team = '8s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				// Team-specific goals
+				case "1sGoals":
+					returnClause = `
+						WHERE md.team = '1s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "2sGoals":
+					returnClause = `
+						WHERE md.team = '2s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "3sGoals":
+					returnClause = `
+						WHERE md.team = '3s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "4sGoals":
+					returnClause = `
+						WHERE md.team = '4s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "5sGoals":
+					returnClause = `
+						WHERE md.team = '5s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "6sGoals":
+					returnClause = `
+						WHERE md.team = '6s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "7sGoals":
+					returnClause = `
+						WHERE md.team = '7s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "8sGoals":
+					returnClause = `
+						WHERE md.team = '8s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				// Dynamic seasonal metrics - handle any season pattern
 				default:
+					// Check if this is a seasonal metric (e.g., "2017/18Apps", "2022/23Goals")
+					const seasonalMatch = metric.match(/^(\d{4}\/\d{2})(Apps|Goals)$/);
+					if (seasonalMatch) {
+						const season = seasonalMatch[1]; // e.g., "2017/18"
+						const statType = seasonalMatch[2]; // e.g., "Apps" or "Goals"
+						
+						if (statType === "Apps") {
+							returnClause = `
+								WHERE md.season = '${season}'
+								RETURN p.playerName as playerName, count(md) as value`;
+						} else if (statType === "Goals") {
+							returnClause = `
+								WHERE md.season = '${season}'
+								RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+						}
+						break;
+					}
+					
+					// If not a seasonal metric, fall through to the original default case
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 			}
 
 			query += " " + returnClause;
 			this.logToBoth(`🔍 Final Cypher query: ${query}`);
+			
+			// Special logging for APP metric
+			if (metric === "APP") {
+				this.logToBoth("🔍 APP metric - About to execute query", 'info');
+				this.logToBoth("🔍 APP metric - Query string:", query, 'info');
+			}
 
 			try {
 				// Create case-insensitive name variations for matching
@@ -982,12 +1455,23 @@ export class ChatbotService {
 				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
 
 				this.logToBoth(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
+				
+				// Special logging for APP metric
+				if (metric === "APP") {
+					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", 'info');
+				}
 
 				const result = await neo4jService.executeQuery(query, {
 					playerName,
 					playerNameLower,
 					playerNameHyphen,
 				});
+				
+				// Special logging for APP metric
+				if (metric === "APP") {
+					this.logToBoth("🔍 APP metric - Query executed successfully", 'info');
+					this.logToBoth("🔍 APP metric - Result:", result, 'info');
+				}
 
 				this.logToBoth(`🔍 Player query result for ${playerName}:`, result);
 				this.logToBoth(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : "not array"}`);
@@ -1052,10 +1536,23 @@ export class ChatbotService {
 					this.logToBoth(`🔍 MatchDetail nodes without graphLabel:`, noLabelResult);
 				}
 
-				return { type: "specific_player", data: result, playerName, metric };
+				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth("❌ Error querying specific player data:", error, 'error');
-				return null;
+				this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
+				this.logToBoth("❌ Failed query:", query, 'error');
+				this.logToBoth("❌ Failed metric:", metric, 'error');
+				this.logToBoth("❌ Failed player:", playerName, 'error');
+				return { 
+					type: "error", 
+					data: [], 
+					playerName, 
+					metric, 
+					cypherQuery: 'N/A',
+					error: error instanceof Error ? error.message : String(error),
+					errorStack: error instanceof Error ? error.stack : undefined,
+					failedQuery: query
+				};
 			}
 		}
 
@@ -1184,7 +1681,7 @@ export class ChatbotService {
 			}
 		} catch (error: any) {
 			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
-			return { type: "error", data: [], teamName, metric, error: error.message };
+			return { type: "error", data: [], teamName, metric, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 
@@ -1514,6 +2011,17 @@ export class ChatbotService {
 		let answer = "";
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
+		// Handle error responses
+		if (data && data.type === "error") {
+			answer = `I encountered an error while processing your question: ${data.error}`;
+			return {
+				answer,
+				sources: [],
+				visualization,
+				cypherQuery: data.cypherQuery || 'N/A',
+			};
+		}
+
 		if (!data || data.length === 0) {
 			// Check if this is a player question without context
 			if (
@@ -1533,6 +2041,7 @@ export class ChatbotService {
 				answer,
 				sources: [], // Always hide technical sources
 				visualization,
+				cypherQuery: 'N/A',
 			};
 		}
 
@@ -1541,10 +2050,41 @@ export class ChatbotService {
 			// Check if this is a no-context case
 			if (data && data.type === "no_context") {
 				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
-			} else if (data && data.type === "specific_player" && data.data && data.data.length > 0) {
-				const playerData = data.data[0];
+			} else if (data && data.type === "specific_player" && data.data) {
+				// Handle position-specific metrics that might return 0 results
 				const playerName = data.playerName;
 				const metric = data.metric;
+				
+				// Special handling for position-specific metrics (GK, DEF, MID, FWD)
+				if (metric === "GK" || metric === "DEF" || metric === "MID" || metric === "FWD") {
+					const value = data.data.length > 0 ? data.data[0].value : 0;
+					
+					// Convert position code to full name
+					const positionNames = {
+						'GK': 'goalkeeper',
+						'DEF': 'defender', 
+						'MID': 'midfielder',
+						'FWD': 'forward'
+					};
+					const positionName = positionNames[metric as keyof typeof positionNames] || metric;
+					
+					// Generate appropriate response for position-specific appearances
+					if (value === 0) {
+						answer = `${playerName} has 0 ${positionName} appearances.`;
+					} else {
+						answer = `${playerName} has ${value} ${positionName} appearance${value !== 1 ? 's' : ''}.`;
+					}
+					
+					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+				}
+				
+				// For other metrics, require data to be present
+				if (data.data.length === 0) {
+					answer = "I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
+					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+				}
+				
+				const playerData = data.data[0];
 				const value = playerData.value;
 
 				// Get appearances for context (excluding appearances themselves)
@@ -1579,16 +2119,32 @@ export class ChatbotService {
 						answer = `${playerName} has not taken any penalties yet.`;
 					}
 				} else {
-					// Round values for specific metrics
-					let roundedValue = value;
-					if (metric === "FTP") {
-						roundedValue = Math.round(value); // Round fantasy points to nearest integer
-					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
-						roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
-					} else if (metric === "MperG" || metric === "MperCLS") {
-						roundedValue = Math.round(value); // Round minutes per goal/clean sheet to nearest integer
-					} else if (metric === "DIST") {
-						roundedValue = Math.round(value); // Round distance to nearest integer
+					// Convert Neo4j Integer to JavaScript number if needed
+					let numericValue = value;
+					if (value && typeof value === 'object' && value.low !== undefined) {
+						// This is a Neo4j Integer object
+						numericValue = value.low;
+					}
+					
+					// Round values based on statObject configuration
+					let roundedValue = numericValue;
+					
+					// Get stat configuration for this metric
+					const statConfig = statObject[metric as keyof typeof statObject];
+					if (statConfig) {
+						// If statFormat is "Integer", round to the specified number of decimal places
+						if (statConfig.statFormat === "Integer") {
+							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
+							const multiplier = Math.pow(10, decimalPlaces);
+							roundedValue = Math.round(numericValue * multiplier) / multiplier;
+						}
+						// For other formats, keep existing logic or add as needed
+						else if (statConfig.statFormat === "Decimal2") {
+							roundedValue = Math.round(numericValue * 100) / 100; // Round to 2 decimal places
+						}
+						else if (statConfig.statFormat === "Decimal1") {
+							roundedValue = Math.round(numericValue * 10) / 10; // Round to 1 decimal place
+						}
 					}
 					
 					// Format value with commas for thousands
@@ -1613,7 +2169,13 @@ export class ChatbotService {
 					let template: any = null;
 					
 					if (metric === "MperG") {
-						template = getResponseTemplate('player_stats', 'Minutes per goal');
+						// Special handling for MperG - handle case where player hasn't scored
+						if (roundedValue === 0) {
+							answer = `${playerName} hasn't scored any goals yet, so we can't calculate minutes per goal.`;
+							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+						} else {
+							template = getResponseTemplate('player_stats', 'Minutes per goal');
+						}
 					} else if (metric === "MperCLS") {
 						template = getResponseTemplate('player_stats', 'Minutes per clean sheet');
 					} else if (metric === "DIST") {
@@ -1623,6 +2185,14 @@ export class ChatbotService {
 					} else if (metric === "HomeGames" || metric === "AwayGames") {
 						// Special handling for home/away games - no appearances context needed
 						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "HomeWins" || metric === "AwayWins") {
+						// Special handling for home/away wins - no appearances context needed
+						answer = `${playerName} has won ${formattedValue} ${metricName}.`;
+						return { answer, sources: [], visualization };
+					} else if (metric === "HomeGames%Won" || metric === "AwayGames%Won") {
+						// Special handling for home/away games percentage won
+						answer = `${playerName} has won ${formattedValue}% of ${metricName.replace('%', '')}.`;
 						return { answer, sources: [], visualization };
 					} else if (metric === "Games%Won" && appearancesCount) {
 						// Special handling for overall games percentage won - include appearances context
@@ -1634,7 +2204,7 @@ export class ChatbotService {
 						if (useMatches) {
 							// Use a custom template with "matches" instead of "appearances"
 							answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName} in ${appearancesCount} matches.`;
-							return { answer, sources: [], visualization };
+							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 						} else {
 							template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
 						}
@@ -1665,13 +2235,65 @@ export class ChatbotService {
 				} else if (metric === "points") {
 					// Clarify that this refers to Fantasy Points
 					answer = answer.replace('.', ' (Fantasy Points).');
+				} else if (metric === "MostPlayedForTeam") {
+					// For "What team has player made the most appearances for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("what team has") && questionLower.includes("made the most appearances for")) {
+						// Use the actual query results from Cypher
+						const teamName = value; // e.g., "3s"
+						const appearancesCount = playerData.appearancesCount || 0;
+						answer = `${playerName} has made the most appearances for the ${teamName} (${appearancesCount} appearances).`;
+					}
+				} else if (metric === "MostScoredForTeam") {
+					// For "What team has player scored the most goals for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("what team has") && questionLower.includes("scored the most goals for")) {
+						// Use the actual query results from Cypher
+						const teamName = value; // e.g., "4s"
+						const goalsCount = playerData.goalsCount || 0;
+						answer = `${playerName} has scored the most goals for the ${teamName} (${goalsCount} goals).`;
+					}
+				} else if (metric === "NumberTeamsPlayedFor") {
+					// For "How many of the clubs teams has player played for?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) {
+						// Use the actual query result from Cypher
+						const teamsPlayedFor = value || 0;
+						
+						if (teamsPlayedFor === 0) {
+							answer = `${playerName} has not played for any of the club's teams yet.`;
+						} else if (teamsPlayedFor === 1) {
+							answer = `${playerName} has played for 1 of the club's 8 teams.`;
+						} else {
+							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
+						}
+					}
+				} else if (metric === "MostCommonPosition") {
+					// For "What is player's most common position played?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("most common position")) {
+						// Use the actual query results from Cypher
+						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
+						const appearancesCount = playerData.appearancesCount || 0;
+						
+						// Convert position code to full name
+						const positionNames = {
+							'GK': 'goalkeeper',
+							'DEF': 'defender', 
+							'MID': 'midfielder',
+							'FWD': 'forward'
+						};
+						const positionName = positionNames[position as keyof typeof positionNames] || position;
+						
+						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
+					}
 				}
 				
 				// Enhanced year vs season clarification
 				const questionLower = question.toLowerCase();
-				if (questionLower.includes("2021") || questionLower.includes("2022") || questionLower.includes("2020") || 
-					questionLower.includes("2019") || questionLower.includes("2018") || questionLower.includes("2017") || 
-					questionLower.includes("2016")) {
+				// Dynamic year detection - check for any year pattern (20XX)
+				const yearPattern = /20\d{2}/;
+				if (yearPattern.test(questionLower)) {
 					// Check if this is a season reference
 					const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
 					const seasonMatch = question.match(seasonPattern);
@@ -1920,6 +2542,7 @@ export class ChatbotService {
 			answer,
 			sources: [], // Always hide technical sources as per mandatory rules
 			visualization,
+			cypherQuery: data?.cypherQuery, // Include the Cypher query used
 		};
 	}
 
