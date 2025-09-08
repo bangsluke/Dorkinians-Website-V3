@@ -408,8 +408,9 @@ export class ChatbotService {
 
 		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
 		if (entities.length === 0) {
+			// Dynamic seasonal pattern - matches any year/year format (e.g., 2016/17, 2022/23, 2030/31)
 			playerNameMatch = question.match(
-				/How many (?:2016\/17|2017\/18|2018\/19|2019\/20|2020\/21|2021\/22) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
+				/How many (?:20\d{2}\/\d{2}) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
 			);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
@@ -899,10 +900,10 @@ export class ChatbotService {
 			if (lowerQuestion.includes("man of the match")) metrics.push("MOM");
 			
 			// Enhanced year vs season detection
-			if (lowerQuestion.includes("2021") || lowerQuestion.includes("2022") || lowerQuestion.includes("2020") || 
-				lowerQuestion.includes("2019") || lowerQuestion.includes("2018") || lowerQuestion.includes("2017") || 
-				lowerQuestion.includes("2016")) {
-				// Check if this is a season reference (e.g., "2021/22", "21/22", "2021-22")
+			// Dynamic seasonal detection - check for any year pattern (20XX)
+			const yearPattern = /20\d{2}/;
+			if (yearPattern.test(lowerQuestion)) {
+				// Check if this is a season reference (e.g., "2021/22", "21/22", "2021-22", "2030/31")
 				const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
 				const seasonMatch = question.match(seasonPattern);
 				if (seasonMatch) {
@@ -2235,9 +2236,9 @@ export class ChatbotService {
 				
 				// Enhanced year vs season clarification
 				const questionLower = question.toLowerCase();
-				if (questionLower.includes("2021") || questionLower.includes("2022") || questionLower.includes("2020") || 
-					questionLower.includes("2019") || questionLower.includes("2018") || questionLower.includes("2017") || 
-					questionLower.includes("2016")) {
+				// Dynamic year detection - check for any year pattern (20XX)
+				const yearPattern = /20\d{2}/;
+				if (yearPattern.test(questionLower)) {
 					// Check if this is a season reference
 					const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
 					const seasonMatch = question.match(seasonPattern);
