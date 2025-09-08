@@ -355,6 +355,57 @@ export class ChatbotService {
 			}
 		}
 
+		// Pattern 9a: "How many apps has Luke Bangs made for the 2s?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many (?:apps|appearances|goals) has ([A-Za-z\s]+) (?:made|scored) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, 'info');
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9b: "Provide me with Luke Bangs appearance count for the 8s." (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/Provide me with ([A-Za-z\s]+) (?:appearance count|goal count) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9c: "What is the goal count of Luke Bangs for the 2nd team?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/What is the (?:goal count|appearance count) of ([A-Za-z\s]+) for the (?:1st|2nd|3rd|4th|5th|6th|7th|8th) team/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9d: "How many times has Jonny Sourris played for the 3s?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many times has ([A-Za-z\s]+) played for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
+		// Pattern 9e: "How many goals in total has Jonny Sourris scored for the 3s?" (team-specific comprehensive test templates)
+		if (entities.length === 0) {
+			playerNameMatch = question.match(
+				/How many goals in total has ([A-Za-z\s]+) scored for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
+			);
+			if (playerNameMatch) {
+				entities.push(playerNameMatch[1].trim());
+			}
+		}
+
 		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
@@ -410,14 +461,11 @@ export class ChatbotService {
 
 		// Enhanced team pattern recognition using Compromise and Natural
 		// Pattern 5: Team-specific questions with enhanced matching
-		if (entities.length === 0 || this.isTeamQuestion(question)) {
+		// Only extract team if we don't have a player name already
+		if (entities.length === 0) {
 			const extractedTeam = this.extractTeamEntity(question);
 			if (extractedTeam) {
-				if (entities.length > 0) {
-					entities[0] = extractedTeam; // Replace first entity with team
-				} else {
-					entities.push(extractedTeam);
-				}
+				entities.push(extractedTeam);
 			}
 		}
 
@@ -493,28 +541,109 @@ export class ChatbotService {
 				metrics.push("AwayGames");
 			}
 			// Team-specific appearances
-			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("1sApps");
 			}
-			else if (lowerQuestion.includes("2s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("2sApps");
 			}
-			else if (lowerQuestion.includes("3s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("3sApps");
 			}
-			else if (lowerQuestion.includes("4s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("4sApps");
 			}
-			else if (lowerQuestion.includes("5s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("5sApps");
 			}
-			else if (lowerQuestion.includes("6s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("6sApps");
 			}
-			else if (lowerQuestion.includes("7s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("7sApps");
 			}
-			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("appearances")) {
+			else if (lowerQuestion.includes("8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "for the Xs" pattern
+			else if (lowerQuestion.includes("for the 1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, 'info');
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("for the 2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, 'info');
+				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, 'info');
+				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
+				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("for the 3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("for the 4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("for the 5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("for the 6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("for the 7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("for the 8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, 'info');
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "played for the Xs" pattern
+			else if (lowerQuestion.includes("played for the 1s")) {
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("played for the 2s")) {
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("played for the 3s")) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("played for the 4s")) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("played for the 5s")) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("played for the 6s")) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("played for the 7s")) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("played for the 8s")) {
+				metrics.push("8sApps");
+			}
+			// Team-specific appearances with "for the Xth team" pattern
+			else if (lowerQuestion.includes("for the 1st team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("1sApps");
+			}
+			else if (lowerQuestion.includes("for the 2nd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("2sApps");
+			}
+			else if (lowerQuestion.includes("for the 3rd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("3sApps");
+			}
+			else if (lowerQuestion.includes("for the 4th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("4sApps");
+			}
+			else if (lowerQuestion.includes("for the 5th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("5sApps");
+			}
+			else if (lowerQuestion.includes("for the 6th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("6sApps");
+			}
+			else if (lowerQuestion.includes("for the 7th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				metrics.push("7sApps");
+			}
+			else if (lowerQuestion.includes("for the 8th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("8sApps");
 			}
 			// Team-specific goals
@@ -540,6 +669,81 @@ export class ChatbotService {
 				metrics.push("7sGoals");
 			}
 			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
+				metrics.push("8sGoals");
+			}
+			// Team-specific goals with "for the Xs" pattern
+			else if (lowerQuestion.includes("for the 1s") && lowerQuestion.includes("goals")) {
+				metrics.push("1sGoals");
+			}
+			else if (lowerQuestion.includes("for the 2s") && lowerQuestion.includes("goals")) {
+				metrics.push("2sGoals");
+			}
+			else if (lowerQuestion.includes("for the 3s") && lowerQuestion.includes("goals")) {
+				metrics.push("3sGoals");
+			}
+			else if (lowerQuestion.includes("for the 4s") && lowerQuestion.includes("goals")) {
+				metrics.push("4sGoals");
+			}
+			else if (lowerQuestion.includes("for the 5s") && lowerQuestion.includes("goals")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("for the 6s") && lowerQuestion.includes("goals")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("for the 7s") && lowerQuestion.includes("goals")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("for the 8s") && lowerQuestion.includes("goals")) {
+				metrics.push("8sGoals");
+			}
+			// Team-specific goals with "scored for the Xs" pattern
+			else if (lowerQuestion.includes("scored for the 1s")) {
+				metrics.push("1sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 2s")) {
+				metrics.push("2sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 3s")) {
+				metrics.push("3sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 4s")) {
+				metrics.push("4sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 5s")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 6s")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 7s")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("scored for the 8s")) {
+				metrics.push("8sGoals");
+			}
+			// Team-specific goals with "for the Xth team" pattern
+			else if (lowerQuestion.includes("for the 1st team") && lowerQuestion.includes("goals")) {
+				metrics.push("1sGoals");
+			}
+			else if (lowerQuestion.includes("for the 2nd team") && lowerQuestion.includes("goals")) {
+				metrics.push("2sGoals");
+			}
+			else if (lowerQuestion.includes("for the 3rd team") && lowerQuestion.includes("goals")) {
+				metrics.push("3sGoals");
+			}
+			else if (lowerQuestion.includes("for the 4th team") && lowerQuestion.includes("goals")) {
+				metrics.push("4sGoals");
+			}
+			else if (lowerQuestion.includes("for the 5th team") && lowerQuestion.includes("goals")) {
+				metrics.push("5sGoals");
+			}
+			else if (lowerQuestion.includes("for the 6th team") && lowerQuestion.includes("goals")) {
+				metrics.push("6sGoals");
+			}
+			else if (lowerQuestion.includes("for the 7th team") && lowerQuestion.includes("goals")) {
+				metrics.push("7sGoals");
+			}
+			else if (lowerQuestion.includes("for the 8th team") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
 			// Dynamic seasonal metrics detection
@@ -644,6 +848,14 @@ export class ChatbotService {
 			} else {
 				metrics.push("PSC"); // Default to penalties scored
 			}
+		}
+
+		// Debug: Log the question and lowerQuestion for team-specific debugging
+		if (lowerQuestion.includes("for the 2s") || lowerQuestion.includes("for the 8s")) {
+			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, 'info');
 		}
 
 		// Enhanced points detection with context awareness
@@ -1065,6 +1277,88 @@ export class ChatbotService {
 						ORDER BY appearances DESC
 						LIMIT 1
 						RETURN p.playerName as playerName, position as value, appearances as appearancesCount`;
+					break;
+				// Team-specific appearances
+				case "1sApps":
+					returnClause = `
+						WHERE md.team = '1s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "2sApps":
+					returnClause = `
+						WHERE md.team = '2s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "3sApps":
+					returnClause = `
+						WHERE md.team = '3s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "4sApps":
+					returnClause = `
+						WHERE md.team = '4s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "5sApps":
+					returnClause = `
+						WHERE md.team = '5s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "6sApps":
+					returnClause = `
+						WHERE md.team = '6s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "7sApps":
+					returnClause = `
+						WHERE md.team = '7s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "8sApps":
+					returnClause = `
+						WHERE md.team = '8s'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				// Team-specific goals
+				case "1sGoals":
+					returnClause = `
+						WHERE md.team = '1s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "2sGoals":
+					returnClause = `
+						WHERE md.team = '2s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "3sGoals":
+					returnClause = `
+						WHERE md.team = '3s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "4sGoals":
+					returnClause = `
+						WHERE md.team = '4s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "5sGoals":
+					returnClause = `
+						WHERE md.team = '5s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "6sGoals":
+					returnClause = `
+						WHERE md.team = '6s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "7sGoals":
+					returnClause = `
+						WHERE md.team = '7s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
+					break;
+				case "8sGoals":
+					returnClause = `
+						WHERE md.team = '8s'
+						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				// Dynamic seasonal metrics - handle any season pattern
 				default:
