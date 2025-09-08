@@ -649,22 +649,96 @@ async function fetchTestData() {
     const csvText = await response.text();
     console.log('📊 CSV content length:', csvText.length);
     
-    // Simple CSV parsing (since we can't use Papa Parse in Node.js without installing it)
-    const lines = csvText.split('\n').filter(line => line.trim());
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    console.log('📊 CSV Headers:', headers);
-    const data = [];
-    
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
-      const row = {};
+    // Proper CSV parsing to handle quoted fields and commas within fields
+    function parseCSV(csvText) {
+      console.log('🔍 CSV PARSING DEBUG: Starting CSV parsing...');
+      console.log('🔍 CSV PARSING DEBUG: CSV text length:', csvText.length);
       
-      headers.forEach((header, index) => {
-        row[header] = values[index] || '';
-      });
+      const lines = csvText.split('\n').filter(line => line.trim());
+      console.log('🔍 CSV PARSING DEBUG: Total lines after filtering:', lines.length);
+      console.log('🔍 CSV PARSING DEBUG: First 3 lines:', lines.slice(0, 3));
       
-      data.push(row);
+      if (lines.length === 0) {
+        console.log('🔍 CSV PARSING DEBUG: No lines found, returning empty array');
+        return [];
+      }
+      
+      // Parse headers
+      console.log('🔍 CSV PARSING DEBUG: Parsing header line...');
+      const headers = parseCSVLine(lines[0]);
+      console.log('🔍 CSV PARSING DEBUG: Parsed headers:', headers);
+      console.log('🔍 CSV PARSING DEBUG: Header count:', headers.length);
+      
+      const data = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        console.log(`🔍 CSV PARSING DEBUG: Parsing line ${i}...`);
+        const values = parseCSVLine(lines[i]);
+        console.log(`🔍 CSV PARSING DEBUG: Line ${i} values:`, values);
+        console.log(`🔍 CSV PARSING DEBUG: Line ${i} value count:`, values.length);
+        
+        const row = {};
+        
+        headers.forEach((header, index) => {
+          const value = values[index] || '';
+          row[header] = value;
+          if (i <= 3) { // Log first 3 rows for debugging
+            console.log(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
+          }
+        });
+        
+        data.push(row);
+        
+        if (i <= 3) { // Log first 3 complete rows
+          console.log(`🔍 CSV PARSING DEBUG: Complete row ${i}:`, row);
+        }
+      }
+      
+      console.log('🔍 CSV PARSING DEBUG: Total parsed rows:', data.length);
+      console.log('🔍 CSV PARSING DEBUG: First row keys:', Object.keys(data[0] || {}));
+      
+      return data;
     }
+    
+    function parseCSVLine(line) {
+      console.log(`🔍 CSV LINE DEBUG: Parsing line: "${line}"`);
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            // Escaped quote
+            current += '"';
+            i++; // Skip next quote
+            console.log(`🔍 CSV LINE DEBUG: Found escaped quote at position ${i}`);
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+            console.log(`🔍 CSV LINE DEBUG: Toggle quotes at position ${i}, inQuotes: ${inQuotes}`);
+          }
+        } else if (char === ',' && !inQuotes) {
+          // Field separator
+          result.push(current.trim());
+          console.log(`🔍 CSV LINE DEBUG: Field separator at position ${i}, added field: "${current.trim()}"`);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      
+      // Add the last field
+      result.push(current.trim());
+      console.log(`🔍 CSV LINE DEBUG: Final field: "${current.trim()}"`);
+      console.log(`🔍 CSV LINE DEBUG: Parsed result:`, result);
+      
+      return result;
+    }
+    
+    const data = parseCSV(csvText);
     
     console.log(`📊 Parsed ${data.length} players from CSV`);
     return data;
@@ -692,6 +766,13 @@ async function runTestsProgrammatically() {
     
     console.log(`📊 Using test data for ${testPlayers.length} players:`, testPlayers.map(p => p['PLAYER NAME']));
     console.log('📊 First player data:', testPlayers[0]);
+    console.log('📊 First player data keys:', Object.keys(testPlayers[0] || {}));
+    console.log('📊 First player team-specific data:');
+    console.log('  - 1sApps:', testPlayers[0]['1sApps']);
+    console.log('  - 2sApps:', testPlayers[0]['2sApps']);
+    console.log('  - 3sApps:', testPlayers[0]['3sApps']);
+    console.log('  - 1sGoals:', testPlayers[0]['1sGoals']);
+    console.log('  - 2sGoals:', testPlayers[0]['2sGoals']);
     
     const results = {
       totalTests: 0,
@@ -763,21 +844,32 @@ async function runTestsProgrammatically() {
           } catch (error) {
             console.warn(`Failed to get real data for ${playerName} - ${statKey}:`, error.message);
             // Fallback to test data from CSV
-            if (player[statConfig.key] !== undefined) {
+            console.log(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
+            console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
+            
+            if (player[statConfig.key] !== undefined && player[statConfig.key] !== '') {
               expectedValue = player[statConfig.key];
               chatbotAnswer = `${playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
+              console.log(`✅ Found CSV data for ${statKey}: ${expectedValue}`);
             } else {
               expectedValue = 'N/A';
               chatbotAnswer = 'Empty response or error';
+              console.log(`❌ No CSV data found for ${statKey}`);
             }
           }
           
           // Determine if test passed based on whether we got a valid response
+          // CRITICAL: Test must fail if any of these conditions are true:
+          // 1. No chatbot answer or error response
+          // 2. Cypher query is N/A (no query was generated)
+          // 3. TBL_TestData value is N/A (no expected data available)
           const passed = chatbotAnswer && 
                         chatbotAnswer !== 'Empty response or error' && 
                         chatbotAnswer !== 'N/A' &&
                         !chatbotAnswer.includes('error') &&
-                        !chatbotAnswer.includes('Error');
+                        !chatbotAnswer.includes('Error') &&
+                        cypherQuery !== 'N/A' &&
+                        expectedValue !== 'N/A';
           
           // Log detailed information for failing tests
           if (!passed) {

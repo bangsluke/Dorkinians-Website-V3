@@ -218,3 +218,30 @@
   - Use grep/search tools to identify specific failure points
   - Create targeted fixes based on evidence rather than assumptions
 - **Example**: Analyze test failure logs to identify "No Cypher Query" pattern before creating debug scripts
+
+### Data Pipeline Verification Protocol
+- **Rule**: Before fixing data processing issues, always verify the complete pipeline from source to usage
+- **Rationale**: Data processing failures can occur at any stage (parsing, access, transformation, usage) and fixing the wrong stage wastes time
+- **Implementation**:
+  - Trace data flow: source → parsing → access → usage
+  - Verify each stage independently before implementing fixes
+  - Use concrete data inspection rather than assumptions about data structure
+- **Example**: CSV parsing issue → verify actual CSV headers, then parsing logic, then data access patterns
+
+### Log-First Debugging Strategy
+- **Rule**: Implement comprehensive logging before attempting fixes, then analyze logs to identify root causes
+- **Rationale**: Logs provide concrete evidence of actual execution flow, enabling precise problem identification
+- **Implementation**:
+  - Add detailed logging at each stage of data processing
+  - Analyze log outputs to identify where the process breaks down
+  - Use log evidence to guide targeted fixes rather than theoretical solutions
+- **Example**: Add CSV parsing logs, data access logs, and test execution logs to trace the complete flow
+
+### User Instruction Adherence Protocol
+- **Rule**: When users provide specific debugging methodologies, follow them exactly rather than implementing alternative approaches
+- **Rationale**: Users often have domain knowledge about the most effective debugging approaches for their specific systems
+- **Implementation**:
+  - Follow user-specified debugging steps precisely
+  - Implement user-requested logging and analysis approaches
+  - Avoid substituting alternative methods without user approval
+- **Example**: User requests "use the generated log files to debug" → implement comprehensive logging and analyze logs rather than creating new debug scripts
