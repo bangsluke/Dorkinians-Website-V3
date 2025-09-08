@@ -112,3 +112,5 @@ example-data/CSV-examples/
 
 # Log Files
 logs/
+logs/test-chatbot-email-report.log
+logs/test-execution.log
