@@ -18,6 +18,53 @@ const nodemailer = require('nodemailer');
 // Load environment variables
 require('dotenv').config();
 
+// Set up console logging to file
+const logDir = path.join(__dirname, '..', 'logs');
+if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+}
+
+const logFile = path.join(logDir, 'test-execution.log');
+const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+
+// Override console methods to write to both console and file
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+console.log = (...args) => {
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    originalConsoleLog(...args);
+    logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
+};
+
+console.error = (...args) => {
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    originalConsoleError(...args);
+    logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
+};
+
+console.warn = (...args) => {
+    const message = args.map(arg => typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)).join(' ');
+    originalConsoleWarn(...args);
+    logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
+};
+
+// Clean up function
+process.on('exit', () => {
+    logStream.end();
+});
+
+process.on('SIGINT', () => {
+    logStream.end();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    logStream.end();
+    process.exit(0);
+});
+
 // Register ts-node to handle TypeScript imports
 require('ts-node').register({
   transpileOnly: true,
@@ -605,6 +652,7 @@ async function fetchTestData() {
     // Simple CSV parsing (since we can't use Papa Parse in Node.js without installing it)
     const lines = csvText.split('\n').filter(line => line.trim());
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    console.log('📊 CSV Headers:', headers);
     const data = [];
     
     for (let i = 1; i < lines.length; i++) {
@@ -643,6 +691,7 @@ async function runTestsProgrammatically() {
     const testPlayers = testData.slice(0, 3); // Use first 3 players for testing
     
     console.log(`📊 Using test data for ${testPlayers.length} players:`, testPlayers.map(p => p['PLAYER NAME']));
+    console.log('📊 First player data:', testPlayers[0]);
     
     const results = {
       totalTests: 0,
@@ -666,7 +715,7 @@ async function runTestsProgrammatically() {
           const question = questionTemplate.replace('{playerName}', playerName);
           
           // Get expected value from real database via API
-          let expectedValue, chatbotAnswer;
+          let expectedValue, chatbotAnswer, cypherQuery;
           
           try {
             // Try to use the chatbot service directly first
@@ -729,6 +778,18 @@ async function runTestsProgrammatically() {
                         chatbotAnswer !== 'N/A' &&
                         !chatbotAnswer.includes('error') &&
                         !chatbotAnswer.includes('Error');
+          
+          // Log detailed information for failing tests
+          if (!passed) {
+            console.log(`❌ FAILED TEST DETAILS:`);
+            console.log(`   Player: ${playerName}`);
+            console.log(`   Stat: ${statKey}`);
+            console.log(`   Question: ${question}`);
+            console.log(`   Expected: ${expectedValue}`);
+            console.log(`   Received: ${chatbotAnswer}`);
+            console.log(`   Cypher Query: ${cypherQuery}`);
+            console.log(`   Passed: ${passed}`);
+          }
           
           if (passed) {
             results.passedTests++;
@@ -1062,6 +1123,7 @@ function writeTestResultsToLog(testResults) {
 
 async function main() {
   console.log('🚀 Starting comprehensive chatbot test with email report...');
+  console.log(`📝 Console output will be logged to: ${logFile}`);
   
   // Check if server is running first
   console.log('🔍 Checking if development server is running...');

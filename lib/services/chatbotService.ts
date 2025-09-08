@@ -1,4 +1,4 @@
-import { neo4jService } from "../neo4j";
+import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
 import { statObject } from "../../config/config";
 import * as natural from 'natural';
@@ -140,10 +140,15 @@ export class ChatbotService {
 			return response;
 		} catch (error) {
 			this.logToBoth("❌ Error processing question:", error, 'error');
+			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
+			this.logToBoth("❌ Question that failed:", question, 'error');
+			this.logToBoth("❌ User context:", userContext, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				sources: [],
 				cypherQuery: 'N/A',
+				error: error instanceof Error ? error.message : String(error),
+				errorStack: error instanceof Error ? error.stack : undefined
 			};
 		}
 	}
@@ -855,7 +860,9 @@ export class ChatbotService {
 			let returnClause = "";
 			switch (metric) {
 				case "APP":
+					this.logToBoth("🔍 APP metric detected - constructing return clause", 'info');
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					this.logToBoth("🔍 APP return clause constructed:", returnClause, 'info');
 					break;
 				case "MIN":
 					returnClause =
@@ -1085,6 +1092,12 @@ export class ChatbotService {
 
 			query += " " + returnClause;
 			this.logToBoth(`🔍 Final Cypher query: ${query}`);
+			
+			// Special logging for APP metric
+			if (metric === "APP") {
+				this.logToBoth("🔍 APP metric - About to execute query", 'info');
+				this.logToBoth("🔍 APP metric - Query string:", query, 'info');
+			}
 
 			try {
 				// Create case-insensitive name variations for matching
@@ -1092,12 +1105,23 @@ export class ChatbotService {
 				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
 
 				this.logToBoth(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
+				
+				// Special logging for APP metric
+				if (metric === "APP") {
+					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", 'info');
+				}
 
 				const result = await neo4jService.executeQuery(query, {
 					playerName,
 					playerNameLower,
 					playerNameHyphen,
 				});
+				
+				// Special logging for APP metric
+				if (metric === "APP") {
+					this.logToBoth("🔍 APP metric - Query executed successfully", 'info');
+					this.logToBoth("🔍 APP metric - Result:", result, 'info');
+				}
 
 				this.logToBoth(`🔍 Player query result for ${playerName}:`, result);
 				this.logToBoth(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : "not array"}`);
@@ -1165,13 +1189,19 @@ export class ChatbotService {
 				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth("❌ Error querying specific player data:", error, 'error');
+				this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
+				this.logToBoth("❌ Failed query:", query, 'error');
+				this.logToBoth("❌ Failed metric:", metric, 'error');
+				this.logToBoth("❌ Failed player:", playerName, 'error');
 				return { 
 					type: "error", 
 					data: [], 
 					playerName, 
 					metric, 
 					cypherQuery: 'N/A',
-					error: error.message 
+					error: error instanceof Error ? error.message : String(error),
+					errorStack: error instanceof Error ? error.stack : undefined,
+					failedQuery: query
 				};
 			}
 		}
@@ -1301,7 +1331,7 @@ export class ChatbotService {
 			}
 		} catch (error: any) {
 			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
-			return { type: "error", data: [], teamName, metric, error: error.message };
+			return { type: "error", data: [], teamName, metric, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 
@@ -1739,8 +1769,15 @@ export class ChatbotService {
 						answer = `${playerName} has not taken any penalties yet.`;
 					}
 				} else {
+					// Convert Neo4j Integer to JavaScript number if needed
+					let numericValue = value;
+					if (value && typeof value === 'object' && value.low !== undefined) {
+						// This is a Neo4j Integer object
+						numericValue = value.low;
+					}
+					
 					// Round values based on statObject configuration
-					let roundedValue = value;
+					let roundedValue = numericValue;
 					
 					// Get stat configuration for this metric
 					const statConfig = statObject[metric as keyof typeof statObject];
@@ -1749,14 +1786,14 @@ export class ChatbotService {
 						if (statConfig.statFormat === "Integer") {
 							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
 							const multiplier = Math.pow(10, decimalPlaces);
-							roundedValue = Math.round(value * multiplier) / multiplier;
+							roundedValue = Math.round(numericValue * multiplier) / multiplier;
 						}
 						// For other formats, keep existing logic or add as needed
 						else if (statConfig.statFormat === "Decimal2") {
-							roundedValue = Math.round(value * 100) / 100; // Round to 2 decimal places
+							roundedValue = Math.round(numericValue * 100) / 100; // Round to 2 decimal places
 						}
 						else if (statConfig.statFormat === "Decimal1") {
-							roundedValue = Math.round(value * 10) / 10; // Round to 1 decimal place
+							roundedValue = Math.round(numericValue * 10) / 10; // Round to 1 decimal place
 						}
 					}
 					

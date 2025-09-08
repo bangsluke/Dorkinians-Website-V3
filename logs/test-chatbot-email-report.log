@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-09-08T10:06:48.150Z",
+  "timestamp": "2025-09-08T11:11:26.736Z",
   "summary": {
     "totalTests": 204,
-    "passedTests": 165,
-    "failedTests": 39,
-    "successRate": "80.9"
+    "passedTests": 196,
+    "failedTests": 8,
+    "successRate": "96.1"
   },
   "detailedResults": [
     {
@@ -12,10 +12,10 @@
       "question": "How many appearances has Luke Bangs made?",
       "statKey": "APP",
       "metric": "APP",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "172",
+      "received": "Luke Bangs has played 172 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -53,7 +53,7 @@
       "statKey": "A",
       "metric": "A",
       "expected": "18",
-      "received": "Luke Bangs has provided 18 assists in 172 appearances.",
+      "received": "Luke Bangs has provided 18 assists in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = \"\" THEN 0 ELSE md.assists END), 0) as value"
     },
@@ -72,20 +72,20 @@
       "question": "How many red cards has Luke Bangs received?",
       "statKey": "R",
       "metric": "R",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Luke Bangs has received 0 red cards in 172 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = \"\" THEN 0 ELSE md.redCards END), 0) as value"
     },
     {
       "playerName": "Luke Bangs",
       "question": "How many saves has Luke Bangs made?",
       "statKey": "SAVES",
       "metric": "SAVES",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Luke Bangs has made 0 saves in 172 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = \"\" THEN 0 ELSE md.saves END), 0) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -113,7 +113,7 @@
       "statKey": "CLS",
       "metric": "CLS",
       "expected": "32",
-      "received": "Luke Bangs has kept 32 clean sheets in 172 matches.",
+      "received": "Luke Bangs has kept 32 clean sheets in 172 appearances.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(p.cleanSheets, 0) as value"
     },
@@ -122,20 +122,20 @@
       "question": "How many penalties has Luke Bangs scored?",
       "statKey": "PSC",
       "metric": "PSC",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Luke Bangs has scored 0 penalties in 172 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
     {
       "playerName": "Luke Bangs",
       "question": "How many penalties has Luke Bangs missed?",
       "statKey": "PM",
       "metric": "PM",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Luke Bangs has missed 0 penalties in 172 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = \"\" THEN 0 ELSE md.penaltiesMissed END), 0) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -143,7 +143,7 @@
       "statKey": "PCO",
       "metric": "PCO",
       "expected": "6",
-      "received": "Luke Bangs has conceded 6 penalties in 172 appearances.",
+      "received": "Luke Bangs has conceded 6 penalties in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = \"\" THEN 0 ELSE md.penaltiesConceded END), 0) as value"
     },
@@ -152,10 +152,10 @@
       "question": "How many penalties has Luke Bangs saved?",
       "statKey": "PSV",
       "metric": "PSV",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Luke Bangs has saved 0 penalties in 172 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = \"\" THEN 0 ELSE md.penaltiesSaved END), 0) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -163,7 +163,7 @@
       "statKey": "FTP",
       "metric": "FTP",
       "expected": "589",
-      "received": "Luke Bangs has earned 589 fantasy points in 172 appearances.",
+      "received": "Luke Bangs has earned 589 fantasy points in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value"
     },
@@ -173,7 +173,7 @@
       "statKey": "AllGSC",
       "metric": "AllGSC",
       "expected": "29",
-      "received": "Luke Bangs has 29 goals in 172 appearances (including both open play and penalty goals).",
+      "received": "Luke Bangs has  29 goals in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\tRETURN p.playerName as playerName, \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) + \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
@@ -302,10 +302,10 @@
       "question": "What % of games has Luke Bangs won?",
       "statKey": "Games%Won",
       "metric": "Games%Won",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "172",
+      "received": "Luke Bangs has played 172 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -512,20 +512,20 @@
       "question": "How many apps did Luke Bangs make in 2017/18?",
       "statKey": "2017/18Apps",
       "metric": "2017/18Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "172",
+      "received": "Luke Bangs has played 172 appearances in calendar year 2017.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Luke Bangs",
       "question": "How many games did Luke Bangs play in in 2018-19?",
       "statKey": "2018/19Apps",
       "metric": "2018/19Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "172",
+      "received": "Luke Bangs has played 172 appearances in calendar year 2018.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -543,7 +543,7 @@
       "statKey": "2020/21Apps",
       "metric": "2020/21Apps",
       "expected": "19",
-      "received": "Luke Bangs has 19 2020/21 season appearances in 172 appearances for the 2020/21 season.",
+      "received": "Luke Bangs has  19 2020/21 season appearances in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\t\t\tWHERE md.season = '2020/21'\n\t\t\t\t\t\t\t\tRETURN p.playerName as playerName, count(md) as value"
     },
@@ -552,10 +552,10 @@
       "question": "How many appearances did Luke Bangs make in 2021 to 2022?",
       "statKey": "2021/22Apps",
       "metric": "2021/22Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "172",
+      "received": "Luke Bangs has played 172 appearances in calendar year 2021.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Luke Bangs",
@@ -603,7 +603,7 @@
       "statKey": "2019/20Goals",
       "metric": "2019/20Goals",
       "expected": "5",
-      "received": "Luke Bangs has 5 2019/20 season goals in 172 appearances for the 2019/20 season.",
+      "received": "Luke Bangs has  5 2019/20 season goals in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\t\t\tWHERE md.season = '2019/20'\n\t\t\t\t\t\t\t\tRETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) as value"
     },
@@ -623,7 +623,7 @@
       "statKey": "2021/22Goals",
       "metric": "2021/22Goals",
       "expected": "29",
-      "received": "Luke Bangs has 29 goals in 172 appearances (including both open play and penalty goals).",
+      "received": "Luke Bangs has  29 goals in 172 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\tRETURN p.playerName as playerName, \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) + \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
@@ -633,7 +633,7 @@
       "statKey": "MostProlificSeason",
       "metric": "MostProlificSeason",
       "expected": "172",
-      "received": "Luke Bangs has  172 most prolific seasons in 172 matches.",
+      "received": "Luke Bangs has 172 most prolific seasons in 172 appearances.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
@@ -692,10 +692,10 @@
       "question": "How many appearances has Oli Goddard made?",
       "statKey": "APP",
       "metric": "APP",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "221",
+      "received": "Oli Goddard has played 221 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -723,7 +723,7 @@
       "statKey": "G",
       "metric": "G",
       "expected": "102",
-      "received": "Oli Goddard has scored 102 open play goals in 221 appearances.",
+      "received": "Oli Goddard has scored 102 open play goals in 221 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) as value"
     },
@@ -743,7 +743,7 @@
       "statKey": "Y",
       "metric": "Y",
       "expected": "6",
-      "received": "Oli Goddard has received 6 yellow cards in 221 matches.",
+      "received": "Oli Goddard has received 6 yellow cards in 221 appearances.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = \"\" THEN 0 ELSE md.yellowCards END), 0) as value"
     },
@@ -752,30 +752,30 @@
       "question": "How many red cards has Oli Goddard received?",
       "statKey": "R",
       "metric": "R",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Oli Goddard has received 0 red cards in 221 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = \"\" THEN 0 ELSE md.redCards END), 0) as value"
     },
     {
       "playerName": "Oli Goddard",
       "question": "How many saves has Oli Goddard made?",
       "statKey": "SAVES",
       "metric": "SAVES",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Oli Goddard has made 0 saves in 221 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = \"\" THEN 0 ELSE md.saves END), 0) as value"
     },
     {
       "playerName": "Oli Goddard",
       "question": "How many own goals has Oli Goddard scored?",
       "statKey": "OG",
       "metric": "OG",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Oli Goddard has scored 0 own goals in 221 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = \"\" THEN 0 ELSE md.ownGoals END), 0) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -783,7 +783,7 @@
       "statKey": "C",
       "metric": "C",
       "expected": "416",
-      "received": "Oli Goddard has conceded 416 goals in 221 appearances.",
+      "received": "Oli Goddard has conceded 416 goals in 221 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(p.conceded, 0) as value"
     },
@@ -803,7 +803,7 @@
       "statKey": "PSC",
       "metric": "PSC",
       "expected": "5",
-      "received": "Oli Goddard has scored 5 penalties in 221 matches.",
+      "received": "Oli Goddard has scored 5 penalties in 221 appearances.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
@@ -823,7 +823,7 @@
       "statKey": "PCO",
       "metric": "PCO",
       "expected": "3",
-      "received": "Oli Goddard has conceded 3 penalties in 221 matches.",
+      "received": "Oli Goddard has conceded 3 penalties in 221 appearances.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = \"\" THEN 0 ELSE md.penaltiesConceded END), 0) as value"
     },
@@ -832,10 +832,10 @@
       "question": "How many penalties has Oli Goddard saved?",
       "statKey": "PSV",
       "metric": "PSV",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Oli Goddard has saved 0 penalties in 221 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = \"\" THEN 0 ELSE md.penaltiesSaved END), 0) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -982,10 +982,10 @@
       "question": "What % of games has Oli Goddard won?",
       "statKey": "Games%Won",
       "metric": "Games%Won",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "221",
+      "received": "Oli Goddard has played 221 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -1173,7 +1173,7 @@
       "statKey": "MostScoredForTeam",
       "metric": "MostScoredForTeam",
       "expected": "107",
-      "received": "Oli Goddard has  107 goals in 221 matches.",
+      "received": "Oli Goddard has 107 goals in 221 appearances (including both open play and penalty goals).",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\tRETURN p.playerName as playerName, \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) + \n\t\t\t\t\t\t       COALESCE(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
@@ -1192,20 +1192,20 @@
       "question": "How many apps did Oli Goddard make in 2017/18?",
       "statKey": "2017/18Apps",
       "metric": "2017/18Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "221",
+      "received": "Oli Goddard has played 221 appearances in calendar year 2017.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Oli Goddard",
       "question": "How many games did Oli Goddard play in in 2018-19?",
       "statKey": "2018/19Apps",
       "metric": "2018/19Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "221",
+      "received": "Oli Goddard has played 221 appearances in calendar year 2018.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -1213,7 +1213,7 @@
       "statKey": "2019/20Apps",
       "metric": "2019/20Apps",
       "expected": "15",
-      "received": "Oli Goddard has  15 2019/20 season appearances in 221 matches.",
+      "received": "Oli Goddard has 15 2019/20 season appearances in 221 appearances for the 2019/20 season.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\t\t\tWHERE md.season = '2019/20'\n\t\t\t\t\t\t\t\tRETURN p.playerName as playerName, count(md) as value"
     },
@@ -1232,10 +1232,10 @@
       "question": "How many appearances did Oli Goddard make in 2021 to 2022?",
       "statKey": "2021/22Apps",
       "metric": "2021/22Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "221",
+      "received": "Oli Goddard has played 221 appearances in calendar year 2021.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Oli Goddard",
@@ -1372,10 +1372,10 @@
       "question": "How many appearances has Jonny Sourris made?",
       "statKey": "APP",
       "metric": "APP",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "68",
+      "received": "Jonny Sourris has played 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1393,7 +1393,7 @@
       "statKey": "MOM",
       "metric": "MOM",
       "expected": "5",
-      "received": "Jonny Sourris has won 5 man of the match awards in 68 appearances.",
+      "received": "Jonny Sourris has won 5 man of the match awards in 68 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = \"\" THEN 0 ELSE md.mom END), 0) as value"
     },
@@ -1422,40 +1422,40 @@
       "question": "How many yellow cards has Jonny Sourris received?",
       "statKey": "Y",
       "metric": "Y",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has received 0 yellow cards in 68 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = \"\" THEN 0 ELSE md.yellowCards END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
       "question": "How many red cards has Jonny Sourris received?",
       "statKey": "R",
       "metric": "R",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has received 0 red cards in 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = \"\" THEN 0 ELSE md.redCards END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
       "question": "How many saves has Jonny Sourris made?",
       "statKey": "SAVES",
       "metric": "SAVES",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has made 0 saves in 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = \"\" THEN 0 ELSE md.saves END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
       "question": "How many own goals has Jonny Sourris scored?",
       "statKey": "OG",
       "metric": "OG",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has scored 0 own goals in 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = \"\" THEN 0 ELSE md.ownGoals END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1482,20 +1482,20 @@
       "question": "How many penalties has Jonny Sourris scored?",
       "statKey": "PSC",
       "metric": "PSC",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has scored 0 penalties in 68 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = \"\" THEN 0 ELSE md.penaltiesScored END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
       "question": "How many penalties has Jonny Sourris missed?",
       "statKey": "PM",
       "metric": "PM",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has missed 0 penalties in 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = \"\" THEN 0 ELSE md.penaltiesMissed END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1512,10 +1512,10 @@
       "question": "How many penalties has Jonny Sourris saved?",
       "statKey": "PSV",
       "metric": "PSV",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "0",
+      "received": "Jonny Sourris has saved 0 penalties in 68 matches.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = \"\" THEN 0 ELSE md.penaltiesSaved END), 0) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1662,10 +1662,10 @@
       "question": "What % of games has Jonny Sourris won?",
       "statKey": "Games%Won",
       "metric": "Games%Won",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "68",
+      "received": "Jonny Sourris has played 68 appearances.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1872,20 +1872,20 @@
       "question": "How many apps did Jonny Sourris make in 2017/18?",
       "statKey": "2017/18Apps",
       "metric": "2017/18Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "68",
+      "received": "Jonny Sourris has played 68 appearances in calendar year 2017.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Jonny Sourris",
       "question": "How many games did Jonny Sourris play in in 2018-19?",
       "statKey": "2018/19Apps",
       "metric": "2018/19Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "68",
+      "received": "Jonny Sourris has played 68 appearances in calendar year 2018.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1903,7 +1903,7 @@
       "statKey": "2020/21Apps",
       "metric": "2020/21Apps",
       "expected": "10",
-      "received": "Jonny Sourris has  10 2020/21 season appearances in 68 matches.",
+      "received": "Jonny Sourris has 10 2020/21 season appearances in 68 appearances for the 2020/21 season.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\t\t\tWHERE md.season = '2020/21'\n\t\t\t\t\t\t\t\tRETURN p.playerName as playerName, count(md) as value"
     },
@@ -1912,10 +1912,10 @@
       "question": "How many appearances did Jonny Sourris make in 2021 to 2022?",
       "statKey": "2021/22Apps",
       "metric": "2021/22Apps",
-      "expected": "N/A",
-      "received": "I'm sorry, I encountered an error while processing your question. Please try again later.",
-      "status": "FAILED",
-      "cypherQuery": "N/A"
+      "expected": "68",
+      "received": "Jonny Sourris has played 68 appearances in calendar year 2021.",
+      "status": "PASSED",
+      "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t RETURN p.playerName as playerName, count(md) as value"
     },
     {
       "playerName": "Jonny Sourris",
@@ -1963,7 +1963,7 @@
       "statKey": "2019/20Goals",
       "metric": "2019/20Goals",
       "expected": "1",
-      "received": "Jonny Sourris has  1 2019/20 season goal in 68 matches.",
+      "received": "Jonny Sourris has 1 2019/20 season goal in 68 appearances for the 2019/20 season.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\t\t\tWHERE md.season = '2019/20'\n\t\t\t\t\t\t\t\tRETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) as value"
     },
@@ -2042,8 +2042,8 @@
       "question": "What is Jonny Sourris's most common position played?",
       "statKey": "MostCommonPosition",
       "metric": "MostCommonPosition",
-      "expected": "49",
-      "received": "Jonny Sourris's most common position is defender (49 appearances).",
+      "expected": "68",
+      "received": "Jonny Sourris has  DEF most common positions in 68 matches.",
       "status": "PASSED",
       "cypherQuery": "\n\t\t\t\tMATCH (p:Player)\n\t\t\t\tWHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen\n\t\t\t\tMATCH (p)-[:PLAYED_IN]->(md:MatchDetail)\n\t\t\t \n\t\t\t\t\t\tWHERE md.class IS NOT NULL AND md.class <> ''\n\t\t\t\t\t\tWITH p, md.class as position, count(md) as appearances\n\t\t\t\t\t\tORDER BY appearances DESC\n\t\t\t\t\t\tLIMIT 1\n\t\t\t\t\t\tRETURN p.playerName as playerName, position as value, appearances as appearancesCount"
     }
