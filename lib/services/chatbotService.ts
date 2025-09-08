@@ -1036,6 +1036,39 @@ export class ChatbotService {
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)-[:PART_OF]->(m:Match)-[:PLAYED_BY]->(t:Team)
 						RETURN p.playerName as playerName, count(DISTINCT t.teamName) as value`;
 					break;
+				case "GK":
+					// Goalkeeper appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'GK'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "DEF":
+					// Defender appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'DEF'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "MID":
+					// Midfielder appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'MID'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "FWD":
+					// Forward appearances - filter by position (class field)
+					returnClause = `
+						WHERE md.class = 'FWD'
+						RETURN p.playerName as playerName, count(md) as value`;
+					break;
+				case "MostCommonPosition":
+					// Find the most common position played by this player (class field)
+					returnClause = `
+						WHERE md.class IS NOT NULL AND md.class <> ''
+						WITH p, md.class as position, count(md) as appearances
+						ORDER BY appearances DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, position as value, appearances as appearancesCount`;
+					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 			}
@@ -1609,10 +1642,41 @@ export class ChatbotService {
 			// Check if this is a no-context case
 			if (data && data.type === "no_context") {
 				answer = "I don't know who you're asking about. Please select a player from the dropdown or specify a player name in your question.";
-			} else if (data && data.type === "specific_player" && data.data && data.data.length > 0) {
-				const playerData = data.data[0];
+			} else if (data && data.type === "specific_player" && data.data) {
+				// Handle position-specific metrics that might return 0 results
 				const playerName = data.playerName;
 				const metric = data.metric;
+				
+				// Special handling for position-specific metrics (GK, DEF, MID, FWD)
+				if (metric === "GK" || metric === "DEF" || metric === "MID" || metric === "FWD") {
+					const value = data.data.length > 0 ? data.data[0].value : 0;
+					
+					// Convert position code to full name
+					const positionNames = {
+						'GK': 'goalkeeper',
+						'DEF': 'defender', 
+						'MID': 'midfielder',
+						'FWD': 'forward'
+					};
+					const positionName = positionNames[metric as keyof typeof positionNames] || metric;
+					
+					// Generate appropriate response for position-specific appearances
+					if (value === 0) {
+						answer = `${playerName} has 0 ${positionName} appearances.`;
+					} else {
+						answer = `${playerName} has ${value} ${positionName} appearance${value !== 1 ? 's' : ''}.`;
+					}
+					
+					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+				}
+				
+				// For other metrics, require data to be present
+				if (data.data.length === 0) {
+					answer = "I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
+					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+				}
+				
+				const playerData = data.data[0];
 				const value = playerData.value;
 
 				// Get appearances for context (excluding appearances themselves)
@@ -1788,6 +1852,25 @@ export class ChatbotService {
 						} else {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
+					}
+				} else if (metric === "MostCommonPosition") {
+					// For "What is player's most common position played?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("most common position")) {
+						// Use the actual query results from Cypher
+						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
+						const appearancesCount = playerData.appearancesCount || 0;
+						
+						// Convert position code to full name
+						const positionNames = {
+							'GK': 'goalkeeper',
+							'DEF': 'defender', 
+							'MID': 'midfielder',
+							'FWD': 'forward'
+						};
+						const positionName = positionNames[position as keyof typeof positionNames] || position;
+						
+						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
 					}
 				}
 				

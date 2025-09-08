@@ -1030,6 +1030,36 @@ async function sendEmailReport(testResults) {
   }
 }
 
+function writeTestResultsToLog(testResults) {
+  try {
+    const logContent = {
+      timestamp: new Date().toISOString(),
+      summary: {
+        totalTests: testResults.totalTests,
+        passedTests: testResults.passedTests,
+        failedTests: testResults.failedTests,
+        successRate: testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0
+      },
+      detailedResults: testResults.testDetails.map(test => ({
+        playerName: test.playerName,
+        question: test.question,
+        statKey: test.statKey,
+        metric: test.metric,
+        expected: test.expected,
+        received: test.received,
+        status: test.status,
+        cypherQuery: test.cypherQuery
+      }))
+    };
+    
+    const logFile = path.join(__dirname, '..', 'logs', 'test-chatbot-email-report.log');
+    fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
+    console.log(`📝 Test results written to: ${logFile}`);
+  } catch (error) {
+    console.error('❌ Failed to write test results to log:', error.message);
+  }
+}
+
 async function main() {
   console.log('🚀 Starting comprehensive chatbot test with email report...');
   
@@ -1057,6 +1087,11 @@ async function main() {
     console.log(`Passed: ${programmaticResult.results.passedTests}`);
     console.log(`Failed: ${programmaticResult.results.failedTests}`);
     console.log(`Success Rate: ${programmaticResult.results.totalTests > 0 ? ((programmaticResult.results.passedTests / programmaticResult.results.totalTests) * 100).toFixed(1) : 0}%`);
+    
+    // Write detailed test results to log file for analysis
+    console.log('📝 Writing detailed test results to log file...');
+    writeTestResultsToLog(programmaticResult.results);
+    console.log('✅ Test results written to test-results.log');
     
     await sendEmailReport(programmaticResult.results);
     finalResults = programmaticResult.results;
