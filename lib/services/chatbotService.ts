@@ -1600,6 +1600,7 @@ export class ChatbotService {
 				answer,
 				sources: [], // Always hide technical sources
 				visualization,
+				cypherQuery: data?.cypherQuery,
 			};
 		}
 
@@ -1692,7 +1693,7 @@ export class ChatbotService {
 						// Special handling for MperG - handle case where player hasn't scored
 						if (roundedValue === 0) {
 							answer = `${playerName} hasn't scored any goals yet, so we can't calculate minutes per goal.`;
-							return { answer, sources: [], visualization };
+							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 						} else {
 							template = getResponseTemplate('player_stats', 'Minutes per goal');
 						}
@@ -1724,7 +1725,7 @@ export class ChatbotService {
 						if (useMatches) {
 							// Use a custom template with "matches" instead of "appearances"
 							answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName} in ${appearancesCount} matches.`;
-							return { answer, sources: [], visualization };
+							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 						} else {
 							template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
 						}

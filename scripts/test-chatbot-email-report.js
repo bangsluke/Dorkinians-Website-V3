@@ -19,7 +19,17 @@ const nodemailer = require('nodemailer');
 require('dotenv').config();
 
 // Register ts-node to handle TypeScript imports
-require('ts-node/register');
+require('ts-node').register({
+  transpileOnly: true,
+  compilerOptions: {
+    module: 'commonjs',
+    target: 'es2020',
+    esModuleInterop: true,
+    allowSyntheticDefaultImports: true,
+    skipLibCheck: true,
+    moduleResolution: 'node'
+  }
+});
 
 // Define comprehensive STAT_TEST_CONFIGS for testing
 const STAT_TEST_CONFIGS = [
@@ -515,8 +525,8 @@ let ChatbotService = null;
 async function loadChatbotService() {
   if (!ChatbotService) {
     try {
-      // Dynamic import for TypeScript module (using ts-node)
-      const chatbotModule = await import('../lib/services/chatbotService.ts');
+      // Use require instead of dynamic import for ts-node compatibility
+      const chatbotModule = require('../lib/services/chatbotService.ts');
       ChatbotService = chatbotModule.ChatbotService;
       console.log('✅ ChatbotService loaded successfully');
     } catch (error) {
@@ -668,35 +678,37 @@ async function runTestsProgrammatically() {
                 userContext: playerName
               });
               chatbotAnswer = response.answer || 'Empty response or error';
+              cypherQuery = response.cypherQuery || 'N/A';
               
               // Extract expected value from the response
               const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
               expectedValue = match ? match[1] : 'N/A';
               
               console.log(`✅ Chatbot response: ${chatbotAnswer}`);
+              console.log(`🔍 Cypher query: ${cypherQuery}`);
             } else {
               // Fallback to API call
               console.log(`🌐 Using API fallback for: ${question}`);
-              const response = await fetch('http://localhost:3000/api/chatbot', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  question: question,
+            const response = await fetch('http://localhost:3000/api/chatbot', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                question: question,
                   userContext: playerName
-                })
-              });
+              })
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              chatbotAnswer = data.answer || 'Empty response or error';
               
-              if (response.ok) {
-                const data = await response.json();
-                chatbotAnswer = data.answer || 'Empty response or error';
-                
-                // Extract expected value from the response
-                const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
-                expectedValue = match ? match[1] : 'N/A';
-              } else {
-                throw new Error(`API call failed: ${response.status}`);
+              // Extract expected value from the response
+              const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
+              expectedValue = match ? match[1] : 'N/A';
+            } else {
+              throw new Error(`API call failed: ${response.status}`);
               }
             }
           } catch (error) {
@@ -736,7 +748,8 @@ async function runTestsProgrammatically() {
             playerName: playerName,
             question: question,
             statKey: statKey,
-            metric: statConfig.metric
+            metric: statConfig.metric,
+            cypherQuery: cypherQuery
           });
           
         } catch (error) {
@@ -752,6 +765,7 @@ async function runTestsProgrammatically() {
             playerName: playerName,
             question: questionTemplate.replace('{playerName}', player.playerName),
             statKey: statKey,
+            cypherQuery: 'N/A',
             metric: statConfig.metric
           });
         }
@@ -790,7 +804,7 @@ function getCategoryForStat(statKey) {
 
 // Legacy Jest parsing function removed - using programmatic approach only
 async function parseTestResults(output) {
-  return {
+    return { 
     totalTests: 0,
     passedTests: 0,
     failedTests: 0,
