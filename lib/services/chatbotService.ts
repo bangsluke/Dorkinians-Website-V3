@@ -1195,32 +1195,87 @@ export class ChatbotService {
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, p.DIST, 0) as value";
 					break;
 				case "HomeGames":
-					// Home games - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGames, 0) as value";
+					// Home games - count matches where player played at home
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "AwayGames":
-					// Away games - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGames, 0) as value";
+					// Away games - count matches where player played away
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "HomeWins":
-					// Home wins - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeWins, 0) as value";
+					// Home wins - count matches where player played at home and won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home' AND f.result = 'W'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "AwayWins":
-					// Away wins - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayWins, 0) as value";
+					// Away wins - count matches where player played away and won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away' AND f.result = 'W'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "HomeGames%Won":
-					// Home games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.homeGamesPercentWon, 0) as value";
+					// Home games percentage won - calculate percentage of home games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						WITH p, count(md) as totalHomeGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as homeWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalHomeGames > 0 THEN toFloat(homeWins) / toFloat(totalHomeGames) ELSE 0.0 END as value";
 					break;
 				case "AwayGames%Won":
-					// Away games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.awayGamesPercentWon, 0) as value";
+					// Away games percentage won - calculate percentage of away games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						WITH p, count(md) as totalAwayGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalAwayGames > 0 THEN toFloat(awayWins) / toFloat(totalAwayGames) ELSE 0.0 END as value";
 					break;
 				case "Games%Won":
-					// Games percentage won - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.gamesPercentWon, 0) as value";
+					// Games percentage won - calculate percentage of all games won
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)
+						WHERE f.date = md.date
+						WITH p, count(md) as totalGames, 
+							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as totalWins
+					`;
+					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalGames > 0 THEN toFloat(totalWins) / toFloat(totalGames) ELSE 0.0 END as value";
 					break;
 				case "MostPlayedForTeam":
 					// Find the team with most appearances for this player

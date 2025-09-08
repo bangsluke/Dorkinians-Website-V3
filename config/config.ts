@@ -444,7 +444,7 @@ export const statObject = {
       statName: "homeGames",
       displayText: "Home Games", // The text displayed at all times on the page.
       shortText: "H Apps", // Used for short displays such as on the Comparison tab.
-      wordedText: "home games played", // Used for chatbot responses
+      wordedText: "home games", // Used for chatbot responses
       statFormat: "Integer",
       description: "The number of home games played by the player.",
       statHigherBetterBoolean: true,
@@ -456,7 +456,7 @@ export const statObject = {
       statName: "homeWins",
       displayText: "Home Wins", // The text displayed at all times on the page.
       shortText: "H Wins", // Used for short displays such as on the Comparison tab.
-      wordedText: "home games won", // Used for chatbot responses
+      wordedText: "home games", // Used for chatbot responses
       statFormat: "Integer",
       description: "The number of home games won by the player.",
       statHigherBetterBoolean: true,
@@ -481,7 +481,7 @@ export const statObject = {
       statName: "awayGames",
       displayText: "Away Games", // The text displayed at all times on the page.
       shortText: "A Apps", // Used for short displays such as on the Comparison tab.
-      wordedText: "away games played", // Used for chatbot responses
+      wordedText: "away games", // Used for chatbot responses
       statFormat: "Integer",
       description: "The number of away games played by the player.",
       statHigherBetterBoolean: true,
@@ -493,7 +493,7 @@ export const statObject = {
       statName: "awayWins",
       displayText: "Away Wins", // The text displayed at all times on the page.
       shortText: "A Wins", // Used for short displays such as on the Comparison tab.
-      wordedText: "away games won", // Used for chatbot responses
+      wordedText: "away games", // Used for chatbot responses
       statFormat: "Integer",
       description: "The number of away games won by the player.",
       statHigherBetterBoolean: true,
