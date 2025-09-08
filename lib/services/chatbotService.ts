@@ -141,14 +141,12 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth("❌ Error processing question:", error, 'error');
 			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
-			this.logToBoth("❌ Question that failed:", question, 'error');
-			this.logToBoth("❌ User context:", userContext, 'error');
+			this.logToBoth("❌ Question that failed:", context.question, 'error');
+			this.logToBoth("❌ User context:", context.userContext, 'error');
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				sources: [],
-				cypherQuery: 'N/A',
-				error: error instanceof Error ? error.message : String(error),
-				errorStack: error instanceof Error ? error.stack : undefined
+				cypherQuery: 'N/A'
 			};
 		}
 	}
@@ -361,7 +359,7 @@ export class ChatbotService {
 				/How many (?:apps|appearances|goals) has ([A-Za-z\s]+) (?:made|scored) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
 			);
 			if (playerNameMatch) {
-				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, 'info');
+				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, 'log');
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
@@ -568,14 +566,14 @@ export class ChatbotService {
 			}
 			// Team-specific appearances with "for the Xs" pattern
 			else if (lowerQuestion.includes("for the 1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, 'info');
+				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, 'log');
 				metrics.push("1sApps");
 			}
 			else if (lowerQuestion.includes("for the 2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, 'info');
-				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, 'info');
-				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
-				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, 'log');
+				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, 'log');
+				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'log');
+				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'log');
 				metrics.push("2sApps");
 			}
 			else if (lowerQuestion.includes("for the 3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
@@ -594,7 +592,7 @@ export class ChatbotService {
 				metrics.push("7sApps");
 			}
 			else if (lowerQuestion.includes("for the 8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, 'info');
+				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, 'log');
 				metrics.push("8sApps");
 			}
 			// Team-specific appearances with "played for the Xs" pattern
@@ -853,10 +851,10 @@ export class ChatbotService {
 
 		// Debug: Log the question and lowerQuestion for team-specific debugging
 		if (lowerQuestion.includes("for the 2s") || lowerQuestion.includes("for the 8s")) {
-			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, 'log');
+			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'log');
+			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'log');
+			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, 'log');
 		}
 
 		// Enhanced points detection with context awareness
@@ -1073,9 +1071,9 @@ export class ChatbotService {
 			let returnClause = "";
 			switch (metric) {
 				case "APP":
-					this.logToBoth("🔍 APP metric detected - constructing return clause", 'info');
+					this.logToBoth("🔍 APP metric detected - constructing return clause", 'log');
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					this.logToBoth("🔍 APP return clause constructed:", returnClause, 'info');
+					this.logToBoth("🔍 APP return clause constructed:", returnClause, 'log');
 					break;
 				case "MIN":
 					returnClause =
@@ -1445,8 +1443,8 @@ export class ChatbotService {
 			
 			// Special logging for APP metric
 			if (metric === "APP") {
-				this.logToBoth("🔍 APP metric - About to execute query", 'info');
-				this.logToBoth("🔍 APP metric - Query string:", query, 'info');
+				this.logToBoth("🔍 APP metric - About to execute query", 'log');
+				this.logToBoth("🔍 APP metric - Query string:", query, 'log');
 			}
 
 			try {
@@ -1458,7 +1456,7 @@ export class ChatbotService {
 				
 				// Special logging for APP metric
 				if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", 'info');
+					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", 'log');
 				}
 
 				const result = await neo4jService.executeQuery(query, {
@@ -1469,8 +1467,8 @@ export class ChatbotService {
 				
 				// Special logging for APP metric
 				if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - Query executed successfully", 'info');
-					this.logToBoth("🔍 APP metric - Result:", result, 'info');
+					this.logToBoth("🔍 APP metric - Query executed successfully", 'log');
+					this.logToBoth("🔍 APP metric - Result:", result, 'log');
 				}
 
 				this.logToBoth(`🔍 Player query result for ${playerName}:`, result);
