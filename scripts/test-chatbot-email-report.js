@@ -1217,18 +1217,22 @@ async function main() {
   console.log('🚀 Starting comprehensive chatbot test with email report...');
   console.log(`📝 Console output will be logged to: ${logFile}`);
   
-  // Check if server is running first
-  console.log('🔍 Checking if development server is running...');
-  const serverRunning = await checkServerHealth();
-  
-  if (!serverRunning) {
-    console.log('❌ Development server is not running on localhost:3000');
-    console.log('💡 Please start the server with: npm run dev');
-    console.log('📧 Email report will not be sent - server unavailable');
-    return;
+  // Check if server is running first (skip if running via API)
+  if (!process.env.SKIP_SERVER_CHECK) {
+    console.log('🔍 Checking if development server is running...');
+    const serverRunning = await checkServerHealth();
+    
+    if (!serverRunning) {
+      console.log('❌ Development server is not running on localhost:3000');
+      console.log('💡 Please start the server with: npm run dev');
+      console.log('📧 Email report will not be sent - server unavailable');
+      return;
+    }
+    
+    console.log('✅ Development server is running');
+  } else {
+    console.log('⏭️ Skipping server health check (running via API)');
   }
-  
-  console.log('✅ Development server is running');
   
   let finalResults;
   
@@ -1252,13 +1256,21 @@ async function main() {
   } else {
     console.log('❌ Programmatic approach failed - no fallback available');
     console.log('💡 Please check the CSV data source and try again');
-    process.exit(1);
+    if (!process.env.SKIP_SERVER_CHECK) {
+      process.exit(1);
+    } else {
+      console.log('📊 Script completed with errors');
+    }
   }
   
   console.log('\n✅ Comprehensive test and email report completed!');
   
-  // Exit with appropriate code
-  process.exit(finalResults.failedTests > 0 ? 1 : 0);
+  // Exit with appropriate code (skip if running via API)
+  if (!process.env.SKIP_SERVER_CHECK) {
+    process.exit(finalResults.failedTests > 0 ? 1 : 0);
+  } else {
+    console.log('📊 Final results:', finalResults);
+  }
 }
 
 // Run the main function
