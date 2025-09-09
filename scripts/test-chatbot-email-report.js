@@ -810,8 +810,8 @@ async function runTestsProgrammatically() {
               chatbotAnswer = response.answer || 'Empty response or error';
               cypherQuery = response.cypherQuery || 'N/A';
               
-              // Extract expected value from the response
-              const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
+              // Extract expected value from the response (handle numbers with commas)
+              const match = chatbotAnswer.match(/([\d,]+(?:\.\d+)?)/);
               expectedValue = match ? match[1] : 'N/A';
               
               console.log(`✅ Chatbot response: ${chatbotAnswer}`);
@@ -834,8 +834,8 @@ async function runTestsProgrammatically() {
               const data = await response.json();
               chatbotAnswer = data.answer || 'Empty response or error';
               
-              // Extract expected value from the response
-              const match = chatbotAnswer.match(/(\d+(?:\.\d+)?)/);
+              // Extract expected value from the response (handle numbers with commas)
+              const match = chatbotAnswer.match(/([\d,]+(?:\.\d+)?)/);
               expectedValue = match ? match[1] : 'N/A';
             } else {
               throw new Error(`API call failed: ${response.status}`);

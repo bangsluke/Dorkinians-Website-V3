@@ -377,10 +377,11 @@ exports.handler = async (event, context) => {
 		// Trigger Heroku seeding service (fire-and-forget)
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
 		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-		const cleanHerokuUrl = herokuUrl.replace(/\/$/, "");
+		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
+		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, ""); // Remove one or more trailing slashes
+		console.log("🔗 HEROKU: Cleaned URL:", cleanHerokuUrl);
 		const fullUrl = `${cleanHerokuUrl}/seed`;
-		console.log("🔗 HEROKU: Full URL being called:", fullUrl);
-		console.log("🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:", process.env.HEROKU_SEEDER_URL);
+		console.log("🔗 HEROKU: Final URL being called:", fullUrl);
 
 		// Fire-and-forget: don't wait for response to prevent timeout
 		console.log("🌱 HEROKU: Making POST request to:", fullUrl);

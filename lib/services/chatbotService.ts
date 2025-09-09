@@ -1198,8 +1198,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Home'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1209,8 +1209,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Away'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1220,8 +1220,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home' AND f.result = 'W'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Home' AND f.result = 'W'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1231,8 +1231,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away' AND f.result = 'W'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Away' AND f.result = 'W'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1242,8 +1242,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Home'
 						WITH p, count(md) as totalHomeGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as homeWins
 					`;
@@ -1255,8 +1255,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+						WHERE f.homeOrAway = 'Away'
 						WITH p, count(md) as totalAwayGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins
 					`;
@@ -1268,8 +1268,7 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date
+						MATCH (md)-[:HAS_MATCH_DETAILS]->(f:Fixture)
 						WITH p, count(md) as totalGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as totalWins
 					`;
@@ -1334,44 +1333,76 @@ export class ChatbotService {
 					break;
 				// Team-specific appearances
 				case "1sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '1s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "2sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '2s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "3sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '3s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "4sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '4s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "5sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '5s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "6sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '6s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "7sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '7s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "8sApps":
-					returnClause = `
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
 						WHERE md.team = '8s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				// Team-specific goals
 				case "1sGoals":
@@ -2132,6 +2163,12 @@ export class ChatbotService {
 					if (statConfig) {
 						// If statFormat is "Integer", round to the specified number of decimal places
 						if (statConfig.statFormat === "Integer") {
+							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
+							const multiplier = Math.pow(10, decimalPlaces);
+							roundedValue = Math.round(numericValue * multiplier) / multiplier;
+						}
+						// For percentage formats, round to the specified number of decimal places
+						else if (statConfig.statFormat === "Percentage") {
 							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
 							const multiplier = Math.pow(10, decimalPlaces);
 							roundedValue = Math.round(numericValue * multiplier) / multiplier;

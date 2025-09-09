@@ -19,9 +19,11 @@ export async function POST(request: NextRequest) {
 
     // Run the chatbot test script
     const scriptPath = path.join(process.cwd(), 'scripts', 'test-chatbot-email-report.js');
+    console.log('Script path:', scriptPath);
+    console.log('Current working directory:', process.cwd());
     
     try {
-      const output = execSync(`node ${scriptPath}`, {
+      const output = execSync(`node "${scriptPath}"`, {
         encoding: 'utf8',
         cwd: process.cwd(),
         stdio: 'pipe',
