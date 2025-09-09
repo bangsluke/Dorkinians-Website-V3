@@ -798,6 +798,18 @@ async function runTestsProgrammatically() {
           // Get expected value from real database via API
           let expectedValue, chatbotAnswer, cypherQuery;
           
+          // First, get the expected value from CSV data
+          console.log(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
+          console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
+          
+          if (player[statConfig.key] !== undefined && player[statConfig.key] !== '') {
+            expectedValue = player[statConfig.key];
+            console.log(`✅ Found CSV data for ${statKey}: ${expectedValue}`);
+          } else {
+            expectedValue = 'N/A';
+            console.log(`❌ No CSV data found for ${statKey}`);
+          }
+          
           try {
             // Try to use the chatbot service directly first
             const chatbotService = await loadChatbotService();
@@ -809,10 +821,6 @@ async function runTestsProgrammatically() {
               });
               chatbotAnswer = response.answer || 'Empty response or error';
               cypherQuery = response.cypherQuery || 'N/A';
-              
-              // Extract expected value from the response (handle numbers with commas)
-              const match = chatbotAnswer.match(/([\d,]+(?:\.\d+)?)/);
-              expectedValue = match ? match[1] : 'N/A';
               
               console.log(`✅ Chatbot response: ${chatbotAnswer}`);
               console.log(`🔍 Cypher query: ${cypherQuery}`);
@@ -833,29 +841,15 @@ async function runTestsProgrammatically() {
             if (response.ok) {
               const data = await response.json();
               chatbotAnswer = data.answer || 'Empty response or error';
-              
-              // Extract expected value from the response (handle numbers with commas)
-              const match = chatbotAnswer.match(/([\d,]+(?:\.\d+)?)/);
-              expectedValue = match ? match[1] : 'N/A';
+              cypherQuery = data.cypherQuery || 'N/A';
             } else {
               throw new Error(`API call failed: ${response.status}`);
               }
             }
           } catch (error) {
-            console.warn(`Failed to get real data for ${playerName} - ${statKey}:`, error.message);
-            // Fallback to test data from CSV
-            console.log(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
-            console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
-            
-            if (player[statConfig.key] !== undefined && player[statConfig.key] !== '') {
-              expectedValue = player[statConfig.key];
-              chatbotAnswer = `${playerName} has ${expectedValue} ${statKey.toLowerCase()}`;
-              console.log(`✅ Found CSV data for ${statKey}: ${expectedValue}`);
-            } else {
-              expectedValue = 'N/A';
-              chatbotAnswer = 'Empty response or error';
-              console.log(`❌ No CSV data found for ${statKey}`);
-            }
+            console.warn(`Failed to get chatbot response for ${playerName} - ${statKey}:`, error.message);
+            chatbotAnswer = 'Empty response or error';
+            cypherQuery = 'N/A';
           }
           
           // Determine if test passed based on whether we got a valid response
