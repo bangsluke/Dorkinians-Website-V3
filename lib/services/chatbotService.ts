@@ -2220,19 +2220,35 @@ export class ChatbotService {
 					} else if (metric === "HomeGames" || metric === "AwayGames") {
 						// Special handling for home/away games - no appearances context needed
 						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "HomeWins" || metric === "AwayWins") {
 						// Special handling for home/away wins - no appearances context needed
 						answer = `${playerName} has won ${formattedValue} ${metricName}.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "HomeGames%Won" || metric === "AwayGames%Won") {
 						// Special handling for home/away games percentage won
 						answer = `${playerName} has won ${formattedValue}% of ${metricName.replace('%', '')}.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "Games%Won" && appearancesCount) {
 						// Special handling for overall games percentage won - include appearances context
 						answer = `${playerName} has won ${formattedValue}% of the ${appearancesCount} games he has played in.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+					} else if (metric === "MostCommonPosition") {
+						// Special handling for most common position
+						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
+						const appearancesCount = playerData.appearancesCount || 0;
+						
+						// Convert position code to full name
+						const positionNames = {
+							'GK': 'goalkeeper',
+							'DEF': 'defender', 
+							'MID': 'midfielder',
+							'FWD': 'forward'
+						};
+						const positionName = positionNames[position as keyof typeof positionNames] || position;
+						
+						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (appearancesCount) {
 						// Alternate between "appearances" and "matches" for variety
 						const useMatches = Math.random() < 0.5;
@@ -2303,26 +2319,6 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
-				} else if (metric === "MostCommonPosition") {
-					// For "What is player's most common position played?" questions
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("most common position")) {
-						// Use the actual query results from Cypher
-						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
-						const appearancesCount = playerData.appearancesCount || 0;
-						
-						// Convert position code to full name
-						const positionNames = {
-							'GK': 'goalkeeper',
-							'DEF': 'defender', 
-							'MID': 'midfielder',
-							'FWD': 'forward'
-						};
-						const positionName = positionNames[position as keyof typeof positionNames] || position;
-						
-						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
-					}
-				}
 				
 				// Enhanced year vs season clarification
 				const questionLower = question.toLowerCase();

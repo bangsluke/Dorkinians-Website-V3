@@ -852,13 +852,24 @@ async function runTestsProgrammatically() {
             cypherQuery = 'N/A';
           }
           
-          // Determine if test passed based on whether we got a valid response
+          // Extract value from chatbot answer for comparison
+          let chatbotExtractedValue = null;
+          if (chatbotAnswer) {
+            // Try to extract value from the response using the response pattern
+            const match = chatbotAnswer.match(statConfig.responsePattern);
+            if (match) {
+              chatbotExtractedValue = match[1];
+            }
+          }
+          
+          // Determine if test passed based on whether we got a valid response AND correct value
           // CRITICAL: Test must fail if any of these conditions are true:
           // 1. No chatbot answer or error response
           // 2. Cypher query is N/A (no query was generated)
           // 3. TBL_TestData value is N/A (no expected data available)
           // 4. Chatbot returns "I couldn't find any relevant information" message
-          const passed = chatbotAnswer && 
+          // 5. Chatbot answer doesn't match expected value
+          const hasValidResponse = chatbotAnswer && 
                         chatbotAnswer !== 'Empty response or error' && 
                         chatbotAnswer !== 'N/A' &&
                         !chatbotAnswer.includes('error') &&
@@ -866,6 +877,22 @@ async function runTestsProgrammatically() {
                         !chatbotAnswer.includes("I couldn't find any relevant information") &&
                         cypherQuery !== 'N/A' &&
                         expectedValue !== 'N/A';
+          
+          // Check if the extracted value matches expected
+          let valuesMatch = true;
+          if (expectedValue !== 'N/A' && chatbotExtractedValue !== null) {
+            // For numeric values, compare as numbers
+            if (statConfig.responsePattern.source.includes('\\d')) {
+              const expectedNumeric = parseFloat(expectedValue);
+              const chatbotNumeric = parseFloat(chatbotExtractedValue);
+              valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
+            } else {
+              // For text values, compare as strings (case insensitive)
+              valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
+            }
+          }
+          
+          const passed = hasValidResponse && valuesMatch;
           
           // Log detailed information for failing tests
           if (!passed) {
@@ -875,6 +902,10 @@ async function runTestsProgrammatically() {
             console.log(`   Question: ${question}`);
             console.log(`   Expected: ${expectedValue}`);
             console.log(`   Received: ${chatbotAnswer}`);
+            console.log(`   Expected Extracted: ${expectedValue}`);
+            console.log(`   Chatbot Extracted: ${chatbotExtractedValue}`);
+            console.log(`   Values Match: ${valuesMatch}`);
+            console.log(`   Has Valid Response: ${hasValidResponse}`);
             console.log(`   Cypher Query: ${cypherQuery}`);
             console.log(`   Passed: ${passed}`);
           }
