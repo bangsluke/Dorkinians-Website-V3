@@ -857,11 +857,13 @@ async function runTestsProgrammatically() {
           // 1. No chatbot answer or error response
           // 2. Cypher query is N/A (no query was generated)
           // 3. TBL_TestData value is N/A (no expected data available)
+          // 4. Chatbot returns "I couldn't find any relevant information" message
           const passed = chatbotAnswer && 
                         chatbotAnswer !== 'Empty response or error' && 
                         chatbotAnswer !== 'N/A' &&
                         !chatbotAnswer.includes('error') &&
                         !chatbotAnswer.includes('Error') &&
+                        !chatbotAnswer.includes("I couldn't find any relevant information") &&
                         cypherQuery !== 'N/A' &&
                         expectedValue !== 'N/A';
           
