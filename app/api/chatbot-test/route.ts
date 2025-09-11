@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
       // Use spawn instead of execSync for better control and timeout handling
       const { spawn } = require('child_process');
       
-      const result = await new Promise((resolve) => {
+      const result = await new Promise<NextResponse>((resolve) => {
         const child = spawn('node', [scriptPath], {
           cwd: process.cwd(),
           env: {

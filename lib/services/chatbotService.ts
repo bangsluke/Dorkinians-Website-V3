@@ -123,21 +123,21 @@ export class ChatbotService {
 		console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
 		console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
 
-			// Query the database
-			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
-			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
-			const data = await this.queryRelevantData(analysis);
-			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || 'null'}`);
-			this.logToBoth(`📊 Query result:`, data);
-			
-			// Client-side logging for query results
-			console.log(`🤖 [CLIENT] 📊 Query result:`, data);
+		// Query the database
+		this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
+		this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
+		const data = await this.queryRelevantData(analysis);
+		this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || 'null'}`);
+		this.logToBoth(`📊 Query result:`, data);
+		
+		// Client-side logging for query results
+		console.log(`🤖 [CLIENT] 📊 Query result:`, data);
 
-			// Generate the response
-			const response = await this.generateResponse(context.question, data, analysis);
-			this.logToBoth(`💬 Generated response:`, response);
+		// Generate the response
+		const response = await this.generateResponse(context.question, data, analysis);
+		this.logToBoth(`💬 Generated response:`, response);
 
-			return response;
+		return response;
 		} catch (error) {
 			this.logToBoth("❌ Error processing question:", error, 'error');
 			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
@@ -2321,7 +2321,6 @@ export class ChatbotService {
 					}
 				
 				// Enhanced year vs season clarification
-				const questionLower = question.toLowerCase();
 				// Dynamic year detection - check for any year pattern (20XX)
 				const yearPattern = /20\d{2}/;
 				if (yearPattern.test(questionLower)) {
@@ -2527,6 +2526,7 @@ export class ChatbotService {
 					answer = `${data.playerName} hasn't played against any opponents yet.`;
 				}
 			}
+		}
 		} else if (analysis.type === "general") {
 			if (data[0]?.playerCount) {
 				answer = `The club maintains comprehensive records of ${data[0].playerCount} registered players across all our teams.`;
@@ -2583,7 +2583,7 @@ export class ChatbotService {
 		const relationshipType = period === "weekly" ? "IN_WEEKLY_TOTW" : "IN_SEASON_TOTW";
 		const query = `
 			MATCH (p:Player {playerName: $playerName})
-			MATCH (p)-[r:${relationshipType}]->(award)
+			MATCH (p)-[r:` + relationshipType + `]->(award)
 			RETURN p.playerName as playerName, 
 				   count(award) as totalAwards,
 				   sum(CASE WHEN r.isStarMan THEN 1 ELSE 0 END) as starManAwards,
