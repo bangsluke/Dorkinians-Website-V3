@@ -40,8 +40,8 @@ export default function TOTWContainer() {
 						key={page.id}
 						onClick={() => setTOTWSubPage(page.id)}
 						className={`w-2 h-2 rounded-full transition-all duration-200 ${
-							currentTOTWSubPage === page.id 
-								? "bg-dorkinians-yellow scale-125" 
+							currentTOTWSubPage === page.id
+								? "bg-dorkinians-yellow scale-125"
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
 						}`}
 						aria-label={`Go to ${page.label}`}

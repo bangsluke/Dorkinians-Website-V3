@@ -1,241 +1,241 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { act } from 'react-dom/test-utils';
-import { useNavigationStore } from '@/lib/stores/navigation';
-import StatsContainer from '@/components/StatsContainer';
-import PlayerStats from '@/components/stats/PlayerStats';
-import Comparison from '@/components/stats/Comparison';
+import React from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act } from "react-dom/test-utils";
+import { useNavigationStore } from "@/lib/stores/navigation";
+import StatsContainer from "@/components/StatsContainer";
+import PlayerStats from "@/components/stats/PlayerStats";
+import Comparison from "@/components/stats/Comparison";
 
 // Mock the navigation store
-jest.mock('@/lib/stores/navigation', () => ({
-  useNavigationStore: jest.fn(),
+jest.mock("@/lib/stores/navigation", () => ({
+	useNavigationStore: jest.fn(),
 }));
 
 const mockUseNavigationStore = useNavigationStore as jest.MockedFunction<typeof useNavigationStore>;
 
-describe('Navigation Behavior Tests', () => {
-  beforeEach(() => {
-    // Reset all mocks before each test
-    jest.clearAllMocks();
-  });
+describe("Navigation Behavior Tests", () => {
+	beforeEach(() => {
+		// Reset all mocks before each test
+		jest.clearAllMocks();
+	});
 
-  describe('StatsContainer - Always Show All 4 Sub-Pages', () => {
-    it('should always show all 4 sub-pages regardless of player selection state', () => {
-      const mockStore = {
-        currentStatsSubPage: 'player-stats' as const,
-        setStatsSubPage: jest.fn(),
-        nextStatsSubPage: jest.fn(),
-        previousStatsSubPage: jest.fn(),
-        currentMainPage: 'stats' as const,
-      };
+	describe("StatsContainer - Always Show All 4 Sub-Pages", () => {
+		it("should always show all 4 sub-pages regardless of player selection state", () => {
+			const mockStore = {
+				currentStatsSubPage: "player-stats" as const,
+				setStatsSubPage: jest.fn(),
+				nextStatsSubPage: jest.fn(),
+				previousStatsSubPage: jest.fn(),
+				currentMainPage: "stats" as const,
+			};
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      render(<StatsContainer />);
+			render(<StatsContainer />);
 
-      // Should show all 4 dot indicators
-      const dotIndicators = screen.getAllByRole('button', { name: /go to/i });
-      expect(dotIndicators).toHaveLength(4);
-      
-      // Check that all expected pages are present
-      expect(screen.getByLabelText('Go to Player Stats')).toBeInTheDocument();
-      expect(screen.getByLabelText('Go to Team Stats')).toBeInTheDocument();
-      expect(screen.getByLabelText('Go to Club Stats')).toBeInTheDocument();
-      expect(screen.getByLabelText('Go to Comparison')).toBeInTheDocument();
-    });
+			// Should show all 4 dot indicators
+			const dotIndicators = screen.getAllByRole("button", { name: /go to/i });
+			expect(dotIndicators).toHaveLength(4);
 
-    it('should show all 4 sub-pages even when no player is selected', () => {
-      const mockStore = {
-        currentStatsSubPage: 'player-stats' as const,
-        setStatsSubPage: jest.fn(),
-        nextStatsSubPage: jest.fn(),
-        previousStatsSubPage: jest.fn(),
-        currentMainPage: 'stats' as const,
-      };
+			// Check that all expected pages are present
+			expect(screen.getByLabelText("Go to Player Stats")).toBeInTheDocument();
+			expect(screen.getByLabelText("Go to Team Stats")).toBeInTheDocument();
+			expect(screen.getByLabelText("Go to Club Stats")).toBeInTheDocument();
+			expect(screen.getByLabelText("Go to Comparison")).toBeInTheDocument();
+		});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+		it("should show all 4 sub-pages even when no player is selected", () => {
+			const mockStore = {
+				currentStatsSubPage: "player-stats" as const,
+				setStatsSubPage: jest.fn(),
+				nextStatsSubPage: jest.fn(),
+				previousStatsSubPage: jest.fn(),
+				currentMainPage: "stats" as const,
+			};
 
-      render(<StatsContainer />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      // Should still show all 4 dot indicators
-      const dotIndicators = screen.getAllByRole('button', { name: /go to/i });
-      expect(dotIndicators).toHaveLength(4);
-    });
-  });
+			render(<StatsContainer />);
 
-  describe('PlayerStats - No Player State', () => {
-    it('should show "Select a player" message when no player is selected', () => {
-      const mockStore = {
-        selectedPlayer: null,
-        cachedPlayerData: null,
-        isLoadingPlayerData: false,
-        setMainPage: jest.fn(),
-      };
+			// Should still show all 4 dot indicators
+			const dotIndicators = screen.getAllByRole("button", { name: /go to/i });
+			expect(dotIndicators).toHaveLength(4);
+		});
+	});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+	describe("PlayerStats - No Player State", () => {
+		it('should show "Select a player" message when no player is selected', () => {
+			const mockStore = {
+				selectedPlayer: null,
+				cachedPlayerData: null,
+				isLoadingPlayerData: false,
+				setMainPage: jest.fn(),
+			};
 
-      render(<PlayerStats />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      expect(screen.getByText('Player Stats')).toBeInTheDocument();
-      expect(screen.getByText('Select a player to display data here')).toBeInTheDocument();
-      expect(screen.getByTitle('Select a player')).toBeInTheDocument();
-    });
+			render(<PlayerStats />);
 
-    it('should navigate to home when edit button is clicked in no-player state', () => {
-      const mockSetMainPage = jest.fn();
-      const mockStore = {
-        selectedPlayer: null,
-        cachedPlayerData: null,
-        isLoadingPlayerData: false,
-        setMainPage: mockSetMainPage,
-      };
+			expect(screen.getByText("Player Stats")).toBeInTheDocument();
+			expect(screen.getByText("Select a player to display data here")).toBeInTheDocument();
+			expect(screen.getByTitle("Select a player")).toBeInTheDocument();
+		});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+		it("should navigate to home when edit button is clicked in no-player state", () => {
+			const mockSetMainPage = jest.fn();
+			const mockStore = {
+				selectedPlayer: null,
+				cachedPlayerData: null,
+				isLoadingPlayerData: false,
+				setMainPage: mockSetMainPage,
+			};
 
-      render(<PlayerStats />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      const editButton = screen.getByTitle('Select a player');
-      fireEvent.click(editButton);
+			render(<PlayerStats />);
 
-      expect(mockSetMainPage).toHaveBeenCalledWith('home');
-    });
+			const editButton = screen.getByTitle("Select a player");
+			fireEvent.click(editButton);
 
-    it('should show player stats when player is selected', () => {
-      const mockPlayerData = {
-        playerData: {
-          id: '1',
-          playerName: 'Test Player',
-          allowOnSite: true,
-          appearances: 10,
-          minutes: 900,
-          mom: 2,
-          goals: 5,
-          assists: 3,
-          yellowCards: 1,
-          redCards: 0,
-          saves: 0,
-          ownGoals: 0,
-          conceded: 0,
-          cleanSheets: 0,
-          penaltiesScored: 0,
-          penaltiesMissed: 0,
-          penaltiesConceded: 0,
-          penaltiesSaved: 0,
-          fantasyPoints: 50,
-          allGoalsScored: 5,
-          goalsPerApp: 0.5,
-          concededPerApp: 0,
-          minutesPerGoal: 180,
-          minutesPerCleanSheet: 0,
-          fantasyPointsPerApp: 5,
-          distance: 0,
-          homeGames: 5,
-          homeWins: 3,
-          homeGamesPercentWon: 60,
-          awayGames: 5,
-          awayWins: 2,
-          awayGamesPercentWon: 40,
-          gamesPercentWon: 50,
-          apps1s: 3,
-          apps2s: 2,
-          apps3s: 1,
-          apps4s: 0,
-          apps5s: 0,
-          apps6s: 0,
-          apps7s: 0,
-          apps8s: 0,
-          mostPlayedForTeam: '1s',
-          numberTeamsPlayedFor: 1,
-          goals1s: 3,
-          goals2s: 2,
-          goals3s: 0,
-          goals4s: 0,
-          goals5s: 0,
-          goals6s: 0,
-          goals7s: 0,
-          goals8s: 0,
-          mostScoredForTeam: '1s',
-          numberSeasonsPlayedFor: 1,
-          graphLabel: 'dorkiniansWebsite',
-        },
-        selectedDate: '2024-01-01',
-      };
+			expect(mockSetMainPage).toHaveBeenCalledWith("home");
+		});
 
-      const mockStore = {
-        selectedPlayer: 'Test Player',
-        cachedPlayerData: mockPlayerData,
-        isLoadingPlayerData: false,
-        setMainPage: jest.fn(),
-      };
+		it("should show player stats when player is selected", () => {
+			const mockPlayerData = {
+				playerData: {
+					id: "1",
+					playerName: "Test Player",
+					allowOnSite: true,
+					appearances: 10,
+					minutes: 900,
+					mom: 2,
+					goals: 5,
+					assists: 3,
+					yellowCards: 1,
+					redCards: 0,
+					saves: 0,
+					ownGoals: 0,
+					conceded: 0,
+					cleanSheets: 0,
+					penaltiesScored: 0,
+					penaltiesMissed: 0,
+					penaltiesConceded: 0,
+					penaltiesSaved: 0,
+					fantasyPoints: 50,
+					allGoalsScored: 5,
+					goalsPerApp: 0.5,
+					concededPerApp: 0,
+					minutesPerGoal: 180,
+					minutesPerCleanSheet: 0,
+					fantasyPointsPerApp: 5,
+					distance: 0,
+					homeGames: 5,
+					homeWins: 3,
+					homeGamesPercentWon: 60,
+					awayGames: 5,
+					awayWins: 2,
+					awayGamesPercentWon: 40,
+					gamesPercentWon: 50,
+					apps1s: 3,
+					apps2s: 2,
+					apps3s: 1,
+					apps4s: 0,
+					apps5s: 0,
+					apps6s: 0,
+					apps7s: 0,
+					apps8s: 0,
+					mostPlayedForTeam: "1s",
+					numberTeamsPlayedFor: 1,
+					goals1s: 3,
+					goals2s: 2,
+					goals3s: 0,
+					goals4s: 0,
+					goals5s: 0,
+					goals6s: 0,
+					goals7s: 0,
+					goals8s: 0,
+					mostScoredForTeam: "1s",
+					numberSeasonsPlayedFor: 1,
+					graphLabel: "dorkiniansWebsite",
+				},
+				selectedDate: "2024-01-01",
+			};
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+			const mockStore = {
+				selectedPlayer: "Test Player",
+				cachedPlayerData: mockPlayerData,
+				isLoadingPlayerData: false,
+				setMainPage: jest.fn(),
+			};
 
-      render(<PlayerStats />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      expect(screen.getByText('Player Stats - Test Player')).toBeInTheDocument();
-      expect(screen.getByTitle('Edit player selection')).toBeInTheDocument();
-    });
-  });
+			render(<PlayerStats />);
 
-  describe('Comparison - No Player State', () => {
-    it('should show "Select a player" message when no player is selected', () => {
-      const mockStore = {
-        selectedPlayer: null,
-        setMainPage: jest.fn(),
-      };
+			expect(screen.getByText("Player Stats - Test Player")).toBeInTheDocument();
+			expect(screen.getByTitle("Edit player selection")).toBeInTheDocument();
+		});
+	});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+	describe("Comparison - No Player State", () => {
+		it('should show "Select a player" message when no player is selected', () => {
+			const mockStore = {
+				selectedPlayer: null,
+				setMainPage: jest.fn(),
+			};
 
-      render(<Comparison />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      expect(screen.getByText('Player Comparison')).toBeInTheDocument();
-      expect(screen.getByText('Select a player to display data here')).toBeInTheDocument();
-      expect(screen.getByTitle('Select a player')).toBeInTheDocument();
-    });
+			render(<Comparison />);
 
-    it('should navigate to home when edit button is clicked in no-player state', () => {
-      const mockSetMainPage = jest.fn();
-      const mockStore = {
-        selectedPlayer: null,
-        setMainPage: mockSetMainPage,
-      };
+			expect(screen.getByText("Player Comparison")).toBeInTheDocument();
+			expect(screen.getByText("Select a player to display data here")).toBeInTheDocument();
+			expect(screen.getByTitle("Select a player")).toBeInTheDocument();
+		});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+		it("should navigate to home when edit button is clicked in no-player state", () => {
+			const mockSetMainPage = jest.fn();
+			const mockStore = {
+				selectedPlayer: null,
+				setMainPage: mockSetMainPage,
+			};
 
-      render(<Comparison />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      const editButton = screen.getByTitle('Select a player');
-      fireEvent.click(editButton);
+			render(<Comparison />);
 
-      expect(mockSetMainPage).toHaveBeenCalledWith('home');
-    });
+			const editButton = screen.getByTitle("Select a player");
+			fireEvent.click(editButton);
 
-    it('should show comparison content when player is selected', () => {
-      const mockStore = {
-        selectedPlayer: 'Test Player',
-        setMainPage: jest.fn(),
-      };
+			expect(mockSetMainPage).toHaveBeenCalledWith("home");
+		});
 
-      mockUseNavigationStore.mockReturnValue(mockStore);
+		it("should show comparison content when player is selected", () => {
+			const mockStore = {
+				selectedPlayer: "Test Player",
+				setMainPage: jest.fn(),
+			};
 
-      render(<Comparison />);
+			mockUseNavigationStore.mockReturnValue(mockStore);
 
-      expect(screen.getByText('Player Comparison')).toBeInTheDocument();
-      expect(screen.getByText('Compare statistics between different players will be displayed here.')).toBeInTheDocument();
-    });
-  });
+			render(<Comparison />);
 
-  describe('Navigation Flow Integration', () => {
-    it('should maintain player selection when navigating from home to stats', () => {
-      // This test would require a more complex setup with the actual store
-      // For now, we'll test the individual components as above
-      expect(true).toBe(true); // Placeholder for integration test
-    });
+			expect(screen.getByText("Player Comparison")).toBeInTheDocument();
+			expect(screen.getByText("Compare statistics between different players will be displayed here.")).toBeInTheDocument();
+		});
+	});
 
-    it('should clear player selection when navigating to non-stats pages', () => {
-      // This test would require a more complex setup with the actual store
-      // For now, we'll test the individual components as above
-      expect(true).toBe(true); // Placeholder for integration test
-    });
-  });
+	describe("Navigation Flow Integration", () => {
+		it("should maintain player selection when navigating from home to stats", () => {
+			// This test would require a more complex setup with the actual store
+			// For now, we'll test the individual components as above
+			expect(true).toBe(true); // Placeholder for integration test
+		});
+
+		it("should clear player selection when navigating to non-stats pages", () => {
+			// This test would require a more complex setup with the actual store
+			// For now, we'll test the individual components as above
+			expect(true).toBe(true); // Placeholder for integration test
+		});
+	});
 });

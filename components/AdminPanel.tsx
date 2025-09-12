@@ -44,7 +44,7 @@ export default function AdminPanel() {
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 
 	// Check if we're in development mode
-	const isDevelopment = process.env.NODE_ENV === 'development';
+	const isDevelopment = process.env.NODE_ENV === "development";
 
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -94,8 +94,6 @@ export default function AdminPanel() {
 			return `${secs}s`;
 		}
 	};
-
-
 
 	const triggerSeeding = async () => {
 		setIsLoading(true);
@@ -458,10 +456,10 @@ export default function AdminPanel() {
 		setChatbotTestResult(null);
 
 		try {
-			const response = await fetch('/api/chatbot-test', {
-				method: 'POST',
+			const response = await fetch("/api/chatbot-test", {
+				method: "POST",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
 					emailAddress: emailAddress,
@@ -472,17 +470,17 @@ export default function AdminPanel() {
 				const data = await response.json();
 				setChatbotTestResult({
 					success: true,
-					message: 'Chatbot test completed successfully',
+					message: "Chatbot test completed successfully",
 					timestamp: new Date().toISOString(),
-					...data
+					...data,
 				});
 			} else {
-				const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+				const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
 				throw new Error(errorData.message || `HTTP ${response.status}`);
 			}
 		} catch (err) {
-			console.error('Chatbot test error:', err);
-			setError(err instanceof Error ? err.message : 'Network error');
+			console.error("Chatbot test error:", err);
+			setError(err instanceof Error ? err.message : "Network error");
 		} finally {
 			setChatbotTestLoading(false);
 		}
@@ -563,7 +561,9 @@ export default function AdminPanel() {
 				<div className='space-y-2'>
 					<div className='flex items-start'>
 						<span className='text-blue-600 font-semibold mr-2'>🚀 Production:</span>
-						<p className='text-sm text-gray-600'>⚠️ Triggers production database seeding via Heroku service. Only use for production deployments.</p>
+						<p className='text-sm text-gray-600'>
+							⚠️ Triggers production database seeding via Heroku service. Only use for production deployments.
+						</p>
 					</div>
 				</div>
 			</div>
@@ -753,16 +753,19 @@ export default function AdminPanel() {
 
 			{/* Chatbot Test Results */}
 			{chatbotTestResult && (
-				<div className={`mb-6 p-4 rounded-lg border ${chatbotTestResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+				<div
+					className={`mb-6 p-4 rounded-lg border ${chatbotTestResult.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
 					<div className='mb-3'>
-						<h3 className={`text-lg font-semibold ${chatbotTestResult.success ? 'text-green-600' : 'text-red-600'}`}>
-							{chatbotTestResult.success ? '✅ Chatbot Test Completed' : '❌ Chatbot Test Failed'}
+						<h3 className={`text-lg font-semibold ${chatbotTestResult.success ? "text-green-600" : "text-red-600"}`}>
+							{chatbotTestResult.success ? "✅ Chatbot Test Completed" : "❌ Chatbot Test Failed"}
 						</h3>
 						<p className='text-sm text-gray-600'>Completed at: {new Date(chatbotTestResult.timestamp).toLocaleString()}</p>
 					</div>
-					
+
 					<div className='space-y-2'>
-						<p className='text-sm'><strong>Message:</strong> {chatbotTestResult.message}</p>
+						<p className='text-sm'>
+							<strong>Message:</strong> {chatbotTestResult.message}
+						</p>
 						{chatbotTestResult.totalTests && (
 							<div className='grid grid-cols-1 md:grid-cols-3 gap-4 mt-4'>
 								<div className='text-center p-3 bg-white rounded-lg'>
@@ -780,7 +783,9 @@ export default function AdminPanel() {
 							</div>
 						)}
 						{chatbotTestResult.successRate && (
-							<p className='text-sm mt-2'><strong>Success Rate:</strong> {chatbotTestResult.successRate}%</p>
+							<p className='text-sm mt-2'>
+								<strong>Success Rate:</strong> {chatbotTestResult.successRate}%
+							</p>
 						)}
 					</div>
 				</div>

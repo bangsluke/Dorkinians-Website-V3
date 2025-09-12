@@ -113,7 +113,6 @@
 
 > [Back to Table of Contents](#table-of-contents)
 
-
 ### Database Verification
 
 - To view all nodes, run the following query:
@@ -122,7 +121,7 @@
   - `MATCH (n)-[r]->(m) RETURN n, r, m;`
 - To count all nodes with the Dorkinians Website label by type, run the following query:
   - `MATCH (n) WHERE n.graphLabel = 'dorkiniansWebsite' RETURN labels(n) AS NodeType, count(n) AS Count ORDER BY Count DESC`
-- To find a specific player by name and see all of their relationships, run the following query: 
+- To find a specific player by name and see all of their relationships, run the following query:
   - `MATCH (player {playerName: 'Luke Bangs', graphLabel: 'dorkiniansWebsite'})-[r]-(connected) RETURN player, r, connected;`
 
 > [Back to Table of Contents](#table-of-contents)
@@ -219,6 +218,7 @@ The project implements a **manual synchronization system** where each configurat
 ### Core Technologies
 
 **Frontend: Next.js 14 + App Router**
+
 - **PWA Support**: Built-in PWA capabilities with `next-pwa`
 - **Mobile Performance**: Automatic code splitting, image optimization, static generation
 - **Developer Experience**: Familiar React patterns, excellent TypeScript support
@@ -226,6 +226,7 @@ The project implements a **manual synchronization system** where each configurat
 - **Mobile-First**: Built-in responsive design patterns
 
 **Mobile Navigation: Framer Motion + Hybrid Navigation**
+
 - **Native Feel**: Smooth animations matching iOS/Android
 - **Main Navigation**: Footer icon-based navigation between primary pages
 - **Sub-Navigation**: Swipe gestures within specific pages (e.g., Stats sub-screens)
@@ -233,18 +234,21 @@ The project implements a **manual synchronization system** where each configurat
 - **Performance**: Hardware-accelerated animations
 
 **UI Components: Tailwind CSS + Headless UI**
+
 - **Mobile Optimization**: Touch-friendly component sizing (44px minimum)
 - **Responsive Design**: Automatic mobile-first breakpoints
 - **Accessibility**: Built-in mobile accessibility features
 - **Performance**: Minimal CSS bundle size
 
 **Backend: Next.js API Routes + Edge Runtime**
+
 - **Unified Stack**: Single codebase, shared types
 - **Edge Functions**: Global distribution, minimal latency
 - **CSV Processing**: Built-in fetch API for Google Sheets
 - **Cost**: No additional hosting costs
 
 **Database: Neo4j Aura**
+
 - **Data Volume**: Handle 50k+ rows × 50 columns efficiently
 - **Query Performance**: Graph database excels at complex sports statistics
 - **Data Relationships**: Natural fit for player-team-fixture relationships
@@ -252,6 +256,7 @@ The project implements a **manual synchronization system** where each configurat
 - **Existing Infrastructure**: Already available in your environment
 
 **Chatbot: Custom NLP + Natural Language Processing**
+
 - **Natural Language**: Superior understanding of sports queries
 - **Function Calling**: Structured data extraction and query planning
 - **Cost**: Pay-per-use, estimated $5-20/month for low traffic
@@ -259,12 +264,14 @@ The project implements a **manual synchronization system** where each configurat
 - **Libraries**: `natural` for fuzzy matching, `compromise` for text parsing
 
 **Visualization: Recharts + Custom Components**
+
 - **React Native**: Seamless Next.js integration
 - **Performance**: Lightweight, optimized for mobile
 - **Customization**: Easy to create reusable chart components
 - **Bundle Size**: Tree-shakeable, minimal impact
 
 **State Management: Zustand**
+
 - **Mobile Performance**: Lightweight state management
 - **Offline Support**: Easy integration with PWA caching
 - **Navigation State**: Manage screen transitions and data
@@ -272,6 +279,7 @@ The project implements a **manual synchronization system** where each configurat
 ### Data Layer Strategy
 
 **Hybrid Caching Strategy:**
+
 1. **Static Generation**: Pre-build common queries at build time
 2. **ISR (Incremental Static Regeneration)**: Update data every 6-12 hours
 3. **Edge Caching**: Cache responses at CDN level
@@ -279,6 +287,7 @@ The project implements a **manual synchronization system** where each configurat
 5. **Database Storage**: Neo4j for complex queries and data relationships
 
 **Update Strategy:**
+
 - **Automated Refresh**: Daily scheduled jobs (configurable frequency)
 - **Failure Notifications**: Email alerts on update failures
 - **Data Validation**: Schema validation and error handling
@@ -287,12 +296,14 @@ The project implements a **manual synchronization system** where each configurat
 ### PWA Implementation
 
 **Core Features:**
+
 - **Service Worker**: Offline-first strategy with background sync
 - **App Manifest**: Native app feel and installation prompts
 - **Background Sync**: Data updates when connection restored
 - **Push Notifications**: New stats and update notifications
 
 **Mobile-Specific Features:**
+
 - **Touch Interactions**: Footer icon navigation, swipe within pages, tap to expand
 - **Responsive Design**: Mobile-first breakpoints, landscape/portrait support
 - **Touch Targets**: 44px minimum button sizes
@@ -303,18 +314,21 @@ The project implements a **manual synchronization system** where each configurat
 ### Screen Architecture
 
 **Main Pages (Footer Navigation):**
+
 1. **Homepage**: Chatbot input bar centered on screen
 2. **Stats**: Container page with swipeable sub-screens
 3. **TOTW**: Team of the week with clickable SVG graphics
 4. **Club Information**: Static content (captains, awards, etc.)
 
 **Stats Page Sub-Screens (Swipeable):**
+
 - **Player Stats**: Filterable player statistics with graphical components
 - **Team Stats**: Team-specific statistics and analytics
 - **Club Stats**: Club-wide analytics and statistics
 - **Comparison**: Side-by-side player statistics comparison
 
 **Header Elements (All Screens):**
+
 - **Club Logo**: Visible across all screens
 - **Settings Icon**: Accessible from header on all pages
 
@@ -651,14 +665,17 @@ node -e "console.log('Schema integration test - check database seeding functiona
 The application uses a centralized version management system to ensure consistency across all components:
 
 **Version Sources:**
+
 - **Primary**: `config/config.ts` - Main app configuration
 - **Secondary**: `package.json` - NPM package version (should match app config)
 
 **Files to Update for New Release:**
+
 1. `config/config.ts` - Update `version` field
 2. `package.json` - Update `version` field to match
 
 **Example:**
+
 ```typescript
 // config/config.ts
 export const appConfig = {
@@ -672,7 +689,7 @@ export const appConfig = {
 // package.json
 {
 	"name": "dorkinians-website",
-	"version": "1.1.3", // Update this to match
+	"version": "1.1.3" // Update this to match
 	// ... other fields
 }
 ```
@@ -680,6 +697,7 @@ export const appConfig = {
 ### Release Checklist
 
 **Before Release:**
+
 - [ ] Update version in `config/config.ts`
 - [ ] Update version in `package.json`
 - [ ] Test PWA update flow locally
@@ -687,10 +705,10 @@ export const appConfig = {
 - [ ] Check that update toasts show correct version number
 
 **Post-Release:**
+
 - [ ] Verify PWA update notifications work
 - [ ] Test update flow on mobile devices
 - [ ] Monitor for any version-related issues
-
 
 > [Back to Table of Contents](#table-of-contents)
 

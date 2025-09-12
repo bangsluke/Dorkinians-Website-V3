@@ -1,137 +1,133 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-    <title>iOS Splash Screen Generator</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-                 .splash { 
-             background: #1C8841; 
-             color: white; 
-             display: flex; 
-             align-items: center; 
-             justify-content: center; 
-             font-size: 24px; 
-             font-weight: bold;
-         }
-        .portrait { width: 375px; height: 812px; margin: 10px; }
-        .landscape { width: 812px; height: 375px; margin: 10px; }
-        .instructions { background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 5px; }
-    </style>
-</head>
-<body>
-    <h1>iOS Splash Screen Generator</h1>
-    
-    <div class="instructions">
-        <h3>Instructions:</h3>
-        <p>1. Right-click each splash screen below</p>
-        <p>2. Select "Save image as..."</p>
-        <p>3. Save with the filename shown above each image</p>
-        <p>4. Place all images in the <code>public/</code> directory</p>
-    </div>
+	<head>
+		<title>iOS Splash Screen Generator</title>
+		<style>
+			body {
+				font-family: Arial, sans-serif;
+				margin: 20px;
+			}
+			.splash {
+				background: #1c8841;
+				color: white;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 24px;
+				font-weight: bold;
+			}
+			.portrait {
+				width: 375px;
+				height: 812px;
+				margin: 10px;
+			}
+			.landscape {
+				width: 812px;
+				height: 375px;
+				margin: 10px;
+			}
+			.instructions {
+				background: #f0f0f0;
+				padding: 20px;
+				margin: 20px 0;
+				border-radius: 5px;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>iOS Splash Screen Generator</h1>
 
-    <h2>iPhone Splash Screens</h2>
-    
-    <!-- iPhone 6.7" Portrait -->
-    <div class="splash portrait" id="iphone-6-7-portrait">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-1290x2796.png</code></p>
-    
-    <!-- iPhone 6.7" Landscape -->
-    <div class="splash landscape" id="iphone-6-7-landscape">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2796x1290.png</code></p>
-    
-    <!-- iPhone 6.1" Portrait -->
-    <div class="splash portrait" id="iphone-6-1-portrait">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-1170x2532.png</code></p>
-    
-    <!-- iPhone 6.1" Landscape -->
-    <div class="splash landscape" id="iphone-6-1-landscape">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2532x1170.png</code></p>
-    
-    <!-- iPhone 5.5" Portrait -->
-    <div class="splash portrait" id="iphone-5-5-portrait" style="width: 414px; height: 736px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-1242x2208.png</code></p>
-    
-    <!-- iPhone 5.5" Landscape -->
-    <div class="splash landscape" id="iphone-5-5-landscape" style="width: 736px; height: 414px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2208x1242.png</code></p>
-    
-    <h2>iPad Splash Screens</h2>
-    
-    <!-- iPad 12.9" Portrait -->
-    <div class="splash portrait" id="ipad-12-9-portrait" style="width: 2048px; height: 2732px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2048x2732.png</code></p>
-    
-    <!-- iPad 12.9" Landscape -->
-    <div class="splash landscape" id="ipad-12-9-landscape" style="width: 2732px; height: 2048px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2732x2048.png</code></p>
-    
-    <!-- iPad 11" Portrait -->
-    <div class="splash portrait" id="ipad-11-portrait" style="width: 1668px; height: 2388px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-1668x2388.png</code></p>
-    
-    <!-- iPad 11" Landscape -->
-    <div class="splash landscape" id="ipad-11-landscape" style="width: 2388px; height: 1668px;">
-        Dorkinians FC Stats
-    </div>
-    <p>Save as: <code>apple-touch-startup-image-2388x1668.png</code></p>
-    
-    <script>
-        // Function to convert div to image
-        function downloadImage(elementId, filename) {
-            const element = document.getElementById(elementId);
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            
-            // Set canvas size to match element
-            canvas.width = element.offsetWidth;
-            canvas.height = element.offsetHeight;
-            
-                         // Draw element to canvas
-             ctx.fillStyle = '#1C8841';
-             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Add text
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 48px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Dorkinians FC Stats', canvas.width/2, canvas.height/2);
-            
-            // Download
-            const link = document.createElement('a');
-            link.download = filename;
-            link.href = canvas.toDataURL();
-            link.click();
-        }
-        
-        // Add download buttons
-        document.querySelectorAll('.splash').forEach((element, index) => {
-            const button = document.createElement('button');
-            button.textContent = 'Download';
-            button.onclick = () => {
-                const filename = element.nextElementSibling.textContent.match(/apple-touch-startup-image-[^.]+\.png/)[0];
-                downloadImage(element.id, filename);
-            };
-            element.parentNode.insertBefore(button, element.nextSibling);
-        });
-    </script>
-</body>
+		<div class="instructions">
+			<h3>Instructions:</h3>
+			<p>1. Right-click each splash screen below</p>
+			<p>2. Select "Save image as..."</p>
+			<p>3. Save with the filename shown above each image</p>
+			<p>4. Place all images in the <code>public/</code> directory</p>
+		</div>
+
+		<h2>iPhone Splash Screens</h2>
+
+		<!-- iPhone 6.7" Portrait -->
+		<div class="splash portrait" id="iphone-6-7-portrait">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-1290x2796.png</code></p>
+
+		<!-- iPhone 6.7" Landscape -->
+		<div class="splash landscape" id="iphone-6-7-landscape">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2796x1290.png</code></p>
+
+		<!-- iPhone 6.1" Portrait -->
+		<div class="splash portrait" id="iphone-6-1-portrait">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-1170x2532.png</code></p>
+
+		<!-- iPhone 6.1" Landscape -->
+		<div class="splash landscape" id="iphone-6-1-landscape">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2532x1170.png</code></p>
+
+		<!-- iPhone 5.5" Portrait -->
+		<div class="splash portrait" id="iphone-5-5-portrait" style="width: 414px; height: 736px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-1242x2208.png</code></p>
+
+		<!-- iPhone 5.5" Landscape -->
+		<div class="splash landscape" id="iphone-5-5-landscape" style="width: 736px; height: 414px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2208x1242.png</code></p>
+
+		<h2>iPad Splash Screens</h2>
+
+		<!-- iPad 12.9" Portrait -->
+		<div class="splash portrait" id="ipad-12-9-portrait" style="width: 2048px; height: 2732px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2048x2732.png</code></p>
+
+		<!-- iPad 12.9" Landscape -->
+		<div class="splash landscape" id="ipad-12-9-landscape" style="width: 2732px; height: 2048px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2732x2048.png</code></p>
+
+		<!-- iPad 11" Portrait -->
+		<div class="splash portrait" id="ipad-11-portrait" style="width: 1668px; height: 2388px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-1668x2388.png</code></p>
+
+		<!-- iPad 11" Landscape -->
+		<div class="splash landscape" id="ipad-11-landscape" style="width: 2388px; height: 1668px">Dorkinians FC Stats</div>
+		<p>Save as: <code>apple-touch-startup-image-2388x1668.png</code></p>
+
+		<script>
+			// Function to convert div to image
+			function downloadImage(elementId, filename) {
+				const element = document.getElementById(elementId);
+				const canvas = document.createElement("canvas");
+				const ctx = canvas.getContext("2d");
+
+				// Set canvas size to match element
+				canvas.width = element.offsetWidth;
+				canvas.height = element.offsetHeight;
+
+				// Draw element to canvas
+				ctx.fillStyle = "#1C8841";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+				// Add text
+				ctx.fillStyle = "white";
+				ctx.font = "bold 48px Arial";
+				ctx.textAlign = "center";
+				ctx.textBaseline = "middle";
+				ctx.fillText("Dorkinians FC Stats", canvas.width / 2, canvas.height / 2);
+
+				// Download
+				const link = document.createElement("a");
+				link.download = filename;
+				link.href = canvas.toDataURL();
+				link.click();
+			}
+
+			// Add download buttons
+			document.querySelectorAll(".splash").forEach((element, index) => {
+				const button = document.createElement("button");
+				button.textContent = "Download";
+				button.onclick = () => {
+					const filename = element.nextElementSibling.textContent.match(/apple-touch-startup-image-[^.]+\.png/)[0];
+					downloadImage(element.id, filename);
+				};
+				element.parentNode.insertBefore(button, element.nextSibling);
+			});
+		</script>
+	</body>
 </html>

@@ -15,6 +15,7 @@
 This guide covers the complete setup of a Progressive Web App (PWA) for Dorkinians FC Stats, ensuring compatibility across iOS, Android, and desktop platforms.
 
 **Key Features:**
+
 - **Cross-platform PWA** with native app-like experience
 - **Persistent data storage** using localStorage for user preferences
 - **Automatic updates** with service worker version management
@@ -23,6 +24,7 @@ This guide covers the complete setup of a Progressive Web App (PWA) for Dorkinia
 ## Required Files
 
 ### Core PWA Files
+
 ```
 public/
 ├── manifest.json                 # PWA manifest
@@ -42,6 +44,7 @@ public/
 ```
 
 ### iOS Splash Screens
+
 ```
 public/
 ├── apple-touch-startup-image-1290x2796.png    # iPhone 6.7" Portrait
@@ -59,33 +62,37 @@ public/
 ## Icon Requirements
 
 ### Design Specifications
+
 - **Background**: #1C8841 (Dorkinians green)
 - **Foreground**: White elements (logo, text)
 - **Format**: PNG with transparency support
 - **Quality**: High resolution, crisp edges
 
 ### Icon Sizes and Purposes
-| Size | Purpose | Platform |
-|------|---------|----------|
-| 16x16 | Favicon | All browsers |
-| 32x32 | Favicon | All browsers |
-| 72x72 | Android small | Android devices |
-| 96x96 | Android medium | Android devices |
-| 128x128 | Android large | Android devices |
-| 144x144 | Android xlarge | Android devices |
-| 152x152 | iOS touch | iOS devices |
-| 192x192 | Android xlarge + maskable | Android + PWA |
-| 384x384 | Android xxlarge | Android devices |
-| 512x512 | Android xxlarge + maskable | Android + PWA |
+
+| Size    | Purpose                    | Platform        |
+| ------- | -------------------------- | --------------- |
+| 16x16   | Favicon                    | All browsers    |
+| 32x32   | Favicon                    | All browsers    |
+| 72x72   | Android small              | Android devices |
+| 96x96   | Android medium             | Android devices |
+| 128x128 | Android large              | Android devices |
+| 144x144 | Android xlarge             | Android devices |
+| 152x152 | iOS touch                  | iOS devices     |
+| 192x192 | Android xlarge + maskable  | Android + PWA   |
+| 384x384 | Android xxlarge            | Android devices |
+| 512x512 | Android xxlarge + maskable | Android + PWA   |
 
 ## iOS Splash Screens
 
 ### Generation Process
+
 1. Open `public/apple-touch-startup-image.html` in a browser
 2. Use the download buttons to generate each splash screen
 3. Save files with exact names in the `public/` directory
 
 ### Device Coverage
+
 - **iPhone 6.7"**: 1290x2796 (portrait), 2796x1290 (landscape)
 - **iPhone 6.1"**: 1170x2532 (portrait), 2532x1170 (landscape)
 - **iPhone 5.5"**: 1242x2208 (portrait), 2208x1242 (landscape)
@@ -95,6 +102,7 @@ public/
 ## Data Persistence
 
 ### localStorage Implementation
+
 The PWA uses `localStorage` to persist user preferences across sessions:
 
 - **Player Selection**: Automatically saves and restores the last selected player
@@ -102,9 +110,11 @@ The PWA uses `localStorage` to persist user preferences across sessions:
 - **PWA Integration**: Works seamlessly with PWA installation and offline functionality
 
 **Storage Keys:**
+
 - `dorkinians-selected-player`: Stores the currently selected player name
 
 **Benefits:**
+
 - **Seamless UX**: Users don't need to re-select their player each time
 - **Offline Ready**: Player selection works even without internet connection
 - **Cross-Platform**: Consistent experience across all devices and browsers
@@ -112,19 +122,22 @@ The PWA uses `localStorage` to persist user preferences across sessions:
 ## Update Strategy
 
 ### Version Management
+
 1. **Increment version** in `package.json` for each release
 2. **Service worker** automatically detects updates
 3. **Update notification** appears to installed PWA users
 4. **One-click update** process for seamless experience
 
 ### Update Flow
+
 ```
-User has PWA installed → New version deployed → 
-Service worker detects update → Update notification appears → 
+User has PWA installed → New version deployed →
+Service worker detects update → Update notification appears →
 User clicks "Update Now" → Page reloads → New version active
 ```
 
 ### Best Practices
+
 - Deploy updates during low-traffic periods
 - Test updates thoroughly before deployment
 - Monitor update adoption rates
@@ -133,29 +146,33 @@ User clicks "Update Now" → Page reloads → New version active
 ## Testing
 
 ### PWA Installation Testing
+
 1. **Chrome DevTools**: Application tab → Manifest
 2. **Lighthouse**: PWA audit score
 3. **Real devices**: Install on iOS/Android
 4. **Offline functionality**: Test without internet
 
 ### Device Testing Matrix
-| Platform | Browser | Installation | Offline | Updates |
-|----------|---------|--------------|---------|---------|
-| iOS Safari | ✅ | ✅ | ✅ | ✅ |
-| Android Chrome | ✅ | ✅ | ✅ | ✅ |
-| Desktop Chrome | ✅ | ✅ | ✅ | ✅ |
-| Desktop Edge | ✅ | ✅ | ✅ | ✅ |
-| Desktop Firefox | ✅ | ✅ | ✅ | ✅ |
+
+| Platform        | Browser | Installation | Offline | Updates |
+| --------------- | ------- | ------------ | ------- | ------- |
+| iOS Safari      | ✅      | ✅           | ✅      | ✅      |
+| Android Chrome  | ✅      | ✅           | ✅      | ✅      |
+| Desktop Chrome  | ✅      | ✅           | ✅      | ✅      |
+| Desktop Edge    | ✅      | ✅           | ✅      | ✅      |
+| Desktop Firefox | ✅      | ✅           | ✅      | ✅      |
 
 ## Deployment
 
 ### Netlify Configuration
+
 - **Build command**: `npm run build`
 - **Publish directory**: `.next`
 - **Environment**: Production
 - **Headers**: PWA-friendly caching
 
 ### Post-Deployment Checklist
+
 - [ ] Verify manifest.json is accessible
 - [ ] Confirm service worker is registered
 - [ ] Test PWA installation on target devices
@@ -163,6 +180,7 @@ User clicks "Update Now" → Page reloads → New version active
 - [ ] Check update notification system
 
 ### Monitoring
+
 - **Service worker registration** success rate
 - **PWA installation** conversion rate
 - **Update adoption** rate
@@ -171,12 +189,14 @@ User clicks "Update Now" → Page reloads → New version active
 ## Troubleshooting
 
 ### Common Issues
+
 1. **Icons not displaying**: Check file paths and sizes
 2. **Install prompt not showing**: Verify manifest.json validity
 3. **Updates not detected**: Check service worker configuration
 4. **iOS splash screens not working**: Verify media query syntax
 
 ### Debug Commands
+
 ```bash
 # Check PWA status
 npm run build
@@ -192,12 +212,14 @@ npm run start
 ## Maintenance
 
 ### Regular Tasks
+
 - **Monthly**: Review PWA performance metrics
 - **Quarterly**: Update icon designs if needed
 - **Bi-annually**: Review and update manifest.json
 - **Annually**: Audit PWA compliance standards
 
 ### Performance Optimization
+
 - **Icon compression**: Optimize PNG files
 - **Cache strategies**: Review service worker caching
 - **Bundle analysis**: Monitor JavaScript bundle size

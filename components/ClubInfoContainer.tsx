@@ -46,8 +46,8 @@ export default function ClubInfoContainer() {
 						key={page.id}
 						onClick={() => setClubInfoSubPage(page.id)}
 						className={`w-2 h-2 rounded-full transition-all duration-200 ${
-							currentClubInfoSubPage === page.id 
-								? "bg-dorkinians-yellow scale-125" 
+							currentClubInfoSubPage === page.id
+								? "bg-dorkinians-yellow scale-125"
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
 						}`}
 						aria-label={`Go to ${page.label}`}

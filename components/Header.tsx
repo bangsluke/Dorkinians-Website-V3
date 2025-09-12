@@ -25,20 +25,14 @@ export default function Header({ onSettingsClick, isSettingsPage = false }: Head
 			transition={isSettingsPage ? {} : { type: "spring", stiffness: 300, damping: 30 }}>
 			<div className='flex items-center justify-between px-4 md:px-[15%] py-3'>
 				{/* Club Logo */}
-				<motion.div 
-					className='flex items-center space-x-2 cursor-pointer' 
-					whileHover={{ scale: 1.05 }} 
+				<motion.div
+					className='flex items-center space-x-2 cursor-pointer'
+					whileHover={{ scale: 1.05 }}
 					whileTap={{ scale: 0.95 }}
 					onClick={handleLogoClick}
-					title="Click to return to homepage">
+					title='Click to return to homepage'>
 					<div className='w-8 h-8 flex items-center justify-center'>
-						<Image 
-							src="/icons/icon-96x96.png" 
-							alt="Dorkinians FC Logo" 
-							width={32} 
-							height={32}
-							className="rounded-full"
-						/>
+						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
 					</div>
 					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
 				</motion.div>
@@ -50,11 +44,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false }: Head
 					whileHover={{ scale: 1.1 }}
 					whileTap={{ scale: 0.9 }}
 					title={isSettingsPage ? "Close settings" : "Open settings"}>
-					{isSettingsPage ? (
-						<XMarkIcon className='w-6 h-6 text-white' />
-					) : (
-						<Cog6ToothIcon className='w-6 h-6 text-white' />
-					)}
+					{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-white' /> : <Cog6ToothIcon className='w-6 h-6 text-white' />}
 				</motion.button>
 			</div>
 		</motion.header>

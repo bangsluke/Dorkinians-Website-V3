@@ -32,10 +32,10 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 	useEffect(() => {
 		const fetchAllPlayers = async () => {
 			if (playersLoaded) return; // Don't fetch if already loaded
-			
+
 			setIsLoadingPlayers(true);
 			try {
-				const response = await fetch('/api/players');
+				const response = await fetch("/api/players");
 				if (response.ok) {
 					const data = await response.json();
 					setAllPlayers(data.players || []);
@@ -60,9 +60,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 		if (query.length < 3) {
 			return [];
 		}
-		return allPlayers.filter(player => 
-			player.playerName && player.playerName.toLowerCase().includes(query.toLowerCase())
-		);
+		return allPlayers.filter((player) => player.playerName && player.playerName.toLowerCase().includes(query.toLowerCase()));
 	};
 
 	// Reset local state when entering edit mode
@@ -76,15 +74,15 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 
 	// Set local state when player is selected
 	useEffect(() => {
-		console.log('🎯 [PlayerSelection] useEffect triggered with:', {
+		console.log("🎯 [PlayerSelection] useEffect triggered with:", {
 			selectedPlayer,
 			isEditMode,
 			localSelectedPlayer,
-			isSubmitted
+			isSubmitted,
 		});
-		
+
 		if (selectedPlayer && !isEditMode) {
-			console.log('✅ [PlayerSelection] Setting local state for selected player:', selectedPlayer);
+			console.log("✅ [PlayerSelection] Setting local state for selected player:", selectedPlayer);
 			setLocalSelectedPlayer(selectedPlayer);
 			setIsSubmitted(true);
 		}
@@ -95,7 +93,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 		setLocalSelectedPlayer(playerName);
 		setIsSubmitted(true);
 		onPlayerSelect(playerName);
-		
+
 		// Trigger async data fetching and caching
 		// This will be handled by the navigation store's selectPlayer method
 	};
@@ -106,11 +104,11 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 			e.stopPropagation();
 			return;
 		}
-		
+
 		// Only handle Enter key for player selection
 		if (e.key === "Enter" && localSelectedPlayer.trim()) {
 			// Find the player object that matches the selected name
-			const selectedPlayerObj = allPlayers.find(p => p.playerName && p.playerName === localSelectedPlayer.trim());
+			const selectedPlayerObj = allPlayers.find((p) => p.playerName && p.playerName === localSelectedPlayer.trim());
 			if (selectedPlayerObj) {
 				handlePlayerSelect(selectedPlayerObj);
 			}
@@ -138,12 +136,14 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				className='w-full max-w-md mx-auto'>
 				<div className='space-y-4'>
 					<div>
-						<Listbox value={localSelectedPlayer} onChange={(playerName) => {
-							const player = allPlayers.find(p => p.playerName && p.playerName === playerName);
-							if (player) handlePlayerSelect(player);
-						}}>
+						<Listbox
+							value={localSelectedPlayer}
+							onChange={(playerName) => {
+								const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
+								if (player) handlePlayerSelect(player);
+							}}>
 							<div className='relative'>
-								<Listbox.Button 
+								<Listbox.Button
 									onClick={handleDropdownOpen}
 									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
 									<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
@@ -153,52 +153,43 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options 
+								<Listbox.Options
 									className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
 									onKeyDown={(e) => {
 										// Prevent Listbox from handling text input keys
 										if (e.key === " " || e.key.length === 1) {
 											e.stopPropagation();
 										}
-									}}
-								>
+									}}>
 									<div className='px-3 py-2'>
-																			<input
-										ref={inputRef}
-										type='text'
-										placeholder={query.length < 3 ? 'Type at least 3 characters...' : 'Type to filter players...'}
-										value={query}
-										onChange={(e) => setQuery(e.target.value)}
-										onKeyDown={handleKeyDown}
-										onKeyUp={(e) => {
-											// Prevent event bubbling for text input keys
-											if (e.key === " " || e.key.length === 1) {
-												e.stopPropagation();
-											}
-										}}
-										onInput={(e) => {
-											// Ensure all input including spaces is properly handled
-											const target = e.target as HTMLInputElement;
-											setQuery(target.value);
-										}}
-										enterKeyHint='search'
-										className='dark-input w-full text-sm'
-									/>
+										<input
+											ref={inputRef}
+											type='text'
+											placeholder={query.length < 3 ? "Type at least 3 characters..." : "Type to filter players..."}
+											value={query}
+											onChange={(e) => setQuery(e.target.value)}
+											onKeyDown={handleKeyDown}
+											onKeyUp={(e) => {
+												// Prevent event bubbling for text input keys
+												if (e.key === " " || e.key.length === 1) {
+													e.stopPropagation();
+												}
+											}}
+											onInput={(e) => {
+												// Ensure all input including spaces is properly handled
+												const target = e.target as HTMLInputElement;
+												setQuery(target.value);
+											}}
+											enterKeyHint='search'
+											className='dark-input w-full text-sm'
+										/>
 									</div>
-									{!playersLoaded && isLoadingPlayers && (
-										<div className='px-3 py-2 text-yellow-300 text-sm'>
-											Loading players...
-										</div>
-									)}
+									{!playersLoaded && isLoadingPlayers && <div className='px-3 py-2 text-yellow-300 text-sm'>Loading players...</div>}
 									{playersLoaded && query.length < 3 && (
-										<div className='px-3 py-2 text-yellow-300 text-sm'>
-											Type at least 3 characters to filter players
-										</div>
+										<div className='px-3 py-2 text-yellow-300 text-sm'>Type at least 3 characters to filter players</div>
 									)}
 									{playersLoaded && query.length >= 3 && getFilteredPlayers().length === 0 && (
-										<div className='px-3 py-2 text-yellow-300 text-sm'>
-											No players found
-										</div>
+										<div className='px-3 py-2 text-yellow-300 text-sm'>No players found</div>
 									)}
 									{getFilteredPlayers().map((player, playerIdx) => (
 										<Listbox.Option
@@ -263,10 +254,12 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 			className='w-full max-w-md mx-auto'>
 			<div className='space-y-4'>
 				<div>
-					<Listbox value={localSelectedPlayer} onChange={(playerName) => {
-						const player = allPlayers.find(p => p.playerName && p.playerName === playerName);
-						if (player) handlePlayerSelect(player);
-					}}>
+					<Listbox
+						value={localSelectedPlayer}
+						onChange={(playerName) => {
+							const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
+							if (player) handlePlayerSelect(player);
+						}}>
 						<div className='relative'>
 							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
 								<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
@@ -276,20 +269,19 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options 
+							<Listbox.Options
 								className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
 								onKeyDown={(e) => {
 									// Prevent Listbox from handling text input keys
 									if (e.key === " " || e.key.length === 1) {
 										e.stopPropagation();
 									}
-								}}
-							>
+								}}>
 								<div className='px-3 py-2'>
 									<input
 										ref={inputRef}
 										type='text'
-										placeholder={query.length < 3 ? 'Type at least 3 characters...' : 'Type to filter players...'}
+										placeholder={query.length < 3 ? "Type at least 3 characters..." : "Type to filter players..."}
 										value={query}
 										onChange={(e) => setQuery(e.target.value)}
 										onKeyDown={handleKeyDown}
@@ -308,20 +300,12 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										className='dark-input w-full text-sm'
 									/>
 								</div>
-								{!playersLoaded && isLoadingPlayers && (
-									<div className='px-3 py-2 text-yellow-300 text-sm'>
-										Loading players...
-									</div>
-								)}
+								{!playersLoaded && isLoadingPlayers && <div className='px-3 py-2 text-yellow-300 text-sm'>Loading players...</div>}
 								{playersLoaded && query.length < 3 && (
-									<div className='px-3 py-2 text-yellow-300 text-sm'>
-										Type at least 3 characters to filter players
-									</div>
+									<div className='px-3 py-2 text-yellow-300 text-sm'>Type at least 3 characters to filter players</div>
 								)}
 								{playersLoaded && query.length >= 3 && getFilteredPlayers().length === 0 && (
-									<div className='px-3 py-2 text-yellow-300 text-sm'>
-										No players found
-									</div>
+									<div className='px-3 py-2 text-yellow-300 text-sm'>No players found</div>
 								)}
 								{getFilteredPlayers().map((player, playerIdx) => (
 									<Listbox.Option

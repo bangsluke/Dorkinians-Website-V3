@@ -49,15 +49,15 @@ export async function POST(request: NextRequest) {
 				question: body.question,
 				userContext: body.userContext,
 				timestamp: new Date().toISOString(),
-				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || 'None'}`,
+				serverLogs: `Processed question: ${body.question} with context: ${body.userContext || "None"}`,
 				// Add detailed processing information
 				processingDetails: {
 					questionAnalysis: processingDetails.questionAnalysis,
 					cypherQueries: processingDetails.cypherQueries,
 					processingSteps: processingDetails.processingSteps,
-					queryBreakdown: processingDetails.queryBreakdown
-				}
-			}
+					queryBreakdown: processingDetails.queryBreakdown,
+				},
+			},
 		};
 
 		return NextResponse.json(debugResponse, { headers: corsHeaders });

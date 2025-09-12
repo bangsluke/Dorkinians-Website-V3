@@ -21,7 +21,7 @@ export default function StatsContainer() {
 	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
-	
+
 	// If current page is not found, default to the first page (Player Stats)
 	const validCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
 	const currentPage = statsSubPages[validCurrentIndex];
@@ -29,11 +29,10 @@ export default function StatsContainer() {
 	// Auto-switch to Player Stats if current page is not found
 	useEffect(() => {
 		if (currentMainPage === "stats" && currentIndex < 0) {
-			console.log('🔄 [StatsContainer] Current page not found, switching to Player Stats');
+			console.log("🔄 [StatsContainer] Current page not found, switching to Player Stats");
 			setStatsSubPage("player-stats");
 		}
 	}, [currentMainPage, currentIndex, setStatsSubPage]);
-
 
 	const handleDragEnd = (event: any, info: PanInfo) => {
 		const swipeThreshold = 50;
@@ -59,8 +58,8 @@ export default function StatsContainer() {
 						key={page.id}
 						onClick={() => setStatsSubPage(page.id)}
 						className={`w-2 h-2 rounded-full transition-all duration-200 ${
-							currentStatsSubPage === page.id 
-								? "bg-dorkinians-yellow scale-125" 
+							currentStatsSubPage === page.id
+								? "bg-dorkinians-yellow scale-125"
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
 						}`}
 						aria-label={`Go to ${page.label}`}
@@ -70,7 +69,7 @@ export default function StatsContainer() {
 
 			{/* Swipeable Content */}
 			<motion.div
-				key={currentPage?.id || 'default'}
+				key={currentPage?.id || "default"}
 				initial={{ x: 300, opacity: 0 }}
 				animate={{ x: 0, opacity: 1 }}
 				exit={{ x: -300, opacity: 0 }}

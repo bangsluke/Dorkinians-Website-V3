@@ -3,52 +3,46 @@
 import { motion } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PWAInstallButton from "@/components/PWAInstallButton";
-import { 
-	HomeIcon, 
-	ChartBarIcon, 
-	TrophyIcon, 
-	InformationCircleIcon,
-	ArrowLeftIcon
-} from "@heroicons/react/24/outline";
+import { HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon, ArrowLeftIcon } from "@heroicons/react/24/outline";
 
 const navigationItems = [
-	{ 
-		id: "home", 
-		icon: HomeIcon, 
-		label: "Home", 
-		subPages: []
+	{
+		id: "home",
+		icon: HomeIcon,
+		label: "Home",
+		subPages: [],
 	},
-	{ 
-		id: "stats", 
-		icon: ChartBarIcon, 
-		label: "Stats", 
+	{
+		id: "stats",
+		icon: ChartBarIcon,
+		label: "Stats",
 		subPages: [
 			{ id: "player-stats", label: "Player Stats" },
 			{ id: "team-stats", label: "Team Stats" },
 			{ id: "club-stats", label: "Club Stats" },
-			{ id: "comparison", label: "Comparison" }
-		]
+			{ id: "comparison", label: "Comparison" },
+		],
 	},
-	{ 
-		id: "totw", 
-		icon: TrophyIcon, 
-		label: "TOTW", 
+	{
+		id: "totw",
+		icon: TrophyIcon,
+		label: "TOTW",
 		subPages: [
 			{ id: "totw", label: "Team of the Week" },
-			{ id: "players-of-month", label: "Players of the Month" }
-		]
+			{ id: "players-of-month", label: "Players of the Month" },
+		],
 	},
-	{ 
-		id: "club-info", 
-		icon: InformationCircleIcon, 
-		label: "Club Info", 
+	{
+		id: "club-info",
+		icon: InformationCircleIcon,
+		label: "Club Info",
 		subPages: [
 			{ id: "club-information", label: "Club Information" },
 			{ id: "match-information", label: "Match Information" },
 			{ id: "club-captains", label: "Club Captains" },
 			{ id: "club-awards", label: "Club Awards" },
-			{ id: "useful-links", label: "Useful Links" }
-		]
+			{ id: "useful-links", label: "Useful Links" },
+		],
 	},
 ];
 
@@ -61,7 +55,7 @@ export default function Settings() {
 
 	const handleSubPageClick = (mainPageId: string, subPageId: string) => {
 		setMainPage(mainPageId as any);
-		
+
 		// Set the appropriate sub-page based on the main page
 		switch (mainPageId) {
 			case "stats":
@@ -156,7 +150,6 @@ export default function Settings() {
 					<h2 className='text-xl font-semibold text-white mb-6'>Install App</h2>
 					<PWAInstallButton />
 				</div>
-
 			</div>
 		</div>
 	);

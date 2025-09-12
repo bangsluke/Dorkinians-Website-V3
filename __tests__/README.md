@@ -21,7 +21,7 @@
   - [9. Security and Edge Cases (`security/`)](#9-security-and-edge-cases-security)
   - [10. Monitoring and Observability (`monitoring/`)](#10-monitoring-and-observability-monitoring)
 - [Test Data](#test-data)
-  - [TBL\_TestData Integration](#tbl_testdata-integration)
+  - [TBL_TestData Integration](#tbl_testdata-integration)
   - [Fallback Data](#fallback-data)
   - [Production Database Testing](#production-database-testing)
 - [Running Tests](#running-tests)
@@ -90,7 +90,9 @@ __tests__/
 ## Test Categories
 
 ### 1. Basic Tests (`basic/`)
+
 **Purpose**: Core service validation and fundamental functionality
+
 - **Service Initialization**: Singleton pattern, method availability
 - **Reference Data Validation**: CSV parsing, fallback handling, data structure
 - **Question Analysis**: Player extraction, metric identification
@@ -100,7 +102,9 @@ __tests__/
 > [Back to Table of Contents](#table-of-contents)
 
 ### 2. Service Tests (`services/`)
+
 **Purpose**: Unit testing of chatbot service components
+
 - **Reference Data Loading**: Dynamic CSV fetching, fallback mechanisms
 - **Player Statistics Queries**: Goals, assists, appearances validation
 - **Response Format Validation**: Natural language, appropriate terminology
@@ -110,7 +114,9 @@ __tests__/
 > [Back to Table of Contents](#table-of-contents)
 
 ### 3. Integration Tests (`integration/`)
+
 **Purpose**: End-to-end workflow validation
+
 - **Complete User Journey**: Full session from start to finish
 - **Multi-Player Workflow**: Seamless switching between players
 - **Complex Query Integration**: Nested comparative queries, temporal queries
@@ -122,14 +128,17 @@ __tests__/
 > [Back to Table of Contents](#table-of-contents)
 
 ### 4. Comprehensive Stat Testing (`comprehensive/`)
+
 **Purpose**: Complete coverage of all 50+ statistical metrics with comprehensive validation
 
 This directory contains comprehensive tests that validate the chatbot's ability to answer questions about all player statistics by comparing responses against the reference data in `TBL_TestData`.
 
 #### Test Files
+
 - **`statTesting.test.ts`**: Comprehensive validation of all 50+ statistical metrics
 
 #### What it tests:
+
 - **Dynamic Player Discovery**: Automatically reads player names from `TBL_TestData` (no hardcoding)
 - **All 50+ Stats**: Tests every statistic for each player including:
   - **Basic Statistics**: APP, MIN, MOM, G, A, Y, R, SAVES, OG, C, CLS, PSC, PM, PCO, PSV, FTP
@@ -146,6 +155,7 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 - **Edge Case Handling**: Zero values, decimal values, performance testing
 
 #### Test Coverage Summary
+
 ```
 📊 Test Coverage Summary:
 - Players tested: 3
@@ -155,6 +165,7 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 ```
 
 #### Benefits
+
 1. **Comprehensive Coverage**: Tests all 50+ stats for all players
 2. **Dynamic Discovery**: No hardcoded player names or values
 3. **Real Database Testing**: Validates against production database responses
@@ -164,7 +175,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 5. Advanced Question Types (`advanced/`)
+
 **Purpose**: Testing complex query scenarios and natural language processing
+
 - **Comparative Questions**: "Who has more goals?", "Who has fewer assists?"
 - **Ranking Questions**: "Top 3 goal scorers", "Best assist providers"
 - **Complex Multi-Condition Queries**: Team-specific comparisons, seasonal comparisons
@@ -176,7 +189,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 6. Performance and Load Testing (`performance/`)
+
 **Purpose**: Response time benchmarking and system performance validation
+
 - **Response Time Benchmarking**: Basic questions <2s, complex questions <5s
 - **Concurrent User Simulation**: 5 concurrent users, burst traffic (10 rapid requests)
 - **Memory Usage Monitoring**: Memory leak detection, large dataset handling
@@ -188,7 +203,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 7. Data Accuracy Validation (`validation/`)
+
 **Purpose**: Validating chatbot responses against reference data and production database
+
 - **Reference Data vs Production Database**: Basic and advanced stats validation
 - **Cross-Reference Data Validation**: Different question formats, team-specific data
 - **Statistical Validation**: Calculated ratios, mathematical correctness
@@ -200,7 +217,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 8. User Experience Testing (`ux/`)
+
 **Purpose**: Testing response naturalness, context awareness, and user interaction quality
+
 - **Response Naturalness**: Conversational responses, appropriate verbs
 - **Context Awareness**: Player context maintenance, pronoun references
 - **Error Message Quality**: Helpful error messages, suggestions
@@ -212,7 +231,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 9. Security and Edge Cases (`security/`)
+
 **Purpose**: Input sanitization, SQL injection prevention, and malicious query handling
+
 - **Input Sanitization**: SQL injection, XSS, command injection prevention
 - **Input Validation**: Long inputs, special characters, empty inputs
 - **Rate Limiting and Abuse Prevention**: Rapid requests, concurrent requests
@@ -224,7 +245,9 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 > [Back to Table of Contents](#table-of-contents)
 
 ### 10. Monitoring and Observability (`monitoring/`)
+
 **Purpose**: Logging completeness, metrics collection, error tracking, and performance monitoring
+
 - **Logging Completeness**: All events logged, performance metrics
 - **Metrics Collection**: Response times, success rates, question type distribution
 - **Error Tracking**: Error categorization, frequency patterns
@@ -241,7 +264,7 @@ This directory contains comprehensive tests that validate the chatbot's ability 
 The test suite dynamically reads **reference data** from the `TBL_TestData` Google Sheet to validate chatbot responses against the production database:
 
 - **Luke Bangs**: 29 goals, 7 assists, 78 appearances
-- **Oli Goddard**: 15 goals, 12 assists, 45 appearances  
+- **Oli Goddard**: 15 goals, 12 assists, 45 appearances
 - **Jonny Sourris**: 8 goals, 15 assists, 52 appearances
 
 ### Fallback Data
@@ -251,6 +274,7 @@ If CSV loading fails, the suite uses embedded fallback reference data to ensure 
 ### Production Database Testing
 
 **⚠️ Important**: This test suite connects to the **production database** to test real chatbot performance:
+
 - Tests actual Neo4j queries and response times
 - Validates real data accuracy and consistency
 - Measures chatbot performance under real conditions
@@ -261,11 +285,13 @@ If CSV loading fails, the suite uses embedded fallback reference data to ensure 
 ## Running Tests
 
 ### All Tests
+
 ```bash
 npm test
 ```
 
 ### Specific Test Categories
+
 ```bash
 # Basic functionality
 npm test -- --testPathPattern=basic
@@ -299,11 +325,13 @@ npm test -- --testPathPattern=monitoring
 ```
 
 ### With Coverage
+
 ```bash
 npm run test:coverage
 ```
 
 ### Debug Mode
+
 ```bash
 npm run test:debug
 ```
@@ -313,18 +341,22 @@ npm run test:debug
 ## Test Output Modes
 
 ### Clean Output (Default)
+
 ```bash
 npm test
 ```
+
 - **Simple one-line status** for each test
 - **Minimal logging** - only essential information
 - **Clean summary** with pass/fail counts
 - **Perfect for CI/CD** and regular development
 
 ### Detailed Debug Output
+
 ```bash
 npm run test:debug
 ```
+
 - **Verbose logging** for all operations
 - **Detailed database connection info**
 - **Full error stack traces**
@@ -362,17 +394,20 @@ PROD_NEO4J_PASSWORD=your-password
 ## Test Utilities
 
 ### Data Fetching
+
 - `fetchTestData()`: Retrieves reference CSV data from Google Sheets
 - `getTestPlayerNames()`: Extracts player names dynamically
 - `getPlayerTestData()`: Gets specific player reference statistics
 - `getAllStatConfigs()`: Gets all 50+ stat configurations
 
 ### Response Validation
+
 - `extractNumericValue()`: Parses numbers from chatbot responses
 - `validateResponse()`: Compares reference data vs. production database values
 - `generateTestQuestions()`: Creates test scenarios for each player
 
 ### Mock Services
+
 - `neo4jMock.ts`: Mock Neo4j service for testing without database connection
 
 > [Back to Table of Contents](#table-of-contents)
@@ -380,6 +415,7 @@ PROD_NEO4J_PASSWORD=your-password
 ## Expected Test Results
 
 ### ✅ Passing Tests
+
 - Service initialization and configuration
 - Reference data validation and loading
 - Question analysis and processing
@@ -392,6 +428,7 @@ PROD_NEO4J_PASSWORD=your-password
 - Monitoring and observability
 
 ### ⚠️ Known Considerations
+
 - **Production database availability required**
 - **Network latency may affect test timing**
 - **Database load may impact performance**
@@ -427,6 +464,7 @@ The test suite is designed to run in CI/CD environments:
 ### Debug Mode
 
 Run tests with verbose output:
+
 ```bash
 npm run test:debug
 ```
