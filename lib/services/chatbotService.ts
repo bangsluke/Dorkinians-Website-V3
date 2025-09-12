@@ -993,7 +993,7 @@ export class ChatbotService {
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
-				return await this.queryPlayerOfTheMonthData(playerName);
+				return await this.queryPlayersOfTheMonthData(playerName);
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
@@ -2603,7 +2603,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerOfTheMonthData(playerName: string): Promise<any> {
+	private async queryPlayersOfTheMonthData(playerName: string): Promise<any> {
 		console.log(`🔍 Querying for Player of the Month awards for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})

@@ -1,7 +1,7 @@
 | Question                                                                        | Expected_Output_Type | Data_Source | Question_Breakdown |
 | ------------------------------------------------------------------------------- | -------------------- | ----------- | ------------------ |
-| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   | How many {statType} have {playerName} scored for the {teamName}? |
-| Where did the 2s finish in the 2017/18 season?                                  | Table                | FASiteData  |
+| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   | How many {statType_1} have {subject_1} scored for the {subject_2}? |
+| Where did the 2s finish in the 2017/18 season?                                  | Table                | FASiteData  | 
 | What was the highest scoring game that the 1s achieved in the 2020-2021 season? | NumberCard           | FASiteData  |
 | How many games have I played with Kieran Mackrell?                              | NumberCard           | StatsData   |
 | What's the longest consecutive streak of weekends that I've played in a row?    | Calendar             | StatsData   |
@@ -33,3 +33,4 @@
 | How many assists has Luke Bangs got when not playing for the 3s?                | NumberCard           | StatsData   |
 | Who was the top player in January 2023?                                         | Table                | StatsData   |
 | Who made TOTW in the first week of February 2017?                               | Table                | StatsData   |
+| How many games did the 3s play in the 2016/17 season?                           | NumberCard           | StatsData   |

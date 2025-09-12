@@ -34,9 +34,9 @@ CREATE CONSTRAINT matchdetail_fixture_player_unique IF NOT EXISTS FOR (md:MatchD
 CREATE CONSTRAINT totw_id_unique IF NOT EXISTS FOR (t:TOTW) REQUIRE t.id IS UNIQUE;
 CREATE CONSTRAINT totw_season_week_unique IF NOT EXISTS FOR (t:TOTW) REQUIRE (t.season, t.week) IS UNIQUE;
 
--- PlayerOfTheMonth constraints
-CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayerOfTheMonth) REQUIRE pom.id IS UNIQUE;
-CREATE CONSTRAINT playerofmonth_season_month_player_unique IF NOT EXISTS FOR (pom:PlayerOfTheMonth) REQUIRE (pom.season, pom.month, pom.playerName) IS UNIQUE;
+-- PlayersOfTheMonth constraints
+CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayersOfTheMonth) REQUIRE pom.id IS UNIQUE;
+CREATE CONSTRAINT playerofmonth_season_month_player_unique IF NOT EXISTS FOR (pom:PlayersOfTheMonth) REQUIRE (pom.season, pom.month, pom.playerName) IS UNIQUE;
 
 -- CaptainAward constraints (REMOVED - handled as table data)
 -- No constraints needed for table-based award data
@@ -84,11 +84,11 @@ CREATE INDEX totw_week_index IF NOT EXISTS FOR (t:TOTW) ON (t.week);
 CREATE INDEX totw_seasonweek_index IF NOT EXISTS FOR (t:TOTW) ON (t.seasonWeekNumRef);
 CREATE INDEX totw_starman_index IF NOT EXISTS FOR (t:TOTW) ON (t.starMan);
 
--- PlayerOfTheMonth indexes
-CREATE INDEX playerofmonth_season_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.season);
-CREATE INDEX playerofmonth_month_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.month);
-CREATE INDEX playerofmonth_player_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.playerName);
-CREATE INDEX playerofmonth_team_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.team);
+-- PlayersOfTheMonth indexes
+CREATE INDEX playerofmonth_season_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.season);
+CREATE INDEX playerofmonth_month_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.month);
+CREATE INDEX playerofmonth_player_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.playerName);
+CREATE INDEX playerofmonth_team_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.team);
 
 -- CaptainAward indexes (REMOVED - handled as table data)
 -- No indexes needed for table-based award data
@@ -114,7 +114,7 @@ CREATE INDEX matchdetail_fixture_player_index IF NOT EXISTS FOR (md:MatchDetail)
 CREATE INDEX totw_season_week_index IF NOT EXISTS FOR (t:TOTW) ON (t.season, t.week);
 
 -- Player awards by season and month
-CREATE INDEX playerofmonth_season_month_index IF NOT EXISTS FOR (pom:PlayerOfTheMonth) ON (pom.season, pom.month);
+CREATE INDEX playerofmonth_season_month_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.season, pom.month);
 
 -- =====================================================
 -- GRAPH LABEL INDEXES
