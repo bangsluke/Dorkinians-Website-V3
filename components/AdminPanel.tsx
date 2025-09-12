@@ -495,7 +495,7 @@ export default function AdminPanel() {
 			{/* Email Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
 				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Email Notifications</h3>
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+				<div className='space-y-4'>
 					<div>
 						<label htmlFor='emailAddress' className='block text-sm font-medium text-gray-700'>
 							Email Address for Notifications:
@@ -505,7 +505,8 @@ export default function AdminPanel() {
 							id='emailAddress'
 							value={emailAddress}
 							onChange={(e) => setEmailAddress(e.target.value)}
-							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm'
+							placeholder='bangsluke@gmail.com'
+							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-200'
 						/>
 					</div>
 					<div className='flex items-center'>
@@ -535,12 +536,12 @@ export default function AdminPanel() {
 				</div>
 			</div>
 
-			{/* Trigger Buttons */}
-			<div className='mb-6 flex gap-4 flex-wrap'>
+			{/* Action Buttons */}
+			<div className='mb-6 flex justify-center gap-4 flex-wrap'>
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
-					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
 					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
@@ -548,32 +549,15 @@ export default function AdminPanel() {
 				<button
 					onClick={triggerChatbotTest}
 					disabled={chatbotTestLoading}
-					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
 						chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
 					}`}>
 					{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
 				</button>
-			</div>
-
-			{/* Configuration Section */}
-			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Database Seeding Options</h3>
-				<div className='space-y-2'>
-					<div className='flex items-start'>
-						<span className='text-blue-600 font-semibold mr-2'>🚀 Production:</span>
-						<p className='text-sm text-gray-600'>
-							⚠️ Triggers production database seeding via Heroku service. Only use for production deployments.
-						</p>
-					</div>
-				</div>
-			</div>
-
-			{/* Status Check Buttons */}
-			<div className='mb-6 flex gap-4'>
 				<button
 					onClick={checkStatus}
 					disabled={statusCheckLoading || !jobId}
-					className={`px-6 py-3 rounded-lg font-semibold text-white transition-colors ${
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
 					}`}>
 					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Production Status"}
@@ -636,10 +620,14 @@ export default function AdminPanel() {
 							setJobsLoading(false);
 						}
 					}}
-					className='mt-2 px-6 py-3 rounded-lg font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
+					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
 				</button>
-				{lastStatusCheck && <p className='text-sm text-gray-600 mt-2'>{lastStatusCheck}</p>}
+			</div>
+
+			{/* Status Information */}
+			<div className='mb-6 text-center'>
+				{lastStatusCheck && <p className='text-sm text-gray-600'>{lastStatusCheck}</p>}
 				{jobId && <p className='text-xs text-gray-500 mt-1'>Current Job ID: {jobId}</p>}
 			</div>
 
