@@ -3,15 +3,15 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import { 
-	HomeIcon, 
-	ChartBarIcon, 
-	TrophyIcon, 
+import {
+	HomeIcon,
+	ChartBarIcon,
+	TrophyIcon,
 	InformationCircleIcon,
 	ArrowLeftIcon,
 	ArrowPathIcon,
 	BugAntIcon,
-	ShieldCheckIcon
+	ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import Header from "@/components/Header";
 import { appConfig } from "@/config/config";
@@ -23,43 +23,43 @@ import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
 
 const navigationItems = [
-	{ 
-		id: "home", 
-		icon: HomeIcon, 
-		label: "Home", 
-		subPages: []
+	{
+		id: "home",
+		icon: HomeIcon,
+		label: "Home",
+		subPages: [],
 	},
-	{ 
-		id: "stats", 
-		icon: ChartBarIcon, 
-		label: "Stats", 
+	{
+		id: "stats",
+		icon: ChartBarIcon,
+		label: "Stats",
 		subPages: [
 			{ id: "player-stats", label: "Player Stats" },
 			{ id: "team-stats", label: "Team Stats" },
 			{ id: "club-stats", label: "Club Stats" },
-			{ id: "comparison", label: "Player Comparison" }
-		]
+			{ id: "comparison", label: "Player Comparison" },
+		],
 	},
-	{ 
-		id: "totw", 
-		icon: TrophyIcon, 
-		label: "TOTW", 
+	{
+		id: "totw",
+		icon: TrophyIcon,
+		label: "TOTW",
 		subPages: [
 			{ id: "totw", label: "Team of the Week" },
-			{ id: "players-of-month", label: "Players of the Month" }
-		]
+			{ id: "players-of-month", label: "Players of the Month" },
+		],
 	},
-	{ 
-		id: "club-info", 
-		icon: InformationCircleIcon, 
-		label: "Club Info", 
+	{
+		id: "club-info",
+		icon: InformationCircleIcon,
+		label: "Club Info",
 		subPages: [
 			{ id: "club-information", label: "Club Information" },
 			{ id: "match-information", label: "Match Information" },
 			{ id: "club-captains", label: "Club Captains" },
 			{ id: "club-awards", label: "Club Awards" },
-			{ id: "useful-links", label: "Useful Links" }
-		]
+			{ id: "useful-links", label: "Useful Links" },
+		],
 	},
 ];
 
@@ -76,7 +76,7 @@ export default function SettingsPage() {
 
 	const handleSubPageClick = (mainPageId: string, subPageId: string) => {
 		setMainPage(mainPageId as any);
-		
+
 		// Set the appropriate sub-page based on the main page
 		switch (mainPageId) {
 			case "stats":
@@ -102,7 +102,7 @@ export default function SettingsPage() {
 	const handleCheckForUpdate = async () => {
 		setIsCheckingUpdate(true);
 		setUpdateStatus(null);
-		
+
 		try {
 			// Dynamically import PWA service to avoid SSR issues
 			const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
@@ -204,9 +204,7 @@ export default function SettingsPage() {
 									<div>
 										<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
 										<p className='text-sm text-gray-300'>Check if a new version is available</p>
-										{updateStatus && (
-											<p className='text-xs text-dorkinians-yellow mt-1'>{updateStatus}</p>
-										)}
+										{updateStatus && <p className='text-xs text-dorkinians-yellow mt-1'>{updateStatus}</p>}
 									</div>
 									<motion.button
 										onClick={handleCheckForUpdate}
@@ -228,7 +226,7 @@ export default function SettingsPage() {
 									</motion.button>
 								</div>
 							</div>
-							
+
 							{/* Report Bug/Feature Request */}
 							<motion.button
 								onClick={() => setShowFeedbackModal(true)}
@@ -277,27 +275,17 @@ export default function SettingsPage() {
 
 					{/* Version Information */}
 					<div className='mt-8 text-center'>
-						<p className='text-xs text-gray-400'>
-							Version {appConfig.version}
-						</p>
+						<p className='text-xs text-gray-400'>Version {appConfig.version}</p>
 					</div>
 				</div>
 			</div>
 
 			{/* Update Toast */}
-			{showUpdateToast && (
-				<UpdateToast onClose={() => setShowUpdateToast(false)} />
-			)}
+			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
 
 			{/* Modals */}
-			<FeedbackModal 
-				isOpen={showFeedbackModal} 
-				onClose={() => setShowFeedbackModal(false)} 
-			/>
-			<DataPrivacyModal 
-				isOpen={showDataPrivacyModal} 
-				onClose={() => setShowDataPrivacyModal(false)} 
-			/>
+			<FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
+			<DataPrivacyModal isOpen={showDataPrivacyModal} onClose={() => setShowDataPrivacyModal(false)} />
 		</>
 	);
 }

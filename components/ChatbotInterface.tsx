@@ -27,7 +27,7 @@ export default function ChatbotInterface() {
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
 		console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
-		if (typeof window !== 'undefined') {
+		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem("chatbotConversations");
 			if (saved) {
 				try {
@@ -48,7 +48,7 @@ export default function ChatbotInterface() {
 
 	// Save conversation history to localStorage whenever it changes (keep only last 3)
 	useEffect(() => {
-		if (typeof window !== 'undefined') {
+		if (typeof window !== "undefined") {
 			const lastThree = conversationHistory.slice(-3);
 			localStorage.setItem("chatbotConversations", JSON.stringify(lastThree));
 		}
@@ -60,7 +60,7 @@ export default function ChatbotInterface() {
 
 		// Client-side logging for debugging
 		console.log(`🤖 Frontend: Sending question: ${question.trim()}`);
-		console.log(`🤖 Frontend: Player context: ${selectedPlayer || 'None'}`);
+		console.log(`🤖 Frontend: Player context: ${selectedPlayer || "None"}`);
 
 		setIsLoading(true);
 		setError(null);
@@ -84,16 +84,16 @@ export default function ChatbotInterface() {
 
 			const data: ChatbotResponse & { debug?: any } = await res.json();
 			console.log(`🤖 Frontend: Received response:`, data);
-			
+
 			// Enhanced client-side logging for debugging
 			if (data.debug) {
 				console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
 					question: data.debug.question,
 					userContext: data.debug.userContext,
 					timestamp: data.debug.timestamp,
-					serverLogs: data.debug.serverLogs
+					serverLogs: data.debug.serverLogs,
 				});
-				
+
 				// Log detailed processing information if available
 				if (data.debug.processingDetails) {
 					console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
@@ -102,16 +102,16 @@ export default function ChatbotInterface() {
 					console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
 				}
 			}
-			
+
 			// Log the response structure for debugging
 			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
 				answer: data.answer,
 				hasVisualization: !!data.visualization,
 				hasDebug: !!data.debug,
-				hasProcessingDetails: !!(data.debug?.processingDetails),
-				responseType: typeof data
+				hasProcessingDetails: !!data.debug?.processingDetails,
+				responseType: typeof data,
 			});
-			
+
 			setResponse(data);
 
 			// Save to conversation history with player context
@@ -210,7 +210,6 @@ export default function ChatbotInterface() {
 						)}
 					</button>
 				</div>
-
 			</form>
 
 			{/* Response Display */}
@@ -246,54 +245,86 @@ export default function ChatbotInterface() {
 							<p className='text-yellow-100 text-sm md:text-base'>{response.answer}</p>
 						</div>
 
-
-
 						{/* Visualization */}
 						{response.visualization && renderVisualization(response.visualization)}
-						
+
 						{/* Debug Information - Only show in development or when explicitly enabled */}
-						{(process.env.NODE_ENV === 'development' || (response as any).debug) && (
+						{(process.env.NODE_ENV === "development" || (response as any).debug) && (
 							<div className='mt-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg'>
 								<h4 className='font-semibold text-gray-300 mb-2 text-xs'>🔍 Debug Info</h4>
 								<div className='text-xs text-gray-400 space-y-1'>
 									{(response as any).debug && (
 										<>
-											<div><strong>Question:</strong> {(response as any).debug.question}</div>
-											<div><strong>Context:</strong> {(response as any).debug.userContext || 'None'}</div>
-											<div><strong>Timestamp:</strong> {(response as any).debug.timestamp}</div>
-											<div><strong>Server Logs:</strong> {(response as any).debug.serverLogs}</div>
-											
+											<div>
+												<strong>Question:</strong> {(response as any).debug.question}
+											</div>
+											<div>
+												<strong>Context:</strong> {(response as any).debug.userContext || "None"}
+											</div>
+											<div>
+												<strong>Timestamp:</strong> {(response as any).debug.timestamp}
+											</div>
+											<div>
+												<strong>Server Logs:</strong> {(response as any).debug.serverLogs}
+											</div>
+
 											{/* Detailed Processing Information */}
 											{(response as any).debug.processingDetails && (
 												<>
 													<div className='mt-2 pt-2 border-t border-gray-600/30'>
-														<div><strong>Question Type:</strong> {(response as any).debug.processingDetails.questionAnalysis?.type || 'Unknown'}</div>
-														<div><strong>Extracted Entities:</strong> {(response as any).debug.processingDetails.questionAnalysis?.entities?.join(', ') || 'None'}</div>
-														<div><strong>Extracted Metrics:</strong> {(response as any).debug.processingDetails.questionAnalysis?.metrics?.join(', ') || 'None'}</div>
-														
+														<div>
+															<strong>Question Type:</strong> {(response as any).debug.processingDetails.questionAnalysis?.type || "Unknown"}
+														</div>
+														<div>
+															<strong>Extracted Entities:</strong>{" "}
+															{(response as any).debug.processingDetails.questionAnalysis?.entities?.join(", ") || "None"}
+														</div>
+														<div>
+															<strong>Extracted Metrics:</strong>{" "}
+															{(response as any).debug.processingDetails.questionAnalysis?.metrics?.join(", ") || "None"}
+														</div>
+
 														{(response as any).debug.processingDetails.queryBreakdown && (
 															<>
-																<div><strong>Player Name:</strong> {(response as any).debug.processingDetails.queryBreakdown.playerName || 'None'}</div>
-																<div><strong>Team:</strong> {(response as any).debug.processingDetails.queryBreakdown.team || 'None'}</div>
-																<div><strong>Stat Entity:</strong> {(response as any).debug.processingDetails.queryBreakdown.statEntity || 'None'}</div>
+																<div>
+																	<strong>Player Name:</strong> {(response as any).debug.processingDetails.queryBreakdown.playerName || "None"}
+																</div>
+																<div>
+																	<strong>Team:</strong> {(response as any).debug.processingDetails.queryBreakdown.team || "None"}
+																</div>
+																<div>
+																	<strong>Stat Entity:</strong> {(response as any).debug.processingDetails.queryBreakdown.statEntity || "None"}
+																</div>
 															</>
 														)}
-														
-														{(response as any).debug.processingDetails.cypherQueries && (response as any).debug.processingDetails.cypherQueries.length > 0 && (
-															<div><strong>Cypher Queries:</strong> {(response as any).debug.processingDetails.cypherQueries.length} executed</div>
-														)}
-														
-														{(response as any).debug.processingDetails.processingSteps && (response as any).debug.processingDetails.processingSteps.length > 0 && (
-															<div><strong>Processing Steps:</strong> {(response as any).debug.processingDetails.processingSteps.length} completed</div>
-														)}
+
+														{(response as any).debug.processingDetails.cypherQueries &&
+															(response as any).debug.processingDetails.cypherQueries.length > 0 && (
+																<div>
+																	<strong>Cypher Queries:</strong> {(response as any).debug.processingDetails.cypherQueries.length} executed
+																</div>
+															)}
+
+														{(response as any).debug.processingDetails.processingSteps &&
+															(response as any).debug.processingDetails.processingSteps.length > 0 && (
+																<div>
+																	<strong>Processing Steps:</strong> {(response as any).debug.processingDetails.processingSteps.length} completed
+																</div>
+															)}
 													</div>
 												</>
 											)}
 										</>
 									)}
-									<div><strong>Response Type:</strong> {typeof response}</div>
-									<div><strong>Has Visualization:</strong> {!!response.visualization ? 'Yes' : 'No'}</div>
-									<div><strong>Has Processing Details:</strong> {!!(response as any).debug?.processingDetails ? 'Yes' : 'No'}</div>
+									<div>
+										<strong>Response Type:</strong> {typeof response}
+									</div>
+									<div>
+										<strong>Has Visualization:</strong> {!!response.visualization ? "Yes" : "No"}
+									</div>
+									<div>
+										<strong>Has Processing Details:</strong> {!!(response as any).debug?.processingDetails ? "Yes" : "No"}
+									</div>
 								</div>
 							</div>
 						)}
@@ -326,9 +357,9 @@ export default function ChatbotInterface() {
 											}
 										}, 0);
 									}}>
-																	<div className='mb-2'>
-									<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
-								</div>
+									<div className='mb-2'>
+										<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
+									</div>
 									<p className='text-xs md:text-sm text-yellow-100'>{q.description}</p>
 								</motion.div>
 							))}
@@ -343,12 +374,11 @@ export default function ChatbotInterface() {
 							<h3 className='font-semibold text-white text-sm md:text-base'>Previous Conversations</h3>
 							<button
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
-							>
-								{showExampleQuestions ? 'Hide' : 'Show'} example questions
+								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+								{showExampleQuestions ? "Hide" : "Show"} example questions
 							</button>
 						</div>
-						
+
 						{/* Show past conversations or example questions based on toggle */}
 						{!showExampleQuestions ? (
 							<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2'>
@@ -401,9 +431,9 @@ export default function ChatbotInterface() {
 												}
 											}, 0);
 										}}>
-																		<div className='mb-2'>
-									<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
-								</div>
+										<div className='mb-2'>
+											<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
+										</div>
 										<p className='text-xs md:text-sm text-yellow-100'>{q.description}</p>
 									</motion.div>
 								))}

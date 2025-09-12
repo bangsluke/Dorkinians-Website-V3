@@ -320,13 +320,13 @@ exports.handler = async (event, context) => {
 		// Parse request body to get email configuration
 		let requestBody = {};
 		try {
-			requestBody = JSON.parse(event.body || '{}');
+			requestBody = JSON.parse(event.body || "{}");
 		} catch (error) {
 			console.warn("⚠️ TRIGGER: Failed to parse request body:", error.message);
 		}
-		
+
 		const emailConfig = requestBody.emailConfig || {};
-		
+
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
 		if (isCronJob) {
@@ -335,7 +335,7 @@ exports.handler = async (event, context) => {
 			emailConfig.sendEmailAtStart = false;
 			emailConfig.sendEmailAtCompletion = true;
 		}
-		
+
 		console.log("📧 TRIGGER: Final email configuration:", emailConfig);
 
 		// Generate unique job ID
@@ -355,14 +355,14 @@ exports.handler = async (event, context) => {
 				if (emailService.config) {
 					emailService.config.to = emailConfig.emailAddress;
 				}
-				
+
 				const startEmailSent = await emailService.sendSeedingStartEmail(environment);
 				if (startEmailSent) {
 					console.log("✅ START: Start notification email sent successfully");
 				} else {
 					console.warn("⚠️ START: Failed to send start notification email");
 				}
-				
+
 				// Restore original recipient
 				if (emailService.config && originalTo) {
 					emailService.config.to = originalTo;
@@ -377,22 +377,26 @@ exports.handler = async (event, context) => {
 		// Trigger Heroku seeding service (fire-and-forget)
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
 		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-		const cleanHerokuUrl = herokuUrl.replace(/\/$/, "");
+		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
+		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, ""); // Remove one or more trailing slashes
+		console.log("🔗 HEROKU: Cleaned URL:", cleanHerokuUrl);
 		const fullUrl = `${cleanHerokuUrl}/seed`;
-		console.log("🔗 HEROKU: Full URL being called:", fullUrl);
-		console.log("🔗 HEROKU: Environment variable HEROKU_SEEDER_URL:", process.env.HEROKU_SEEDER_URL);
+		console.log("🔗 HEROKU: Final URL being called:", fullUrl);
 
 		// Fire-and-forget: don't wait for response to prevent timeout
 		console.log("🌱 HEROKU: Making POST request to:", fullUrl);
-		console.log("🌱 HEROKU: Request payload:", JSON.stringify({ 
-			environment, 
-			jobId,
-			emailConfig: {
-				emailAddress: emailConfig.emailAddress,
-				sendEmailAtStart: emailConfig.sendEmailAtStart,
-				sendEmailAtCompletion: emailConfig.sendEmailAtCompletion
-			}
-		}));
+		console.log(
+			"🌱 HEROKU: Request payload:",
+			JSON.stringify({
+				environment,
+				jobId,
+				emailConfig: {
+					emailAddress: emailConfig.emailAddress,
+					sendEmailAtStart: emailConfig.sendEmailAtStart,
+					sendEmailAtCompletion: emailConfig.sendEmailAtCompletion,
+				},
+			}),
+		);
 
 		// Enhanced fetch with timeout and retry logic
 		const fetchWithTimeout = async (url, options, timeout = 30000) => {
@@ -431,8 +435,8 @@ exports.handler = async (event, context) => {
 							emailConfig: {
 								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
 								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
-								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true
-							}
+								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true,
+							},
 						}),
 					},
 					30000,

@@ -73,11 +73,7 @@ class SimpleEmailService {
 		}
 	}
 
-	async sendDataRemovalEmail(data: {
-		name: string;
-		version: string;
-		timestamp: string;
-	}) {
+	async sendDataRemovalEmail(data: { name: string; version: string; timestamp: string }) {
 		if (!this.transporter) {
 			throw new Error("Email service not configured");
 		}
@@ -134,11 +130,11 @@ export async function POST(request: NextRequest) {
 		// Check rate limit
 		if (!checkRateLimit(ip)) {
 			return NextResponse.json(
-				{ 
-					success: false, 
-					message: "Too many requests. Please wait before sending another request." 
+				{
+					success: false,
+					message: "Too many requests. Please wait before sending another request.",
 				},
-				{ status: 429 }
+				{ status: 429 },
 			);
 		}
 
@@ -147,10 +143,7 @@ export async function POST(request: NextRequest) {
 
 		// Validate required fields
 		if (!name || !version || !timestamp) {
-			return NextResponse.json(
-				{ success: false, message: "Missing required fields" },
-				{ status: 400 }
-			);
+			return NextResponse.json({ success: false, message: "Missing required fields" }, { status: 400 });
 		}
 
 		// Send email
@@ -164,15 +157,14 @@ export async function POST(request: NextRequest) {
 			success: true,
 			message: "Data removal request sent successfully",
 		});
-
 	} catch (error: any) {
 		console.error("Error sending data removal request:", error);
 		return NextResponse.json(
-			{ 
-				success: false, 
-				message: "Failed to send request. Please try again later." 
+			{
+				success: false,
+				message: "Failed to send request. Please try again later.",
 			},
-			{ status: 500 }
+			{ status: 500 },
 		);
 	}
 }

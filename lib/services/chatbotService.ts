@@ -1,13 +1,9 @@
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
 import { statObject } from "../../config/config";
-import * as natural from 'natural';
-import nlp from 'compromise';
-import { 
-	getAppropriateVerb, 
-	getResponseTemplate, 
-	formatNaturalResponse
-} from "../config/naturalLanguageResponses";
+import * as natural from "natural";
+import nlp from "compromise";
+import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -29,7 +25,7 @@ export interface QuestionContext {
 
 export class ChatbotService {
 	private static instance: ChatbotService;
-	
+
 	// Debug tracking properties
 	private lastQuestionAnalysis: any = null;
 	private lastExecutedQueries: string[] = [];
@@ -44,11 +40,11 @@ export class ChatbotService {
 	}
 
 	// Helper method to log to both server and client consoles
-	private logToBoth(message: string, data?: any, level: 'log' | 'warn' | 'error' = 'log') {
+	private logToBoth(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
 		// Server-side logging
-		if (level === 'log') {
+		if (level === "log") {
 			console.log(message, data);
-		} else if (level === 'warn') {
+		} else if (level === "warn") {
 			console.warn(message, data);
 		} else {
 			console.error(message, data);
@@ -56,9 +52,9 @@ export class ChatbotService {
 
 		// Client-side logging (will show in browser console)
 		// Note: This will always log to client console for debugging purposes
-		if (level === 'log') {
+		if (level === "log") {
 			console.log(`🤖 [CLIENT] ${message}`, data);
-		} else if (level === 'warn') {
+		} else if (level === "warn") {
 			console.warn(`🤖 [CLIENT] ${message}`, data);
 		} else {
 			console.error(`🤖 [CLIENT] ${message}`, data);
@@ -71,65 +67,63 @@ export class ChatbotService {
 		this.lastExecutedQueries = [];
 		this.lastProcessingSteps = [];
 		this.lastQueryBreakdown = null;
-		
+
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`🌍 Environment: ${process.env.NODE_ENV}`);
-		this.logToBoth(`👤 User context: ${context.userContext || 'None'}`);
-		this.logToBoth(
-			`🔗 Neo4j URI configured: ${process.env.PROD_NEO4J_URI ? "Yes" : "No"}`,
-		);
-		
+		this.logToBoth(`👤 User context: ${context.userContext || "None"}`);
+		this.logToBoth(`🔗 Neo4j URI configured: ${process.env.PROD_NEO4J_URI ? "Yes" : "No"}`);
+
 		// Client-side logging for question processing
 		console.log(`🤖 [CLIENT] 🤖 Processing question: ${context.question}`);
-		console.log(`🤖 [CLIENT] 👤 User context: ${context.userContext || 'None'}`);
+		console.log(`🤖 [CLIENT] 👤 User context: ${context.userContext || "None"}`);
 
 		try {
 			// Ensure Neo4j connection
 			const connected = await neo4jService.connect();
 			if (!connected) {
 				console.error("❌ Neo4j connection failed in production");
-							return {
-				answer: "I'm sorry, I'm unable to access the club's database at the moment. Please try again later.",
-				sources: [],
-			};
+				return {
+					answer: "I'm sorry, I'm unable to access the club's database at the moment due to a network issue. Please try again later.",
+					sources: [],
+				};
 			}
 
-					// Analyze the question
-		const analysis = this.analyzeQuestion(context.question, context.userContext);
-		this.lastQuestionAnalysis = analysis; // Store for debugging
-		
-		// Handle clarification needed case
-		if (analysis.type === "clarification_needed") {
-			return {
-				answer: analysis.message || "Please clarify your question.",
-				sources: [],
+			// Analyze the question
+			const analysis = this.analyzeQuestion(context.question, context.userContext);
+			this.lastQuestionAnalysis = analysis; // Store for debugging
+
+			// Handle clarification needed case
+			if (analysis.type === "clarification_needed") {
+				return {
+					answer: analysis.message || "Please clarify your question.",
+					sources: [],
+				};
+			}
+
+			// Create detailed breakdown for debugging
+			this.lastQueryBreakdown = {
+				playerName: context.userContext || "None",
+				team: analysis.entities.find((e) => /\d+(?:st|nd|rd|th)?/.test(e)) || "None",
+				statEntity: analysis.metrics[0] || "None",
+				questionType: analysis.type,
+				extractedEntities: analysis.entities,
+				extractedMetrics: analysis.metrics,
 			};
-		}
-		
-		// Create detailed breakdown for debugging
-		this.lastQueryBreakdown = {
-			playerName: context.userContext || 'None',
-			team: analysis.entities.find(e => /\d+(?:st|nd|rd|th)?/.test(e)) || 'None',
-			statEntity: analysis.metrics[0] || 'None',
-			questionType: analysis.type,
-			extractedEntities: analysis.entities,
-			extractedMetrics: analysis.metrics
-		};
-		
-		this.logToBoth(`🔍 Question analysis:`, analysis);
-		this.logToBoth(`🔍 Query breakdown:`, this.lastQueryBreakdown);
-		
-		// Client-side logging for question analysis
-		console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
-		console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
+
+			this.logToBoth(`🔍 Question analysis:`, analysis);
+			this.logToBoth(`🔍 Query breakdown:`, this.lastQueryBreakdown);
+
+			// Client-side logging for question analysis
+			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
+			console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
 			this.logToBoth(`🔍 Building Cypher query for analysis:`, analysis);
 			const data = await this.queryRelevantData(analysis);
-			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || 'null'}`);
+			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 			this.logToBoth(`📊 Query result:`, data);
-			
+
 			// Client-side logging for query results
 			console.log(`🤖 [CLIENT] 📊 Query result:`, data);
 
@@ -139,16 +133,14 @@ export class ChatbotService {
 
 			return response;
 		} catch (error) {
-			this.logToBoth("❌ Error processing question:", error, 'error');
-			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
-			this.logToBoth("❌ Question that failed:", question, 'error');
-			this.logToBoth("❌ User context:", userContext, 'error');
+			this.logToBoth("❌ Error processing question:", error, "error");
+			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : "No stack trace available", "error");
+			this.logToBoth("❌ Question that failed:", context.question, "error");
+			this.logToBoth("❌ User context:", context.userContext, "error");
 			return {
 				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
 				sources: [],
-				cypherQuery: 'N/A',
-				error: error instanceof Error ? error.message : String(error),
-				errorStack: error instanceof Error ? error.stack : undefined
+				cypherQuery: "N/A",
 			};
 		}
 	}
@@ -274,7 +266,7 @@ export class ChatbotService {
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
-		
+
 		// Enhanced Pattern 4: "Luke's goals" or "Luke's assists" (possessive form)
 		if (entities.length === 0) {
 			playerNameMatch = question.match(
@@ -284,12 +276,10 @@ export class ChatbotService {
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
-		
+
 		// Pattern 6: "How many minutes does it take on average for Luke Bangs to score?" (comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to/,
-			);
+			playerNameMatch = question.match(/for ([A-Z][a-z]+(?: [A-Z][a-z]+)*) to/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -317,9 +307,7 @@ export class ChatbotService {
 
 		// Pattern 7.5: "What team has Luke Bangs made the most appearances for?" (team-specific questions)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/What team has ([A-Za-z\s]+) (?:made the most appearances for|scored the most goals for)/,
-			);
+			playerNameMatch = question.match(/What team has ([A-Za-z\s]+) (?:made the most appearances for|scored the most goals for)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -327,9 +315,7 @@ export class ChatbotService {
 
 		// Pattern 7.6: "How many of the clubs teams has Luke Bangs played for?" (teams count questions)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/How many of the clubs teams has ([A-Za-z\s]+) played for/,
-			);
+			playerNameMatch = question.match(/How many of the clubs teams has ([A-Za-z\s]+) played for/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -337,9 +323,7 @@ export class ChatbotService {
 
 		// Pattern 8: "How many home games has Luke Bangs played?" (comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/How many (?:home|away) (?:games|goals|wins|appearances) has ([A-Za-z\s]+) (?:played|scored|won|made)/,
-			);
+			playerNameMatch = question.match(/How many (?:home|away) (?:games|goals|wins|appearances) has ([A-Za-z\s]+) (?:played|scored|won|made)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -347,9 +331,7 @@ export class ChatbotService {
 
 		// Pattern 9: "How many 1s appearances has Luke Bangs made?" (team-specific comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/How many (?:1s|2s|3s|4s|5s|6s|7s|8s) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
-			);
+			playerNameMatch = question.match(/How many (?:1s|2s|3s|4s|5s|6s|7s|8s) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -361,16 +343,14 @@ export class ChatbotService {
 				/How many (?:apps|appearances|goals) has ([A-Za-z\s]+) (?:made|scored) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
 			);
 			if (playerNameMatch) {
-				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, 'info');
+				this.logToBoth(`🔍 Pattern 9a matched: ${playerNameMatch[1].trim()}`, "log");
 				entities.push(playerNameMatch[1].trim());
 			}
 		}
 
 		// Pattern 9b: "Provide me with Luke Bangs appearance count for the 8s." (team-specific comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/Provide me with ([A-Za-z\s]+) (?:appearance count|goal count) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
-			);
+			playerNameMatch = question.match(/Provide me with ([A-Za-z\s]+) (?:appearance count|goal count) for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -388,9 +368,7 @@ export class ChatbotService {
 
 		// Pattern 9d: "How many times has Jonny Sourris played for the 3s?" (team-specific comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/How many times has ([A-Za-z\s]+) played for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
-			);
+			playerNameMatch = question.match(/How many times has ([A-Za-z\s]+) played for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -398,9 +376,7 @@ export class ChatbotService {
 
 		// Pattern 9e: "How many goals in total has Jonny Sourris scored for the 3s?" (team-specific comprehensive test templates)
 		if (entities.length === 0) {
-			playerNameMatch = question.match(
-				/How many goals in total has ([A-Za-z\s]+) scored for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/,
-			);
+			playerNameMatch = question.match(/How many goals in total has ([A-Za-z\s]+) scored for the (?:1s|2s|3s|4s|5s|6s|7s|8s)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -409,9 +385,7 @@ export class ChatbotService {
 		// Pattern 10: "How many 2016/17 appearances has Luke Bangs made?" (seasonal comprehensive test templates)
 		if (entities.length === 0) {
 			// Dynamic seasonal pattern - matches any year/year format (e.g., 2016/17, 2022/23, 2030/31)
-			playerNameMatch = question.match(
-				/How many (?:20\d{2}\/\d{2}) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/,
-			);
+			playerNameMatch = question.match(/How many (?:20\d{2}\/\d{2}) (?:appearances|goals) has ([A-Za-z\s]+) (?:made|scored)/);
 			if (playerNameMatch) {
 				entities.push(playerNameMatch[1].trim());
 			}
@@ -443,18 +417,20 @@ export class ChatbotService {
 		if (entities.length > 0 && userContext) {
 			const extractedPlayer = entities[0];
 			const selectedPlayer = userContext;
-			
+
 			// If names don't match, ask for clarification
 			if (extractedPlayer.toLowerCase() !== selectedPlayer.toLowerCase()) {
 				// Check if extracted name is a partial match (e.g., "Luke" vs "Luke Bangs")
-				if (!selectedPlayer.toLowerCase().includes(extractedPlayer.toLowerCase()) && 
-					!extractedPlayer.toLowerCase().includes(selectedPlayer.toLowerCase())) {
+				if (
+					!selectedPlayer.toLowerCase().includes(extractedPlayer.toLowerCase()) &&
+					!extractedPlayer.toLowerCase().includes(selectedPlayer.toLowerCase())
+				) {
 					// Names are different - ask for clarification
 					return {
 						type: "clarification_needed",
 						entities: [],
 						metrics: [],
-						message: `I found a player named "${extractedPlayer}" in your question, but you have "${selectedPlayer}" selected. Please clarify which player you're asking about.`
+						message: `I found a player named "${extractedPlayer}" in your question, but you have "${selectedPlayer}" selected. Please clarify which player you're asking about.`,
 					};
 				}
 			}
@@ -488,16 +464,17 @@ export class ChatbotService {
 				metrics.push("CperAPP");
 			}
 			// Minutes per goal - enhanced pattern matching
-			else if (lowerQuestion.includes("minutes") && (
-				lowerQuestion.includes("per goal") || 
-				(lowerQuestion.includes("take") && lowerQuestion.includes("score")) || 
-				(lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) ||
-				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("score")) ||
-				(lowerQuestion.includes("minutes") && lowerQuestion.includes("average") && lowerQuestion.includes("score")) ||
-				(lowerQuestion.includes("minutes") && lowerQuestion.includes("on average") && lowerQuestion.includes("score")) ||
-				(lowerQuestion.includes("minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score")) ||
-				(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score"))
-			)) {
+			else if (
+				lowerQuestion.includes("minutes") &&
+				(lowerQuestion.includes("per goal") ||
+					(lowerQuestion.includes("take") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("does") && lowerQuestion.includes("take") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("minutes") && lowerQuestion.includes("average") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("minutes") && lowerQuestion.includes("on average") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score")) ||
+					(lowerQuestion.includes("how many minutes") && lowerQuestion.includes("does it take") && lowerQuestion.includes("score")))
+			) {
 				console.log("🔍 MperG detected for question:", question);
 				metrics.push("MperG");
 			}
@@ -544,241 +521,205 @@ export class ChatbotService {
 			// Team-specific appearances
 			else if (lowerQuestion.includes("1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("1sApps");
-			}
-			else if (lowerQuestion.includes("2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("2sApps");
-			}
-			else if (lowerQuestion.includes("3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("3sApps");
-			}
-			else if (lowerQuestion.includes("4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("4sApps");
-			}
-			else if (lowerQuestion.includes("5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("5sApps");
-			}
-			else if (lowerQuestion.includes("6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("6sApps");
-			}
-			else if (lowerQuestion.includes("7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("7sApps");
-			}
-			else if (lowerQuestion.includes("8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("8sApps");
 			}
 			// Team-specific appearances with "for the Xs" pattern
 			else if (lowerQuestion.includes("for the 1s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, 'info');
+				this.logToBoth(`🔍 Detected 1sApps metric for question: ${question}`, "log");
 				metrics.push("1sApps");
-			}
-			else if (lowerQuestion.includes("for the 2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, 'info');
-				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, 'info');
-				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
-				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
+			} else if (lowerQuestion.includes("for the 2s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 2sApps metric for question: ${question}`, "log");
+				this.logToBoth(`🔍 DEBUG: lowerQuestion="${lowerQuestion}"`, "log");
+				this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, "log");
+				this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, "log");
 				metrics.push("2sApps");
-			}
-			else if (lowerQuestion.includes("for the 3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 3s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("3sApps");
-			}
-			else if (lowerQuestion.includes("for the 4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 4s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("4sApps");
-			}
-			else if (lowerQuestion.includes("for the 5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 5s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("5sApps");
-			}
-			else if (lowerQuestion.includes("for the 6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 6s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("6sApps");
-			}
-			else if (lowerQuestion.includes("for the 7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 7s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("7sApps");
-			}
-			else if (lowerQuestion.includes("for the 8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
-				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, 'info');
+			} else if (lowerQuestion.includes("for the 8s") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+				this.logToBoth(`🔍 Detected 8sApps metric for question: ${question}`, "log");
 				metrics.push("8sApps");
 			}
 			// Team-specific appearances with "played for the Xs" pattern
 			else if (lowerQuestion.includes("played for the 1s")) {
 				metrics.push("1sApps");
-			}
-			else if (lowerQuestion.includes("played for the 2s")) {
+			} else if (lowerQuestion.includes("played for the 2s")) {
 				metrics.push("2sApps");
-			}
-			else if (lowerQuestion.includes("played for the 3s")) {
+			} else if (lowerQuestion.includes("played for the 3s")) {
 				metrics.push("3sApps");
-			}
-			else if (lowerQuestion.includes("played for the 4s")) {
+			} else if (lowerQuestion.includes("played for the 4s")) {
 				metrics.push("4sApps");
-			}
-			else if (lowerQuestion.includes("played for the 5s")) {
+			} else if (lowerQuestion.includes("played for the 5s")) {
 				metrics.push("5sApps");
-			}
-			else if (lowerQuestion.includes("played for the 6s")) {
+			} else if (lowerQuestion.includes("played for the 6s")) {
 				metrics.push("6sApps");
-			}
-			else if (lowerQuestion.includes("played for the 7s")) {
+			} else if (lowerQuestion.includes("played for the 7s")) {
 				metrics.push("7sApps");
-			}
-			else if (lowerQuestion.includes("played for the 8s")) {
+			} else if (lowerQuestion.includes("played for the 8s")) {
 				metrics.push("8sApps");
 			}
 			// Team-specific appearances with "for the Xth team" pattern
 			else if (lowerQuestion.includes("for the 1st team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("1sApps");
-			}
-			else if (lowerQuestion.includes("for the 2nd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 2nd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("2sApps");
-			}
-			else if (lowerQuestion.includes("for the 3rd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 3rd team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("3sApps");
-			}
-			else if (lowerQuestion.includes("for the 4th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 4th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("4sApps");
-			}
-			else if (lowerQuestion.includes("for the 5th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 5th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("5sApps");
-			}
-			else if (lowerQuestion.includes("for the 6th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 6th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("6sApps");
-			}
-			else if (lowerQuestion.includes("for the 7th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 7th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("7sApps");
-			}
-			else if (lowerQuestion.includes("for the 8th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
+			} else if (lowerQuestion.includes("for the 8th team") && (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps"))) {
 				metrics.push("8sApps");
 			}
 			// Team-specific goals
 			else if (lowerQuestion.includes("1s") && lowerQuestion.includes("goals")) {
 				metrics.push("1sGoals");
-			}
-			else if (lowerQuestion.includes("2s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("2s") && lowerQuestion.includes("goals")) {
 				metrics.push("2sGoals");
-			}
-			else if (lowerQuestion.includes("3s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("3s") && lowerQuestion.includes("goals")) {
 				metrics.push("3sGoals");
-			}
-			else if (lowerQuestion.includes("4s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("4s") && lowerQuestion.includes("goals")) {
 				metrics.push("4sGoals");
-			}
-			else if (lowerQuestion.includes("5s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("5s") && lowerQuestion.includes("goals")) {
 				metrics.push("5sGoals");
-			}
-			else if (lowerQuestion.includes("6s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("6s") && lowerQuestion.includes("goals")) {
 				metrics.push("6sGoals");
-			}
-			else if (lowerQuestion.includes("7s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("7s") && lowerQuestion.includes("goals")) {
 				metrics.push("7sGoals");
-			}
-			else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("8s") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
 			// Team-specific goals with "for the Xs" pattern
 			else if (lowerQuestion.includes("for the 1s") && lowerQuestion.includes("goals")) {
 				metrics.push("1sGoals");
-			}
-			else if (lowerQuestion.includes("for the 2s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 2s") && lowerQuestion.includes("goals")) {
 				metrics.push("2sGoals");
-			}
-			else if (lowerQuestion.includes("for the 3s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 3s") && lowerQuestion.includes("goals")) {
 				metrics.push("3sGoals");
-			}
-			else if (lowerQuestion.includes("for the 4s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 4s") && lowerQuestion.includes("goals")) {
 				metrics.push("4sGoals");
-			}
-			else if (lowerQuestion.includes("for the 5s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 5s") && lowerQuestion.includes("goals")) {
 				metrics.push("5sGoals");
-			}
-			else if (lowerQuestion.includes("for the 6s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 6s") && lowerQuestion.includes("goals")) {
 				metrics.push("6sGoals");
-			}
-			else if (lowerQuestion.includes("for the 7s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 7s") && lowerQuestion.includes("goals")) {
 				metrics.push("7sGoals");
-			}
-			else if (lowerQuestion.includes("for the 8s") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 8s") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
 			// Team-specific goals with "scored for the Xs" pattern
 			else if (lowerQuestion.includes("scored for the 1s")) {
 				metrics.push("1sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 2s")) {
+			} else if (lowerQuestion.includes("scored for the 2s")) {
 				metrics.push("2sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 3s")) {
+			} else if (lowerQuestion.includes("scored for the 3s")) {
 				metrics.push("3sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 4s")) {
+			} else if (lowerQuestion.includes("scored for the 4s")) {
 				metrics.push("4sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 5s")) {
+			} else if (lowerQuestion.includes("scored for the 5s")) {
 				metrics.push("5sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 6s")) {
+			} else if (lowerQuestion.includes("scored for the 6s")) {
 				metrics.push("6sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 7s")) {
+			} else if (lowerQuestion.includes("scored for the 7s")) {
 				metrics.push("7sGoals");
-			}
-			else if (lowerQuestion.includes("scored for the 8s")) {
+			} else if (lowerQuestion.includes("scored for the 8s")) {
 				metrics.push("8sGoals");
 			}
 			// Team-specific goals with "for the Xth team" pattern
 			else if (lowerQuestion.includes("for the 1st team") && lowerQuestion.includes("goals")) {
 				metrics.push("1sGoals");
-			}
-			else if (lowerQuestion.includes("for the 2nd team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 2nd team") && lowerQuestion.includes("goals")) {
 				metrics.push("2sGoals");
-			}
-			else if (lowerQuestion.includes("for the 3rd team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 3rd team") && lowerQuestion.includes("goals")) {
 				metrics.push("3sGoals");
-			}
-			else if (lowerQuestion.includes("for the 4th team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 4th team") && lowerQuestion.includes("goals")) {
 				metrics.push("4sGoals");
-			}
-			else if (lowerQuestion.includes("for the 5th team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 5th team") && lowerQuestion.includes("goals")) {
 				metrics.push("5sGoals");
-			}
-			else if (lowerQuestion.includes("for the 6th team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 6th team") && lowerQuestion.includes("goals")) {
 				metrics.push("6sGoals");
-			}
-			else if (lowerQuestion.includes("for the 7th team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 7th team") && lowerQuestion.includes("goals")) {
 				metrics.push("7sGoals");
-			}
-			else if (lowerQuestion.includes("for the 8th team") && lowerQuestion.includes("goals")) {
+			} else if (lowerQuestion.includes("for the 8th team") && lowerQuestion.includes("goals")) {
 				metrics.push("8sGoals");
 			}
 			// Dynamic seasonal metrics detection
 			// Check for any season pattern (e.g., "2017/18", "2022/23", "2016-17", "2021-22")
 			const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
 			const seasonMatch = lowerQuestion.match(seasonPattern);
-			
+
 			if (seasonMatch) {
 				const fullYear1 = seasonMatch[1]; // e.g., "2017"
 				const year2 = seasonMatch[2]; // e.g., "18" or "2018"
-				
+
 				// Normalize to YYYY/YY format
-				const normalizedSeason = year2.length === 2 ? 
-					`${fullYear1}/${year2}` : 
-					`${fullYear1}/${year2.slice(2)}`;
-				
+				const normalizedSeason = year2.length === 2 ? `${fullYear1}/${year2}` : `${fullYear1}/${year2.slice(2)}`;
+
 				if (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps") || lowerQuestion.includes("games")) {
 					metrics.push(`${normalizedSeason}Apps`);
 				} else if (lowerQuestion.includes("goals")) {
 					metrics.push(`${normalizedSeason}Goals`);
 				}
 			}
-			
+
 			// Positional stats
-			if (lowerQuestion.includes("goalkeeper") || lowerQuestion.includes("GK") || lowerQuestion.includes("playing in goal") || lowerQuestion.includes("in goal")) {
+			if (
+				lowerQuestion.includes("goalkeeper") ||
+				lowerQuestion.includes("GK") ||
+				lowerQuestion.includes("playing in goal") ||
+				lowerQuestion.includes("in goal")
+			) {
 				metrics.push("GK");
-			}
-			else if (lowerQuestion.includes("defender") || lowerQuestion.includes("DEF") || lowerQuestion.includes("playing in defence") || lowerQuestion.includes("in defence") || lowerQuestion.includes("in defense")) {
+			} else if (
+				lowerQuestion.includes("defender") ||
+				lowerQuestion.includes("DEF") ||
+				lowerQuestion.includes("playing in defence") ||
+				lowerQuestion.includes("in defence") ||
+				lowerQuestion.includes("in defense")
+			) {
 				metrics.push("DEF");
-			}
-			else if (lowerQuestion.includes("midfielder") || lowerQuestion.includes("MID") || lowerQuestion.includes("playing in midfield") || lowerQuestion.includes("in midfield")) {
+			} else if (
+				lowerQuestion.includes("midfielder") ||
+				lowerQuestion.includes("MID") ||
+				lowerQuestion.includes("playing in midfield") ||
+				lowerQuestion.includes("in midfield")
+			) {
 				metrics.push("MID");
-			}
-			else if (lowerQuestion.includes("forward") || lowerQuestion.includes("FWD") || lowerQuestion.includes("playing up front") || lowerQuestion.includes("playing in attack") || lowerQuestion.includes("attacker") || lowerQuestion.includes("striker") || lowerQuestion.includes("up front") || lowerQuestion.includes("in attack")) {
+			} else if (
+				lowerQuestion.includes("forward") ||
+				lowerQuestion.includes("FWD") ||
+				lowerQuestion.includes("playing up front") ||
+				lowerQuestion.includes("playing in attack") ||
+				lowerQuestion.includes("attacker") ||
+				lowerQuestion.includes("striker") ||
+				lowerQuestion.includes("up front") ||
+				lowerQuestion.includes("in attack")
+			) {
 				metrics.push("FWD");
 			}
 			// Most played for team
@@ -853,10 +794,10 @@ export class ChatbotService {
 
 		// Debug: Log the question and lowerQuestion for team-specific debugging
 		if (lowerQuestion.includes("for the 2s") || lowerQuestion.includes("for the 8s")) {
-			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, 'info');
-			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, 'info');
+			this.logToBoth(`🔍 DEBUG: Question="${question}", lowerQuestion="${lowerQuestion}"`, "log");
+			this.logToBoth(`🔍 DEBUG: includes("for the 2s"): ${lowerQuestion.includes("for the 2s")}`, "log");
+			this.logToBoth(`🔍 DEBUG: includes("apps"): ${lowerQuestion.includes("apps")}`, "log");
+			this.logToBoth(`🔍 DEBUG: includes("appearances"): ${lowerQuestion.includes("appearances")}`, "log");
 		}
 
 		// Enhanced points detection with context awareness
@@ -871,9 +812,13 @@ export class ChatbotService {
 				metrics.push("FTP");
 			}
 		}
-		
+
 		// Enhanced penalty record detection
-		if (metrics.length === 0 && lowerQuestion.includes("penalty") && (lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))) {
+		if (
+			metrics.length === 0 &&
+			lowerQuestion.includes("penalty") &&
+			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion") || lowerQuestion.includes("taken"))
+		) {
 			metrics.push("penaltyRecord");
 		}
 
@@ -881,7 +826,8 @@ export class ChatbotService {
 		if (metrics.length === 0) {
 			for (const config of metricConfigs) {
 				const found =
-					config.aliases.some((alias) => lowerQuestion.includes(alias.toLowerCase())) || lowerQuestion.includes(config.displayName.toLowerCase());
+					config.aliases.some((alias) => lowerQuestion.includes(alias.toLowerCase())) ||
+					lowerQuestion.includes(config.displayName.toLowerCase());
 
 				if (found) {
 					metrics.push(config.key);
@@ -890,7 +836,6 @@ export class ChatbotService {
 			}
 		}
 
-
 		// Fallback metric detection for remaining cases
 		if (metrics.length === 0) {
 			if (lowerQuestion.includes("assists")) metrics.push("A");
@@ -898,7 +843,7 @@ export class ChatbotService {
 			if (lowerQuestion.includes("games") || lowerQuestion.includes("appearances")) metrics.push("APP");
 			if (lowerQuestion.includes("minutes")) metrics.push("MIN");
 			if (lowerQuestion.includes("man of the match")) metrics.push("MOM");
-			
+
 			// Enhanced year vs season detection
 			// Dynamic seasonal detection - check for any year pattern (20XX)
 			const yearPattern = /20\d{2}/;
@@ -908,7 +853,7 @@ export class ChatbotService {
 				const seasonMatch = question.match(seasonPattern);
 				if (seasonMatch) {
 					// This is a season reference - add season-specific metric
-					const season = seasonMatch[0].replace(/[\/\-]/g, '_');
+					const season = seasonMatch[0].replace(/[\/\-]/g, "_");
 					if (lowerQuestion.includes("goals")) {
 						metrics.push(`${season}Goals`);
 					} else if (lowerQuestion.includes("appearances") || lowerQuestion.includes("apps")) {
@@ -930,7 +875,7 @@ export class ChatbotService {
 			if (lowerQuestion.includes("own goals")) metrics.push("OG");
 			if (lowerQuestion.includes("conceded")) metrics.push("C");
 			if (lowerQuestion.includes("fantasy")) metrics.push("FTP");
-			
+
 			// Additional metrics for comprehensive testing
 			if (lowerQuestion.includes("away games")) metrics.push("APP");
 			if (lowerQuestion.includes("home games")) metrics.push("APP");
@@ -978,41 +923,41 @@ export class ChatbotService {
 			// Ensure Neo4j connection before querying
 			const connected = await neo4jService.connect();
 			if (!connected) {
-				this.logToBoth("❌ Neo4j connection failed in queryRelevantData", 'error');
+				this.logToBoth("❌ Neo4j connection failed in queryRelevantData", "error");
 				return null;
 			}
 			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
-					switch (type) {
-			case "player":
-				this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
-				const playerResult = await this.queryPlayerData(entities, metrics);
-				this.logToBoth(`🔍 queryPlayerData returned:`, playerResult);
-				return playerResult;
-			case "team":
-				this.logToBoth(`🔍 Calling queryTeamData...`);
-				return await this.queryTeamData(entities, metrics);
-			case "club":
-				this.logToBoth(`🔍 Calling queryClubData...`);
-				return await this.queryClubData(entities, metrics);
-			case "fixture":
-				this.logToBoth(`🔍 Calling queryFixtureData...`);
-				return await this.queryFixtureData(entities, metrics);
-			case "comparison":
-				this.logToBoth(`🔍 Calling queryComparisonData...`);
-				return await this.queryComparisonData(entities, metrics);
-			case "streak":
-				this.logToBoth(`🔍 Calling queryStreakData...`);
-				return await this.queryStreakData(entities, metrics);
-			case "double_game":
-				this.logToBoth(`🔍 Calling queryDoubleGameData...`);
-				return await this.queryDoubleGameData(entities, metrics);
-			default:
-				this.logToBoth(`🔍 Calling queryGeneralData...`);
-				return await this.queryGeneralData();
-		}
+			switch (type) {
+				case "player":
+					this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
+					const playerResult = await this.queryPlayerData(entities, metrics);
+					this.logToBoth(`🔍 queryPlayerData returned:`, playerResult);
+					return playerResult;
+				case "team":
+					this.logToBoth(`🔍 Calling queryTeamData...`);
+					return await this.queryTeamData(entities, metrics);
+				case "club":
+					this.logToBoth(`🔍 Calling queryClubData...`);
+					return await this.queryClubData(entities, metrics);
+				case "fixture":
+					this.logToBoth(`🔍 Calling queryFixtureData...`);
+					return await this.queryFixtureData(entities, metrics);
+				case "comparison":
+					this.logToBoth(`🔍 Calling queryComparisonData...`);
+					return await this.queryComparisonData(entities, metrics);
+				case "streak":
+					this.logToBoth(`🔍 Calling queryStreakData...`);
+					return await this.queryStreakData(entities, metrics);
+				case "double_game":
+					this.logToBoth(`🔍 Calling queryDoubleGameData...`);
+					return await this.queryDoubleGameData(entities, metrics);
+				default:
+					this.logToBoth(`🔍 Calling queryGeneralData...`);
+					return await this.queryGeneralData();
+			}
 		} catch (error) {
-			this.logToBoth("❌ Data query failed:", error, 'error');
+			this.logToBoth("❌ Data query failed:", error, "error");
 			return null;
 		}
 	}
@@ -1073,9 +1018,9 @@ export class ChatbotService {
 			let returnClause = "";
 			switch (metric) {
 				case "APP":
-					this.logToBoth("🔍 APP metric detected - constructing return clause", 'info');
+					this.logToBoth("🔍 APP metric detected - constructing return clause", "log");
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					this.logToBoth("🔍 APP return clause constructed:", returnClause, 'info');
+					this.logToBoth("🔍 APP return clause constructed:", returnClause, "log");
 					break;
 				case "MIN":
 					returnClause =
@@ -1200,8 +1145,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Home'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1211,8 +1156,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Away'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1222,8 +1167,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home' AND f.result = 'W'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Home' AND f.result = 'W'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1233,8 +1178,8 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away' AND f.result = 'W'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Away' AND f.result = 'W'
 					`;
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
@@ -1244,12 +1189,13 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Home'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Home'
 						WITH p, count(md) as totalHomeGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as homeWins
 					`;
-					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalHomeGames > 0 THEN toFloat(homeWins) / toFloat(totalHomeGames) ELSE 0.0 END as value";
+					returnClause =
+						"RETURN p.playerName as playerName, CASE WHEN totalHomeGames > 0 THEN toFloat(homeWins) / toFloat(totalHomeGames) ELSE 0.0 END as value";
 					break;
 				case "AwayGames%Won":
 					// Away games percentage won - calculate percentage of away games won
@@ -1257,12 +1203,13 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date AND f.homeOrAway = 'Away'
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+						WHERE f.homeOrAway = 'Away'
 						WITH p, count(md) as totalAwayGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins
 					`;
-					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalAwayGames > 0 THEN toFloat(awayWins) / toFloat(totalAwayGames) ELSE 0.0 END as value";
+					returnClause =
+						"RETURN p.playerName as playerName, CASE WHEN totalAwayGames > 0 THEN toFloat(awayWins) / toFloat(totalAwayGames) ELSE 0.0 END as value";
 					break;
 				case "Games%Won":
 					// Games percentage won - calculate percentage of all games won
@@ -1270,12 +1217,12 @@ export class ChatbotService {
 						MATCH (p:Player)
 						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
 						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)
-						WHERE f.date = md.date
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
 						WITH p, count(md) as totalGames, 
 							 sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as totalWins
 					`;
-					returnClause = "RETURN p.playerName as playerName, CASE WHEN totalGames > 0 THEN toFloat(totalWins) / toFloat(totalGames) ELSE 0.0 END as value";
+					returnClause =
+						"RETURN p.playerName as playerName, CASE WHEN totalGames > 0 THEN toFloat(totalWins) / toFloat(totalGames) ELSE 0.0 END as value";
 					break;
 				case "MostPlayedForTeam":
 					// Find the team with most appearances for this player
@@ -1336,84 +1283,116 @@ export class ChatbotService {
 					break;
 				// Team-specific appearances
 				case "1sApps":
-					returnClause = `
-						WHERE md.team = '1s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '1st XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "2sApps":
-					returnClause = `
-						WHERE md.team = '2s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '2nd XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "3sApps":
-					returnClause = `
-						WHERE md.team = '3s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '3rd XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "4sApps":
-					returnClause = `
-						WHERE md.team = '4s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '4th XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "5sApps":
-					returnClause = `
-						WHERE md.team = '5s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '5th XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "6sApps":
-					returnClause = `
-						WHERE md.team = '6s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '6th XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "7sApps":
-					returnClause = `
-						WHERE md.team = '7s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '7th XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "8sApps":
-					returnClause = `
-						WHERE md.team = '8s'
-						RETURN p.playerName as playerName, count(md) as value`;
+					query = `
+						MATCH (p:Player)
+						WHERE p.playerName = $playerName OR p.playerName = $playerNameLower OR p.playerName = $playerNameHyphen
+						MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team = '8th XI'
+					`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				// Team-specific goals
 				case "1sGoals":
 					returnClause = `
-						WHERE md.team = '1s'
+						WHERE md.team = '1st XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "2sGoals":
 					returnClause = `
-						WHERE md.team = '2s'
+						WHERE md.team = '2nd XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "3sGoals":
 					returnClause = `
-						WHERE md.team = '3s'
+						WHERE md.team = '3rd XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "4sGoals":
 					returnClause = `
-						WHERE md.team = '4s'
+						WHERE md.team = '4th XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "5sGoals":
 					returnClause = `
-						WHERE md.team = '5s'
+						WHERE md.team = '5th XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "6sGoals":
 					returnClause = `
-						WHERE md.team = '6s'
+						WHERE md.team = '6th XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "7sGoals":
 					returnClause = `
-						WHERE md.team = '7s'
+						WHERE md.team = '7th XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				case "8sGoals":
 					returnClause = `
-						WHERE md.team = '8s'
+						WHERE md.team = '8th XI'
 						RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 					break;
 				// Dynamic seasonal metrics - handle any season pattern
@@ -1423,7 +1402,7 @@ export class ChatbotService {
 					if (seasonalMatch) {
 						const season = seasonalMatch[1]; // e.g., "2017/18"
 						const statType = seasonalMatch[2]; // e.g., "Apps" or "Goals"
-						
+
 						if (statType === "Apps") {
 							returnClause = `
 								WHERE md.season = '${season}'
@@ -1435,18 +1414,18 @@ export class ChatbotService {
 						}
 						break;
 					}
-					
+
 					// If not a seasonal metric, fall through to the original default case
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 			}
 
 			query += " " + returnClause;
 			this.logToBoth(`🔍 Final Cypher query: ${query}`);
-			
+
 			// Special logging for APP metric
 			if (metric === "APP") {
-				this.logToBoth("🔍 APP metric - About to execute query", 'info');
-				this.logToBoth("🔍 APP metric - Query string:", query, 'info');
+				this.logToBoth("🔍 APP metric - About to execute query", "log");
+				this.logToBoth("🔍 APP metric - Query string:", query, "log");
 			}
 
 			try {
@@ -1454,11 +1433,13 @@ export class ChatbotService {
 				const playerNameLower = String(playerName).toLowerCase();
 				const playerNameHyphen = String(playerName).toLowerCase().replace(/\s+/g, "-");
 
-				this.logToBoth(`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`);
-				
+				this.logToBoth(
+					`🔍 Query parameters: playerName=${playerName}, playerNameLower=${playerNameLower}, playerNameHyphen=${playerNameHyphen}`,
+				);
+
 				// Special logging for APP metric
 				if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", 'info');
+					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", "log");
 				}
 
 				const result = await neo4jService.executeQuery(query, {
@@ -1466,11 +1447,11 @@ export class ChatbotService {
 					playerNameLower,
 					playerNameHyphen,
 				});
-				
+
 				// Special logging for APP metric
 				if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - Query executed successfully", 'info');
-					this.logToBoth("🔍 APP metric - Result:", result, 'info');
+					this.logToBoth("🔍 APP metric - Query executed successfully", "log");
+					this.logToBoth("🔍 APP metric - Result:", result, "log");
 				}
 
 				this.logToBoth(`🔍 Player query result for ${playerName}:`, result);
@@ -1538,20 +1519,20 @@ export class ChatbotService {
 
 				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
-				this.logToBoth("❌ Error querying specific player data:", error, 'error');
-				this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : 'No stack trace available', 'error');
-				this.logToBoth("❌ Failed query:", query, 'error');
-				this.logToBoth("❌ Failed metric:", metric, 'error');
-				this.logToBoth("❌ Failed player:", playerName, 'error');
-				return { 
-					type: "error", 
-					data: [], 
-					playerName, 
-					metric, 
-					cypherQuery: 'N/A',
+				this.logToBoth("❌ Error querying specific player data:", error, "error");
+				this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : "No stack trace available", "error");
+				this.logToBoth("❌ Failed query:", query, "error");
+				this.logToBoth("❌ Failed metric:", metric, "error");
+				this.logToBoth("❌ Failed player:", playerName, "error");
+				return {
+					type: "error",
+					data: [],
+					playerName,
+					metric,
+					cypherQuery: "N/A",
 					error: error instanceof Error ? error.message : String(error),
 					errorStack: error instanceof Error ? error.stack : undefined,
-					failedQuery: query
+					failedQuery: query,
 				};
 			}
 		}
@@ -1577,12 +1558,12 @@ export class ChatbotService {
 		// Enhanced team name normalization using Natural library
 		const teamName = this.normalizeTeamName(teamNumber);
 		this.logToBoth(`🔍 Looking for team: "${teamName}"`);
-		
+
 		// Log the team normalization process for debugging
 		this.logToBoth(`🔍 Team normalization analysis:`, {
 			original: teamNumber,
 			normalized: teamName,
-			normalizationMethod: this.getNormalizationMethod(teamNumber, teamName)
+			normalizationMethod: this.getNormalizationMethod(teamNumber, teamName),
 		});
 
 		// First, let's check what teams actually exist in the MatchDetail data
@@ -1593,37 +1574,43 @@ export class ChatbotService {
 			RETURN DISTINCT md.team as teamName
 			ORDER BY md.team
 		`;
-		
+
 		// Log the diagnostic query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 DIAGNOSTIC CYPHER QUERY:`, diagnosticQuery);
-		
+
 		// Store query for debugging
 		this.lastExecutedQueries.push(`DIAGNOSTIC: ${diagnosticQuery}`);
-		
+
 		try {
 			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
 			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
 			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
-			this.logToBoth(`🔍 Available teams in MatchDetail data:`, diagnosticResult.map(r => r.teamName));
-			
+			this.logToBoth(
+				`🔍 Available teams in MatchDetail data:`,
+				diagnosticResult.map((r) => r.teamName),
+			);
+
 			// Check if our target team exists
-			const teamExists = diagnosticResult.some(r => r.teamName === teamName);
+			const teamExists = diagnosticResult.some((r) => r.teamName === teamName);
 			this.logToBoth(`🔍 Team "${teamName}" exists: ${teamExists}`);
-			
+
 			if (!teamExists) {
-				this.logToBoth(`🔍 Team "${teamName}" not found. Available teams:`, diagnosticResult.map(r => r.teamName));
+				this.logToBoth(
+					`🔍 Team "${teamName}" not found. Available teams:`,
+					diagnosticResult.map((r) => r.teamName),
+				);
 				this.logToBoth(`🔍 Returning team_not_found response`);
-				return { 
-					type: "team_not_found", 
-					data: [], 
-					teamName, 
+				return {
+					type: "team_not_found",
+					data: [],
+					teamName,
 					metric,
-					availableTeams: diagnosticResult.map(r => r.teamName),
-					message: `Team "${teamName}" not found. Available teams: ${diagnosticResult.map(r => r.teamName).join(', ')}`
+					availableTeams: diagnosticResult.map((r) => r.teamName),
+					message: `Team "${teamName}" not found. Available teams: ${diagnosticResult.map((r) => r.teamName).join(", ")}`,
 				};
 			}
 		} catch (error: any) {
-			this.logToBoth(`❌ Diagnostic query failed:`, error, 'error');
+			this.logToBoth(`❌ Diagnostic query failed:`, error, "error");
 		}
 
 		// Now build the actual query using the correct data structure
@@ -1639,27 +1626,27 @@ export class ChatbotService {
 
 		// Create detailed query breakdown for debugging
 		const queryBreakdown = {
-			playerName: this.lastQueryBreakdown?.playerName || 'Unknown',
+			playerName: this.lastQueryBreakdown?.playerName || "Unknown",
 			team: teamName,
 			statEntity: metric,
 			metricField: this.getMetricField(metric),
 			fullCypherQuery: query,
 			queryParameters: { teamName, metric, metricField: this.getMetricField(metric) },
-			queryExplanation: `Querying MatchDetail nodes for team "${teamName}" to find players with highest ${metric} (${this.getMetricField(metric)})`
+			queryExplanation: `Querying MatchDetail nodes for team "${teamName}" to find players with highest ${metric} (${this.getMetricField(metric)})`,
 		};
-		
+
 		// Update the query breakdown with the actual query details
 		this.lastQueryBreakdown = { ...this.lastQueryBreakdown, ...queryBreakdown };
 
 		this.logToBoth(`🔍 Final team-specific query:`, query);
 		this.logToBoth(`🔍 Query parameters: teamName=${teamName}, metric=${metric}, metricField=${this.getMetricField(metric)}`);
 		this.logToBoth(`🔍 Query breakdown:`, queryBreakdown);
-		
+
 		// Log the main Cypher query for client-side debugging
 		console.log(`🤖 [CLIENT] 🔍 MAIN TEAM-SPECIFIC CYPHER QUERY:`, query);
 		console.log(`🤖 [CLIENT] 🔍 Query parameters:`, { teamName, metric, metricField: this.getMetricField(metric) });
 		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, queryBreakdown);
-		
+
 		// Store query for debugging
 		this.lastExecutedQueries.push(`MAIN: ${query}`);
 		this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ teamName, metric, metricField: this.getMetricField(metric) })}`);
@@ -1667,20 +1654,27 @@ export class ChatbotService {
 
 		try {
 			// Get the player name from the query breakdown context
-			const playerName = this.lastQueryBreakdown?.playerName || 'Unknown';
-			
+			const playerName = this.lastQueryBreakdown?.playerName || "Unknown";
+
 			const result = await neo4jService.executeQuery(query, { teamName, playerName });
 			this.logToBoth(`🔍 Team-specific query result:`, result);
-			
+
 			if (result && result.length > 0) {
 				this.logToBoth(`🔍 Found ${result.length} results for ${playerName} in team ${teamName}`);
 				return { type: "team_specific", data: result, teamName, metric, playerName };
 			} else {
 				this.logToBoth(`🔍 No results found for ${playerName} in team ${teamName}`);
-				return { type: "team_specific", data: [], teamName, metric, playerName, message: `No results found for ${playerName} in team ${teamName}` };
+				return {
+					type: "team_specific",
+					data: [],
+					teamName,
+					metric,
+					playerName,
+					message: `No results found for ${playerName} in team ${teamName}`,
+				};
 			}
 		} catch (error: any) {
-			this.logToBoth(`❌ Error querying team-specific player data:`, error, 'error');
+			this.logToBoth(`❌ Error querying team-specific player data:`, error, "error");
 			return { type: "error", data: [], teamName, metric, error: error instanceof Error ? error.message : String(error) };
 		}
 	}
@@ -1713,7 +1707,7 @@ export class ChatbotService {
 	 */
 	private normalizeTeamName(input: string): string {
 		const lowerInput = input.toLowerCase().trim();
-		
+
 		// Direct ordinal matches
 		const ordinalMatch = lowerInput.match(/^(\d+)(?:st|nd|rd|th)?$/);
 		if (ordinalMatch) {
@@ -1732,24 +1726,24 @@ export class ChatbotService {
 
 		// Word-based forms like "Thirds", "Seconds", "Firsts"
 		const wordForms: { [key: string]: string } = {
-			'first': '1st XI',
-			'firsts': '1st XI',
-			'second': '2nd XI',
-			'seconds': '2nd XI',
-			'third': '3rd XI',
-			'thirds': '3rd XI',
-			'fourth': '4th XI',
-			'fourths': '4th XI',
-			'fifth': '5th XI',
-			'fifths': '5th XI',
-			'sixth': '6th XI',
-			'sixths': '6th XI',
-			'seventh': '7th XI',
-			'sevenths': '7th XI',
-			'eighth': '8th XI',
-			'eighths': '8th XI',
-			'vets': 'Vets XI',
-			'veterans': 'Vets XI'
+			first: "1st XI",
+			firsts: "1st XI",
+			second: "2nd XI",
+			seconds: "2nd XI",
+			third: "3rd XI",
+			thirds: "3rd XI",
+			fourth: "4th XI",
+			fourths: "4th XI",
+			fifth: "5th XI",
+			fifths: "5th XI",
+			sixth: "6th XI",
+			sixths: "6th XI",
+			seventh: "7th XI",
+			sevenths: "7th XI",
+			eighth: "8th XI",
+			eighths: "8th XI",
+			vets: "Vets XI",
+			veterans: "Vets XI",
 		};
 
 		if (wordForms[lowerInput]) {
@@ -1758,10 +1752,13 @@ export class ChatbotService {
 
 		// Fuzzy matching for close matches
 		const teamNames = Object.keys(wordForms);
-		const bestMatch = teamNames.reduce((best, current) => {
-			const distance = natural.JaroWinklerDistance(lowerInput, current);
-			return distance > best.score ? { name: current, score: distance } : best;
-		}, { name: '', score: 0 });
+		const bestMatch = teamNames.reduce(
+			(best, current) => {
+				const distance = natural.JaroWinklerDistance(lowerInput, current);
+				return distance > best.score ? { name: current, score: distance } : best;
+			},
+			{ name: "", score: 0 },
+		);
 
 		// If we have a good fuzzy match (threshold: 0.8)
 		if (bestMatch.score > 0.8) {
@@ -1786,10 +1783,10 @@ export class ChatbotService {
 	private getOrdinalSuffix(num: number): string {
 		const j = num % 10;
 		const k = num % 100;
-		if (j === 1 && k !== 11) return 'st';
-		if (j === 2 && k !== 12) return 'nd';
-		if (j === 3 && k !== 13) return 'rd';
-		return 'th';
+		if (j === 1 && k !== 11) return "st";
+		if (j === 2 && k !== 12) return "nd";
+		if (j === 3 && k !== 13) return "rd";
+		return "th";
 	}
 
 	/**
@@ -1797,16 +1794,36 @@ export class ChatbotService {
 	 */
 	private isTeamQuestion(question: string): boolean {
 		const lowerQuestion = question.toLowerCase();
-		
+
 		// Team-related keywords
 		const teamKeywords = [
-			'team', 's', 'st', 'nd', 'rd', 'th',
-			'first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth',
-			'firsts', 'seconds', 'thirds', 'fourths', 'fifths', 'sixths', 'sevenths', 'eighths',
-			'vets', 'veterans'
+			"team",
+			"s",
+			"st",
+			"nd",
+			"rd",
+			"th",
+			"first",
+			"second",
+			"third",
+			"fourth",
+			"fifth",
+			"sixth",
+			"seventh",
+			"eighth",
+			"firsts",
+			"seconds",
+			"thirds",
+			"fourths",
+			"fifths",
+			"sixths",
+			"sevenths",
+			"eighths",
+			"vets",
+			"veterans",
 		];
-		
-		return teamKeywords.some(keyword => lowerQuestion.includes(keyword));
+
+		return teamKeywords.some((keyword) => lowerQuestion.includes(keyword));
 	}
 
 	/**
@@ -1815,46 +1832,46 @@ export class ChatbotService {
 	private extractTeamEntity(question: string): string | null {
 		// Use Compromise to parse the question
 		const doc = nlp(question);
-		
+
 		// Look for numbers
-		const numbers = doc.numbers().out('array');
-		
+		const numbers = doc.numbers().out("array");
+
 		// Look for team-related words
-		const teamWords = doc.match('(first|second|third|fourth|fifth|sixth|seventh|eighth|vets|veterans)').out('array');
-		
+		const teamWords = doc.match("(first|second|third|fourth|fifth|sixth|seventh|eighth|vets|veterans)").out("array");
+
 		// Priority 1: Team words (e.g., "thirds", "seconds")
 		if (teamWords.length > 0) {
 			return teamWords[0];
 		}
-		
+
 		// Priority 2: Numbers followed by 's' or 'team' (e.g., "3s", "3 team")
 		if (numbers.length > 0) {
 			const number = numbers[0];
 			const afterNumber = question.substring(question.indexOf(number) + number.length).trim();
-			
+
 			// Check if followed by 's', 'team', or space
-			if (afterNumber.startsWith('s') || afterNumber.startsWith(' team') || afterNumber.startsWith(' ')) {
+			if (afterNumber.startsWith("s") || afterNumber.startsWith(" team") || afterNumber.startsWith(" ")) {
 				return number;
 			}
 		}
-		
+
 		// Priority 3: Regex fallback for complex patterns
 		const patterns = [
-			/(\d+(?:st|nd|rd|th)?)\s*team/,           // "3rd team"
-			/for the (\d+(?:st|nd|rd|th)?)\s*team/,   // "for the 3rd team"
-			/(\d+)s/,                                  // "3s"
-			/for the (\d+)s/,                          // "for the 3s"
-			/for the (\d+)/,                           // "for the 3"
-			/(\d+)\s*team/                             // "3 team"
+			/(\d+(?:st|nd|rd|th)?)\s*team/, // "3rd team"
+			/for the (\d+(?:st|nd|rd|th)?)\s*team/, // "for the 3rd team"
+			/(\d+)s/, // "3s"
+			/for the (\d+)s/, // "for the 3s"
+			/for the (\d+)/, // "for the 3"
+			/(\d+)\s*team/, // "3 team"
 		];
-		
+
 		for (const pattern of patterns) {
 			const match = question.match(pattern);
 			if (match) {
 				return match[1];
 			}
 		}
-		
+
 		return null;
 	}
 
@@ -1863,25 +1880,46 @@ export class ChatbotService {
 	 */
 	private getNormalizationMethod(original: string, normalized: string): string {
 		const lowerOriginal = original.toLowerCase().trim();
-		
-		if (lowerOriginal.match(/^\d+(?:st|nd|rd|th)?$/)) return 'ordinal_match';
-		if (lowerOriginal.match(/^\d+s?$/)) return 'abbreviated_match';
-		if (['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'vets', 'veterans'].includes(lowerOriginal)) return 'word_form_match';
-		if (natural.JaroWinklerDistance(lowerOriginal, 'third') > 0.8) return 'fuzzy_match';
-		if (lowerOriginal.match(/\d+/)) return 'number_extraction';
-		
-		return 'fallback';
+
+		if (lowerOriginal.match(/^\d+(?:st|nd|rd|th)?$/)) return "ordinal_match";
+		if (lowerOriginal.match(/^\d+s?$/)) return "abbreviated_match";
+		if (["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "vets", "veterans"].includes(lowerOriginal))
+			return "word_form_match";
+		if (natural.JaroWinklerDistance(lowerOriginal, "third") > 0.8) return "fuzzy_match";
+		if (lowerOriginal.match(/\d+/)) return "number_extraction";
+
+		return "fallback";
 	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
+
+		// Query Team nodes with their relationships to get comprehensive team data
 		const query = `
-      MATCH (t:Team)
-      RETURN t.name as name, t.league as league
-      LIMIT 20
-    `;
+			MATCH (t:Team)
+			OPTIONAL MATCH (t)<-[:BELONGS_TO_TEAM]-(f:Fixture)
+			OPTIONAL MATCH (t)<-[:PLAYED_FOR_TEAM]-(md:MatchDetail)
+			WITH t, 
+				COUNT(DISTINCT f) as totalFixtures,
+				COUNT(DISTINCT md) as totalMatchDetails,
+				COLLECT(DISTINCT f.season) as seasons
+			RETURN t.name as name, 
+				t.id as id,
+				totalFixtures,
+				totalMatchDetails,
+				seasons
+			ORDER BY t.name
+			LIMIT 20
+		`;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		this.logToBoth(`🔍 Team data query result:`, result);
+		
+		return { 
+			type: "team_data", 
+			data: result,
+			message: `Found ${result.length} teams with fixture and match data`
+		};
 	}
 
 	private async queryClubData(entities: string[], metrics: string[]): Promise<any> {
@@ -2003,11 +2041,11 @@ export class ChatbotService {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
 			dataType: data?.type,
-			dataKeys: data ? Object.keys(data) : 'null',
+			dataKeys: data ? Object.keys(data) : "null",
 			analysisType: analysis?.type,
-			analysisEntities: analysis?.entities
+			analysisEntities: analysis?.entities,
 		});
-		
+
 		let answer = "";
 		let visualization: ChatbotResponse["visualization"] = undefined;
 
@@ -2018,7 +2056,7 @@ export class ChatbotService {
 				answer,
 				sources: [],
 				visualization,
-				cypherQuery: data.cypherQuery || 'N/A',
+				cypherQuery: data.cypherQuery || "N/A",
 			};
 		}
 
@@ -2041,7 +2079,7 @@ export class ChatbotService {
 				answer,
 				sources: [], // Always hide technical sources
 				visualization,
-				cypherQuery: 'N/A',
+				cypherQuery: "N/A",
 			};
 		}
 
@@ -2054,36 +2092,37 @@ export class ChatbotService {
 				// Handle position-specific metrics that might return 0 results
 				const playerName = data.playerName;
 				const metric = data.metric;
-				
+
 				// Special handling for position-specific metrics (GK, DEF, MID, FWD)
 				if (metric === "GK" || metric === "DEF" || metric === "MID" || metric === "FWD") {
 					const value = data.data.length > 0 ? data.data[0].value : 0;
-					
+
 					// Convert position code to full name
 					const positionNames = {
-						'GK': 'goalkeeper',
-						'DEF': 'defender', 
-						'MID': 'midfielder',
-						'FWD': 'forward'
+						GK: "goalkeeper",
+						DEF: "defender",
+						MID: "midfielder",
+						FWD: "forward",
 					};
 					const positionName = positionNames[metric as keyof typeof positionNames] || metric;
-					
+
 					// Generate appropriate response for position-specific appearances
 					if (value === 0) {
 						answer = `${playerName} has 0 ${positionName} appearances.`;
 					} else {
-						answer = `${playerName} has ${value} ${positionName} appearance${value !== 1 ? 's' : ''}.`;
+						answer = `${playerName} has ${value} ${positionName} appearance${value !== 1 ? "s" : ""}.`;
 					}
-					
+
 					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 				}
-				
+
 				// For other metrics, require data to be present
 				if (data.data.length === 0) {
-					answer = "I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
+					answer =
+						"I couldn't find any relevant information to answer your question about the club. This might be because the club records haven't been updated yet.";
 					return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 				}
-				
+
 				const playerData = data.data[0];
 				const value = playerData.value;
 
@@ -2098,7 +2137,7 @@ export class ChatbotService {
 						const appearancesResult = await neo4jService.executeQuery(appearancesQuery, { playerName });
 						if (appearancesResult && appearancesResult.length > 0) {
 							const appearances = appearancesResult[0].appearances;
-							appearancesContext = ` in ${appearances} appearance${appearances !== 1 ? 's' : ''}`;
+							appearancesContext = ` in ${appearances} appearance${appearances !== 1 ? "s" : ""}`;
 						}
 					} catch (error) {
 						this.logToBoth(`⚠️ Could not fetch appearances for ${playerName}:`, error);
@@ -2113,7 +2152,7 @@ export class ChatbotService {
 						const scored = playerData.scored;
 						const missed = playerData.missed;
 						const conversionRate = totalTaken > 0 ? Math.round((scored / totalTaken) * 100) : 0;
-						
+
 						answer = `${playerName} has taken ${totalTaken} penalties, scoring ${scored} and missing ${missed}. This gives a conversion rate of ${conversionRate}%.`;
 					} else {
 						answer = `${playerName} has not taken any penalties yet.`;
@@ -2121,14 +2160,14 @@ export class ChatbotService {
 				} else {
 					// Convert Neo4j Integer to JavaScript number if needed
 					let numericValue = value;
-					if (value && typeof value === 'object' && value.low !== undefined) {
+					if (value && typeof value === "object" && value.low !== undefined) {
 						// This is a Neo4j Integer object
 						numericValue = value.low;
 					}
-					
+
 					// Round values based on statObject configuration
 					let roundedValue = numericValue;
-					
+
 					// Get stat configuration for this metric
 					const statConfig = statObject[metric as keyof typeof statObject];
 					if (statConfig) {
@@ -2138,24 +2177,29 @@ export class ChatbotService {
 							const multiplier = Math.pow(10, decimalPlaces);
 							roundedValue = Math.round(numericValue * multiplier) / multiplier;
 						}
+						// For percentage formats, convert to percentage (0-100) and round to the specified number of decimal places
+						else if (statConfig.statFormat === "Percentage") {
+							const decimalPlaces = statConfig.numberDecimalPlaces || 0;
+							const multiplier = Math.pow(10, decimalPlaces);
+							roundedValue = Math.round(numericValue * 100 * multiplier) / multiplier;
+						}
 						// For other formats, keep existing logic or add as needed
 						else if (statConfig.statFormat === "Decimal2") {
 							roundedValue = Math.round(numericValue * 100) / 100; // Round to 2 decimal places
-						}
-						else if (statConfig.statFormat === "Decimal1") {
+						} else if (statConfig.statFormat === "Decimal1") {
 							roundedValue = Math.round(numericValue * 10) / 10; // Round to 1 decimal place
 						}
 					}
-					
+
 					// Format value with commas for thousands
 					let formattedValue = roundedValue;
 					if (metric === "MIN" || metric === "DIST") {
 						formattedValue = roundedValue.toLocaleString();
 					}
-					
+
 					// Use natural language response generation with appearances context for regular metrics
 					const metricName = getMetricDisplayName(metric, roundedValue);
-					
+
 					// Get appearances count for template
 					let appearancesCount: number | undefined;
 					if (appearancesContext) {
@@ -2164,40 +2208,56 @@ export class ChatbotService {
 							appearancesCount = parseInt(match[1]);
 						}
 					}
-					
+
 					// Choose appropriate template based on metric type
 					let template: any = null;
-					
+
 					if (metric === "MperG") {
 						// Special handling for MperG - handle case where player hasn't scored
 						if (roundedValue === 0) {
 							answer = `${playerName} hasn't scored any goals yet, so we can't calculate minutes per goal.`;
 							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 						} else {
-							template = getResponseTemplate('player_stats', 'Minutes per goal');
+							template = getResponseTemplate("player_stats", "Minutes per goal");
 						}
 					} else if (metric === "MperCLS") {
-						template = getResponseTemplate('player_stats', 'Minutes per clean sheet');
+						template = getResponseTemplate("player_stats", "Minutes per clean sheet");
 					} else if (metric === "DIST") {
-						template = getResponseTemplate('player_stats', 'Distance travelled');
+						template = getResponseTemplate("player_stats", "Distance travelled");
 					} else if (metric === "GperAPP" || metric === "CperAPP" || metric === "FTPperAPP") {
-						template = getResponseTemplate('player_stats', 'Per appearance statistics');
+						template = getResponseTemplate("player_stats", "Per appearance statistics");
 					} else if (metric === "HomeGames" || metric === "AwayGames") {
 						// Special handling for home/away games - no appearances context needed
 						answer = `${playerName} has played ${formattedValue} ${metricName}.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "HomeWins" || metric === "AwayWins") {
 						// Special handling for home/away wins - no appearances context needed
 						answer = `${playerName} has won ${formattedValue} ${metricName}.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "HomeGames%Won" || metric === "AwayGames%Won") {
 						// Special handling for home/away games percentage won
-						answer = `${playerName} has won ${formattedValue}% of ${metricName.replace('%', '')}.`;
-						return { answer, sources: [], visualization };
+						answer = `${playerName} has won ${formattedValue}% of ${metricName.replace("%", "")}.`;
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (metric === "Games%Won" && appearancesCount) {
 						// Special handling for overall games percentage won - include appearances context
 						answer = `${playerName} has won ${formattedValue}% of the ${appearancesCount} games he has played in.`;
-						return { answer, sources: [], visualization };
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
+					} else if (metric === "MostCommonPosition") {
+						// Special handling for most common position
+						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
+						const appearancesCount = playerData.appearancesCount || 0;
+
+						// Convert position code to full name
+						const positionNames = {
+							GK: "goalkeeper",
+							DEF: "defender",
+							MID: "midfielder",
+							FWD: "forward",
+						};
+						const positionName = positionNames[position as keyof typeof positionNames] || position;
+
+						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
+						return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 					} else if (appearancesCount) {
 						// Alternate between "appearances" and "matches" for variety
 						const useMatches = Math.random() < 0.5;
@@ -2206,12 +2266,12 @@ export class ChatbotService {
 							answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName} in ${appearancesCount} matches.`;
 							return { answer, sources: [], visualization, cypherQuery: data?.cypherQuery };
 						} else {
-							template = getResponseTemplate('player_stats', 'Player statistics with appearances context');
+							template = getResponseTemplate("player_stats", "Player statistics with appearances context");
 						}
 					} else {
-						template = getResponseTemplate('player_stats', 'Basic player statistics');
+						template = getResponseTemplate("player_stats", "Basic player statistics");
 					}
-					
+
 					if (template) {
 						answer = formatNaturalResponse(
 							template.template,
@@ -2220,21 +2280,21 @@ export class ChatbotService {
 							formattedValue,
 							metricName,
 							undefined, // teamName
-							appearancesCount
+							appearancesCount,
 						);
 					} else {
 						// Fallback to simple format with appearances
 						answer = `${playerName} has ${getAppropriateVerb(metric, roundedValue)} ${formattedValue} ${metricName}${appearancesContext}.`;
 					}
 				}
-				
+
 				// Enhanced handling for special metrics
 				if (metric === "AllGSC" || metric === "totalGoals") {
 					// Clarify that this includes both open play and penalty goals
-					answer = answer.replace('.', ' (including both open play and penalty goals).');
+					answer = answer.replace(".", " (including both open play and penalty goals).");
 				} else if (metric === "points") {
 					// Clarify that this refers to Fantasy Points
-					answer = answer.replace('.', ' (Fantasy Points).');
+					answer = answer.replace(".", " (Fantasy Points).");
 				} else if (metric === "MostPlayedForTeam") {
 					// For "What team has player made the most appearances for?" questions
 					const questionLower = question.toLowerCase();
@@ -2259,7 +2319,7 @@ export class ChatbotService {
 					if (questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) {
 						// Use the actual query result from Cypher
 						const teamsPlayedFor = value || 0;
-						
+
 						if (teamsPlayedFor === 0) {
 							answer = `${playerName} has not played for any of the club's teams yet.`;
 						} else if (teamsPlayedFor === 1) {
@@ -2268,232 +2328,199 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
-				} else if (metric === "MostCommonPosition") {
-					// For "What is player's most common position played?" questions
+
+					// Enhanced year vs season clarification
+					// Dynamic year detection - check for any year pattern (20XX)
+					const yearPattern = /20\d{2}/;
+					if (yearPattern.test(questionLower)) {
+						// Check if this is a season reference
+						const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
+						const seasonMatch = question.match(seasonPattern);
+						if (seasonMatch) {
+							// This is a season reference - clarify in response
+							const season = seasonMatch[0];
+							answer = answer.replace(".", ` for the ${season} season.`);
+						} else {
+							// This is a calendar year reference - clarify in response
+							const yearMatch = question.match(/(20\d{2})/);
+							if (yearMatch) {
+								const year = yearMatch[1];
+								answer = answer.replace(".", ` in calendar year ${year}.`);
+							}
+						}
+					}
+				} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
+					// Team-specific query (e.g., "3rd team goals")
+					const teamName = data.teamName;
+					const metric = data.metric;
+					const topPlayer = data.data[0];
+					const metricName = getMetricDisplayName(metric, topPlayer.value);
+
+					// Check if user asked for "the most" or similar superlative terms
 					const questionLower = question.toLowerCase();
-					if (questionLower.includes("most common position")) {
-						// Use the actual query results from Cypher
-						const position = value; // e.g., "GK", "DEF", "MID", "FWD"
-						const appearancesCount = playerData.appearancesCount || 0;
-						
-						// Convert position code to full name
-						const positionNames = {
-							'GK': 'goalkeeper',
-							'DEF': 'defender', 
-							'MID': 'midfielder',
-							'FWD': 'forward'
+					const usesSuperlative =
+						questionLower.includes("the most") ||
+						questionLower.includes("highest") ||
+						questionLower.includes("best") ||
+						questionLower.includes("top");
+
+					if (usesSuperlative) {
+						// Use comparison template for superlative questions
+						const template = getResponseTemplate("comparison", "Player comparison (highest)");
+						if (template) {
+							answer = formatNaturalResponse(template.template, topPlayer.playerName, metric, topPlayer.value, metricName, teamName);
+							// Replace team context since comparison template doesn't have it
+							answer = `For the ${teamName}, ${answer}`;
+						} else {
+							answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+						}
+					} else {
+						// Use team-specific template for regular questions
+						const template = getResponseTemplate("team_specific", "Team-specific player statistics");
+						if (template) {
+							answer = formatNaturalResponse(template.template, topPlayer.playerName, metric, topPlayer.value, metricName, teamName);
+							// Add appearances context if available and not appearances themselves
+							if (metric !== "APP" && topPlayer.appearances) {
+								answer = answer.replace(".", ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? "s" : ""}.`);
+							}
+						} else {
+							// Add appearances context if available and not appearances themselves
+							let appearancesContext = "";
+							if (metric !== "APP" && topPlayer.appearances) {
+								appearancesContext = ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? "s" : ""}`;
+							}
+							answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}${appearancesContext}.`;
+						}
+					}
+
+					// Sanitize data for visualization to prevent React errors
+					const sanitizedData = data.data.map((item: any) => ({
+						playerName: String(item.playerName || "Unknown"),
+						value: Number(item.value || 0),
+						appearances: Number(item.appearances || 0),
+					}));
+
+					visualization = {
+						type: "table",
+						data: sanitizedData,
+						config: { columns: ["playerName", "value", "appearances"] },
+					};
+				} else if (data && data.type === "team_not_found") {
+					// Team not found - provide helpful information
+					this.logToBoth(`🔍 Handling team_not_found case:`, data);
+					answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(", ")}.`;
+				} else if (data && data.type === "error") {
+					// Error occurred during query
+					answer = `I encountered an error while looking up team information: ${data.error}.`;
+				} else if (data && data.type === "general_players" && data.data && data.data.length > 0) {
+					if (data.data[0].playerCount) {
+						// General player count question
+						answer = `The club currently has ${data.data[0].playerCount} registered players across all teams.`;
+						visualization = {
+							type: "stats",
+							data: { playerCount: data.data[0].playerCount },
+							config: { title: "Total Players" },
 						};
-						const positionName = positionNames[position as keyof typeof positionNames] || position;
-						
-						answer = `${playerName}'s most common position is ${positionName} (${appearancesCount} appearances).`;
+					} else if (data.data[0].name) {
+						// Specific player data - MAX 14 players as per rules
+						const maxPlayers = Math.min(data.data.length, 14);
+						const playerNames = data.data
+							.slice(0, maxPlayers)
+							.map((p: any) => p.name)
+							.join(", ");
+						answer = `I found ${data.data.length} players in the club. Here are some of our registered players: ${playerNames}${data.data.length > maxPlayers ? " and many more..." : ""}`;
+						visualization = {
+							type: "table",
+							data: data.data.slice(0, maxPlayers),
+							config: { columns: ["name"] },
+						};
 					}
-				}
-				
-				// Enhanced year vs season clarification
-				const questionLower = question.toLowerCase();
-				// Dynamic year detection - check for any year pattern (20XX)
-				const yearPattern = /20\d{2}/;
-				if (yearPattern.test(questionLower)) {
-					// Check if this is a season reference
-					const seasonPattern = /(20\d{2})[\/\-](20\d{2}|2\d)/;
-					const seasonMatch = question.match(seasonPattern);
-					if (seasonMatch) {
-						// This is a season reference - clarify in response
-						const season = seasonMatch[0];
-						answer = answer.replace('.', ` for the ${season} season.`);
+				} else if (data && data.type === "totw_awards" && data.data && data.data.length > 0) {
+					// TOTW awards query
+					const totwData = data.data[0];
+					const periodText = data.period === "weekly" ? "weekly" : "season";
+					const starManText = totwData.starManAwards > 0 ? `, including ${totwData.starManAwards} star man awards` : "";
+					answer = `${data.playerName} has been selected for ${totwData.totalAwards} ${periodText} team of the week selections${starManText}.`;
+
+					// Create visualization with award details
+					if (totwData.awardDetails && totwData.awardDetails.length > 0) {
+						visualization = {
+							type: "table",
+							data: totwData.awardDetails,
+							config: {
+								columns: ["awardId", "isStarMan", "ftpScore", "position"],
+								title: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`,
+							},
+						};
+					}
+				} else if (data && data.type === "potm_awards" && data.data && data.data.length > 0) {
+					// Player of the Month awards query
+					const potmData = data.data[0];
+					answer = `${data.playerName} has won ${potmData.totalAwards} Player of the Month awards.`;
+
+					// Create visualization with award details
+					if (potmData.awardDetails && potmData.awardDetails.length > 0) {
+						visualization = {
+							type: "table",
+							data: potmData.awardDetails,
+							config: {
+								columns: ["awardId", "position", "monthlyPoints"],
+								title: "Player of the Month Awards",
+							},
+						};
+					}
+				} else if (data && data.type === "captain_awards" && data.data && data.data.length > 0) {
+					// Captain awards query
+					const captainData = data.data[0];
+					answer = `${data.playerName} has won ${captainData.totalAwards} captain awards.`;
+
+					// Create visualization with award details
+					if (captainData.awardDetails && captainData.awardDetails.length > 0) {
+						visualization = {
+							type: "table",
+							data: captainData.awardDetails,
+							config: {
+								columns: ["awardId", "season"],
+								title: "Captain Awards",
+							},
+						};
+					}
+				} else if (data && data.type === "co_players" && data.data && data.data.length > 0) {
+					// Co-players query
+					const coPlayersData = data.data[0];
+					if (coPlayersData.coPlayers && coPlayersData.coPlayers.length > 0) {
+						const coPlayerNames = coPlayersData.coPlayers.map((cp: any) => cp.coPlayerName).join(", ");
+						answer = `${data.playerName} has played with ${coPlayersData.coPlayers.length} different co-players: ${coPlayerNames}.`;
+
+						visualization = {
+							type: "table",
+							data: coPlayersData.coPlayers,
+							config: {
+								columns: ["coPlayerName", "timesPlayedWith", "lastPlayedWith"],
+								title: "Co-Players",
+							},
+						};
 					} else {
-						// This is a calendar year reference - clarify in response
-						const yearMatch = question.match(/(20\d{2})/);
-						if (yearMatch) {
-							const year = yearMatch[1];
-							answer = answer.replace('.', ` in calendar year ${year}.`);
-						}
+						answer = `${data.playerName} hasn't played with any co-players yet.`;
 					}
-				}
-			} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
-				// Team-specific query (e.g., "3rd team goals")
-				const teamName = data.teamName;
-				const metric = data.metric;
-				const topPlayer = data.data[0];
-				const metricName = getMetricDisplayName(metric, topPlayer.value);
+				} else if (data && data.type === "opponents" && data.data && data.data.length > 0) {
+					// Opponents query
+					const opponentsData = data.data[0];
+					if (opponentsData.opponents && opponentsData.opponents.length > 0) {
+						const opponentNames = opponentsData.opponents.map((opp: any) => opp.opponentName).join(", ");
+						answer = `${data.playerName} has played against ${opponentsData.opponents.length} different opponents: ${opponentNames}.`;
 
-				// Check if user asked for "the most" or similar superlative terms
-				const questionLower = question.toLowerCase();
-				const usesSuperlative = questionLower.includes("the most") || 
-					questionLower.includes("highest") || 
-					questionLower.includes("best") || 
-					questionLower.includes("top");
-				
-				if (usesSuperlative) {
-					// Use comparison template for superlative questions
-					const template = getResponseTemplate('comparison', 'Player comparison (highest)');
-					if (template) {
-						answer = formatNaturalResponse(
-							template.template,
-							topPlayer.playerName,
-							metric,
-							topPlayer.value,
-							metricName,
-							teamName
-						);
-						// Replace team context since comparison template doesn't have it
-						answer = `For the ${teamName}, ${answer}`;
+						visualization = {
+							type: "table",
+							data: opponentsData.opponents,
+							config: {
+								columns: ["opponentName", "timesPlayedAgainst", "lastPlayedAgainst"],
+								title: "Opponents",
+							},
+						};
 					} else {
-						answer = `For the ${teamName}, ${topPlayer.playerName} has scored the most ${metricName} with ${topPlayer.value}.`;
+						answer = `${data.playerName} hasn't played against any opponents yet.`;
 					}
-				} else {
-					// Use team-specific template for regular questions
-					const template = getResponseTemplate('team_specific', 'Team-specific player statistics');
-					if (template) {
-						answer = formatNaturalResponse(
-							template.template,
-							topPlayer.playerName,
-							metric,
-							topPlayer.value,
-							metricName,
-							teamName
-						);
-						// Add appearances context if available and not appearances themselves
-						if (metric !== "APP" && topPlayer.appearances) {
-							answer = answer.replace('.', ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}.`);
-						}
-					} else {
-						// Add appearances context if available and not appearances themselves
-						let appearancesContext = "";
-						if (metric !== "APP" && topPlayer.appearances) {
-							appearancesContext = ` in ${topPlayer.appearances} appearance${topPlayer.appearances !== 1 ? 's' : ''}`;
-						}
-						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}${appearancesContext}.`;
-					}
-				}
-
-				// Sanitize data for visualization to prevent React errors
-				const sanitizedData = data.data.map((item: any) => ({
-					playerName: String(item.playerName || 'Unknown'),
-					value: Number(item.value || 0),
-					appearances: Number(item.appearances || 0)
-				}));
-				
-				visualization = {
-					type: "table",
-					data: sanitizedData,
-					config: { columns: ["playerName", "value", "appearances"] },
-				};
-			} else if (data && data.type === "team_not_found") {
-				// Team not found - provide helpful information
-				this.logToBoth(`🔍 Handling team_not_found case:`, data);
-				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(', ')}.`;
-			} else if (data && data.type === "error") {
-				// Error occurred during query
-				answer = `I encountered an error while looking up team information: ${data.error}.`;
-			} else if (data && data.type === "general_players" && data.data && data.data.length > 0) {
-				if (data.data[0].playerCount) {
-					// General player count question
-					answer = `The club currently has ${data.data[0].playerCount} registered players across all teams.`;
-					visualization = {
-						type: "stats",
-						data: { playerCount: data.data[0].playerCount },
-						config: { title: "Total Players" },
-					};
-				} else if (data.data[0].name) {
-					// Specific player data - MAX 14 players as per rules
-					const maxPlayers = Math.min(data.data.length, 14);
-					const playerNames = data.data
-						.slice(0, maxPlayers)
-						.map((p: any) => p.name)
-						.join(", ");
-					answer = `I found ${data.data.length} players in the club. Here are some of our registered players: ${playerNames}${data.data.length > maxPlayers ? " and many more..." : ""}`;
-					visualization = {
-						type: "table",
-						data: data.data.slice(0, maxPlayers),
-						config: { columns: ["name"] },
-					};
-				}
-			} else if (data && data.type === "totw_awards" && data.data && data.data.length > 0) {
-				// TOTW awards query
-				const totwData = data.data[0];
-				const periodText = data.period === "weekly" ? "weekly" : "season";
-				const starManText = totwData.starManAwards > 0 ? `, including ${totwData.starManAwards} star man awards` : "";
-				answer = `${data.playerName} has been selected for ${totwData.totalAwards} ${periodText} team of the week selections${starManText}.`;
-
-				// Create visualization with award details
-				if (totwData.awardDetails && totwData.awardDetails.length > 0) {
-					visualization = {
-						type: "table",
-						data: totwData.awardDetails,
-						config: {
-							columns: ["awardId", "isStarMan", "ftpScore", "position"],
-							title: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`,
-						},
-					};
-				}
-			} else if (data && data.type === "potm_awards" && data.data && data.data.length > 0) {
-				// Player of the Month awards query
-				const potmData = data.data[0];
-				answer = `${data.playerName} has won ${potmData.totalAwards} Player of the Month awards.`;
-
-				// Create visualization with award details
-				if (potmData.awardDetails && potmData.awardDetails.length > 0) {
-					visualization = {
-						type: "table",
-						data: potmData.awardDetails,
-						config: {
-							columns: ["awardId", "position", "monthlyPoints"],
-							title: "Player of the Month Awards",
-						},
-					};
-				}
-			} else if (data && data.type === "captain_awards" && data.data && data.data.length > 0) {
-				// Captain awards query
-				const captainData = data.data[0];
-				answer = `${data.playerName} has won ${captainData.totalAwards} captain awards.`;
-
-				// Create visualization with award details
-				if (captainData.awardDetails && captainData.awardDetails.length > 0) {
-					visualization = {
-						type: "table",
-						data: captainData.awardDetails,
-						config: {
-							columns: ["awardId", "season"],
-							title: "Captain Awards",
-						},
-					};
-				}
-			} else if (data && data.type === "co_players" && data.data && data.data.length > 0) {
-				// Co-players query
-				const coPlayersData = data.data[0];
-				if (coPlayersData.coPlayers && coPlayersData.coPlayers.length > 0) {
-					const coPlayerNames = coPlayersData.coPlayers.map((cp: any) => cp.coPlayerName).join(", ");
-					answer = `${data.playerName} has played with ${coPlayersData.coPlayers.length} different co-players: ${coPlayerNames}.`;
-
-					visualization = {
-						type: "table",
-						data: coPlayersData.coPlayers,
-						config: {
-							columns: ["coPlayerName", "timesPlayedWith", "lastPlayedWith"],
-							title: "Co-Players",
-						},
-					};
-				} else {
-					answer = `${data.playerName} hasn't played with any co-players yet.`;
-				}
-			} else if (data && data.type === "opponents" && data.data && data.data.length > 0) {
-				// Opponents query
-				const opponentsData = data.data[0];
-				if (opponentsData.opponents && opponentsData.opponents.length > 0) {
-					const opponentNames = opponentsData.opponents.map((opp: any) => opp.opponentName).join(", ");
-					answer = `${data.playerName} has played against ${opponentsData.opponents.length} different opponents: ${opponentNames}.`;
-
-					visualization = {
-						type: "table",
-						data: opponentsData.opponents,
-						config: {
-							columns: ["opponentName", "timesPlayedAgainst", "lastPlayedAgainst"],
-							title: "Opponents",
-						},
-					};
-				} else {
-					answer = `${data.playerName} hasn't played against any opponents yet.`;
 				}
 			}
 		} else if (analysis.type === "general") {
@@ -2550,9 +2577,12 @@ export class ChatbotService {
 	private async queryPlayerTOTWData(playerName: string, period: "weekly" | "season"): Promise<any> {
 		console.log(`🔍 Querying for TOTW awards for player: ${playerName}, period: ${period}`);
 		const relationshipType = period === "weekly" ? "IN_WEEKLY_TOTW" : "IN_SEASON_TOTW";
-		const query = `
+		const query =
+			`
 			MATCH (p:Player {playerName: $playerName})
-			MATCH (p)-[r:${relationshipType}]->(award)
+			MATCH (p)-[r:` +
+			relationshipType +
+			`]->(award)
 			RETURN p.playerName as playerName, 
 				   count(award) as totalAwards,
 				   sum(CASE WHEN r.isStarMan THEN 1 ELSE 0 END) as starManAwards,
@@ -2656,26 +2686,26 @@ export class ChatbotService {
 			return null;
 		}
 	}
-	
+
 	// Debug methods for exposing processing information
 	public getQuestionAnalysis(question: string, userContext?: string): any {
 		return this.lastQuestionAnalysis;
 	}
-	
+
 	public getExecutedQueries(): string[] {
 		return this.lastExecutedQueries;
 	}
-	
+
 	public getProcessingSteps(): string[] {
 		return this.lastProcessingSteps;
 	}
-	
+
 	public getProcessingDetails(): any {
 		return {
 			questionAnalysis: this.lastQuestionAnalysis,
 			cypherQueries: this.lastExecutedQueries,
 			processingSteps: this.lastProcessingSteps,
-			queryBreakdown: this.lastQueryBreakdown
+			queryBreakdown: this.lastQueryBreakdown,
 		};
 	}
 }

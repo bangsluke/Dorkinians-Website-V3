@@ -14,22 +14,16 @@ export async function OPTIONS() {
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
-		const playerName = searchParams.get('playerName');
+		const playerName = searchParams.get("playerName");
 
 		if (!playerName) {
-			return NextResponse.json(
-				{ error: "Player name is required" },
-				{ status: 400, headers: corsHeaders }
-			);
+			return NextResponse.json({ error: "Player name is required" }, { status: 400, headers: corsHeaders });
 		}
 
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json(
-				{ error: "Database connection failed" },
-				{ status: 500, headers: corsHeaders }
-			);
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
 		// Fetch complete player data from TBL_Players
@@ -38,18 +32,15 @@ export async function GET(request: NextRequest) {
 			WHERE p.playerName = $playerName
 			RETURN p
 		`;
-		const params = { 
+		const params = {
 			graphLabel: neo4jService.getGraphLabel(),
-			playerName: playerName
+			playerName: playerName,
 		};
 
 		const result = await neo4jService.runQuery(query, params);
-		
+
 		if (result.records.length === 0) {
-			return NextResponse.json(
-				{ error: "Player not found" },
-				{ status: 404, headers: corsHeaders }
-			);
+			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
 		}
 
 		// Extract all player properties
@@ -108,15 +99,12 @@ export async function GET(request: NextRequest) {
 			goals8s: playerNode.properties.goals8s,
 			mostScoredForTeam: playerNode.properties.mostScoredForTeam,
 			numberSeasonsPlayedFor: playerNode.properties.numberSeasonsPlayedFor,
-			graphLabel: playerNode.properties.graphLabel
+			graphLabel: playerNode.properties.graphLabel,
 		};
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching player data:", error);
-		return NextResponse.json(
-			{ error: "Failed to fetch player data" },
-			{ status: 500, headers: corsHeaders }
-		);
+		return NextResponse.json({ error: "Failed to fetch player data" }, { status: 500, headers: corsHeaders });
 	}
 }
