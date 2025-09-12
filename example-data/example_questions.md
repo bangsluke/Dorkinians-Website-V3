@@ -29,3 +29,7 @@
 | How many times has Luke played?                                                 | NumberCard           | StatsData   |
 | Have I played more home or away games?                                          | Table                | StatsData   |
 | What percentage of away games have I won?                                       | NumberCard           | StatsData   |
+| How many goals have Luke Bangs and Oli Goddard got whilst playing together?     | NumberCard           | StatsData   |
+| How many assists has Luke Bangs got when not playing for the 3s?                | NumberCard           | StatsData   |
+| Who was the top player in January 2023?                                         | Table                | StatsData   |
+| Who made TOTW in the first week of February 2017?                               | Table                | StatsData   |
