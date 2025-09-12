@@ -2671,7 +2671,7 @@ export class ChatbotService {
 		console.log(`🔍 Querying for opponents for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})
-			MATCH (p)-[r:PLAYED_AGAINST]->(opponent:OppositionDetail)
+			MATCH (p)-[r:PLAYED_AGAINST]->(opponent:OppositionDetails)
 			RETURN p.playerName as playerName, 
 				   collect({
 					   opponentName: opponent.opposition,

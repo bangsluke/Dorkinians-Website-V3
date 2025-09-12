@@ -135,7 +135,7 @@ export interface CaptainAward {
 	mostStarMan: string;
 }
 
-export interface OppositionDetail {
+export interface OppositionDetails {
 	oppositionName: string;
 	league: string;
 	division: string;

@@ -250,7 +250,7 @@ CREATE (pom1:PlayersOfTheMonth {
 -- No graph nodes needed for this static reference data
 
 -- 9. Create Opposition Detail
-CREATE (od1:OppositionDetail {
+CREATE (od1:OppositionDetails {
   id: 'opposition-opposition-fc',
   oppositionName: 'Opposition FC',
   league: 'Premier Division',
@@ -296,7 +296,7 @@ CREATE (f)-[:BELONGS_TO]->(s);
 
 -- Fixture-Opposition relationships
 MATCH (f:Fixture {id: 'fixture-001'})
-MATCH (o:OppositionDetail {oppositionName: 'Opposition FC'})
+MATCH (o:OppositionDetails {oppositionName: 'Opposition FC'})
 CREATE (f)-[:AGAINST]->(o);
 
 -- MatchDetail-Fixture relationships
@@ -415,7 +415,7 @@ RETURN t.name as team,
        sum(f.conceded) as goalsAgainst;
 
 -- 9. Get opposition teams
-MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetail)
+MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetails)
 RETURN DISTINCT o.oppositionName, o.league, o.division
 ORDER BY o.league, o.oppositionName;
 

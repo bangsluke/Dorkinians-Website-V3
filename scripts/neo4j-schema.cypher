@@ -41,9 +41,9 @@ CREATE CONSTRAINT playerofmonth_season_month_player_unique IF NOT EXISTS FOR (po
 -- CaptainAward constraints (REMOVED - handled as table data)
 -- No constraints needed for table-based award data
 
--- OppositionDetail constraints
-CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.id IS UNIQUE;
-CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.oppositionName IS UNIQUE;
+-- OppositionDetails constraints
+CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetails) REQUIRE o.id IS UNIQUE;
+CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetails) REQUIRE o.oppositionName IS UNIQUE;
 
 -- =====================================================
 -- INDEXES FOR PERFORMANCE
@@ -93,9 +93,9 @@ CREATE INDEX playerofmonth_team_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) 
 -- CaptainAward indexes (REMOVED - handled as table data)
 -- No indexes needed for table-based award data
 
--- OppositionDetail indexes
-CREATE INDEX opposition_league_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.league);
-CREATE INDEX opposition_division_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.division);
+-- OppositionDetails indexes
+CREATE INDEX opposition_league_index IF NOT EXISTS FOR (o:OppositionDetails) ON (o.league);
+CREATE INDEX opposition_division_index IF NOT EXISTS FOR (o:OppositionDetails) ON (o.division);
 
 -- =====================================================
 -- COMPOSITE INDEXES FOR COMPLEX QUERIES
