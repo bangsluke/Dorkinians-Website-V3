@@ -41,8 +41,8 @@ async function applySchema() {
 			"CREATE CONSTRAINT season_totw_id_unique IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE st.id IS UNIQUE",
 			"CREATE CONSTRAINT season_totw_season_unique IF NOT EXISTS FOR (st:SeasonTOTW) REQUIRE st.season IS UNIQUE",
 			"CREATE CONSTRAINT playerofmonth_id_unique IF NOT EXISTS FOR (pom:PlayersOfTheMonth) REQUIRE pom.id IS UNIQUE",
-			"CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.id IS UNIQUE",
-			// Removed: 'CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetail) REQUIRE o.oppositionName IS UNIQUE'
+			"CREATE CONSTRAINT opposition_id_unique IF NOT EXISTS FOR (o:OppositionDetails) REQUIRE o.id IS UNIQUE",
+			// Removed: 'CREATE CONSTRAINT opposition_name_unique IF NOT EXISTS FOR (o:OppositionDetails) REQUIRE o.oppositionName IS UNIQUE'
 		];
 
 		for (const constraint of constraints) {
@@ -92,8 +92,8 @@ async function applySchema() {
 			"CREATE INDEX playerofmonth_season_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.season)",
 			"CREATE INDEX playerofmonth_month_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.month)",
 			"CREATE INDEX playerofmonth_seasonmonth_index IF NOT EXISTS FOR (pom:PlayersOfTheMonth) ON (pom.seasonMonthRef)",
-			"CREATE INDEX opposition_league_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.league)",
-			"CREATE INDEX opposition_division_index IF NOT EXISTS FOR (o:OppositionDetail) ON (o.division)",
+			"CREATE INDEX opposition_league_index IF NOT EXISTS FOR (o:OppositionDetails) ON (o.league)",
+			"CREATE INDEX opposition_division_index IF NOT EXISTS FOR (o:OppositionDetails) ON (o.division)",
 		];
 
 		for (const index of indexes) {
