@@ -122,61 +122,61 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
-		if (typeof window !== 'undefined') {
-			const saved = localStorage.getItem('dorkinians-selected-player');
-			const cachedData = localStorage.getItem('dorkinians-cached-player-data');
-			
-			console.log('🔍 [Navigation Store] initializeFromStorage called');
-			console.log('📦 [LocalStorage] dorkinians-selected-player:', saved);
-			console.log('📦 [LocalStorage] dorkinians-cached-player-data:', cachedData ? 'Present' : 'Not found');
-			
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("dorkinians-selected-player");
+			const cachedData = localStorage.getItem("dorkinians-cached-player-data");
+
+			console.log("🔍 [Navigation Store] initializeFromStorage called");
+			console.log("📦 [LocalStorage] dorkinians-selected-player:", saved);
+			console.log("📦 [LocalStorage] dorkinians-cached-player-data:", cachedData ? "Present" : "Not found");
+
 			if (cachedData) {
 				try {
 					const parsedData: CachedPlayerData = JSON.parse(cachedData);
-					console.log('📊 [Cached Data] Parsed successfully:', {
+					console.log("📊 [Cached Data] Parsed successfully:", {
 						playerName: parsedData.playerData?.playerName,
 						selectedDate: parsedData.selectedDate,
-						hasPlayerData: !!parsedData.playerData
+						hasPlayerData: !!parsedData.playerData,
 					});
 				} catch (error) {
-					console.error('❌ [Cached Data] Failed to parse:', error);
+					console.error("❌ [Cached Data] Failed to parse:", error);
 				}
 			}
-			
+
 			if (saved) {
-				console.log('✅ [Player Selection] Restoring player from localStorage:', saved);
+				console.log("✅ [Player Selection] Restoring player from localStorage:", saved);
 				set({ selectedPlayer: saved, isPlayerSelected: true });
-				
+
 				// Load cached player data if available
 				if (cachedData) {
 					try {
 						const parsedData: CachedPlayerData = JSON.parse(cachedData);
 						set({ cachedPlayerData: parsedData });
-						console.log('✅ [Cached Data] Loaded successfully');
+						console.log("✅ [Cached Data] Loaded successfully");
 					} catch (error) {
-						console.error('❌ [Cached Data] Failed to parse cached player data:', error);
-						localStorage.removeItem('dorkinians-cached-player-data');
+						console.error("❌ [Cached Data] Failed to parse cached player data:", error);
+						localStorage.removeItem("dorkinians-cached-player-data");
 					}
 				}
 			} else {
-				console.log('ℹ️ [Player Selection] No saved player found in localStorage');
+				console.log("ℹ️ [Player Selection] No saved player found in localStorage");
 			}
 		}
 	},
 
 	// Main page navigation
 	setMainPage: (page: MainPage) => {
-		console.log('🏠 [Navigation] setMainPage called with page:', page);
-		console.log('📊 [Navigation] Current state before change:', {
+		console.log("🏠 [Navigation] setMainPage called with page:", page);
+		console.log("📊 [Navigation] Current state before change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
-			currentMainPage: get().currentMainPage
+			currentMainPage: get().currentMainPage,
 		});
-		
+
 		const currentPage = get().currentMainPage;
-		
+
 		set({ currentMainPage: page });
-		
+
 		// Reset sub-pages only when actually leaving those pages
 		if (currentPage === "stats" && page !== "stats") {
 			set({ currentStatsSubPage: "player-stats" });
@@ -187,21 +187,21 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		if (currentPage === "club-info" && page !== "club-info") {
 			set({ currentClubInfoSubPage: "club-information" });
 		}
-		
+
 		// Only clear player selection when leaving home page to non-stats pages
 		if (currentPage === "home" && page !== "home" && page !== "stats") {
-			console.log('🔄 [Navigation] Leaving home page for non-stats page, clearing player selection');
+			console.log("🔄 [Navigation] Leaving home page for non-stats page, clearing player selection");
 			set({ selectedPlayer: null, isPlayerSelected: false });
 		} else if (page === "home") {
-			console.log('🏠 [Navigation] Returning to home page, preserving player selection');
+			console.log("🏠 [Navigation] Returning to home page, preserving player selection");
 		} else if (page === "stats") {
-			console.log('📊 [Navigation] Navigating to stats page, preserving player selection');
+			console.log("📊 [Navigation] Navigating to stats page, preserving player selection");
 		}
-		
-		console.log('📊 [Navigation] State after change:', {
+
+		console.log("📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
-			currentMainPage: get().currentMainPage
+			currentMainPage: get().currentMainPage,
 		});
 	},
 
@@ -220,71 +220,71 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Player selection actions
 	selectPlayer: (playerName: string) => {
 		// Save to localStorage
-		if (typeof window !== 'undefined') {
-			localStorage.setItem('dorkinians-selected-player', playerName);
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-selected-player", playerName);
 		}
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
-		
+
 		// Fetch and cache player data asynchronously
 		get().fetchAndCachePlayerData(playerName);
 	},
 
 	clearPlayerSelection: () => {
 		// Remove from localStorage
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('dorkinians-selected-player');
-			localStorage.removeItem('dorkinians-cached-player-data');
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("dorkinians-selected-player");
+			localStorage.removeItem("dorkinians-cached-player-data");
 		}
-		set({ 
-			selectedPlayer: null, 
-			isPlayerSelected: false, 
+		set({
+			selectedPlayer: null,
+			isPlayerSelected: false,
 			isEditMode: false,
-			cachedPlayerData: null
+			cachedPlayerData: null,
 		});
 	},
 
 	enterEditMode: () => {
 		// Clear player from localStorage
-		if (typeof window !== 'undefined') {
-			localStorage.removeItem('dorkinians-selected-player');
-			localStorage.removeItem('dorkinians-cached-player-data');
+		if (typeof window !== "undefined") {
+			localStorage.removeItem("dorkinians-selected-player");
+			localStorage.removeItem("dorkinians-cached-player-data");
 		}
 		// Clear all player-related state
-		set({ 
-			isEditMode: true, 
+		set({
+			isEditMode: true,
 			isPlayerSelected: false,
 			selectedPlayer: null,
 			cachedPlayerData: null,
-			isLoadingPlayerData: false
+			isLoadingPlayerData: false,
 		});
 	},
 
 	// Player data actions
 	fetchAndCachePlayerData: async (playerName: string) => {
 		set({ isLoadingPlayerData: true });
-		
+
 		try {
 			const response = await fetch(`/api/player-data?playerName=${encodeURIComponent(playerName)}`);
 			if (response.ok) {
 				const { playerData } = await response.json();
-				const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-				
+				const currentDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD format
+
 				const cachedData: CachedPlayerData = {
 					playerData,
-					selectedDate: currentDate
+					selectedDate: currentDate,
 				};
-				
+
 				// Save to localStorage
-				if (typeof window !== 'undefined') {
-					localStorage.setItem('dorkinians-cached-player-data', JSON.stringify(cachedData));
+				if (typeof window !== "undefined") {
+					localStorage.setItem("dorkinians-cached-player-data", JSON.stringify(cachedData));
 				}
-				
+
 				set({ cachedPlayerData: cachedData });
 			} else {
-				console.error('Failed to fetch player data:', response.statusText);
+				console.error("Failed to fetch player data:", response.statusText);
 			}
 		} catch (error) {
-			console.error('Error fetching player data:', error);
+			console.error("Error fetching player data:", error);
 		} finally {
 			set({ isLoadingPlayerData: false });
 		}
@@ -292,16 +292,16 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	validateAndRefreshPlayerData: async (playerName: string) => {
 		const { cachedPlayerData } = get();
-		
+
 		if (!cachedPlayerData) {
 			// No cached data, fetch fresh
 			await get().fetchAndCachePlayerData(playerName);
 			return;
 		}
-		
-		const currentDate = new Date().toISOString().split('T')[0];
+
+		const currentDate = new Date().toISOString().split("T")[0];
 		const cachedDate = cachedPlayerData.selectedDate;
-		
+
 		if (currentDate !== cachedDate) {
 			// Date has changed, refresh data
 			console.log(`Player data is stale (${cachedDate} vs ${currentDate}), refreshing...`);
@@ -317,7 +317,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
-			"comparison" as StatsSubPage
+			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const nextIndex = (currentIndex + 1) % availablePages.length;
@@ -331,7 +331,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			"player-stats" as StatsSubPage,
 			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
-			"comparison" as StatsSubPage
+			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const prevIndex = currentIndex === 0 ? availablePages.length - 1 : currentIndex - 1;

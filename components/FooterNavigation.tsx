@@ -34,7 +34,7 @@ export default function FooterNavigation() {
 						<motion.button
 							key={item.id}
 							onClick={() => {
-								console.log('🔘 [FooterNavigation] Button clicked:', item.id);
+								console.log("🔘 [FooterNavigation] Button clicked:", item.id);
 								setMainPage(item.id);
 							}}
 							className={`flex items-center justify-center space-y-1 md:space-y-0 md:space-x-2 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${
