@@ -99,7 +99,7 @@ export interface SeasonTOTW {
 	fwd3: string;
 }
 
-export interface PlayerOfTheMonth {
+export interface PlayersOfTheMonth {
 	season: string;
 	month: string;
 	seasonMonthRef: string;

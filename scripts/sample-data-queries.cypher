@@ -227,7 +227,7 @@ CREATE (totw1:TOTW {
 });
 
 -- 7. Create Player of the Month
-CREATE (pom1:PlayerOfTheMonth {
+CREATE (pom1:PlayersOfTheMonth {
   id: 'pom-2016-17-sep',
   season: '2016-17',
   month: 'September',
@@ -341,12 +341,12 @@ CREATE (p)-[:SELECTED_IN {position: 'DEF', score: 7.8}]->(t);
 
 -- Player-Monthly Award relationships
 MATCH (p:Player {name: 'James Tain'})
-MATCH (pom:PlayerOfTheMonth {id: 'pom-2016-17-sep'})
+MATCH (pom:PlayersOfTheMonth {id: 'pom-2016-17-sep'})
 CREATE (p)-[:AWARDED_MONTHLY {month: 'September', season: '2016-17'}]->(pom);
 
 -- Season-Monthly Awards relationships
 MATCH (s:Season {id: '2016-17'})
-MATCH (pom:PlayerOfTheMonth {id: 'pom-2016-17-sep'})
+MATCH (pom:PlayersOfTheMonth {id: 'pom-2016-17-sep'})
 CREATE (s)-[:HAS_MONTHLY_AWARDS]->(pom);
 
 -- Player-Season Award relationships (REMOVED - handled as table data)
@@ -383,7 +383,7 @@ RETURN t.season, t.week, t.starMan, t.starManScore
 ORDER BY t.season, t.week;
 
 -- 5. Get monthly awards for a season
-MATCH (s:Season {id: '2016-17'})-[:HAS_MONTHLY_AWARDS]->(pom:PlayerOfTheMonth)
+MATCH (s:Season {id: '2016-17'})-[:HAS_MONTHLY_AWARDS]->(pom:PlayersOfTheMonth)
 RETURN pom.month, pom.playerName, pom.totalScore
 ORDER BY pom.month;
 
