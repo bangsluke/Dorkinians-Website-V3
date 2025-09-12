@@ -1892,14 +1892,34 @@ export class ChatbotService {
 	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
+
+		// Query Team nodes with their relationships to get comprehensive team data
 		const query = `
-      MATCH (t:Team)
-      RETURN t.name as name, t.league as league
-      LIMIT 20
-    `;
+			MATCH (t:Team)
+			OPTIONAL MATCH (t)<-[:BELONGS_TO_TEAM]-(f:Fixture)
+			OPTIONAL MATCH (t)<-[:PLAYED_FOR_TEAM]-(md:MatchDetail)
+			WITH t, 
+				COUNT(DISTINCT f) as totalFixtures,
+				COUNT(DISTINCT md) as totalMatchDetails,
+				COLLECT(DISTINCT f.season) as seasons
+			RETURN t.name as name, 
+				t.id as id,
+				totalFixtures,
+				totalMatchDetails,
+				seasons
+			ORDER BY t.name
+			LIMIT 20
+		`;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		this.logToBoth(`🔍 Team data query result:`, result);
+		
+		return { 
+			type: "team_data", 
+			data: result,
+			message: `Found ${result.length} teams with fixture and match data`
+		};
 	}
 
 	private async queryClubData(entities: string[], metrics: string[]): Promise<any> {

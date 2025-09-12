@@ -1,6 +1,6 @@
-| Question                                                                        | Expected_Output_Type | Data_Source |
-| ------------------------------------------------------------------------------- | -------------------- | ----------- |
-| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   |
+| Question                                                                        | Expected_Output_Type | Data_Source | Question_Breakdown |
+| ------------------------------------------------------------------------------- | -------------------- | ----------- | ------------------ |
+| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   | How many {statType} have {playerName} scored for the {teamName}? |
 | Where did the 2s finish in the 2017/18 season?                                  | Table                | FASiteData  |
 | What was the highest scoring game that the 1s achieved in the 2020-2021 season? | NumberCard           | FASiteData  |
 | How many games have I played with Kieran Mackrell?                              | NumberCard           | StatsData   |
