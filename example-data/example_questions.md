@@ -1,9 +1,9 @@
 | Question                                                                        | Expected_Output_Type | Data_Source | Question_Breakdown |
 | ------------------------------------------------------------------------------- | -------------------- | ----------- | ------------------ |
-| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   | How many {statType} have {playerName} scored for the {teamName}? |
-| Where did the 2s finish in the 2017/18 season?                                  | Table                | FASiteData  |
-| What was the highest scoring game that the 1s achieved in the 2020-2021 season? | NumberCard           | FASiteData  |
-| How many games have I played with Kieran Mackrell?                              | NumberCard           | StatsData   |
+| How many goals have I scored for the 3rd team?                                  | NumberCard           | StatsData   | {questionType} {statType_1} have {entity_1} scored for the {entity_2}? |
+| Where did the 2s finish in the 2017/18 season?                                  | Table                | FASiteData  | {questionType} did the {entity_1} finish in the {entity_2} season? |
+| What was the highest scoring game that the 1s achieved in the 2020-2021 season? | NumberCard           | FASiteData  | {questionType} was the highest scoring game that the {entity_1} achieved in the {entity_2} season? |
+| How many games have I played with Kieran Mackrell?                              | NumberCard           | StatsData   | {questionType} {statType_1} have {entity_1} played with {entity_2}? |
 | What's the longest consecutive streak of weekends that I've played in a row?    | Calendar             | StatsData   |
 | Who did the fourth team play on the first weekend of 2023?                      | NumberCard           | FASiteData  |
 | How many double game weeks have I played?                                       | NumberCard           | StatsData   |
@@ -33,3 +33,7 @@
 | How many assists has Luke Bangs got when not playing for the 3s?                | NumberCard           | StatsData   |
 | Who was the top player in January 2023?                                         | Table                | StatsData   |
 | Who made TOTW in the first week of February 2017?                               | Table                | StatsData   |
+| How many games did the 3s play in the 2016/17 season?                           | NumberCard           | StatsData   |
+| How many times has Luke Bangs played since 2020?                                | NumberCard           | StatsData   |
+| How many goals did Luke Bangs score between 19/08/2017 and 16/09/2018?          | NumberCard           | StatsData   |
+| How many assists did Luke Bangs make before the 2020/21 season?                 | NumberCard           | StatsData   |

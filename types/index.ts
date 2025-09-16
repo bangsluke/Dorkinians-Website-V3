@@ -99,7 +99,7 @@ export interface SeasonTOTW {
 	fwd3: string;
 }
 
-export interface PlayerOfTheMonth {
+export interface PlayersOfTheMonth {
 	season: string;
 	month: string;
 	seasonMonthRef: string;
@@ -135,7 +135,7 @@ export interface CaptainAward {
 	mostStarMan: string;
 }
 
-export interface OppositionDetail {
+export interface OppositionDetails {
 	oppositionName: string;
 	league: string;
 	division: string;

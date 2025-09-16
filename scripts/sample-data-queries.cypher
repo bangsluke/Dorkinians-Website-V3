@@ -227,7 +227,7 @@ CREATE (totw1:TOTW {
 });
 
 -- 7. Create Player of the Month
-CREATE (pom1:PlayerOfTheMonth {
+CREATE (pom1:PlayersOfTheMonth {
   id: 'pom-2016-17-sep',
   season: '2016-17',
   month: 'September',
@@ -250,7 +250,7 @@ CREATE (pom1:PlayerOfTheMonth {
 -- No graph nodes needed for this static reference data
 
 -- 9. Create Opposition Detail
-CREATE (od1:OppositionDetail {
+CREATE (od1:OppositionDetails {
   id: 'opposition-opposition-fc',
   oppositionName: 'Opposition FC',
   league: 'Premier Division',
@@ -296,7 +296,7 @@ CREATE (f)-[:BELONGS_TO]->(s);
 
 -- Fixture-Opposition relationships
 MATCH (f:Fixture {id: 'fixture-001'})
-MATCH (o:OppositionDetail {oppositionName: 'Opposition FC'})
+MATCH (o:OppositionDetails {oppositionName: 'Opposition FC'})
 CREATE (f)-[:AGAINST]->(o);
 
 -- MatchDetail-Fixture relationships
@@ -341,12 +341,12 @@ CREATE (p)-[:SELECTED_IN {position: 'DEF', score: 7.8}]->(t);
 
 -- Player-Monthly Award relationships
 MATCH (p:Player {name: 'James Tain'})
-MATCH (pom:PlayerOfTheMonth {id: 'pom-2016-17-sep'})
+MATCH (pom:PlayersOfTheMonth {id: 'pom-2016-17-sep'})
 CREATE (p)-[:AWARDED_MONTHLY {month: 'September', season: '2016-17'}]->(pom);
 
 -- Season-Monthly Awards relationships
 MATCH (s:Season {id: '2016-17'})
-MATCH (pom:PlayerOfTheMonth {id: 'pom-2016-17-sep'})
+MATCH (pom:PlayersOfTheMonth {id: 'pom-2016-17-sep'})
 CREATE (s)-[:HAS_MONTHLY_AWARDS]->(pom);
 
 -- Player-Season Award relationships (REMOVED - handled as table data)
@@ -383,7 +383,7 @@ RETURN t.season, t.week, t.starMan, t.starManScore
 ORDER BY t.season, t.week;
 
 -- 5. Get monthly awards for a season
-MATCH (s:Season {id: '2016-17'})-[:HAS_MONTHLY_AWARDS]->(pom:PlayerOfTheMonth)
+MATCH (s:Season {id: '2016-17'})-[:HAS_MONTHLY_AWARDS]->(pom:PlayersOfTheMonth)
 RETURN pom.month, pom.playerName, pom.totalScore
 ORDER BY pom.month;
 
@@ -415,7 +415,7 @@ RETURN t.name as team,
        sum(f.conceded) as goalsAgainst;
 
 -- 9. Get opposition teams
-MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetail)
+MATCH (f:Fixture)-[:AGAINST]->(o:OppositionDetails)
 RETURN DISTINCT o.oppositionName, o.league, o.division
 ORDER BY o.league, o.oppositionName;
 

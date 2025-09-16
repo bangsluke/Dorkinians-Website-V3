@@ -993,7 +993,7 @@ export class ChatbotService {
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
-				return await this.queryPlayerOfTheMonthData(playerName);
+				return await this.queryPlayersOfTheMonthData(playerName);
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
@@ -1896,9 +1896,9 @@ export class ChatbotService {
 
 		// Query Team nodes with their relationships to get comprehensive team data
 		const query = `
-			MATCH (t:Team)
-			OPTIONAL MATCH (t)<-[:BELONGS_TO_TEAM]-(f:Fixture)
-			OPTIONAL MATCH (t)<-[:PLAYED_FOR_TEAM]-(md:MatchDetail)
+			MATCH (t:Team {graphLabel: $graphLabel})
+			OPTIONAL MATCH (t)<-[:BELONGS_TO_TEAM]-(f:Fixture {graphLabel: $graphLabel})
+			OPTIONAL MATCH (t)<-[:PLAYED_FOR_TEAM]-(md:MatchDetail {graphLabel: $graphLabel})
 			WITH t, 
 				COUNT(DISTINCT f) as totalFixtures,
 				COUNT(DISTINCT md) as totalMatchDetails,
@@ -1912,7 +1912,8 @@ export class ChatbotService {
 			LIMIT 20
 		`;
 
-		const result = await neo4jService.executeQuery(query);
+		const params = { graphLabel: neo4jService.GRAPH_LABEL };
+		const result = await neo4jService.executeQuery(query, params);
 		this.logToBoth(`🔍 Team data query result:`, result);
 		
 		return { 
@@ -2602,7 +2603,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerOfTheMonthData(playerName: string): Promise<any> {
+	private async queryPlayersOfTheMonthData(playerName: string): Promise<any> {
 		console.log(`🔍 Querying for Player of the Month awards for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})
@@ -2670,7 +2671,7 @@ export class ChatbotService {
 		console.log(`🔍 Querying for opponents for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})
-			MATCH (p)-[r:PLAYED_AGAINST]->(opponent:OppositionDetail)
+			MATCH (p)-[r:PLAYED_AGAINST]->(opponent:OppositionDetails)
 			RETURN p.playerName as playerName, 
 				   collect({
 					   opponentName: opponent.opposition,
