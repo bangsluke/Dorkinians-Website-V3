@@ -204,8 +204,8 @@ export class EnhancedQuestionAnalyzer {
 		// Map extracted stat types to their corresponding keys
 		const statTypeMapping: { [key: string]: string } = {
 			'Goals': 'G',
-			'Apps': 'APP',
 			'Assists': 'A',
+			'Apps': 'APP',
 			'Minutes': 'MIN',
 			'Yellow Cards': 'Y',
 			'Red Cards': 'R',
