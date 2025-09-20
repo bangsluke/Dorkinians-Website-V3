@@ -74,13 +74,6 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 
 	// Set local state when player is selected
 	useEffect(() => {
-		console.log("🎯 [PlayerSelection] useEffect triggered with:", {
-			selectedPlayer,
-			isEditMode,
-			localSelectedPlayer,
-			isSubmitted,
-		});
-
 		if (selectedPlayer && !isEditMode) {
 			console.log("✅ [PlayerSelection] Setting local state for selected player:", selectedPlayer);
 			setLocalSelectedPlayer(selectedPlayer);

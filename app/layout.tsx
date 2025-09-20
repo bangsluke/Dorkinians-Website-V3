@@ -67,7 +67,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<link rel='icon' type='image/png' sizes='192x192' href='/icons/icon-192x192.png' />
 				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
 			</head>
-			<body className={inter.className}>
+			<body className={inter.className} suppressHydrationWarning={true}>
 				{children}
 				<PWAUpdateNotification />
 			</body>

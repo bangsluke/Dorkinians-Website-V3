@@ -84,6 +84,27 @@ export default function ChatbotInterface() {
 
 			const data: ChatbotResponse & { debug?: any } = await res.json();
 			console.log(`🤖 Frontend: Received response:`, data);
+			
+			// Log Cypher queries prominently if available
+			if (data.debug?.processingDetails?.cypherQueries?.length > 0) {
+				console.log(`🤖 [CLIENT] 🎯 CYPHER QUERIES EXECUTED:`, data.debug.processingDetails.cypherQueries);
+				
+				// Find and log copyable queries
+				const readyToExecuteQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('READY_TO_EXECUTE:'));
+				const parameterizedQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('PLAYER_DATA:'));
+				
+				if (readyToExecuteQuery) {
+					const cleanQuery = readyToExecuteQuery.replace('READY_TO_EXECUTE: ', '');
+					console.log(`🤖 [CLIENT] 📋 COPYABLE CYPHER QUERY (ready to paste into Neo4j Aura):`);
+					console.log(cleanQuery);
+				}
+				
+				if (parameterizedQuery) {
+					const cleanQuery = parameterizedQuery.replace('PLAYER_DATA: ', '');
+					console.log(`🤖 [CLIENT] 📋 PARAMETERIZED CYPHER QUERY (with variables):`);
+					console.log(cleanQuery);
+				}
+			}
 
 			// Enhanced client-side logging for debugging
 			if (data.debug) {
@@ -97,7 +118,17 @@ export default function ChatbotInterface() {
 				// Log detailed processing information if available
 				if (data.debug.processingDetails) {
 					console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
-					console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES:`, data.debug.processingDetails.cypherQueries);
+					
+					// Enhanced Cypher query logging
+					if (data.debug.processingDetails.cypherQueries && data.debug.processingDetails.cypherQueries.length > 0) {
+						console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES (${data.debug.processingDetails.cypherQueries.length} executed):`);
+						data.debug.processingDetails.cypherQueries.forEach((query: string, index: number) => {
+							console.log(`🤖 [CLIENT] 📝 Query ${index + 1}:`, query);
+						});
+					} else {
+						console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES: No queries executed`);
+					}
+					
 					console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
 					console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
 				}
@@ -248,86 +279,6 @@ export default function ChatbotInterface() {
 						{/* Visualization */}
 						{response.visualization && renderVisualization(response.visualization)}
 
-						{/* Debug Information - Only show in development or when explicitly enabled */}
-						{(process.env.NODE_ENV === "development" || (response as any).debug) && (
-							<div className='mt-4 p-3 bg-gray-800/50 border border-gray-600/30 rounded-lg'>
-								<h4 className='font-semibold text-gray-300 mb-2 text-xs'>🔍 Debug Info</h4>
-								<div className='text-xs text-gray-400 space-y-1'>
-									{(response as any).debug && (
-										<>
-											<div>
-												<strong>Question:</strong> {(response as any).debug.question}
-											</div>
-											<div>
-												<strong>Context:</strong> {(response as any).debug.userContext || "None"}
-											</div>
-											<div>
-												<strong>Timestamp:</strong> {(response as any).debug.timestamp}
-											</div>
-											<div>
-												<strong>Server Logs:</strong> {(response as any).debug.serverLogs}
-											</div>
-
-											{/* Detailed Processing Information */}
-											{(response as any).debug.processingDetails && (
-												<>
-													<div className='mt-2 pt-2 border-t border-gray-600/30'>
-														<div>
-															<strong>Question Type:</strong> {(response as any).debug.processingDetails.questionAnalysis?.type || "Unknown"}
-														</div>
-														<div>
-															<strong>Extracted Entities:</strong>{" "}
-															{(response as any).debug.processingDetails.questionAnalysis?.entities?.join(", ") || "None"}
-														</div>
-														<div>
-															<strong>Extracted Metrics:</strong>{" "}
-															{(response as any).debug.processingDetails.questionAnalysis?.metrics?.join(", ") || "None"}
-														</div>
-
-														{(response as any).debug.processingDetails.queryBreakdown && (
-															<>
-																<div>
-																	<strong>Player Name:</strong> {(response as any).debug.processingDetails.queryBreakdown.playerName || "None"}
-																</div>
-																<div>
-																	<strong>Team:</strong> {(response as any).debug.processingDetails.queryBreakdown.team || "None"}
-																</div>
-																<div>
-																	<strong>Stat Entity:</strong> {(response as any).debug.processingDetails.queryBreakdown.statEntity || "None"}
-																</div>
-															</>
-														)}
-
-														{(response as any).debug.processingDetails.cypherQueries &&
-															(response as any).debug.processingDetails.cypherQueries.length > 0 && (
-																<div>
-																	<strong>Cypher Queries:</strong> {(response as any).debug.processingDetails.cypherQueries.length} executed
-																</div>
-															)}
-
-														{(response as any).debug.processingDetails.processingSteps &&
-															(response as any).debug.processingDetails.processingSteps.length > 0 && (
-																<div>
-																	<strong>Processing Steps:</strong> {(response as any).debug.processingDetails.processingSteps.length} completed
-																</div>
-															)}
-													</div>
-												</>
-											)}
-										</>
-									)}
-									<div>
-										<strong>Response Type:</strong> {typeof response}
-									</div>
-									<div>
-										<strong>Has Visualization:</strong> {!!response.visualization ? "Yes" : "No"}
-									</div>
-									<div>
-										<strong>Has Processing Details:</strong> {!!(response as any).debug?.processingDetails ? "Yes" : "No"}
-									</div>
-								</div>
-							</div>
-						)}
 					</motion.div>
 				)}
 			</AnimatePresence>
