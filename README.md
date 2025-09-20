@@ -20,16 +20,16 @@
   - [Database Verification](#database-verification)
 - [Architecture](#architecture)
   - [Unified Schema System](#unified-schema-system)
-- [Tech Stack & Architecture](#tech-stack--architecture)
-  - [Core Technologies](#core-technologies)
-  - [Data Layer Strategy](#data-layer-strategy)
-  - [PWA Implementation](#pwa-implementation)
-  - [Screen Architecture](#screen-architecture)
 - [Single Source of Truth Architecture](#single-source-of-truth-architecture)
   - [Master File Locations](#master-file-locations)
   - [Why This Architecture?](#why-this-architecture)
   - [How It Works](#how-it-works)
   - [Key Components](#key-components)
+- [Tech Stack \& Architecture](#tech-stack--architecture)
+  - [Core Technologies](#core-technologies)
+  - [Data Layer Strategy](#data-layer-strategy)
+  - [PWA Implementation](#pwa-implementation)
+  - [Screen Architecture](#screen-architecture)
 - [Environment Setup](#environment-setup)
   - [Prerequisites](#prerequisites)
   - [Neo4j Configuration](#neo4j-configuration)
@@ -255,13 +255,21 @@ The project implements a **manual synchronization system** where each configurat
 - **Scheduled Updates**: Built-in job scheduling with email notifications
 - **Existing Infrastructure**: Already available in your environment
 
-**Chatbot: Custom NLP + Natural Language Processing**
+**Chatbot: Enhanced Entity Extraction + Natural Language Processing**
 
-- **Natural Language**: Superior understanding of sports queries
-- **Function Calling**: Structured data extraction and query planning
-- **Cost**: Pay-per-use, estimated $5-20/month for low traffic
-- **Integration**: Easy API integration with Next.js
-- **Libraries**: `natural` for fuzzy matching, `compromise` for text parsing
+- **Enhanced Entity Extraction**: Advanced 7-class classification system for precise question understanding
+  - **Entities**: Players, teams, fixtures, awards (up to 3 per question)
+  - **Stat Types**: Goals, appearances, TOTW, penalties, etc. with extensive pseudonyms
+  - **Stat Indicators**: Highest, lowest, average, longest, shortest
+  - **Question Types**: How many, where, who, what, which
+  - **Negative Clauses**: Excluding, without, not (for filtered queries)
+  - **Locations**: Home, away, specific grounds (up to 2 per question)
+  - **Time Frames**: Seasons, dates, gameweeks, streaks
+- **Multi-Entity Support**: Handle complex comparisons (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
+- **Special Logic**: "Goal involvements" = goals + assists, comprehensive pseudonym recognition
+- **Natural Language**: Superior understanding of sports queries with context awareness
+- **Integration**: Seamless Next.js integration with detailed frontend logging
+- **Libraries**: `natural` for fuzzy matching, `compromise` for text parsing, custom entity extraction
 
 **Visualization: Recharts + Custom Components**
 

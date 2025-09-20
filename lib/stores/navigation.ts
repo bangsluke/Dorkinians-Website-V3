@@ -126,25 +126,16 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			const saved = localStorage.getItem("dorkinians-selected-player");
 			const cachedData = localStorage.getItem("dorkinians-cached-player-data");
 
-			console.log("🔍 [Navigation Store] initializeFromStorage called");
-			console.log("📦 [LocalStorage] dorkinians-selected-player:", saved);
-			console.log("📦 [LocalStorage] dorkinians-cached-player-data:", cachedData ? "Present" : "Not found");
 
 			if (cachedData) {
 				try {
 					const parsedData: CachedPlayerData = JSON.parse(cachedData);
-					console.log("📊 [Cached Data] Parsed successfully:", {
-						playerName: parsedData.playerData?.playerName,
-						selectedDate: parsedData.selectedDate,
-						hasPlayerData: !!parsedData.playerData,
-					});
 				} catch (error) {
 					console.error("❌ [Cached Data] Failed to parse:", error);
 				}
 			}
 
 			if (saved) {
-				console.log("✅ [Player Selection] Restoring player from localStorage:", saved);
 				set({ selectedPlayer: saved, isPlayerSelected: true });
 
 				// Load cached player data if available
@@ -152,7 +143,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					try {
 						const parsedData: CachedPlayerData = JSON.parse(cachedData);
 						set({ cachedPlayerData: parsedData });
-						console.log("✅ [Cached Data] Loaded successfully");
 					} catch (error) {
 						console.error("❌ [Cached Data] Failed to parse cached player data:", error);
 						localStorage.removeItem("dorkinians-cached-player-data");

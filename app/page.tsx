@@ -53,14 +53,6 @@ export default function HomePage() {
 			console.log("✅ [HomePage] Showing chatbot for player:", selectedPlayer);
 			setShowChatbot(true);
 		} else {
-			console.log(
-				"❌ [HomePage] Hiding chatbot - isPlayerSelected:",
-				isPlayerSelected,
-				"selectedPlayer:",
-				selectedPlayer,
-				"isEditMode:",
-				isEditMode,
-			);
 			setShowChatbot(false);
 		}
 	}, [isPlayerSelected, selectedPlayer, isEditMode]);
@@ -92,10 +84,8 @@ export default function HomePage() {
 	};
 
 	const renderCurrentPage = () => {
-		console.log("🏠 [HomePage] renderCurrentPage called with currentMainPage:", currentMainPage);
 		switch (currentMainPage) {
 			case "home":
-				console.log("🏠 [HomePage] Rendering home page");
 				return (
 					<motion.div
 						key='home'
