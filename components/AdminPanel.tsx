@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { seedingStatusService } from "@/lib/services/seedingStatusService";
 
 interface SeedingResult {
 	success: boolean;
@@ -191,6 +192,11 @@ export default function AdminPanel() {
 				// Extract job ID for status checking
 				if (data.jobId) {
 					setJobId(data.jobId);
+					// Update seeding status service for start
+					seedingStatusService.updateSeedingStart({
+						jobId: data.jobId,
+						timestamp: data.timestamp || new Date().toISOString(),
+					});
 				}
 			} else {
 				throw new Error("Failed to trigger seeding - all function paths failed");
@@ -257,6 +263,17 @@ export default function AdminPanel() {
 					});
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
 					setLastCompletedJobDuration(statusData.result.duration || 0);
+
+					// Update seeding status service for successful completion
+					if (statusData.result.success) {
+						seedingStatusService.updateSeedingSuccess({
+							jobId: jobId || 'unknown',
+							timestamp: new Date().toISOString(),
+							duration: statusData.result.duration || 0,
+							nodesCreated: statusData.result.nodesCreated || 0,
+							relationshipsCreated: statusData.result.relationshipsCreated || 0,
+						});
+					}
 				} else if (statusData.status === "failed" && result) {
 					setResult({
 						success: false,
@@ -275,6 +292,13 @@ export default function AdminPanel() {
 						},
 					});
 					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
+
+					// Update seeding status service for failure
+					seedingStatusService.updateSeedingFailure({
+						jobId: jobId || 'unknown',
+						timestamp: new Date().toISOString(),
+						duration: 0,
+					});
 					setLastCompletedJobDuration(0); // Reset duration for failed jobs
 				} else if (statusData.status === "not_found") {
 					setResult(null); // Clear result if not found
