@@ -11,7 +11,7 @@ export interface EntityExtractionResult {
 
 export interface EntityInfo {
 	value: string;
-	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league';
+	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league' | 'opposition';
 	originalText: string;
 	position: number;
 }
@@ -231,15 +231,54 @@ export class EntityExtractor {
 			});
 		});
 
-		// Extract league references
-		const leagueMatches = this.findMatches(/\b(premier|championship|league\s+one|league\s+two|conference|national\s+league)\b/gi);
+		// Extract league references (detect league-related terms dynamically)
+		// Look for patterns that typically indicate league names
+		const leagueMatches = this.findMatches(/\b(league|premier|championship|conference|national|division|tier|level)\b/gi);
 		leagueMatches.forEach(match => {
-			entities.push({
-				value: match.text,
-				type: 'league',
-				originalText: match.text,
-				position: match.position
-			});
+			// Extract the full league name by looking for surrounding context
+			const contextStart = Math.max(0, match.position - 20);
+			const contextEnd = Math.min(this.question.length, match.position + match.text.length + 20);
+			const context = this.question.substring(contextStart, contextEnd);
+			
+			// Try to extract a more complete league name from context
+			const fullLeagueMatch = context.match(/\b([A-Z][a-z]*(?:\s+[A-Z][a-z]*)*\s+(?:league|premier|championship|conference|national|division|tier|level))\b/gi);
+			if (fullLeagueMatch) {
+				const leagueName = fullLeagueMatch[0].trim();
+				entities.push({
+					value: leagueName,
+					type: 'league',
+					originalText: leagueName,
+					position: match.position
+				});
+			} else {
+				// Fallback to just the matched term
+				entities.push({
+					value: match.text,
+					type: 'league',
+					originalText: match.text,
+					position: match.position
+				});
+			}
+		});
+
+		// Extract opposition team references (detect capitalized team names that aren't players)
+		// This will catch any capitalized team names that appear in the question
+		const oppositionMatches = this.findMatches(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g);
+		oppositionMatches.forEach(match => {
+			// Skip common words and known player names
+			const commonWords = ['how', 'what', 'where', 'when', 'why', 'which', 'who', 'the', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'in', 'on', 'at', 'by', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall'];
+			const knownPlayers = ['Luke', 'Bangs', 'Oli', 'Goddard', 'Kieran', 'Mackrell']; // Add more known players as needed
+			
+			if (!commonWords.includes(match.text.toLowerCase()) && 
+				!knownPlayers.includes(match.text) &&
+				!match.text.match(/^\d+(st|nd|rd|th)?$/)) { // Skip team numbers like "3s", "4th"
+				entities.push({
+					value: match.text,
+					type: 'opposition',
+					originalText: match.text,
+					position: match.position
+				});
+			}
 		});
 
 		return entities;

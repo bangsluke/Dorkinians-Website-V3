@@ -38,3 +38,5 @@
 | How many goals did Luke Bangs score between 19/08/2017 and 16/09/2018?          | NumberCard           | StatsData   | {questionType} {statType_1} did {entity_1} score between {timeFrame_1} and {timeFrame_2}? |
 | How many assists did Luke Bangs make before the 2020/21 season?                 | NumberCard           | StatsData   | {questionType} {statType_1} did {entity_1} make before the {timeFrame}? |
 | What opposition have I scored the most goals against?                           | Table                | StatsData   | {questionType} {entity_1} have {entity_2} scored the {statIndicator} {statType_1} against? |
+| Who has scored the most penalties for the 4s?                                  | Table                | StatsData   | {questionType} has scored the {statIndicator} {statType_1} for the {entity_1}? |
+| Who has the worst penalty record for the 2s?                                  | Table                | StatsData   | {questionType} has the worst {statType_1} record for the {entity_1}? |

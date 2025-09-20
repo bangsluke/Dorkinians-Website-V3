@@ -44,6 +44,10 @@ export class ChatbotService {
 	private lastExecutedQueries: string[] = [];
 	private lastProcessingSteps: string[] = [];
 	private lastQueryBreakdown: any = null;
+	
+	// Query optimization
+	private queryCache: Map<string, { data: any; timestamp: number }> = new Map();
+	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 	static getInstance(): ChatbotService {
 		if (!ChatbotService.instance) {
@@ -72,6 +76,28 @@ export class ChatbotService {
 		} else {
 			console.error(`🤖 [CLIENT] ${message}`, data);
 		}
+	}
+
+	// Cache helper methods
+	private getCacheKey(query: string, params: any): string {
+		return `${query}:${JSON.stringify(params)}`;
+	}
+
+	private getCachedResult(cacheKey: string): any | null {
+		const cached = this.queryCache.get(cacheKey);
+		if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
+			this.logToBoth(`🎯 Cache hit for query: ${cacheKey.substring(0, 50)}...`);
+			return cached.data;
+		}
+		return null;
+	}
+
+	private setCachedResult(cacheKey: string, data: any): void {
+		this.queryCache.set(cacheKey, {
+			data,
+			timestamp: Date.now()
+		});
+		this.logToBoth(`💾 Cached result for query: ${cacheKey.substring(0, 50)}...`);
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
@@ -152,7 +178,7 @@ export class ChatbotService {
 		question: string,
 		userContext?: string,
 	): {
-		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general" | "clarification_needed";
+		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed";
 		entities: string[];
 		metrics: string[];
 		timeRange?: string;
@@ -217,6 +243,9 @@ export class ChatbotService {
 				case "streak":
 					this.logToBoth(`🔍 Calling queryStreakData...`);
 					return await this.queryStreakData(entities, metrics);
+				case "temporal":
+					this.logToBoth(`🔍 Calling queryTemporalData...`);
+					return await this.queryTemporalData(entities, metrics, analysis.timeRange);
 				case "double_game":
 					this.logToBoth(`🔍 Calling queryDoubleGameData...`);
 					return await this.queryDoubleGameData(entities, metrics);
@@ -276,6 +305,13 @@ export class ChatbotService {
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
 				return await this.queryPlayersOfTheMonthData(playerName);
+			}
+
+			// Check for opposition-specific queries
+			if (analysis && analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
+				const oppositionName = analysis.oppositionEntities[0];
+				this.logToBoth(`🔍 Detected opposition entity in question: ${oppositionName}`);
+				return await this.queryOppositionData(playerName, metric, oppositionName);
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
@@ -529,246 +565,7 @@ export class ChatbotService {
 		return { type: "general_players", data: result };
 	}
 
-	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<any> {
-		this.logToBoth(`🔍 queryPlayerDataForTeam called with playerName: ${playerName}, metric: ${metric}, teamEntity: ${teamEntity}`);
 
-		// First, let's check what teams actually exist in the MatchDetail data
-		const diagnosticQuery = `
-			MATCH (md:MatchDetail)
-			WHERE md.team IS NOT NULL
-			RETURN DISTINCT md.team as teamName
-			ORDER BY md.team
-		`;
-
-		try {
-			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
-			const availableTeams = diagnosticResult.map((team) => team.teamName);
-			
-			// Normalize team entity for comparison
-			const normalizedTeamEntity = teamEntity.toLowerCase().replace(/[^\d]/g, "");
-			let matchingTeam = null;
-
-			// Look for exact matches first
-			for (const team of availableTeams) {
-				if (team && team.toLowerCase().includes(normalizedTeamEntity)) {
-					matchingTeam = team;
-					break;
-				}
-			}
-
-			if (!matchingTeam) {
-				this.logToBoth(`🔍 No matching team found for: ${teamEntity}`);
-				return { type: "error", data: [], message: `No team found matching: ${teamEntity}` };
-			}
-
-			// Build the query with team filter
-			let query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.team = $teamName
-			`;
-
-			let returnClause = "";
-			switch (metric) {
-				case "APP":
-					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					break;
-				case "G":
-					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
-					break;
-				case "A":
-					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
-					break;
-				case "MIN":
-					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
-					break;
-				case "GI":
-					// Goal involvements - sum of goals and assists
-					returnClause = `
-						RETURN p.playerName as playerName, 
-						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
-						       coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value
-					`;
-					break;
-				case "PSC":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
-					break;
-				case "PM":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
-					break;
-				case "PCO":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
-					break;
-				case "PSV":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
-					break;
-				default:
-					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					break;
-			}
-
-			query += ` ${returnClause}`;
-
-			// Store query for debugging
-			this.lastExecutedQueries.push(`TEAM_FILTERED: ${query}`);
-			this.lastExecutedQueries.push(`TEAM_FILTERED_PARAMS: ${JSON.stringify({ playerName, teamName: matchingTeam })}`);
-
-			const result = await neo4jService.executeQuery(query, { playerName, teamName: matchingTeam });
-			this.logToBoth(`🔍 Team-filtered query result:`, result);
-
-			return { type: "team_filtered", data: result, playerName, metric, teamName: matchingTeam, cypherQuery: query };
-		} catch (error) {
-			this.logToBoth(`❌ Error in team-filtered query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying team-filtered data" };
-		}
-	}
-
-	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string, playerName?: string): Promise<any> {
-		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
-
-		// First, let's check what teams actually exist in the MatchDetail data
-		this.logToBoth(`🔍 Running diagnostic query to see available teams...`);
-		const diagnosticQuery = `
-			MATCH (md:MatchDetail)
-			WHERE md.team IS NOT NULL
-			RETURN DISTINCT md.team as teamName
-			ORDER BY md.team
-		`;
-
-		// Log the diagnostic query for client-side debugging
-		console.log(`🤖 [CLIENT] 🔍 DIAGNOSTIC CYPHER QUERY:`, diagnosticQuery);
-
-		// Store query for debugging
-		this.lastExecutedQueries.push(`DIAGNOSTIC: ${diagnosticQuery}`);
-
-		try {
-			this.logToBoth(`🔍 Executing diagnostic query:`, diagnosticQuery);
-			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
-			this.logToBoth(`🔍 Diagnostic query raw result:`, diagnosticResult);
-			this.logToBoth(
-				`🔍 Available teams in MatchDetail data:`,
-				diagnosticResult.map((team) => team.teamName),
-			);
-
-			// Normalize team number for comparison
-			const normalizedTeamNumber = teamNumber.toLowerCase().replace(/[^\d]/g, "");
-			this.logToBoth(`🔍 Normalized team number: "${normalizedTeamNumber}"`);
-
-			// Try to find matching team in the diagnostic result
-			const availableTeams = diagnosticResult.map((team) => team.teamName);
-			let matchingTeam = null;
-
-			// Look for exact matches first
-			for (const team of availableTeams) {
-				if (team && team.toLowerCase().includes(normalizedTeamNumber)) {
-					matchingTeam = team;
-					break;
-				}
-			}
-
-			this.logToBoth(`🔍 Matching team found: ${matchingTeam}`);
-
-			if (!matchingTeam) {
-				return {
-					type: "team_not_found",
-					data: [],
-					teamName: teamNumber,
-					availableTeams: availableTeams.filter((team) => team !== null),
-				};
-			}
-
-			// Build the main query for team-specific player data
-			const teamName = matchingTeam;
-			let query = `
-				MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
-			WHERE md.team = $teamName
-			`;
-
-			// Add player filter if player name is provided
-			if (playerName) {
-				query += ` AND p.playerName = $playerName`;
-			}
-
-			let returnClause = "";
-			switch (metric) {
-				case "APP":
-					returnClause = "RETURN p.playerName as playerName, count(md) as value ORDER BY value DESC LIMIT 10";
-					break;
-				case "G":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "A":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "MIN":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "MOM":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = "" THEN 0 ELSE md.mom END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "Y":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "R":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "SAVES":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = "" THEN 0 ELSE md.saves END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				case "OG":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value ORDER BY value DESC LIMIT 10';
-					break;
-				default:
-					returnClause = "RETURN p.playerName as playerName, count(md) as value ORDER BY value DESC LIMIT 10";
-					break;
-			}
-
-			query += ` ${returnClause}`;
-
-		// Store query for debugging
-		this.lastExecutedQueries.push(`MAIN: ${query}`);
-
-			try {
-				// Store the query breakdown for client-side debugging
-				const queryBreakdown = {
-					teamName,
-					metric,
-					metricField: this.getMetricField(metric),
-				};
-				const params: any = { teamName };
-				if (playerName) {
-					params.playerName = playerName;
-				}
-				const result = await neo4jService.executeQuery(query, params);
-				this.logToBoth(`🔍 Team-specific query result:`, result);
-
-				return {
-					type: "team_specific",
-					data: result,
-					teamName: teamName,
-					metric: metric,
-					cypherQuery: query,
-				};
-			} catch (error) {
-				this.logToBoth(`❌ Error in team-specific query:`, error, "error");
-				return { type: "error", data: [], message: "Error querying team-specific data" };
-			}
-		} catch (error) {
-			this.logToBoth(`❌ Error in diagnostic query:`, error, "error");
-			return { type: "error", data: [], message: "Error running diagnostic query" };
-		}
-	}
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
 		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
@@ -808,39 +605,7 @@ export class ChatbotService {
 		return result;
 	}
 
-	private async queryComparisonData(entities: string[], metrics: string[]): Promise<any> {
-		const query = `
-      MATCH (p:Player)
-      RETURN p.playerName as playerName, p.goals as goals
-      ORDER BY p.goals DESC
-      LIMIT 5
-    `;
 
-		const result = await neo4jService.executeQuery(query);
-		return result;
-	}
-
-	private async queryStreakData(entities: string[], metrics: string[]): Promise<any> {
-		if (entities.length === 0) {
-			return { type: "no_context", data: [], message: "No player context provided" };
-		}
-
-		const playerName = entities[0];
-		const query = `
-			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-			WHERE md.goals > 0
-			RETURN md.date as date, md.goals as goals
-			ORDER BY md.date
-		`;
-
-		try {
-			const result = await neo4jService.executeQuery(query, { playerName });
-			return { type: "streak", data: result, playerName };
-		} catch (error) {
-			this.logToBoth(`❌ Error in streak query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying streak data" };
-		}
-	}
 
 	private async queryDoubleGameData(entities: string[], metrics: string[]): Promise<any> {
 		if (entities.length === 0) {
@@ -1191,6 +956,74 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
+			} else if (data && data.type === "temporal" && data.data && data.data.length > 0) {
+				// Handle temporal data
+				const playerName = data.playerName;
+				const metric = data.metric;
+				const timeRange = data.timeRange;
+				const result = data.data[0];
+
+				const metricName = getMetricDisplayName(metric, result.value);
+				const timeText = timeRange ? ` ${timeRange}` : "";
+
+				answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName}${timeText}.`;
+
+				visualization = {
+					type: "stats",
+					data: [{ name: metricName, value: result.value }],
+					config: {
+						title: `${playerName} - ${metricName}${timeText}`,
+						type: "bar",
+					},
+				};
+			} else if (data && data.type === "player_team" && data.data && data.data.length > 0) {
+				// Handle player-team specific data
+				const playerName = data.playerName;
+				const teamName = data.teamName;
+				const metric = data.metric;
+				const result = data.data[0];
+
+				const metricName = getMetricDisplayName(metric, result.value);
+
+				answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName} for the ${teamName}.`;
+
+				visualization = {
+					type: "stats",
+					data: [{ name: metricName, value: result.value }],
+					config: {
+						title: `${playerName} - ${metricName} (${teamName})`,
+						type: "bar",
+					},
+				};
+			} else if (data && data.type === "opposition" && data.data && data.data.length > 0) {
+				// Handle opposition-specific data
+				const playerName = data.playerName;
+				const metric = data.metric;
+				const oppositionName = data.oppositionName;
+				const result = data.data[0];
+
+				const metricName = getMetricDisplayName(metric, result.value);
+
+				if (oppositionName) {
+					// Specific opposition query
+					answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName} against ${oppositionName}.`;
+				} else {
+					// All oppositions query (most goals against)
+					const topOpposition = data.data[0];
+					answer = `${playerName} has scored the most ${metricName} against ${topOpposition.opposition} (${topOpposition.value}).`;
+				}
+
+				visualization = {
+					type: "stats",
+					data: data.data.slice(0, 10).map((opp: any) => ({
+						name: opp.opposition || oppositionName,
+						value: opp.value,
+					})),
+					config: {
+						title: `${playerName} - ${metricName} vs Opposition`,
+						type: "bar",
+					},
+				};
 			}
 		}
 
@@ -1375,6 +1208,378 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth(`❌ Error in opponents query:`, error, "error");
 			return { type: "error", data: [], message: "Error querying opponents data" };
+		}
+	}
+
+	// Enhanced query methods for streaks and temporal analysis
+	private async queryStreakData(entities: string[], metrics: string[]): Promise<any> {
+		console.log(`🔍 Querying streak data for entities: ${entities}, metrics: ${metrics}`);
+		
+		if (entities.length === 0) {
+			return { type: "no_context", data: [], message: "No player context provided" };
+		}
+
+		const playerName = entities[0];
+		const metric = metrics[0] || "goals";
+		
+		// Determine streak type based on metric
+		let streakType = "goals";
+		let streakField = "goals";
+		let streakCondition = "md.goals > 0";
+		
+		switch (metric.toLowerCase()) {
+			case "assists":
+			case "a":
+				streakType = "assists";
+				streakField = "assists";
+				streakCondition = "md.assists > 0";
+				break;
+			case "clean_sheets":
+			case "cls":
+				streakType = "clean_sheets";
+				streakField = "cleanSheets";
+				streakCondition = "md.cleanSheets > 0";
+				break;
+			case "appearances":
+			case "app":
+				streakType = "appearances";
+				streakField = "appearances";
+				streakCondition = "md.minutes > 0";
+				break;
+			default:
+				streakType = "goals";
+				streakField = "goals";
+				streakCondition = "md.goals > 0";
+		}
+
+		const query = `
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE ${streakCondition}
+			RETURN md.date as date, md.${streakField} as ${streakField}, md.team as team, md.opposition as opposition
+			ORDER BY md.date DESC
+		`;
+
+		this.lastExecutedQueries.push(`STREAK_DATA: ${query}`);
+		this.lastExecutedQueries.push(`STREAK_PARAMS: ${JSON.stringify({ playerName, metric, streakType })}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName });
+			return { type: "streak", data: result, playerName, streakType };
+		} catch (error) {
+			this.logToBoth(`❌ Error in streak query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying streak data" };
+		}
+	}
+
+	private async queryComparisonData(entities: string[], metrics: string[]): Promise<any> {
+		console.log(`🔍 Querying comparison data for entities: ${entities}, metrics: ${metrics}`);
+		
+		if (metrics.length === 0) {
+			return { type: "no_context", data: [], message: "No metric specified for comparison" };
+		}
+
+		const metric = metrics[0];
+		let metricField = "goals";
+		let returnClause = "coalesce(sum(md.goals), 0) as value";
+
+		// Map metric to database field
+		switch (metric.toLowerCase()) {
+			case "appearances":
+			case "app":
+				metricField = "appearances";
+				returnClause = "count(md) as value";
+				break;
+			case "goals":
+			case "g":
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+				break;
+			case "assists":
+			case "a":
+				metricField = "assists";
+				returnClause = "coalesce(sum(md.assists), 0) as value";
+				break;
+			case "fantasy_points":
+			case "ftp":
+				metricField = "fantasyPoints";
+				returnClause = "coalesce(p.fantasyPoints, 0) as value";
+				break;
+			case "clean_sheets":
+			case "cls":
+				metricField = "cleanSheets";
+				returnClause = "coalesce(p.cleanSheets, 0) as value";
+				break;
+			case "penalties_scored":
+			case "psc":
+				metricField = "penaltiesScored";
+				returnClause = "coalesce(sum(md.penaltiesScored), 0) as value";
+				break;
+			default:
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+		}
+
+		const query = `
+			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE p.allowOnSite = true
+			RETURN p.playerName as playerName, ${returnClause}
+			ORDER BY value DESC
+			LIMIT 20
+		`;
+
+		this.lastExecutedQueries.push(`COMPARISON_DATA: ${query}`);
+		this.lastExecutedQueries.push(`COMPARISON_PARAMS: ${JSON.stringify({ metric, metricField })}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, {});
+			return { type: "comparison", data: result, metric };
+		} catch (error) {
+			this.logToBoth(`❌ Error in comparison query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying comparison data" };
+		}
+	}
+
+	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<any> {
+		console.log(`🔍 Querying temporal data for entities: ${entities}, metrics: ${metrics}, timeRange: ${timeRange}`);
+		
+		if (entities.length === 0) {
+			return { type: "no_context", data: [], message: "No player context provided" };
+		}
+
+		const playerName = entities[0];
+		const metric = metrics[0] || "goals";
+		
+		// Parse time range
+		let dateFilter = "";
+		let params: any = { playerName };
+		
+		if (timeRange) {
+			// Handle various time range formats
+			if (timeRange.includes("since")) {
+				const year = timeRange.match(/\d{4}/)?.[0];
+				if (year) {
+					dateFilter = "AND md.date >= $startDate";
+					params.startDate = `${year}-01-01`;
+				}
+			} else if (timeRange.includes("between")) {
+				// Handle "between X and Y" format
+				const years = timeRange.match(/\d{4}/g);
+				if (years && years.length === 2) {
+					dateFilter = "AND md.date >= $startDate AND md.date <= $endDate";
+					params.startDate = `${years[0]}-01-01`;
+					params.endDate = `${years[1]}-12-31`;
+				}
+			} else if (timeRange.includes("before")) {
+				const year = timeRange.match(/\d{4}/)?.[0];
+				if (year) {
+					dateFilter = "AND md.date < $endDate";
+					params.endDate = `${year}-01-01`;
+				}
+			}
+		}
+
+		let metricField = "goals";
+		let returnClause = "coalesce(sum(md.goals), 0) as value";
+
+		switch (metric.toLowerCase()) {
+			case "appearances":
+			case "app":
+				metricField = "appearances";
+				returnClause = "count(md) as value";
+				break;
+			case "goals":
+			case "g":
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+				break;
+			case "assists":
+			case "a":
+				metricField = "assists";
+				returnClause = "coalesce(sum(md.assists), 0) as value";
+				break;
+			default:
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+		}
+
+		const query = `
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE 1=1 ${dateFilter}
+			RETURN p.playerName as playerName, ${returnClause}
+		`;
+
+		this.lastExecutedQueries.push(`TEMPORAL_DATA: ${query}`);
+		this.lastExecutedQueries.push(`TEMPORAL_PARAMS: ${JSON.stringify(params)}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			return { type: "temporal", data: result, playerName, metric, timeRange };
+		} catch (error) {
+			this.logToBoth(`❌ Error in temporal query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying temporal data" };
+		}
+	}
+
+	private async queryTeamSpecificPlayerData(teamName: string, metric: string): Promise<any> {
+		console.log(`🔍 Querying team-specific data for team: ${teamName}, metric: ${metric}`);
+		
+		// Normalize team name
+		const normalizedTeam = teamName.replace(/(\d+)(st|nd|rd|th)?/, "$1s");
+		
+		let metricField = "goals";
+		let returnClause = "coalesce(sum(md.goals), 0) as value";
+
+		switch (metric.toLowerCase()) {
+			case "appearances":
+			case "app":
+				metricField = "appearances";
+				returnClause = "count(md) as value";
+				break;
+			case "goals":
+			case "g":
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+				break;
+			case "assists":
+			case "a":
+				metricField = "assists";
+				returnClause = "coalesce(sum(md.assists), 0) as value";
+				break;
+			case "fantasy_points":
+			case "ftp":
+				metricField = "fantasyPoints";
+				returnClause = "coalesce(sum(md.fantasyPoints), 0) as value";
+				break;
+			default:
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+		}
+
+		const query = `
+			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE p.allowOnSite = true AND md.team = $teamName
+			RETURN p.playerName as playerName, ${returnClause}
+			ORDER BY value DESC
+			LIMIT 20
+		`;
+
+		this.lastExecutedQueries.push(`TEAM_SPECIFIC_DATA: ${query}`);
+		this.lastExecutedQueries.push(`TEAM_SPECIFIC_PARAMS: ${JSON.stringify({ teamName: normalizedTeam, metric })}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, { teamName: normalizedTeam });
+			return { type: "team_specific", data: result, teamName: normalizedTeam, metric };
+		} catch (error) {
+			this.logToBoth(`❌ Error in team-specific query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying team-specific data" };
+		}
+	}
+
+	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<any> {
+		console.log(`🔍 Querying player data for team: ${playerName}, metric: ${metric}, team: ${teamEntity}`);
+		
+		// Normalize team name
+		const normalizedTeam = teamEntity.replace(/(\d+)(st|nd|rd|th)?/, "$1s");
+		
+		let metricField = "goals";
+		let returnClause = "coalesce(sum(md.goals), 0) as value";
+
+		switch (metric.toLowerCase()) {
+			case "appearances":
+			case "app":
+				metricField = "appearances";
+				returnClause = "count(md) as value";
+				break;
+			case "goals":
+			case "g":
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+				break;
+			case "assists":
+			case "a":
+				metricField = "assists";
+				returnClause = "coalesce(sum(md.assists), 0) as value";
+				break;
+			default:
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+		}
+
+		const query = `
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE md.team = $teamName
+			RETURN p.playerName as playerName, ${returnClause}
+		`;
+
+		this.lastExecutedQueries.push(`PLAYER_TEAM_DATA: ${query}`);
+		this.lastExecutedQueries.push(`PLAYER_TEAM_PARAMS: ${JSON.stringify({ playerName, teamName: normalizedTeam, metric })}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, teamName: normalizedTeam });
+			return { type: "player_team", data: result, playerName, teamName: normalizedTeam, metric };
+		} catch (error) {
+			this.logToBoth(`❌ Error in player-team query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying player-team data" };
+		}
+	}
+
+	private async queryOppositionData(playerName: string, metric: string, oppositionName?: string): Promise<any> {
+		console.log(`🔍 Querying opposition data for player: ${playerName}, metric: ${metric}, opposition: ${oppositionName}`);
+		
+		let metricField = "goals";
+		let returnClause = "coalesce(sum(md.goals), 0) as value";
+
+		switch (metric.toLowerCase()) {
+			case "appearances":
+			case "app":
+				metricField = "appearances";
+				returnClause = "count(md) as value";
+				break;
+			case "goals":
+			case "g":
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+				break;
+			case "assists":
+			case "a":
+				metricField = "assists";
+				returnClause = "coalesce(sum(md.assists), 0) as value";
+				break;
+			default:
+				metricField = "goals";
+				returnClause = "coalesce(sum(md.goals), 0) as value";
+		}
+
+		let query = "";
+		let params: any = { playerName };
+
+		if (oppositionName) {
+			// Specific opposition query
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+				WHERE f.opposition = $oppositionName
+				RETURN p.playerName as playerName, ${returnClause}
+			`;
+			params.oppositionName = oppositionName;
+		} else {
+			// All oppositions query (for "most goals against" type questions)
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+				RETURN f.opposition as opposition, ${returnClause}
+				ORDER BY value DESC
+				LIMIT 10
+			`;
+		}
+
+		this.lastExecutedQueries.push(`OPPOSITION_DATA: ${query}`);
+		this.lastExecutedQueries.push(`OPPOSITION_PARAMS: ${JSON.stringify(params)}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			return { type: "opposition", data: result, playerName, metric, oppositionName };
+		} catch (error) {
+			this.logToBoth(`❌ Error in opposition query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying opposition data" };
 		}
 	}
 

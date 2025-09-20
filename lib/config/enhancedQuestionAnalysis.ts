@@ -1,11 +1,12 @@
 import { EntityExtractor, EntityExtractionResult } from './entityExtraction';
 
 export interface EnhancedQuestionAnalysis {
-	type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general" | "clarification_needed";
+	type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed";
 	entities: string[];
 	metrics: string[];
 	timeRange?: string;
 	teamEntities?: string[];
+	oppositionEntities?: string[];
 	message?: string;
 	// Enhanced fields
 	extractionResult: EntityExtractionResult;
@@ -47,12 +48,18 @@ export class EnhancedQuestionAnalyzer {
 			.filter(e => e.type === 'team')
 			.map(e => e.value);
 
+		// Extract opposition entities for opposition-specific queries
+		const oppositionEntities = extractionResult.entities
+			.filter(e => e.type === 'opposition')
+			.map(e => e.value);
+
 		return {
 			type,
 			entities,
 			metrics,
 			timeRange,
 			teamEntities,
+			oppositionEntities,
 			extractionResult,
 			complexity,
 			requiresClarification,
@@ -124,7 +131,7 @@ export class EnhancedQuestionAnalyzer {
 		return "Please clarify your question so I can provide a better answer.";
 	}
 
-	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "general" | "clarification_needed" {
+	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed" {
 		const lowerQuestion = this.question.toLowerCase();
 
 		// Check for clarification needed first
@@ -136,6 +143,15 @@ export class EnhancedQuestionAnalyzer {
 		const hasPlayerEntities = extractionResult.entities.some(e => e.type === 'player');
 		const hasTeamEntities = extractionResult.entities.some(e => e.type === 'team');
 		const hasMultipleEntities = extractionResult.entities.length > 1;
+		const hasTimeFrames = extractionResult.timeFrames.length > 0;
+
+		// Check for temporal queries first (time-based questions)
+		if (hasTimeFrames || lowerQuestion.includes('since') || lowerQuestion.includes('before') || 
+			lowerQuestion.includes('between') || lowerQuestion.includes('during') || 
+			lowerQuestion.includes('in the') || lowerQuestion.includes('from') || 
+			lowerQuestion.includes('until') || lowerQuestion.includes('after')) {
+			return "temporal";
+		}
 
 		// Check for specific question patterns
 		if (lowerQuestion.includes('streak') || lowerQuestion.includes('consecutive') || lowerQuestion.includes('in a row')) {
@@ -146,7 +162,13 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
-		if (hasMultipleEntities && (lowerQuestion.includes('compare') || lowerQuestion.includes('vs') || lowerQuestion.includes('versus'))) {
+		// Check for comparison queries (most, least, highest, etc.)
+		if (lowerQuestion.includes('most') || lowerQuestion.includes('least') || 
+			lowerQuestion.includes('highest') || lowerQuestion.includes('lowest') || 
+			lowerQuestion.includes('best') || lowerQuestion.includes('worst') || 
+			lowerQuestion.includes('top') || lowerQuestion.includes('who has') || 
+			lowerQuestion.includes('which') || lowerQuestion.includes('penalty record') ||
+			lowerQuestion.includes('conversion rate')) {
 			return "comparison";
 		}
 
