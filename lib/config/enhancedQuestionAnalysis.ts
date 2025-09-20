@@ -5,6 +5,7 @@ export interface EnhancedQuestionAnalysis {
 	entities: string[];
 	metrics: string[];
 	timeRange?: string;
+	teamEntities?: string[];
 	message?: string;
 	// Enhanced fields
 	extractionResult: EntityExtractionResult;
@@ -41,11 +42,17 @@ export class EnhancedQuestionAnalyzer {
 		// Extract time range for backward compatibility
 		const timeRange = this.extractLegacyTimeRange(extractionResult);
 
+		// Extract team entities for team-specific queries
+		const teamEntities = extractionResult.entities
+			.filter(e => e.type === 'team')
+			.map(e => e.value);
+
 		return {
 			type,
 			entities,
 			metrics,
 			timeRange,
+			teamEntities,
 			extractionResult,
 			complexity,
 			requiresClarification,
@@ -203,10 +210,11 @@ export class EnhancedQuestionAnalyzer {
 	private mapStatTypeToKey(statType: string): string {
 		// Map extracted stat types to their corresponding keys
 		const statTypeMapping: { [key: string]: string } = {
-			'Goals': 'G',
-			'Assists': 'A',
 			'Apps': 'APP',
-			'Minutes': 'MIN',
+            'Minutes': 'MIN',
+            'Man of the Match': 'MOM',
+            'Goals': 'G',
+			'Assists': 'A',
 			'Yellow Cards': 'Y',
 			'Red Cards': 'R',
 			'Saves': 'SAVES',
@@ -215,18 +223,24 @@ export class EnhancedQuestionAnalyzer {
 			'Clean Sheets': 'CLS',
 			'Penalties Scored': 'PSC',
 			'Penalties Missed': 'PM',
-			'Penalties Saved': 'PS',
-			'Goal Involvements': 'GSC',
+            'Penalties Conceded': 'PCO',
+			'Penalties Saved': 'PSV',
+            'Fantasy Points': 'FTP',
+			'Goal Involvements': 'GI',
 			'Goals Per Appearance': 'GperAPP',
 			'Conceded Per Appearance': 'CperAPP',
 			'Minutes Per Goal': 'MperG',
-			'Man of the Match': 'MOM',
 			'Team of the Week': 'TOTW',
 			'Season Team of the Week': 'SEASON_TOTW',
 			'Player of the Month': 'POTM',
 			'Captain Awards': 'CAPTAIN',
 			'Co Players': 'CO_PLAYERS',
-			'Opponents': 'OPPONENTS'
+			'Opponents': 'OPPONENTS',
+			'Most Prolific Season': 'MOST_PROLIFIC_SEASON',
+			'Team Analysis': 'TEAM_ANALYSIS',
+			'Season Analysis': 'SEASON_ANALYSIS',
+			'Home': 'HOME',
+			'Away': 'AWAY'
 		};
 
 		return statTypeMapping[statType] || statType;

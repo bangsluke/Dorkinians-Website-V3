@@ -27,6 +27,18 @@ export interface QuestionContext {
 export class ChatbotService {
 	private static instance: ChatbotService;
 
+	// Helper function to format values according to config
+	private formatValueByMetric(metric: string, value: number): string {
+		// Find the metric config
+		const metricConfig = statObject[metric as keyof typeof statObject];
+		if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			return value.toFixed(decimalPlaces);
+		}
+		// Default to integer if no config found
+		return Math.round(value).toString();
+	}
+
 	// Debug tracking properties
 	private lastQuestionAnalysis: any = null;
 	private lastExecutedQueries: string[] = [];
@@ -158,7 +170,7 @@ export class ChatbotService {
 		console.log("🔍 Question type:", enhancedAnalysis.type);
 		
 		// Return in legacy format for backward compatibility
-		return {
+					return {
 			type: enhancedAnalysis.type,
 			entities: enhancedAnalysis.entities,
 			metrics: enhancedAnalysis.metrics,
@@ -187,7 +199,7 @@ export class ChatbotService {
 			switch (type) {
 				case "player":
 					this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
-					const playerResult = await this.queryPlayerData(entities, metrics);
+					const playerResult = await this.queryPlayerData(entities, metrics, analysis);
 					this.logToBoth(`🔍 queryPlayerData returned:`, playerResult);
 					return playerResult;
 				case "team":
@@ -221,7 +233,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryPlayerData(entities: string[], metrics: string[], analysis?: any): Promise<any> {
 		this.logToBoth(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
 
 		// Check if we have entities (player names) to query
@@ -236,10 +248,21 @@ export class ChatbotService {
 
 			this.logToBoth(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
 
-			// Check if this is a team-specific question (e.g., "3rd team")
+			// Check if this is a team-specific question
+			// First check if the player name itself is a team
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
 				this.logToBoth(`🔍 Detected team-specific question for team: ${playerName}`);
 				return await this.queryTeamSpecificPlayerData(playerName, metric);
+			}
+
+			// Check if there are team entities in the analysis
+			if (analysis && analysis.teamEntities && analysis.teamEntities.length > 0) {
+				const teamEntity = analysis.teamEntities[0];
+				this.logToBoth(`🔍 Detected team entity in question: ${teamEntity}`);
+				
+				// For team-specific queries, filter the regular player query by team
+				// instead of using the team analysis method
+				return await this.queryPlayerDataForTeam(playerName, metric, teamEntity);
 			}
 
 			// Check for special queries that can use enhanced relationship properties
@@ -328,9 +351,25 @@ export class ChatbotService {
 					returnClause =
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
 					break;
-				case "FP":
+				case "PCO":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
+					break;
+				case "PSV":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
+					break;
+				case "FTP":
 					// Fantasy points - get from Player node
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value";
+					break;
+				case "GI":
+					// Goal involvements - sum of goals and assists
+					returnClause = `
+						RETURN p.playerName as playerName, 
+						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+						       coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value
+					`;
 					break;
 				case "GperAPP":
 					// Goals per appearance - get from Player node (try both property names for compatibility)
@@ -354,19 +393,77 @@ export class ChatbotService {
 						       END as value
 					`;
 					break;
+				case "HOME":
+					// Home games - filter by home/away flag
+					query += ` AND md.homeAway = 'H'`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					break;
+				case "AWAY":
+					// Away games - filter by home/away flag
+					query += ` AND md.homeAway = 'A'`;
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					break;
+				case "MOST_PROLIFIC_SEASON":
+					// Most prolific season - find season with most goals
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.season IS NOT NULL
+						WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+						ORDER BY goals DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, season as value
+					`;
+					returnClause = "";
+					break;
+				case "TEAM_ANALYSIS":
+					// Team analysis - find team with most appearances or goals
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.team IS NOT NULL
+						WITH p, md.team as team, count(md) as appearances, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+						ORDER BY appearances DESC, goals DESC
+						LIMIT 1
+						RETURN p.playerName as playerName, team as value
+					`;
+					returnClause = "";
+					break;
+				case "SEASON_ANALYSIS":
+					// Season analysis - count unique seasons
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						WHERE md.season IS NOT NULL
+						WITH p, collect(DISTINCT md.season) as seasons
+						RETURN p.playerName as playerName, size(seasons) as value
+					`;
+					returnClause = "";
+					break;
 				default:
 					returnClause = "RETURN p.playerName as playerName, 0 as value";
-					break;
-			}
+						break;
+					}
 
 			// Complete the query
 			query += ` ${returnClause}`;
 
 			try {
+				// First check if the player exists
+				const playerExistsQuery = `MATCH (p:Player {playerName: $playerName}) RETURN p.playerName as playerName LIMIT 1`;
+				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName });
+				
+				if (!playerExistsResult || playerExistsResult.length === 0) {
+					this.logToBoth(`🔍 Player ${playerName} not found in database`);
+					return { 
+						type: "player_not_found", 
+						data: [], 
+						message: `I couldn't find a player named "${playerName}" in the database. Please check the spelling or try a different player name.`,
+						playerName,
+						metric
+					};
+				}
 				this.logToBoth(`🔍 Query parameters: playerName=${playerName}`);
 
-				// Special logging for APP metric
-				if (metric === "APP") {
+			// Special logging for APP metric
+			if (metric === "APP") {
 					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", "log");
 				}
 
@@ -432,7 +529,104 @@ export class ChatbotService {
 		return { type: "general_players", data: result };
 	}
 
-	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string): Promise<any> {
+	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<any> {
+		this.logToBoth(`🔍 queryPlayerDataForTeam called with playerName: ${playerName}, metric: ${metric}, teamEntity: ${teamEntity}`);
+
+		// First, let's check what teams actually exist in the MatchDetail data
+		const diagnosticQuery = `
+			MATCH (md:MatchDetail)
+			WHERE md.team IS NOT NULL
+			RETURN DISTINCT md.team as teamName
+			ORDER BY md.team
+		`;
+
+		try {
+			const diagnosticResult = await neo4jService.executeQuery(diagnosticQuery);
+			const availableTeams = diagnosticResult.map((team) => team.teamName);
+			
+			// Normalize team entity for comparison
+			const normalizedTeamEntity = teamEntity.toLowerCase().replace(/[^\d]/g, "");
+			let matchingTeam = null;
+
+			// Look for exact matches first
+			for (const team of availableTeams) {
+				if (team && team.toLowerCase().includes(normalizedTeamEntity)) {
+					matchingTeam = team;
+					break;
+				}
+			}
+
+			if (!matchingTeam) {
+				this.logToBoth(`🔍 No matching team found for: ${teamEntity}`);
+				return { type: "error", data: [], message: `No team found matching: ${teamEntity}` };
+			}
+
+			// Build the query with team filter
+			let query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.team = $teamName
+			`;
+
+			let returnClause = "";
+			switch (metric) {
+				case "APP":
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					break;
+				case "G":
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
+					break;
+				case "A":
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
+					break;
+				case "MIN":
+					returnClause = 'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
+					break;
+				case "GI":
+					// Goal involvements - sum of goals and assists
+					returnClause = `
+						RETURN p.playerName as playerName, 
+						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+						       coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value
+					`;
+					break;
+				case "PSC":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
+					break;
+				case "PM":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
+					break;
+				case "PCO":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
+					break;
+				case "PSV":
+					returnClause =
+						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
+					break;
+				default:
+					returnClause = "RETURN p.playerName as playerName, count(md) as value";
+					break;
+			}
+
+			query += ` ${returnClause}`;
+
+			// Store query for debugging
+			this.lastExecutedQueries.push(`TEAM_FILTERED: ${query}`);
+			this.lastExecutedQueries.push(`TEAM_FILTERED_PARAMS: ${JSON.stringify({ playerName, teamName: matchingTeam })}`);
+
+			const result = await neo4jService.executeQuery(query, { playerName, teamName: matchingTeam });
+			this.logToBoth(`🔍 Team-filtered query result:`, result);
+
+			return { type: "team_filtered", data: result, playerName, metric, teamName: matchingTeam, cypherQuery: query };
+		} catch (error) {
+			this.logToBoth(`❌ Error in team-filtered query:`, error, "error");
+			return { type: "error", data: [], message: "Error querying team-filtered data" };
+		}
+	}
+
+	private async queryTeamSpecificPlayerData(teamNumber: string, metric: string, playerName?: string): Promise<any> {
 		this.logToBoth(`🔍 queryTeamSpecificPlayerData called with teamNumber: "${teamNumber}", metric: "${metric}"`);
 
 		// First, let's check what teams actually exist in the MatchDetail data
@@ -490,8 +684,13 @@ export class ChatbotService {
 			const teamName = matchingTeam;
 			let query = `
 				MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.team = $teamName
+			WHERE md.team = $teamName
 			`;
+
+			// Add player filter if player name is provided
+			if (playerName) {
+				query += ` AND p.playerName = $playerName`;
+			}
 
 			let returnClause = "";
 			switch (metric) {
@@ -537,8 +736,8 @@ export class ChatbotService {
 
 			query += ` ${returnClause}`;
 
-			// Store query for debugging
-			this.lastExecutedQueries.push(`MAIN: ${query}`);
+		// Store query for debugging
+		this.lastExecutedQueries.push(`MAIN: ${query}`);
 
 			try {
 				// Store the query breakdown for client-side debugging
@@ -547,9 +746,11 @@ export class ChatbotService {
 					metric,
 					metricField: this.getMetricField(metric),
 				};
-				const playerName = this.lastQueryBreakdown?.playerName || "Unknown";
-
-				const result = await neo4jService.executeQuery(query, { teamName });
+				const params: any = { teamName };
+				if (playerName) {
+					params.playerName = playerName;
+				}
+				const result = await neo4jService.executeQuery(query, params);
 				this.logToBoth(`🔍 Team-specific query result:`, result);
 
 				return {
@@ -575,8 +776,8 @@ export class ChatbotService {
 		const query = `
       MATCH (t:Team)
       RETURN t.name as name, t.id as source
-      LIMIT 20
-    `;
+			LIMIT 20
+		`;
 
 		const params = { graphLabel: neo4jService.GRAPH_LABEL };
 		const result = await neo4jService.executeQuery(query, params);
@@ -736,7 +937,7 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
-				} else {
+						} else {
 					// Handle appearances count special case
 					if (metric === "APP") {
 						// Check if the value is 0 or null and handle it appropriately
@@ -763,7 +964,8 @@ export class ChatbotService {
 						}
 					} else {
 						// Standard metric handling
-						answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${value} ${metricName}.`;
+						const formattedValue = this.formatValueByMetric(metric, value);
+						answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${formattedValue} ${metricName}.`;
 					}
 				}
 
@@ -782,6 +984,10 @@ export class ChatbotService {
 				// Handle team not found case
 				this.logToBoth(`🔍 Handling team_not_found case:`, data);
 				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(", ")}.`;
+			} else if (data && data.type === "player_not_found") {
+				// Handle player not found case
+				this.logToBoth(`🔍 Handling player_not_found case:`, data);
+				answer = data.message || `I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
 			} else if (data && data.type === "error") {
 				// Error occurred during query
 				answer = `I encountered an error while looking up team information: ${data.error}.`;
@@ -798,26 +1004,26 @@ export class ChatbotService {
 					// List of players
 					const playerNames = data.data.map((p: any) => p.name || p.playerName).slice(0, 10);
 					answer = `Here are some players in the database: ${playerNames.join(", ")}.`;
-				}
-			} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
-				// Team-specific query (e.g., "3rd team goals")
-				const teamName = data.teamName;
-				const metric = data.metric;
-				const topPlayer = data.data[0];
-				const metricName = getMetricDisplayName(metric, topPlayer.value);
+					}
+				} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
+					// Team-specific query (e.g., "3rd team goals")
+					const teamName = data.teamName;
+					const metric = data.metric;
+					const topPlayer = data.data[0];
+					const metricName = getMetricDisplayName(metric, topPlayer.value);
 
-				// Check if user asked for "the most" or similar superlative terms
-				const questionLower = question.toLowerCase();
-				const usesSuperlative =
-					questionLower.includes("the most") ||
-					questionLower.includes("highest") ||
-					questionLower.includes("best") ||
-					questionLower.includes("top");
+					// Check if user asked for "the most" or similar superlative terms
+					const questionLower = question.toLowerCase();
+					const usesSuperlative =
+						questionLower.includes("the most") ||
+						questionLower.includes("highest") ||
+						questionLower.includes("best") ||
+						questionLower.includes("top");
 
-				if (usesSuperlative) {
-					// Use comparison template for superlative questions
-					const template = getResponseTemplate("comparison", "Player comparison (highest)");
-					if (template) {
+					if (usesSuperlative) {
+						// Use comparison template for superlative questions
+						const template = getResponseTemplate("comparison", "Player comparison (highest)");
+						if (template) {
 						answer = formatNaturalResponse(
 							template.template,
 							topPlayer.playerName,
@@ -826,14 +1032,14 @@ export class ChatbotService {
 							metricName,
 							teamName
 						);
-					} else {
+						} else {
 						// Fallback if no template found
 						answer = `${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} the most ${metricName} for the ${teamName} with ${topPlayer.value}.`;
-					}
-				} else {
-					// Use team-specific template for regular questions
-					const template = getResponseTemplate("team_specific", "Team-specific player statistics");
-					if (template) {
+						}
+					} else {
+						// Use team-specific template for regular questions
+						const template = getResponseTemplate("team_specific", "Team-specific player statistics");
+						if (template) {
 						answer = formatNaturalResponse(
 							template.template,
 							topPlayer.playerName,
@@ -842,15 +1048,15 @@ export class ChatbotService {
 							metricName,
 							teamName
 						);
-					} else {
+						} else {
 						// Fallback if no template found
 						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}.`;
 					}
 				}
 
 				// Create visualization for team data
-				visualization = {
-					type: "table",
+					visualization = {
+						type: "table",
 					data: data.data.slice(0, 10).map((player: any) => ({
 						Player: player.playerName,
 						[metricName]: player.value,
@@ -866,7 +1072,7 @@ export class ChatbotService {
 				const streakData = data.data;
 				answer = `${playerName} has scored in ${streakData.length} games.`;
 
-				visualization = {
+						visualization = {
 					type: "chart",
 					data: streakData.map((game: any) => ({
 						date: game.date,
@@ -886,8 +1092,8 @@ export class ChatbotService {
 
 				answer = `${playerName} has played ${dgwData.length} double game weeks, scoring ${totalGoals} goals and providing ${totalAssists} assists.`;
 
-				visualization = {
-					type: "table",
+						visualization = {
+							type: "table",
 					data: dgwData.map((game: any) => ({
 						Date: game.date,
 						Goals: game.goals || 0,
@@ -898,7 +1104,7 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-			} else if (data && data.type === "totw_awards" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "totw_awards" && data.data && data.data.length > 0) {
 				// Handle TOTW awards
 				const playerName = data.playerName;
 				const period = data.period;
@@ -907,45 +1113,45 @@ export class ChatbotService {
 
 				answer = `${playerName} has received ${awards} ${periodText} Team of the Week award${awards === 1 ? "" : "s"}.`;
 
-				visualization = {
+						visualization = {
 					type: "stats",
 					data: [{ name: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`, value: awards }],
-					config: {
+							config: {
 						title: `${playerName} - ${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`,
 						type: "bar",
-					},
-				};
-			} else if (data && data.type === "potm_awards" && data.data && data.data.length > 0) {
+							},
+						};
+				} else if (data && data.type === "potm_awards" && data.data && data.data.length > 0) {
 				// Handle Player of the Month awards
 				const playerName = data.playerName;
 				const awards = data.data.length;
 
 				answer = `${playerName} has received ${awards} Player of the Month award${awards === 1 ? "" : "s"}.`;
 
-				visualization = {
+						visualization = {
 					type: "stats",
 					data: [{ name: "Player of the Month Awards", value: awards }],
-					config: {
+							config: {
 						title: `${playerName} - Player of the Month Awards`,
 						type: "bar",
-					},
-				};
-			} else if (data && data.type === "captain_awards" && data.data && data.data.length > 0) {
+							},
+						};
+				} else if (data && data.type === "captain_awards" && data.data && data.data.length > 0) {
 				// Handle Captain awards
 				const playerName = data.playerName;
 				const awards = data.data.length;
 
 				answer = `${playerName} has been captain ${awards} time${awards === 1 ? "" : "s"}.`;
 
-				visualization = {
+						visualization = {
 					type: "stats",
 					data: [{ name: "Captain Awards", value: awards }],
-					config: {
+							config: {
 						title: `${playerName} - Captain Awards`,
 						type: "bar",
-					},
-				};
-			} else if (data && data.type === "co_players" && data.data && data.data.length > 0) {
+							},
+						};
+				} else if (data && data.type === "co_players" && data.data && data.data.length > 0) {
 				// Handle co-players data
 				const playerName = data.playerName;
 				const coPlayers = data.data.slice(0, 10);
@@ -954,18 +1160,18 @@ export class ChatbotService {
 					.map((p: any) => p.coPlayerName)
 					.join(", ")}.`;
 
-				visualization = {
-					type: "table",
+						visualization = {
+							type: "table",
 					data: coPlayers.map((player: any) => ({
 						"Co-Player": player.coPlayerName,
 						"Games Together": player.gamesPlayedTogether,
 					})),
-					config: {
+							config: {
 						title: `${playerName} - Co-Players`,
 						type: "table",
-					},
-				};
-			} else if (data && data.type === "opponents" && data.data && data.data.length > 0) {
+							},
+						};
+				} else if (data && data.type === "opponents" && data.data && data.data.length > 0) {
 				// Handle opponents data
 				const playerName = data.playerName;
 				const opponents = data.data.slice(0, 10);
@@ -974,13 +1180,13 @@ export class ChatbotService {
 					.map((o: any) => o.opponent)
 					.join(", ")}.`;
 
-				visualization = {
-					type: "table",
+						visualization = {
+							type: "table",
 					data: opponents.map((opponent: any) => ({
 						Opponent: opponent.opponent,
 						"Games Played": opponent.gamesPlayed,
 					})),
-					config: {
+							config: {
 						title: `${playerName} - Opponents`,
 						type: "table",
 					},

@@ -81,34 +81,42 @@ export const ENTITY_PSEUDONYMS = {
 
 // Stat type pseudonyms and antonyms
 export const STAT_TYPE_PSEUDONYMS = {
+	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
+	'Goals Conceded': ['goals conceded', 'conceded goals', 'goals against', 'conceded'],
 	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
-	'Assists': ['assists', 'assist', 'assisting', 'assisted', 'assists made', 'assists provided'],
-	'Apps': ['apps', 'appearances', 'played', 'played with', 'games', 'matches'],
-	'Minutes': ['minutes', 'minute', 'mins', 'time played', 'playing time'],
+	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
+	'Apps': ['apps', 'appearances', 'played in', 'played with'],
+	'Minutes': ['minutes of football', 'minutes played', 'playing time', 'time played', 'minutes', 'minute', 'mins'],
 	'Yellow Cards': ['yellow cards', 'yellow card', 'yellows', 'bookings', 'cautions'],
 	'Red Cards': ['red cards', 'red card', 'reds', 'dismissals', 'sendings off'],
-	'Saves': ['saves', 'save', 'saved', 'saves made', 'goalkeeper saves'],
-	'Own Goals': ['own goals', 'own goal', 'og', 'own goal scored'],
-	'Goals Conceded': ['goals conceded', 'conceded', 'goals against', 'conceded goals'],
-	'Clean Sheets': ['clean sheets', 'clean sheet', 'shutouts', 'clean sheet kept'],
-	'Penalties Scored': ['penalties scored', 'penalty scored', 'pen scored', 'penalty goals'],
-	'Penalties Missed': ['penalties missed', 'penalty missed', 'pen missed', 'missed penalties'],
-	'Penalties Saved': ['penalties saved', 'penalty saved', 'pen saved', 'saved penalties'],
+	'Saves': ['goalkeeper saves', 'saves made', 'saves', 'save', 'saved'],
+	'Clean Sheets': ['clean sheet kept', 'clean sheets', 'clean sheet', 'shutouts'],
+	'Penalties Scored': ['penalties have scored', 'penalties has scored', 'penalties scored', 'penalty scored', 'penalty goals', 'pen scored'],
+	'Penalties Missed': ['penalties have missed', 'penalties has missed', 'penalties missed', 'penalty missed', 'missed penalties', 'pen missed'],
+	'Penalties Conceded': ['penalties conceded', 'penalty conceded', 'pen conceded', 'conceded penalties', 'penalties has conceded', 'penalties have conceded'],
+	'Penalties Saved': ['penalties have saved', 'penalties has saved', 'penalties saved', 'penalty saved', 'saved penalties', 'pen saved'],
 	'Goal Involvements': ['goal involvements', 'goal involvement', 'goals and assists', 'contributions'],
-	'Man of the Match': ['man of the match', 'mom', 'player of the match', 'best player'],
+	'Man of the Match': ['man of the match', 'player of the match', 'best player', 'mom', 'moms'],
 	'Double Game Weeks': ['double game weeks', 'double games', 'dgw', 'double weeks'],
 	'Team of the Week': ['team of the week', 'totw', 'weekly selection', 'weekly team'],
 	'Season Team of the Week': ['season team of the week', 'season totw', 'seasonal selection'],
 	'Player of the Month': ['player of the month', 'potm', 'monthly award'],
-	'Captain Awards': ['captain awards', 'captain', 'captaincy', 'captain honors'],
+	'Captain Awards': ['captain awards', 'captain honors', 'captaincy', 'captain'],
 	'Co Players': ['co players', 'teammates', 'played with', 'team mates'],
 	'Opponents': ['opponents', 'played against', 'faced', 'versus'],
-	'Score': ['score', 'scores', 'scoring', 'goals scored'],
+	'Fantasy Points': ['fantasy points', 'fantasy score', 'fantasy point', 'points', 'ftp', 'fp'],
+	'Goals Per Appearance': ['goals on average does', 'goals on average has', 'goals per appearance', 'goals per app', 'goals per game', 'goals per match', 'goals on average', 'average goals'],
+	'Conceded Per Appearance': ['conceded on average does', 'conceded per appearance', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
+	'Minutes Per Goal': ['minutes does it take on average', 'minutes does it take', 'minutes per goal', 'mins per goal', 'time per goal', 'minutes on average', 'average minutes'],
+	'Score': ['goals scored', 'score', 'scores', 'scoring'],
 	'Awards': ['awards', 'prizes', 'honors', 'honours', 'recognition'],
 	'Leagues': ['leagues', 'league titles', 'championships', 'titles'],
-	'Penalty record': ['penalty record', 'penalty conversion rate', 'pen conversion', 'spot kick record'],
-	'Home': ['home', 'at home', 'home games', 'home matches'],
-	'Away': ['away', 'away from home', 'away games', 'away matches', 'on the road'],
+	'Penalty record': ['penalty conversion rate', 'penalty record', 'spot kick record', 'pen conversion'],
+	'Home': ['home games', 'home matches', 'at home', 'home'],
+	'Away': ['away games', 'away matches', 'away from home', 'on the road', 'away'],
+	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season'],
+	'Team Analysis': ['most appearances for', 'most goals for', 'played for', 'teams played for'],
+	'Season Analysis': ['seasons played in', 'seasons', 'years played'],
 };
 
 // Stat indicator pseudonyms and antonyms
@@ -249,9 +257,12 @@ export class EntityExtractor {
 			});
 		}
 
-		// Extract other stat types
+		// Extract other stat types - sort pseudonyms by length (longest first) to prioritize longer matches
 		Object.entries(STAT_TYPE_PSEUDONYMS).forEach(([key, pseudonyms]) => {
-			pseudonyms.forEach(pseudonym => {
+			// Sort pseudonyms by length (longest first) to ensure longer matches are found first
+			const sortedPseudonyms = [...pseudonyms].sort((a, b) => b.length - a.length);
+			
+			sortedPseudonyms.forEach(pseudonym => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
 				const matches = this.findMatches(regex);
 				matches.forEach(match => {
