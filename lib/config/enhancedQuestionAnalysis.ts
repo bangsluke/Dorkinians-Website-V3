@@ -15,6 +15,7 @@ export interface EnhancedQuestionAnalysis {
 	clarificationMessage?: string;
 }
 
+// EnhancedQuestionAnalyzer class processes the question and returns an EnhancedQuestionAnalysis object
 export class EnhancedQuestionAnalyzer {
 	private question: string;
 	private userContext?: string;
@@ -67,6 +68,7 @@ export class EnhancedQuestionAnalyzer {
 		};
 	}
 
+	// Assess the complexity of the question based on the number of entities and stat types
 	private assessComplexity(extractionResult: EntityExtractionResult): 'simple' | 'moderate' | 'complex' {
 		const entityCount = extractionResult.entities.length;
 		const statTypeCount = extractionResult.statTypes.length;
@@ -85,6 +87,7 @@ export class EnhancedQuestionAnalyzer {
 		return 'simple';
 	}
 
+	// Check if clarification is needed based on the number of entities and stat types
 	private checkClarificationNeeded(extractionResult: EntityExtractionResult, complexity: 'simple' | 'moderate' | 'complex'): boolean {
 		// Check for too many entities
 		if (extractionResult.entities.length > 3) {
@@ -107,6 +110,7 @@ export class EnhancedQuestionAnalyzer {
 		return hasNoEntities || hasNoStatTypes || (complexity === 'complex');
 	}
 
+	// Generate a clarification message based on the number of entities and stat types
 	private generateClarificationMessage(extractionResult: EntityExtractionResult, complexity: 'simple' | 'moderate' | 'complex'): string {
 		if (extractionResult.entities.length > 3) {
 			return "I can handle questions about up to 3 entities at once. Please simplify your question to focus on fewer players, teams, or other entities.";
@@ -131,6 +135,7 @@ export class EnhancedQuestionAnalyzer {
 		return "Please clarify your question so I can provide a better answer.";
 	}
 
+	// Determine the question type based on the extracted entities and content
 	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed" {
 		const lowerQuestion = this.question.toLowerCase();
 

@@ -8,10 +8,19 @@
 - [Architecture Details](#architecture-details)
   - [Unified Schema System](#unified-schema-system)
   - [Single Source of Truth Architecture](#single-source-of-truth-architecture)
-  - [Tech Stack & Architecture](#tech-stack--architecture)
+    - [Master File Locations](#master-file-locations)
+    - [Why This Architecture?](#why-this-architecture)
+    - [How It Works](#how-it-works)
+  - [Tech Stack \& Architecture](#tech-stack--architecture)
+    - [Core Technologies](#core-technologies)
+    - [Data Layer Strategy](#data-layer-strategy)
+    - [PWA Implementation](#pwa-implementation)
+    - [Screen Architecture](#screen-architecture)
 - [Environment Setup](#environment-setup)
   - [Prerequisites](#prerequisites)
   - [Neo4j Configuration](#neo4j-configuration)
+    - [Development Environment](#development-environment)
+    - [Production (Neo4j Aura)](#production-neo4j-aura)
   - [OpenAI Configuration](#openai-configuration)
   - [SMTP Configuration](#smtp-configuration)
   - [Installation](#installation)
@@ -25,19 +34,40 @@
   - [iOS Splash Screens](#ios-splash-screens)
   - [Data Persistence](#data-persistence)
   - [Update Strategy](#update-strategy)
+- [NPM Script Synchronization](#npm-script-synchronization)
+  - [How It Works](#how-it-works-1)
+  - [NPM Scripts](#npm-scripts)
+  - [Workflow Examples](#workflow-examples)
+  - [Benefits](#benefits)
+  - [Troubleshooting](#troubleshooting)
 - [Development Workflow](#development-workflow)
   - [Schema Updates](#schema-updates)
   - [Managing Schema Changes](#managing-schema-changes)
+    - [Adding/Removing CSV Columns](#addingremoving-csv-columns)
+    - [Schema Validation](#schema-validation)
   - [Data Seeding](#data-seeding)
   - [Testing](#testing)
 - [Deployment](#deployment)
   - [Netlify Deployment](#netlify-deployment)
   - [Database Seeder Deployment](#database-seeder-deployment)
 - [PWA Release Process](#pwa-release-process)
+  - [Version Management](#version-management)
+  - [Release Checklist](#release-checklist)
 - [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
+  - [External Cron Service Setup](#external-cron-service-setup)
+  - [Manual Testing](#manual-testing)
+  - [Expected Response](#expected-response)
 - [Email Configuration](#email-configuration)
+  - [Required Environment Variables](#required-environment-variables)
+  - [Email Provider Examples](#email-provider-examples)
+  - [Gmail App Password Setup](#gmail-app-password-setup)
+  - [What Happens When Headers Change](#what-happens-when-headers-change)
 - [Maintenance](#maintenance)
+  - [Regular Tasks](#regular-tasks)
+  - [Troubleshooting](#troubleshooting-1)
 - [Contributing](#contributing)
+  - [Development Guidelines](#development-guidelines)
+  - [Repository Structure](#repository-structure)
 - [Support](#support)
 
 ## Architecture Details
@@ -87,7 +117,7 @@ The project uses a **single source of truth** architecture where configuration f
 2. **Run sync script** - `npm run sync-config` copies to both V3-Dorkinians-Website locations
 3. **Deploy both repositories**
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Single Source of Truth Architecture
 
@@ -115,7 +145,7 @@ The project implements a **manual synchronization system** where each configurat
 3. **Manual Sync**: Files are copied to all required locations with proper headers
 4. **Build Success**: All repositories have access to the latest configuration
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Tech Stack & Architecture
 
@@ -228,7 +258,7 @@ The project implements a **manual synchronization system** where each configurat
 - **Club Logo**: Visible across all screens
 - **Settings Icon**: Accessible from header on all pages
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Environment Setup
 
@@ -238,7 +268,7 @@ The project implements a **manual synchronization system** where each configurat
 - Neo4j Aura database access
 - OpenAI API key (for chatbot)
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Neo4j Configuration
 
@@ -254,7 +284,7 @@ PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 #### Production (Neo4j Aura)
 
@@ -264,7 +294,7 @@ PROD_NEO4J_USER=your-username
 PROD_NEO4J_PASSWORD=your_aura_db_password
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### OpenAI Configuration
 
@@ -272,7 +302,7 @@ PROD_NEO4J_PASSWORD=your_aura_db_password
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### SMTP Configuration
 
@@ -286,7 +316,7 @@ SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Installation
 
@@ -296,7 +326,7 @@ npm run test-neo4j  # Test Neo4j connection
 npm run dev          # Start development server
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Schema Management
 
@@ -341,7 +371,7 @@ cd database-dorkinians
 - `lib/services/dataSeederService.js` - Data seeding logic
 - `app/api/seed-data/route.js` - API endpoint
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## PWA Configuration
 
@@ -434,7 +464,7 @@ User clicks "Update Now" → Page reloads → New version active
 - **Real devices**: Install on iOS/Android
 - **Offline functionality**: Test without internet
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## NPM Script Synchronization
 
@@ -541,7 +571,7 @@ git commit -m "Sync data sources from database-dorkinians"
 3. **Update Headers**: Add the appropriate warning header to the target files
 4. **Commit Changes**: Commit the manually synced files
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Development Workflow
 
@@ -555,7 +585,7 @@ When data structures change:
 4. **Deploy Updates**: Push changes to both repositories
 5. **Verify Integration**: Test frontend functionality
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Managing Schema Changes
 
@@ -621,7 +651,7 @@ When Google Sheets structure changes:
    git push origin main
    ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 #### Schema Validation
 
@@ -640,7 +670,7 @@ The system automatically validates:
 - **Heroku Service**: Long-running seeding process using unified schema
 - **Email Notifications**: Automated status updates during seeding
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Testing
 
@@ -658,7 +688,7 @@ npm run test:seeding
 node -e "console.log('Schema integration test - check database seeding functionality');"
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Deployment
 
@@ -680,7 +710,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
    netlify deploy --prod
    ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Database Seeder Deployment
 
@@ -690,7 +720,7 @@ node -e "console.log('Schema integration test - check database seeding functiona
 - **Service**: Long-running Neo4j seeding operations
 - **Integration**: Triggered via Netlify functions
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## PWA Release Process
 
@@ -744,7 +774,7 @@ export const appConfig = {
 - [ ] Test update flow on mobile devices
 - [ ] Monitor for any version-related issues
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Cron Setup for Automated Database Updates
 
@@ -792,7 +822,7 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 }
 ```
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Email Configuration
 
@@ -851,7 +881,7 @@ SMTP_PASSWORD=your-password
 3. **Logging**: All failures logged to `logs/seeding-errors.log`
 4. **Seeding Halted**: Database remains unchanged until headers are fixed
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Maintenance
 
@@ -862,7 +892,7 @@ SMTP_PASSWORD=your-password
 3. **Performance**: Track API response times and database query performance
 4. **Security**: Review API access and authentication mechanisms
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Troubleshooting
 
@@ -871,7 +901,7 @@ SMTP_PASSWORD=your-password
 - **Performance**: Monitor Neo4j query execution times
 - **Integration**: Test database seeder connectivity
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Contributing
 
@@ -882,7 +912,7 @@ SMTP_PASSWORD=your-password
 3. **Documentation**: Update relevant documentation
 4. **Code Quality**: Follow established patterns and linting rules
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ### Repository Structure
 
@@ -892,7 +922,7 @@ SMTP_PASSWORD=your-password
 - **Configuration**: Environment and schema configuration
 - **Documentation**: Project documentation and guides
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)
 
 ## Support
 
@@ -903,4 +933,4 @@ SMTP_PASSWORD=your-password
 3. **Performance**: Monitor database and API performance
 4. **Integration**: Test database seeder connectivity
 
-> [!top] [Back to top](#table-of-contents)
+> [Back to Table of Contents](#table-of-contents)

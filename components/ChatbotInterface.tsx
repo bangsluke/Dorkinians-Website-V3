@@ -26,7 +26,7 @@ export default function ChatbotInterface() {
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
-		console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
+		// console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
 		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem("chatbotConversations");
 			if (saved) {
@@ -54,85 +54,96 @@ export default function ChatbotInterface() {
 		}
 	}, [conversationHistory]);
 
+	// Handle the chatbot question submission
 	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
-		if (!question.trim() || isLoading) return;
+		e.preventDefault(); // Prevent the default form submission behavior
+		if (!question.trim() || isLoading) return; // If the question is empty or the chatbot is loading, return
 
 		// Client-side logging for debugging
-		console.log(`🤖 Frontend: Sending question: ${question.trim()}`);
-		console.log(`🤖 Frontend: Player context: ${selectedPlayer || "None"}`);
+		console.log(`🤖 Frontend: Sending question: ${question.trim()}. Player context: ${selectedPlayer || "None"}`);
 
 		setIsLoading(true);
 		setError(null);
 		setResponse(null);
 
+		// Try to send the question to the chatbot
 		try {
-			// Include player context in the question if available
-			const questionWithContext = selectedPlayer ? `About ${selectedPlayer}: ${question.trim()}` : question.trim();
-
+			// Send the question to the chatbot via the API endpoint with the player context sent as a parameter
 			const res = await fetch("/api/chatbot", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ question: questionWithContext }),
+				body: JSON.stringify({ 
+					question: question.trim(),
+					userContext: selectedPlayer || undefined
+				}),
 			});
 
 			if (!res.ok) {
-				throw new Error(`HTTP error! status: ${res.status}`);
+				throw new Error(`HTTP error! status: ${res.status}`); // If the response is not ok, throw an error
 			}
 
-			const data: ChatbotResponse & { debug?: any } = await res.json();
-			console.log(`🤖 Frontend: Received response:`, data);
+			const data: ChatbotResponse & { debug?: any } = await res.json(); // Parse the response as a ChatbotResponse object
+			// console.log(`🤖 Frontend: Received response:`, data);
 			
+			// Log full debug info to the client
+			console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+				"1. question": data.debug.question,
+				"2. queryBreakdown": data.debug.processingDetails.queryBreakdown,
+				"3. processingSteps": data.debug.processingDetails.processingSteps,
+			});
+
 			// Log Cypher queries prominently if available
 			if (data.debug?.processingDetails?.cypherQueries?.length > 0) {
-				console.log(`🤖 [CLIENT] 🎯 CYPHER QUERIES EXECUTED:`, data.debug.processingDetails.cypherQueries);
+				// console.log(`🤖 [CLIENT] 🎯 CYPHER QUERIES EXECUTED:`, data.debug.processingDetails.cypherQueries);
 				
 				// Find and log copyable queries
 				const readyToExecuteQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('READY_TO_EXECUTE:'));
-				const parameterizedQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('PLAYER_DATA:'));
+				// const parameterizedQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('PLAYER_DATA:'));
+
+				// Log parameterized query
+				// if (parameterizedQuery) {
+				// 	const cleanQuery = parameterizedQuery.replace('PLAYER_DATA: ', '');
+				// 	console.log(`🤖 [CLIENT] 📋 PARAMETERIZED CYPHER QUERY (with variables):`);
+				// 	console.log(cleanQuery);
+				// }
 				
+				// Log ready to execute query to the client so that they can paste it into Neo4j Aura for debugging
 				if (readyToExecuteQuery) {
 					const cleanQuery = readyToExecuteQuery.replace('READY_TO_EXECUTE: ', '');
 					console.log(`🤖 [CLIENT] 📋 COPYABLE CYPHER QUERY (ready to paste into Neo4j Aura):`);
 					console.log(cleanQuery);
 				}
-				
-				if (parameterizedQuery) {
-					const cleanQuery = parameterizedQuery.replace('PLAYER_DATA: ', '');
-					console.log(`🤖 [CLIENT] 📋 PARAMETERIZED CYPHER QUERY (with variables):`);
-					console.log(cleanQuery);
-				}
 			}
 
 			// Enhanced client-side logging for debugging
-			if (data.debug) {
-				console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
-					question: data.debug.question,
-					userContext: data.debug.userContext,
-					timestamp: data.debug.timestamp,
-					serverLogs: data.debug.serverLogs,
-				});
+			// if (data.debug) {
+			// 	console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+			// 		question: data.debug.question,
+			// 		userContext: data.debug.userContext,
+			// 		timestamp: data.debug.timestamp,
+			// 		serverLogs: data.debug.serverLogs,
+			// 	});
 
-				// Log detailed processing information if available
-				if (data.debug.processingDetails) {
-					console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
+			// 	// Log detailed processing information if available
+			// 	if (data.debug.processingDetails) {
+			// 		console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
 					
-					// Enhanced Cypher query logging
-					if (data.debug.processingDetails.cypherQueries && data.debug.processingDetails.cypherQueries.length > 0) {
-						console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES (${data.debug.processingDetails.cypherQueries.length} executed):`);
-						data.debug.processingDetails.cypherQueries.forEach((query: string, index: number) => {
-							console.log(`🤖 [CLIENT] 📝 Query ${index + 1}:`, query);
-						});
-					} else {
-						console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES: No queries executed`);
-					}
+			// 		// Enhanced Cypher query logging
+			// 		if (data.debug.processingDetails.cypherQueries && data.debug.processingDetails.cypherQueries.length > 0) {
+			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES (${data.debug.processingDetails.cypherQueries.length} executed):`);
+			// 			data.debug.processingDetails.cypherQueries.forEach((query: string, index: number) => {
+			// 				console.log(`🤖 [CLIENT] 📝 Query ${index + 1}:`, query);
+			// 			});
+			// 		} else {
+			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES: No queries executed`);
+			// 		}
 					
-					console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
-					console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
-				}
-			}
+			// 		// console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
+			// 		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
+			// 	}
+			// }
 
 			// Log the response structure for debugging
 			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
@@ -159,10 +170,11 @@ export default function ChatbotInterface() {
 			});
 			setShowExampleQuestions(false);
 		} catch (err) {
+			// If an error occurs, set the error state and log the error
 			console.error(`🤖 Frontend: Error occurred:`, err);
 			setError(err instanceof Error ? err.message : "An error occurred");
 		} finally {
-			setIsLoading(false);
+			setIsLoading(false); // Finally, set the loading state to false
 		}
 	};
 
