@@ -1,16 +1,15 @@
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { metricConfigs, findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
-import { statObject } from "../../config/config";
-import * as natural from "natural";
-import nlp from "compromise";
+import { statObject, QuestionType, VisualizationType } from "../../config/config";
 import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
 import { EnhancedQuestionAnalyzer, EnhancedQuestionAnalysis } from "../config/enhancedQuestionAnalysis";
+import { EntityNameResolver, EntityResolutionResult } from "./entityNameResolver";
 
 export interface ChatbotResponse {
 	answer: string;
 	data?: any;
 	visualization?: {
-		type: "chart" | "table" | "calendar" | "stats";
+		type: VisualizationType;
 		data: any;
 		config?: any;
 	};
@@ -26,6 +25,18 @@ export interface QuestionContext {
 
 export class ChatbotService {
 	private static instance: ChatbotService;
+	private entityResolver: EntityNameResolver;
+
+	private constructor() {
+		this.entityResolver = EntityNameResolver.getInstance();
+	}
+
+	public static getInstance(): ChatbotService {
+		if (!ChatbotService.instance) {
+			ChatbotService.instance = new ChatbotService();
+		}
+		return ChatbotService.instance;
+	}
 
 	// Helper function to format values according to config
 	private formatValueByMetric(metric: string, value: number): string {
@@ -39,6 +50,30 @@ export class ChatbotService {
 		return Math.round(value).toString();
 	}
 
+	// Resolve player name using fuzzy matching
+	private async resolvePlayerName(playerName: string): Promise<string | null> {
+		try {
+			const result = await this.entityResolver.resolveEntityName(playerName, 'player');
+			
+			if (result.exactMatch) {
+				this.logToBoth(`✅ Exact match found: ${playerName} → ${result.exactMatch}`);
+				return result.exactMatch;
+			}
+			
+			if (result.fuzzyMatches.length > 0) {
+				const bestMatch = result.fuzzyMatches[0];
+				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`);
+				return bestMatch.entityName;
+			}
+			
+			this.logToBoth(`❌ No match found for player: ${playerName}`);
+			return null;
+		} catch (error) {
+			this.logToBoth(`❌ Error resolving player name: ${error}`);
+			return null;
+		}
+	}
+
 	// Debug tracking properties
 	private lastQuestionAnalysis: any = null;
 	private lastExecutedQueries: string[] = [];
@@ -49,12 +84,6 @@ export class ChatbotService {
 	private queryCache: Map<string, { data: any; timestamp: number }> = new Map();
 	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-	static getInstance(): ChatbotService {
-		if (!ChatbotService.instance) {
-			ChatbotService.instance = new ChatbotService();
-		}
-		return ChatbotService.instance;
-	}
 
 	// Helper method to log to both server and client consoles
 	private logToBoth(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
@@ -76,6 +105,82 @@ export class ChatbotService {
 		} else {
 			console.error(`🤖 [CLIENT] ${message}`, data);
 		}
+	}
+
+	private convertDateFormat(dateStr: string): string {
+		// Convert DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD
+		const parts = dateStr.split('/');
+		if (parts.length === 3) {
+			let day = parts[0].padStart(2, '0');
+			let month = parts[1].padStart(2, '0');
+			let year = parts[2];
+			
+			// Handle 2-digit years
+			if (year.length === 2) {
+				const currentYear = new Date().getFullYear();
+				const century = Math.floor(currentYear / 100) * 100;
+				const yearNum = parseInt(year);
+				year = (century + yearNum).toString();
+			}
+			
+			return `${year}-${month}-${day}`;
+		}
+		return dateStr; // Return as-is if format not recognized
+	}
+
+	private formatDate(dateStr: string): string {
+		// Convert YYYY-MM-DD to DD/MM/YYYY
+		if (dateStr.includes('-') && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+			const parts = dateStr.split('-');
+			const year = parts[0];
+			const month = parts[1];
+			const day = parts[2];
+			return `${day}/${month}/${year}`;
+		}
+		return dateStr;
+	}
+
+	private formatTimeRange(timeRange: string): string {
+		// Format a time range like "2022-03-20 to 2024-10-21" to "20/03/2022 to 21/10/2024"
+		if (timeRange.includes(' to ')) {
+			const [startDate, endDate] = timeRange.split(' to ');
+			const formattedStart = this.formatDate(startDate.trim());
+			const formattedEnd = this.formatDate(endDate.trim());
+			return `${formattedStart} to ${formattedEnd}`;
+		}
+		return timeRange;
+	}
+
+	private mapTeamName(teamName: string): string {
+		// Map common team name variations to database format
+		const teamMapping: { [key: string]: string } = {
+			'1s': '1st XI',
+			'2s': '2nd XI', 
+			'3s': '3rd XI',
+			'4s': '4th XI',
+			'5s': '5th XI',
+			'6s': '6th XI',
+			'7s': '7th XI',
+			'8s': '8th XI',
+			'1st': '1st XI',
+			'2nd': '2nd XI',
+			'3rd': '3rd XI',
+			'4th': '4th XI',
+			'5th': '5th XI',
+			'6th': '6th XI',
+			'7th': '7th XI',
+			'8th': '8th XI',
+			'first': '1st XI',
+			'second': '2nd XI',
+			'third': '3rd XI',
+			'fourth': '4th XI',
+			'fifth': '5th XI',
+			'sixth': '6th XI',
+			'seventh': '7th XI',
+			'eighth': '8th XI'
+		};
+		
+		return teamMapping[teamName.toLowerCase()] || teamName;
 	}
 
 	// Cache helper methods
@@ -109,6 +214,11 @@ export class ChatbotService {
 
 		this.logToBoth(`🤖 Processing question: ${context.question}`);
 		this.logToBoth(`👤 User context: ${context.userContext || "None"}`);
+		
+		// Basic client-side logging
+		this.logToBoth("🚀 Starting question processing...");
+		this.logToBoth("🚀 Question:", context.question);
+		this.logToBoth("🚀 User context:", context.userContext);
 
 		try {
 			// Ensure Neo4j connection
@@ -122,8 +232,10 @@ export class ChatbotService {
 			}
 
 			// Analyze the question
-			const analysis = this.analyzeQuestion(context.question, context.userContext);
+			this.logToBoth("🔍 About to analyze question...");
+			const analysis = await this.analyzeQuestion(context.question, context.userContext);
 			this.lastQuestionAnalysis = analysis; // Store for debugging
+			this.logToBoth("🔍 Analysis completed, type:", analysis.type);
 
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
@@ -152,9 +264,11 @@ export class ChatbotService {
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
+			this.logToBoth("🔍 About to query database...");
 			const data = await this.queryRelevantData(analysis);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 			this.logToBoth(`📊 Query result:`, data);
+			this.logToBoth("🔍 Database query completed, result type:", data?.type);
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
@@ -174,44 +288,51 @@ export class ChatbotService {
 		}
 	}
 
-	private analyzeQuestion(
+	private async analyzeQuestion(
 		question: string,
 		userContext?: string,
-	): {
-		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed";
-		entities: string[];
-		metrics: string[];
-		timeRange?: string;
-		message?: string;
-	} {
-		console.log("🔍 Enhanced analyzeQuestion called with:", { question, userContext });
+	): Promise<EnhancedQuestionAnalysis> {
+		this.logToBoth("🔍 Enhanced analyzeQuestion called with:", { question, userContext });
+		this.logToBoth("🔍 Starting question analysis...");
 		
 		// Use enhanced question analysis
 		const analyzer = new EnhancedQuestionAnalyzer(question, userContext);
-		const enhancedAnalysis = analyzer.analyze();
+		const enhancedAnalysis = await analyzer.analyze();
 		
-		console.log("🔍 Enhanced analysis result:", enhancedAnalysis);
-		console.log("🔍 Extracted entities:", enhancedAnalysis.entities);
-		console.log("🔍 Extracted metrics:", enhancedAnalysis.metrics);
-		console.log("🔍 Question type:", enhancedAnalysis.type);
+		this.logToBoth("🔍 Enhanced analysis result:", enhancedAnalysis);
+		this.logToBoth("🔍 Extracted entities:", enhancedAnalysis.entities);
+		this.logToBoth("🔍 Extracted metrics:", enhancedAnalysis.metrics);
+		this.logToBoth("🔍 Question type:", enhancedAnalysis.type);
+		this.logToBoth("🔍 Team entities:", enhancedAnalysis.teamEntities);
+		this.logToBoth("🔍 Opposition entities:", enhancedAnalysis.oppositionEntities);
+		this.logToBoth("🔍 Time range:", enhancedAnalysis.timeRange);
+		this.logToBoth("🔍 Extraction result:", enhancedAnalysis.extractionResult);
 		
-		// Return in legacy format for backward compatibility
-					return {
-			type: enhancedAnalysis.type,
-			entities: enhancedAnalysis.entities,
-			metrics: enhancedAnalysis.metrics,
-			timeRange: enhancedAnalysis.timeRange,
-			message: enhancedAnalysis.clarificationMessage
-		};
+		// Client-side logging for debugging
+		this.logToBoth("🔍 Analysis complete:");
+		this.logToBoth("🔍 - Question type:", enhancedAnalysis.type);
+		this.logToBoth("🔍 - Entities:", enhancedAnalysis.entities);
+		this.logToBoth("🔍 - Metrics:", enhancedAnalysis.metrics);
+		this.logToBoth("🔍 - Team entities:", enhancedAnalysis.teamEntities);
+		this.logToBoth("🔍 - Time range:", enhancedAnalysis.timeRange);
+		this.logToBoth("🔍 - Locations:", enhancedAnalysis.extractionResult?.locations);
+		
+		return enhancedAnalysis;
 	}
 
-	private async queryRelevantData(analysis: any): Promise<any> {
+	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<any> {
 		this.logToBoth(`🔍 queryRelevantData called with analysis:`, analysis);
 		const { type, entities, metrics } = analysis;
 
-		console.log("🔍 queryRelevantData - type:", type);
-		console.log("🔍 queryRelevantData - entities:", entities);
-		console.log("🔍 queryRelevantData - metrics:", metrics);
+		this.logToBoth("🔍 queryRelevantData - type:", type);
+		this.logToBoth("🔍 queryRelevantData - entities:", entities);
+		this.logToBoth("🔍 queryRelevantData - metrics:", metrics);
+		
+		// Client-side logging for debugging
+		this.logToBoth("🔍 Query routing:");
+		this.logToBoth("🔍 - Question type:", type);
+		this.logToBoth("🔍 - Entities to query:", entities);
+		this.logToBoth("🔍 - Metrics to query:", metrics);
 
 		try {
 			// Ensure Neo4j connection before querying
@@ -222,6 +343,7 @@ export class ChatbotService {
 			}
 			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
+			// 
 			switch (type) {
 				case "player":
 					this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
@@ -265,8 +387,29 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerData(entities: string[], metrics: string[], analysis?: any): Promise<any> {
+	private async queryPlayerData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<any> {
+		// Use enhanced analysis data directly
+		const teamEntities = analysis.teamEntities || [];
+		const oppositionEntities = analysis.oppositionEntities || [];
+		const timeRange = analysis.timeRange;
+		const locations = analysis.extractionResult?.locations || [];
+		
+		this.logToBoth(`🔍 Enhanced analysis data:`, {
+			teamEntities,
+			oppositionEntities,
+			timeRange,
+			locations
+		});
 		this.logToBoth(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
+		this.logToBoth(`🔍 Full analysis object:`, analysis);
+		
+		// Client-side logging for debugging
+		this.logToBoth("🔍 Player query setup:");
+		this.logToBoth("🔍 - Entities:", entities);
+		this.logToBoth("🔍 - Metrics:", metrics);
+		this.logToBoth("🔍 - Team entities:", teamEntities);
+		this.logToBoth("🔍 - Time range:", timeRange);
+		this.logToBoth("🔍 - Locations:", locations);
 
 		// Check if we have entities (player names) to query
 		if (entities.length === 0) {
@@ -287,60 +430,128 @@ export class ChatbotService {
 				return await this.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
+			// Resolve player name with fuzzy matching
+			this.logToBoth("🔍 Player name resolution:");
+			this.logToBoth("🔍 - Input entity:", playerName);
+			
+			const resolvedPlayerName = await this.resolvePlayerName(playerName);
+			this.logToBoth("🔍 - Resolved player name:", resolvedPlayerName);
+			
+			if (!resolvedPlayerName) {
+				this.logToBoth("❌ Player not found:", playerName);
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+					metric
+				};
+			}
+
+			// Use resolved player name for all subsequent queries
+			const actualPlayerName = resolvedPlayerName;
+
 			// Check if there are team entities in the analysis
 			if (analysis && analysis.teamEntities && analysis.teamEntities.length > 0) {
 				const teamEntity = analysis.teamEntities[0];
 				this.logToBoth(`🔍 Detected team entity in question: ${teamEntity}`);
-				
-				// For team-specific queries, filter the regular player query by team
-				// instead of using the team analysis method
-				return await this.queryPlayerDataForTeam(playerName, metric, teamEntity);
+				this.logToBoth(`🔍 Will use enhanced query with team filter instead of separate team method`);
 			}
 
 			// Check for special queries that can use enhanced relationship properties
 			if (metric === "TOTW" || metric === "WEEKLY_TOTW") {
-				return await this.queryPlayerTOTWData(playerName, "weekly");
+				return await this.queryPlayerTOTWData(actualPlayerName, "weekly");
 			}
 
 			if (metric === "SEASON_TOTW") {
-				return await this.queryPlayerTOTWData(playerName, "season");
+				return await this.queryPlayerTOTWData(actualPlayerName, "season");
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
-				return await this.queryPlayersOfTheMonthData(playerName);
+				return await this.queryPlayersOfTheMonthData(actualPlayerName);
 			}
 
 			// Check for opposition-specific queries
 			if (analysis && analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
 				const oppositionName = analysis.oppositionEntities[0];
 				this.logToBoth(`🔍 Detected opposition entity in question: ${oppositionName}`);
-				return await this.queryOppositionData(playerName, metric, oppositionName);
+				this.logToBoth(`🔍 Will use enhanced query with all filters instead of separate opposition method`);
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
-				return await this.queryPlayerCaptainAwardsData(playerName);
+				return await this.queryPlayerCaptainAwardsData(actualPlayerName);
 			}
 
 			if (metric === "CO_PLAYERS" || metric === "PLAYED_WITH") {
-				return await this.queryPlayerCoPlayersData(playerName);
+				return await this.queryPlayerCoPlayersData(actualPlayerName);
 			}
 
 			if (metric === "OPPONENTS" || metric === "PLAYED_AGAINST") {
-				return await this.queryPlayerOpponentsData(playerName);
+				return await this.queryPlayerOpponentsData(actualPlayerName);
 			}
 
 			// Build query with exact player name matching (dropdown provides exact casing)
 			let query = `
 				MATCH (p:Player {playerName: $playerName})
 				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 			`;
+
+			// Build WHERE conditions for enhanced filters
+			const whereConditions = [];
+			
+			// Add team filter if specified
+			if (teamEntities.length > 0) {
+				const mappedTeamNames = teamEntities.map(team => this.mapTeamName(team));
+				const teamNames = mappedTeamNames.map(team => `'${team}'`).join(', ');
+				whereConditions.push(`f.team IN [${teamNames}]`);
+				this.logToBoth(`🔍 Team mapping: ${teamEntities} → ${mappedTeamNames}`);
+				this.logToBoth("🔍 Team filter:");
+				this.logToBoth("🔍 - Original teams:", teamEntities);
+				this.logToBoth("🔍 - Mapped teams:", mappedTeamNames);
+			}
+			
+			// Add location filter if specified
+			if (locations.length > 0) {
+				const locationFilters = locations.map(loc => {
+					if (loc.type === 'home') return `f.homeOrAway = 'Home'`;
+					if (loc.type === 'away') return `f.homeOrAway = 'Away'`;
+					return null;
+				}).filter(Boolean);
+				if (locationFilters.length > 0) {
+					whereConditions.push(`(${locationFilters.join(' OR ')})`);
+				}
+				this.logToBoth("🔍 Location filter:");
+				this.logToBoth("🔍 - Locations:", locations);
+				this.logToBoth("🔍 - Location filters:", locationFilters);
+			}
+			
+			// Add time range filter if specified
+			if (timeRange) {
+				// Parse time range (assuming format like "20/03/2022 to 21/10/24")
+				const dateRange = timeRange.split(' to ');
+				if (dateRange.length === 2) {
+					const startDate = this.convertDateFormat(dateRange[0].trim());
+					const endDate = this.convertDateFormat(dateRange[1].trim());
+					whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
+					this.logToBoth("🔍 Date filter:");
+					this.logToBoth("🔍 - Original time range:", timeRange);
+					this.logToBoth("🔍 - Start date:", `${dateRange[0].trim()} → ${startDate}`);
+					this.logToBoth("🔍 - End date:", `${dateRange[1].trim()} → ${endDate}`);
+				}
+			}
+
+			// Add WHERE clause if we have conditions
+			if (whereConditions.length > 0) {
+				query += ` WHERE ${whereConditions.join(' AND ')}`;
+				this.logToBoth("🔍 WHERE conditions:");
+				this.logToBoth("🔍 - Conditions:", whereConditions);
+			}
 
 			let returnClause = "";
 			switch (metric) {
 				case "APP":
-					this.logToBoth("🔍 APP metric detected - constructing return clause", "log");
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					this.logToBoth("🔍 APP return clause constructed:", returnClause, "log");
 					break;
 				case "MIN":
 					returnClause =
@@ -349,6 +560,14 @@ export class ChatbotService {
 				case "G":
 					returnClause =
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
+					break;
+				case "AllGSC":
+					// Total goals (open play + penalties)
+					returnClause = `
+						RETURN p.playerName as playerName, 
+						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+						       coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value
+					`;
 					break;
 				case "A":
 					returnClause =
@@ -483,14 +702,24 @@ export class ChatbotService {
 
 			// Complete the query
 			query += ` ${returnClause}`;
+			
+			this.logToBoth(`🔍 Final Cypher query:`, query);
+			this.logToBoth(`🔍 Query parameters:`, { playerName });
+			
+			this.logToBoth("🔍 Final query:");
+			this.logToBoth("🔍 - Cypher query:", query);
+			this.logToBoth("🔍 - Parameters:", { playerName });
 
 			try {
 				// First check if the player exists
 				const playerExistsQuery = `MATCH (p:Player {playerName: $playerName}) RETURN p.playerName as playerName LIMIT 1`;
+				this.logToBoth("🔍 Checking if player exists...");
 				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName });
+				this.logToBoth("🔍 Player exists result:", playerExistsResult);
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
 					this.logToBoth(`🔍 Player ${playerName} not found in database`);
+					this.logToBoth("❌ Player not found in database:", playerName);
 					return { 
 						type: "player_not_found", 
 						data: [], 
@@ -519,9 +748,11 @@ export class ChatbotService {
 				this.logToBoth(`🔍 CYPHER QUERY (ready to execute):`, readyToExecuteQuery);
 				this.logToBoth(`🔍 QUERY PARAMETERS:`, { playerName });
 
+				this.logToBoth("🔍 Executing main query...");
 				const result = await neo4jService.executeQuery(query, {
 					playerName,
 				});
+				this.logToBoth("🔍 Query result:", result);
 
 				// Special logging for APP metric
 				if (metric === "APP") {
@@ -533,8 +764,12 @@ export class ChatbotService {
 
 				if (result && Array.isArray(result) && result.length > 0) {
 					this.logToBoth(`🔍 First result item:`, result[0]);
+					this.logToBoth("✅ Query returned results:", `${result.length} items`);
+					this.logToBoth("🔍 First result:", result[0]);
 				} else {
 					this.logToBoth(`🔍 No results found for ${playerName}. Player may not exist or have no match data.`);
+					this.logToBoth("❌ No results found for query");
+					this.logToBoth("🔍 Result was:", result);
 				}
 
 				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
@@ -643,6 +878,47 @@ export class ChatbotService {
 		return result;
 	}
 
+	private buildContextualResponse(playerName: string, metric: string, value: any, analysis: any): string {
+		// Get the metric display name
+		const metricName = getMetricDisplayName(metric, value);
+		const formattedValue = this.formatValueByMetric(metric, value);
+		const verb = getAppropriateVerb(metric, value);
+		
+		// Start with the basic response
+		let response = `${playerName} has ${verb} ${formattedValue} ${metricName}`;
+		
+		// Add team context if present
+		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+			const teamName = this.mapTeamName(analysis.teamEntities[0]);
+			response += ` for the ${teamName}`;
+		}
+		
+		// Add location context if present
+		const locations = analysis.locations || (analysis.extractionResult && analysis.extractionResult.locations) || [];
+		if (locations && locations.length > 0) {
+			const location = locations[0].value;
+			if (location === 'home') {
+				response += ` whilst playing at home`;
+			} else if (location === 'away') {
+				response += ` whilst playing away`;
+			}
+		}
+		
+		// Add time range context if present
+		if (analysis.timeRange && analysis.timeRange.includes(' to ')) {
+			const formattedTimeRange = this.formatTimeRange(analysis.timeRange);
+			response += ` between ${formattedTimeRange}`;
+		} else if (analysis.timeRange) {
+			const formattedDate = this.formatDate(analysis.timeRange);
+			response += ` on ${formattedDate}`;
+		}
+		
+		// Add period for final sentence
+		response += '.';
+		
+		return response;
+	}
+
 	private async generateResponse(question: string, data: any, analysis: any): Promise<ChatbotResponse> {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
@@ -667,10 +943,12 @@ export class ChatbotService {
 
 				// Enhanced handling for special metrics
 				if (metric === "AllGSC" || metric === "totalGoals") {
-					// Clarify that this includes both open play and penalty goals
+					// Build contextual response and add clarification
+					answer = this.buildContextualResponse(playerName, metric, value, analysis);
 					answer = answer.replace(".", " (including both open play and penalty goals).");
 				} else if (metric === "points") {
-					// Clarify that this refers to Fantasy Points
+					// Build contextual response and add clarification
+					answer = this.buildContextualResponse(playerName, metric, value, analysis);
 					answer = answer.replace(".", " (Fantasy Points).");
 				} else if (metric === "MostPlayedForTeam") {
 					// For "What team has player made the most appearances for?" questions
@@ -731,9 +1009,8 @@ export class ChatbotService {
 							answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"}.`;
 						}
 					} else {
-						// Standard metric handling
-						const formattedValue = this.formatValueByMetric(metric, value);
-						answer = `${playerName} has ${getAppropriateVerb(metric, value)} ${formattedValue} ${metricName}.`;
+						// Standard metric handling with contextual response
+						answer = this.buildContextualResponse(playerName, metric, value, analysis);
 					}
 				}
 

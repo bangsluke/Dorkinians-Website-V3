@@ -10,6 +10,11 @@
 - [Documentation Standards](#documentation-standards)
 - [Quality Gates](#quality-gates)
 - [Testing & Data Validation](#testing--data-validation)
+- [Natural Language Processing & Query Analysis](#natural-language-processing--query-analysis)
+  - [Context-Aware Entity Classification](#context-aware-entity-classification-protocol)
+  - [User Domain Knowledge Leverage](#user-domain-knowledge-leverage-protocol)
+  - [Incremental Problem Resolution](#incremental-problem-resolution-protocol)
+  - [Evidence-Based Hypothesis](#evidence-based-hypothesis-protocol)
 
 ## React & Next.js Best Practices
 
@@ -274,3 +279,47 @@
   - Implement user-requested logging and analysis approaches
   - Avoid substituting alternative methods without user approval
 - **Example**: User requests "use the generated log files to debug" → implement comprehensive logging and analyze logs rather than creating new debug scripts
+
+## Natural Language Processing & Query Analysis
+
+### Context-Aware Entity Classification Protocol
+
+- **Rule**: Distinguish between "core entities" (the "who/what" being queried) and "contextual modifiers" (the "when/where/how" conditions) when assessing query complexity
+- **Rationale**: Locations, timeframes, and stat types are filters/conditions, not separate entities that should count toward complexity limits
+- **Implementation**:
+  - Count only named entities (players, teams, oppositions, leagues) for complexity assessment
+  - Treat locations ("home", "away"), timeframes (date ranges), and stat types as contextual filters
+  - Only trigger clarification when single entity type exceeds limits (e.g., 4+ teams), not mixed entity types
+- **Example**: "How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?" = 2 named entities (1 player + 1 team) + contextual filters (location + timeframe)
+
+### User Domain Knowledge Leverage Protocol
+
+- **Rule**: When users provide domain-specific solutions or corrections, implement them directly rather than over-engineering alternatives
+- **Rationale**: Users often have deep understanding of their domain requirements and optimal approaches
+- **Implementation**:
+  - Prioritize user-suggested technical approaches over complex workarounds
+  - Implement user corrections immediately without defending previous decisions
+  - Trust user expertise in their specific domain context
+- **Example**: User corrects complexity logic → implement user's specific approach rather than creating alternative complexity assessment methods
+
+### Incremental Problem Resolution Protocol
+
+- **Rule**: Fix one issue completely before addressing the next - avoid parallel debugging of multiple problems
+- **Rationale**: Parallel debugging often leads to incomplete fixes and missed root causes
+- **Implementation**:
+  - Identify and fix the most critical issue first
+  - Verify the fix works before moving to the next issue
+  - Use systematic verification at each step
+- **Example**: Fix team detection → verify → fix question type priority → verify → fix duplicate entities → verify
+
+### Evidence-Based Hypothesis Protocol
+
+- **Rule**: Verify assumptions through concrete data before implementation - avoid assumption-driven solutions
+- **Rationale**: Assumptions about system behavior often lead to incorrect fixes
+- **Implementation**:
+  - Use console logs, debug output, and code analysis to verify assumptions
+  - Test hypotheses with concrete data before implementing solutions
+  - Trace through actual execution flow rather than theoretical behavior
+- **Example**: Assume entity counting issue → verify with actual entity extraction logs → implement targeted fix based on evidence
+
+> [Back to Table of Contents](#table-of-contents)

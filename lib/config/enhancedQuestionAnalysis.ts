@@ -1,7 +1,8 @@
 import { EntityExtractor, EntityExtractionResult } from './entityExtraction';
+import { QuestionType } from '../../config/config';
 
 export interface EnhancedQuestionAnalysis {
-	type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed";
+	type: QuestionType;
 	entities: string[];
 	metrics: string[];
 	timeRange?: string;
@@ -27,8 +28,8 @@ export class EnhancedQuestionAnalyzer {
 		this.extractor = new EntityExtractor(question);
 	}
 
-	analyze(): EnhancedQuestionAnalysis {
-		const extractionResult = this.extractor.extractEntities();
+	async analyze(): Promise<EnhancedQuestionAnalysis> {
+		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		const complexity = this.assessComplexity(extractionResult);
 		const requiresClarification = this.checkClarificationNeeded(extractionResult, complexity);
 		
@@ -70,17 +71,33 @@ export class EnhancedQuestionAnalyzer {
 
 	// Assess the complexity of the question based on the number of entities and stat types
 	private assessComplexity(extractionResult: EntityExtractionResult): 'simple' | 'moderate' | 'complex' {
-		const entityCount = extractionResult.entities.length;
+		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
+		const namedEntities = extractionResult.entities.filter(e => 
+			e.type === 'player' || e.type === 'team' || e.type === 'opposition' || e.type === 'league'
+		);
+		
+		// Count entities by type
+		const playerCount = namedEntities.filter(e => e.type === 'player').length;
+		const teamCount = namedEntities.filter(e => e.type === 'team').length;
+		const oppositionCount = namedEntities.filter(e => e.type === 'opposition').length;
+		const leagueCount = namedEntities.filter(e => e.type === 'league').length;
+		
 		const statTypeCount = extractionResult.statTypes.length;
 		const hasMultipleTimeFrames = extractionResult.timeFrames.length > 1;
 		const hasNegativeClauses = extractionResult.negativeClauses.length > 0;
 		const hasMultipleLocations = extractionResult.locations.length > 1;
 
-		if (entityCount > 3 || statTypeCount > 3) {
+		// Check if any single entity type exceeds 3 (this is what should trigger clarification)
+		const hasTooManyOfOneType = playerCount > 3 || teamCount > 3 || oppositionCount > 3 || leagueCount > 3;
+		
+		// Check total named entities (should be more lenient)
+		const totalNamedEntities = namedEntities.length;
+
+		if (hasTooManyOfOneType || statTypeCount > 3) {
 			return 'complex';
 		}
 
-		if (entityCount > 1 || statTypeCount > 1 || hasMultipleTimeFrames || hasNegativeClauses || hasMultipleLocations) {
+		if (totalNamedEntities > 1 || statTypeCount > 1 || hasMultipleTimeFrames || hasNegativeClauses || hasMultipleLocations) {
 			return 'moderate';
 		}
 
@@ -89,8 +106,21 @@ export class EnhancedQuestionAnalyzer {
 
 	// Check if clarification is needed based on the number of entities and stat types
 	private checkClarificationNeeded(extractionResult: EntityExtractionResult, complexity: 'simple' | 'moderate' | 'complex'): boolean {
-		// Check for too many entities
-		if (extractionResult.entities.length > 3) {
+		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
+		const namedEntities = extractionResult.entities.filter(e => 
+			e.type === 'player' || e.type === 'team' || e.type === 'opposition' || e.type === 'league'
+		);
+		
+		// Count entities by type
+		const playerCount = namedEntities.filter(e => e.type === 'player').length;
+		const teamCount = namedEntities.filter(e => e.type === 'team').length;
+		const oppositionCount = namedEntities.filter(e => e.type === 'opposition').length;
+		const leagueCount = namedEntities.filter(e => e.type === 'league').length;
+
+		// Check if any single entity type exceeds 3 (this should trigger clarification)
+		const hasTooManyOfOneType = playerCount > 3 || teamCount > 3 || oppositionCount > 3 || leagueCount > 3;
+		
+		if (hasTooManyOfOneType) {
 			return true;
 		}
 
@@ -104,7 +134,7 @@ export class EnhancedQuestionAnalyzer {
 		const hasAmbiguousPlayerRef = playerEntities.some(e => e.value === 'I') && this.userContext;
 
 		// Check for missing critical information
-		const hasNoEntities = extractionResult.entities.length === 0;
+		const hasNoEntities = namedEntities.length === 0;
 		const hasNoStatTypes = extractionResult.statTypes.length === 0;
 
 		// Check if this is a "which" or "who" ranking question - these are valid even without specific entities
@@ -123,15 +153,39 @@ export class EnhancedQuestionAnalyzer {
 
 	// Generate a clarification message based on the number of entities and stat types
 	private generateClarificationMessage(extractionResult: EntityExtractionResult, complexity: 'simple' | 'moderate' | 'complex'): string {
-		if (extractionResult.entities.length > 3) {
-			return "I can handle questions about up to 3 entities at once. Please simplify your question to focus on fewer players, teams, or other entities.";
+		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
+		const namedEntities = extractionResult.entities.filter(e => 
+			e.type === 'player' || e.type === 'team' || e.type === 'opposition' || e.type === 'league'
+		);
+		
+		// Count entities by type
+		const playerCount = namedEntities.filter(e => e.type === 'player').length;
+		const teamCount = namedEntities.filter(e => e.type === 'team').length;
+		const oppositionCount = namedEntities.filter(e => e.type === 'opposition').length;
+		const leagueCount = namedEntities.filter(e => e.type === 'league').length;
+
+		// Check if any single entity type exceeds 3
+		if (playerCount > 3) {
+			return `I can handle questions about up to 3 players at once. You mentioned ${playerCount} players. Please simplify your question to focus on fewer players.`;
+		}
+		
+		if (teamCount > 3) {
+			return `I can handle questions about up to 3 teams at once. You mentioned ${teamCount} teams. Please simplify your question to focus on fewer teams.`;
+		}
+		
+		if (oppositionCount > 3) {
+			return `I can handle questions about up to 3 opposition teams at once. You mentioned ${oppositionCount} opposition teams. Please simplify your question to focus on fewer opposition teams.`;
+		}
+		
+		if (leagueCount > 3) {
+			return `I can handle questions about up to 3 leagues at once. You mentioned ${leagueCount} leagues. Please simplify your question to focus on fewer leagues.`;
 		}
 
 		if (extractionResult.statTypes.length > 3) {
 			return "I can handle questions about up to 3 different statistics at once. Please simplify your question to focus on fewer stat types.";
 		}
 
-		if (extractionResult.entities.length === 0) {
+		if (namedEntities.length === 0) {
 			return "I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about.";
 		}
 
@@ -147,7 +201,7 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	// Determine the question type based on the extracted entities and content
-	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed" {
+	private determineQuestionType(extractionResult: EntityExtractionResult): QuestionType {
 		const lowerQuestion = this.question.toLowerCase();
 
 		// Check for clarification needed first
@@ -161,7 +215,12 @@ export class EnhancedQuestionAnalyzer {
 		const hasMultipleEntities = extractionResult.entities.length > 1;
 		const hasTimeFrames = extractionResult.timeFrames.length > 0;
 
-		// Check for temporal queries first (time-based questions)
+		// Check for player-specific queries first (even with time frames)
+		if (hasPlayerEntities) {
+			return "player";
+		}
+
+		// Check for temporal queries (time-based questions without specific players)
 		if (hasTimeFrames || lowerQuestion.includes('since') || lowerQuestion.includes('before') || 
 			lowerQuestion.includes('between') || lowerQuestion.includes('during') || 
 			lowerQuestion.includes('in the') || lowerQuestion.includes('from') || 
@@ -247,8 +306,29 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
-		// Convert extracted stat types to legacy format
-		return extractionResult.statTypes.map(stat => this.mapStatTypeToKey(stat.value));
+		// Convert extracted stat types to legacy format with priority handling
+		const statTypes = extractionResult.statTypes.map(stat => stat.value);
+		
+		// Priority order: more specific stat types should take precedence
+		const priorityOrder = [
+			'Open Play Goals',  // More specific than 'Goals'
+			'Penalties Scored', // More specific than 'Goals'
+			'Goals',            // General goals
+			'Assists',
+			'Apps',
+			'Minutes',
+			// ... other stat types
+		];
+		
+		// Find the highest priority stat type that was detected
+		for (const priorityType of priorityOrder) {
+			if (statTypes.includes(priorityType)) {
+				return [this.mapStatTypeToKey(priorityType)];
+			}
+		}
+		
+		// Fallback to all detected stat types if no priority match
+		return statTypes.map(stat => this.mapStatTypeToKey(stat));
 	}
 
 	private mapStatTypeToKey(statType: string): string {
@@ -257,7 +337,8 @@ export class EnhancedQuestionAnalyzer {
 			'Apps': 'APP',
             'Minutes': 'MIN',
             'Man of the Match': 'MOM',
-            'Goals': 'G',
+            'Goals': 'AllGSC',
+			'Open Play Goals': 'G',
 			'Assists': 'A',
 			'Yellow Cards': 'Y',
 			'Red Cards': 'R',
@@ -292,7 +373,18 @@ export class EnhancedQuestionAnalyzer {
 
 	private extractLegacyTimeRange(extractionResult: EntityExtractionResult): string | undefined {
 		// Convert extracted time frames to legacy format
+		console.log("🔍 Time frames extracted:", extractionResult.timeFrames);
+		
+		// Look for range type first (e.g., "20/03/2022 to 21/10/24")
+		const rangeFrame = extractionResult.timeFrames.find(tf => tf.type === 'range' && tf.value.includes(' to '));
+		if (rangeFrame) {
+			console.log("🔍 Using range time frame:", rangeFrame.value);
+			return rangeFrame.value;
+		}
+		
+		// Fallback to first time frame if no range found
 		if (extractionResult.timeFrames.length > 0) {
+			console.log("🔍 Using first time frame:", extractionResult.timeFrames[0].value);
 			return extractionResult.timeFrames[0].value;
 		}
 		return undefined;

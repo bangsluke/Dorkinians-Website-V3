@@ -182,7 +182,7 @@ export default function ChatbotInterface() {
 		if (!visualization) return null;
 
 		switch (visualization.type) {
-			case "table":
+			case "Table":
 				return (
 					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
 						<h4 className='font-semibold text-white mb-2'>Player Information</h4>
@@ -213,11 +213,29 @@ export default function ChatbotInterface() {
 					</div>
 				);
 
-			case "chart":
+			case "NumberCard":
 				return (
 					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
-						<h4 className='font-semibold text-white mb-2'>Chart Visualization</h4>
-						<p className='text-yellow-300'>Chart data available: {JSON.stringify(visualization.data)}</p>
+						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
+						<div className='text-3xl font-bold text-yellow-300'>
+							{visualization.data?.value || visualization.data}
+						</div>
+					</div>
+				);
+
+			case "Calendar":
+				return (
+					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+						<h4 className='font-semibold text-white mb-2'>Calendar View</h4>
+						<p className='text-yellow-300'>Calendar data available: {JSON.stringify(visualization.data)}</p>
+					</div>
+				);
+
+			case "Record":
+				return (
+					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+						<h4 className='font-semibold text-white mb-2'>Record Information</h4>
+						<p className='text-yellow-300'>Record data available: {JSON.stringify(visualization.data)}</p>
 					</div>
 				);
 

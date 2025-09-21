@@ -15,6 +15,16 @@
   - [Key Features](#key-features)
 - [Chatbot Architecture](#chatbot-architecture)
   - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
+- [Query Processing Pipeline](#query-processing-pipeline)
+  - [Stage 1: Text Preprocessing](#stage-1-text-preprocessing)
+  - [Stage 2: Entity Recognition](#stage-2-entity-recognition)
+  - [Stage 3: Fuzzy Resolution](#stage-3-fuzzy-resolution)
+  - [Stage 4: Question Analysis](#stage-4-question-analysis)
+  - [Stage 5: Database Query Execution](#stage-5-database-query-execution)
+  - [Stage 6: Natural Language Response Generation](#stage-6-natural-language-response-generation)
+  - [Stage 7: Response Assembly](#stage-7-response-assembly)
+- [Key File Functionalities](#key-file-functionalities)
+  - [Core Processing Files](#core-processing-files)
   - [Query Processing Flow](#query-processing-flow)
   - [Response Generation](#response-generation)
 - [Quick Start](#quick-start)
@@ -50,15 +60,16 @@ The chatbot is the core functionality of the application, processing natural lan
 
 ### Natural Language Processing & Entity Extraction
 
-The chatbot uses a sophisticated NLP pipeline with advanced entity extraction for sports terminology:
+The chatbot uses a sophisticated entity extraction pipeline for sports terminology:
 
 **Core Libraries** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts)):
-- **`natural`**: Fuzzy string matching for player name recognition
-- **`compromise`**: Advanced text parsing and linguistic analysis
+- **`natural`**: Fuzzy string matching for all entity types (players, teams, oppositions, leagues)
+- **`compromise`**: Advanced text parsing and linguistic analysis for better entity extraction
 - **Custom Entity Extraction**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) for domain-specific sports terminology
+- **Entity Name Resolution**: [`lib/services/entityNameResolver.ts`](./lib/services/entityNameResolver.ts) for intelligent fuzzy matching of all entity types
 
 **7-Class Entity Recognition** ([`EntityExtractor` class](./lib/config/entityExtraction.ts)):
-- **Players**: Up to 3 per question with fuzzy matching and pseudonym support
+- **Players**: Up to 3 per question with fuzzy matching, typo tolerance, and pseudonym support
 - **Teams**: 1st, 2nd, 3rd etc. team recognition with ordinal number parsing
 - **Stat Types**: Goals, appearances, TOTW, penalties, etc. with 50+ pseudonyms
 - **Stat Indicators**: Highest, lowest, average, longest, shortest, consecutive
@@ -67,11 +78,174 @@ The chatbot uses a sophisticated NLP pipeline with advanced entity extraction fo
 - **Locations**: Home, away, specific grounds (up to 2 per question)
 - **Time Frames**: Seasons, dates, gameweeks, streaks, temporal expressions
 
-**Processing Pipeline**:
-1. **Text Preprocessing**: Question normalization and context extraction
-2. **Entity Recognition**: Multi-pass extraction using regex patterns and fuzzy matching
-3. **Context Integration**: Player selection context merged with question analysis
-4. **Validation**: Question clarity assessment and clarification request generation
+**Advanced Entity Name Resolution**:
+- **Comprehensive Fuzzy Matching**: Handles typos for players, teams, oppositions, and leagues
+  - Players: "Luk Bangs" → "Luke Bangs"
+- **Multiple Algorithms**: Jaro-Winkler, Levenshtein, and Dice coefficient
+- **Confidence Scoring**: Only suggests matches above 60% confidence
+- **Dynamic Database**: Queries all entities from database for comprehensive matching
+- **Smart Suggestions**: Provides alternative entity names for near-misses
+- **Type-Specific Resolution**: Each entity type uses optimized matching strategies
+
+## Query Processing Pipeline
+
+The chatbot processes user questions through a sophisticated multi-stage pipeline:
+
+### Stage 1: Text Preprocessing
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (EntityExtractor constructor)
+- **Question Normalization**: Converts to lowercase, removes special characters, normalizes whitespace
+- **Context Extraction**: Analyzes user context and previous conversation state
+- **Linguistic Analysis**: Uses `compromise` library for advanced text parsing and part-of-speech tagging
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Normalized**: `"how many goals has luk bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24"`
+- **NLP Analysis**: Identifies "Luk Bangs" as proper noun, "goals" as noun, "3s" as number+noun, "home" as location, dates as temporal expressions
+
+### Stage 2: Entity Recognition
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (extractEntities method)
+- **Multi-Pass Extraction**: Uses regex patterns and NLP techniques to identify entities
+- **7-Class Recognition**: Players, teams, stat types, indicators, question types, negative clauses, locations, time frames
+- **Pseudonym Support**: Handles 50+ alternative names for stats and entities
+- **Context-Aware**: Considers surrounding words and phrases for better accuracy
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Player**: "Luk Bangs" (proper noun detection)
+- **Stat Type**: "goals" (matches stat pseudonyms)
+- **Team**: "3s" (regex pattern `/\b(1s|2s|3s|4s|5s|6s|7s|8s)/`)
+- **Location**: "home" (location entity detection)
+- **Time Frame**: "between 20/03/2022 and 21/10/24" (date range detection)
+- **Question Type**: "how many" (interrogative detection)
+
+### Stage 3: Fuzzy Resolution
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (resolveEntitiesWithFuzzyMatching method)
+- **Intelligent Matching**: Resolves all entities using multiple fuzzy matching algorithms
+- **Confidence Scoring**: Only suggests matches above 60% confidence threshold
+- **Type-Specific Logic**: Different strategies for players, teams, oppositions, and leagues
+- **Database Integration**: Queries live database for comprehensive entity matching
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Player Resolution**: "Luk Bangs" → "Luke Bangs" (fuzzy match, confidence: 0.92)
+- **Team Resolution**: "3s" → "3rd XI" (fuzzy match, confidence: 0.85)
+- **Location Resolution**: "home" → "home" (exact match, confidence: 1.0)
+- **Stat Resolution**: "goals" → "goals" (exact match, confidence: 1.0)
+- **Time Frame Resolution**: "between 20/03/2022 and 21/10/24" → "2022-03-20 to 2024-10-21" (date parsing)
+
+### Stage 4: Question Analysis
+**File**: [`lib/config/enhancedQuestionAnalysis.ts`](./lib/config/enhancedQuestionAnalysis.ts) (analyze method)
+- **Complexity Assessment**: Categorizes questions as simple, moderate, or complex
+- **Clarification Detection**: Identifies ambiguous queries requiring user input
+- **Intent Classification**: Determines question type and required response format
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Question Type**: "player" (specific player query)
+- **Complexity**: "complex" (multiple entities: player + team + location + stat + time frame)
+- **Team Context**: Detected team entity "3rd XI"
+- **Location Context**: Detected location "home"
+- **Time Context**: Detected date range "2022-03-20 to 2024-10-21"
+- **Requires Clarification**: No (all entities resolved)
+
+### Stage 5: Database Query Execution
+**File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (queryRelevantData method)
+- **Query Construction**: Builds optimized Cypher queries based on analysis
+- **Performance Optimization**: Uses caching and query optimization techniques
+- **Error Handling**: Graceful fallbacks for database connectivity issues
+- **Result Processing**: Formats and structures data for presentation
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Query Type**: Player + Team + Location + Time Range query
+- **Cypher Query**:
+  ```cypher
+  MATCH (p:Player {playerName: "Luke Bangs"})-[:PLAYED_IN]->(md:MatchDetail)
+  WHERE md.team = "3rd XI" 
+    AND md.location = "home"
+    AND md.matchDate >= date("2022-03-20")
+    AND md.matchDate <= date("2024-10-21")
+  RETURN p.playerName, coalesce(sum(md.goals), 0) as value
+  ```
+- **Database Result**: `[{ playerName: "Luke Bangs", value: 4 }]`
+
+### Stage 6: Natural Language Response Generation
+**File**: [`lib/config/naturalLanguageResponses.ts`](./lib/config/naturalLanguageResponses.ts) (imported functions)
+- **Template Selection**: Chooses appropriate response templates based on question type
+- **Verb Conjugation**: Automatically selects correct verb forms (has/have, is/are, etc.)
+- **Contextual Formatting**: Adapts language based on data type and user context
+- **Personalization**: Uses appropriate pronouns and references based on user selection
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Template**: Player-specific response with team, location, and time context
+- **Verb Selection**: "has" (singular player)
+- **Number Formatting**: "4" (integer)
+- **Context Integration**: Includes team ("3rd XI"), location ("at home"), and time range ("between March 2022 and October 2024")
+- **Generated Text**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
+
+### Stage 7: Response Assembly
+**File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (generateResponse method)
+- **Data Integration**: Combines database results with natural language templates
+- **Visualization Selection**: Chooses appropriate chart/table types based on data
+- **Source Attribution**: Tracks and reports data sources for transparency
+- **Quality Validation**: Ensures response accuracy and completeness
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Final Answer**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
+- **Visualization**: NumberCard (single value display)
+- **Data**: `{ playerName: "Luke Bangs", value: 4, team: "3rd XI", location: "home", timeRange: "2022-03-20 to 2024-10-21" }`
+- **Sources**: ["Neo4j Database"]
+- **Cypher Query**: Logged for transparency
+
+## Key File Functionalities
+
+### Core Processing Files
+
+**`lib/config/entityExtraction.ts`** - Entity Recognition Engine
+- **Purpose**: Identifies and extracts all relevant entities from user questions
+- **Key Features**:
+  - 7-class entity recognition (players, teams, stats, indicators, etc.)
+  - NLP-powered player name extraction using `compromise`
+  - Pseudonym support for 50+ alternative stat names
+  - Context-aware extraction considering surrounding words
+  - Fuzzy matching integration for all entity types
+
+**`lib/services/entityNameResolver.ts`** - Intelligent Entity Resolution
+- **Purpose**: Resolves entity names using fuzzy matching algorithms
+- **Key Features**:
+  - Multi-algorithm fuzzy matching (Jaro-Winkler, Levenshtein, Dice coefficient)
+  - Type-specific resolution strategies for different entity types
+  - Confidence scoring with 60% threshold for suggestions
+  - Database integration for comprehensive entity matching
+  - Caching system for performance optimization
+
+**`lib/config/naturalLanguageResponses.ts`** - Response Generation Engine
+- **Purpose**: Generates natural, contextually appropriate responses
+- **Key Features**:
+  - Template-based response generation
+  - Automatic verb conjugation (has/have, is/are, etc.)
+  - Contextual formatting based on data types
+  - Personalization using user selection context
+  - Dynamic language adaptation
+
+**`lib/config/enhancedQuestionAnalysis.ts`** - Question Intelligence
+- **Purpose**: Analyzes question complexity and determines processing requirements
+- **Key Features**:
+  - Complexity assessment (simple/moderate/complex)
+  - Clarification detection for ambiguous queries
+  - Intent classification and question type determination
+  - Integration with fuzzy matching for entity resolution
+
+**`lib/services/chatbotService.ts`** - Main Orchestration Engine
+- **Purpose**: Coordinates the entire query processing pipeline
+- **Key Features**:
+  - Query analysis and routing
+  - Database query construction and execution
+  - Response assembly and formatting
+  - Error handling and fallback mechanisms
+  - Performance optimization and caching
+
+**Fuzzy Matching Benefits**:
+- **Typo Tolerance**: Users can misspell names and still get accurate results
+- **Variation Handling**: Handles different ways of referring to the same entity
+- **Confidence-Based**: Only suggests matches above 60% confidence to avoid false positives
+- **Performance Optimized**: Caching system reduces database queries for repeated lookups
+- **Comprehensive Coverage**: Works across all entity types in the system
 
 **Advanced Features**:
 - **Multi-Entity Support**: Complex comparisons (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
@@ -92,10 +266,9 @@ The chatbot processes natural language queries through a sophisticated multi-sta
    - API endpoint validates input and receives player context directly
 
 2. **Enhanced Entity Extraction** ([`lib/config/enhancedQuestionAnalysis.ts`](./lib/config/enhancedQuestionAnalysis.ts))
-   - [`EnhancedQuestionAnalyzer` class](./lib/config/enhancedQuestionAnalysis.ts) processes the question
-   - Uses `EntityExtractor` to identify 7 entity types: players, teams, stats, indicators, question types, locations, timeframes
-   - Supports complex multi-entity queries (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
-   - Handles pseudonyms and fuzzy matching for player names
+   - [`EnhancedQuestionAnalyzer` class](./lib/config/enhancedQuestionAnalysis.ts) processes the question and uses `EntityExtractor` to identify 7 entity types: players, teams, stats, indicators, question types, locations, timeframes
+   - It assesses the complexity of the question (based on how many entities and stat types are present) and determines if it requires clarification
+   - It determines the question type (e.g. player, team, club, fixture, comparison) based on the extracted entities and content
 
 3. **Question Analysis** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts))
    - `analyzeQuestion()` method determines query type and complexity
