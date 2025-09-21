@@ -178,7 +178,7 @@ export class ChatbotService {
 		question: string,
 		userContext?: string,
 	): {
-		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed";
+		type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed";
 		entities: string[];
 		metrics: string[];
 		timeRange?: string;
@@ -249,6 +249,9 @@ export class ChatbotService {
 				case "double_game":
 					this.logToBoth(`🔍 Calling queryDoubleGameData...`);
 					return await this.queryDoubleGameData(entities, metrics);
+				case "ranking":
+					this.logToBoth(`🔍 Calling queryRankingData...`);
+					return await this.queryRankingData(entities, metrics, analysis);
 				case "general":
 					this.logToBoth(`🔍 Calling queryGeneralData...`);
 					return await this.queryGeneralData();
@@ -1024,6 +1027,54 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
+			} else if (data && data.type === "ranking" && data.data) {
+				// Handle ranking data (top players/teams)
+				const metric = data.metric;
+				const isPlayerQuestion = data.isPlayerQuestion;
+				const isTeamQuestion = data.isTeamQuestion;
+				const resultCount = data.data.length;
+				const requestedLimit = data.requestedLimit || 10;
+				
+				if (resultCount === 0) {
+					const metricName = getMetricDisplayName(metric, 0);
+					answer = `No ${isTeamQuestion ? 'teams' : 'players'} found with ${metricName} data.`;
+				} else {
+					const metricName = getMetricDisplayName(metric, data.data[0].value);
+					const topResult = data.data[0];
+					const topName = isTeamQuestion ? topResult.teamName : topResult.playerName;
+					const topValue = topResult.value;
+					
+					// Determine the appropriate text based on actual result count and requested limit
+					const countText = resultCount === 1 ? "1" : 
+									 resultCount < requestedLimit ? `top ${resultCount}` : 
+									 requestedLimit === 10 ? "top 10" : `top ${requestedLimit}`;
+					
+					if (isPlayerQuestion) {
+						answer = `The player with the highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText} players:`;
+					} else if (isTeamQuestion) {
+						answer = `The team with the highest ${metricName} is the ${topName} with ${topValue}. Here are the ${countText} teams:`;
+					} else {
+						answer = `The highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText}:`;
+					}
+
+					visualization = {
+						type: "table",
+						data: data.data.map((item: any, index: number) => ({
+							rank: index + 1,
+							name: isTeamQuestion ? item.teamName : item.playerName,
+							value: item.value,
+						})),
+						config: {
+							title: `${countText.charAt(0).toUpperCase() + countText.slice(1)} ${isTeamQuestion ? 'Teams' : 'Players'} - ${metricName}`,
+							type: "table",
+							columns: [
+								{ key: "rank", label: "Rank" },
+								{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
+								{ key: "value", label: metricName }
+							]
+						},
+					};
+				}
 			}
 		}
 
@@ -1580,6 +1631,120 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth(`❌ Error in opposition query:`, error, "error");
 			return { type: "error", data: [], message: "Error querying opposition data" };
+		}
+	}
+
+	// Query ranking data for "which" questions (top players/teams)
+	private async queryRankingData(entities: string[], metrics: string[], analysis: any): Promise<any> {
+		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`);
+		
+		if (metrics.length === 0) {
+			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
+		}
+
+		const metric = metrics[0];
+		const lowerQuestion = analysis.question?.toLowerCase() || '';
+		
+		// Determine if this is asking about players or teams
+		const isPlayerQuestion = lowerQuestion.includes('player') || lowerQuestion.includes('who');
+		const isTeamQuestion = lowerQuestion.includes('team');
+		
+		// Check if user asked for a specific number (e.g., "top 3", "top 5")
+		const topNumberMatch = lowerQuestion.match(/top\s+(\d+)/);
+		const requestedLimit = topNumberMatch ? parseInt(topNumberMatch[1]) : 10;
+		
+		// Get the metric configuration
+		const metricConfig = findMetricByAlias(metric);
+		if (!metricConfig) {
+			return { type: "unknown_metric", data: [], message: `Unknown metric: ${metric}` };
+		}
+
+		let query: string;
+		let returnClause: string;
+
+		// Build the appropriate query based on metric
+		switch (metric) {
+			case "G":
+			case "goals":
+				returnClause = "coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = '' THEN 0 ELSE md.goals END), 0) as value";
+				break;
+			case "A":
+			case "assists":
+				returnClause = "coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = '' THEN 0 ELSE md.assists END), 0) as value";
+				break;
+			case "AP":
+			case "appearances":
+				returnClause = "count(md) as value";
+				break;
+			case "CS":
+			case "clean_sheets":
+				returnClause = "coalesce(sum(CASE WHEN md.cleanSheets = true THEN 1 ELSE 0 END), 0) as value";
+				break;
+			case "TOTW":
+			case "team_of_the_week":
+				returnClause = "coalesce(sum(CASE WHEN md.totw = true THEN 1 ELSE 0 END), 0) as value";
+				break;
+			default:
+				return { type: "unsupported_metric", data: [], message: `Ranking not supported for metric: ${metric}` };
+		}
+
+		// Use a higher limit to ensure we get all available results, then trim to requested count
+		const maxLimit = Math.max(requestedLimit * 2, 50); // Ensure we get enough results
+		
+		if (isPlayerQuestion) {
+			// Query for top players
+			query = `
+				MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE p.allowOnSite = true
+				RETURN p.playerName as playerName, ${returnClause}
+				ORDER BY value DESC
+				LIMIT ${maxLimit}
+			`;
+		} else if (isTeamQuestion) {
+			// Query for top teams
+			query = `
+				MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE p.allowOnSite = true AND md.team IS NOT NULL
+				RETURN md.team as teamName, ${returnClause}
+				ORDER BY value DESC
+				LIMIT ${maxLimit}
+			`;
+		} else {
+			// Default to players if unclear
+			query = `
+				MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE p.allowOnSite = true
+				RETURN p.playerName as playerName, ${returnClause}
+				ORDER BY value DESC
+				LIMIT ${maxLimit}
+			`;
+		}
+
+		this.lastExecutedQueries.push(`RANKING_DATA: ${query}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query);
+			this.logToBoth(`🔍 Ranking query result:`, result);
+
+			if (!result || result.length === 0) {
+				return { type: "no_data", data: [], message: "No ranking data found" };
+			}
+
+			// Limit results to the requested number (or all available if fewer)
+			const limitedResult = result.slice(0, requestedLimit);
+
+			return {
+				type: "ranking",
+				data: limitedResult,
+				metric: metric,
+				isPlayerQuestion: isPlayerQuestion,
+				isTeamQuestion: isTeamQuestion,
+				requestedLimit: requestedLimit,
+				cypherQuery: query
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryRankingData:`, error, "error");
+			return { type: "error", data: [], message: "Error querying ranking data" };
 		}
 	}
 

@@ -1,7 +1,7 @@
 import { EntityExtractor, EntityExtractionResult } from './entityExtraction';
 
 export interface EnhancedQuestionAnalysis {
-	type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed";
+	type: "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed";
 	entities: string[];
 	metrics: string[];
 	timeRange?: string;
@@ -107,7 +107,18 @@ export class EnhancedQuestionAnalyzer {
 		const hasNoEntities = extractionResult.entities.length === 0;
 		const hasNoStatTypes = extractionResult.statTypes.length === 0;
 
-		return hasNoEntities || hasNoStatTypes || (complexity === 'complex');
+		// Check if this is a "which" or "who" ranking question - these are valid even without specific entities
+		const lowerQuestion = this.question.toLowerCase();
+		const isRankingQuestion = (lowerQuestion.includes('which') || lowerQuestion.includes('who')) && 
+			(lowerQuestion.includes('highest') || lowerQuestion.includes('most') || 
+			 lowerQuestion.includes('best') || lowerQuestion.includes('top'));
+
+		// Don't require entities for ranking questions
+		if (isRankingQuestion && hasNoStatTypes) {
+			return true; // Still need stat types
+		}
+
+		return (hasNoEntities && !isRankingQuestion) || hasNoStatTypes || (complexity === 'complex');
 	}
 
 	// Generate a clarification message based on the number of entities and stat types
@@ -136,7 +147,7 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	// Determine the question type based on the extracted entities and content
-	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "clarification_needed" {
+	private determineQuestionType(extractionResult: EntityExtractionResult): "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed" {
 		const lowerQuestion = this.question.toLowerCase();
 
 		// Check for clarification needed first
@@ -167,13 +178,19 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
+		// Check for ranking queries (which player/team has the highest/most...)
+		if ((lowerQuestion.includes('which') || lowerQuestion.includes('who')) && 
+			(lowerQuestion.includes('highest') || lowerQuestion.includes('most') || 
+			 lowerQuestion.includes('best') || lowerQuestion.includes('top'))) {
+			return "ranking";
+		}
+
 		// Check for comparison queries (most, least, highest, etc.)
 		if (lowerQuestion.includes('most') || lowerQuestion.includes('least') || 
 			lowerQuestion.includes('highest') || lowerQuestion.includes('lowest') || 
 			lowerQuestion.includes('best') || lowerQuestion.includes('worst') || 
 			lowerQuestion.includes('top') || lowerQuestion.includes('who has') || 
-			lowerQuestion.includes('which') || lowerQuestion.includes('penalty record') ||
-			lowerQuestion.includes('conversion rate')) {
+			lowerQuestion.includes('penalty record') || lowerQuestion.includes('conversion rate')) {
 			return "comparison";
 		}
 

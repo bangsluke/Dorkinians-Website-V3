@@ -40,3 +40,6 @@
 | What opposition have I scored the most goals against?                           | Table                | StatsData   | {questionType} {entity_1} have {entity_2} scored the {statIndicator} {statType_1} against? |
 | Who has scored the most penalties for the 4s?                                  | Table                | StatsData   | {questionType} has scored the {statIndicator} {statType_1} for the {entity_1}? |
 | Who has the worst penalty record for the 2s?                                  | Table                | StatsData   | {questionType} has the worst {statType_1} record for the {entity_1}? |
+| What is my scoring record for the 3s?                                        | Record           | StatsData   | {questionType} is {entity_1} {statType_1} for the {entity_2}? |
+| Which was my highest scoring season?                                        | Record           | StatsData   | {questionType} was {entity_1} {statIndicator} {statType_1} {timeFrame}? |
+| Which season did Oli Goddard score the most goals for the 2s?                                        | Record           | StatsData   | {questionType} {timeFrame} did {entity_1} score the {statIndicator} {statType_1} for the {entity_2}? |
