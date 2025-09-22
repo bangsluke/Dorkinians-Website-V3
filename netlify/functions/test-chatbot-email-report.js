@@ -1458,162 +1458,162 @@ async function main() {
 	}
 }
 
-// Batch processing function for comprehensive testing
-async function runTestsBatch(batchSize = 10, startIndex = 0) {
-	console.log(`🚀 Starting batch processing: batchSize=${batchSize}, startIndex=${startIndex}`);
+// Random test selection function for weekly cron job
+async function runRandomTests(maxTests = 20) {
+	console.log(`🎲 Starting random test selection: maxTests=${maxTests}`);
 	
 	try {
 		// Load test data
 		const testData = await fetchTestData();
 		const totalTests = testData.length * STAT_TEST_CONFIGS.length;
-		const endIndex = Math.min(startIndex + batchSize, totalTests);
 		
 		console.log(`📊 Total possible tests: ${totalTests}`);
-		console.log(`📊 Processing tests ${startIndex} to ${endIndex - 1}`);
+		console.log(`🎲 Selecting up to ${maxTests} random tests`);
 		
-		const results = {
-			batchSize,
-			startIndex,
-			processedTests: 0,
-			totalTests,
-			passedTests: 0,
-			failedTests: 0,
-			hasMore: endIndex < totalTests,
-			nextStartIndex: endIndex,
-			testDetails: [],
-		};
-		
-		// Process tests in batches
-		let testIndex = 0;
+		// Create all possible test combinations
+		const allTestCombinations = [];
 		for (let playerIndex = 0; playerIndex < testData.length; playerIndex++) {
 			const player = testData[playerIndex];
 			const playerName = player["PLAYER NAME"];
 			
 			for (let configIndex = 0; configIndex < STAT_TEST_CONFIGS.length; configIndex++) {
-				// Skip tests before startIndex
-				if (testIndex < startIndex) {
-					testIndex++;
-					continue;
-				}
-				
-				// Stop if we've reached the batch limit
-				if (testIndex >= endIndex) {
-					break;
-				}
-				
 				const statConfig = STAT_TEST_CONFIGS[configIndex];
-				const statKey = statConfig.key;
-				const questionTemplate = statConfig.questionTemplate;
+				allTestCombinations.push({
+					playerIndex,
+					playerName,
+					configIndex,
+					statConfig,
+					testId: `${playerName}-${statConfig.key}`
+				});
+			}
+		}
+		
+		// Shuffle and select random tests
+		const shuffledTests = allTestCombinations.sort(() => Math.random() - 0.5);
+		const selectedTests = shuffledTests.slice(0, Math.min(maxTests, totalTests));
+		
+		console.log(`🎲 Selected ${selectedTests.length} random tests`);
+		
+		const results = {
+			selectedTests: selectedTests.length,
+			totalAvailableTests: totalTests,
+			processedTests: 0,
+			passedTests: 0,
+			failedTests: 0,
+			testDetails: [],
+			selectedTestIds: selectedTests.map(t => t.testId)
+		};
+		
+		// Process selected tests
+		for (let i = 0; i < selectedTests.length; i++) {
+			const test = selectedTests[i];
+			const player = testData[test.playerIndex];
+			const playerName = test.playerName;
+			const statConfig = test.statConfig;
+			const statKey = statConfig.key;
+			const questionTemplate = statConfig.questionTemplate;
 				
-				results.processedTests++;
+			results.processedTests++;
+			
+			// Generate question (moved outside try block for error handling)
+			const question = questionTemplate.replace("{playerName}", playerName);
+			
+			// Get expected value from CSV data (moved outside try block for error handling)
+			let expectedValue = player[statConfig.key] || "";
+			
+			try {
+				let chatbotAnswer, cypherQuery;
 				
-				// Generate question (moved outside try block for error handling)
-				const question = questionTemplate.replace("{playerName}", playerName);
-				
-				// Get expected value from CSV data (moved outside try block for error handling)
-				let expectedValue = player[statConfig.key] || "";
-				
-				try {
-					let chatbotAnswer, cypherQuery;
+				if (expectedValue !== undefined && expectedValue !== "") {
 					
-					if (expectedValue !== undefined && expectedValue !== "") {
-						
-						// Make API call with timeout
-						const timeoutPromise = new Promise((_, reject) => 
-							setTimeout(() => reject(new Error('API call timeout after 8 seconds')), 8000)
-						);
-						
-						const fetchPromise = fetch('https://dorkinians-website-v3.netlify.app/api/chatbot', {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-							},
-							body: JSON.stringify({
-								question: question,
-								userContext: playerName,
-							}),
-						});
-						
-						const response = await Promise.race([fetchPromise, timeoutPromise]);
-						
-						if (response.ok) {
-							const data = await response.json();
-							chatbotAnswer = data.answer || "Empty response or error";
-							cypherQuery = data.cypherQuery || "N/A";
-						} else {
-							throw new Error(`API call failed: ${response.status}`);
-						}
-						
-						// Extract numeric value from chatbot response
-						const chatbotValue = parseFloat(chatbotAnswer.replace(/[^\d.-]/g, ''));
-						const expectedValueNum = parseFloat(expectedValue);
-						
-						// Check if values match
-						const valuesMatch = chatbotValue === expectedValueNum;
-						const hasValidResponse = chatbotAnswer !== "Empty response or error" && chatbotAnswer !== null;
-						
-						const testResult = {
-							player: playerName,
-							stat: statKey,
+					// Make API call with timeout
+					const timeoutPromise = new Promise((_, reject) => 
+						setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000)
+					);
+					
+					const fetchPromise = fetch('https://dorkinians-website-v3.netlify.app/api/chatbot', {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
 							question: question,
-							expected: expectedValue,
-							received: chatbotAnswer,
-							expectedExtracted: expectedValueNum,
-							chatbotExtracted: chatbotValue,
-							valuesMatch: valuesMatch,
-							hasValidResponse: hasValidResponse,
-							cypherQuery: cypherQuery,
-							passed: valuesMatch && hasValidResponse,
-						};
-						
-						results.testDetails.push(testResult);
-						
-						if (testResult.passed) {
-							results.passedTests++;
-						} else {
-							results.failedTests++;
-						}
-						
-						console.log(`✅ Test ${testIndex + 1}/${totalTests}: ${playerName} - ${statKey} - ${testResult.passed ? 'PASS' : 'FAIL'}`);
+							userContext: playerName,
+						}),
+					});
+					
+					const response = await Promise.race([fetchPromise, timeoutPromise]);
+					
+					if (response.ok) {
+						const data = await response.json();
+						chatbotAnswer = data.answer || "Empty response or error";
+						cypherQuery = data.cypherQuery || "N/A";
 					} else {
-						console.log(`⏭️ Skipping test ${testIndex + 1}/${totalTests}: ${playerName} - ${statKey} (no CSV data)`);
+						throw new Error(`API call failed: ${response.status}`);
 					}
 					
-				} catch (error) {
-					console.error(`❌ Test ${testIndex + 1}/${totalTests} failed:`, error.message);
+					// Extract numeric value from chatbot response
+					const chatbotValue = parseFloat(chatbotAnswer.replace(/[^\d.-]/g, ''));
+					const expectedValueNum = parseFloat(expectedValue);
+					
+					// Check if values match
+					const valuesMatch = chatbotValue === expectedValueNum;
+					const hasValidResponse = chatbotAnswer !== "Empty response or error" && chatbotAnswer !== null;
 					
 					const testResult = {
 						player: playerName,
 						stat: statKey,
 						question: question,
 						expected: expectedValue,
-						received: "Error: " + error.message,
-						expectedExtracted: null,
-						chatbotExtracted: null,
-						valuesMatch: false,
-						hasValidResponse: false,
-						cypherQuery: "N/A",
-						passed: false,
+						received: chatbotAnswer,
+						expectedExtracted: expectedValueNum,
+						chatbotExtracted: chatbotValue,
+						valuesMatch: valuesMatch,
+						hasValidResponse: hasValidResponse,
+						cypherQuery: cypherQuery,
+						passed: valuesMatch && hasValidResponse,
 					};
 					
 					results.testDetails.push(testResult);
-					results.failedTests++;
+					
+					if (testResult.passed) {
+						results.passedTests++;
+					} else {
+						results.failedTests++;
+					}
+					
+					console.log(`✅ Test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey} - ${testResult.passed ? 'PASS' : 'FAIL'}`);
+				} else {
+					console.log(`⏭️ Skipping test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey} (no CSV data)`);
 				}
 				
-				testIndex++;
-			}
-			
-			// Break if we've processed enough tests
-			if (testIndex >= endIndex) {
-				break;
+			} catch (error) {
+				console.error(`❌ Test ${i + 1}/${selectedTests.length} failed:`, error.message);
+				
+				const testResult = {
+					player: playerName,
+					stat: statKey,
+					question: question,
+					expected: expectedValue,
+					received: "Error: " + error.message,
+					expectedExtracted: null,
+					chatbotExtracted: null,
+					valuesMatch: false,
+					hasValidResponse: false,
+					cypherQuery: "N/A",
+					passed: false,
+				};
+				
+				results.testDetails.push(testResult);
+				results.failedTests++;
 			}
 		}
 		
-		console.log(`📊 Batch completed: ${results.passedTests}/${results.processedTests} passed`);
+		console.log(`🎲 Random test run completed: ${results.passedTests}/${results.processedTests} passed`);
 		return results;
 		
 	} catch (error) {
-		console.error("❌ Batch processing failed:", error);
+		console.error("❌ Random test processing failed:", error);
 		throw error;
 	}
 }
@@ -1621,7 +1621,8 @@ async function runTestsBatch(batchSize = 10, startIndex = 0) {
 // Export the main function for use by other modules
 module.exports = {
 	runTests: main,
-	runTestsBatch
+	runTestsBatch,
+	runRandomTests
 };
 
 // Only run main if this script is executed directly

@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
 	try {
 		// Parse the request body
 		const body = JSON.parse(event.body || "{}");
-		const { emailAddress } = body;
+		const { emailAddress, maxTests = 15 } = body;
 
 		if (!emailAddress) {
 			return {
@@ -44,11 +44,11 @@ exports.handler = async (event, context) => {
 			process.env.NETLIFY = "true";
 			process.env.SMTP_TO_EMAIL = emailAddress;
 			
-			// Import and run the test logic directly
+			// Import and run the random test logic directly
 			const testModule = require("./test-chatbot-email-report.js");
 			
-			// Run the main function from the test module
-			const testResults = await testModule.runTests();
+			// Run the random test function from the test module
+			const testResults = await testModule.runRandomTests(maxTests);
 			
 			return {
 				statusCode: 200,
@@ -60,12 +60,14 @@ exports.handler = async (event, context) => {
 				},
 				body: JSON.stringify({
 					success: true,
-					message: "Chatbot test completed successfully",
-					totalTests: testResults.totalTests,
+					message: "Random chatbot test completed successfully",
+					selectedTests: testResults.selectedTests,
+					totalAvailableTests: testResults.totalAvailableTests,
+					processedTests: testResults.processedTests,
 					passedTests: testResults.passedTests,
 					failedTests: testResults.failedTests,
-					successRate: testResults.successRate,
-					output: `Tests completed: ${testResults.passedTests}/${testResults.totalTests} passed`,
+					successRate: testResults.processedTests > 0 ? ((testResults.passedTests / testResults.processedTests) * 100).toFixed(1) + '%' : '0%',
+					output: `Random tests completed: ${testResults.passedTests}/${testResults.processedTests} passed (${testResults.selectedTests} selected from ${testResults.totalAvailableTests} available)`,
 				}),
 			};
 		} catch (error) {

@@ -837,18 +837,25 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 
 ### Cron Setup for Weekly Chatbot Testing
 
-The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational. Two approaches are available: standard testing and comprehensive asynchronous testing.
+The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational. The system uses a **random test selection approach** that ensures comprehensive coverage over time while staying within execution limits.
 
-#### Approach 1: Standard Testing (Quick)
+#### Random Test Selection Approach
+
+**How It Works:**
+- **Total Available Tests**: 204 tests (3 players × 68 test configurations)
+- **Random Selection**: Each week, randomly selects 15 tests from the full set
+- **No Duplicates**: Ensures the same test isn't run twice in a single execution
+- **Comprehensive Coverage**: Over time, all 204 tests will be tested
+- **Timeout Safe**: Designed to complete within 30-second Netlify function limit
 
 **Using cron-job.org (Free):**
 
 1. Sign up at [cron-job.org](https://cron-job.org)
 2. Create new cronjob:
-   - **Title**: `Weekly Chatbot Test (Standard)`
+   - **Title**: `Weekly Random Chatbot Test`
    - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
    - **Method**: POST
-   - **Request Body**: `{"emailAddress": "your-email@example.com"}`
+   - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 15}`
    - **Headers**: `Content-Type: application/json`
    - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
    - **Timeout**: 30 seconds
@@ -858,83 +865,40 @@ The system supports automated weekly chatbot testing using external cron service
 ```bash
 curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
   -H "Content-Type: application/json" \
-  -d '{"emailAddress": "your-email@example.com"}'
+  -d '{"emailAddress": "your-email@example.com", "maxTests": 15}'
 ```
 
-#### Approach 2: Comprehensive Asynchronous Testing (Recommended)
+#### Expected Response
 
-**Batch Processing Setup:**
-
-1. Create multiple cron jobs for comprehensive testing:
-   - **Job 1**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 0}`
-   - **Job 2**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 20}`
-   - **Job 3**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 40}`
-   - Continue for desired coverage
-
-2. **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test-async`
-3. **Method**: POST
-4. **Schedule**: Stagger jobs 2 minutes apart
-5. **Timeout**: 30 seconds per batch
-
-**Local Comprehensive Testing:**
-```bash
-# Run comprehensive test suite locally
-node scripts/run-comprehensive-tests.js your-email@example.com 20 10
-
-# Parameters:
-# - email: Email address for reports
-# - batchSize: Tests per batch (default: 20)
-# - totalBatches: Number of batches to run (default: 10)
-```
-
-#### Expected Responses
-
-**Standard Testing:**
 ```json
 {
   "success": true,
-  "message": "Chatbot test completed successfully",
-  "totalTests": 6,
-  "passedTests": 4,
-  "failedTests": 2,
-  "successRate": 66.7,
-  "output": "Tests completed: 4/6 passed"
-}
-```
-
-**Asynchronous Testing:**
-```json
-{
-  "success": true,
-  "message": "Batch 1 completed",
-  "batchSize": 20,
-  "startIndex": 0,
-  "processedTests": 20,
-  "totalTests": 200,
-  "passedTests": 18,
-  "failedTests": 2,
-  "hasMore": true,
-  "nextStartIndex": 20,
-  "output": "Batch completed: 18/20 passed"
+  "message": "Random chatbot test completed successfully",
+  "selectedTests": 15,
+  "totalAvailableTests": 204,
+  "processedTests": 15,
+  "passedTests": 12,
+  "failedTests": 3,
+  "successRate": "80.0%",
+  "output": "Random tests completed: 12/15 passed (15 selected from 204 available)"
 }
 ```
 
 #### Test Coverage
 
-**Standard Testing:**
-- **Limited Scope**: 2 test configurations per player
-- **Quick Execution**: ~30 seconds
-- **Basic Coverage**: Core statistics only
+**Random Selection Benefits:**
+- **Efficient**: Tests only 15 random tests per week (7.4% of total)
+- **Comprehensive Over Time**: All 204 tests will be tested within ~14 weeks
+- **No Duplicates**: Each weekly run tests different combinations
+- **Timeout Safe**: Always completes within 30 seconds
+- **Diverse Coverage**: Tests different players and statistics each week
 
-**Comprehensive Testing:**
-- **Full Scope**: All test configurations per player
-- **Batch Processing**: Processes tests in chunks to avoid timeouts
-- **Complete Coverage**: 
-  - Basic Statistics (goals, assists, appearances, minutes, etc.)
-  - Advanced Statistics (goals per appearance, minutes per goal, etc.)
-  - Home/Away Statistics (home wins, away wins, percentages)
-  - Team-Specific Statistics (1s, 2s, 3s through 8s appearances and goals)
-  - Seasonal Statistics (2016/17 through 2021/22 seasons)
+**Test Categories Covered:**
+- **Basic Statistics**: Goals, assists, appearances, minutes, etc.
+- **Advanced Statistics**: Goals per appearance, minutes per goal, etc.
+- **Home/Away Statistics**: Home wins, away wins, percentages
+- **Team-Specific Statistics**: 1s, 2s, 3s through 8s appearances and goals
+- **Seasonal Statistics**: 2016/17 through 2021/22 seasons
   - Positional Statistics (goalkeeper, defender, midfielder, forward)
 
 #### Email Reports
