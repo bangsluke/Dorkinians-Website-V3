@@ -81,20 +81,23 @@ process.on("SIGTERM", () => {
 	process.exit(0);
 });
 
-// Skip ts-node registration in Netlify function environment
+// Register ts-node to handle TypeScript imports (skip in Netlify function environment)
 if (process.env.NETLIFY !== "true") {
-	// Register ts-node to handle TypeScript imports
-	require("ts-node").register({
-		transpileOnly: true,
-		compilerOptions: {
-			module: "commonjs",
-			target: "es2020",
-			esModuleInterop: true,
-			allowSyntheticDefaultImports: true,
-			skipLibCheck: true,
-			moduleResolution: "node",
-		},
-	});
+	try {
+		require("ts-node").register({
+			transpileOnly: true,
+			compilerOptions: {
+				module: "commonjs",
+				target: "es2020",
+				esModuleInterop: true,
+				allowSyntheticDefaultImports: true,
+				skipLibCheck: true,
+				moduleResolution: "node",
+			},
+		});
+	} catch (error) {
+		console.log("⚠️ ts-node not available, using API-only mode");
+	}
 }
 
 // Define comprehensive STAT_TEST_CONFIGS for testing
@@ -597,20 +600,13 @@ async function loadChatbotService() {
 	
 	if (!ChatbotService) {
 		try {
-			// Use require instead of dynamic import for ts-node compatibility
-			// Try different paths for Netlify function environment
-			let chatbotModule;
-			try {
-				chatbotModule = require("../lib/services/chatbotService.ts");
-			} catch (error) {
-				// Try alternative path for Netlify function
-				chatbotModule = require("./lib/services/chatbotService.ts");
-			}
+			// Use dynamic import to avoid build-time module resolution issues
+			const chatbotModule = await import("../lib/services/chatbotService.ts");
 			ChatbotService = chatbotModule.ChatbotService;
 			console.log("✅ ChatbotService loaded successfully");
 		} catch (error) {
 			console.log("⚠️ Could not load ChatbotService:", error.message);
-			console.log("⚠️ Falling back to CSV-based testing");
+			console.log("⚠️ Falling back to API-based testing");
 		}
 	}
 	return ChatbotService;
@@ -1308,14 +1304,9 @@ function writeTestResultsToLog(testResults) {
 			})),
 		};
 
-		// Only write log file if not in Netlify function environment
-		if (process.env.NETLIFY !== "true") {
-			const logFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-email-report.log");
-			fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
-			console.log(`📝 Test results written to: ${logFile}`);
-		} else {
-			console.log(`📝 Test results (Netlify function):`, JSON.stringify(logContent, null, 2));
-		}
+		const logFile = path.join(__dirname, "..", "logs", "test-chatbot-email-report.log");
+		fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
+		console.log(`📝 Test results written to: ${logFile}`);
 	} catch (error) {
 		console.error("❌ Failed to write test results to log:", error.message);
 	}
@@ -1323,10 +1314,14 @@ function writeTestResultsToLog(testResults) {
 
 async function main() {
 	console.log("🚀 Starting comprehensive chatbot test with email report...");
-	console.log(`📝 Console output will be logged to: ${logFile}`);
+	if (logStream) {
+		console.log(`📝 Console output will be logged to: ${path.join(logDir, "test-execution.log")}`);
+	} else {
+		console.log("📝 Running in Netlify function environment - console output only");
+	}
 
-	// Check if server is running first (skip if running via API)
-	if (!process.env.SKIP_SERVER_CHECK) {
+	// Check if server is running first (skip if running via API or Netlify function)
+	if (!process.env.SKIP_SERVER_CHECK && process.env.NETLIFY !== "true") {
 		console.log("🔍 Checking if development server is running...");
 		const serverRunning = await checkServerHealth();
 
@@ -1339,7 +1334,7 @@ async function main() {
 
 		console.log("✅ Development server is running");
 	} else {
-		console.log("⏭️ Skipping server health check (running via API)");
+		console.log("⏭️ Skipping server health check (running via API or Netlify function)");
 	}
 
 	let finalResults;
