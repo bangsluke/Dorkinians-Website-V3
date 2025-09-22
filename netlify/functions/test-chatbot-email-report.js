@@ -1507,15 +1507,15 @@ async function runTestsBatch(batchSize = 10, startIndex = 0) {
 				
 				results.processedTests++;
 				
+				// Generate question (moved outside try block for error handling)
+				const question = questionTemplate.replace("{playerName}", playerName);
+				
 				try {
-					// Generate question
-					const question = questionTemplate.replace("{playerName}", playerName);
-					
 					// Get expected value from CSV data
-					let expectedValue, chatbotAnswer, cypherQuery;
+					let expectedValue = player[statConfig.key] || "";
+					let chatbotAnswer, cypherQuery;
 					
-					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
-						expectedValue = player[statConfig.key];
+					if (expectedValue !== undefined && expectedValue !== "") {
 						
 						// Make API call with timeout
 						const timeoutPromise = new Promise((_, reject) => 
