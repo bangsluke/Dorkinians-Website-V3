@@ -166,38 +166,38 @@ export class EnhancedQuestionAnalyzer {
 
 		// Check if any single entity type exceeds 3
 		if (playerCount > 3) {
-			return `I can handle questions about up to 3 players at once. You mentioned ${playerCount} players. Please simplify your question to focus on fewer players.`;
+			return `I can handle questions about up to 3 players at once. You mentioned ${playerCount} players. Please simplify your question to focus on fewer players. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple players.`;
 		}
 		
 		if (teamCount > 3) {
-			return `I can handle questions about up to 3 teams at once. You mentioned ${teamCount} teams. Please simplify your question to focus on fewer teams.`;
+			return `I can handle questions about up to 3 teams at once. You mentioned ${teamCount} teams. Please simplify your question to focus on fewer teams. For example: 'What are the 3rd XI stats?' instead of asking about multiple teams.`;
 		}
 		
 		if (oppositionCount > 3) {
-			return `I can handle questions about up to 3 opposition teams at once. You mentioned ${oppositionCount} opposition teams. Please simplify your question to focus on fewer opposition teams.`;
+			return `I can handle questions about up to 3 opposition teams at once. You mentioned ${oppositionCount} opposition teams. Please simplify your question to focus on fewer opposition teams. For example: 'How many goals against Arsenal?' instead of asking about multiple oppositions.`;
 		}
 		
 		if (leagueCount > 3) {
-			return `I can handle questions about up to 3 leagues at once. You mentioned ${leagueCount} leagues. Please simplify your question to focus on fewer leagues.`;
+			return `I can handle questions about up to 3 leagues at once. You mentioned ${leagueCount} leagues. Please simplify your question to focus on fewer leagues. For example: 'Premier League stats' instead of asking about multiple leagues.`;
 		}
 
 		if (extractionResult.statTypes.length > 3) {
-			return "I can handle questions about up to 3 different statistics at once. Please simplify your question to focus on fewer stat types.";
+			return "I can handle questions about up to 3 different statistics at once. Please simplify your question to focus on fewer stat types. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple stats.";
 		}
 
 		if (namedEntities.length === 0) {
-			return "I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about.";
+			return "I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
 		}
 
 		if (extractionResult.statTypes.length === 0) {
-			return "I need to know what statistic you're asking about. Please specify what information you want (goals, appearances, etc.).";
+			return "I need to know what statistic you're asking about. Please specify what information you want. Examples: 'goals', 'appearances', 'assists', 'yellow cards', 'clean sheets', 'minutes played', etc.";
 		}
 
 		if (complexity === 'complex') {
-			return "This question is quite complex. I'll try to answer it, but you might get better results by breaking it down into simpler questions.";
+			return "This question is quite complex with multiple entities or conditions. I'll try to answer it, but you might get better results by breaking it down into simpler questions. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple players, teams, or stats at once.";
 		}
 
-		return "Please clarify your question so I can provide a better answer.";
+		return "I'm not sure what you're asking about. Please be more specific about which player, team, or statistic you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
 	}
 
 	// Determine the question type based on the extracted entities and content

@@ -87,7 +87,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
 	'Goals Conceded': ['goals conceded', 'conceded goals', 'goals against', 'conceded'],
 	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
-	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'non-penalty goals', 'non penalty goals'],
+	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
 	'Apps': ['apps', 'appearances', 'played in', 'played with'],
 	'Minutes': ['minutes of football', 'minutes played', 'playing time', 'time played', 'minutes', 'minute', 'mins'],
@@ -306,6 +306,10 @@ export class EntityExtractor {
 	private async extractStatTypes(): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 		
+		// Debug logging
+		console.log('🔍 Stat Type Debug - Question:', this.question);
+		console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
+		
 		// Check for goal involvements first
 		if (this.lowerQuestion.includes('goal involvements') || this.lowerQuestion.includes('goal involvement')) {
 			statTypes.push({
@@ -323,6 +327,9 @@ export class EntityExtractor {
 			sortedPseudonyms.forEach(pseudonym => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
 				const matches = this.findMatches(regex);
+				if (matches.length > 0) {
+					console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
+				}
 				matches.forEach(match => {
 					statTypes.push({
 						value: key,
@@ -336,6 +343,7 @@ export class EntityExtractor {
 		// Add fuzzy matching for stat types
 		await this.addFuzzyStatTypeMatches(statTypes);
 
+		console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
 		return statTypes;
 	}
 
@@ -597,6 +605,11 @@ export class EntityExtractor {
 		// Get all nouns that might be player names
 		const nouns = this.nlpDoc.match('#Noun+').out('array');
 		
+		// Debug logging
+		console.log('🔍 NLP Debug - Question:', this.question);
+		console.log('🔍 NLP Debug - Proper nouns:', properNouns);
+		console.log('🔍 NLP Debug - Nouns:', nouns);
+		
 		// Combine and filter potential player names
 		const potentialNames = [...properNouns, ...nouns];
 		
@@ -611,7 +624,7 @@ export class EntityExtractor {
 			'week', 'month', 'year', 'game', 'games', 'match', 'matches', 'league', 'premier',
 			'championship', 'conference', 'national', 'division', 'tier', 'level',
 			'home', 'away', 'playing', 'whilst', 'between', 'and', 'got', 'has', 'have',
-			'open play goals', 'open play goal', 'play goals', 'play goal'
+			'open play goals', 'open play goal', 'play goals', 'play goal', 'football', 'soccer', 'sport', 'sports'
 		];
 		
 		// Find positions of potential names in the original text
@@ -649,11 +662,45 @@ export class EntityExtractor {
 			}
 		}
 		
+		// Combine adjacent proper nouns to form full names (e.g., "Luke" + "Bangs" = "Luke Bangs")
+		const combinedPlayers: Array<{text: string, position: number}> = [];
+		const sortedPlayers = players.sort((a, b) => a.position - b.position);
+		
+		for (let i = 0; i < sortedPlayers.length; i++) {
+			const currentPlayer = sortedPlayers[i];
+			let combinedName = currentPlayer.text;
+			let combinedPosition = currentPlayer.position;
+			
+			// Look for adjacent players (within 1 word distance)
+			for (let j = i + 1; j < sortedPlayers.length; j++) {
+				const nextPlayer = sortedPlayers[j];
+				const distance = nextPlayer.position - (currentPlayer.position + currentPlayer.text.length);
+				
+				// If the next player is within 1 word distance, combine them
+				if (distance <= 1) {
+					combinedName += ' ' + nextPlayer.text;
+					i = j; // Skip the next player since we've combined it
+				} else {
+					break; // No more adjacent players
+				}
+			}
+			
+			combinedPlayers.push({
+				text: combinedName,
+				position: combinedPosition
+			});
+		}
+		
+		// Use combined players instead of individual ones
+		players.length = 0;
+		players.push(...combinedPlayers);
+		
 		// Remove duplicates and sort by position
 		const uniquePlayers = players.filter((player, index, self) => 
 			index === self.findIndex(p => p.text === player.text)
 		);
 		
+		console.log('🔍 Player Debug - Final players:', uniquePlayers);
 		return uniquePlayers.sort((a, b) => a.position - b.position);
 	}
 

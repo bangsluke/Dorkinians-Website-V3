@@ -383,7 +383,7 @@ export class ChatbotService {
 			}
 		} catch (error) {
 			this.logToBoth(`❌ Error in queryRelevantData:`, error, "error");
-			return { type: "error", data: [], message: "Error querying data" };
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 
@@ -490,12 +490,30 @@ export class ChatbotService {
 				return await this.queryPlayerOpponentsData(actualPlayerName);
 			}
 
+			// Check if we need Fixture relationship for any filters
+			// Optimization: Only include Fixture relationship when filtering by team, location, opposition, or time range
+			// This improves query performance for simple appearance/stat queries that don't need Fixture data
+			const needsFixture = teamEntities.length > 0 || locations.length > 0 || timeRange || oppositionEntities.length > 0;
+			
+			this.logToBoth(`🔍 Query optimization: needsFixture = ${needsFixture}`);
+			this.logToBoth(`🔍 - Team filters: ${teamEntities.length > 0 ? teamEntities : 'none'}`);
+			this.logToBoth(`🔍 - Location filters: ${locations.length > 0 ? locations : 'none'}`);
+			this.logToBoth(`🔍 - Opposition filters: ${oppositionEntities.length > 0 ? oppositionEntities : 'none'}`);
+			this.logToBoth(`🔍 - Time range: ${timeRange || 'none'}`);
+			
 			// Build query with exact player name matching (dropdown provides exact casing)
 			let query = `
 				MATCH (p:Player {playerName: $playerName})
 				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 			`;
+			
+			// Only add Fixture relationship if we need it for filtering
+			if (needsFixture) {
+				query += `MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)\n`;
+				this.logToBoth("🔍 Added Fixture relationship for filtering");
+			} else {
+				this.logToBoth("🔍 Skipped Fixture relationship - no filters requiring it");
+			}
 
 			// Build WHERE conditions for enhanced filters
 			const whereConditions = [];
@@ -524,6 +542,14 @@ export class ChatbotService {
 				this.logToBoth("🔍 Location filter:");
 				this.logToBoth("🔍 - Locations:", locations);
 				this.logToBoth("🔍 - Location filters:", locationFilters);
+			}
+			
+			// Add opposition filter if specified
+			if (oppositionEntities.length > 0) {
+				const oppositionName = oppositionEntities[0];
+				whereConditions.push(`f.opposition = '${oppositionName}'`);
+				this.logToBoth("🔍 Opposition filter:");
+				this.logToBoth("🔍 - Opposition:", oppositionName);
 			}
 			
 			// Add time range filter if specified
@@ -775,7 +801,7 @@ export class ChatbotService {
 				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth(`❌ Error in player query:`, error, "error");
-				return { type: "error", data: [], message: "Error querying player data" };
+				return { type: "error", data: [], error: "Error querying player data" };
 			}
 		}
 
@@ -863,7 +889,7 @@ export class ChatbotService {
 			return { type: "double_game", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in double game query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying double game data" };
+			return { type: "error", data: [], error: "Error querying double game data" };
 		}
 	}
 
@@ -1457,7 +1483,7 @@ export class ChatbotService {
 			return { type: "totw_awards", data: result, playerName, period };
 		} catch (error) {
 			this.logToBoth(`❌ Error in TOTW query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying TOTW data" };
+			return { type: "error", data: [], error: "Error querying TOTW data" };
 		}
 	}
 
@@ -1477,7 +1503,7 @@ export class ChatbotService {
 			return { type: "potm_awards", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in POTM query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying POTM data" };
+			return { type: "error", data: [], error: "Error querying POTM data" };
 		}
 	}
 
@@ -1497,7 +1523,7 @@ export class ChatbotService {
 			return { type: "captain_awards", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in Captain query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying Captain data" };
+			return { type: "error", data: [], error: "Error querying Captain data" };
 		}
 	}
 
@@ -1516,7 +1542,7 @@ export class ChatbotService {
 			return { type: "co_players", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in co-players query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying co-players data" };
+			return { type: "error", data: [], error: "Error querying co-players data" };
 		}
 	}
 
@@ -1535,7 +1561,7 @@ export class ChatbotService {
 			return { type: "opponents", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in opponents query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying opponents data" };
+			return { type: "error", data: [], error: "Error querying opponents data" };
 		}
 	}
 
@@ -1595,7 +1621,7 @@ export class ChatbotService {
 			return { type: "streak", data: result, playerName, streakType };
 		} catch (error) {
 			this.logToBoth(`❌ Error in streak query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying streak data" };
+			return { type: "error", data: [], error: "Error querying streak data" };
 		}
 	}
 
@@ -1663,7 +1689,7 @@ export class ChatbotService {
 			return { type: "comparison", data: result, metric };
 		} catch (error) {
 			this.logToBoth(`❌ Error in comparison query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying comparison data" };
+			return { type: "error", data: [], error: "Error querying comparison data" };
 		}
 	}
 
@@ -1744,7 +1770,7 @@ export class ChatbotService {
 			return { type: "temporal", data: result, playerName, metric, timeRange };
 		} catch (error) {
 			this.logToBoth(`❌ Error in temporal query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying temporal data" };
+			return { type: "error", data: [], error: "Error querying temporal data" };
 		}
 	}
 
@@ -1799,7 +1825,7 @@ export class ChatbotService {
 			return { type: "team_specific", data: result, teamName: normalizedTeam, metric };
 		} catch (error) {
 			this.logToBoth(`❌ Error in team-specific query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying team-specific data" };
+			return { type: "error", data: [], error: "Error querying team-specific data" };
 		}
 	}
 
@@ -1847,7 +1873,7 @@ export class ChatbotService {
 			return { type: "player_team", data: result, playerName, teamName: normalizedTeam, metric };
 		} catch (error) {
 			this.logToBoth(`❌ Error in player-team query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying player-team data" };
+			return { type: "error", data: [], error: "Error querying player-team data" };
 		}
 	}
 
@@ -1907,7 +1933,7 @@ export class ChatbotService {
 			return { type: "opposition", data: result, playerName, metric, oppositionName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in opposition query:`, error, "error");
-			return { type: "error", data: [], message: "Error querying opposition data" };
+			return { type: "error", data: [], error: "Error querying opposition data" };
 		}
 	}
 
@@ -2021,7 +2047,7 @@ export class ChatbotService {
 			};
 		} catch (error) {
 			this.logToBoth(`❌ Error in queryRankingData:`, error, "error");
-			return { type: "error", data: [], message: "Error querying ranking data" };
+			return { type: "error", data: [], error: "Error querying ranking data" };
 		}
 	}
 
