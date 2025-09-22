@@ -1459,7 +1459,7 @@ async function main() {
 }
 
 // Random test selection function for weekly cron job
-async function runRandomTests(maxTests = 20) {
+async function runRandomTests(maxTests = 5) {
 	console.log(`🎲 Starting random test selection: maxTests=${maxTests}`);
 	
 	try {
@@ -1528,7 +1528,7 @@ async function runRandomTests(maxTests = 20) {
 					
 					// Make API call with timeout
 					const timeoutPromise = new Promise((_, reject) => 
-						setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000)
+						setTimeout(() => reject(new Error('API call timeout after 3 seconds')), 3000)
 					);
 					
 					const fetchPromise = fetch('https://dorkinians-website-v3.netlify.app/api/chatbot', {
