@@ -1621,7 +1621,6 @@ async function runRandomTests(maxTests = 20) {
 // Export the main function for use by other modules
 module.exports = {
 	runTests: main,
-	runTestsBatch,
 	runRandomTests
 };
 
