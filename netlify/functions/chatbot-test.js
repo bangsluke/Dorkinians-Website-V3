@@ -37,8 +37,8 @@ exports.handler = async (event, context) => {
 		// Set the email address in environment for the script
 		process.env.SMTP_TO_EMAIL = emailAddress;
 
-		// Run the chatbot test script
-		const scriptPath = path.join(process.cwd(), "scripts", "test-chatbot-email-report.js");
+		// Run the chatbot test script - now in the same directory
+		const scriptPath = path.join(__dirname, "test-chatbot-email-report.js");
 
 		try {
 			const output = execSync(`node "${scriptPath}"`, {
