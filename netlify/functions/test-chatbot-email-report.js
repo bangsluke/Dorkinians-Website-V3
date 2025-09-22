@@ -1521,17 +1521,29 @@ async function runRandomTests(maxTests = 5) {
 			// Get expected value from CSV data (moved outside try block for error handling)
 			let expectedValue = player[statConfig.key] || "";
 			
+			console.log(`🔍 Test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey}`);
+			console.log(`🔍 Question: ${question}`);
+			console.log(`🔍 Expected value: ${expectedValue}`);
+			console.log(`🔍 Player data keys: ${Object.keys(player).slice(0, 10).join(', ')}...`);
+			
 			try {
 				let chatbotAnswer, cypherQuery;
 				
 				if (expectedValue !== undefined && expectedValue !== "") {
+					console.log(`🔍 Making API call for: ${playerName} - ${statKey}`);
+					console.log(`🔍 Question: ${question}`);
+					console.log(`🔍 Expected value: ${expectedValue}`);
 					
 					// Make API call with timeout
 					const timeoutPromise = new Promise((_, reject) => 
-						setTimeout(() => reject(new Error('API call timeout after 3 seconds')), 3000)
+						setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
 					);
 					
-					const fetchPromise = fetch('https://dorkinians-website-v3.netlify.app/api/chatbot', {
+					// Use node-fetch if available, otherwise use global fetch
+					const fetchFunction = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+					console.log(`🔍 Using fetch function: ${typeof fetchFunction}`);
+					
+					const fetchPromise = fetchFunction('https://dorkinians-website-v3.netlify.app/api/chatbot', {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
@@ -1542,7 +1554,9 @@ async function runRandomTests(maxTests = 5) {
 						}),
 					});
 					
+					console.log(`🔍 Starting Promise.race for: ${playerName} - ${statKey}`);
 					const response = await Promise.race([fetchPromise, timeoutPromise]);
+					console.log(`🔍 Got response for: ${playerName} - ${statKey}, status: ${response.status}`);
 					
 					if (response.ok) {
 						const data = await response.json();
