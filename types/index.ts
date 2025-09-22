@@ -145,9 +145,11 @@ export interface OppositionDetails {
 	contactPhone: string;
 }
 
+import { VisualizationType } from "../config/config";
+
 // Chart component types
 export interface ChartComponent {
-	type: "NumberCard" | "Table" | "Calendar";
+	type: VisualizationType;
 	data: any;
 	config?: ChartConfig;
 }

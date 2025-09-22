@@ -274,6 +274,10 @@ class Neo4jService {
 	isConnected() {
 		return this.isConnected;
 	}
+
+	getGraphLabel() {
+		return this.GRAPH_LABEL;
+	}
 }
 
 // Create and export singleton instance

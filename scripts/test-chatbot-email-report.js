@@ -603,7 +603,12 @@ const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL
 // Check if the development server is running
 async function checkServerHealth() {
 	try {
-		const response = await fetch("http://localhost:3000/api/chatbot", {
+		// Use production URL when running in Netlify environment
+		const baseUrl = process.env.NODE_ENV === 'production' 
+			? 'https://dorkinians-website-v3.netlify.app'
+			: 'http://localhost:3000';
+			
+		const response = await fetch(`${baseUrl}/api/chatbot`, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -832,7 +837,11 @@ async function runTestsProgrammatically() {
 						} else {
 							// Fallback to API call
 							console.log(`🌐 Using API fallback for: ${question}`);
-							const response = await fetch("http://localhost:3000/api/chatbot", {
+							const baseUrl = process.env.NODE_ENV === 'production' 
+								? 'https://dorkinians-website-v3.netlify.app'
+								: 'http://localhost:3000';
+								
+							const response = await fetch(`${baseUrl}/api/chatbot`, {
 								method: "POST",
 								headers: {
 									"Content-Type": "application/json",
