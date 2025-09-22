@@ -688,7 +688,7 @@ async function fetchTestData() {
 			console.log("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
 			console.log("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
 
-			const lines = csvText.split("\n").filter((line) => line.trim());
+			const lines = csvText.split("\n").filter((line) => line.trim()).map(line => line.replace(/\r$/, ''));
 			console.log("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
 			console.log("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
 
@@ -864,8 +864,11 @@ async function runTestsProgrammatically() {
 								userContext: playerName,
 							}));
 							
-							try {
-								const response = await fetch(`${baseUrl}/api/chatbot`, {
+							// Check if fetch is available
+							if (typeof fetch === 'undefined') {
+								console.log(`❌ Fetch is not available, using node-fetch`);
+								const nodeFetch = require('node-fetch');
+								const response = await nodeFetch(`${baseUrl}/api/chatbot`, {
 									method: "POST",
 									headers: {
 										"Content-Type": "application/json",
@@ -877,8 +880,7 @@ async function runTestsProgrammatically() {
 								});
 
 								console.log(`🔍 Response status: ${response.status}`);
-								console.log(`🔍 Response headers:`, Object.fromEntries(response.headers.entries()));
-
+								
 								if (response.ok) {
 									const data = await response.json();
 									console.log(`🔍 Response data:`, data);
@@ -889,9 +891,37 @@ async function runTestsProgrammatically() {
 									console.log(`🔍 Error response:`, errorText);
 									throw new Error(`API call failed: ${response.status} - ${errorText}`);
 								}
-							} catch (fetchError) {
-								console.log(`🔍 Fetch error:`, fetchError.message);
-								throw fetchError;
+							} else {
+								console.log(`✅ Using native fetch`);
+								try {
+									const response = await fetch(`${baseUrl}/api/chatbot`, {
+										method: "POST",
+										headers: {
+											"Content-Type": "application/json",
+										},
+										body: JSON.stringify({
+											question: question,
+											userContext: playerName,
+										}),
+									});
+
+									console.log(`🔍 Response status: ${response.status}`);
+									console.log(`🔍 Response headers:`, Object.fromEntries(response.headers.entries()));
+
+									if (response.ok) {
+										const data = await response.json();
+										console.log(`🔍 Response data:`, data);
+										chatbotAnswer = data.answer || "Empty response or error";
+										cypherQuery = data.cypherQuery || "N/A";
+									} else {
+										const errorText = await response.text();
+										console.log(`🔍 Error response:`, errorText);
+										throw new Error(`API call failed: ${response.status} - ${errorText}`);
+									}
+								} catch (fetchError) {
+									console.log(`🔍 Fetch error:`, fetchError.message);
+									throw fetchError;
+								}
 							}
 						} else {
 							// Try to use the chatbot service directly first
@@ -936,6 +966,7 @@ async function runTestsProgrammatically() {
 						}
 					} catch (error) {
 						console.warn(`Failed to get chatbot response for ${playerName} - ${statKey}:`, error.message);
+						console.warn(`Error details:`, error);
 						chatbotAnswer = "Empty response or error";
 						cypherQuery = "N/A";
 					}
