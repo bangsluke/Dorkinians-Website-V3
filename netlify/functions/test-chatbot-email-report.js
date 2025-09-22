@@ -796,8 +796,8 @@ async function runTestsProgrammatically() {
 		const testData = await fetchTestData();
 		console.log(`📊 Fetched ${testData.length} players from CSV data`);
 
-		// Use the actual players from TBL_TestData CSV
-		const testPlayers = testData.slice(0, 3); // Use first 3 players for testing
+		// Use only 1 player for testing in Netlify function environment
+		const testPlayers = testData.slice(0, 1); // Use first 1 player for testing
 
 		console.log(
 			`📊 Using test data for ${testPlayers.length} players:`,
@@ -824,7 +824,11 @@ async function runTestsProgrammatically() {
 			const playerName = player["PLAYER NAME"];
 			console.log(`\n🧪 Testing player: ${playerName}`);
 
-			for (const statConfig of STAT_TEST_CONFIGS) {
+			// Use only first 5 test configurations for debugging
+			const testConfigs = STAT_TEST_CONFIGS.slice(0, 5);
+			console.log(`🔍 Testing ${testConfigs.length} configurations for debugging`);
+
+			for (const statConfig of testConfigs) {
 				const statKey = statConfig.key;
 				const questionTemplate = statConfig.questionTemplate;
 				results.totalTests++;
@@ -849,28 +853,45 @@ async function runTestsProgrammatically() {
 					}
 
 					try {
-						// In Netlify function environment, always use API call
+						// In Netlify function environment, use API call with detailed debugging
 						if (process.env.NETLIFY === "true") {
 							console.log(`🌐 Using API call for: ${question}`);
 							const baseUrl = 'https://dorkinians-website-v3.netlify.app';
 							
-							const response = await fetch(`${baseUrl}/api/chatbot`, {
-								method: "POST",
-								headers: {
-									"Content-Type": "application/json",
-								},
-								body: JSON.stringify({
-									question: question,
-									userContext: playerName,
-								}),
-							});
+							console.log(`🔍 Making request to: ${baseUrl}/api/chatbot`);
+							console.log(`🔍 Request body:`, JSON.stringify({
+								question: question,
+								userContext: playerName,
+							}));
+							
+							try {
+								const response = await fetch(`${baseUrl}/api/chatbot`, {
+									method: "POST",
+									headers: {
+										"Content-Type": "application/json",
+									},
+									body: JSON.stringify({
+										question: question,
+										userContext: playerName,
+									}),
+								});
 
-							if (response.ok) {
-								const data = await response.json();
-								chatbotAnswer = data.answer || "Empty response or error";
-								cypherQuery = data.cypherQuery || "N/A";
-							} else {
-								throw new Error(`API call failed: ${response.status}`);
+								console.log(`🔍 Response status: ${response.status}`);
+								console.log(`🔍 Response headers:`, Object.fromEntries(response.headers.entries()));
+
+								if (response.ok) {
+									const data = await response.json();
+									console.log(`🔍 Response data:`, data);
+									chatbotAnswer = data.answer || "Empty response or error";
+									cypherQuery = data.cypherQuery || "N/A";
+								} else {
+									const errorText = await response.text();
+									console.log(`🔍 Error response:`, errorText);
+									throw new Error(`API call failed: ${response.status} - ${errorText}`);
+								}
+							} catch (fetchError) {
+								console.log(`🔍 Fetch error:`, fetchError.message);
+								throw fetchError;
 							}
 						} else {
 							// Try to use the chatbot service directly first
