@@ -1464,7 +1464,7 @@ async function runTestsBatch(batchSize = 10, startIndex = 0) {
 	
 	try {
 		// Load test data
-		const testData = await loadTestData();
+		const testData = await fetchTestData();
 		const totalTests = testData.length * STAT_TEST_CONFIGS.length;
 		const endIndex = Math.min(startIndex + batchSize, totalTests);
 		
@@ -1544,8 +1544,8 @@ async function runTestsBatch(batchSize = 10, startIndex = 0) {
 						}
 						
 						// Extract numeric value from chatbot response
-						const chatbotValue = extractNumericValue(chatbotAnswer);
-						const expectedValueNum = extractNumericValue(expectedValue);
+						const chatbotValue = parseFloat(chatbotAnswer.replace(/[^\d.-]/g, ''));
+						const expectedValueNum = parseFloat(expectedValue);
 						
 						// Check if values match
 						const valuesMatch = chatbotValue === expectedValueNum;
