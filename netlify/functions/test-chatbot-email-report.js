@@ -24,10 +24,10 @@ let logStream = null;
 
 // Only create log file if not in Netlify function environment
 if (process.env.NETLIFY !== "true") {
-	if (!fs.existsSync(logDir)) {
-		fs.mkdirSync(logDir, { recursive: true });
-	}
-	const logFile = path.join(logDir, "test-execution.log");
+if (!fs.existsSync(logDir)) {
+	fs.mkdirSync(logDir, { recursive: true });
+}
+const logFile = path.join(logDir, "test-execution.log");
 	logStream = fs.createWriteStream(logFile, { flags: "a" });
 }
 
@@ -40,7 +40,7 @@ console.log = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleLog(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
 	}
 };
 
@@ -48,7 +48,7 @@ console.error = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleError(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
 	}
 };
 
@@ -56,27 +56,27 @@ console.warn = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleWarn(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
 	}
 };
 
 // Clean up function
 process.on("exit", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 });
 
 process.on("SIGINT", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 	process.exit(0);
 });
 
 process.on("SIGTERM", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 	process.exit(0);
 });
@@ -84,17 +84,17 @@ process.on("SIGTERM", () => {
 // Register ts-node to handle TypeScript imports (skip in Netlify function environment)
 if (process.env.NETLIFY !== "true") {
 	try {
-		require("ts-node").register({
-			transpileOnly: true,
-			compilerOptions: {
-				module: "commonjs",
-				target: "es2020",
-				esModuleInterop: true,
-				allowSyntheticDefaultImports: true,
-				skipLibCheck: true,
-				moduleResolution: "node",
-			},
-		});
+require("ts-node").register({
+	transpileOnly: true,
+	compilerOptions: {
+		module: "commonjs",
+		target: "es2020",
+		esModuleInterop: true,
+		allowSyntheticDefaultImports: true,
+		skipLibCheck: true,
+		moduleResolution: "node",
+	},
+});
 	} catch (error) {
 		console.log("⚠️ ts-node not available, using API-only mode");
 	}
@@ -939,43 +939,43 @@ async function runTestsProgrammatically() {
 								}
 							}
 						} else {
-							// Try to use the chatbot service directly first
-							const chatbotService = await loadChatbotService();
-							if (chatbotService) {
-								console.log(`🤖 Using chatbot service for: ${question}`);
-								const response = await chatbotService.getInstance().processQuestion({
+						// Try to use the chatbot service directly first
+						const chatbotService = await loadChatbotService();
+						if (chatbotService) {
+							console.log(`🤖 Using chatbot service for: ${question}`);
+							const response = await chatbotService.getInstance().processQuestion({
+								question: question,
+								userContext: playerName,
+							});
+							chatbotAnswer = response.answer || "Empty response or error";
+							cypherQuery = response.cypherQuery || "N/A";
+
+							console.log(`✅ Chatbot response: ${chatbotAnswer}`);
+							console.log(`🔍 Cypher query: ${cypherQuery}`);
+						} else {
+							// Fallback to API call
+							console.log(`🌐 Using API fallback for: ${question}`);
+							const baseUrl = process.env.NODE_ENV === 'production' 
+								? 'https://dorkinians-website-v3.netlify.app'
+								: 'http://localhost:3000';
+								
+							const response = await fetch(`${baseUrl}/api/chatbot`, {
+								method: "POST",
+								headers: {
+									"Content-Type": "application/json",
+								},
+								body: JSON.stringify({
 									question: question,
 									userContext: playerName,
-								});
-								chatbotAnswer = response.answer || "Empty response or error";
-								cypherQuery = response.cypherQuery || "N/A";
+								}),
+							});
 
-								console.log(`✅ Chatbot response: ${chatbotAnswer}`);
-								console.log(`🔍 Cypher query: ${cypherQuery}`);
+							if (response.ok) {
+								const data = await response.json();
+								chatbotAnswer = data.answer || "Empty response or error";
+								cypherQuery = data.cypherQuery || "N/A";
 							} else {
-								// Fallback to API call
-								console.log(`🌐 Using API fallback for: ${question}`);
-								const baseUrl = process.env.NODE_ENV === 'production' 
-									? 'https://dorkinians-website-v3.netlify.app'
-									: 'http://localhost:3000';
-									
-								const response = await fetch(`${baseUrl}/api/chatbot`, {
-									method: "POST",
-									headers: {
-										"Content-Type": "application/json",
-									},
-									body: JSON.stringify({
-										question: question,
-										userContext: playerName,
-									}),
-								});
-
-								if (response.ok) {
-									const data = await response.json();
-									chatbotAnswer = data.answer || "Empty response or error";
-									cypherQuery = data.cypherQuery || "N/A";
-								} else {
-									throw new Error(`API call failed: ${response.status}`);
+								throw new Error(`API call failed: ${response.status}`);
 								}
 							}
 						}
@@ -1017,7 +1017,7 @@ async function runTestsProgrammatically() {
 					let valuesMatch = true;
 					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
 						// For numeric values, compare as numbers
-						if (statConfig.responsePattern.source.includes("\\d")) {
+						if (statConfig.responsePattern && statConfig.responsePattern.source && statConfig.responsePattern.source.includes("\\d")) {
 							const expectedNumeric = parseFloat(expectedValue);
 							const chatbotNumeric = parseFloat(chatbotExtractedValue);
 							valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
@@ -1218,33 +1218,47 @@ function generateEmailContent(testResults) {
           <tbody>
     `;
 
-		// Group tests by category and create table rows
-		const categories = {};
-		testResults.testDetails.forEach((test) => {
-			if (!categories[test.describe]) {
-				categories[test.describe] = [];
-			}
-			categories[test.describe].push(test);
-		});
+	// Group tests by category and create table rows
+	const categories = {};
+	testResults.testDetails.forEach((test) => {
+		// Handle both old format (test.describe) and new format (test.stat)
+		const category = test.describe || getCategoryForStat(test.stat || test.statKey || '');
+		if (!categories[category]) {
+			categories[category] = [];
+		}
+		categories[category].push(test);
+	});
 
 		Object.keys(categories).forEach((category) => {
 			// Add category header row
 			html += `<tr class="category-header"><td colspan="6">${category}</td></tr>`;
 
 			categories[category].forEach((test) => {
-				const isFailed =
-					test.status === "FAILED" ||
-					test.assertion.includes("not.toBe") ||
-					test.assertion.includes("toContain") ||
-					test.assertion.includes("toMatch");
+				// Handle both old format and new format
+				let isFailed = false;
+				if (test.status) {
+					// Old format
+					isFailed = test.status === "FAILED" ||
+						(test.assertion && test.assertion.includes("not.toBe")) ||
+						(test.assertion && test.assertion.includes("toContain")) ||
+						(test.assertion && test.assertion.includes("toMatch"));
+				} else {
+					// New format from runRandomTests
+					isFailed = !test.passed;
+				}
 				const status = isFailed ? "FAILED" : "PASSED";
 				const statusClass = isFailed ? "status-failed" : "status-passed";
 
 				// Use actual question and player data if available from programmatic results
 				let question, expectedValue, playerName;
 
-				if (test.question && test.playerName) {
-					// From programmatic results
+				if (test.question && (test.player || test.playerName)) {
+					// From programmatic results (new format)
+					question = test.question;
+					expectedValue = test.expected;
+					playerName = test.player || test.playerName;
+				} else if (test.question && test.playerName) {
+					// From programmatic results (old format)
 					question = test.question;
 					expectedValue = test.expected;
 					playerName = test.playerName;
@@ -1455,11 +1469,11 @@ async function main() {
 		console.log("📊 Final results:", finalResults);
 		return finalResults;
 	} else {
-		// Exit with appropriate code (skip if running via API)
-		if (!process.env.SKIP_SERVER_CHECK) {
-			process.exit(finalResults.failedTests > 0 ? 1 : 0);
-		} else {
-			console.log("📊 Final results:", finalResults);
+	// Exit with appropriate code (skip if running via API)
+	if (!process.env.SKIP_SERVER_CHECK) {
+		process.exit(finalResults.failedTests > 0 ? 1 : 0);
+	} else {
+		console.log("📊 Final results:", finalResults);
 			return finalResults;
 		}
 	}
@@ -1545,7 +1559,7 @@ async function runRandomTests(maxTests = 5) {
 					
 					// Make API call with timeout
 					const timeoutPromise = new Promise((_, reject) => 
-						setTimeout(() => reject(new Error('API call timeout after 3 seconds')), 3000)
+						setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000)
 					);
 					
 					// Use node-fetch if available, otherwise use global fetch
@@ -1664,8 +1678,8 @@ module.exports = {
 
 // Only run main if this script is executed directly
 if (require.main === module) {
-	main().catch((error) => {
-		console.error("❌ Script failed:", error);
-		process.exit(1);
-	});
+main().catch((error) => {
+	console.error("❌ Script failed:", error);
+	process.exit(1);
+});
 }
