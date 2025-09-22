@@ -1510,9 +1510,10 @@ async function runTestsBatch(batchSize = 10, startIndex = 0) {
 				// Generate question (moved outside try block for error handling)
 				const question = questionTemplate.replace("{playerName}", playerName);
 				
+				// Get expected value from CSV data (moved outside try block for error handling)
+				let expectedValue = player[statConfig.key] || "";
+				
 				try {
-					// Get expected value from CSV data
-					let expectedValue = player[statConfig.key] || "";
 					let chatbotAnswer, cypherQuery;
 					
 					if (expectedValue !== undefined && expectedValue !== "") {
