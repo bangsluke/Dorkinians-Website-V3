@@ -837,61 +837,111 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 
 ### Cron Setup for Weekly Chatbot Testing
 
-The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational.
+The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational. Two approaches are available: standard testing and comprehensive asynchronous testing.
 
-#### External Cron Service Setup
+#### Approach 1: Standard Testing (Quick)
 
 **Using cron-job.org (Free):**
 
 1. Sign up at [cron-job.org](https://cron-job.org)
 2. Create new cronjob:
-   - **Title**: `Weekly Chatbot Test`
+   - **Title**: `Weekly Chatbot Test (Standard)`
    - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
    - **Method**: POST
    - **Request Body**: `{"emailAddress": "your-email@example.com"}`
    - **Headers**: `Content-Type: application/json`
    - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
-   - **Timeout**: 300 seconds (5 minutes)
+   - **Timeout**: 30 seconds
    - **Retry**: 2 attempts on failure
 
-#### Manual Testing
-
+**Manual Testing:**
 ```bash
-# Test the endpoint directly
 curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
   -H "Content-Type: application/json" \
   -d '{"emailAddress": "your-email@example.com"}'
 ```
 
-#### Expected Response
+#### Approach 2: Comprehensive Asynchronous Testing (Recommended)
 
+**Batch Processing Setup:**
+
+1. Create multiple cron jobs for comprehensive testing:
+   - **Job 1**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 0}`
+   - **Job 2**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 20}`
+   - **Job 3**: `{"emailAddress": "your-email@example.com", "batchSize": 20, "startIndex": 40}`
+   - Continue for desired coverage
+
+2. **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test-async`
+3. **Method**: POST
+4. **Schedule**: Stagger jobs 2 minutes apart
+5. **Timeout**: 30 seconds per batch
+
+**Local Comprehensive Testing:**
+```bash
+# Run comprehensive test suite locally
+node scripts/run-comprehensive-tests.js your-email@example.com 20 10
+
+# Parameters:
+# - email: Email address for reports
+# - batchSize: Tests per batch (default: 20)
+# - totalBatches: Number of batches to run (default: 10)
+```
+
+#### Expected Responses
+
+**Standard Testing:**
 ```json
 {
   "success": true,
   "message": "Chatbot test completed successfully",
-  "totalTests": 150,
-  "passedTests": 142,
-  "failedTests": 8,
-  "successRate": 94.7,
-  "output": "Test execution output..."
+  "totalTests": 6,
+  "passedTests": 4,
+  "failedTests": 2,
+  "successRate": 66.7,
+  "output": "Tests completed: 4/6 passed"
+}
+```
+
+**Asynchronous Testing:**
+```json
+{
+  "success": true,
+  "message": "Batch 1 completed",
+  "batchSize": 20,
+  "startIndex": 0,
+  "processedTests": 20,
+  "totalTests": 200,
+  "passedTests": 18,
+  "failedTests": 2,
+  "hasMore": true,
+  "nextStartIndex": 20,
+  "output": "Batch completed: 18/20 passed"
 }
 ```
 
 #### Test Coverage
 
-The weekly test covers:
-- **Basic Statistics**: Goals, assists, appearances, minutes, etc.
-- **Advanced Statistics**: Goals per appearance, minutes per goal, etc.
-- **Home/Away Statistics**: Home wins, away wins, percentages
-- **Team-Specific Statistics**: 1s, 2s, 3s through 8s appearances and goals
-- **Seasonal Statistics**: 2016/17 through 2021/22 seasons
-- **Positional Statistics**: Goalkeeper, defender, midfielder, forward
+**Standard Testing:**
+- **Limited Scope**: 2 test configurations per player
+- **Quick Execution**: ~30 seconds
+- **Basic Coverage**: Core statistics only
+
+**Comprehensive Testing:**
+- **Full Scope**: All test configurations per player
+- **Batch Processing**: Processes tests in chunks to avoid timeouts
+- **Complete Coverage**: 
+  - Basic Statistics (goals, assists, appearances, minutes, etc.)
+  - Advanced Statistics (goals per appearance, minutes per goal, etc.)
+  - Home/Away Statistics (home wins, away wins, percentages)
+  - Team-Specific Statistics (1s, 2s, 3s through 8s appearances and goals)
+  - Seasonal Statistics (2016/17 through 2021/22 seasons)
+  - Positional Statistics (goalkeeper, defender, midfielder, forward)
 
 #### Email Reports
 
 Test results are automatically emailed to the configured address with:
 - Comprehensive test summary
-- Detailed pass/fail breakdown
+- Detailed pass/fail breakdown with expected vs received values
 - Cypher query analysis
 - Performance metrics
 - Recommendations for improvements

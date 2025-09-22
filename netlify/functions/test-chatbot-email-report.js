@@ -824,9 +824,9 @@ async function runTestsProgrammatically() {
 			const playerName = player["PLAYER NAME"];
 			console.log(`\n🧪 Testing player: ${playerName}`);
 
-			// Use only first 5 test configurations for debugging
-			const testConfigs = STAT_TEST_CONFIGS.slice(0, 5);
-			console.log(`🔍 Testing ${testConfigs.length} configurations for debugging`);
+			// Use only first 2 test configurations to avoid timeout
+			const testConfigs = STAT_TEST_CONFIGS.slice(0, 2);
+			console.log(`🔍 Testing ${testConfigs.length} configurations to avoid timeout`);
 
 			for (const statConfig of testConfigs) {
 				const statKey = statConfig.key;
@@ -864,20 +864,28 @@ async function runTestsProgrammatically() {
 								userContext: playerName,
 							}));
 							
-							// Check if fetch is available
-							if (typeof fetch === 'undefined') {
-								console.log(`❌ Fetch is not available, using node-fetch`);
-								const nodeFetch = require('node-fetch');
-								const response = await nodeFetch(`${baseUrl}/api/chatbot`, {
-									method: "POST",
-									headers: {
-										"Content-Type": "application/json",
-									},
-									body: JSON.stringify({
-										question: question,
-										userContext: playerName,
-									}),
-								});
+		// Check if fetch is available
+		if (typeof fetch === 'undefined') {
+			console.log(`❌ Fetch is not available, using node-fetch`);
+			const nodeFetch = require('node-fetch');
+			
+			// Add timeout wrapper
+			const timeoutPromise = new Promise((_, reject) => 
+				setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+			);
+			
+			const fetchPromise = nodeFetch(`${baseUrl}/api/chatbot`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					question: question,
+					userContext: playerName,
+				}),
+			});
+			
+			const response = await Promise.race([fetchPromise, timeoutPromise]);
 
 								console.log(`🔍 Response status: ${response.status}`);
 								
@@ -891,19 +899,26 @@ async function runTestsProgrammatically() {
 									console.log(`🔍 Error response:`, errorText);
 									throw new Error(`API call failed: ${response.status} - ${errorText}`);
 								}
-							} else {
-								console.log(`✅ Using native fetch`);
-								try {
-									const response = await fetch(`${baseUrl}/api/chatbot`, {
-										method: "POST",
-										headers: {
-											"Content-Type": "application/json",
-										},
-										body: JSON.stringify({
-											question: question,
-											userContext: playerName,
-										}),
-									});
+		} else {
+			console.log(`✅ Using native fetch`);
+			try {
+				// Add timeout wrapper for native fetch
+				const timeoutPromise = new Promise((_, reject) => 
+					setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+				);
+				
+				const fetchPromise = fetch(`${baseUrl}/api/chatbot`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						question: question,
+						userContext: playerName,
+					}),
+				});
+				
+				const response = await Promise.race([fetchPromise, timeoutPromise]);
 
 									console.log(`🔍 Response status: ${response.status}`);
 									console.log(`🔍 Response headers:`, Object.fromEntries(response.headers.entries()));
@@ -1443,9 +1458,169 @@ async function main() {
 	}
 }
 
+// Batch processing function for comprehensive testing
+async function runTestsBatch(batchSize = 10, startIndex = 0) {
+	console.log(`🚀 Starting batch processing: batchSize=${batchSize}, startIndex=${startIndex}`);
+	
+	try {
+		// Load test data
+		const testData = await loadTestData();
+		const totalTests = testData.length * STAT_TEST_CONFIGS.length;
+		const endIndex = Math.min(startIndex + batchSize, totalTests);
+		
+		console.log(`📊 Total possible tests: ${totalTests}`);
+		console.log(`📊 Processing tests ${startIndex} to ${endIndex - 1}`);
+		
+		const results = {
+			batchSize,
+			startIndex,
+			processedTests: 0,
+			totalTests,
+			passedTests: 0,
+			failedTests: 0,
+			hasMore: endIndex < totalTests,
+			nextStartIndex: endIndex,
+			testDetails: [],
+		};
+		
+		// Process tests in batches
+		let testIndex = 0;
+		for (let playerIndex = 0; playerIndex < testData.length; playerIndex++) {
+			const player = testData[playerIndex];
+			const playerName = player["PLAYER NAME"];
+			
+			for (let configIndex = 0; configIndex < STAT_TEST_CONFIGS.length; configIndex++) {
+				// Skip tests before startIndex
+				if (testIndex < startIndex) {
+					testIndex++;
+					continue;
+				}
+				
+				// Stop if we've reached the batch limit
+				if (testIndex >= endIndex) {
+					break;
+				}
+				
+				const statConfig = STAT_TEST_CONFIGS[configIndex];
+				const statKey = statConfig.key;
+				const questionTemplate = statConfig.questionTemplate;
+				
+				results.processedTests++;
+				
+				try {
+					// Generate question
+					const question = questionTemplate.replace("{playerName}", playerName);
+					
+					// Get expected value from CSV data
+					let expectedValue, chatbotAnswer, cypherQuery;
+					
+					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
+						expectedValue = player[statConfig.key];
+						
+						// Make API call with timeout
+						const timeoutPromise = new Promise((_, reject) => 
+							setTimeout(() => reject(new Error('API call timeout after 8 seconds')), 8000)
+						);
+						
+						const fetchPromise = fetch('https://dorkinians-website-v3.netlify.app/api/chatbot', {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								question: question,
+								userContext: playerName,
+							}),
+						});
+						
+						const response = await Promise.race([fetchPromise, timeoutPromise]);
+						
+						if (response.ok) {
+							const data = await response.json();
+							chatbotAnswer = data.answer || "Empty response or error";
+							cypherQuery = data.cypherQuery || "N/A";
+						} else {
+							throw new Error(`API call failed: ${response.status}`);
+						}
+						
+						// Extract numeric value from chatbot response
+						const chatbotValue = extractNumericValue(chatbotAnswer);
+						const expectedValueNum = extractNumericValue(expectedValue);
+						
+						// Check if values match
+						const valuesMatch = chatbotValue === expectedValueNum;
+						const hasValidResponse = chatbotAnswer !== "Empty response or error" && chatbotAnswer !== null;
+						
+						const testResult = {
+							player: playerName,
+							stat: statKey,
+							question: question,
+							expected: expectedValue,
+							received: chatbotAnswer,
+							expectedExtracted: expectedValueNum,
+							chatbotExtracted: chatbotValue,
+							valuesMatch: valuesMatch,
+							hasValidResponse: hasValidResponse,
+							cypherQuery: cypherQuery,
+							passed: valuesMatch && hasValidResponse,
+						};
+						
+						results.testDetails.push(testResult);
+						
+						if (testResult.passed) {
+							results.passedTests++;
+						} else {
+							results.failedTests++;
+						}
+						
+						console.log(`✅ Test ${testIndex + 1}/${totalTests}: ${playerName} - ${statKey} - ${testResult.passed ? 'PASS' : 'FAIL'}`);
+					} else {
+						console.log(`⏭️ Skipping test ${testIndex + 1}/${totalTests}: ${playerName} - ${statKey} (no CSV data)`);
+					}
+					
+				} catch (error) {
+					console.error(`❌ Test ${testIndex + 1}/${totalTests} failed:`, error.message);
+					
+					const testResult = {
+						player: playerName,
+						stat: statKey,
+						question: question,
+						expected: expectedValue,
+						received: "Error: " + error.message,
+						expectedExtracted: null,
+						chatbotExtracted: null,
+						valuesMatch: false,
+						hasValidResponse: false,
+						cypherQuery: "N/A",
+						passed: false,
+					};
+					
+					results.testDetails.push(testResult);
+					results.failedTests++;
+				}
+				
+				testIndex++;
+			}
+			
+			// Break if we've processed enough tests
+			if (testIndex >= endIndex) {
+				break;
+			}
+		}
+		
+		console.log(`📊 Batch completed: ${results.passedTests}/${results.processedTests} passed`);
+		return results;
+		
+	} catch (error) {
+		console.error("❌ Batch processing failed:", error);
+		throw error;
+	}
+}
+
 // Export the main function for use by other modules
 module.exports = {
-	runTests: main
+	runTests: main,
+	runTestsBatch
 };
 
 // Only run main if this script is executed directly

@@ -49,6 +49,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/chatbot-test-async"
+  to = "/.netlify/functions/chatbot-test-async"
+  status = 200
+
+[[redirects]]
   from = "/api/players"
   to = "/.netlify/functions/players"
   status = 200
