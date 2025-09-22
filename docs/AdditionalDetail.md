@@ -843,7 +843,7 @@ The system supports automated weekly chatbot testing using external cron service
 
 **How It Works:**
 - **Total Available Tests**: 204 tests (3 players × 68 test configurations)
-- **Random Selection**: Each week, randomly selects 2 tests from the full set
+- **Random Selection**: Each week, randomly selects 1 test from the full set
 - **No Duplicates**: Ensures the same test isn't run twice in a single execution
 - **Comprehensive Coverage**: Over time, all 204 tests will be tested
 - **Timeout Safe**: Designed to complete within 30-second Netlify function limit
@@ -855,7 +855,7 @@ The system supports automated weekly chatbot testing using external cron service
    - **Title**: `Weekly Random Chatbot Test`
    - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
    - **Method**: POST
-          - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 2}`
+          - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 1}`
    - **Headers**: `Content-Type: application/json`
    - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
    - **Timeout**: 30 seconds
@@ -863,9 +863,9 @@ The system supports automated weekly chatbot testing using external cron service
 
 **Manual Testing:**
 ```bash
-       curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
-         -H "Content-Type: application/json" \
-         -d '{"emailAddress": "your-email@example.com", "maxTests": 2}'
+curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
+  -H "Content-Type: application/json" \
+  -d '{"emailAddress": "your-email@example.com", "maxTests": 1}'
 ```
 
 #### Expected Response
@@ -874,21 +874,21 @@ The system supports automated weekly chatbot testing using external cron service
 {
   "success": true,
   "message": "Random chatbot test completed successfully",
-         "selectedTests": 2,
-         "totalAvailableTests": 204,
-         "processedTests": 2,
-         "passedTests": 1,
-         "failedTests": 1,
-         "successRate": "50.0%",
-         "output": "Random tests completed: 1/2 passed (2 selected from 204 available)"
+  "selectedTests": 1,
+  "totalAvailableTests": 204,
+  "processedTests": 1,
+  "passedTests": 1,
+  "failedTests": 0,
+  "successRate": "100.0%",
+  "output": "Random tests completed: 1/1 passed (1 selected from 204 available)"
 }
 ```
 
 #### Test Coverage
 
 **Random Selection Benefits:**
-- **Efficient**: Tests only 2 random tests per week (1% of total)
-- **Comprehensive Over Time**: All 204 tests will be tested within ~102 weeks
+- **Efficient**: Tests only 1 random test per week (0.5% of total)
+- **Comprehensive Over Time**: All 204 tests will be tested within ~204 weeks
 - **No Duplicates**: Each weekly run tests different combinations
 - **Timeout Safe**: Always completes within 30 seconds
 - **Diverse Coverage**: Tests different players and statistics each week

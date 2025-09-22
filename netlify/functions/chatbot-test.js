@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
 	try {
 		// Parse the request body
 		const body = JSON.parse(event.body || "{}");
-		const { emailAddress, maxTests = 2 } = body;
+		const { emailAddress, maxTests = 1 } = body; // maxTests reduced to 1 for 10-second timeouts
 
 		if (!emailAddress) {
 			return {

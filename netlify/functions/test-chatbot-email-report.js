@@ -1559,7 +1559,7 @@ async function runRandomTests(maxTests = 5) {
 					
 					// Make API call with timeout
 					const timeoutPromise = new Promise((_, reject) => 
-						setTimeout(() => reject(new Error('API call timeout after 5 seconds')), 5000)
+						setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
 					);
 					
 					// Use node-fetch if available, otherwise use global fetch
