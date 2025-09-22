@@ -1,0 +1,46 @@
+# V3 Dorkinians Website - Cursor Rules
+# This file integrates the Engineering Doctrine for consistent AI behavior
+
+## Core Engineering Principles
+
+### Database & Schema Management
+- **Schema Verification First**: Always verify database schema assumptions through actual queries before implementing business logic
+- **Pipeline Order Discipline**: In multi-stage processing systems, ensure classification happens before enhancement/fuzzy matching
+- **Evidence-Based Debugging**: Use systematic logging and step-by-step analysis rather than theoretical fixes
+
+### Problem Resolution
+- **Incremental Fix Validation**: Test each change immediately to prevent compound errors and enable clear attribution
+- **User Domain Knowledge Leverage**: When users provide domain-specific solutions, implement them directly rather than over-engineering alternatives
+- **Evidence-Based Hypothesis**: Verify assumptions through concrete data before implementation
+
+### Natural Language Processing
+- **Context-Aware Entity Classification**: Distinguish between "core entities" (who/what) and "contextual modifiers" (when/where/how) for complexity assessment
+- **Fuzzy Matching Extension**: When adding new entity types, extend existing resolver interfaces rather than creating parallel systems
+- **User Experience Formatting**: Convert internal data formats to user-friendly formats in responses while maintaining internal consistency
+
+### Data Validation & Testing
+- **Data Source Integrity**: Never implement hardcoded fallback values when dynamic data sourcing is required
+- **Data Structure Verification**: Inspect actual data structure before making assumptions about field names
+- **Test Failure Logic**: Tests with missing/null/undefined values must be marked as FAILED, not PASSED
+
+### React & Next.js Best Practices
+- **Hooks Ordering Safety**: Never place conditional returns after hooks in transition components
+- **HTML Validation**: Always validate that React component structure produces valid HTML
+- **State Management**: Design store actions to be atomic and avoid side effects during render
+
+### Documentation Standards
+- **Markdown Protocol**: Follow established formatting standards from the beginning
+- **Table of Contents**: Include comprehensive TOC with all subsections and proper anchor links
+- **Navigation Links**: Add "Back to Table of Contents" links between major sections
+
+## Quality Gates
+Before considering any task complete:
+1. TypeScript compilation passes
+2. Build completes successfully
+3. No React hooks ordering violations
+4. No HTML validation errors
+5. User experience validation completed
+6. All user corrections addressed comprehensively
+
+## Reference
+For complete details, see: `docs/ENGINEERING_DOCTRINE.md`

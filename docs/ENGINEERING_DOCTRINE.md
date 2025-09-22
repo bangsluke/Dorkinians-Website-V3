@@ -10,6 +10,16 @@
 - [Documentation Standards](#documentation-standards)
 - [Quality Gates](#quality-gates)
 - [Testing & Data Validation](#testing--data-validation)
+- [Natural Language Processing & Query Analysis](#natural-language-processing--query-analysis)
+  - [Context-Aware Entity Classification](#context-aware-entity-classification-protocol)
+  - [User Domain Knowledge Leverage](#user-domain-knowledge-leverage-protocol)
+  - [Incremental Problem Resolution](#incremental-problem-resolution-protocol)
+  - [Evidence-Based Hypothesis](#evidence-based-hypothesis-protocol)
+  - [Database Schema Verification](#database-schema-verification-protocol)
+  - [Pipeline Order Discipline](#pipeline-order-discipline-protocol)
+  - [Incremental Fix Validation](#incremental-fix-validation-protocol)
+  - [Fuzzy Matching Extension](#fuzzy-matching-extension-protocol)
+  - [User Experience Formatting](#user-experience-formatting-protocol)
 
 ## React & Next.js Best Practices
 
@@ -274,3 +284,97 @@
   - Implement user-requested logging and analysis approaches
   - Avoid substituting alternative methods without user approval
 - **Example**: User requests "use the generated log files to debug" → implement comprehensive logging and analyze logs rather than creating new debug scripts
+
+## Natural Language Processing & Query Analysis
+
+### Context-Aware Entity Classification Protocol
+
+- **Rule**: Distinguish between "core entities" (the "who/what" being queried) and "contextual modifiers" (the "when/where/how" conditions) when assessing query complexity
+- **Rationale**: Locations, timeframes, and stat types are filters/conditions, not separate entities that should count toward complexity limits
+- **Implementation**:
+  - Count only named entities (players, teams, oppositions, leagues) for complexity assessment
+  - Treat locations ("home", "away"), timeframes (date ranges), and stat types as contextual filters
+  - Only trigger clarification when single entity type exceeds limits (e.g., 4+ teams), not mixed entity types
+- **Example**: "How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?" = 2 named entities (1 player + 1 team) + contextual filters (location + timeframe)
+
+### User Domain Knowledge Leverage Protocol
+
+- **Rule**: When users provide domain-specific solutions or corrections, implement them directly rather than over-engineering alternatives
+- **Rationale**: Users often have deep understanding of their domain requirements and optimal approaches
+- **Implementation**:
+  - Prioritize user-suggested technical approaches over complex workarounds
+  - Implement user corrections immediately without defending previous decisions
+  - Trust user expertise in their specific domain context
+- **Example**: User corrects complexity logic → implement user's specific approach rather than creating alternative complexity assessment methods
+
+### Incremental Problem Resolution Protocol
+
+- **Rule**: Fix one issue completely before addressing the next - avoid parallel debugging of multiple problems
+- **Rationale**: Parallel debugging often leads to incomplete fixes and missed root causes
+- **Implementation**:
+  - Identify and fix the most critical issue first
+  - Verify the fix works before moving to the next issue
+  - Use systematic verification at each step
+- **Example**: Fix team detection → verify → fix question type priority → verify → fix duplicate entities → verify
+
+### Evidence-Based Hypothesis Protocol
+
+- **Rule**: Verify assumptions through concrete data before implementation - avoid assumption-driven solutions
+- **Rationale**: Assumptions about system behavior often lead to incorrect fixes
+- **Implementation**:
+  - Use console logs, debug output, and code analysis to verify assumptions
+  - Test hypotheses with concrete data before implementing solutions
+  - Trace through actual execution flow rather than theoretical behavior
+- **Example**: Assume entity counting issue → verify with actual entity extraction logs → implement targeted fix based on evidence
+
+### Database Schema Verification Protocol
+
+- **Rule**: Always verify database schema assumptions through actual queries before implementing business logic
+- **Rationale**: Schema assumptions often lead to incorrect query construction and failed operations
+- **Implementation**:
+  - Run diagnostic queries to confirm data structure before building production logic
+  - Verify node relationships and property locations through actual database calls
+  - Test query patterns with real data before implementing complex business logic
+- **Example**: Assume MatchDetail contains team/location properties → verify schema shows they're in linked Fixture nodes → update queries accordingly
+
+### Pipeline Order Discipline Protocol
+
+- **Rule**: In multi-stage processing systems, ensure classification happens before enhancement/fuzzy matching to prevent incorrect entity typing
+- **Rationale**: Entity classification errors cascade through the entire pipeline, making them difficult to correct downstream
+- **Implementation**:
+  - Implement entity filtering before fuzzy matching to prevent stat types from being classified as players
+  - Use similarity-based filtering to exclude recognized entity types from other classification stages
+  - Ensure each processing stage has access to results from previous stages
+- **Example**: Stat type words ("assits") being classified as players → implement stat type filtering before player extraction
+
+### Incremental Fix Validation Protocol
+
+- **Rule**: Test each change immediately to prevent compound errors and enable clear attribution of what works
+- **Rationale**: Multiple simultaneous changes make it impossible to identify which fix resolved the issue
+- **Implementation**:
+  - Apply one fix at a time and test immediately
+  - Use actual API calls and user scenarios for validation
+  - Verify each fix works before proceeding to the next issue
+- **Example**: Fix team mapping → test → fix time range → test → fix query routing → test
+
+### Fuzzy Matching Extension Protocol
+
+- **Rule**: When adding new entity types to existing fuzzy matching systems, extend the resolver interface rather than creating parallel systems
+- **Rationale**: Reusing established patterns ensures consistency and reduces maintenance overhead
+- **Implementation**:
+  - Extend existing entity resolver interfaces to support new entity types
+  - Implement similarity-based matching using established algorithms (Jaro-Winkler, Levenshtein)
+  - Maintain consistent confidence thresholds and matching patterns across all entity types
+- **Example**: Add stat type fuzzy matching → extend EntityNameResolver interface → implement similarity calculation for stat types
+
+### User Experience Formatting Protocol
+
+- **Rule**: Convert internal data formats to user-friendly formats in responses while maintaining internal consistency
+- **Rationale**: Users expect familiar formats (DD/MM/YYYY) rather than technical formats (YYYY-MM-DD)
+- **Implementation**:
+  - Implement format conversion functions for display purposes
+  - Maintain internal consistency with database/API formats
+  - Apply formatting at the response generation stage, not data storage stage
+- **Example**: Internal dates stored as YYYY-MM-DD → convert to DD/MM/YYYY for user responses
+
+> [Back to Table of Contents](#table-of-contents)

@@ -1,3 +1,6 @@
+import nlp from "compromise";
+import { EntityNameResolver } from "../services/entityNameResolver";
+
 export interface EntityExtractionResult {
 	entities: EntityInfo[];
 	statTypes: StatTypeInfo[];
@@ -84,6 +87,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
 	'Goals Conceded': ['goals conceded', 'conceded goals', 'goals against', 'conceded'],
 	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
+	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
 	'Apps': ['apps', 'appearances', 'played in', 'played with'],
 	'Minutes': ['minutes of football', 'minutes played', 'playing time', 'time played', 'minutes', 'minute', 'mins'],
@@ -171,16 +175,20 @@ export const TIME_FRAME_PSEUDONYMS = {
 export class EntityExtractor {
 	private question: string;
 	private lowerQuestion: string;
+	private nlpDoc: any;
+	private entityResolver: EntityNameResolver;
 
 	constructor(question: string) {
 		this.question = question;
 		this.lowerQuestion = question.toLowerCase();
+		this.nlpDoc = nlp(question);
+		this.entityResolver = EntityNameResolver.getInstance();
 	}
 
-	extractEntities(): EntityExtractionResult {
+	async extractEntities(): Promise<EntityExtractionResult> {
 		return {
 			entities: this.extractEntityInfo(),
-			statTypes: this.extractStatTypes(),
+			statTypes: await this.extractStatTypes(),
 			statIndicators: this.extractStatIndicators(),
 			questionTypes: this.extractQuestionTypes(),
 			negativeClauses: this.extractNegativeClauses(),
@@ -205,26 +213,29 @@ export class EntityExtractor {
 			});
 		});
 
-		// Extract player names (capitalized words)
-		const playerMatches = this.findMatches(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g);
-		playerMatches.forEach(match => {
-			// Skip common words that aren't player names
-			const commonWords = ['how', 'what', 'where', 'when', 'why', 'which', 'who', 'the', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'in', 'on', 'at', 'by', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall'];
-			if (!commonWords.includes(match.text.toLowerCase())) {
+		// Extract player names using compromise NLP for better accuracy
+		const playerNames = this.extractPlayerNamesWithNLP();
+		const addedPlayers = new Set<string>();
+		playerNames.forEach(player => {
+			const normalizedName = player.text.toLowerCase();
+			if (!addedPlayers.has(normalizedName)) {
+				addedPlayers.add(normalizedName);
 				entities.push({
-					value: match.text,
+					value: player.text,
 					type: 'player',
-					originalText: match.text,
-					position: match.position
+					originalText: player.text,
+					position: player.position
 				});
 			}
 		});
 
-		// Extract team references
-		const teamMatches = this.findMatches(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\s+(team|teams)\b/gi);
+		// Extract team references (with or without "team" word)
+		const teamMatches = this.findMatches(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(team|teams))?\b/gi);
 		teamMatches.forEach(match => {
+			// Extract just the team number/name part
+			const teamName = match.text.replace(/\s+(team|teams)$/i, '');
 			entities.push({
-				value: match.text,
+				value: teamName,
 				type: 'team',
 				originalText: match.text,
 				position: match.position
@@ -269,9 +280,17 @@ export class EntityExtractor {
 			const commonWords = ['how', 'what', 'where', 'when', 'why', 'which', 'who', 'the', 'and', 'or', 'but', 'for', 'with', 'from', 'to', 'in', 'on', 'at', 'by', 'of', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall'];
 			const knownPlayers = ['Luke', 'Bangs', 'Oli', 'Goddard', 'Kieran', 'Mackrell']; // Add more known players as needed
 			
+			// Check if this matches any existing player entities (to avoid duplicates)
+			const isPlayerEntity = entities.some(e => 
+				e.type === 'player' && 
+				(e.value.toLowerCase().includes(match.text.toLowerCase()) || 
+				 match.text.toLowerCase().includes(e.value.toLowerCase()))
+			);
+			
 			if (!commonWords.includes(match.text.toLowerCase()) && 
 				!knownPlayers.includes(match.text) &&
-				!match.text.match(/^\d+(st|nd|rd|th)?$/)) { // Skip team numbers like "3s", "4th"
+				!match.text.match(/^\d+(st|nd|rd|th)?$/) && // Skip team numbers like "3s", "4th"
+				!isPlayerEntity) { // Skip if it's already a player entity
 				entities.push({
 					value: match.text,
 					type: 'opposition',
@@ -284,7 +303,7 @@ export class EntityExtractor {
 		return entities;
 	}
 
-	private extractStatTypes(): StatTypeInfo[] {
+	private async extractStatTypes(): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 		
 		// Check for goal involvements first
@@ -314,7 +333,101 @@ export class EntityExtractor {
 			});
 		});
 
+		// Add fuzzy matching for stat types
+		await this.addFuzzyStatTypeMatches(statTypes);
+
 		return statTypes;
+	}
+
+	private async addFuzzyStatTypeMatches(existingStatTypes: StatTypeInfo[]): Promise<void> {
+		// Get all potential stat type words from the question
+		const words = this.question.toLowerCase().split(/\s+/);
+		
+		// Check each word for potential stat type matches
+		for (const word of words) {
+			// Skip if it's already been matched exactly
+			const alreadyMatched = existingStatTypes.some(stat => 
+				stat.originalText.toLowerCase() === word
+			);
+			
+			if (alreadyMatched || word.length < 3) continue;
+			
+			// Try to find fuzzy matches for this word
+			const bestMatch = await this.findBestStatTypeMatch(word);
+			if (bestMatch) {
+				// Check if this word appears in the original question
+				const position = this.question.toLowerCase().indexOf(word);
+				if (position !== -1) {
+					existingStatTypes.push({
+						value: bestMatch,
+						originalText: word,
+						position: position
+					});
+				}
+			}
+		}
+	}
+
+	private async findBestStatTypeMatch(word: string): Promise<string | null> {
+		// Get all stat type pseudonyms
+		const allPseudonyms: string[] = [];
+		Object.values(STAT_TYPE_PSEUDONYMS).forEach(pseudonyms => {
+			allPseudonyms.push(...pseudonyms);
+		});
+		
+		// Find the best match using the entity resolver
+		const bestMatch = await this.entityResolver.getBestMatch(word, 'stat_type');
+		
+		// If no match found, try manual fuzzy matching
+		if (!bestMatch) {
+			let bestScore = 0;
+			let bestStatType = null;
+			
+			for (const [statType, pseudonyms] of Object.entries(STAT_TYPE_PSEUDONYMS)) {
+				for (const pseudonym of pseudonyms) {
+					const score = this.calculateSimilarity(word, pseudonym);
+					if (score > bestScore && score > 0.7) { // Threshold for fuzzy matching
+						bestScore = score;
+						bestStatType = statType;
+					}
+				}
+			}
+			
+			return bestStatType;
+		}
+		
+		return bestMatch;
+	}
+
+	private calculateSimilarity(str1: string, str2: string): number {
+		// Simple Jaro-Winkler similarity
+		const longer = str1.length > str2.length ? str1 : str2;
+		const shorter = str1.length > str2.length ? str2 : str1;
+		
+		if (longer.length === 0) return 1.0;
+		
+		const distance = this.levenshteinDistance(longer, shorter);
+		return (longer.length - distance) / longer.length;
+	}
+
+	private levenshteinDistance(str1: string, str2: string): number {
+		const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+		
+		for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
+		for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+		
+		for (let j = 1; j <= str2.length; j++) {
+			for (let i = 1; i <= str1.length; i++) {
+				const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
+				matrix[j][i] = Math.min(
+					matrix[j][i - 1] + 1,
+					matrix[j - 1][i] + 1,
+					matrix[j - 1][i - 1] + indicator
+				);
+			}
+		}
+		
+		return matrix[str2.length][str1.length];
 	}
 
 	private extractStatIndicators(): StatIndicatorInfo[] {
@@ -412,7 +525,7 @@ export class EntityExtractor {
 			});
 		});
 
-		// Extract date references
+		// Extract date references (including date ranges)
 		const dateMatches = this.findMatches(/\b(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{2,4})\b/gi);
 		dateMatches.forEach(match => {
 			timeFrames.push({
@@ -422,6 +535,18 @@ export class EntityExtractor {
 				position: match.position
 			});
 		});
+
+		// Extract date ranges (between X and Y)
+		const dateRangeRegex = /\bbetween\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s+and\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/gi;
+		let dateRangeMatch;
+		while ((dateRangeMatch = dateRangeRegex.exec(this.question)) !== null) {
+			timeFrames.push({
+				value: `${dateRangeMatch[1]} to ${dateRangeMatch[2]}`,
+				type: 'range',
+				originalText: dateRangeMatch[0],
+				position: dateRangeMatch.index
+			});
+		}
 
 		// Extract other time frame references
 		Object.entries(TIME_FRAME_PSEUDONYMS).forEach(([key, pseudonyms]) => {
@@ -458,5 +583,135 @@ export class EntityExtractor {
 		}
 		
 		return matches;
+	}
+
+	/**
+	 * Extract player names using compromise NLP for better accuracy
+	 */
+	private extractPlayerNamesWithNLP(): Array<{text: string, position: number}> {
+		const players: Array<{text: string, position: number}> = [];
+		
+		// Get all proper nouns (potential player names)
+		const properNouns = this.nlpDoc.match('#ProperNoun+').out('array');
+		
+		// Get all nouns that might be player names
+		const nouns = this.nlpDoc.match('#Noun+').out('array');
+		
+		// Combine and filter potential player names
+		const potentialNames = [...properNouns, ...nouns];
+		
+		// Common words to exclude
+		const commonWords = [
+			'how', 'what', 'where', 'when', 'why', 'which', 'who', 'the', 'and', 'or', 'but', 
+			'for', 'with', 'from', 'to', 'in', 'on', 'at', 'by', 'of', 'a', 'an', 'is', 'are', 
+			'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 
+			'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall',
+			'goals', 'assists', 'appearances', 'minutes', 'cards', 'saves', 'clean', 'sheets',
+			'penalties', 'fantasy', 'points', 'distance', 'miles', 'team', 'teams', 'season',
+			'week', 'month', 'year', 'game', 'games', 'match', 'matches', 'league', 'premier',
+			'championship', 'conference', 'national', 'division', 'tier', 'level',
+			'home', 'away', 'playing', 'whilst', 'between', 'and', 'got', 'has', 'have',
+			'open play goals', 'open play goal', 'play goals', 'play goal'
+		];
+		
+		// Find positions of potential names in the original text
+		for (const name of potentialNames) {
+			const normalizedName = name.trim();
+			
+			// Skip if it's a common word or too short
+			if (commonWords.includes(normalizedName.toLowerCase()) || normalizedName.length < 2) {
+				continue;
+			}
+			
+			// Skip if it's a stat type (check against all stat type pseudonyms)
+			const isStatType = Object.values(STAT_TYPE_PSEUDONYMS).some(pseudonyms => 
+				pseudonyms.some(pseudonym => 
+					this.calculateSimilarity(normalizedName.toLowerCase(), pseudonym.toLowerCase()) > 0.7
+				)
+			);
+			
+			if (isStatType) {
+				continue;
+			}
+			
+			// Skip if it's a number or team reference
+			if (normalizedName.match(/^\d+(st|nd|rd|th)?$/) || normalizedName.match(/^\d+s$/)) {
+				continue;
+			}
+			
+			// Find the position of this name in the original text
+			const position = this.question.toLowerCase().indexOf(normalizedName.toLowerCase());
+			if (position !== -1) {
+				players.push({
+					text: normalizedName,
+					position: position
+				});
+			}
+		}
+		
+		// Remove duplicates and sort by position
+		const uniquePlayers = players.filter((player, index, self) => 
+			index === self.findIndex(p => p.text === player.text)
+		);
+		
+		return uniquePlayers.sort((a, b) => a.position - b.position);
+	}
+
+	/**
+	 * Resolve all entities with fuzzy matching
+	 */
+	public async resolveEntitiesWithFuzzyMatching(): Promise<EntityExtractionResult> {
+		const baseResult = await this.extractEntities();
+		const resolvedEntities: EntityInfo[] = [];
+
+		// Process each entity with fuzzy matching
+		for (const entity of baseResult.entities) {
+			let resolvedName = entity.value;
+			let wasResolved = false;
+
+			// Try to resolve based on entity type
+			switch (entity.type) {
+				case 'player':
+					const resolvedPlayer = await this.entityResolver.getBestMatch(entity.value, 'player');
+					if (resolvedPlayer) {
+						resolvedName = resolvedPlayer;
+						wasResolved = true;
+					}
+					break;
+				case 'team':
+					const resolvedTeam = await this.entityResolver.getBestMatch(entity.value, 'team');
+					if (resolvedTeam) {
+						resolvedName = resolvedTeam;
+						wasResolved = true;
+					}
+					break;
+				case 'opposition':
+					const resolvedOpposition = await this.entityResolver.getBestMatch(entity.value, 'opposition');
+					if (resolvedOpposition) {
+						resolvedName = resolvedOpposition;
+						wasResolved = true;
+					}
+					break;
+				case 'league':
+					const resolvedLeague = await this.entityResolver.getBestMatch(entity.value, 'league');
+					if (resolvedLeague) {
+						resolvedName = resolvedLeague;
+						wasResolved = true;
+					}
+					break;
+			}
+
+			// Add resolved entity
+			resolvedEntities.push({
+				...entity,
+				value: resolvedName,
+				originalText: wasResolved ? `${entity.originalText} (resolved to: ${resolvedName})` : entity.originalText
+			});
+		}
+
+		return {
+			...baseResult,
+			entities: resolvedEntities
+		};
 	}
 }

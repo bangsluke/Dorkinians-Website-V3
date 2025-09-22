@@ -13,66 +13,32 @@
 - [Table of Contents](#table-of-contents)
 - [Project Overview](#project-overview)
   - [Key Features](#key-features)
+- [Chatbot Architecture](#chatbot-architecture)
+  - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
+- [Query Processing Pipeline](#query-processing-pipeline)
+  - [Stage 1: Text Preprocessing](#stage-1-text-preprocessing)
+  - [Stage 2: Entity Recognition](#stage-2-entity-recognition)
+  - [Stage 3: Fuzzy Resolution](#stage-3-fuzzy-resolution)
+  - [Stage 4: Question Analysis](#stage-4-question-analysis)
+  - [Stage 5: Database Query Execution](#stage-5-database-query-execution)
+  - [Stage 6: Natural Language Response Generation](#stage-6-natural-language-response-generation)
+  - [Stage 7: Response Assembly](#stage-7-response-assembly)
+- [Key File Functionalities](#key-file-functionalities)
+  - [Core Processing Files](#core-processing-files)
+  - [Query Processing Flow](#query-processing-flow)
+  - [Response Generation](#response-generation)
 - [Quick Start](#quick-start)
   - [Development Start](#development-start)
   - [Production Start](#production-start)
   - [Database Seeding](#database-seeding)
   - [Database Verification](#database-verification)
-- [Architecture](#architecture)
-  - [Unified Schema System](#unified-schema-system)
-- [Single Source of Truth Architecture](#single-source-of-truth-architecture)
-  - [Master File Locations](#master-file-locations)
-  - [Why This Architecture?](#why-this-architecture)
-  - [How It Works](#how-it-works)
-  - [Key Components](#key-components)
-- [Tech Stack \& Architecture](#tech-stack--architecture)
-  - [Core Technologies](#core-technologies)
-  - [Data Layer Strategy](#data-layer-strategy)
-  - [PWA Implementation](#pwa-implementation)
-  - [Screen Architecture](#screen-architecture)
-- [Environment Setup](#environment-setup)
-  - [Prerequisites](#prerequisites)
-  - [Neo4j Configuration](#neo4j-configuration)
-    - [Development Environment](#development-environment)
-    - [Production (Neo4j Aura)](#production-neo4j-aura)
-  - [OpenAI Configuration](#openai-configuration)
-  - [SMTP Configuration](#smtp-configuration)
-  - [Installation](#installation)
-- [NPM Script Synchronization](#npm-script-synchronization)
-  - [How It Works](#how-it-works-1)
-  - [NPM Scripts](#npm-scripts)
-  - [Workflow Examples](#workflow-examples)
-  - [Benefits](#benefits)
-  - [Troubleshooting](#troubleshooting)
-- [Development Workflow](#development-workflow)
-  - [Schema Updates](#schema-updates)
-  - [Managing Schema Changes](#managing-schema-changes)
-    - [Adding/Removing CSV Columns](#addingremoving-csv-columns)
-    - [Schema Validation](#schema-validation)
-  - [Data Seeding](#data-seeding)
-  - [Testing](#testing)
-- [Deployment](#deployment)
-  - [Netlify Deployment](#netlify-deployment)
-  - [Database Seeder Deployment](#database-seeder-deployment)
-- [PWA Release Process](#pwa-release-process)
-  - [Version Management](#version-management)
-  - [Release Checklist](#release-checklist)
-- [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
-  - [External Cron Service Setup](#external-cron-service-setup)
-  - [Manual Testing](#manual-testing)
-  - [Expected Response](#expected-response)
-- [Email Configuration](#email-configuration)
-  - [Required Environment Variables](#required-environment-variables)
-  - [Email Provider Examples](#email-provider-examples)
-  - [Gmail App Password Setup](#gmail-app-password-setup)
-  - [What Happens When Headers Change](#what-happens-when-headers-change)
-- [Maintenance](#maintenance)
-  - [Regular Tasks](#regular-tasks)
-  - [Troubleshooting](#troubleshooting-1)
-- [Contributing](#contributing)
-  - [Development Guidelines](#development-guidelines)
-  - [Repository Structure](#repository-structure)
-- [Support](#support)
+- [Configuration](#configuration)
+  - [Environment Variables](#environment-variables)
+  - [Schema Management](#schema-management)
+- [API Endpoints](#api-endpoints)
+  - [Chatbot Query Endpoint](#chatbot-query-endpoint)
+  - [Database Seeding Endpoint](#database-seeding-endpoint)
+- [Additional Documentation](#additional-documentation)
 
 ## Project Overview
 
@@ -83,9 +49,285 @@
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
 - **PWA Interface**: Progressive Web App with chatbot as primary interface
 - **Natural Language Processing**: Process user questions and return visualized answers
-- **Multiple Screens**: Footer navigation with swipeable sub-screens
 - **Unified Data Schema**: Single source of truth for all data definitions
 - **Database**: Neo4j Aura for efficient data storage and querying
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Chatbot Architecture
+
+The chatbot is the core functionality of the application, processing natural language queries about Dorkinians FC statistics and returning visualized responses.
+
+### Natural Language Processing & Entity Extraction
+
+The chatbot uses a sophisticated entity extraction pipeline for sports terminology:
+
+**Core Libraries** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts)):
+- **`natural`**: Fuzzy string matching for all entity types (players, teams, oppositions, leagues)
+- **`compromise`**: Advanced text parsing and linguistic analysis for better entity extraction
+- **Custom Entity Extraction**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) for domain-specific sports terminology
+- **Entity Name Resolution**: [`lib/services/entityNameResolver.ts`](./lib/services/entityNameResolver.ts) for intelligent fuzzy matching of all entity types
+
+**7-Class Entity Recognition** ([`EntityExtractor` class](./lib/config/entityExtraction.ts)):
+- **Players**: Up to 3 per question with fuzzy matching, typo tolerance, and pseudonym support
+- **Teams**: 1st, 2nd, 3rd etc. team recognition with ordinal number parsing
+- **Stat Types**: Goals, appearances, TOTW, penalties, etc. with 50+ pseudonyms
+- **Stat Indicators**: Highest, lowest, average, longest, shortest, consecutive
+- **Question Types**: How many, where, who, what, which, when
+- **Negative Clauses**: Excluding, without, not (for filtered queries)
+- **Locations**: Home, away, specific grounds (up to 2 per question)
+- **Time Frames**: Seasons, dates, gameweeks, streaks, temporal expressions
+
+**Advanced Entity Name Resolution**:
+- **Comprehensive Fuzzy Matching**: Handles typos for players, teams, oppositions, and leagues
+  - Players: "Luk Bangs" → "Luke Bangs"
+- **Multiple Algorithms**: Jaro-Winkler, Levenshtein, and Dice coefficient
+- **Confidence Scoring**: Only suggests matches above 60% confidence
+- **Dynamic Database**: Queries all entities from database for comprehensive matching
+- **Smart Suggestions**: Provides alternative entity names for near-misses
+- **Type-Specific Resolution**: Each entity type uses optimized matching strategies
+
+## Query Processing Pipeline
+
+The chatbot processes user questions through a sophisticated multi-stage pipeline:
+
+### Stage 1: Text Preprocessing
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (EntityExtractor constructor)
+- **Question Normalization**: Converts to lowercase, removes special characters, normalizes whitespace
+- **Context Extraction**: Analyzes user context and previous conversation state
+- **Linguistic Analysis**: Uses `compromise` library for advanced text parsing and part-of-speech tagging
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Normalized**: `"how many goals has luk bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24"`
+- **NLP Analysis**: Identifies "Luk Bangs" as proper noun, "goals" as noun, "3s" as number+noun, "home" as location, dates as temporal expressions
+
+### Stage 2: Entity Recognition
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (extractEntities method)
+- **Multi-Pass Extraction**: Uses regex patterns and NLP techniques to identify entities
+- **7-Class Recognition**: Players, teams, stat types, indicators, question types, negative clauses, locations, time frames
+- **Pseudonym Support**: Handles 50+ alternative names for stats and entities
+- **Context-Aware**: Considers surrounding words and phrases for better accuracy
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Player**: "Luk Bangs" (proper noun detection)
+- **Stat Type**: "goals" (matches stat pseudonyms)
+- **Team**: "3s" (regex pattern `/\b(1s|2s|3s|4s|5s|6s|7s|8s)/`)
+- **Location**: "home" (location entity detection)
+- **Time Frame**: "between 20/03/2022 and 21/10/24" (date range detection)
+- **Question Type**: "how many" (interrogative detection)
+
+### Stage 3: Fuzzy Resolution
+**File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (resolveEntitiesWithFuzzyMatching method)
+- **Intelligent Matching**: Resolves all entities using multiple fuzzy matching algorithms
+- **Confidence Scoring**: Only suggests matches above 60% confidence threshold
+- **Type-Specific Logic**: Different strategies for players, teams, oppositions, and leagues
+- **Database Integration**: Queries live database for comprehensive entity matching
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Player Resolution**: "Luk Bangs" → "Luke Bangs" (fuzzy match, confidence: 0.92)
+- **Team Resolution**: "3s" → "3rd XI" (fuzzy match, confidence: 0.85)
+- **Location Resolution**: "home" → "home" (exact match, confidence: 1.0)
+- **Stat Resolution**: "goals" → "goals" (exact match, confidence: 1.0)
+- **Time Frame Resolution**: "between 20/03/2022 and 21/10/24" → "2022-03-20 to 2024-10-21" (date parsing)
+
+### Stage 4: Question Analysis
+**File**: [`lib/config/enhancedQuestionAnalysis.ts`](./lib/config/enhancedQuestionAnalysis.ts) (analyze method)
+- **Complexity Assessment**: Categorizes questions as simple, moderate, or complex
+- **Clarification Detection**: Identifies ambiguous queries requiring user input
+- **Intent Classification**: Determines question type and required response format
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Question Type**: "player" (specific player query)
+- **Complexity**: "complex" (multiple entities: player + team + location + stat + time frame)
+- **Team Context**: Detected team entity "3rd XI"
+- **Location Context**: Detected location "home"
+- **Time Context**: Detected date range "2022-03-20 to 2024-10-21"
+- **Requires Clarification**: No (all entities resolved)
+
+### Stage 5: Database Query Execution
+**File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (queryRelevantData method)
+- **Query Construction**: Builds optimized Cypher queries based on analysis
+- **Performance Optimization**: Uses caching and query optimization techniques
+- **Error Handling**: Graceful fallbacks for database connectivity issues
+- **Result Processing**: Formats and structures data for presentation
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Query Type**: Player + Team + Location + Time Range query
+- **Cypher Query**:
+  ```cypher
+  MATCH (p:Player {playerName: "Luke Bangs"})-[:PLAYED_IN]->(md:MatchDetail)
+  WHERE md.team = "3rd XI" 
+    AND md.location = "home"
+    AND md.matchDate >= date("2022-03-20")
+    AND md.matchDate <= date("2024-10-21")
+  RETURN p.playerName, coalesce(sum(md.goals), 0) as value
+  ```
+- **Database Result**: `[{ playerName: "Luke Bangs", value: 4 }]`
+
+### Stage 6: Natural Language Response Generation
+**File**: [`lib/config/naturalLanguageResponses.ts`](./lib/config/naturalLanguageResponses.ts) (imported functions)
+- **Template Selection**: Chooses appropriate response templates based on question type
+- **Verb Conjugation**: Automatically selects correct verb forms (has/have, is/are, etc.)
+- **Contextual Formatting**: Adapts language based on data type and user context
+- **Personalization**: Uses appropriate pronouns and references based on user selection
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Template**: Player-specific response with team, location, and time context
+- **Verb Selection**: "has" (singular player)
+- **Number Formatting**: "4" (integer)
+- **Context Integration**: Includes team ("3rd XI"), location ("at home"), and time range ("between March 2022 and October 2024")
+- **Generated Text**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
+
+### Stage 7: Response Assembly
+**File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (generateResponse method)
+- **Data Integration**: Combines database results with natural language templates
+- **Visualization Selection**: Chooses appropriate chart/table types based on data
+- **Source Attribution**: Tracks and reports data sources for transparency
+- **Quality Validation**: Ensures response accuracy and completeness
+
+**Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+- **Final Answer**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
+- **Visualization**: NumberCard (single value display)
+- **Data**: `{ playerName: "Luke Bangs", value: 4, team: "3rd XI", location: "home", timeRange: "2022-03-20 to 2024-10-21" }`
+- **Sources**: ["Neo4j Database"]
+- **Cypher Query**: Logged for transparency
+
+## Key File Functionalities
+
+### Core Processing Files
+
+**`lib/config/entityExtraction.ts`** - Entity Recognition Engine
+- **Purpose**: Identifies and extracts all relevant entities from user questions
+- **Key Features**:
+  - 7-class entity recognition (players, teams, stats, indicators, etc.)
+  - NLP-powered player name extraction using `compromise`
+  - Pseudonym support for 50+ alternative stat names
+  - Context-aware extraction considering surrounding words
+  - Fuzzy matching integration for all entity types
+
+**`lib/services/entityNameResolver.ts`** - Intelligent Entity Resolution
+- **Purpose**: Resolves entity names using fuzzy matching algorithms
+- **Key Features**:
+  - Multi-algorithm fuzzy matching (Jaro-Winkler, Levenshtein, Dice coefficient)
+  - Type-specific resolution strategies for different entity types
+  - Confidence scoring with 60% threshold for suggestions
+  - Database integration for comprehensive entity matching
+  - Caching system for performance optimization
+
+**`lib/config/naturalLanguageResponses.ts`** - Response Generation Engine
+- **Purpose**: Generates natural, contextually appropriate responses
+- **Key Features**:
+  - Template-based response generation
+  - Automatic verb conjugation (has/have, is/are, etc.)
+  - Contextual formatting based on data types
+  - Personalization using user selection context
+  - Dynamic language adaptation
+
+**`lib/config/enhancedQuestionAnalysis.ts`** - Question Intelligence
+- **Purpose**: Analyzes question complexity and determines processing requirements
+- **Key Features**:
+  - Complexity assessment (simple/moderate/complex)
+  - Clarification detection for ambiguous queries
+  - Intent classification and question type determination
+  - Integration with fuzzy matching for entity resolution
+
+**`lib/services/chatbotService.ts`** - Main Orchestration Engine
+- **Purpose**: Coordinates the entire query processing pipeline
+- **Key Features**:
+  - Query analysis and routing
+  - Database query construction and execution
+  - Response assembly and formatting
+  - Error handling and fallback mechanisms
+  - Performance optimization and caching
+
+**Fuzzy Matching Benefits**:
+- **Typo Tolerance**: Users can misspell names and still get accurate results
+- **Variation Handling**: Handles different ways of referring to the same entity
+- **Confidence-Based**: Only suggests matches above 60% confidence to avoid false positives
+- **Performance Optimized**: Caching system reduces database queries for repeated lookups
+- **Comprehensive Coverage**: Works across all entity types in the system
+
+**Advanced Features**:
+- **Multi-Entity Support**: Complex comparisons (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
+- **Special Logic**: "Goal involvements" = goals + assists, comprehensive pseudonym recognition
+- **Clarification Detection**: Identifies ambiguous queries requiring user clarification
+- **Context Awareness**: Superior understanding of sports queries with player context switching
+
+**Implementation**: [`EnhancedQuestionAnalyzer` class](./lib/config/enhancedQuestionAnalysis.ts) orchestrates the extraction process with seamless Next.js integration.
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Query Processing Flow
+
+The chatbot processes natural language queries through a sophisticated multi-stage pipeline:
+
+1. **Input Reception** ([`ChatbotInterface`](./components/ChatbotInterface.tsx) passed player context to [`app/api/chatbot/route.ts`](./app/api/chatbot/route.ts))
+   - User submits query via [`ChatbotInterface`](./components/ChatbotInterface.tsx) component and passes player context to the API endpoint ([`app/api/chatbot/route.ts`](./app/api/chatbot/route.ts))
+   - API endpoint validates input and receives player context directly
+
+2. **Enhanced Entity Extraction** ([`lib/config/enhancedQuestionAnalysis.ts`](./lib/config/enhancedQuestionAnalysis.ts))
+   - [`EnhancedQuestionAnalyzer` class](./lib/config/enhancedQuestionAnalysis.ts) processes the question and uses `EntityExtractor` to identify 7 entity types: players, teams, stats, indicators, question types, locations, timeframes
+   - It assesses the complexity of the question (based on how many entities and stat types are present) and determines if it requires clarification
+   - It determines the question type (e.g. player, team, club, fixture, comparison) based on the extracted entities and content
+
+3. **Question Analysis** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts))
+   - `analyzeQuestion()` method determines query type and complexity
+   - Classifies as: player, team, club, fixture, comparison, streak, double_game, temporal, or general
+   - Validates question clarity and requests clarification if needed
+
+4. **Cypher Query Generation** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts))
+   - `queryRelevantData()` method builds Neo4j Cypher queries
+   - Uses extracted entities to construct graph database queries
+   - Implements query caching for performance optimization
+
+5. **Database Execution** ([`netlify/functions/lib/neo4j.js`](./netlify/functions/lib/neo4j.js))
+   - Queries executed against Neo4j Aura database
+   - Connection validation and error handling
+   - Structured error responses for debugging
+
+6. **Response Generation** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts))
+   - `generateResponse()` method processes database results
+   - Uses `naturalLanguageResponses.ts` for human-readable formatting
+   - Applies metric-specific formatting (decimal places, units)
+
+7. **Visualization & Delivery** ([`components/ChatbotInterface.tsx`](./components/ChatbotInterface.tsx))
+   - Data converted to appropriate chart components using Recharts
+   - Response delivered with debug information for development
+   - Mobile-optimized visualization components
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Response Generation
+
+**Core Processing** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts)):
+- **`generateResponse()` method**: Processes database results into user-friendly responses
+- **`naturalLanguageResponses.ts`**: Human-readable formatting and response templates
+- **Metric Formatting**: Applies decimal places and units based on `config/config.ts` settings
+- **Error Handling**: Structured error responses with debugging information
+
+**Visualization Pipeline** ([`components/ChatbotInterface.tsx`](./components/ChatbotInterface.tsx)):
+- **Recharts Integration**: Seamless Next.js integration with mobile-optimized charts
+- **Custom Components**: Reusable chart components for different data types
+- **Response Types**: Statistical summaries, player comparisons, team analytics, historical trends
+- **Mobile Optimization**: Touch-friendly components with responsive design
+- **Performance**: Tree-shakeable, minimal bundle impact
+
+**Response Structure**:
+```typescript
+interface ChatbotResponse {
+  answer: string;           // Human-readable answer
+  data?: any;              // Raw data for visualization
+  visualization?: {        // Chart configuration
+    type: "chart" | "table" | "calendar" | "stats";
+    data: any;
+    config?: any;
+  };
+  sources: string[];       // Data source references
+  cypherQuery?: string;    // Debug: executed Cypher query
+}
+```
+
+> **For detailed technical implementation**: See [AdditionalDetail.md](./docs/AdditionalDetail.md#architecture-details) for complete architecture details, service implementations, and development workflow.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -126,269 +368,22 @@
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Architecture
+## Configuration
 
-### Unified Schema System
+### Environment Variables
 
-The project uses a **single source of truth** architecture where configuration files are automatically synchronized between repositories using Git hooks. This ensures perfect consistency without manual intervention.
-
-**Single Source of Truth Locations:**
-
-- **Schema**: `database-dorkinians/config/schema.js` (master) → automatically copied to `V3-Dorkinians-Website/lib/config/schema.js`
-- **Data Sources**: `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` (master) → automatically copied to:
-  - `database-dorkinians/config/dataSources.js` (for database seeder)
-  - `V3-Dorkinians-Website/lib/config/dataSources.js` (for local builds)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    V3-Dorkinians-Website                   │
-│  ├── Frontend (Next.js PWA)                               │
-│  ├── Netlify Functions                                    │
-│  ├── lib/config/schema.js    # Auto-synced from database  │
-│  ├── lib/config/dataSources.js # Auto-synced from database │
-│  └── API Routes                                           │
-└─────────────────────────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Database Integration                          │
-├─────────────────────────────────────────────────────────────┤
-│  database-dorkinians/                                      │
-│  ├── config/schema.js          # Master schema (source)   │
-│  ├── config/dataSources.js     # Master data sources (source) │
-│  ├── services/schemaDrivenSeeder.js                        │
-│  └── (database seeding logic)                              │
-└─────────────────────────────────────────────┘
-```
-
-**Schema Alignment Process**:
-
-1. **Edit schema in `database-dorkinians/config/schema.js`**
-2. **Run sync script** - `npm run sync-config` copies to `V3-Dorkinians-Website/lib/config/schema.js`
-3. **Deploy both repositories**
-
-**Data Sources Alignment Process**:
-
-1. **Edit data sources in `database-dorkinians/config/dataSources.js`**
-2. **Run sync script** - `npm run sync-config` copies to both V3-Dorkinians-Website locations
-3. **Deploy both repositories**
-
-> **Note**: The system now uses npm scripts for manual synchronization. See [NPM Script Synchronization](#npm-script-synchronization) section below.
-
-## Single Source of Truth Architecture
-
-The project implements a **manual synchronization system** where each configuration file has exactly one master location and is distributed to all required locations using npm scripts.
-
-### Master File Locations
-
-| Configuration    | Master Location                             | Auto-Synced To                                                                                                          |
-| ---------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Schema**       | `database-dorkinians/config/schema.js`      | `V3-Dorkinians-Website/lib/config/schema.js`                                                                            |
-| **Data Sources** | `database-dorkinians/config/dataSources.js` | `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js` + `V3-Dorkinians-Website/lib/config/dataSources.js` |
-
-### Why This Architecture?
-
-✅ **Eliminates Manual Sync Errors**: No more forgetting to copy files between repositories  
-✅ **Perfect Consistency**: All locations always have identical content  
-✅ **Clear Ownership**: Each file has one definitive source  
-✅ **Controlled Updates**: Changes propagate when you choose to sync  
-✅ **Build Compatibility**: Local builds work without path resolution issues
-
-### How It Works
-
-1. **Edit Master File**: Make changes in the designated master location
-2. **Run Sync Script**: Execute `npm run sync-config` to copy files
-3. **Manual Sync**: Files are copied to all required locations with proper headers
-4. **Build Success**: All repositories have access to the latest configuration
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Key Components
-
-- **Frontend**: Next.js PWA with chatbot interface
-- **Backend Services**: Netlify functions for API endpoints
-- **Database Seeder**: Heroku service using unified schema
-- **Schema Management**: Centralized in database-dorkinians repo
-- **Data Sources**: Google Sheets CSV endpoints + FA website data
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Tech Stack & Architecture
-
-### Core Technologies
-
-**Frontend: Next.js 14 + App Router**
-
-- **PWA Support**: Built-in PWA capabilities with `next-pwa`
-- **Mobile Performance**: Automatic code splitting, image optimization, static generation
-- **Developer Experience**: Familiar React patterns, excellent TypeScript support
-- **Deployment**: Optimized for Netlify with edge functions
-- **Mobile-First**: Built-in responsive design patterns
-
-**Mobile Navigation: Framer Motion + Hybrid Navigation**
-
-- **Native Feel**: Smooth animations matching iOS/Android
-- **Main Navigation**: Footer icon-based navigation between primary pages
-- **Sub-Navigation**: Swipe gestures within specific pages (e.g., Stats sub-screens)
-- **Gesture Support**: Natural mobile interactions for content exploration
-- **Performance**: Hardware-accelerated animations
-
-**UI Components: Tailwind CSS + Headless UI**
-
-- **Mobile Optimization**: Touch-friendly component sizing (44px minimum)
-- **Responsive Design**: Automatic mobile-first breakpoints
-- **Accessibility**: Built-in mobile accessibility features
-- **Performance**: Minimal CSS bundle size
-
-**Backend: Next.js API Routes + Edge Runtime**
-
-- **Unified Stack**: Single codebase, shared types
-- **Edge Functions**: Global distribution, minimal latency
-- **CSV Processing**: Built-in fetch API for Google Sheets
-- **Cost**: No additional hosting costs
-
-**Database: Neo4j Aura**
-
-- **Data Volume**: Handle 50k+ rows × 50 columns efficiently
-- **Query Performance**: Graph database excels at complex sports statistics
-- **Data Relationships**: Natural fit for player-team-fixture relationships
-- **Scheduled Updates**: Built-in job scheduling with email notifications
-- **Existing Infrastructure**: Already available in your environment
-
-**Chatbot: Enhanced Entity Extraction + Natural Language Processing**
-
-- **Enhanced Entity Extraction**: Advanced 7-class classification system for precise question understanding
-  - **Entities**: Players, teams, fixtures, awards (up to 3 per question)
-  - **Stat Types**: Goals, appearances, TOTW, penalties, etc. with extensive pseudonyms
-  - **Stat Indicators**: Highest, lowest, average, longest, shortest
-  - **Question Types**: How many, where, who, what, which
-  - **Negative Clauses**: Excluding, without, not (for filtered queries)
-  - **Locations**: Home, away, specific grounds (up to 2 per question)
-  - **Time Frames**: Seasons, dates, gameweeks, streaks
-- **Multi-Entity Support**: Handle complex comparisons (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
-- **Special Logic**: "Goal involvements" = goals + assists, comprehensive pseudonym recognition
-- **Natural Language**: Superior understanding of sports queries with context awareness
-- **Integration**: Seamless Next.js integration with detailed frontend logging
-- **Libraries**: `natural` for fuzzy matching, `compromise` for text parsing, custom entity extraction
-
-**Visualization: Recharts + Custom Components**
-
-- **React Native**: Seamless Next.js integration
-- **Performance**: Lightweight, optimized for mobile
-- **Customization**: Easy to create reusable chart components
-- **Bundle Size**: Tree-shakeable, minimal impact
-
-**State Management: Zustand**
-
-- **Mobile Performance**: Lightweight state management
-- **Offline Support**: Easy integration with PWA caching
-- **Navigation State**: Manage screen transitions and data
-
-### Data Layer Strategy
-
-**Hybrid Caching Strategy:**
-
-1. **Static Generation**: Pre-build common queries at build time
-2. **ISR (Incremental Static Regeneration)**: Update data every 6-12 hours
-3. **Edge Caching**: Cache responses at CDN level
-4. **Client Caching**: Store processed data in IndexedDB for offline
-5. **Database Storage**: Neo4j for complex queries and data relationships
-
-**Update Strategy:**
-
-- **Automated Refresh**: Daily scheduled jobs (configurable frequency)
-- **Failure Notifications**: Email alerts on update failures
-- **Data Validation**: Schema validation and error handling
-- **Incremental Updates**: Smart updates vs. full refresh
-
-### PWA Implementation
-
-**Core Features:**
-
-- **Service Worker**: Offline-first strategy with background sync
-- **App Manifest**: Native app feel and installation prompts
-- **Background Sync**: Data updates when connection restored
-- **Push Notifications**: New stats and update notifications
-
-**Mobile-Specific Features:**
-
-- **Touch Interactions**: Footer icon navigation, swipe within pages, tap to expand
-- **Responsive Design**: Mobile-first breakpoints, landscape/portrait support
-- **Touch Targets**: 44px minimum button sizes
-- **Thumb Navigation**: Optimized for one-handed use
-- **Navigation Pattern**: Footer icons for main pages, swipe for sub-content
-- **Header Access**: Club logo and settings always visible, consistent branding
-
-### Screen Architecture
-
-**Main Pages (Footer Navigation):**
-
-1. **Homepage**: Chatbot input bar centered on screen
-2. **Stats**: Container page with swipeable sub-screens
-3. **TOTW**: Team of the week with clickable SVG graphics
-4. **Club Information**: Static content (captains, awards, etc.)
-
-**Stats Page Sub-Screens (Swipeable):**
-
-- **Player Stats**: Filterable player statistics with graphical components
-- **Team Stats**: Team-specific statistics and analytics
-- **Club Stats**: Club-wide analytics and statistics
-- **Comparison**: Side-by-side player statistics comparison
-
-**Header Elements (All Screens):**
-
-- **Club Logo**: Visible across all screens
-- **Settings Icon**: Accessible from header on all pages
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Environment Setup
-
-### Prerequisites
-
-- Node.js 18+
-- Neo4j Aura database access
-- OpenAI API key (for chatbot)
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Neo4j Configuration
-
-#### Development Environment
+**Required Environment Variables:**
 
 ```bash
-# All environments now use Neo4j Aura for consistency
-# No local Neo4j Desktop required
-
-# Environment variables (same as production)
+# Neo4j Database
 PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
-```
 
-> [Back to Table of Contents](#table-of-contents)
-
-#### Production (Neo4j Aura)
-
-```bash
-PROD_NEO4J_URI=neo4j+s://xxxx.databases.neo4j.io
-PROD_NEO4J_USER=your-username
-PROD_NEO4J_PASSWORD=your_aura_db_password
-```
-
-> [Back to Table of Contents](#table-of-contents)
-
-### OpenAI Configuration
-
-```bash
+# OpenAI API (for chatbot)
 OPENAI_API_KEY=your_openai_api_key_here
-```
 
-> [Back to Table of Contents](#table-of-contents)
-
-### SMTP Configuration
-
-```bash
+# Email Configuration (for notifications)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL_SECURE=false
@@ -400,481 +395,111 @@ SMTP_TO_EMAIL=recipient@example.com
 
 > [Back to Table of Contents](#table-of-contents)
 
-### Installation
+### Schema Management
 
-```bash
-npm install
-npm run test-neo4j  # Test Neo4j connection
-npm run dev          # Start development server
-```
+The project uses a unified schema system where configuration files are synchronized between repositories:
 
-> [Back to Table of Contents](#table-of-contents)
+**Master Locations:**
+- **Schema**: `database-dorkinians/config/schema.js` (master)
+- **Data Sources**: `database-dorkinians/config/dataSources.js` (master)
 
-## NPM Script Synchronization
-
-The project uses npm scripts to manually synchronize configuration files between repositories. This approach provides full control over when synchronization occurs and eliminates the complexity of Git hooks.
-
-### How It Works
-
-**Manual Sync**: Run `npm run sync-config` to copy all configuration files from `database-dorkinians/config/` to the appropriate locations in `V3-Dorkinians-Website`
-
-**Files Synced**:
-
-- `config/schema.js` → `V3-Dorkinians-Website/lib/config/schema.js`
-- `config/dataSources.js` → `V3-Dorkinians-Website/lib/config/dataSources.js`
-- `config/dataSources.js` → `V3-Dorkinians-Website/netlify/functions/lib/config/dataSources.js`
-
-### NPM Scripts
-
-- **`database-dorkinians`**: `npm run sync-config` - runs the sync script
-- **`V3-Dorkinians-Website`**: `npm run sync-config` - runs the sync from the other repo
-
-### Workflow Examples
-
-**Updating Schema:**
-
-```bash
-# 1. Edit the schema in database-dorkinians (MASTER LOCATION)
-cd database-dorkinians
-# Edit config/schema.js
-
-# 2. Run sync script
-npm run sync-config
-
-# 3. Review changes in V3-Dorkinians-Website
-cd ../V3-Dorkinians-Website
-git status
-
-# 4. Commit the synced files
-git add lib/config/schema.js
-git commit -m "Sync schema from database-dorkinians"
-```
-
-**Updating Data Sources:**
-
-```bash
-# 1. Edit data sources in database-dorkinians (MASTER LOCATION)
-cd database-dorkinians
-# Edit config/dataSources.js
-
-# 2. Run sync script
-npm run sync-config
-
-# 3. Review changes in V3-Dorkinians-Website
-cd ../V3-Dorkinians-Website
-git status
-
-# 4. Commit the synced files
-git add lib/config/dataSources.js netlify/functions/lib/config/dataSources.js
-git commit -m "Sync data sources from database-dorkinians"
-```
-
-### Benefits
-
-✅ **Reliable**: No Git hook failures or PowerShell issues  
-✅ **Simple**: One command to sync everything  
-✅ **Visible**: You see exactly what's being synced  
-✅ **Flexible**: Sync when you want, not on every commit  
-✅ **Maintainable**: Easy to modify and debug  
-✅ **Cross-platform**: Works on Windows, Mac, and Linux  
-✅ **Perfect Consistency**: All locations always have identical content
-
-### Troubleshooting
-
-**Sync Script Not Working:**
-
-1. **Check Repository Structure**: Both repositories must be in the same parent directory
-
-   ```
-   /parent-directory/
-   ├── database-dorkinians/
-   └── V3-Dorkinians-Website/
-   ```
-
-2. **Verify Node.js**: Ensure Node.js is installed and accessible
-
-   ```bash
-   node --version
-   npm --version
-   ```
-
-3. **Check File Permissions**: Ensure the sync script is readable
-
-   ```bash
-   # On Windows
-   dir scripts\sync-config.js
-
-   # On Unix/Linux/Mac
-   ls -la scripts/sync-config.js
-   ```
-
-**Manual Sync Required (if npm script fails):**
-
-1. **Schema**: Copy `database-dorkinians/config/schema.js` to `V3-Dorkinians-Website/lib/config/schema.js`
-2. **Data Sources**: Copy `database-dorkinians/config/dataSources.js` to both V3-Dorkinians-Website locations
-3. **Update Headers**: Add the appropriate warning header to the target files
-4. **Commit Changes**: Commit the manually synced files
+**Sync Process:**
+1. Edit schema in `database-dorkinians/config/schema.js`
+2. Run sync script: `npm run sync-config`
+3. Deploy both repositories
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Development Workflow
+## API Endpoints
 
-### Schema Updates
+### Chatbot Query Endpoint
 
-When data structures change:
+**Endpoint**: `/api/chatbot/query`
 
-1. **Update Unified Schema**: Modify `database-dorkinians/config/schema.js`
-2. **Sync Configuration**: Run `npm run sync-config` to copy to V3-Dorkinians-Website
-3. **Test Changes**: Use database seeder test endpoints
-4. **Deploy Updates**: Push changes to both repositories
-5. **Verify Integration**: Test frontend functionality
+**Method**: POST
 
-> [Back to Table of Contents](#table-of-contents)
-
-### Managing Schema Changes
-
-#### Adding/Removing CSV Columns
-
-When Google Sheets structure changes:
-
-1. **Update Unified Schema** (in `database-dorkinians` repo):
-
-   ```bash
-   cd database-dorkinians
-   nano config/schema.js
-   ```
-
-2. **Modify Table Schema**:
-
-   ```javascript
-   TBL_Players: {
-     csvColumns: {
-       'ID': 'id',
-       'PLAYER NAME': 'name',
-       'NEW COLUMN': 'newProperty',  // Add new columns
-       // Remove old columns from mapping
-     },
-     requiredColumns: ['ID', 'PLAYER NAME'],
-     properties: {
-       id: { type: 'string', required: true },
-       name: { type: 'string', required: true },
-       newProperty: { type: 'string', required: false }, // Add properties
-       // Remove old properties
-     }
-   }
-   ```
-
-3. **Test Schema Changes**:
-
-   ```bash
-   # Test locally
-   node test-csv.js
-
-   # Test via API
-   curl -X POST "https://your-heroku-app.herokuapp.com/test-csv" \
-     -H "Content-Type: application/json" \
-     -d '{"url": "YOUR_CSV_URL", "dataSourceName": "TBL_Players"}'
-   ```
-
-4. **Deploy Changes**:
-
-   ```bash
-   # Commit and push to database-dorkinians
-   git add config/schema.js
-   git commit -m "Update schema for TBL_Players: add new column, remove old column"
-   git push origin main
-   git push heroku main
-   ```
-
-5. **Update V3 Repository**:
-   ```bash
-   cd ../V3-Dorkinians-Website
-   git submodule update --remote
-   git add v3-repo
-   git commit -m "Update database-dorkinians submodule to latest schema"
-   git push origin main
-   ```
-
-> [Back to Table of Contents](#table-of-contents)
-
-#### Schema Validation
-
-The system automatically validates:
-
-- **Column Presence**: Required columns exist
-- **Data Types**: Type conversions work correctly
-- **Required Fields**: Mandatory fields have values
-- **Relationship Rules**: Relationship creation logic
-
-### Data Seeding
-
-**Hybrid Approach**:
-
-- **Netlify Function**: Lightweight trigger endpoint
-- **Heroku Service**: Long-running seeding process using unified schema
-- **Email Notifications**: Automated status updates during seeding
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Testing
-
-```bash
-# Frontend tests
-npm test
-
-# API endpoint tests
-npm run test:api
-
-# Database seeding tests
-npm run test:seeding
-
-# Schema integration test
-node -e "console.log('Schema integration test - check database seeding functionality');"
-```
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Deployment
-
-### Netlify Deployment
-
-1. **Build Configuration**:
-
-   ```bash
-   npm run build
-   npm run export
-   ```
-
-2. **Environment Variables**:
-   - Set all required environment variables in Netlify dashboard
-   - Ensure `HEROKU_SEEDER_URL` points to your database seeder service
-
-3. **Deploy**:
-   ```bash
-   netlify deploy --prod
-   ```
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Database Seeder Deployment
-
-**Separate Heroku Service**:
-
-- **Repository**: `database-dorkinians`
-- **Service**: Long-running Neo4j seeding operations
-- **Integration**: Triggered via Netlify functions
-
-> [Back to Table of Contents](#table-of-contents)
-
-## PWA Release Process
-
-### Version Management
-
-The application uses a centralized version management system to ensure consistency across all components:
-
-**Version Sources:**
-
-- **Primary**: `config/config.ts` - Main app configuration
-- **Secondary**: `package.json` - NPM package version (should match app config)
-
-**Files to Update for New Release:**
-
-1. `config/config.ts` - Update `version` field
-2. `package.json` - Update `version` field to match
-
-**Example:**
-
-```typescript
-// config/config.ts
-export const appConfig = {
-	version: "1.1.3", // Update this
-	name: "Dorkinians FC",
-	// ... other config
-} as const;
-```
-
+**Request Body**:
 ```json
-// package.json
 {
-	"name": "dorkinians-website",
-	"version": "1.1.3" // Update this to match
-	// ... other fields
+  "query": "How many goals has Luke Bangs scored this season?",
+  "context": {
+    "userId": "optional-user-id",
+    "sessionId": "optional-session-id"
+  }
 }
 ```
 
-### Release Checklist
-
-**Before Release:**
-
-- [ ] Update version in `config/config.ts`
-- [ ] Update version in `package.json`
-- [ ] Test PWA update flow locally
-- [ ] Verify version displays correctly in settings page
-- [ ] Check that update toasts show correct version number
-
-**Post-Release:**
-
-- [ ] Verify PWA update notifications work
-- [ ] Test update flow on mobile devices
-- [ ] Monitor for any version-related issues
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Cron Setup for Automated Database Updates
-
-The system supports automated daily database updates using external cron services.
-
-### External Cron Service Setup
-
-**Using cron-job.org (Free):**
-
-1. Sign up at [cron-job.org](https://cron-job.org)
-2. Create new cronjob:
-   - **Title**: `Dorkinians Daily Database Update`
-   - **URL**: `https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production`
-   - **Schedule**: Daily at 5:00 AM (`0 5 * * *`)
-   - **Timeout**: 1800 seconds (30 minutes)
-   - **Retry**: 3 attempts on failure
-
-**Alternative Services:**
-
-- EasyCron: [easycron.com](https://easycron.com)
-- Cronitor: [cronitor.io](https://cronitor.io)
-- UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
-
-### Manual Testing
-
-```bash
-# Test the function directly
-curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production"
-```
-
-### Expected Response
-
+**Response**:
 ```json
 {
-	"success": true,
-	"message": "Database seeding completed successfully",
-	"environment": "production",
-	"timestamp": "2024-01-01T06:00:00.000Z",
-	"result": {
-		"success": true,
-		"exitCode": 0,
-		"nodesCreated": 1500,
-		"relationshipsCreated": 3000
-	}
+  "success": true,
+  "data": {
+    "answer": "Luke Bangs has scored 15 goals this season",
+    "visualization": {
+      "type": "bar-chart",
+      "data": [...],
+      "config": {...}
+    },
+    "entities": {
+      "players": ["Luke Bangs"],
+      "statType": "goals",
+      "timeframe": "this season"
+    }
+  }
 }
 ```
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Email Configuration
+### Database Seeding Endpoint
 
-The system sends automated email notifications for CSV header validation failures and seeding completion.
+**Endpoint**: `/.netlify/functions/trigger-seed`
 
-### Required Environment Variables
+**Method**: GET
 
-```bash
-# Email Configuration for Notifications
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_EMAIL_SECURE=false
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
-SMTP_FROM_EMAIL=your-email@gmail.com
-SMTP_TO_EMAIL=your-email@gmail.com
+**Query Parameters**:
+- `environment`: "production" or "development"
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Database seeding completed successfully",
+  "environment": "production",
+  "timestamp": "2024-01-01T06:00:00.000Z",
+  "result": {
+    "success": true,
+    "exitCode": 0,
+    "nodesCreated": 1500,
+    "relationshipsCreated": 3000
+  }
+}
 ```
 
-### Email Provider Examples
-
-**Gmail:**
-
-```bash
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_EMAIL_SECURE=false
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password  # Use App Password, not regular password
-```
-
-**Outlook/Hotmail:**
-
-```bash
-SMTP_SERVER=smtp-mail.outlook.com
-SMTP_PORT=587
-SMTP_EMAIL_SECURE=false
-SMTP_USERNAME=your-email@outlook.com
-SMTP_PASSWORD=your-password
-```
-
-### Gmail App Password Setup
-
-1. Enable 2-Factor Authentication on your Google account
-2. Go to Google Account settings → Security → App passwords
-3. Generate an app password for "Mail"
-4. Use this app password in `SMTP_PASSWORD` (not your regular Gmail password)
-
-### What Happens When Headers Change
-
-1. **Validation Fails**: Seeding process stops immediately
-2. **Email Sent**: Detailed notification with:
-   - Which data sources failed
-   - Expected vs. actual headers
-   - Missing and extra headers
-   - Direct links to CSV files
-3. **Logging**: All failures logged to `logs/seeding-errors.log`
-4. **Seeding Halted**: Database remains unchanged until headers are fixed
-
 > [Back to Table of Contents](#table-of-contents)
 
-## Maintenance
+## Additional Documentation
 
-### Regular Tasks
+For detailed technical documentation including:
 
-1. **Schema Review**: Periodically review unified schema configuration
-2. **Data Quality**: Monitor CSV data quality and structure
-3. **Performance**: Track API response times and database query performance
-4. **Security**: Review API access and authentication mechanisms
+- Complete architecture details
+- Environment setup instructions
+- Development workflow
+- Deployment procedures
+- PWA configuration
+- Email setup
+- Troubleshooting guides
 
-> [Back to Table of Contents](#table-of-contents)
+See: [AdditionalDetail.md](./docs/AdditionalDetail.md)
 
-### Troubleshooting
+For development guidelines and best practices:
 
-- **Schema Issues**: Check `database-dorkinians/config/schema.js`
-- **Data Problems**: Verify CSV structure and Google Sheets permissions
-- **Performance**: Monitor Neo4j query execution times
-- **Integration**: Test database seeder connectivity
+- React & Next.js best practices
+- Component lifecycle & hooks safety
+- State management patterns
+- Testing & data validation protocols
+- Quality gates and debugging strategies
 
-> [Back to Table of Contents](#table-of-contents)
-
-## Contributing
-
-### Development Guidelines
-
-1. **Schema Changes**: Always update the unified schema first
-2. **Testing**: Include tests for new functionality
-3. **Documentation**: Update relevant documentation
-4. **Code Quality**: Follow established patterns and linting rules
-
-> [Back to Table of Contents](#table-of-contents)
-
-### Repository Structure
-
-- **Frontend**: Next.js components and pages
-- **API**: Netlify functions and API routes
-- **Services**: Business logic and data processing
-- **Configuration**: Environment and schema configuration
-- **Documentation**: Project documentation and guides
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Support
-
-**Technical Issues**:
-
-1. **Schema Issues**: Check unified schema configuration
-2. **Data Problems**: Verify CSV structure and permissions
-3. **Performance**: Monitor database and API performance
-4. **Integration**: Test database seeder connectivity
+See: [ENGINEERING_DOCTRINE.md](./docs/ENGINEERING_DOCTRINE.md)
 
 > [Back to Table of Contents](#table-of-contents)

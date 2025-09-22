@@ -26,12 +26,13 @@ export default function HomePage() {
 		setMainPage,
 	} = useNavigationStore();
 
-	console.log("🏠 [HomePage] Component rendered with state:", {
-		currentMainPage,
-		selectedPlayer,
-		isPlayerSelected,
-		isEditMode,
-	});
+	// console log the state of the home page
+	// console.log("🏠 [HomePage] Component rendered with state:", {
+	// 	currentMainPage,
+	// 	selectedPlayer,
+	// 	isPlayerSelected,
+	// 	isEditMode,
+	// });
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 
@@ -42,12 +43,12 @@ export default function HomePage() {
 
 	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
-		console.log("🤖 [HomePage] Chatbot useEffect triggered with:", {
-			isPlayerSelected,
-			selectedPlayer,
-			isEditMode,
-			showChatbot,
-		});
+		// console.log("🤖 [HomePage] Chatbot useEffect triggered with:", {
+		// 	isPlayerSelected,
+		// 	selectedPlayer,
+		// 	isEditMode,
+		// 	showChatbot,
+		// });
 
 		if (isPlayerSelected && selectedPlayer && !isEditMode) {
 			console.log("✅ [HomePage] Showing chatbot for player:", selectedPlayer);
