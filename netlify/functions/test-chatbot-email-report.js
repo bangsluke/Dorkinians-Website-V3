@@ -1365,21 +1365,41 @@ async function main() {
 			process.exit(1);
 		} else {
 			console.log("📊 Script completed with errors");
+			finalResults = {
+				totalTests: 0,
+				passedTests: 0,
+				failedTests: 0,
+				successRate: 0
+			};
 		}
 	}
 
 	console.log("\n✅ Comprehensive test and email report completed!");
 
-	// Exit with appropriate code (skip if running via API)
-	if (!process.env.SKIP_SERVER_CHECK) {
-		process.exit(finalResults.failedTests > 0 ? 1 : 0);
-	} else {
+	// Return results instead of exiting (for module usage)
+	if (process.env.NETLIFY === "true") {
 		console.log("📊 Final results:", finalResults);
+		return finalResults;
+	} else {
+		// Exit with appropriate code (skip if running via API)
+		if (!process.env.SKIP_SERVER_CHECK) {
+			process.exit(finalResults.failedTests > 0 ? 1 : 0);
+		} else {
+			console.log("📊 Final results:", finalResults);
+			return finalResults;
+		}
 	}
 }
 
-// Run the main function
-main().catch((error) => {
-	console.error("❌ Script failed:", error);
-	process.exit(1);
-});
+// Export the main function for use by other modules
+module.exports = {
+	runTests: main
+};
+
+// Only run main if this script is executed directly
+if (require.main === module) {
+	main().catch((error) => {
+		console.error("❌ Script failed:", error);
+		process.exit(1);
+	});
+}
