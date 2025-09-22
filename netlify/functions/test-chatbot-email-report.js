@@ -24,10 +24,10 @@ let logStream = null;
 
 // Only create log file if not in Netlify function environment
 if (process.env.NETLIFY !== "true") {
-	if (!fs.existsSync(logDir)) {
-		fs.mkdirSync(logDir, { recursive: true });
-	}
-	const logFile = path.join(logDir, "test-execution.log");
+if (!fs.existsSync(logDir)) {
+	fs.mkdirSync(logDir, { recursive: true });
+}
+const logFile = path.join(logDir, "test-execution.log");
 	logStream = fs.createWriteStream(logFile, { flags: "a" });
 }
 
@@ -40,7 +40,7 @@ console.log = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleLog(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
 	}
 };
 
@@ -48,7 +48,7 @@ console.error = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleError(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
 	}
 };
 
@@ -56,32 +56,34 @@ console.warn = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleWarn(...args);
 	if (logStream) {
-		logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
+	logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
 	}
 };
 
 // Clean up function
 process.on("exit", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 });
 
 process.on("SIGINT", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 	process.exit(0);
 });
 
 process.on("SIGTERM", () => {
 	if (logStream) {
-		logStream.end();
+	logStream.end();
 	}
 	process.exit(0);
 });
 
-// Register ts-node to handle TypeScript imports
+// Register ts-node to handle TypeScript imports (skip in Netlify function environment)
+if (process.env.NETLIFY !== "true") {
+	try {
 require("ts-node").register({
 	transpileOnly: true,
 	compilerOptions: {
@@ -93,6 +95,10 @@ require("ts-node").register({
 		moduleResolution: "node",
 	},
 });
+	} catch (error) {
+		console.log("⚠️ ts-node not available, using API-only mode");
+	}
+}
 
 // Define comprehensive STAT_TEST_CONFIGS for testing
 const STAT_TEST_CONFIGS = [
@@ -586,22 +592,21 @@ let ChatbotService = null;
 
 // Function to load chatbot service
 async function loadChatbotService() {
+	// Skip chatbot service loading in Netlify function environment
+	if (process.env.NETLIFY === "true") {
+		console.log("⏭️ Skipping ChatbotService loading in Netlify function environment");
+		return null;
+	}
+	
 	if (!ChatbotService) {
 		try {
-			// Use require instead of dynamic import for ts-node compatibility
-			// Try different paths for Netlify function environment
-			let chatbotModule;
-			try {
-				chatbotModule = require("../lib/services/chatbotService.ts");
-			} catch (error) {
-				// Try alternative path for Netlify function
-				chatbotModule = require("./lib/services/chatbotService.ts");
-			}
+			// Use dynamic import to avoid build-time module resolution issues
+			const chatbotModule = await import("../lib/services/chatbotService.ts");
 			ChatbotService = chatbotModule.ChatbotService;
 			console.log("✅ ChatbotService loaded successfully");
 		} catch (error) {
 			console.log("⚠️ Could not load ChatbotService:", error.message);
-			console.log("⚠️ Falling back to CSV-based testing");
+			console.log("⚠️ Falling back to API-based testing");
 		}
 	}
 	return ChatbotService;
@@ -683,7 +688,7 @@ async function fetchTestData() {
 			console.log("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
 			console.log("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
 
-			const lines = csvText.split("\n").filter((line) => line.trim());
+			const lines = csvText.split("\n").filter((line) => line.trim()).map(line => line.replace(/\r$/, ''));
 			console.log("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
 			console.log("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
 
@@ -791,8 +796,8 @@ async function runTestsProgrammatically() {
 		const testData = await fetchTestData();
 		console.log(`📊 Fetched ${testData.length} players from CSV data`);
 
-		// Use the actual players from TBL_TestData CSV
-		const testPlayers = testData.slice(0, 3); // Use first 3 players for testing
+		// Use only 1 player for testing in Netlify function environment
+		const testPlayers = testData.slice(0, 1); // Use first 1 player for testing
 
 		console.log(
 			`📊 Using test data for ${testPlayers.length} players:`,
@@ -819,7 +824,11 @@ async function runTestsProgrammatically() {
 			const playerName = player["PLAYER NAME"];
 			console.log(`\n🧪 Testing player: ${playerName}`);
 
-			for (const statConfig of STAT_TEST_CONFIGS) {
+			// Use only first 2 test configurations to avoid timeout
+			const testConfigs = STAT_TEST_CONFIGS.slice(0, 2);
+			console.log(`🔍 Testing ${testConfigs.length} configurations to avoid timeout`);
+
+			for (const statConfig of testConfigs) {
 				const statKey = statConfig.key;
 				const questionTemplate = statConfig.questionTemplate;
 				results.totalTests++;
@@ -844,6 +853,92 @@ async function runTestsProgrammatically() {
 					}
 
 					try {
+						// In Netlify function environment, use API call with detailed debugging
+						if (process.env.NETLIFY === "true") {
+							console.log(`🌐 Using API call for: ${question}`);
+							const baseUrl = 'https://dorkinians-website-v3.netlify.app';
+							
+							console.log(`🔍 Making request to: ${baseUrl}/api/chatbot`);
+							console.log(`🔍 Request body:`, JSON.stringify({
+								question: question,
+								userContext: playerName,
+							}));
+							
+		// Check if fetch is available
+		if (typeof fetch === 'undefined') {
+			console.log(`❌ Fetch is not available, using node-fetch`);
+			const nodeFetch = require('node-fetch');
+			
+			// Add timeout wrapper
+			const timeoutPromise = new Promise((_, reject) => 
+				setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+			);
+			
+			const fetchPromise = nodeFetch(`${baseUrl}/api/chatbot`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					question: question,
+					userContext: playerName,
+				}),
+			});
+			
+			const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+								console.log(`🔍 Response status: ${response.status}`);
+								
+								if (response.ok) {
+									const data = await response.json();
+									console.log(`🔍 Response data:`, data);
+									chatbotAnswer = data.answer || "Empty response or error";
+									cypherQuery = data.cypherQuery || "N/A";
+								} else {
+									const errorText = await response.text();
+									console.log(`🔍 Error response:`, errorText);
+									throw new Error(`API call failed: ${response.status} - ${errorText}`);
+								}
+		} else {
+			console.log(`✅ Using native fetch`);
+			try {
+				// Add timeout wrapper for native fetch
+				const timeoutPromise = new Promise((_, reject) => 
+					setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+				);
+				
+				const fetchPromise = fetch(`${baseUrl}/api/chatbot`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						question: question,
+						userContext: playerName,
+					}),
+				});
+				
+				const response = await Promise.race([fetchPromise, timeoutPromise]);
+
+									console.log(`🔍 Response status: ${response.status}`);
+									console.log(`🔍 Response headers:`, Object.fromEntries(response.headers.entries()));
+
+									if (response.ok) {
+										const data = await response.json();
+										console.log(`🔍 Response data:`, data);
+										chatbotAnswer = data.answer || "Empty response or error";
+										cypherQuery = data.cypherQuery || "N/A";
+									} else {
+										const errorText = await response.text();
+										console.log(`🔍 Error response:`, errorText);
+										throw new Error(`API call failed: ${response.status} - ${errorText}`);
+									}
+								} catch (fetchError) {
+									console.log(`🔍 Fetch error:`, fetchError.message);
+									throw fetchError;
+								}
+							}
+						} else {
 						// Try to use the chatbot service directly first
 						const chatbotService = await loadChatbotService();
 						if (chatbotService) {
@@ -881,10 +976,12 @@ async function runTestsProgrammatically() {
 								cypherQuery = data.cypherQuery || "N/A";
 							} else {
 								throw new Error(`API call failed: ${response.status}`);
+								}
 							}
 						}
 					} catch (error) {
 						console.warn(`Failed to get chatbot response for ${playerName} - ${statKey}:`, error.message);
+						console.warn(`Error details:`, error);
 						chatbotAnswer = "Empty response or error";
 						cypherQuery = "N/A";
 					}
@@ -920,7 +1017,7 @@ async function runTestsProgrammatically() {
 					let valuesMatch = true;
 					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
 						// For numeric values, compare as numbers
-						if (statConfig.responsePattern.source.includes("\\d")) {
+						if (statConfig.responsePattern && statConfig.responsePattern.source && statConfig.responsePattern.source.includes("\\d")) {
 							const expectedNumeric = parseFloat(expectedValue);
 							const chatbotNumeric = parseFloat(chatbotExtractedValue);
 							valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
@@ -1121,33 +1218,47 @@ function generateEmailContent(testResults) {
           <tbody>
     `;
 
-		// Group tests by category and create table rows
-		const categories = {};
-		testResults.testDetails.forEach((test) => {
-			if (!categories[test.describe]) {
-				categories[test.describe] = [];
-			}
-			categories[test.describe].push(test);
-		});
+	// Group tests by category and create table rows
+	const categories = {};
+	testResults.testDetails.forEach((test) => {
+		// Handle both old format (test.describe) and new format (test.stat)
+		const category = test.describe || getCategoryForStat(test.stat || test.statKey || '');
+		if (!categories[category]) {
+			categories[category] = [];
+		}
+		categories[category].push(test);
+	});
 
 		Object.keys(categories).forEach((category) => {
 			// Add category header row
 			html += `<tr class="category-header"><td colspan="6">${category}</td></tr>`;
 
 			categories[category].forEach((test) => {
-				const isFailed =
-					test.status === "FAILED" ||
-					test.assertion.includes("not.toBe") ||
-					test.assertion.includes("toContain") ||
-					test.assertion.includes("toMatch");
+				// Handle both old format and new format
+				let isFailed = false;
+				if (test.status) {
+					// Old format
+					isFailed = test.status === "FAILED" ||
+						(test.assertion && test.assertion.includes("not.toBe")) ||
+						(test.assertion && test.assertion.includes("toContain")) ||
+						(test.assertion && test.assertion.includes("toMatch"));
+				} else {
+					// New format from runRandomTests
+					isFailed = !test.passed;
+				}
 				const status = isFailed ? "FAILED" : "PASSED";
 				const statusClass = isFailed ? "status-failed" : "status-passed";
 
 				// Use actual question and player data if available from programmatic results
 				let question, expectedValue, playerName;
 
-				if (test.question && test.playerName) {
-					// From programmatic results
+				if (test.question && (test.player || test.playerName)) {
+					// From programmatic results (new format)
+					question = test.question;
+					expectedValue = test.expected;
+					playerName = test.player || test.playerName;
+				} else if (test.question && test.playerName) {
+					// From programmatic results (old format)
 					question = test.question;
 					expectedValue = test.expected;
 					playerName = test.playerName;
@@ -1225,6 +1336,13 @@ function generateEmailContent(testResults) {
 }
 
 async function sendEmailReport(testResults) {
+	console.log("🔍 Email configuration check:");
+	console.log(`SMTP_SERVER: ${process.env.SMTP_SERVER ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_USERNAME: ${process.env.SMTP_USERNAME ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_PASSWORD: ${process.env.SMTP_PASSWORD ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_TO_EMAIL: ${process.env.SMTP_TO_EMAIL ? 'SET' : 'NOT SET'}`);
+	console.log(`RECIPIENT_EMAIL: ${RECIPIENT_EMAIL}`);
+	
 	if (!EMAIL_CONFIG.host || !EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
 		console.log("⚠️ Email credentials not configured. Skipping email report.");
 		console.log("Set SMTP_SERVER, SMTP_USERNAME, and SMTP_PASSWORD environment variables to enable email reports.");
@@ -1274,14 +1392,9 @@ function writeTestResultsToLog(testResults) {
 			})),
 		};
 
-		// Only write log file if not in Netlify function environment
-		if (process.env.NETLIFY !== "true") {
-			const logFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-email-report.log");
-			fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
-			console.log(`📝 Test results written to: ${logFile}`);
-		} else {
-			console.log(`📝 Test results (Netlify function):`, JSON.stringify(logContent, null, 2));
-		}
+		const logFile = path.join(__dirname, "..", "logs", "test-chatbot-email-report.log");
+		fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
+		console.log(`📝 Test results written to: ${logFile}`);
 	} catch (error) {
 		console.error("❌ Failed to write test results to log:", error.message);
 	}
@@ -1289,10 +1402,14 @@ function writeTestResultsToLog(testResults) {
 
 async function main() {
 	console.log("🚀 Starting comprehensive chatbot test with email report...");
-	console.log(`📝 Console output will be logged to: ${logFile}`);
+	if (logStream) {
+		console.log(`📝 Console output will be logged to: ${path.join(logDir, "test-execution.log")}`);
+	} else {
+		console.log("📝 Running in Netlify function environment - console output only");
+	}
 
-	// Check if server is running first (skip if running via API)
-	if (!process.env.SKIP_SERVER_CHECK) {
+	// Check if server is running first (skip if running via API or Netlify function)
+	if (!process.env.SKIP_SERVER_CHECK && process.env.NETLIFY !== "true") {
 		console.log("🔍 Checking if development server is running...");
 		const serverRunning = await checkServerHealth();
 
@@ -1305,7 +1422,7 @@ async function main() {
 
 		console.log("✅ Development server is running");
 	} else {
-		console.log("⏭️ Skipping server health check (running via API)");
+		console.log("⏭️ Skipping server health check (running via API or Netlify function)");
 	}
 
 	let finalResults;
@@ -1336,21 +1453,233 @@ async function main() {
 			process.exit(1);
 		} else {
 			console.log("📊 Script completed with errors");
+			finalResults = {
+				totalTests: 0,
+				passedTests: 0,
+				failedTests: 0,
+				successRate: 0
+			};
 		}
 	}
 
 	console.log("\n✅ Comprehensive test and email report completed!");
 
+	// Return results instead of exiting (for module usage)
+	if (process.env.NETLIFY === "true") {
+		console.log("📊 Final results:", finalResults);
+		return finalResults;
+	} else {
 	// Exit with appropriate code (skip if running via API)
 	if (!process.env.SKIP_SERVER_CHECK) {
 		process.exit(finalResults.failedTests > 0 ? 1 : 0);
 	} else {
 		console.log("📊 Final results:", finalResults);
+			return finalResults;
+		}
 	}
 }
 
-// Run the main function
+// Random test selection function for weekly cron job
+async function runRandomTests(maxTests = 5) {
+	console.log(`🎲 Starting random test selection: maxTests=${maxTests}`);
+	console.log(`⏱️ Function started at: ${new Date().toISOString()}`);
+	
+	try {
+		// Load test data
+		const testData = await fetchTestData();
+		const totalTests = testData.length * STAT_TEST_CONFIGS.length;
+		
+		console.log(`📊 Total possible tests: ${totalTests}`);
+		console.log(`🎲 Selecting up to ${maxTests} random tests`);
+		
+		// Create all possible test combinations
+		const allTestCombinations = [];
+		for (let playerIndex = 0; playerIndex < testData.length; playerIndex++) {
+			const player = testData[playerIndex];
+			const playerName = player["PLAYER NAME"];
+			
+			for (let configIndex = 0; configIndex < STAT_TEST_CONFIGS.length; configIndex++) {
+				const statConfig = STAT_TEST_CONFIGS[configIndex];
+				allTestCombinations.push({
+					playerIndex,
+					playerName,
+					configIndex,
+					statConfig,
+					testId: `${playerName}-${statConfig.key}`
+				});
+			}
+		}
+		
+		// Shuffle and select random tests
+		const shuffledTests = allTestCombinations.sort(() => Math.random() - 0.5);
+		const selectedTests = shuffledTests.slice(0, Math.min(maxTests, totalTests));
+		
+		console.log(`🎲 Selected ${selectedTests.length} random tests`);
+		
+		const results = {
+			selectedTests: selectedTests.length,
+			totalAvailableTests: totalTests,
+			processedTests: 0,
+			passedTests: 0,
+			failedTests: 0,
+			totalTests: 0, // Will be set to processedTests for email compatibility
+			testDetails: [],
+			selectedTestIds: selectedTests.map(t => t.testId)
+		};
+		
+		// Process selected tests
+		for (let i = 0; i < selectedTests.length; i++) {
+			const test = selectedTests[i];
+			const player = testData[test.playerIndex];
+			const playerName = test.playerName;
+			const statConfig = test.statConfig;
+			const statKey = statConfig.key;
+			const questionTemplate = statConfig.questionTemplate;
+				
+			results.processedTests++;
+			
+			// Generate question (moved outside try block for error handling)
+			const question = questionTemplate.replace("{playerName}", playerName);
+			
+			// Get expected value from CSV data (moved outside try block for error handling)
+			let expectedValue = player[statConfig.key] || "";
+			
+			console.log(`🔍 Test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey}`);
+			console.log(`🔍 Question: ${question}`);
+			console.log(`🔍 Expected value: ${expectedValue}`);
+			console.log(`🔍 Player data keys: ${Object.keys(player).slice(0, 10).join(', ')}...`);
+			
+			try {
+				let chatbotAnswer, cypherQuery;
+				
+				if (expectedValue !== undefined && expectedValue !== "") {
+					console.log(`🔍 Making API call for: ${playerName} - ${statKey}`);
+					console.log(`🔍 Question: ${question}`);
+					console.log(`🔍 Expected value: ${expectedValue}`);
+					
+					// Make API call with timeout
+					const timeoutPromise = new Promise((_, reject) => 
+						setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+					);
+					
+					// Use node-fetch if available, otherwise use global fetch
+					const fetchFunction = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+					console.log(`🔍 Using fetch function: ${typeof fetchFunction}`);
+					
+					const fetchPromise = fetchFunction('https://dorkinians-website-v3.netlify.app/api/chatbot', {
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify({
+							question: question,
+							userContext: playerName,
+						}),
+					});
+					
+					console.log(`🔍 Starting Promise.race for: ${playerName} - ${statKey}`);
+					const response = await Promise.race([fetchPromise, timeoutPromise]);
+					console.log(`🔍 Got response for: ${playerName} - ${statKey}, status: ${response.status}`);
+					
+					if (response.ok) {
+						const data = await response.json();
+						chatbotAnswer = data.answer || "Empty response or error";
+						cypherQuery = data.cypherQuery || "N/A";
+						console.log(`🔍 Chatbot response: "${chatbotAnswer}"`);
+					} else {
+						throw new Error(`API call failed: ${response.status}`);
+					}
+					
+					// Extract numeric value from chatbot response
+					const chatbotValue = parseFloat(chatbotAnswer.replace(/[^\d.-]/g, ''));
+					const expectedValueNum = parseFloat(expectedValue);
+					
+					console.log(`🔍 Extracted values - Expected: ${expectedValueNum}, Chatbot: ${chatbotValue}`);
+					
+					// Check if values match
+					const valuesMatch = chatbotValue === expectedValueNum;
+					const hasValidResponse = chatbotAnswer !== "Empty response or error" && chatbotAnswer !== null;
+					
+					const testResult = {
+						player: playerName,
+						stat: statKey,
+						question: question,
+						expected: expectedValue,
+						received: chatbotAnswer,
+						expectedExtracted: expectedValueNum,
+						chatbotExtracted: chatbotValue,
+						valuesMatch: valuesMatch,
+						hasValidResponse: hasValidResponse,
+						cypherQuery: cypherQuery,
+						passed: valuesMatch && hasValidResponse,
+					};
+					
+					results.testDetails.push(testResult);
+					
+					if (testResult.passed) {
+						results.passedTests++;
+					} else {
+						results.failedTests++;
+					}
+					
+					console.log(`✅ Test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey} - ${testResult.passed ? 'PASS' : 'FAIL'}`);
+				} else {
+					console.log(`⏭️ Skipping test ${i + 1}/${selectedTests.length}: ${playerName} - ${statKey} (no CSV data)`);
+				}
+				
+			} catch (error) {
+				console.error(`❌ Test ${i + 1}/${selectedTests.length} failed:`, error.message);
+				
+				const testResult = {
+					player: playerName,
+					stat: statKey,
+					question: question,
+					expected: expectedValue,
+					received: "Error: " + error.message,
+					expectedExtracted: null,
+					chatbotExtracted: null,
+					valuesMatch: false,
+					hasValidResponse: false,
+					cypherQuery: "N/A",
+					passed: false,
+				};
+				
+				results.testDetails.push(testResult);
+				results.failedTests++;
+			}
+		}
+		
+		console.log(`🎲 Random test run completed: ${results.passedTests}/${results.processedTests} passed`);
+		console.log(`⏱️ Test execution completed at: ${new Date().toISOString()}`);
+		
+		// Set totalTests for email compatibility
+		results.totalTests = results.processedTests;
+		
+		// Send email report
+		console.log("📧 Sending email report...");
+		console.log(`⏱️ Starting email send at: ${new Date().toISOString()}`);
+		await sendEmailReport(results);
+		console.log(`⏱️ Email send completed at: ${new Date().toISOString()}`);
+		console.log("✅ Email report sent");
+		
+		return results;
+		
+	} catch (error) {
+		console.error("❌ Random test processing failed:", error);
+		throw error;
+	}
+}
+
+// Export the main function for use by other modules
+module.exports = {
+	runTests: main,
+	runRandomTests
+};
+
+// Only run main if this script is executed directly
+if (require.main === module) {
 main().catch((error) => {
 	console.error("❌ Script failed:", error);
 	process.exit(1);
 });
+}

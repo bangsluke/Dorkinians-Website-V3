@@ -42,10 +42,21 @@
   to = "/_next/:splat"
   status = 200
 
-# Handle API routes - let them pass through to functions
+# Handle API routes - let them pass through to functions (except chatbot which is handled by Next.js)
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/api/chatbot-test"
+  to = "/.netlify/functions/chatbot-test"
+  status = 200
+
+
+[[redirects]]
+  from = "/api/players"
+  to = "/.netlify/functions/players"
+  status = 200
+
+[[redirects]]
+  from = "/api/trigger-seed"
+  to = "/.netlify/functions/trigger-seed"
   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
