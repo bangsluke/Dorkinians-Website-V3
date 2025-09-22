@@ -81,18 +81,21 @@ process.on("SIGTERM", () => {
 	process.exit(0);
 });
 
-// Register ts-node to handle TypeScript imports
-require("ts-node").register({
-	transpileOnly: true,
-	compilerOptions: {
-		module: "commonjs",
-		target: "es2020",
-		esModuleInterop: true,
-		allowSyntheticDefaultImports: true,
-		skipLibCheck: true,
-		moduleResolution: "node",
-	},
-});
+// Skip ts-node registration in Netlify function environment
+if (process.env.NETLIFY !== "true") {
+	// Register ts-node to handle TypeScript imports
+	require("ts-node").register({
+		transpileOnly: true,
+		compilerOptions: {
+			module: "commonjs",
+			target: "es2020",
+			esModuleInterop: true,
+			allowSyntheticDefaultImports: true,
+			skipLibCheck: true,
+			moduleResolution: "node",
+		},
+	});
+}
 
 // Define comprehensive STAT_TEST_CONFIGS for testing
 const STAT_TEST_CONFIGS = [
@@ -586,6 +589,12 @@ let ChatbotService = null;
 
 // Function to load chatbot service
 async function loadChatbotService() {
+	// Skip chatbot service loading in Netlify function environment
+	if (process.env.NETLIFY === "true") {
+		console.log("⏭️ Skipping ChatbotService loading in Netlify function environment");
+		return null;
+	}
+	
 	if (!ChatbotService) {
 		try {
 			// Use require instead of dynamic import for ts-node compatibility
@@ -844,26 +853,11 @@ async function runTestsProgrammatically() {
 					}
 
 					try {
-						// Try to use the chatbot service directly first
-						const chatbotService = await loadChatbotService();
-						if (chatbotService) {
-							console.log(`🤖 Using chatbot service for: ${question}`);
-							const response = await chatbotService.getInstance().processQuestion({
-								question: question,
-								userContext: playerName,
-							});
-							chatbotAnswer = response.answer || "Empty response or error";
-							cypherQuery = response.cypherQuery || "N/A";
-
-							console.log(`✅ Chatbot response: ${chatbotAnswer}`);
-							console.log(`🔍 Cypher query: ${cypherQuery}`);
-						} else {
-							// Fallback to API call
-							console.log(`🌐 Using API fallback for: ${question}`);
-							const baseUrl = process.env.NODE_ENV === 'production' 
-								? 'https://dorkinians-website-v3.netlify.app'
-								: 'http://localhost:3000';
-								
+						// In Netlify function environment, always use API call
+						if (process.env.NETLIFY === "true") {
+							console.log(`🌐 Using API call for: ${question}`);
+							const baseUrl = 'https://dorkinians-website-v3.netlify.app';
+							
 							const response = await fetch(`${baseUrl}/api/chatbot`, {
 								method: "POST",
 								headers: {
@@ -881,6 +875,46 @@ async function runTestsProgrammatically() {
 								cypherQuery = data.cypherQuery || "N/A";
 							} else {
 								throw new Error(`API call failed: ${response.status}`);
+							}
+						} else {
+							// Try to use the chatbot service directly first
+							const chatbotService = await loadChatbotService();
+							if (chatbotService) {
+								console.log(`🤖 Using chatbot service for: ${question}`);
+								const response = await chatbotService.getInstance().processQuestion({
+									question: question,
+									userContext: playerName,
+								});
+								chatbotAnswer = response.answer || "Empty response or error";
+								cypherQuery = response.cypherQuery || "N/A";
+
+								console.log(`✅ Chatbot response: ${chatbotAnswer}`);
+								console.log(`🔍 Cypher query: ${cypherQuery}`);
+							} else {
+								// Fallback to API call
+								console.log(`🌐 Using API fallback for: ${question}`);
+								const baseUrl = process.env.NODE_ENV === 'production' 
+									? 'https://dorkinians-website-v3.netlify.app'
+									: 'http://localhost:3000';
+									
+								const response = await fetch(`${baseUrl}/api/chatbot`, {
+									method: "POST",
+									headers: {
+										"Content-Type": "application/json",
+									},
+									body: JSON.stringify({
+										question: question,
+										userContext: playerName,
+									}),
+								});
+
+								if (response.ok) {
+									const data = await response.json();
+									chatbotAnswer = data.answer || "Empty response or error";
+									cypherQuery = data.cypherQuery || "N/A";
+								} else {
+									throw new Error(`API call failed: ${response.status}`);
+								}
 							}
 						}
 					} catch (error) {
