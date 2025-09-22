@@ -53,10 +53,17 @@
 - [PWA Release Process](#pwa-release-process)
   - [Version Management](#version-management)
   - [Release Checklist](#release-checklist)
-- [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
-  - [External Cron Service Setup](#external-cron-service-setup)
-  - [Manual Testing](#manual-testing)
-  - [Expected Response](#expected-response)
+- [Cron Setup](#cron-setup)
+  - [Cron Setup for Automated Database Updates](#cron-setup-for-automated-database-updates)
+    - [External Cron Service Setup](#external-cron-service-setup)
+    - [Manual Testing](#manual-testing)
+    - [Expected Response](#expected-response)
+  - [Cron Setup for Weekly Chatbot Testing](#cron-setup-for-weekly-chatbot-testing)
+    - [External Cron Service Setup](#external-cron-service-setup-1)
+    - [Manual Testing](#manual-testing-1)
+    - [Expected Response](#expected-response-1)
+    - [Test Coverage](#test-coverage)
+    - [Email Reports](#email-reports)
 - [Email Configuration](#email-configuration)
   - [Required Environment Variables](#required-environment-variables)
   - [Email Provider Examples](#email-provider-examples)
@@ -776,11 +783,21 @@ export const appConfig = {
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Cron Setup for Automated Database Updates
+## Cron Setup
+
+A Cron Service, using cron-job.org, is used to automate the database updates and weekly chatbot testing.
+
+**Alternative Services:**
+
+- EasyCron: [easycron.com](https://easycron.com)
+- Cronitor: [cronitor.io](https://cronitor.io)
+- UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
+
+### Cron Setup for Automated Database Updates
 
 The system supports automated daily database updates using external cron services.
 
-### External Cron Service Setup
+#### External Cron Service Setup
 
 **Using cron-job.org (Free):**
 
@@ -792,20 +809,14 @@ The system supports automated daily database updates using external cron service
    - **Timeout**: 1800 seconds (30 minutes)
    - **Retry**: 3 attempts on failure
 
-**Alternative Services:**
-
-- EasyCron: [easycron.com](https://easycron.com)
-- Cronitor: [cronitor.io](https://cronitor.io)
-- UptimeRobot: [uptimerobot.com](https://uptimerobot.com)
-
-### Manual Testing
+#### Manual Testing
 
 ```bash
 # Test the function directly
 curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production"
 ```
 
-### Expected Response
+#### Expected Response
 
 ```json
 {
@@ -821,6 +832,69 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 	}
 }
 ```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Cron Setup for Weekly Chatbot Testing
+
+The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational.
+
+#### External Cron Service Setup
+
+**Using cron-job.org (Free):**
+
+1. Sign up at [cron-job.org](https://cron-job.org)
+2. Create new cronjob:
+   - **Title**: `Weekly Chatbot Test`
+   - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
+   - **Method**: POST
+   - **Request Body**: `{"emailAddress": "your-email@example.com"}`
+   - **Headers**: `Content-Type: application/json`
+   - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
+   - **Timeout**: 300 seconds (5 minutes)
+   - **Retry**: 2 attempts on failure
+
+#### Manual Testing
+
+```bash
+# Test the endpoint directly
+curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
+  -H "Content-Type: application/json" \
+  -d '{"emailAddress": "your-email@example.com"}'
+```
+
+#### Expected Response
+
+```json
+{
+  "success": true,
+  "message": "Chatbot test completed successfully",
+  "totalTests": 150,
+  "passedTests": 142,
+  "failedTests": 8,
+  "successRate": 94.7,
+  "output": "Test execution output..."
+}
+```
+
+#### Test Coverage
+
+The weekly test covers:
+- **Basic Statistics**: Goals, assists, appearances, minutes, etc.
+- **Advanced Statistics**: Goals per appearance, minutes per goal, etc.
+- **Home/Away Statistics**: Home wins, away wins, percentages
+- **Team-Specific Statistics**: 1s, 2s, 3s through 8s appearances and goals
+- **Seasonal Statistics**: 2016/17 through 2021/22 seasons
+- **Positional Statistics**: Goalkeeper, defender, midfielder, forward
+
+#### Email Reports
+
+Test results are automatically emailed to the configured address with:
+- Comprehensive test summary
+- Detailed pass/fail breakdown
+- Cypher query analysis
+- Performance metrics
+- Recommendations for improvements
 
 > [Back to Table of Contents](#table-of-contents)
 
