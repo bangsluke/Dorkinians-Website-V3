@@ -1468,6 +1468,7 @@ async function main() {
 // Random test selection function for weekly cron job
 async function runRandomTests(maxTests = 5) {
 	console.log(`🎲 Starting random test selection: maxTests=${maxTests}`);
+	console.log(`⏱️ Function started at: ${new Date().toISOString()}`);
 	
 	try {
 		// Load test data
@@ -1544,7 +1545,7 @@ async function runRandomTests(maxTests = 5) {
 					
 					// Make API call with timeout
 					const timeoutPromise = new Promise((_, reject) => 
-						setTimeout(() => reject(new Error('API call timeout after 10 seconds')), 10000)
+						setTimeout(() => reject(new Error('API call timeout after 3 seconds')), 3000)
 					);
 					
 					// Use node-fetch if available, otherwise use global fetch
@@ -1635,13 +1636,16 @@ async function runRandomTests(maxTests = 5) {
 		}
 		
 		console.log(`🎲 Random test run completed: ${results.passedTests}/${results.processedTests} passed`);
+		console.log(`⏱️ Test execution completed at: ${new Date().toISOString()}`);
 		
 		// Set totalTests for email compatibility
 		results.totalTests = results.processedTests;
 		
 		// Send email report
 		console.log("📧 Sending email report...");
+		console.log(`⏱️ Starting email send at: ${new Date().toISOString()}`);
 		await sendEmailReport(results);
+		console.log(`⏱️ Email send completed at: ${new Date().toISOString()}`);
 		console.log("✅ Email report sent");
 		
 		return results;
