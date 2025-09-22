@@ -1322,6 +1322,13 @@ function generateEmailContent(testResults) {
 }
 
 async function sendEmailReport(testResults) {
+	console.log("🔍 Email configuration check:");
+	console.log(`SMTP_SERVER: ${process.env.SMTP_SERVER ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_USERNAME: ${process.env.SMTP_USERNAME ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_PASSWORD: ${process.env.SMTP_PASSWORD ? 'SET' : 'NOT SET'}`);
+	console.log(`SMTP_TO_EMAIL: ${process.env.SMTP_TO_EMAIL ? 'SET' : 'NOT SET'}`);
+	console.log(`RECIPIENT_EMAIL: ${RECIPIENT_EMAIL}`);
+	
 	if (!EMAIL_CONFIG.host || !EMAIL_CONFIG.auth.user || !EMAIL_CONFIG.auth.pass) {
 		console.log("⚠️ Email credentials not configured. Skipping email report.");
 		console.log("Set SMTP_SERVER, SMTP_USERNAME, and SMTP_PASSWORD environment variables to enable email reports.");
@@ -1500,6 +1507,7 @@ async function runRandomTests(maxTests = 5) {
 			processedTests: 0,
 			passedTests: 0,
 			failedTests: 0,
+			totalTests: 0, // Will be set to processedTests for email compatibility
 			testDetails: [],
 			selectedTestIds: selectedTests.map(t => t.testId)
 		};
@@ -1562,6 +1570,7 @@ async function runRandomTests(maxTests = 5) {
 						const data = await response.json();
 						chatbotAnswer = data.answer || "Empty response or error";
 						cypherQuery = data.cypherQuery || "N/A";
+						console.log(`🔍 Chatbot response: "${chatbotAnswer}"`);
 					} else {
 						throw new Error(`API call failed: ${response.status}`);
 					}
@@ -1569,6 +1578,8 @@ async function runRandomTests(maxTests = 5) {
 					// Extract numeric value from chatbot response
 					const chatbotValue = parseFloat(chatbotAnswer.replace(/[^\d.-]/g, ''));
 					const expectedValueNum = parseFloat(expectedValue);
+					
+					console.log(`🔍 Extracted values - Expected: ${expectedValueNum}, Chatbot: ${chatbotValue}`);
 					
 					// Check if values match
 					const valuesMatch = chatbotValue === expectedValueNum;
@@ -1624,6 +1635,15 @@ async function runRandomTests(maxTests = 5) {
 		}
 		
 		console.log(`🎲 Random test run completed: ${results.passedTests}/${results.processedTests} passed`);
+		
+		// Set totalTests for email compatibility
+		results.totalTests = results.processedTests;
+		
+		// Send email report
+		console.log("📧 Sending email report...");
+		await sendEmailReport(results);
+		console.log("✅ Email report sent");
+		
 		return results;
 		
 	} catch (error) {
