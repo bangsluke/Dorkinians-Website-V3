@@ -182,7 +182,13 @@ export class EntityExtractor {
 	constructor(question: string) {
 		this.question = question;
 		this.lowerQuestion = question.toLowerCase();
-		this.nlpDoc = nlp(question);
+		try {
+			this.nlpDoc = nlp(question);
+		} catch (error) {
+			console.error('❌ NLP Error:', error);
+			// Fallback to basic text processing if NLP fails
+			this.nlpDoc = { match: () => ({ out: () => [] }) };
+		}
 		this.entityResolver = EntityNameResolver.getInstance();
 	}
 
@@ -307,9 +313,9 @@ export class EntityExtractor {
 	private async extractStatTypes(): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 		
-		// Debug logging
-		console.log('🔍 Stat Type Debug - Question:', this.question);
-		console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
+		// Debug logging (commented out for production)
+		// console.log('🔍 Stat Type Debug - Question:', this.question);
+		// console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
 		
 		// Check for goal involvements first
 		if (this.lowerQuestion.includes('goal involvements') || this.lowerQuestion.includes('goal involvement')) {
@@ -328,9 +334,9 @@ export class EntityExtractor {
 			sortedPseudonyms.forEach(pseudonym => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
 				const matches = this.findMatches(regex);
-				if (matches.length > 0) {
-					console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
-				}
+				// if (matches.length > 0) {
+				// 	console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
+				// }
 				matches.forEach(match => {
 					statTypes.push({
 						value: key,
@@ -344,7 +350,7 @@ export class EntityExtractor {
 		// Add fuzzy matching for stat types
 		await this.addFuzzyStatTypeMatches(statTypes);
 
-		console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
+		// console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
 		return statTypes;
 	}
 
@@ -600,16 +606,17 @@ export class EntityExtractor {
 	private extractPlayerNamesWithNLP(): Array<{text: string, position: number}> {
 		const players: Array<{text: string, position: number}> = [];
 		
-		// Get all proper nouns (potential player names)
-		const properNouns = this.nlpDoc.match('#ProperNoun+').out('array');
-		
-		// Get all nouns that might be player names
-		const nouns = this.nlpDoc.match('#Noun+').out('array');
-		
-		// Debug logging
-		console.log('🔍 NLP Debug - Question:', this.question);
-		console.log('🔍 NLP Debug - Proper nouns:', properNouns);
-		console.log('🔍 NLP Debug - Nouns:', nouns);
+		try {
+			// Get all proper nouns (potential player names)
+			const properNouns = this.nlpDoc.match('#ProperNoun+').out('array');
+			
+			// Get all nouns that might be player names
+			const nouns = this.nlpDoc.match('#Noun+').out('array');
+			
+		// Debug logging (commented out for production)
+		// console.log('🔍 NLP Debug - Question:', this.question);
+		// console.log('🔍 NLP Debug - Proper nouns:', properNouns);
+		// console.log('🔍 NLP Debug - Nouns:', nouns);
 		
 		// Combine and filter potential player names
 		const potentialNames = [...properNouns, ...nouns];
@@ -701,8 +708,23 @@ export class EntityExtractor {
 			index === self.findIndex(p => p.text === player.text)
 		);
 		
-		console.log('🔍 Player Debug - Final players:', uniquePlayers);
+		// console.log('🔍 Player Debug - Final players:', uniquePlayers);
 		return uniquePlayers.sort((a, b) => a.position - b.position);
+		} catch (error) {
+			console.error('❌ NLP Processing Error:', error);
+			// Fallback to basic word extraction if NLP fails
+			const words = this.question.split(/\s+/);
+			const potentialNames = words.filter(word => 
+				word.length >= 2 && 
+				/^[A-Z]/.test(word) &&
+				!['How', 'What', 'Where', 'When', 'Why', 'Which', 'Who'].includes(word)
+			);
+			
+			return potentialNames.map((name, index) => ({
+				text: name,
+				position: this.question.indexOf(name)
+			}));
+		}
 	}
 
 	/**
