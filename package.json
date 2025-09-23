@@ -1,6 +1,6 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
@@ -36,6 +36,7 @@
 		"natural": "^8.1.0",
 		"neo4j-driver": "^5.28.1",
 		"next": "14.2.32",
+		"node-fetch": "^2.7.0",
 		"next-pwa": "^5.6.0",
 		"nodemailer": "^7.0.5",
 		"openai": "^4.20.1",

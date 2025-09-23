@@ -837,30 +837,35 @@ curl "https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=
 
 ### Cron Setup for Weekly Chatbot Testing
 
-The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational.
+The system supports automated weekly chatbot testing using external cron services to ensure the chatbot functionality remains operational. The system uses a **random test selection approach** that ensures comprehensive coverage over time while staying within execution limits.
 
-#### External Cron Service Setup
+#### Random Test Selection Approach
+
+**How It Works:**
+- **Total Available Tests**: 204 tests (3 players × 68 test configurations)
+- **Random Selection**: Each week, randomly selects 1 test from the full set
+- **No Duplicates**: Ensures the same test isn't run twice in a single execution
+- **Comprehensive Coverage**: Over time, all 204 tests will be tested
+- **Timeout Safe**: Designed to complete within 30-second Netlify function limit
 
 **Using cron-job.org (Free):**
 
 1. Sign up at [cron-job.org](https://cron-job.org)
 2. Create new cronjob:
-   - **Title**: `Weekly Chatbot Test`
+   - **Title**: `Weekly Random Chatbot Test`
    - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
    - **Method**: POST
-   - **Request Body**: `{"emailAddress": "your-email@example.com"}`
+          - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 1}`
    - **Headers**: `Content-Type: application/json`
    - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
-   - **Timeout**: 300 seconds (5 minutes)
+   - **Timeout**: 30 seconds
    - **Retry**: 2 attempts on failure
 
-#### Manual Testing
-
+**Manual Testing:**
 ```bash
-# Test the endpoint directly
 curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
   -H "Content-Type: application/json" \
-  -d '{"emailAddress": "your-email@example.com"}'
+  -d '{"emailAddress": "your-email@example.com", "maxTests": 1}'
 ```
 
 #### Expected Response
@@ -868,30 +873,39 @@ curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
 ```json
 {
   "success": true,
-  "message": "Chatbot test completed successfully",
-  "totalTests": 150,
-  "passedTests": 142,
-  "failedTests": 8,
-  "successRate": 94.7,
-  "output": "Test execution output..."
+  "message": "Random chatbot test completed successfully",
+  "selectedTests": 1,
+  "totalAvailableTests": 204,
+  "processedTests": 1,
+  "passedTests": 1,
+  "failedTests": 0,
+  "successRate": "100.0%",
+  "output": "Random tests completed: 1/1 passed (1 selected from 204 available)"
 }
 ```
 
 #### Test Coverage
 
-The weekly test covers:
+**Random Selection Benefits:**
+- **Efficient**: Tests only 1 random test per week (0.5% of total)
+- **Comprehensive Over Time**: All 204 tests will be tested within ~204 weeks
+- **No Duplicates**: Each weekly run tests different combinations
+- **Timeout Safe**: Always completes within 30 seconds
+- **Diverse Coverage**: Tests different players and statistics each week
+
+**Test Categories Covered:**
 - **Basic Statistics**: Goals, assists, appearances, minutes, etc.
 - **Advanced Statistics**: Goals per appearance, minutes per goal, etc.
 - **Home/Away Statistics**: Home wins, away wins, percentages
 - **Team-Specific Statistics**: 1s, 2s, 3s through 8s appearances and goals
 - **Seasonal Statistics**: 2016/17 through 2021/22 seasons
-- **Positional Statistics**: Goalkeeper, defender, midfielder, forward
+  - Positional Statistics (goalkeeper, defender, midfielder, forward)
 
 #### Email Reports
 
 Test results are automatically emailed to the configured address with:
 - Comprehensive test summary
-- Detailed pass/fail breakdown
+- Detailed pass/fail breakdown with expected vs received values
 - Cypher query analysis
 - Performance metrics
 - Recommendations for improvements
