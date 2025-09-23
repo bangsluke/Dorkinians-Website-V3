@@ -365,7 +365,8 @@ export class EnhancedQuestionAnalyzer {
 			'Team Analysis': 'TEAM_ANALYSIS',
 			'Season Analysis': 'SEASON_ANALYSIS',
 			'Home': 'HOME',
-			'Away': 'AWAY'
+			'Away': 'AWAY',
+			'Distance Travelled': 'DIST'
 		};
 
 		return statTypeMapping[statType] || statType;

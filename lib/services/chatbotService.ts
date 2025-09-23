@@ -677,6 +677,10 @@ export class ChatbotService {
 						       END as value
 					`;
 					break;
+				case "DIST":
+					// Distance travelled - get from Player node
+					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
+					break;
 				case "HOME":
 					// Home games - filter by home/away flag
 					query += ` AND md.homeAway = 'H'`;

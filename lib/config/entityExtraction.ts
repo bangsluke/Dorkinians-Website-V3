@@ -121,6 +121,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season'],
 	'Team Analysis': ['most appearances for', 'most goals for', 'played for', 'teams played for'],
 	'Season Analysis': ['seasons played in', 'seasons', 'years played'],
+	'Distance Travelled': ['distance travelled', 'distance traveled', 'miles travelled', 'miles traveled', 'how far', 'travelled', 'traveled', 'distance', 'miles'],
 };
 
 // Stat indicator pseudonyms and antonyms
@@ -620,7 +621,7 @@ export class EntityExtractor {
 			'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 
 			'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can', 'shall',
 			'goals', 'assists', 'appearances', 'minutes', 'cards', 'saves', 'clean', 'sheets',
-			'penalties', 'fantasy', 'points', 'distance', 'miles', 'team', 'teams', 'season',
+			'penalties', 'fantasy', 'points', 'team', 'teams', 'season',
 			'week', 'month', 'year', 'game', 'games', 'match', 'matches', 'league', 'premier',
 			'championship', 'conference', 'national', 'division', 'tier', 'level',
 			'home', 'away', 'playing', 'whilst', 'between', 'and', 'got', 'has', 'have',
