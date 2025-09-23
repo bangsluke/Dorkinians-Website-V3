@@ -9,12 +9,16 @@ export interface EntityExtractionResult {
 	negativeClauses: NegativeClauseInfo[];
 	locations: LocationInfo[];
 	timeFrames: TimeFrameInfo[];
+	competitionTypes: CompetitionTypeInfo[];
+	competitions: CompetitionInfo[];
+	results: ResultInfo[];
+	opponentOwnGoals: boolean;
 	goalInvolvements: boolean;
 }
 
 export interface EntityInfo {
 	value: string;
-	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league' | 'opposition';
+	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league' | 'opposition' | 'competitionType' | 'competition' | 'result';
 	originalText: string;
 	position: number;
 }
@@ -53,6 +57,26 @@ export interface LocationInfo {
 export interface TimeFrameInfo {
 	value: string;
 	type: 'date' | 'season' | 'weekend' | 'gameweek' | 'consecutive' | 'range';
+	originalText: string;
+	position: number;
+}
+
+export interface CompetitionTypeInfo {
+	value: string;
+	type: 'league' | 'cup' | 'friendly';
+	originalText: string;
+	position: number;
+}
+
+export interface CompetitionInfo {
+	value: string;
+	originalText: string;
+	position: number;
+}
+
+export interface ResultInfo {
+	value: string;
+	type: 'win' | 'draw' | 'loss' | 'W' | 'D' | 'L';
 	originalText: string;
 	position: number;
 }
@@ -173,6 +197,36 @@ export const TIME_FRAME_PSEUDONYMS = {
 	'between_dates': ['between', 'from', 'to', 'until', 'since'],
 };
 
+// Competition type pseudonyms
+export const COMPETITION_TYPE_PSEUDONYMS = {
+	'league': ['league', 'leagues', 'league games', 'league matches'],
+	'cup': ['cup', 'cups', 'cup games', 'cup matches', 'cup competition', 'cup competitions'],
+	'friendly': ['friendly', 'friendlies', 'friendly games', 'friendly matches', 'friendly competition', 'friendly competitions'],
+};
+
+// Competition pseudonyms (specific competition names)
+export const COMPETITION_PSEUDONYMS = {
+	'Premier': ['premier', 'premier division', 'premier league'],
+	'Intermediate South': ['intermediate south', 'intermediate', 'inter south'],
+	'Seven South': ['seven south', '7 south', '7s south'],
+	'Intermediate': ['intermediate', 'inter'],
+	'Seven': ['seven', '7s', '7'],
+	'South': ['south'],
+	'North': ['north'],
+	'East': ['east'],
+	'West': ['west'],
+};
+
+// Result pseudonyms
+export const RESULT_PSEUDONYMS = {
+	'win': ['win', 'wins', 'won', 'winning', 'victory', 'victories'],
+	'draw': ['draw', 'draws', 'drew', 'drawing', 'tie', 'ties', 'tied', 'tying'],
+	'loss': ['loss', 'losses', 'lost', 'losing', 'defeat', 'defeats', 'defeated'],
+	'W': ['w', 'wins'],
+	'D': ['d', 'draws'],
+	'L': ['l', 'losses'],
+};
+
 export class EntityExtractor {
 	private question: string;
 	private lowerQuestion: string;
@@ -201,6 +255,10 @@ export class EntityExtractor {
 			negativeClauses: this.extractNegativeClauses(),
 			locations: this.extractLocations(),
 			timeFrames: this.extractTimeFrames(),
+			competitionTypes: this.extractCompetitionTypes(),
+			competitions: this.extractCompetitions(),
+			results: this.extractResults(),
+			opponentOwnGoals: this.detectOpponentOwnGoals(),
 			goalInvolvements: this.detectGoalInvolvements(),
 		};
 	}
@@ -580,6 +638,75 @@ export class EntityExtractor {
 		});
 
 		return timeFrames;
+	}
+
+	private extractCompetitionTypes(): CompetitionTypeInfo[] {
+		const competitionTypes: CompetitionTypeInfo[] = [];
+		
+		Object.entries(COMPETITION_TYPE_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					competitionTypes.push({
+						value: key,
+						type: key as any,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return competitionTypes;
+	}
+
+	private extractCompetitions(): CompetitionInfo[] {
+		const competitions: CompetitionInfo[] = [];
+		
+		Object.entries(COMPETITION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					competitions.push({
+						value: key,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return competitions;
+	}
+
+	private extractResults(): ResultInfo[] {
+		const results: ResultInfo[] = [];
+		
+		Object.entries(RESULT_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					results.push({
+						value: key,
+						type: key as any,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return results;
+	}
+
+	private detectOpponentOwnGoals(): boolean {
+		return this.lowerQuestion.includes('opponent own goals') || 
+			   this.lowerQuestion.includes('opponent own goal') ||
+			   this.lowerQuestion.includes('oppo own goals') ||
+			   this.lowerQuestion.includes('oppo own goal');
 	}
 
 	private detectGoalInvolvements(): boolean {

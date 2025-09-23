@@ -530,28 +530,28 @@ const STAT_TEST_CONFIGS = [
 	// Positional Statistics
 	{
 		key: "GK",
-		metric: "goalkeeperApps",
+		metric: "GK",
 		questionTemplate: "How many times has {playerName} played as a goalkeeper?",
 		responsePattern: /(\d+)/,
 		description: "Goalkeeper Appearances",
 	},
 	{
 		key: "DEF",
-		metric: "defenderApps",
+		metric: "DEF",
 		questionTemplate: "How many games has {playerName} played as a defender?",
 		responsePattern: /(\d+)/,
 		description: "Defender Appearances",
 	},
 	{
 		key: "MID",
-		metric: "midfielderApps",
+		metric: "MID",
 		questionTemplate: "How many times has {playerName} been a midfielder?",
 		responsePattern: /(\d+)/,
 		description: "Midfielder Appearances",
 	},
 	{
 		key: "FWD",
-		metric: "forwardApps",
+		metric: "FWD",
 		questionTemplate: "How many games has {playerName} been a forward?",
 		responsePattern: /(\d+)/,
 		description: "Forward Appearances",

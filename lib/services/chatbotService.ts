@@ -39,15 +39,21 @@ export class ChatbotService {
 	}
 
 	// Helper function to format values according to config
-	private formatValueByMetric(metric: string, value: number): string {
+	private formatValueByMetric(metric: string, value: number | bigint): string {
+		// Handle BigInt values from Neo4j first
+		if (typeof value === 'bigint') {
+			return value.toString();
+		}
+		
 		// Find the metric config
 		const metricConfig = statObject[metric as keyof typeof statObject];
 		if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
 			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-			return value.toFixed(decimalPlaces);
+			return Number(value).toFixed(decimalPlaces);
 		}
+		
 		// Default to integer if no config found
-		return Math.round(value).toString();
+		return Math.round(Number(value)).toString();
 	}
 
 	// Resolve player name using fuzzy matching
@@ -280,8 +286,13 @@ export class ChatbotService {
 			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : "No stack trace available", "error");
 			this.logToBoth("❌ Question that failed:", context.question, "error");
 			this.logToBoth("❌ User context:", context.userContext, "error");
+			
+			// Provide more detailed error information for debugging
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			const errorType = error instanceof Error ? error.constructor.name : typeof error;
+			
 			return {
-				answer: "I'm sorry, I encountered an error while processing your question. Please try again later.",
+				answer: `I'm sorry, I encountered an error while processing your question. Error details: ${errorType}: ${errorMessage}. Please try again later.`,
 				sources: [],
 				cypherQuery: "N/A",
 			};
@@ -491,15 +502,36 @@ export class ChatbotService {
 			}
 
 			// Check if we need Fixture relationship for any filters
-			// Optimization: Only include Fixture relationship when filtering by team, location, opposition, or time range
+			// Optimization: Only include Fixture relationship when filtering by:
+			// - Team references (1st XI, 2s, etc.)
+			// - Competition types (League, cup, friendly)
+			// - Competition names (Premier, Intermediate South, etc.)
+			// - Opposition team names
+			// - Home/away locations
+			// - Results (wins, draws, losses, W, D, L)
+			// - Opponent own goals
 			// This improves query performance for simple appearance/stat queries that don't need Fixture data
-			const needsFixture = teamEntities.length > 0 || locations.length > 0 || timeRange || oppositionEntities.length > 0;
+			const needsFixture = teamEntities.length > 0 || 
+								locations.length > 0 || 
+								timeRange || 
+								oppositionEntities.length > 0 || 
+								metrics.includes('HOME') || 
+								metrics.includes('AWAY') ||
+								(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+								(analysis.competitions && analysis.competitions.length > 0) ||
+								(analysis.results && analysis.results.length > 0) ||
+								(analysis.opponentOwnGoals === true);
 			
 			this.logToBoth(`🔍 Query optimization: needsFixture = ${needsFixture}`);
 			this.logToBoth(`🔍 - Team filters: ${teamEntities.length > 0 ? teamEntities : 'none'}`);
 			this.logToBoth(`🔍 - Location filters: ${locations.length > 0 ? locations : 'none'}`);
 			this.logToBoth(`🔍 - Opposition filters: ${oppositionEntities.length > 0 ? oppositionEntities : 'none'}`);
 			this.logToBoth(`🔍 - Time range: ${timeRange || 'none'}`);
+			this.logToBoth(`🔍 - HOME/AWAY metrics: ${metrics.includes('HOME') || metrics.includes('AWAY') ? metrics.filter(m => m === 'HOME' || m === 'AWAY') : 'none'}`);
+			this.logToBoth(`🔍 - Competition types: ${analysis.competitionTypes && analysis.competitionTypes.length > 0 ? analysis.competitionTypes : 'none'}`);
+			this.logToBoth(`🔍 - Competitions: ${analysis.competitions && analysis.competitions.length > 0 ? analysis.competitions : 'none'}`);
+			this.logToBoth(`🔍 - Results: ${analysis.results && analysis.results.length > 0 ? analysis.results : 'none'}`);
+			this.logToBoth(`🔍 - Opponent own goals: ${analysis.opponentOwnGoals || false}`);
 			
 			// Build query with exact player name matching (dropdown provides exact casing)
 			let query = `
@@ -565,6 +597,64 @@ export class ChatbotService {
 					this.logToBoth("🔍 - Start date:", `${dateRange[0].trim()} → ${startDate}`);
 					this.logToBoth("🔍 - End date:", `${dateRange[1].trim()} → ${endDate}`);
 				}
+			}
+
+			// Add competition type filter if specified
+			if (analysis.competitionTypes && analysis.competitionTypes.length > 0) {
+				const compTypeFilters = analysis.competitionTypes.map(compType => {
+					switch (compType.toLowerCase()) {
+						case 'league': return `f.compType = 'League'`;
+						case 'cup': return `f.compType = 'Cup'`;
+						case 'friendly': return `f.compType = 'Friendly'`;
+						default: return null;
+					}
+				}).filter(Boolean);
+				if (compTypeFilters.length > 0) {
+					whereConditions.push(`(${compTypeFilters.join(' OR ')})`);
+				}
+				this.logToBoth("🔍 Competition type filter:");
+				this.logToBoth("🔍 - Competition types:", analysis.competitionTypes);
+				this.logToBoth("🔍 - Competition type filters:", compTypeFilters);
+			}
+
+			// Add competition filter if specified
+			if (analysis.competitions && analysis.competitions.length > 0) {
+				const competitionFilters = analysis.competitions.map(comp => `f.competition CONTAINS '${comp}'`);
+				whereConditions.push(`(${competitionFilters.join(' OR ')})`);
+				this.logToBoth("🔍 Competition filter:");
+				this.logToBoth("🔍 - Competitions:", analysis.competitions);
+				this.logToBoth("🔍 - Competition filters:", competitionFilters);
+			}
+
+			// Add result filter if specified
+			if (analysis.results && analysis.results.length > 0) {
+				const resultFilters = analysis.results.map(result => {
+					switch (result.toLowerCase()) {
+						case 'win':
+						case 'w':
+							return `f.result = 'W'`;
+						case 'draw':
+						case 'd':
+							return `f.result = 'D'`;
+						case 'loss':
+						case 'l':
+							return `f.result = 'L'`;
+						default:
+							return null;
+					}
+				}).filter(Boolean);
+				if (resultFilters.length > 0) {
+					whereConditions.push(`(${resultFilters.join(' OR ')})`);
+				}
+				this.logToBoth("🔍 Result filter:");
+				this.logToBoth("🔍 - Results:", analysis.results);
+				this.logToBoth("🔍 - Result filters:", resultFilters);
+			}
+
+			// Add opponent own goals filter if specified
+			if (analysis.opponentOwnGoals === true) {
+				whereConditions.push(`f.oppoOwnGoals > 0`);
+				this.logToBoth("🔍 Opponent own goals filter: enabled");
 			}
 
 			// Add WHERE clause if we have conditions
@@ -683,12 +773,12 @@ export class ChatbotService {
 					break;
 				case "HOME":
 					// Home games - filter by home/away flag
-					query += ` AND md.homeAway = 'H'`;
+					whereConditions.push(`f.homeOrAway = 'Home'`);
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "AWAY":
 					// Away games - filter by home/away flag
-					query += ` AND md.homeAway = 'A'`;
+					whereConditions.push(`f.homeOrAway = 'Away'`);
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "MOST_PROLIFIC_SEASON":

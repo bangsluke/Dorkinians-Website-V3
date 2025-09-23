@@ -8,6 +8,10 @@ export interface EnhancedQuestionAnalysis {
 	timeRange?: string;
 	teamEntities?: string[];
 	oppositionEntities?: string[];
+	competitionTypes?: string[];
+	competitions?: string[];
+	results?: string[];
+	opponentOwnGoals?: boolean;
 	message?: string;
 	// Enhanced fields
 	extractionResult: EntityExtractionResult;
@@ -55,6 +59,21 @@ export class EnhancedQuestionAnalyzer {
 			.filter(e => e.type === 'opposition')
 			.map(e => e.value);
 
+		// Extract competition types for competition-specific queries
+		const competitionTypes = extractionResult.competitionTypes
+			.map(ct => ct.value);
+
+		// Extract competitions for competition-specific queries
+		const competitions = extractionResult.competitions
+			.map(c => c.value);
+
+		// Extract results for result-specific queries
+		const results = extractionResult.results
+			.map(r => r.value);
+
+		// Extract opponent own goals flag
+		const opponentOwnGoals = extractionResult.opponentOwnGoals;
+
 		return {
 			type,
 			entities,
@@ -62,6 +81,10 @@ export class EnhancedQuestionAnalyzer {
 			timeRange,
 			teamEntities,
 			oppositionEntities,
+			competitionTypes,
+			competitions,
+			results,
+			opponentOwnGoals,
 			extractionResult,
 			complexity,
 			requiresClarification,
@@ -148,7 +171,12 @@ export class EnhancedQuestionAnalyzer {
 			return true; // Still need stat types
 		}
 
-		return (hasNoEntities && !isRankingQuestion) || hasNoStatTypes || (complexity === 'complex');
+		// FIXED: Only require clarification if BOTH entities AND stat types are missing (not either/or)
+		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
+		const needsClarification = (hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
+								   (complexity === 'complex' && hasNoEntities && hasNoStatTypes);
+
+		return needsClarification;
 	}
 
 	// Generate a clarification message based on the number of entities and stat types
@@ -185,29 +213,35 @@ export class EnhancedQuestionAnalyzer {
 			return "I can handle questions about up to 3 different statistics at once. Please simplify your question to focus on fewer stat types. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple stats.";
 		}
 
+		// IMPROVED: More specific guidance based on what's missing
+		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0) {
+			return "I need more information to help you. Please specify both who/what you're asking about AND what statistic you want to know. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+		}
+
 		if (namedEntities.length === 0) {
-			return "I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+			const statTypes = extractionResult.statTypes.map(s => s.value).join(', ');
+			return `I can see you're asking about ${statTypes}, but I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about. For example: 'How many ${statTypes} has Luke Bangs scored?' or 'What are the 3rd XI ${statTypes}?'`;
 		}
 
 		if (extractionResult.statTypes.length === 0) {
-			return "I need to know what statistic you're asking about. Please specify what information you want. Examples: 'goals', 'appearances', 'assists', 'yellow cards', 'clean sheets', 'minutes played', etc.";
+			const entities = namedEntities.map(e => e.value).join(', ');
+			return `I can see you're asking about ${entities}, but I need to know what statistic you want to know about. Please specify what information you want. Examples: 'goals', 'appearances', 'assists', 'yellow cards', 'clean sheets', 'minutes played', etc. For example: 'How many goals has ${entities} scored?'`;
 		}
 
 		if (complexity === 'complex') {
 			return "This question is quite complex with multiple entities or conditions. I'll try to answer it, but you might get better results by breaking it down into simpler questions. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple players, teams, or stats at once.";
 		}
 
-		return "I'm not sure what you're asking about. Please be more specific about which player, team, or statistic you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+		// IMPROVED: More helpful fallback message
+		return "I'm not sure what you're asking about. Please be more specific about which player, team, or statistic you want to know about. You can ask questions like: 'How many goals has Luke Bangs scored?', 'What are the 3rd XI stats?', or 'Who has the most assists?'";
 	}
 
 	// Determine the question type based on the extracted entities and content
 	private determineQuestionType(extractionResult: EntityExtractionResult): QuestionType {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check for clarification needed first
-		if (this.checkClarificationNeeded(extractionResult, this.assessComplexity(extractionResult))) {
-			return "clarification_needed";
-		}
+		// Note: Clarification check is already done in the main analyze() method
+		// No need to check again here
 
 		// Determine type based on entities and content
 		const hasPlayerEntities = extractionResult.entities.some(e => e.type === 'player');
