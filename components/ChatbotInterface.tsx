@@ -257,6 +257,7 @@ export default function ChatbotInterface() {
 						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
 						disabled={isLoading}
 					/>
+					{/* Desktop button - hidden on mobile */}
 					<button
 						type='submit'
 						disabled={!question.trim() || isLoading}
@@ -271,6 +272,26 @@ export default function ChatbotInterface() {
 						)}
 					</button>
 				</div>
+				{/* Mobile button - shown below input on mobile screens */}
+				<button
+					type='submit'
+					disabled={!question.trim() || isLoading}
+					className='CTA px-4 py-2 text-sm w-full md:hidden'>
+					{isLoading ? (
+						<div className='flex items-center justify-center space-x-2'>
+							<svg className='animate-spin h-4 w-4' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
+							</svg>
+							<span className='text-black font-medium'>Searching...</span>
+						</div>
+					) : (
+						<div className='flex items-center justify-center space-x-2'>
+							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
+							<span className='text-black font-medium'>Search</span>
+						</div>
+					)}
+				</button>
 			</form>
 
 			{/* Response Display */}
