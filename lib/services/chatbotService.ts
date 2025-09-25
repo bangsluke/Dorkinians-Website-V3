@@ -670,12 +670,20 @@ export class ChatbotService {
 					returnClause = "RETURN p.playerName as playerName, count(md) as value";
 					break;
 				case "MIN":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END), 0) as value';
+					// Minutes - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.minutes, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "G":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value';
+					// Goals - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.goals, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "AllGSC":
 					// Total goals (open play + penalties)
@@ -686,28 +694,52 @@ export class ChatbotService {
 					`;
 					break;
 				case "A":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value';
+					// Assists - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.assists, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "MOM":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = "" THEN 0 ELSE md.mom END), 0) as value';
+					// Man of the Match - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.mom, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "Y":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = "" THEN 0 ELSE md.yellowCards END), 0) as value';
+					// Yellow cards - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.yellowCards, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "R":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = "" THEN 0 ELSE md.redCards END), 0) as value';
+					// Red cards - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.redCards, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "SAVES":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = "" THEN 0 ELSE md.saves END), 0) as value';
+					// Saves - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.saves, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "OG":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = "" THEN 0 ELSE md.ownGoals END), 0) as value';
+					// Own goals - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.ownGoals, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "C":
 					// Goals conceded - get from Player node
@@ -734,8 +766,12 @@ export class ChatbotService {
 						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
 					break;
 				case "FTP":
-					// Fantasy points - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value";
+					// Fantasy points - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value
+					`;
+					returnClause = "";
 					break;
 				case "GI":
 					// Goal involvements - sum of goals and assists
@@ -770,6 +806,46 @@ export class ChatbotService {
 				case "DIST":
 					// Distance travelled - get from Player node
 					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
+					break;
+				case "GK":
+					// Goalkeeper appearances - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.gk, 0) as value
+					`;
+					returnClause = "";
+					break;
+				case "DEF":
+					// Defender appearances - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.def, 0) as value
+					`;
+					returnClause = "";
+					break;
+				case "MID":
+					// Midfielder appearances - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.mid, 0) as value
+					`;
+					returnClause = "";
+					break;
+				case "FWD":
+					// Forward appearances - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.fwd, 0) as value
+					`;
+					returnClause = "";
+					break;
+				case "MostCommonPosition":
+					// Most common position - get from Player node (no MatchDetail join needed)
+					query = `
+						MATCH (p:Player {playerName: $playerName})
+						RETURN p.playerName as playerName, coalesce(p.mostCommonPosition, 'Unknown') as value
+					`;
+					returnClause = "";
 					break;
 				case "HOME":
 					// Home games - filter by home/away flag
@@ -1103,7 +1179,15 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
-						} else {
+				} else if (metric === "MostCommonPosition") {
+					// For "What is player's most common position played?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("most common position") || questionLower.includes("favorite position") || questionLower.includes("main position")) {
+						// Use the actual query result from Cypher
+						const position = value || "Unknown";
+						answer = `${playerName}'s most common position is ${position}.`;
+					}
+				} else {
 					// Handle appearances count special case
 					if (metric === "APP") {
 						// Check if the value is 0 or null and handle it appropriately

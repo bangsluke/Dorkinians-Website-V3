@@ -146,6 +146,12 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Team Analysis': ['most appearances for', 'most goals for', 'played for', 'teams played for'],
 	'Season Analysis': ['seasons played in', 'seasons', 'years played'],
 	'Distance Travelled': ['distance travelled', 'distance traveled', 'miles travelled', 'miles traveled', 'how far', 'travelled', 'traveled', 'distance', 'miles'],
+	// Position-related stat types
+	'Goalkeeper Appearances': ['goalkeeper appearances', 'goalkeeper appearance', 'gk appearances', 'gk appearance', 'keeper appearances', 'keeper appearance', 'goalie appearances', 'goalie appearance', 'been a goalkeeper', 'played as goalkeeper', 'goalkeeper games', 'goalkeeper games played'],
+	'Defender Appearances': ['defender appearances', 'defender appearance', 'def appearances', 'def appearance', 'defence appearances', 'defence appearance', 'defense appearances', 'defense appearance', 'been a defender', 'played as defender', 'defender games', 'defender games played'],
+	'Midfielder Appearances': ['midfielder appearances', 'midfielder appearance', 'mid appearances', 'mid appearance', 'center mid appearances', 'center mid appearance', 'central midfielder appearances', 'central midfielder appearance', 'been a midfielder', 'played as midfielder', 'midfielder games', 'midfielder games played'],
+	'Forward Appearances': ['forward appearances', 'forward appearance', 'fwd appearances', 'fwd appearance', 'striker appearances', 'striker appearance', 'attacker appearances', 'attacker appearance', 'been a forward', 'played as forward', 'forward games', 'forward games played'],
+	'Most Common Position': ['most common position', 'favorite position', 'main position', 'primary position', 'position played most', 'most played position', 'commonest position', 'usual position'],
 };
 
 // Stat indicator pseudonyms and antonyms

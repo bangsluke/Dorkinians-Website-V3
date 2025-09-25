@@ -400,7 +400,13 @@ export class EnhancedQuestionAnalyzer {
 			'Season Analysis': 'SEASON_ANALYSIS',
 			'Home': 'HOME',
 			'Away': 'AWAY',
-			'Distance Travelled': 'DIST'
+			'Distance Travelled': 'DIST',
+			// Position-related mappings
+			'Goalkeeper Appearances': 'GK',
+			'Defender Appearances': 'DEF',
+			'Midfielder Appearances': 'MID',
+			'Forward Appearances': 'FWD',
+			'Most Common Position': 'MostCommonPosition'
 		};
 
 		return statTypeMapping[statType] || statType;
