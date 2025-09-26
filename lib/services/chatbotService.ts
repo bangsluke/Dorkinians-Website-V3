@@ -39,10 +39,15 @@ export class ChatbotService {
 	}
 
 	// Helper function to format values according to config
-	private formatValueByMetric(metric: string, value: number | bigint): string {
+	private formatValueByMetric(metric: string, value: number | bigint | string): string {
 		// Handle BigInt values from Neo4j first
 		if (typeof value === 'bigint') {
 			return value.toString();
+		}
+		
+		// Handle string values (like position names)
+		if (typeof value === 'string') {
+			return value;
 		}
 		
 		// Find the metric config
@@ -430,7 +435,7 @@ export class ChatbotService {
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
-			const metric = metrics[0];
+			const metric = (metrics[0] || "").toUpperCase();
 
 			this.logToBoth(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
 
@@ -716,20 +721,25 @@ export class ChatbotService {
 	private metricNeedsMatchDetail(metric: string): boolean {
 		// Metrics that can be retrieved directly from Player node
 		const playerNodeMetrics = [
-			'APP', 'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 
+			'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 
 			'PSC', 'PM', 'PCO', 'PSV', 'FTP', 'DIST',
-			'GK', 'DEF', 'MID', 'FWD', 'MostCommonPosition',
-			'MperG', 'MperCLS', 'FTPperAPP', 'GperAPP', 'CperAPP'
+			'GK', 'DEF', 'MID', 'FWD'
 		];
 		
-		return !playerNodeMetrics.includes(metric);
+		// Metrics that need MatchDetail join (including complex calculations)
+		const matchDetailMetrics = [
+			'APP', 'ALLGSC', 'GI', 'HOME', 'AWAY',
+			'MOSTCOMMONPOSITION', 'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP'
+		];
+		
+		return matchDetailMetrics.includes(metric.toUpperCase());
 	}
 
 	/**
 	 * Gets the return clause for Player node queries
 	 */
 	private getPlayerNodeReturnClause(metric: string): string {
-		switch (metric) {
+		switch (metric.toUpperCase()) {
 			case 'MIN': return 'coalesce(p.minutes, 0)';
 			case 'MOM': return 'coalesce(p.mom, 0)';
 			case 'G': return 'coalesce(p.goals, 0)';
@@ -750,12 +760,7 @@ export class ChatbotService {
 			case 'DEF': return 'coalesce(p.def, 0)';
 			case 'MID': return 'coalesce(p.mid, 0)';
 			case 'FWD': return 'coalesce(p.fwd, 0)';
-			case 'MostCommonPosition': return "coalesce(p.mostCommonPosition, 'Unknown')";
-			case 'MperG': return 'coalesce(p.minutesPerGoal, 0)';
-			case 'MperCLS': return 'coalesce(p.minutesPerCleanSheet, 0)';
-			case 'FTPperAPP': return 'coalesce(p.fantasyPointsPerAppearance, 0)';
-			case 'GperAPP': return 'coalesce(p.goalsPerAppearance, 0)';
-			case 'CperAPP': return 'coalesce(p.concededPerAppearance, 0)';
+			// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
 			default: return '0';
 		}
 	}
@@ -764,9 +769,9 @@ export class ChatbotService {
 	 * Gets the return clause for MatchDetail join queries
 	 */
 	private getMatchDetailReturnClause(metric: string): string {
-		switch (metric) {
+		switch (metric.toUpperCase()) {
 			case 'APP': return 'count(md) as value';
-			case 'AllGSC': return `
+			case 'ALLGSC': return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
 				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
 			case 'GI': return `
@@ -774,6 +779,7 @@ export class ChatbotService {
 				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value`;
 			case 'HOME': return 'count(md) as value';
 			case 'AWAY': return 'count(md) as value';
+			// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
 			default: return '0 as value';
 		}
 	}
@@ -928,7 +934,78 @@ export class ChatbotService {
 		}
 
 		// Handle special cases that need custom queries
-		if (metric === 'MOST_PROLIFIC_SEASON') {
+		if (metric === 'MOSTCOMMONPOSITION') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.class IS NOT NULL AND md.class <> ""
+				WITH p, md.class as position, count(md) as count
+				ORDER BY count DESC
+				LIMIT 1
+				RETURN p.playerName as playerName, position as value
+			`;
+		} else if (metric === 'MPERG') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as totalMinutes,
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as totalGoals
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGoals > 0 THEN round(100.0 * totalMinutes / totalGoals) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric === 'MPERCLS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as totalMinutes,
+					sum(CASE WHEN md.cleanSheets IS NULL OR md.cleanSheets = "" THEN 0 ELSE md.cleanSheets END) as totalCleanSheets
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalCleanSheets > 0 THEN round(100.0 * totalMinutes / totalCleanSheets) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric === 'FTPPERAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END) as totalFantasyPoints,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalFantasyPoints / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric === 'GPERAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as totalGoals,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalGoals / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric === 'CPERAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END) as totalConceded,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalConceded / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric === 'MOST_PROLIFIC_SEASON') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.season IS NOT NULL
@@ -1018,7 +1095,7 @@ export class ChatbotService {
 				const playerData = data.data[0];
 				const playerName = data.playerName;
 				const metric = data.metric;
-				const value = playerData.value || 0;
+				const value = playerData.value !== undefined ? playerData.value : 0;
 
 				// Get the metric display name
 				const metricName = getMetricDisplayName(metric, value);
@@ -1065,7 +1142,7 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 8 teams.`;
 						}
 					}
-				} else if (metric === "MostCommonPosition") {
+				} else if (metric === "MOSTCOMMONPOSITION") {
 					// For "What is player's most common position played?" questions
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("most common position") || questionLower.includes("favorite position") || questionLower.includes("main position")) {

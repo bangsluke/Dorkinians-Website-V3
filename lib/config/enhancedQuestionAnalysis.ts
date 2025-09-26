@@ -345,9 +345,11 @@ export class EnhancedQuestionAnalyzer {
 		
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
-			'Open Play Goals',  // More specific than 'Goals'
-			'Penalties Scored', // More specific than 'Goals'
-			'Goals',            // General goals
+			'Own Goals',          // Most specific - own goals - helps stop the chatbot returning goals
+			'Goals Conceded',     // More specific than general goals
+			'Open Play Goals',    // More specific than general goals
+			'Penalties Scored',   // More specific than general goals
+			'Goals',              // General goals (lowest priority)
 			'Assists',
 			'Apps',
 			'Minutes',
