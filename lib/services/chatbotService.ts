@@ -501,8 +501,7 @@ export class ChatbotService {
 				return await this.queryPlayerOpponentsData(actualPlayerName);
 			}
 
-			// Check if we need Fixture relationship for any filters
-			// Optimization: Only include Fixture relationship when filtering by:
+			// Check if we need Fixture relationship for any filters. Optimization: Only include Fixture relationship when filtering by:
 			// - Team references (1st XI, 2s, etc.)
 			// - Competition types (League, cup, friendly)
 			// - Competition names (Premier, Intermediate South, etc.)
@@ -533,398 +532,35 @@ export class ChatbotService {
 			this.logToBoth(`🔍 - Results: ${analysis.results && analysis.results.length > 0 ? analysis.results : 'none'}`);
 			this.logToBoth(`🔍 - Opponent own goals: ${analysis.opponentOwnGoals || false}`);
 			
-			// Build query with exact player name matching (dropdown provides exact casing)
-			let query = `
-				MATCH (p:Player {playerName: $playerName})
-				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-			`;
-			
-			// Only add Fixture relationship if we need it for filtering
-			if (needsFixture) {
-				query += `MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)\n`;
-				this.logToBoth("🔍 Added Fixture relationship for filtering");
-			} else {
-				this.logToBoth("🔍 Skipped Fixture relationship - no filters requiring it");
-			}
-
-			// Build WHERE conditions for enhanced filters
-			const whereConditions = [];
-			
-			// Add team filter if specified
-			if (teamEntities.length > 0) {
-				const mappedTeamNames = teamEntities.map(team => this.mapTeamName(team));
-				const teamNames = mappedTeamNames.map(team => `'${team}'`).join(', ');
-				whereConditions.push(`f.team IN [${teamNames}]`);
-				this.logToBoth(`🔍 Team mapping: ${teamEntities} → ${mappedTeamNames}`);
-				this.logToBoth("🔍 Team filter:");
-				this.logToBoth("🔍 - Original teams:", teamEntities);
-				this.logToBoth("🔍 - Mapped teams:", mappedTeamNames);
-			}
-			
-			// Add location filter if specified
-			if (locations.length > 0) {
-				const locationFilters = locations.map(loc => {
-					if (loc.type === 'home') return `f.homeOrAway = 'Home'`;
-					if (loc.type === 'away') return `f.homeOrAway = 'Away'`;
-					return null;
-				}).filter(Boolean);
-				if (locationFilters.length > 0) {
-					whereConditions.push(`(${locationFilters.join(' OR ')})`);
-				}
-				this.logToBoth("🔍 Location filter:");
-				this.logToBoth("🔍 - Locations:", locations);
-				this.logToBoth("🔍 - Location filters:", locationFilters);
-			}
-			
-			// Add opposition filter if specified
-			if (oppositionEntities.length > 0) {
-				const oppositionName = oppositionEntities[0];
-				whereConditions.push(`f.opposition = '${oppositionName}'`);
-				this.logToBoth("🔍 Opposition filter:");
-				this.logToBoth("🔍 - Opposition:", oppositionName);
-			}
-			
-			// Add time range filter if specified
-			if (timeRange) {
-				// Parse time range (assuming format like "20/03/2022 to 21/10/24")
-				const dateRange = timeRange.split(' to ');
-				if (dateRange.length === 2) {
-					const startDate = this.convertDateFormat(dateRange[0].trim());
-					const endDate = this.convertDateFormat(dateRange[1].trim());
-					whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
-					this.logToBoth("🔍 Date filter:");
-					this.logToBoth("🔍 - Original time range:", timeRange);
-					this.logToBoth("🔍 - Start date:", `${dateRange[0].trim()} → ${startDate}`);
-					this.logToBoth("🔍 - End date:", `${dateRange[1].trim()} → ${endDate}`);
-				}
-			}
-
-			// Add competition type filter if specified
-			if (analysis.competitionTypes && analysis.competitionTypes.length > 0) {
-				const compTypeFilters = analysis.competitionTypes.map(compType => {
-					switch (compType.toLowerCase()) {
-						case 'league': return `f.compType = 'League'`;
-						case 'cup': return `f.compType = 'Cup'`;
-						case 'friendly': return `f.compType = 'Friendly'`;
-						default: return null;
-					}
-				}).filter(Boolean);
-				if (compTypeFilters.length > 0) {
-					whereConditions.push(`(${compTypeFilters.join(' OR ')})`);
-				}
-				this.logToBoth("🔍 Competition type filter:");
-				this.logToBoth("🔍 - Competition types:", analysis.competitionTypes);
-				this.logToBoth("🔍 - Competition type filters:", compTypeFilters);
-			}
-
-			// Add competition filter if specified
-			if (analysis.competitions && analysis.competitions.length > 0) {
-				const competitionFilters = analysis.competitions.map(comp => `f.competition CONTAINS '${comp}'`);
-				whereConditions.push(`(${competitionFilters.join(' OR ')})`);
-				this.logToBoth("🔍 Competition filter:");
-				this.logToBoth("🔍 - Competitions:", analysis.competitions);
-				this.logToBoth("🔍 - Competition filters:", competitionFilters);
-			}
-
-			// Add result filter if specified
-			if (analysis.results && analysis.results.length > 0) {
-				const resultFilters = analysis.results.map(result => {
-					switch (result.toLowerCase()) {
-						case 'win':
-						case 'w':
-							return `f.result = 'W'`;
-						case 'draw':
-						case 'd':
-							return `f.result = 'D'`;
-						case 'loss':
-						case 'l':
-							return `f.result = 'L'`;
-						default:
-							return null;
-					}
-				}).filter(Boolean);
-				if (resultFilters.length > 0) {
-					whereConditions.push(`(${resultFilters.join(' OR ')})`);
-				}
-				this.logToBoth("🔍 Result filter:");
-				this.logToBoth("🔍 - Results:", analysis.results);
-				this.logToBoth("🔍 - Result filters:", resultFilters);
-			}
-
-			// Add opponent own goals filter if specified
-			if (analysis.opponentOwnGoals === true) {
-				whereConditions.push(`f.oppoOwnGoals > 0`);
-				this.logToBoth("🔍 Opponent own goals filter: enabled");
-			}
-
-			// Add WHERE clause if we have conditions
-			if (whereConditions.length > 0) {
-				query += ` WHERE ${whereConditions.join(' AND ')}`;
-				this.logToBoth("🔍 WHERE conditions:");
-				this.logToBoth("🔍 - Conditions:", whereConditions);
-			}
-
-			let returnClause = "";
-			switch (metric) {
-				case "APP":
-					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					break;
-				case "MIN":
-					// Minutes - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.minutes, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "G":
-					// Goals - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.goals, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "AllGSC":
-					// Total goals (open play + penalties)
-					returnClause = `
-						RETURN p.playerName as playerName, 
-						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
-						       coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value
-					`;
-					break;
-				case "A":
-					// Assists - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.assists, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "MOM":
-					// Man of the Match - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.mom, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "Y":
-					// Yellow cards - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.yellowCards, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "R":
-					// Red cards - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.redCards, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "SAVES":
-					// Saves - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.saves, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "OG":
-					// Own goals - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.ownGoals, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "C":
-					// Goals conceded - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.conceded, 0) as value";
-					break;
-				case "CLS":
-					// Clean sheets - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.cleanSheets, 0) as value";
-					break;
-				case "PSC":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value';
-					break;
-				case "PM":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = "" THEN 0 ELSE md.penaltiesMissed END), 0) as value';
-					break;
-				case "PCO":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = "" THEN 0 ELSE md.penaltiesConceded END), 0) as value';
-					break;
-				case "PSV":
-					returnClause =
-						'RETURN p.playerName as playerName, coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = "" THEN 0 ELSE md.penaltiesSaved END), 0) as value';
-					break;
-				case "FTP":
-					// Fantasy points - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.fantasyPoints, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "GI":
-					// Goal involvements - sum of goals and assists
-					returnClause = `
-						RETURN p.playerName as playerName, 
-						       coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
-						       coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value
-					`;
-					break;
-				case "GperAPP":
-					// Goals per appearance - get from Player node (try both property names for compatibility)
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.goalsPerApp, p.GperAPP, 0) as value";
-					break;
-				case "CperAPP":
-					// Conceded per appearance - get from Player node (try both property names for compatibility)
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.concededPerApp, p.CperAPP, 0) as value";
-					break;
-				case "MperG":
-					// Minutes per goal - get from Player node (try both property names for compatibility)
-					// If stored value is 0 or missing, calculate from minutes and goals
-					returnClause = `
-						RETURN p.playerName as playerName, 
-						       CASE 
-						         WHEN coalesce(p.minutesPerGoal, p.MperG, 0) > 0 THEN coalesce(p.minutesPerGoal, p.MperG, 0)
-						         ELSE CASE 
-						           WHEN coalesce(p.goals, 0) > 0 THEN coalesce(p.minutes, 0) / coalesce(p.goals, 1)
-						           ELSE 0
-						         END
-						       END as value
-					`;
-					break;
-				case "DIST":
-					// Distance travelled - get from Player node
-					returnClause = "RETURN p.playerName as playerName, coalesce(p.distance, 0) as value";
-					break;
-				case "GK":
-					// Goalkeeper appearances - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.gk, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "DEF":
-					// Defender appearances - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.def, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "MID":
-					// Midfielder appearances - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.mid, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "FWD":
-					// Forward appearances - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.fwd, 0) as value
-					`;
-					returnClause = "";
-					break;
-				case "MostCommonPosition":
-					// Most common position - get from Player node (no MatchDetail join needed)
-					query = `
-						MATCH (p:Player {playerName: $playerName})
-						RETURN p.playerName as playerName, coalesce(p.mostCommonPosition, 'Unknown') as value
-					`;
-					returnClause = "";
-					break;
-				case "HOME":
-					// Home games - filter by home/away flag
-					whereConditions.push(`f.homeOrAway = 'Home'`);
-					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					break;
-				case "AWAY":
-					// Away games - filter by home/away flag
-					whereConditions.push(`f.homeOrAway = 'Away'`);
-					returnClause = "RETURN p.playerName as playerName, count(md) as value";
-					break;
-				case "MOST_PROLIFIC_SEASON":
-					// Most prolific season - find season with most goals
-					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-						WHERE md.season IS NOT NULL
-						WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
-						ORDER BY goals DESC
-						LIMIT 1
-						RETURN p.playerName as playerName, season as value
-					`;
-					returnClause = "";
-					break;
-				case "TEAM_ANALYSIS":
-					// Team analysis - find team with most appearances or goals
-					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-						WHERE md.team IS NOT NULL
-						WITH p, md.team as team, count(md) as appearances, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
-						ORDER BY appearances DESC, goals DESC
-						LIMIT 1
-						RETURN p.playerName as playerName, team as value
-					`;
-					returnClause = "";
-					break;
-				case "SEASON_ANALYSIS":
-					// Season analysis - count unique seasons
-					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-						WHERE md.season IS NOT NULL
-						WITH p, collect(DISTINCT md.season) as seasons
-						RETURN p.playerName as playerName, size(seasons) as value
-					`;
-					returnClause = "";
-					break;
-				default:
-					returnClause = "RETURN p.playerName as playerName, 0 as value";
-						break;
-					}
-
-			// Complete the query
-			query += ` ${returnClause}`;
+			// Build the optimal query using unified architecture
+			const query = this.buildPlayerQuery(actualPlayerName, metric, analysis);
 			
 			this.logToBoth(`🔍 Final Cypher query:`, query);
-			this.logToBoth(`🔍 Query parameters:`, { playerName });
+			this.logToBoth(`🔍 Query parameters:`, { playerName: actualPlayerName });
 			
 			this.logToBoth("🔍 Final query:");
 			this.logToBoth("🔍 - Cypher query:", query);
-			this.logToBoth("🔍 - Parameters:", { playerName });
+			this.logToBoth("🔍 - Parameters:", { playerName: actualPlayerName });
 
 			try {
 				// First check if the player exists
 				const playerExistsQuery = `MATCH (p:Player {playerName: $playerName}) RETURN p.playerName as playerName LIMIT 1`;
 				this.logToBoth("🔍 Checking if player exists...");
-				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName });
+				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName: actualPlayerName });
 				this.logToBoth("🔍 Player exists result:", playerExistsResult);
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
-					this.logToBoth(`🔍 Player ${playerName} not found in database`);
-					this.logToBoth("❌ Player not found in database:", playerName);
+					this.logToBoth(`🔍 Player ${actualPlayerName} not found in database`);
+					this.logToBoth("❌ Player not found in database:", actualPlayerName);
 					return { 
 						type: "player_not_found", 
 						data: [], 
-						message: `I couldn't find a player named "${playerName}" in the database. Please check the spelling or try a different player name.`,
-						playerName,
+						message: `I couldn't find a player named "${actualPlayerName}" in the database. Please check the spelling or try a different player name.`,
+						playerName: actualPlayerName,
 						metric
 					};
 				}
-				this.logToBoth(`🔍 Query parameters: playerName=${playerName}`);
+				this.logToBoth(`🔍 Query parameters: playerName=${actualPlayerName}`);
 
 			// Special logging for APP metric
 			if (metric === "APP") {
@@ -933,20 +569,20 @@ export class ChatbotService {
 
 				// Store query for debugging
 				this.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
-				this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName })}`);
+				this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
 				
 				// Create ready-to-execute query for debugging
-				const readyToExecuteQuery = query.replace(/\$playerName/g, `'${playerName}'`);
+				const readyToExecuteQuery = query.replace(/\$playerName/g, `'${actualPlayerName}'`);
 				this.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 				
 				// Log copyable queries for debugging
 				this.logToBoth(`🔍 CYPHER QUERY (with parameters):`, query);
 				this.logToBoth(`🔍 CYPHER QUERY (ready to execute):`, readyToExecuteQuery);
-				this.logToBoth(`🔍 QUERY PARAMETERS:`, { playerName });
+				this.logToBoth(`🔍 QUERY PARAMETERS:`, { playerName: actualPlayerName });
 
 				this.logToBoth("🔍 Executing main query...");
 				const result = await neo4jService.executeQuery(query, {
-					playerName,
+					playerName: actualPlayerName,
 				});
 				this.logToBoth("🔍 Query result:", result);
 
@@ -968,7 +604,7 @@ export class ChatbotService {
 					this.logToBoth("🔍 Result was:", result);
 				}
 
-				return { type: "specific_player", data: result, playerName, metric, cypherQuery: query };
+				return { type: "specific_player", data: result, playerName: actualPlayerName, metric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth(`❌ Error in player query:`, error, "error");
 				return { type: "error", data: [], error: "Error querying player data" };
@@ -1074,6 +710,254 @@ export class ChatbotService {
 		return result;
 	}
 
+	/**
+	 * Determines if a metric needs MatchDetail join or can use Player node directly
+	 */
+	private metricNeedsMatchDetail(metric: string): boolean {
+		// Metrics that can be retrieved directly from Player node
+		const playerNodeMetrics = [
+			'APP', 'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 
+			'PSC', 'PM', 'PCO', 'PSV', 'FTP', 'DIST',
+			'GK', 'DEF', 'MID', 'FWD', 'MostCommonPosition',
+			'MperG', 'MperCLS', 'FTPperAPP', 'GperAPP', 'CperAPP'
+		];
+		
+		return !playerNodeMetrics.includes(metric);
+	}
+
+	/**
+	 * Gets the return clause for Player node queries
+	 */
+	private getPlayerNodeReturnClause(metric: string): string {
+		switch (metric) {
+			case 'MIN': return 'coalesce(p.minutes, 0)';
+			case 'MOM': return 'coalesce(p.mom, 0)';
+			case 'G': return 'coalesce(p.goals, 0)';
+			case 'A': return 'coalesce(p.assists, 0)';
+			case 'Y': return 'coalesce(p.yellowCards, 0)';
+			case 'R': return 'coalesce(p.redCards, 0)';
+			case 'SAVES': return 'coalesce(p.saves, 0)';
+			case 'OG': return 'coalesce(p.ownGoals, 0)';
+			case 'C': return 'coalesce(p.conceded, 0)';
+			case 'CLS': return 'coalesce(p.cleanSheets, 0)';
+			case 'PSC': return 'coalesce(p.penaltiesScored, 0)';
+			case 'PM': return 'coalesce(p.penaltiesMissed, 0)';
+			case 'PCO': return 'coalesce(p.penaltiesConceded, 0)';
+			case 'PSV': return 'coalesce(p.penaltiesSaved, 0)';
+			case 'FTP': return 'coalesce(p.fantasyPoints, 0)';
+			case 'DIST': return 'coalesce(p.distance, 0)';
+			case 'GK': return 'coalesce(p.gk, 0)';
+			case 'DEF': return 'coalesce(p.def, 0)';
+			case 'MID': return 'coalesce(p.mid, 0)';
+			case 'FWD': return 'coalesce(p.fwd, 0)';
+			case 'MostCommonPosition': return "coalesce(p.mostCommonPosition, 'Unknown')";
+			case 'MperG': return 'coalesce(p.minutesPerGoal, 0)';
+			case 'MperCLS': return 'coalesce(p.minutesPerCleanSheet, 0)';
+			case 'FTPperAPP': return 'coalesce(p.fantasyPointsPerAppearance, 0)';
+			case 'GperAPP': return 'coalesce(p.goalsPerAppearance, 0)';
+			case 'CperAPP': return 'coalesce(p.concededPerAppearance, 0)';
+			default: return '0';
+		}
+	}
+
+	/**
+	 * Gets the return clause for MatchDetail join queries
+	 */
+	private getMatchDetailReturnClause(metric: string): string {
+		switch (metric) {
+			case 'APP': return 'count(md) as value';
+			case 'AllGSC': return `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
+			case 'GI': return `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value`;
+			case 'HOME': return 'count(md) as value';
+			case 'AWAY': return 'count(md) as value';
+			default: return '0 as value';
+		}
+	}
+
+	/**
+	 * Builds the optimal query for player data using unified architecture
+	 */
+	private buildPlayerQuery(playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string {
+		const teamEntities = analysis.teamEntities || [];
+		const oppositionEntities = analysis.oppositionEntities || [];
+		const timeRange = analysis.timeRange;
+		const locations = analysis.extractionResult?.locations || [];
+
+		// Determine if this metric needs MatchDetail join or can use Player node directly
+		const needsMatchDetail = this.metricNeedsMatchDetail(metric);
+		
+		// Check if we need Fixture relationship for any filters
+		const needsFixture = teamEntities.length > 0 || 
+							locations.length > 0 || 
+							timeRange || 
+							oppositionEntities.length > 0 || 
+							metric === 'HOME' || 
+							metric === 'AWAY' ||
+							(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+							(analysis.competitions && analysis.competitions.length > 0) ||
+							(analysis.results && analysis.results.length > 0) ||
+							(analysis.opponentOwnGoals === true);
+
+		this.logToBoth(`🔍 Query optimization: needsMatchDetail = ${needsMatchDetail}, needsFixture = ${needsFixture}`);
+
+		// Build base query structure
+		let query: string;
+		
+		if (!needsMatchDetail) {
+			// Use direct Player node query (no MatchDetail join needed)
+			query = `
+				MATCH (p:Player {playerName: $playerName})
+				RETURN p.playerName as playerName, ${this.getPlayerNodeReturnClause(metric)} as value
+			`;
+		} else {
+			// Use MatchDetail join query
+			query = `
+				MATCH (p:Player {playerName: $playerName})
+				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+			`;
+			
+			// Only add Fixture relationship if we need it for filtering
+			if (needsFixture) {
+				query += `MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)\n`;
+			}
+
+			// Build WHERE conditions for enhanced filters
+			const whereConditions = [];
+			
+			// Add team filter if specified
+			if (teamEntities.length > 0) {
+				const mappedTeamNames = teamEntities.map(team => this.mapTeamName(team));
+				const teamNames = mappedTeamNames.map(team => `'${team}'`).join(', ');
+				whereConditions.push(`f.team IN [${teamNames}]`);
+			}
+			
+			// Add location filter if specified
+			if (locations.length > 0) {
+				const locationFilters = locations.map(loc => {
+					if (loc.type === 'home') return `f.homeOrAway = 'Home'`;
+					if (loc.type === 'away') return `f.homeOrAway = 'Away'`;
+					return null;
+				}).filter(Boolean);
+				if (locationFilters.length > 0) {
+					whereConditions.push(`(${locationFilters.join(' OR ')})`);
+				}
+			}
+			
+			// Add opposition filter if specified
+			if (oppositionEntities.length > 0) {
+				const oppositionName = oppositionEntities[0];
+				whereConditions.push(`f.opposition = '${oppositionName}'`);
+			}
+			
+			// Add time range filter if specified
+			if (timeRange) {
+				const dateRange = timeRange.split(' to ');
+				if (dateRange.length === 2) {
+					const startDate = this.convertDateFormat(dateRange[0].trim());
+					const endDate = this.convertDateFormat(dateRange[1].trim());
+					whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
+				}
+			}
+
+			// Add competition type filter if specified
+			if (analysis.competitionTypes && analysis.competitionTypes.length > 0) {
+				const compTypeFilters = analysis.competitionTypes.map(compType => {
+					switch (compType.toLowerCase()) {
+						case 'league': return `f.compType = 'League'`;
+						case 'cup': return `f.compType = 'Cup'`;
+						case 'friendly': return `f.compType = 'Friendly'`;
+						default: return null;
+					}
+				}).filter(Boolean);
+				if (compTypeFilters.length > 0) {
+					whereConditions.push(`(${compTypeFilters.join(' OR ')})`);
+				}
+			}
+
+			// Add competition filter if specified
+			if (analysis.competitions && analysis.competitions.length > 0) {
+				const competitionFilters = analysis.competitions.map(comp => `f.competition CONTAINS '${comp}'`);
+				whereConditions.push(`(${competitionFilters.join(' OR ')})`);
+			}
+
+			// Add result filter if specified
+			if (analysis.results && analysis.results.length > 0) {
+				const resultFilters = analysis.results.map(result => {
+					switch (result.toLowerCase()) {
+						case 'win':
+						case 'w':
+							return `f.result = 'W'`;
+						case 'draw':
+						case 'd':
+							return `f.result = 'D'`;
+						case 'loss':
+						case 'l':
+							return `f.result = 'L'`;
+						default:
+							return null;
+					}
+				}).filter(Boolean);
+				if (resultFilters.length > 0) {
+					whereConditions.push(`(${resultFilters.join(' OR ')})`);
+				}
+			}
+
+			// Add opponent own goals filter if specified
+			if (analysis.opponentOwnGoals === true) {
+				whereConditions.push(`f.oppoOwnGoals > 0`);
+			}
+
+			// Add special metric filters
+			if (metric === 'HOME') {
+				whereConditions.push(`f.homeOrAway = 'Home'`);
+			} else if (metric === 'AWAY') {
+				whereConditions.push(`f.homeOrAway = 'Away'`);
+			}
+
+			// Add WHERE clause if we have conditions
+			if (whereConditions.length > 0) {
+				query += ` WHERE ${whereConditions.join(' AND ')}`;
+			}
+
+			// Add return clause
+			query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
+		}
+
+		// Handle special cases that need custom queries
+		if (metric === 'MOST_PROLIFIC_SEASON') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season IS NOT NULL
+				WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+				ORDER BY goals DESC
+				LIMIT 1
+				RETURN p.playerName as playerName, season as value
+			`;
+		} else if (metric === 'TEAM_ANALYSIS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.team IS NOT NULL
+				WITH p, md.team as team, count(md) as appearances, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+				ORDER BY appearances DESC, goals DESC
+				LIMIT 1
+				RETURN p.playerName as playerName, team as value
+			`;
+		} else if (metric === 'SEASON_ANALYSIS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season IS NOT NULL
+				WITH p, collect(DISTINCT md.season) as seasons
+				RETURN p.playerName as playerName, size(seasons) as value
+			`;
+		}
+
+		return query;
+	}
+
 	private buildContextualResponse(playerName: string, metric: string, value: any, analysis: any): string {
 		// Get the metric display name
 		const metricName = getMetricDisplayName(metric, value);
@@ -1100,13 +984,15 @@ export class ChatbotService {
 			}
 		}
 		
-		// Add time range context if present
-		if (analysis.timeRange && analysis.timeRange.includes(' to ')) {
-			const formattedTimeRange = this.formatTimeRange(analysis.timeRange);
-			response += ` between ${formattedTimeRange}`;
-		} else if (analysis.timeRange) {
-			const formattedDate = this.formatDate(analysis.timeRange);
-			response += ` on ${formattedDate}`;
+		// Add time range context if present (but ignore placeholder values)
+		if (analysis.timeRange && analysis.timeRange !== 'between_dates' && analysis.timeRange.trim() !== '') {
+			if (analysis.timeRange.includes(' to ')) {
+				const formattedTimeRange = this.formatTimeRange(analysis.timeRange);
+				response += ` between ${formattedTimeRange}`;
+			} else {
+				const formattedDate = this.formatDate(analysis.timeRange);
+				response += ` on ${formattedDate}`;
+			}
 		}
 		
 		// Add period for final sentence
@@ -1844,15 +1730,24 @@ export class ChatbotService {
 			case "penalties_scored":
 			case "psc":
 				metricField = "penaltiesScored";
-				returnClause = "coalesce(sum(md.penaltiesScored), 0) as value";
+				returnClause = "coalesce(p.penaltiesScored, 0) as value";
 				break;
 			default:
 				metricField = "goals";
 				returnClause = "coalesce(sum(md.goals), 0) as value";
 		}
 
-		const query = `
+		// Determine if we need MatchDetail join based on metric
+		const needsMatchDetail = !["penalties_scored", "psc", "fantasy_points", "ftp", "clean_sheets", "cls"].includes(metric.toLowerCase());
+		
+		const query = needsMatchDetail ? `
 			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
+			WHERE p.allowOnSite = true
+			RETURN p.playerName as playerName, ${returnClause}
+			ORDER BY value DESC
+			LIMIT 20
+		` : `
+			MATCH (p:Player)
 			WHERE p.allowOnSite = true
 			RETURN p.playerName as playerName, ${returnClause}
 			ORDER BY value DESC

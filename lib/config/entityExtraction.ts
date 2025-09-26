@@ -109,7 +109,7 @@ export const ENTITY_PSEUDONYMS = {
 // Stat type pseudonyms and antonyms
 export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
-	'Goals Conceded': ['goals conceded', 'conceded goals', 'goals against', 'conceded'],
+	'Goals Conceded': ['goals has conceded', 'goals have conceded', 'goals conceded', 'conceded goals', 'goals against', 'conceded'],
 	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
 	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
@@ -765,7 +765,11 @@ export class EntityExtractor {
 			'week', 'month', 'year', 'game', 'games', 'match', 'matches', 'league', 'premier',
 			'championship', 'conference', 'national', 'division', 'tier', 'level',
 			'home', 'away', 'playing', 'whilst', 'between', 'and', 'got', 'has', 'have',
-			'open play goals', 'open play goal', 'play goals', 'play goal', 'football', 'soccer', 'sport', 'sports'
+			'open play goals', 'open play goal', 'play goals', 'play goal', 'football', 'soccer', 'sport', 'sports',
+			// Additional common words that were causing entity extraction issues
+			'it', 'its', 'this', 'that', 'these', 'those', 'they', 'them', 'their', 'there',
+			'times', 'time', 'count', 'total', 'stats', 'stat', 'percentage', 'percent', '%',
+			'clubs', 'club', 'appearance', 'goal', 'average', 'score', 'take', 'takes', 'many'
 		];
 		
 		// Find positions of potential names in the original text
