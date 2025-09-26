@@ -1,4 +1,4 @@
-import { EntityExtractor, EntityExtractionResult } from './entityExtraction';
+import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from './entityExtraction';
 import { QuestionType } from '../../config/config';
 
 export interface EnhancedQuestionAnalysis {
@@ -43,7 +43,7 @@ export class EnhancedQuestionAnalyzer {
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);
 		
-		// Extract metrics for backward compatibility
+		// Extract metrics for backward compatibility with penalty phrase fixes
 		const metrics = this.extractLegacyMetrics(extractionResult);
 		
 		// Extract time range for backward compatibility
@@ -340,8 +340,11 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
+		const correctedStatTypes = this.correctPenaltyPhrases(extractionResult.statTypes);
+		
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = extractionResult.statTypes.map(stat => stat.value);
+		const statTypes = correctedStatTypes.map(stat => stat.value);
 		
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
@@ -349,6 +352,9 @@ export class EnhancedQuestionAnalyzer {
 			'Goals Conceded',     // More specific than general goals
 			'Open Play Goals',    // More specific than general goals
 			'Penalties Scored',   // More specific than general goals
+			'Penalties Missed',   // More specific than general goals
+			'Penalties Conceded', // More specific than general goals
+			'Penalties Saved',    // More specific than general goals
 			'Goals',              // General goals (lowest priority)
 			'Assists',
 			'Apps',
@@ -365,6 +371,77 @@ export class EnhancedQuestionAnalyzer {
 		
 		// Fallback to all detected stat types if no priority match
 		return statTypes.map(stat => this.mapStatTypeToKey(stat));
+	}
+
+	private correctPenaltyPhrases(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for penalty phrases that were incorrectly broken down
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('scored')) {
+			// Remove incorrect "Home", "Penalties Saved", "Score" mappings
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			// Add correct "Penalties Scored" mapping
+			filteredStats.push({
+				value: 'Penalties Scored',
+				originalText: 'penalties scored',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('missed')) {
+			// Remove incorrect mappings and add correct "Penalties Missed"
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			filteredStats.push({
+				value: 'Penalties Missed',
+				originalText: 'penalties missed',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('conceded')) {
+			// Remove incorrect mappings and add correct "Penalties Conceded"
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			filteredStats.push({
+				value: 'Penalties Conceded',
+				originalText: 'penalties conceded',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('saved')) {
+			// This should already be correct, but ensure it's properly detected
+			const hasCorrectMapping = statTypes.some(stat => stat.value === 'Penalties Saved');
+			if (!hasCorrectMapping) {
+				const filteredStats = statTypes.filter(stat => 
+					!['Home', 'Score', 'Goals Conceded'].includes(stat.value)
+				);
+				
+				filteredStats.push({
+					value: 'Penalties Saved',
+					originalText: 'penalties saved',
+					position: lowerQuestion.indexOf('penalties')
+				});
+				
+				return filteredStats;
+			}
+		}
+		
+		return statTypes;
 	}
 
 	private mapStatTypeToKey(statType: string): string {

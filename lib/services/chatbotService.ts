@@ -202,7 +202,6 @@ export class ChatbotService {
 	private getCachedResult(cacheKey: string): any | null {
 		const cached = this.queryCache.get(cacheKey);
 		if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
-			this.logToBoth(`🎯 Cache hit for query: ${cacheKey.substring(0, 50)}...`);
 			return cached.data;
 		}
 		return null;
@@ -213,7 +212,6 @@ export class ChatbotService {
 			data,
 			timestamp: Date.now()
 		});
-		this.logToBoth(`💾 Cached result for query: ${cacheKey.substring(0, 50)}...`);
 	}
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
@@ -223,13 +221,8 @@ export class ChatbotService {
 		this.lastProcessingSteps = [];
 		this.lastQueryBreakdown = null;
 
-		this.logToBoth(`🤖 Processing question: ${context.question}`);
-		this.logToBoth(`👤 User context: ${context.userContext || "None"}`);
-		
-		// Basic client-side logging
-		this.logToBoth("🚀 Starting question processing...");
-		this.logToBoth("🚀 Question:", context.question);
-		this.logToBoth("🚀 User context:", context.userContext);
+		// Essential logging for debugging
+		this.logToBoth(`🤖 Processing: ${context.question} | Context: ${context.userContext || "None"}`);
 
 		try {
 			// Ensure Neo4j connection
@@ -243,10 +236,8 @@ export class ChatbotService {
 			}
 
 			// Analyze the question
-			this.logToBoth("🔍 About to analyze question...");
 			const analysis = await this.analyzeQuestion(context.question, context.userContext);
 			this.lastQuestionAnalysis = analysis; // Store for debugging
-			this.logToBoth("🔍 Analysis completed, type:", analysis.type);
 
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
@@ -266,31 +257,23 @@ export class ChatbotService {
 				extractedMetrics: analysis.metrics,
 			};
 
-			this.logToBoth(`🔍 Question analysis:`, analysis);
-			this.logToBoth(`🔍 Query breakdown:`, this.lastQueryBreakdown);
-
-			// Client-side logging for question analysis
-			console.log(`🤖 [CLIENT] 🔍 Question analysis:`, analysis);
-			console.log(`🤖 [CLIENT] 🔍 Query breakdown:`, this.lastQueryBreakdown);
+			// Debug logging for complex queries
+			if (analysis.complexity === 'complex' || analysis.metrics.length > 1) {
+				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`);
+			}
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
-			this.logToBoth("🔍 About to query database...");
 			const data = await this.queryRelevantData(analysis);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
-			this.logToBoth(`📊 Query result:`, data);
-			this.logToBoth("🔍 Database query completed, result type:", data?.type);
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
-			this.logToBoth(`💬 Generated response:`, response);
 
 			return response;
 		} catch (error) {
-			this.logToBoth("❌ Error processing question:", error, "error");
-			this.logToBoth("❌ Error stack trace:", error instanceof Error ? error.stack : "No stack trace available", "error");
-			this.logToBoth("❌ Question that failed:", context.question, "error");
-			this.logToBoth("❌ User context:", context.userContext, "error");
+			// Essential error logging
+			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, "error");
 			
 			// Provide more detailed error information for debugging
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -308,90 +291,45 @@ export class ChatbotService {
 		question: string,
 		userContext?: string,
 	): Promise<EnhancedQuestionAnalysis> {
-		this.logToBoth("🔍 Enhanced analyzeQuestion called with:", { question, userContext });
-		this.logToBoth("🔍 Starting question analysis...");
-		
 		// Use enhanced question analysis
 		const analyzer = new EnhancedQuestionAnalyzer(question, userContext);
 		const enhancedAnalysis = await analyzer.analyze();
-		
-		this.logToBoth("🔍 Enhanced analysis result:", enhancedAnalysis);
-		this.logToBoth("🔍 Extracted entities:", enhancedAnalysis.entities);
-		this.logToBoth("🔍 Extracted metrics:", enhancedAnalysis.metrics);
-		this.logToBoth("🔍 Question type:", enhancedAnalysis.type);
-		this.logToBoth("🔍 Team entities:", enhancedAnalysis.teamEntities);
-		this.logToBoth("🔍 Opposition entities:", enhancedAnalysis.oppositionEntities);
-		this.logToBoth("🔍 Time range:", enhancedAnalysis.timeRange);
-		this.logToBoth("🔍 Extraction result:", enhancedAnalysis.extractionResult);
-		
-		// Client-side logging for debugging
-		this.logToBoth("🔍 Analysis complete:");
-		this.logToBoth("🔍 - Question type:", enhancedAnalysis.type);
-		this.logToBoth("🔍 - Entities:", enhancedAnalysis.entities);
-		this.logToBoth("🔍 - Metrics:", enhancedAnalysis.metrics);
-		this.logToBoth("🔍 - Team entities:", enhancedAnalysis.teamEntities);
-		this.logToBoth("🔍 - Time range:", enhancedAnalysis.timeRange);
-		this.logToBoth("🔍 - Locations:", enhancedAnalysis.extractionResult?.locations);
 		
 		return enhancedAnalysis;
 	}
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<any> {
-		this.logToBoth(`🔍 queryRelevantData called with analysis:`, analysis);
 		const { type, entities, metrics } = analysis;
-
-		this.logToBoth("🔍 queryRelevantData - type:", type);
-		this.logToBoth("🔍 queryRelevantData - entities:", entities);
-		this.logToBoth("🔍 queryRelevantData - metrics:", metrics);
 		
-		// Client-side logging for debugging
-		this.logToBoth("🔍 Query routing:");
-		this.logToBoth("🔍 - Question type:", type);
-		this.logToBoth("🔍 - Entities to query:", entities);
-		this.logToBoth("🔍 - Metrics to query:", metrics);
-
 		try {
 			// Ensure Neo4j connection before querying
 			const connected = await neo4jService.connect();
 			if (!connected) {
-				this.logToBoth("❌ Neo4j connection failed in queryRelevantData", "error");
+				this.logToBoth("❌ Neo4j connection failed", "error");
 				return null;
 			}
-			this.logToBoth(`🔍 Querying for type: ${type}, entities: ${entities}, metrics: ${metrics}`);
 
 			// 
 			switch (type) {
 				case "player":
-					this.logToBoth(`🔍 Calling queryPlayerData for entities: ${entities}, metrics: ${metrics}`);
-					const playerResult = await this.queryPlayerData(entities, metrics, analysis);
-					this.logToBoth(`🔍 queryPlayerData returned:`, playerResult);
-					return playerResult;
+					return await this.queryPlayerData(entities, metrics, analysis);
 				case "team":
-					this.logToBoth(`🔍 Calling queryTeamData...`);
 					return await this.queryTeamData(entities, metrics);
 				case "club":
-					this.logToBoth(`🔍 Calling queryClubData...`);
 					return await this.queryClubData(entities, metrics);
 				case "fixture":
-					this.logToBoth(`🔍 Calling queryFixtureData...`);
 					return await this.queryFixtureData(entities, metrics);
 				case "comparison":
-					this.logToBoth(`🔍 Calling queryComparisonData...`);
 					return await this.queryComparisonData(entities, metrics);
 				case "streak":
-					this.logToBoth(`🔍 Calling queryStreakData...`);
 					return await this.queryStreakData(entities, metrics);
 				case "temporal":
-					this.logToBoth(`🔍 Calling queryTemporalData...`);
 					return await this.queryTemporalData(entities, metrics, analysis.timeRange);
 				case "double_game":
-					this.logToBoth(`🔍 Calling queryDoubleGameData...`);
 					return await this.queryDoubleGameData(entities, metrics);
 				case "ranking":
-					this.logToBoth(`🔍 Calling queryRankingData...`);
 					return await this.queryRankingData(entities, metrics, analysis);
 				case "general":
-					this.logToBoth(`🔍 Calling queryGeneralData...`);
 					return await this.queryGeneralData();
 				default:
 					this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
@@ -410,22 +348,10 @@ export class ChatbotService {
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
 		
-		this.logToBoth(`🔍 Enhanced analysis data:`, {
-			teamEntities,
-			oppositionEntities,
-			timeRange,
-			locations
-		});
-		this.logToBoth(`🔍 queryPlayerData called with entities: ${entities}, metrics: ${metrics}`);
-		this.logToBoth(`🔍 Full analysis object:`, analysis);
-		
-		// Client-side logging for debugging
-		this.logToBoth("🔍 Player query setup:");
-		this.logToBoth("🔍 - Entities:", entities);
-		this.logToBoth("🔍 - Metrics:", metrics);
-		this.logToBoth("🔍 - Team entities:", teamEntities);
-		this.logToBoth("🔍 - Time range:", timeRange);
-		this.logToBoth("🔍 - Locations:", locations);
+		// Essential debug info for complex queries
+		if (teamEntities.length > 0 || timeRange || locations.length > 0) {
+			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`);
+		}
 
 		// Check if we have entities (player names) to query
 		if (entities.length === 0) {
@@ -437,24 +363,17 @@ export class ChatbotService {
 			const playerName = entities[0];
 			const metric = (metrics[0] || "").toUpperCase();
 
-			this.logToBoth(`🎯 Querying for player: ${playerName}, metric: ${metric}`);
-
 			// Check if this is a team-specific question
 			// First check if the player name itself is a team
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
-				this.logToBoth(`🔍 Detected team-specific question for team: ${playerName}`);
 				return await this.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
 			// Resolve player name with fuzzy matching
-			this.logToBoth("🔍 Player name resolution:");
-			this.logToBoth("🔍 - Input entity:", playerName);
-			
 			const resolvedPlayerName = await this.resolvePlayerName(playerName);
-			this.logToBoth("🔍 - Resolved player name:", resolvedPlayerName);
 			
 			if (!resolvedPlayerName) {
-				this.logToBoth("❌ Player not found:", playerName);
+				this.logToBoth(`❌ Player not found: ${playerName}`);
 				return {
 					type: "player_not_found",
 					data: [],
@@ -489,9 +408,7 @@ export class ChatbotService {
 
 			// Check for opposition-specific queries
 			if (analysis && analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
-				const oppositionName = analysis.oppositionEntities[0];
-				this.logToBoth(`🔍 Detected opposition entity in question: ${oppositionName}`);
-				this.logToBoth(`🔍 Will use enhanced query with all filters instead of separate opposition method`);
+				// Opposition queries will be handled by the enhanced query builder
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
@@ -526,37 +443,28 @@ export class ChatbotService {
 								(analysis.results && analysis.results.length > 0) ||
 								(analysis.opponentOwnGoals === true);
 			
-			this.logToBoth(`🔍 Query optimization: needsFixture = ${needsFixture}`);
-			this.logToBoth(`🔍 - Team filters: ${teamEntities.length > 0 ? teamEntities : 'none'}`);
-			this.logToBoth(`🔍 - Location filters: ${locations.length > 0 ? locations : 'none'}`);
-			this.logToBoth(`🔍 - Opposition filters: ${oppositionEntities.length > 0 ? oppositionEntities : 'none'}`);
-			this.logToBoth(`🔍 - Time range: ${timeRange || 'none'}`);
-			this.logToBoth(`🔍 - HOME/AWAY metrics: ${metrics.includes('HOME') || metrics.includes('AWAY') ? metrics.filter(m => m === 'HOME' || m === 'AWAY') : 'none'}`);
-			this.logToBoth(`🔍 - Competition types: ${analysis.competitionTypes && analysis.competitionTypes.length > 0 ? analysis.competitionTypes : 'none'}`);
-			this.logToBoth(`🔍 - Competitions: ${analysis.competitions && analysis.competitions.length > 0 ? analysis.competitions : 'none'}`);
-			this.logToBoth(`🔍 - Results: ${analysis.results && analysis.results.length > 0 ? analysis.results : 'none'}`);
-			this.logToBoth(`🔍 - Opponent own goals: ${analysis.opponentOwnGoals || false}`);
+			// Debug complex queries with filters
+			if (needsFixture) {
+				const filters = [];
+				if (teamEntities.length > 0) filters.push(`Teams: ${teamEntities.join(',')}`);
+				if (locations.length > 0) filters.push(`Locations: ${locations.map(l => l.type).join(',')}`);
+				if (timeRange) filters.push(`Time: ${timeRange}`);
+				if (oppositionEntities.length > 0) filters.push(`Opposition: ${oppositionEntities.join(',')}`);
+				if (filters.length > 0) {
+					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`);
+				}
+			}
 			
 			// Build the optimal query using unified architecture
 			const query = this.buildPlayerQuery(actualPlayerName, metric, analysis);
-			
-			this.logToBoth(`🔍 Final Cypher query:`, query);
-			this.logToBoth(`🔍 Query parameters:`, { playerName: actualPlayerName });
-			
-			this.logToBoth("🔍 Final query:");
-			this.logToBoth("🔍 - Cypher query:", query);
-			this.logToBoth("🔍 - Parameters:", { playerName: actualPlayerName });
 
 			try {
 				// First check if the player exists
 				const playerExistsQuery = `MATCH (p:Player {playerName: $playerName}) RETURN p.playerName as playerName LIMIT 1`;
-				this.logToBoth("🔍 Checking if player exists...");
 				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName: actualPlayerName });
-				this.logToBoth("🔍 Player exists result:", playerExistsResult);
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
-					this.logToBoth(`🔍 Player ${actualPlayerName} not found in database`);
-					this.logToBoth("❌ Player not found in database:", actualPlayerName);
+					this.logToBoth(`❌ Player not found: ${actualPlayerName}`);
 					return { 
 						type: "player_not_found", 
 						data: [], 
@@ -565,48 +473,17 @@ export class ChatbotService {
 						metric
 					};
 				}
-				this.logToBoth(`🔍 Query parameters: playerName=${actualPlayerName}`);
-
-			// Special logging for APP metric
-			if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - About to call neo4jService.executeQuery", "log");
-				}
 
 				// Store query for debugging
 				this.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
 				this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
-				
-				// Create ready-to-execute query for debugging
-				const readyToExecuteQuery = query.replace(/\$playerName/g, `'${actualPlayerName}'`);
-				this.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
-				
-				// Log copyable queries for debugging
-				this.logToBoth(`🔍 CYPHER QUERY (with parameters):`, query);
-				this.logToBoth(`🔍 CYPHER QUERY (ready to execute):`, readyToExecuteQuery);
-				this.logToBoth(`🔍 QUERY PARAMETERS:`, { playerName: actualPlayerName });
 
-				this.logToBoth("🔍 Executing main query...");
 				const result = await neo4jService.executeQuery(query, {
 					playerName: actualPlayerName,
 				});
-				this.logToBoth("🔍 Query result:", result);
 
-				// Special logging for APP metric
-				if (metric === "APP") {
-					this.logToBoth("🔍 APP metric - Query executed successfully", "log");
-					this.logToBoth("🔍 APP metric - Result:", result, "log");
-				}
-
-				this.logToBoth(`🔍 Result type: ${typeof result}, length: ${Array.isArray(result) ? result.length : "not array"}`);
-
-				if (result && Array.isArray(result) && result.length > 0) {
-					this.logToBoth(`🔍 First result item:`, result[0]);
-					this.logToBoth("✅ Query returned results:", `${result.length} items`);
-					this.logToBoth("🔍 First result:", result[0]);
-				} else {
-					this.logToBoth(`🔍 No results found for ${playerName}. Player may not exist or have no match data.`);
-					this.logToBoth("❌ No results found for query");
-					this.logToBoth("🔍 Result was:", result);
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					this.logToBoth(`❌ No results found for ${actualPlayerName} with metric ${metric}`);
 				}
 
 				return { type: "specific_player", data: result, playerName: actualPlayerName, metric, cypherQuery: query };
@@ -808,7 +685,10 @@ export class ChatbotService {
 							(analysis.results && analysis.results.length > 0) ||
 							(analysis.opponentOwnGoals === true);
 
-		this.logToBoth(`🔍 Query optimization: needsMatchDetail = ${needsMatchDetail}, needsFixture = ${needsFixture}`);
+		// Debug complex queries only
+		if (needsFixture || !needsMatchDetail) {
+			this.logToBoth(`🔍 Query: ${metric} | MatchDetail: ${needsMatchDetail} | Fixture: ${needsFixture}`);
+		}
 
 		// Build base query structure
 		let query: string;

@@ -2,24 +2,54 @@
 
 ## Table of Contents
 
-- [React & Next.js Best Practices](#react--nextjs-best-practices)
-  - [Component Lifecycle & Hooks Safety](#component-lifecycle--hooks-safety)
+- [Table of Contents](#table-of-contents)
+- [React \& Next.js Best Practices](#react--nextjs-best-practices)
+  - [Component Lifecycle \& Hooks Safety](#component-lifecycle--hooks-safety)
+    - [React Hooks Ordering in Transition Components](#react-hooks-ordering-in-transition-components)
+    - [HTML Validation in React Components](#html-validation-in-react-components)
   - [State Management Patterns](#state-management-patterns)
-  - [Debugging & Problem Solving](#debugging--problem-solving)
-- [Build & Development Workflow](#build--development-workflow)
+    - [Zustand Store Design](#zustand-store-design)
+    - [Component State Management](#component-state-management)
+  - [Debugging \& Problem Solving](#debugging--problem-solving)
+    - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
+  - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
+    - [Progressive Problem Escalation](#progressive-problem-escalation)
+- [Build \& Development Workflow](#build--development-workflow)
+  - [TypeScript \& Build Safety](#typescript--build-safety)
+  - [Component Architecture](#component-architecture)
 - [Documentation Standards](#documentation-standards)
+  - [Markdown Documentation Protocol](#markdown-documentation-protocol)
+  - [Documentation Integration Protocol](#documentation-integration-protocol)
 - [Quality Gates](#quality-gates)
-- [Testing & Data Validation](#testing--data-validation)
-- [Natural Language Processing & Query Analysis](#natural-language-processing--query-analysis)
-  - [Context-Aware Entity Classification](#context-aware-entity-classification-protocol)
-  - [User Domain Knowledge Leverage](#user-domain-knowledge-leverage-protocol)
-  - [Incremental Problem Resolution](#incremental-problem-resolution-protocol)
-  - [Evidence-Based Hypothesis](#evidence-based-hypothesis-protocol)
-  - [Database Schema Verification](#database-schema-verification-protocol)
-  - [Pipeline Order Discipline](#pipeline-order-discipline-protocol)
-  - [Incremental Fix Validation](#incremental-fix-validation-protocol)
-  - [Fuzzy Matching Extension](#fuzzy-matching-extension-protocol)
-  - [User Experience Formatting](#user-experience-formatting-protocol)
+  - [Pre-Deployment Checklist](#pre-deployment-checklist)
+  - [Testing Protocol](#testing-protocol)
+  - [Test Script Safety Protocol](#test-script-safety-protocol)
+  - [User Experience Validation Protocol](#user-experience-validation-protocol)
+  - [Fallback Mechanism Design](#fallback-mechanism-design)
+  - [Iterative Correction Protocol](#iterative-correction-protocol)
+  - [Documentation Verification Protocol](#documentation-verification-protocol)
+- [Testing \& Data Validation](#testing--data-validation)
+  - [Data Source Integrity Protocol](#data-source-integrity-protocol)
+  - [Data Structure Verification Protocol](#data-structure-verification-protocol)
+  - [Test Failure Logic Protocol](#test-failure-logic-protocol)
+  - [TBL\_TestData Validation Protocol](#tbl_testdata-validation-protocol)
+  - [External Service Connection Protocol](#external-service-connection-protocol)
+  - [Structured Error Handling Protocol](#structured-error-handling-protocol)
+  - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol-1)
+  - [Data Pipeline Verification Protocol](#data-pipeline-verification-protocol)
+  - [Log-First Debugging Strategy](#log-first-debugging-strategy)
+  - [User Instruction Adherence Protocol](#user-instruction-adherence-protocol)
+- [Natural Language Processing \& Query Analysis](#natural-language-processing--query-analysis)
+  - [Context-Aware Entity Classification Protocol](#context-aware-entity-classification-protocol)
+  - [User Domain Knowledge Leverage Protocol](#user-domain-knowledge-leverage-protocol)
+  - [Incremental Problem Resolution Protocol](#incremental-problem-resolution-protocol)
+  - [Evidence-Based Hypothesis Protocol](#evidence-based-hypothesis-protocol)
+  - [Database Schema Verification Protocol](#database-schema-verification-protocol)
+  - [Pipeline Order Discipline Protocol](#pipeline-order-discipline-protocol)
+  - [Incremental Fix Validation Protocol](#incremental-fix-validation-protocol)
+  - [Fuzzy Matching Extension Protocol](#fuzzy-matching-extension-protocol)
+  - [User Experience Formatting Protocol](#user-experience-formatting-protocol)
+  - [Question Analysis Priority Protocol](#question-analysis-priority-protocol)
 
 ## React & Next.js Best Practices
 
@@ -85,6 +115,16 @@
 - **Rationale**: Console logs provide concrete evidence of the actual execution flow
 - **Implementation**: Add strategic console.log statements to trace state changes and component lifecycle
 
+### Complete Data Flow Analysis Protocol
+
+- **Rule**: When debugging complex systems, trace the entire data pipeline from input to output, not just suspected problem areas
+- **Rationale**: Root causes often exist upstream from where symptoms appear, and fixing downstream issues creates fragile workarounds
+- **Implementation**: 
+  - Map the complete data flow: input → analysis → processing → output
+  - Add logging at each stage to trace data transformation
+  - Identify where the data diverges from expected behavior
+- **Example**: Query building issues → trace from question analysis through entity extraction to query generation
+
 #### Progressive Problem Escalation
 
 - **Rule**: When initial fixes fail, systematically escalate the approach rather than repeating the same pattern
@@ -146,6 +186,17 @@
 2. Test related functionality to ensure no regressions
 3. Verify console logs show expected behavior
 4. Confirm no new errors introduced
+
+### Test Script Safety Protocol
+
+- **Rule**: All test scripts that create database connections or long-running processes must include timeout and proper exit handling
+- **Rationale**: Scripts that hang indefinitely create poor user experience and require manual intervention to terminate
+- **Implementation**:
+  - Add timeout mechanisms (30-60 seconds) for long-running operations
+  - Implement proper process exit handling (SIGINT, SIGTERM)
+  - Clear timeouts and exit cleanly on completion or error
+  - Add progress indicators for long-running operations
+- **Example**: Database connection scripts → add `setTimeout(() => process.exit(1), 30000)` and `process.on('SIGINT', () => process.exit(0))`
 
 ### User Experience Validation Protocol
 
@@ -376,5 +427,15 @@
   - Maintain internal consistency with database/API formats
   - Apply formatting at the response generation stage, not data storage stage
 - **Example**: Internal dates stored as YYYY-MM-DD → convert to DD/MM/YYYY for user responses
+
+### Question Analysis Priority Protocol
+
+- **Rule**: In chatbot systems, question analysis/entity extraction is often the root cause of query issues, not the query building logic itself
+- **Rationale**: Incorrect entity extraction cascades through the entire system, causing downstream components to work with wrong data
+- **Implementation**:
+  - When query issues occur, first verify question analysis results
+  - Check entity extraction accuracy before debugging query construction
+  - Trace metric detection from question analysis through to query building
+- **Example**: Penalty queries generating home game queries → check if "penalties scored" is being extracted as "HOME" instead of "PSC"
 
 > [Back to Table of Contents](#table-of-contents)
