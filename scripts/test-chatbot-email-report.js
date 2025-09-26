@@ -582,7 +582,39 @@ function formatValueByMetric(metric, value) {
 	}
 	
 	// Import the actual statObject from config.ts
-	const { statObject } = require('../config/config.ts');
+	let statObject;
+	try {
+		// Try to require the compiled version first
+		console.log('🔧 Trying to load config.js...');
+		statObject = require('../config/config.js').statObject;
+		console.log('🔧 Successfully loaded config.js');
+	} catch (e) {
+		console.log('🔧 Using hardcoded statObject fallback, error:', e.message);
+		// Fallback to hardcoded values for now (since TypeScript import is failing)
+		statObject = {
+			FTP: { numberDecimalPlaces: 0 },
+			MIN: { numberDecimalPlaces: 0 },
+			C: { numberDecimalPlaces: 0 },
+			G: { numberDecimalPlaces: 0 },
+			A: { numberDecimalPlaces: 0 },
+			APP: { numberDecimalPlaces: 0 },
+			CLS: { numberDecimalPlaces: 0 },
+			Y: { numberDecimalPlaces: 0 },
+			R: { numberDecimalPlaces: 0 },
+			SAVES: { numberDecimalPlaces: 0 },
+			OG: { numberDecimalPlaces: 0 },
+			PSC: { numberDecimalPlaces: 0 },
+			PM: { numberDecimalPlaces: 0 },
+			PCO: { numberDecimalPlaces: 0 },
+			PSV: { numberDecimalPlaces: 0 },
+			GperAPP: { numberDecimalPlaces: 1 },
+			CperAPP: { numberDecimalPlaces: 1 },
+			FTPperAPP: { numberDecimalPlaces: 1 },
+			MPERG: { numberDecimalPlaces: 1 },
+			MPERCLS: { numberDecimalPlaces: 1 },
+			DIST: { numberDecimalPlaces: 0 }
+		};
+	}
 	
 	const metricConfig = statObject[metric];
 	if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {

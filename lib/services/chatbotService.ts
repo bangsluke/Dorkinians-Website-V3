@@ -606,7 +606,10 @@ export class ChatbotService {
 		// Metrics that need MatchDetail join (including complex calculations)
 		const matchDetailMetrics = [
 			'APP', 'ALLGSC', 'GI', 'HOME', 'AWAY',
-			'MOSTCOMMONPOSITION', 'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP'
+			'MOSTCOMMONPOSITION', 'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP',
+			'2016/17GOALS', '2017/18GOALS', '2018/19GOALS', '2019/20GOALS', '2020/21GOALS', '2021/22GOALS',
+			'2016/17APPS', '2017/18APPS', '2018/19APPS', '2019/20APPS', '2020/21APPS', '2021/22APPS',
+			'MOSTPROLIFICSEASON'
 		];
 		
 		return matchDetailMetrics.includes(metric.toUpperCase());
@@ -654,8 +657,15 @@ export class ChatbotService {
 			case 'GI': return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
 				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value`;
-			case 'HOME': return 'count(md) as value';
-			case 'AWAY': return 'count(md) as value';
+			case 'HOME': return 'count(DISTINCT md) as value';
+			case 'AWAY': return 'count(DISTINCT md) as value';
+			// Season-specific goals
+			case '2016/17GOALS': return 'coalesce(sum(CASE WHEN md.season = "2016/17" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
+			case '2017/18GOALS': return 'coalesce(sum(CASE WHEN md.season = "2017/18" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
+			case '2018/19GOALS': return 'coalesce(sum(CASE WHEN md.season = "2018/19" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
+			case '2019/20GOALS': return 'coalesce(sum(CASE WHEN md.season = "2019/20" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
+			case '2020/21GOALS': return 'coalesce(sum(CASE WHEN md.season = "2020/21" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
+			case '2021/22GOALS': return 'coalesce(sum(CASE WHEN md.season = "2021/22" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
 			// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
 			default: return '0 as value';
 		}
@@ -700,15 +710,18 @@ export class ChatbotService {
 				RETURN p.playerName as playerName, ${this.getPlayerNodeReturnClause(metric)} as value
 			`;
 		} else {
-			// Use MatchDetail join query
-			query = `
-				MATCH (p:Player {playerName: $playerName})
-				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
-			`;
-			
-			// Only add Fixture relationship if we need it for filtering
+			// Use MatchDetail join query with simplified path pattern
 			if (needsFixture) {
-				query += `MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)\n`;
+				// Use explicit path pattern to ensure we only count the player's own MatchDetail records
+				query = `
+					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+					MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				`;
+			} else {
+				// Use simple MatchDetail query for queries that don't need fixture data
+				query = `
+					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				`;
 			}
 
 			// Build WHERE conditions for enhanced filters
@@ -721,8 +734,8 @@ export class ChatbotService {
 				whereConditions.push(`f.team IN [${teamNames}]`);
 			}
 			
-			// Add location filter if specified
-			if (locations.length > 0) {
+			// Add location filter if specified (only if not already handled by metric)
+			if (locations.length > 0 && metric !== 'HOME' && metric !== 'AWAY') {
 				const locationFilters = locations.map(loc => {
 					if (loc.type === 'home') return `f.homeOrAway = 'Home'`;
 					if (loc.type === 'away') return `f.homeOrAway = 'Away'`;
@@ -860,12 +873,12 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric === 'GPERAPP') {
+		} else if (metric.toUpperCase() === 'GPERAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
-					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as totalGoals,
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE toInteger(md.goals) END) + 
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE toInteger(md.penaltiesScored) END) as totalGoals,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
@@ -873,11 +886,11 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric === 'CPERAPP') {
+		} else if (metric.toUpperCase() === 'CPERAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE md.conceded END) as totalConceded,
+					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE toInteger(md.conceded) END) as totalConceded,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
@@ -885,11 +898,11 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric === 'MOST_PROLIFIC_SEASON') {
+		} else if (metric.toUpperCase() === 'MOSTPROLIFICSEASON') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.season IS NOT NULL
-				WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+				WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE toInteger(md.goals) END) as goals
 				ORDER BY goals DESC
 				LIMIT 1
 				RETURN p.playerName as playerName, season as value
@@ -910,6 +923,42 @@ export class ChatbotService {
 				WITH p, collect(DISTINCT md.season) as seasons
 				RETURN p.playerName as playerName, size(seasons) as value
 			`;
+		} else if (metric === '2016/17APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2016/17"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
+		} else if (metric === '2017/18APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2017/18"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
+		} else if (metric === '2018/19APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2018/19"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
+		} else if (metric === '2019/20APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2019/20"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
+		} else if (metric === '2020/21APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2020/21"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
+		} else if (metric === '2021/22APPS') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season = "2021/22"
+				RETURN p.playerName as playerName, count(md) as value
+			`;
 		}
 
 		return query;
@@ -921,8 +970,15 @@ export class ChatbotService {
 		const formattedValue = this.formatValueByMetric(metric, value);
 		const verb = getAppropriateVerb(metric, value);
 		
+		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
+		let finalMetricName = metricName;
+		if (verb && metricName.toLowerCase().includes(verb.toLowerCase())) {
+			// Remove the verb from the metric name to avoid duplication
+			finalMetricName = metricName.toLowerCase().replace(verb.toLowerCase(), '').trim();
+		}
+		
 		// Start with the basic response
-		let response = `${playerName} has ${verb} ${formattedValue} ${metricName}`;
+		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
 		
 		// Add team context if present
 		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
@@ -989,6 +1045,14 @@ export class ChatbotService {
 					// Build contextual response and add clarification
 					answer = this.buildContextualResponse(playerName, metric, value, analysis);
 					answer = answer.replace(".", " (Fantasy Points).");
+				} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
+					// For "What was player's most prolific season?" questions
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("most prolific season") || questionLower.includes("prolific season")) {
+						// Use the actual query results from Cypher
+						const season = value; // e.g., "2018/19"
+						answer = `${playerName}'s most prolific season was ${season}.`;
+					}
 				} else if (metric === "MostPlayedForTeam") {
 					// For "What team has player made the most appearances for?" questions
 					const questionLower = question.toLowerCase();
@@ -1029,6 +1093,13 @@ export class ChatbotService {
 						// Use the actual query result from Cypher
 						const position = value || "Unknown";
 						answer = `${playerName}'s most common position is ${position}.`;
+					}
+				} else if (metric.includes("APPS") && metric.match(/\d{4}\/\d{2}/)) {
+					// For season-specific appearance queries (e.g., "2017/18Apps")
+					const season = metric.replace("APPS", "");
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
+						answer = `${playerName} made ${value} ${value === 1 ? "appearance" : "appearances"} in the ${season} season.`;
 					}
 				} else {
 					// Handle appearances count special case

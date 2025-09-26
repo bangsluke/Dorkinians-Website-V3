@@ -202,6 +202,14 @@ export const metricConfigs: MetricConfig[] = [
 		description: "Goals scored per appearance",
 	},
 	{
+		key: "APERAPP",
+		displayName: "assists per appearance",
+		singular: "assist per appearance",
+		plural: "assists per appearance",
+		aliases: ["assists per app", "assists per game", "assisting rate"],
+		description: "Assists provided per appearance",
+	},
+	{
 		key: "CperAPP",
 		displayName: "goals conceded per appearance",
 		singular: "goal conceded per appearance",
@@ -742,6 +750,30 @@ export const metricConfigs: MetricConfig[] = [
 		plural: "consecutive weekends",
 		aliases: ["weekends in a row", "consecutive weekend play", "weekend streak"],
 		description: "Consecutive weekends with games played",
+	},
+	{
+		key: "GPERAPP",
+		displayName: "goals per appearance",
+		singular: "goal per appearance",
+		plural: "goals per appearance",
+		aliases: ["goals per app", "goals per game", "goals per match", "scoring rate"],
+		description: "Average goals scored per appearance",
+	},
+	{
+		key: "HOME",
+		displayName: "home games",
+		singular: "home game",
+		plural: "home games",
+		aliases: ["home matches", "home appearances", "home fixtures"],
+		description: "Games played at home",
+	},
+	{
+		key: "AWAY",
+		displayName: "away games",
+		singular: "away game",
+		plural: "away games",
+		aliases: ["away matches", "away appearances", "away fixtures"],
+		description: "Games played away from home",
 	},
 ];
 

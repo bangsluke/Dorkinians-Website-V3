@@ -438,4 +438,34 @@
   - Trace metric detection from question analysis through to query building
 - **Example**: Penalty queries generating home game queries → check if "penalties scored" is being extracted as "HOME" instead of "PSC"
 
+### Graph Database Relationship Counting Protocol
+
+- **Rule**: When counting through relationships in graph databases, use `DISTINCT` to prevent duplicate counting from multiple relationship paths
+- **Rationale**: Graph databases can have multiple relationship types between the same nodes, and counting without `DISTINCT` can inflate results by counting the same entity multiple times
+- **Implementation**:
+  - Use `count(DISTINCT node)` instead of `count(node)` when counting through relationships
+  - Identify the specific relationship type that represents the intended count (e.g., `PLAYED_IN` for player appearances)
+  - Verify that relationship conditions in schema are specific enough to prevent duplicate relationship creation
+- **Example**: Player-MatchDetail relationships → use `count(DISTINCT md)` to count unique match details, not all relationship instances
+
+### Systematic Data Discrepancy Analysis Protocol
+
+- **Rule**: When data counts show consistent mathematical patterns (multipliers, ratios), investigate structural issues rather than logic errors
+- **Rationale**: Systematic patterns in data discrepancies often indicate relationship duplication, schema issues, or counting methodology mismatches rather than query logic problems
+- **Implementation**:
+  - Look for consistent multipliers (e.g., 5-6x higher than expected) as indicators of structural issues
+  - Trace the complete data pipeline from input through storage to query execution
+  - Compare expected vs actual counts across multiple related metrics to identify patterns
+- **Example**: Home games 5x higher than expected → investigate if `HAS_MATCH_DETAILS` relationships are creating duplicates
+
+### User Technical Guidance Priority Protocol
+
+- **Rule**: When domain experts provide specific technical insights about system behavior, prioritize those insights over theoretical analysis
+- **Rationale**: Domain experts have deep understanding of the system's intended behavior and can quickly identify the correct approach
+- **Implementation**:
+  - When users specify exact technical requirements (e.g., "only count PLAYED_IN relationships"), implement those requirements first
+  - Use theoretical analysis to validate and extend user guidance, not replace it
+  - Test user-specified approaches before exploring alternative solutions
+- **Example**: User says "only count PLAYED_IN relationships" → implement that specific counting method rather than investigating all relationship types
+
 > [Back to Table of Contents](#table-of-contents)
