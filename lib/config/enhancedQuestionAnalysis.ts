@@ -1,4 +1,4 @@
-import { EntityExtractor, EntityExtractionResult } from './entityExtraction';
+import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from './entityExtraction';
 import { QuestionType } from '../../config/config';
 
 export interface EnhancedQuestionAnalysis {
@@ -8,6 +8,10 @@ export interface EnhancedQuestionAnalysis {
 	timeRange?: string;
 	teamEntities?: string[];
 	oppositionEntities?: string[];
+	competitionTypes?: string[];
+	competitions?: string[];
+	results?: string[];
+	opponentOwnGoals?: boolean;
 	message?: string;
 	// Enhanced fields
 	extractionResult: EntityExtractionResult;
@@ -39,7 +43,7 @@ export class EnhancedQuestionAnalyzer {
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);
 		
-		// Extract metrics for backward compatibility
+		// Extract metrics for backward compatibility with penalty phrase fixes
 		const metrics = this.extractLegacyMetrics(extractionResult);
 		
 		// Extract time range for backward compatibility
@@ -55,6 +59,21 @@ export class EnhancedQuestionAnalyzer {
 			.filter(e => e.type === 'opposition')
 			.map(e => e.value);
 
+		// Extract competition types for competition-specific queries
+		const competitionTypes = extractionResult.competitionTypes
+			.map(ct => ct.value);
+
+		// Extract competitions for competition-specific queries
+		const competitions = extractionResult.competitions
+			.map(c => c.value);
+
+		// Extract results for result-specific queries
+		const results = extractionResult.results
+			.map(r => r.value);
+
+		// Extract opponent own goals flag
+		const opponentOwnGoals = extractionResult.opponentOwnGoals;
+
 		return {
 			type,
 			entities,
@@ -62,6 +81,10 @@ export class EnhancedQuestionAnalyzer {
 			timeRange,
 			teamEntities,
 			oppositionEntities,
+			competitionTypes,
+			competitions,
+			results,
+			opponentOwnGoals,
 			extractionResult,
 			complexity,
 			requiresClarification,
@@ -148,7 +171,12 @@ export class EnhancedQuestionAnalyzer {
 			return true; // Still need stat types
 		}
 
-		return (hasNoEntities && !isRankingQuestion) || hasNoStatTypes || (complexity === 'complex');
+		// FIXED: Only require clarification if BOTH entities AND stat types are missing (not either/or)
+		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
+		const needsClarification = (hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
+								   (complexity === 'complex' && hasNoEntities && hasNoStatTypes);
+
+		return needsClarification;
 	}
 
 	// Generate a clarification message based on the number of entities and stat types
@@ -185,29 +213,35 @@ export class EnhancedQuestionAnalyzer {
 			return "I can handle questions about up to 3 different statistics at once. Please simplify your question to focus on fewer stat types. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple stats.";
 		}
 
+		// IMPROVED: More specific guidance based on what's missing
+		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0) {
+			return "I need more information to help you. Please specify both who/what you're asking about AND what statistic you want to know. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+		}
+
 		if (namedEntities.length === 0) {
-			return "I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+			const statTypes = extractionResult.statTypes.map(s => s.value).join(', ');
+			return `I can see you're asking about ${statTypes}, but I need to know which player, team, or other entity you're asking about. Please specify who or what you want to know about. For example: 'How many ${statTypes} has Luke Bangs scored?' or 'What are the 3rd XI ${statTypes}?'`;
 		}
 
 		if (extractionResult.statTypes.length === 0) {
-			return "I need to know what statistic you're asking about. Please specify what information you want. Examples: 'goals', 'appearances', 'assists', 'yellow cards', 'clean sheets', 'minutes played', etc.";
+			const entities = namedEntities.map(e => e.value).join(', ');
+			return `I can see you're asking about ${entities}, but I need to know what statistic you want to know about. Please specify what information you want. Examples: 'goals', 'appearances', 'assists', 'yellow cards', 'clean sheets', 'minutes played', etc. For example: 'How many goals has ${entities} scored?'`;
 		}
 
 		if (complexity === 'complex') {
 			return "This question is quite complex with multiple entities or conditions. I'll try to answer it, but you might get better results by breaking it down into simpler questions. For example: 'How many goals has Luke Bangs scored?' instead of asking about multiple players, teams, or stats at once.";
 		}
 
-		return "I'm not sure what you're asking about. Please be more specific about which player, team, or statistic you want to know about. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+		// IMPROVED: More helpful fallback message
+		return "I'm not sure what you're asking about. Please be more specific about which player, team, or statistic you want to know about. You can ask questions like: 'How many goals has Luke Bangs scored?', 'What are the 3rd XI stats?', or 'Who has the most assists?'";
 	}
 
 	// Determine the question type based on the extracted entities and content
 	private determineQuestionType(extractionResult: EntityExtractionResult): QuestionType {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check for clarification needed first
-		if (this.checkClarificationNeeded(extractionResult, this.assessComplexity(extractionResult))) {
-			return "clarification_needed";
-		}
+		// Note: Clarification check is already done in the main analyze() method
+		// No need to check again here
 
 		// Determine type based on entities and content
 		const hasPlayerEntities = extractionResult.entities.some(e => e.type === 'player');
@@ -306,14 +340,63 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
+		const correctedStatTypes = this.correctPenaltyPhrases(extractionResult.statTypes);
+		
+		// CRITICAL FIX: Detect most prolific season queries
+		const prolificCorrectedStats = this.correctMostProlificSeasonQueries(correctedStatTypes);
+		
+		// CRITICAL FIX: Detect season-specific queries
+		const seasonCorrectedStats = this.correctSeasonSpecificQueries(prolificCorrectedStats);
+		
+		// CRITICAL FIX: Detect team-specific appearance queries
+		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(seasonCorrectedStats);
+		
+		// CRITICAL FIX: Detect season-specific appearance queries
+		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(teamAppearanceCorrectedStats);
+		
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = extractionResult.statTypes.map(stat => stat.value);
+		const statTypes = appearanceCorrectedStats.map(stat => stat.value);
 		
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
-			'Open Play Goals',  // More specific than 'Goals'
-			'Penalties Scored', // More specific than 'Goals'
-			'Goals',            // General goals
+			'Own Goals',          // Most specific - own goals - helps stop the chatbot returning goals
+			'Goals Conceded',     // More specific than general goals
+			'Open Play Goals',    // More specific than general goals
+			'Penalties Scored',   // More specific than general goals
+			'Penalties Missed',   // More specific than general goals
+			'Penalties Conceded', // More specific than general goals
+			'Penalties Saved',    // More specific than general goals
+			'2021/22 Goals',      // Season-specific goals (most specific)
+			'2020/21 Goals',
+			'2019/20 Goals',
+			'2018/19 Goals',
+			'2017/18 Goals',
+			'2016/17 Goals',
+		'1st XI Apps',        // Team-specific appearances (most specific)
+		'2nd XI Apps',
+		'3rd XI Apps',
+		'4th XI Apps',
+		'5th XI Apps',
+		'6th XI Apps',
+		'7th XI Apps',
+		'8th XI Apps',
+		'2021/22 Apps',       // Season-specific appearances
+		'2020/21 Apps',
+		'2019/20 Apps',
+		'2018/19 Apps',
+		'2017/18 Apps',
+		'2016/17 Apps',
+			'Goalkeeper Appearances', // Position-specific stats
+			'Defender Appearances',
+			'Midfielder Appearances',
+			'Forward Appearances',
+			'Most Common Position',
+			'Goals Per Appearance',     // Average calculation metrics
+			'Assists Per Appearance',
+			'Fantasy Points Per Appearance',
+			'Goals Conceded Per Appearance',
+			'Goals',              // General goals (lower priority)
 			'Assists',
 			'Apps',
 			'Minutes',
@@ -331,46 +414,561 @@ export class EnhancedQuestionAnalyzer {
 		return statTypes.map(stat => this.mapStatTypeToKey(stat));
 	}
 
+	/**
+	 * Maps stat type display names to their corresponding database keys
+	 */
 	private mapStatTypeToKey(statType: string): string {
-		// Map extracted stat types to their corresponding keys
-		const statTypeMapping: { [key: string]: string } = {
-			'Apps': 'APP',
-            'Minutes': 'MIN',
-            'Man of the Match': 'MOM',
-            'Goals': 'AllGSC',
-			'Open Play Goals': 'G',
-			'Assists': 'A',
+		const mapping: { [key: string]: string } = {
+		// Basic stats
+		'Goals': 'G',
+		'Assists': 'A',
+		'Apps': 'APP',
+		'Appearances': 'APP',
+		'Minutes': 'MIN',
 			'Yellow Cards': 'Y',
 			'Red Cards': 'R',
 			'Saves': 'SAVES',
+			'Clean Sheets': 'CLS',
 			'Own Goals': 'OG',
 			'Goals Conceded': 'C',
-			'Clean Sheets': 'CLS',
+			'Fantasy Points': 'FTP',
+			'Distance Travelled': 'DIST',
+			
+			// Penalty stats
 			'Penalties Scored': 'PSC',
 			'Penalties Missed': 'PM',
-            'Penalties Conceded': 'PCO',
+			'Penalties Conceded': 'PCO',
 			'Penalties Saved': 'PSV',
-            'Fantasy Points': 'FTP',
+			
+			// Position stats
+			'Goalkeeper Appearances': 'GK',
+			'Defender Appearances': 'DEF',
+			'Midfielder Appearances': 'MID',
+			'Forward Appearances': 'FWD',
+			'Most Common Position': 'MostCommonPosition',
+			
+			// Calculated stats
 			'Goal Involvements': 'GI',
+			'All Goals Scored': 'ALLGSC',
 			'Goals Per Appearance': 'GperAPP',
-			'Conceded Per Appearance': 'CperAPP',
-			'Minutes Per Goal': 'MperG',
+			'Conceded Per Appearance': 'CPERAPP',
+			'Minutes Per Goal': 'MPERG',
+			'Minutes Per Clean Sheet': 'MPERCLS',
+			'Fantasy Points Per Appearance': 'FTPPERAPP',
+			
+			// Location stats
+			'Home': 'HOME',
+			'Away': 'AWAY',
+			'Home Games': 'HomeGames',
+			'Away Games': 'AwayGames',
+			'Home Wins': 'HomeWins',
+			'Away Wins': 'AwayWins',
+			'Home Games % Won': 'HomeGames%Won',
+			'Away Games % Won': 'AwayGames%Won',
+			'Games % Won': 'Games%Won',
+			
+			// Team-specific stats
+			'1st XI Apps': '1sApps',
+			'2nd XI Apps': '2sApps',
+			'3rd XI Apps': '3sApps',
+			'4th XI Apps': '4sApps',
+			'5th XI Apps': '5sApps',
+			'6th XI Apps': '6sApps',
+			'7th XI Apps': '7sApps',
+			'8th XI Apps': '8sApps',
+			'Most Played For Team': 'MostPlayedForTeam',
+			'Number Teams Played For': 'NumberTeamsPlayedFor',
+			
+			'1st XI Goals': '1sGoals',
+			'2nd XI Goals': '2sGoals',
+			'3rd XI Goals': '3sGoals',
+			'4th XI Goals': '4sGoals',
+			'5th XI Goals': '5sGoals',
+			'6th XI Goals': '6sGoals',
+			'7th XI Goals': '7sGoals',
+			'8th XI Goals': '8sGoals',
+			'Most Scored For Team': 'MostScoredForTeam',
+			
+			// Season-specific stats
+			'2016/17 Apps': '2016/17Apps',
+			'2017/18 Apps': '2017/18Apps',
+			'2018/19 Apps': '2018/19Apps',
+			'2019/20 Apps': '2019/20Apps',
+			'2020/21 Apps': '2020/21Apps',
+			'2021/22 Apps': '2021/22Apps',
+			'Number Seasons Played For': 'NumberSeasonsPlayedFor',
+			
+			'2016/17 Goals': '2016/17Goals',
+			'2017/18 Goals': '2017/18Goals',
+			'2018/19 Goals': '2018/19Goals',
+			'2019/20 Goals': '2019/20Goals',
+			'2020/21 Goals': '2020/21Goals',
+			'2021/22 Goals': '2021/22Goals',
+			'Most Prolific Season': 'MostProlificSeason',
+			
+			// Average calculation metrics
+			'Goals Per Appearance': 'GperAPP',
+			'Assists Per Appearance': 'APERAPP',
+			'Fantasy Points Per Appearance': 'FTPPERAPP',
+			'Goals Conceded Per Appearance': 'CPERAPP',
+			
+			// Awards and special stats
+			'Man of the Match': 'MOM',
 			'Team of the Week': 'TOTW',
 			'Season Team of the Week': 'SEASON_TOTW',
 			'Player of the Month': 'POTM',
 			'Captain Awards': 'CAPTAIN',
 			'Co Players': 'CO_PLAYERS',
 			'Opponents': 'OPPONENTS',
-			'Most Prolific Season': 'MOST_PROLIFIC_SEASON',
+			
+			// Other stats
+			'Open Play Goals': 'G',
+			'Score': 'G',
+			'Awards': 'MOM',
+			'Leagues': 'TOTW',
+			'Penalty record': 'PSC',
 			'Team Analysis': 'TEAM_ANALYSIS',
 			'Season Analysis': 'SEASON_ANALYSIS',
-			'Home': 'HOME',
-			'Away': 'AWAY',
-			'Distance Travelled': 'DIST'
+			'Double Game Weeks': 'DOUBLE_GAME_WEEKS',
 		};
-
-		return statTypeMapping[statType] || statType;
+		
+		return mapping[statType] || statType;
 	}
+
+	/**
+	 * Corrects season-specific queries that were incorrectly mapped
+	 */
+	private correctSeasonSpecificQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for season-specific goal queries
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('21/22')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2021/22 Goals',
+				originalText: 'goals in 21/22',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('20/21')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2020/21 Goals',
+				originalText: 'goals in 20/21',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('19/20')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2019/20 Goals',
+				originalText: 'goals in 19/20',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('18/19')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2018/19 Goals',
+				originalText: 'goals in 18/19',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('17/18')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2017/18 Goals',
+				originalText: 'goals in 17/18',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('16/17')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2016/17 Goals',
+				originalText: 'goals in 16/17',
+				position: lowerQuestion.indexOf('goals')
+			});
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
+	/**
+	 * Corrects team-specific appearance queries
+	 */
+	private correctTeamSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for team-specific appearance patterns
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('1s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '1st XI Apps',
+				originalText: 'appearances for 1s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('2s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2nd XI Apps',
+				originalText: 'appearances for 2s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('3s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '3rd XI Apps',
+				originalText: 'appearances for 3s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('4s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '4th XI Apps',
+				originalText: 'appearances for 4s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('5s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '5th XI Apps',
+				originalText: 'appearances for 5s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('6s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '6th XI Apps',
+				originalText: 'appearances for 6s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('7s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '7th XI Apps',
+				originalText: 'appearances for 7s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('8s')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '8th XI Apps',
+				originalText: 'appearances for 8s',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
+	private correctSeasonSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for season-specific appearance queries
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('21/22')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2021/22 Apps',
+				originalText: 'appearances in 21/22',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('20/21')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2020/21 Apps',
+				originalText: 'appearances in 20/21',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('19/20')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2019/20 Apps',
+				originalText: 'appearances in 19/20',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('18/19')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2018/19 Apps',
+				originalText: 'appearances in 18/19',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('17/18')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2017/18 Apps',
+				originalText: 'appearances in 17/18',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('16/17')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2016/17 Apps',
+				originalText: 'appearances in 16/17',
+				position: lowerQuestion.indexOf('appearances')
+			});
+			return filteredStats;
+		}
+		
+		// Also check for "apps" and "games" patterns
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('21/22')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2021/22 Apps',
+				originalText: 'apps in 21/22',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('20/21')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2020/21 Apps',
+				originalText: 'apps in 20/21',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('19/20')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2019/20 Apps',
+				originalText: 'apps in 19/20',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('18/19')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2018/19 Apps',
+				originalText: 'apps in 18/19',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('17/18')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2017/18 Apps',
+				originalText: 'apps in 17/18',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('16/17')) {
+			const filteredStats = statTypes.filter(stat => 
+				!['Appearances', 'Apps', 'Games'].includes(stat.value)
+			);
+			filteredStats.push({
+				value: '2016/17 Apps',
+				originalText: 'apps in 16/17',
+				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+			});
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
+	private correctMostProlificSeasonQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for most prolific season phrases that were incorrectly broken down
+		if (lowerQuestion.includes('most') && lowerQuestion.includes('prolific') && lowerQuestion.includes('season')) {
+			// Remove incorrect "Goals", "G", "Season" mappings
+			const filteredStats = statTypes.filter(stat => 
+				!['Goals', 'G', 'Season', 'Season Analysis'].includes(stat.value)
+			);
+			
+			// Add correct "Most Prolific Season" mapping
+			filteredStats.push({
+				value: 'Most Prolific Season',
+				originalText: 'most prolific season',
+				position: lowerQuestion.indexOf('most')
+			});
+			
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
+	private correctPenaltyPhrases(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for penalty phrases that were incorrectly broken down
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('scored')) {
+			// Remove incorrect "Home", "Penalties Saved", "Score" mappings
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			// Add correct "Penalties Scored" mapping
+			filteredStats.push({
+				value: 'Penalties Scored',
+				originalText: 'penalties scored',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('missed')) {
+			// Remove incorrect mappings and add correct "Penalties Missed"
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			filteredStats.push({
+				value: 'Penalties Missed',
+				originalText: 'penalties missed',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('conceded')) {
+			// Remove incorrect mappings and add correct "Penalties Conceded"
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Penalties Saved', 'Score', 'Goals Conceded'].includes(stat.value)
+			);
+			
+			filteredStats.push({
+				value: 'Penalties Conceded',
+				originalText: 'penalties conceded',
+				position: lowerQuestion.indexOf('penalties')
+			});
+			
+			return filteredStats;
+		}
+		
+		if (lowerQuestion.includes('penalties') && lowerQuestion.includes('saved')) {
+			// This should already be correct, but ensure it's properly detected
+			const hasCorrectMapping = statTypes.some(stat => stat.value === 'Penalties Saved');
+			if (!hasCorrectMapping) {
+				const filteredStats = statTypes.filter(stat => 
+					!['Home', 'Score', 'Goals Conceded'].includes(stat.value)
+				);
+				
+				filteredStats.push({
+					value: 'Penalties Saved',
+					originalText: 'penalties saved',
+					position: lowerQuestion.indexOf('penalties')
+				});
+				
+				return filteredStats;
+			}
+		}
+		
+		return statTypes;
+	}
+
 
 	private extractLegacyTimeRange(extractionResult: EntityExtractionResult): string | undefined {
 		// Convert extracted time frames to legacy format

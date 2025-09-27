@@ -82,112 +82,112 @@ require("ts-node").register({
 const STAT_TEST_CONFIGS = [
 	{
 		key: "APP",
-		metric: "appearances",
+		metric: "APP",
 		questionTemplate: "How many appearances has {playerName} made?",
 		responsePattern: /(\d+)/,
 		description: "Appearances",
 	},
 	{
 		key: "MIN",
-		metric: "minutes",
+		metric: "MIN",
 		questionTemplate: "How many minutes of football has {playerName} played?",
 		responsePattern: /(\d+)/,
 		description: "Minutes",
 	},
 	{
 		key: "MOM",
-		metric: "mom",
+		metric: "MOM",
 		questionTemplate: "How many MoMs has {playerName} received?",
 		responsePattern: /(\d+)/,
 		description: "Man of the Match awards",
 	},
 	{
 		key: "G",
-		metric: "goals",
+		metric: "G",
 		questionTemplate: "How many goals has {playerName} scored from open play?",
 		responsePattern: /(\d+)/,
 		description: "Goals",
 	},
 	{
 		key: "A",
-		metric: "assists",
+		metric: "A",
 		questionTemplate: "How many assists has {playerName} achieved?",
 		responsePattern: /(\d+)/,
 		description: "Assists",
 	},
 	{
 		key: "Y",
-		metric: "yellowCards",
+		metric: "Y",
 		questionTemplate: "How many yellow cards has {playerName} received?",
 		responsePattern: /(\d+)/,
 		description: "Yellow Cards",
 	},
 	{
 		key: "R",
-		metric: "redCards",
+		metric: "R",
 		questionTemplate: "How many red cards has {playerName} received?",
 		responsePattern: /(\d+)/,
 		description: "Red Cards",
 	},
 	{
 		key: "SAVES",
-		metric: "saves",
+		metric: "SAVES",
 		questionTemplate: "How many saves has {playerName} made?",
 		responsePattern: /(\d+)/,
 		description: "Saves",
 	},
 	{
 		key: "OG",
-		metric: "ownGoals",
+		metric: "OG",
 		questionTemplate: "How many own goals has {playerName} scored?",
 		responsePattern: /(\d+)/,
 		description: "Own Goals",
 	},
 	{
 		key: "C",
-		metric: "conceded",
+		metric: "C",
 		questionTemplate: "How many goals has {playerName} conceded?",
 		responsePattern: /(\d+)/,
 		description: "Goals Conceded",
 	},
 	{
 		key: "CLS",
-		metric: "cleanSheets",
+		metric: "CLS",
 		questionTemplate: "How many clean sheets has {playerName} achieved?",
 		responsePattern: /(\d+)/,
 		description: "Clean Sheets",
 	},
 	{
 		key: "PSC",
-		metric: "penaltiesScored",
+		metric: "PSC",
 		questionTemplate: "How many penalties has {playerName} scored?",
 		responsePattern: /(\d+)/,
 		description: "Penalties Scored",
 	},
 	{
 		key: "PM",
-		metric: "penaltiesMissed",
+		metric: "PM",
 		questionTemplate: "How many penalties has {playerName} missed?",
 		responsePattern: /(\d+)/,
 		description: "Penalties Missed",
 	},
 	{
 		key: "PCO",
-		metric: "penaltiesConceded",
+		metric: "PCO",
 		questionTemplate: "How many penalties has {playerName} conceded?",
 		responsePattern: /(\d+)/,
 		description: "Penalties Conceded",
 	},
 	{
 		key: "PSV",
-		metric: "penaltiesSaved",
+		metric: "PSV",
 		questionTemplate: "How many penalties has {playerName} saved?",
 		responsePattern: /(\d+)/,
 		description: "Penalties Saved",
 	},
 	{
 		key: "FTP",
-		metric: "fantasyPoints",
+		metric: "FTP",
 		questionTemplate: "How many fantasy points does {playerName} have?",
 		responsePattern: /(\d+)/,
 		description: "Fantasy Points",
@@ -195,49 +195,49 @@ const STAT_TEST_CONFIGS = [
 	// Advanced Statistics
 	{
 		key: "AllGSC",
-		metric: "allGoals",
+		metric: "AllGSC",
 		questionTemplate: "How many goals has {playerName} scored?",
 		responsePattern: /(\d+)/,
 		description: "All Goals Scored",
 	},
 	{
 		key: "GperAPP",
-		metric: "goalsPerAppearance",
+		metric: "GperAPP",
 		questionTemplate: "How many goals on average has {playerName} scored per appearance?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Goals per Appearance",
 	},
 	{
 		key: "CperAPP",
-		metric: "concededPerAppearance",
+		metric: "CperAPP",
 		questionTemplate: "How many goals on average does {playerName} concede per match?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Goals Conceded per Appearance",
 	},
 	{
 		key: "MperG",
-		metric: "minutesPerGoal",
+		metric: "MperG",
 		questionTemplate: "How many minutes does it take on average for {playerName} to score?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Minutes per Goal",
 	},
 	{
 		key: "MperCLS",
-		metric: "minutesPerCleanSheet",
+		metric: "MperCLS",
 		questionTemplate: "On average, how many minutes does {playerName} need to get a clean sheet?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Minutes per Clean Sheet",
 	},
 	{
 		key: "FTPperAPP",
-		metric: "fantasyPointsPerAppearance",
+		metric: "FTPperAPP",
 		questionTemplate: "How many fantasy points does {playerName} score per appearance?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Fantasy Points per Appearance",
 	},
 	{
 		key: "DIST",
-		metric: "distance",
+		metric: "DIST",
 		questionTemplate: "How far has {playerName} travelled to get to games?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Distance Travelled",
@@ -530,28 +530,28 @@ const STAT_TEST_CONFIGS = [
 	// Positional Statistics
 	{
 		key: "GK",
-		metric: "goalkeeperApps",
+		metric: "GK",
 		questionTemplate: "How many times has {playerName} played as a goalkeeper?",
 		responsePattern: /(\d+)/,
 		description: "Goalkeeper Appearances",
 	},
 	{
 		key: "DEF",
-		metric: "defenderApps",
+		metric: "DEF",
 		questionTemplate: "How many games has {playerName} played as a defender?",
 		responsePattern: /(\d+)/,
 		description: "Defender Appearances",
 	},
 	{
 		key: "MID",
-		metric: "midfielderApps",
+		metric: "MID",
 		questionTemplate: "How many times has {playerName} been a midfielder?",
 		responsePattern: /(\d+)/,
 		description: "Midfielder Appearances",
 	},
 	{
 		key: "FWD",
-		metric: "forwardApps",
+		metric: "FWD",
 		questionTemplate: "How many games has {playerName} been a forward?",
 		responsePattern: /(\d+)/,
 		description: "Forward Appearances",
@@ -560,13 +560,73 @@ const STAT_TEST_CONFIGS = [
 		key: "MostCommonPosition",
 		metric: "mostCommonPosition",
 		questionTemplate: "What is {playerName}'s most common position played?",
-		responsePattern: /([A-Za-z]+)/,
+		responsePattern: /is ([A-Z]+)\./,
 		description: "Most Common Position",
 	},
 ];
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
+
+// Helper function to format values according to stat configuration (same as chatbot)
+function formatValueByMetric(metric, value) {
+	console.log(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
+	// Handle BigInt values from Neo4j first
+	if (typeof value === 'bigint') {
+		return value.toString();
+	}
+	
+	// Handle string values (like position names)
+	if (typeof value === 'string') {
+		return value;
+	}
+	
+	// Import the actual statObject from config.ts
+	let statObject;
+	try {
+		// Try to require the compiled version first
+		console.log('🔧 Trying to load config.js...');
+		statObject = require('../config/config.js').statObject;
+		console.log('🔧 Successfully loaded config.js');
+	} catch (e) {
+		console.log('🔧 Using hardcoded statObject fallback, error:', e.message);
+		// Fallback to hardcoded values for now (since TypeScript import is failing)
+		statObject = {
+			FTP: { numberDecimalPlaces: 0 },
+			MIN: { numberDecimalPlaces: 0 },
+			C: { numberDecimalPlaces: 0 },
+			G: { numberDecimalPlaces: 0 },
+			A: { numberDecimalPlaces: 0 },
+			APP: { numberDecimalPlaces: 0 },
+			CLS: { numberDecimalPlaces: 0 },
+			Y: { numberDecimalPlaces: 0 },
+			R: { numberDecimalPlaces: 0 },
+			SAVES: { numberDecimalPlaces: 0 },
+			OG: { numberDecimalPlaces: 0 },
+			PSC: { numberDecimalPlaces: 0 },
+			PM: { numberDecimalPlaces: 0 },
+			PCO: { numberDecimalPlaces: 0 },
+			PSV: { numberDecimalPlaces: 0 },
+			GperAPP: { numberDecimalPlaces: 1 },
+			CperAPP: { numberDecimalPlaces: 1 },
+			FTPperAPP: { numberDecimalPlaces: 1 },
+			MPERG: { numberDecimalPlaces: 1 },
+			MPERCLS: { numberDecimalPlaces: 1 },
+			DIST: { numberDecimalPlaces: 0 }
+		};
+	}
+	
+	const metricConfig = statObject[metric];
+	if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
+		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+		console.log(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
+		return Number(value).toFixed(decimalPlaces);
+	}
+	
+	// Default to integer if no config found
+	console.log(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
+	return Math.round(Number(value)).toString();
+}
 
 // Function to load chatbot service
 async function loadChatbotService() {
@@ -813,8 +873,10 @@ async function runTestsProgrammatically() {
 					console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
 
 					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
-						expectedValue = player[statConfig.key];
-						console.log(`✅ Found CSV data for ${statKey}: ${expectedValue}`);
+						const rawValue = player[statConfig.key];
+						// Format the expected value according to stat configuration (same as chatbot)
+						expectedValue = formatValueByMetric(statConfig.key, rawValue);
+						console.log(`✅ Found CSV data for ${statKey}: ${rawValue} -> formatted: ${expectedValue}`);
 					} else {
 						expectedValue = "N/A";
 						console.log(`❌ No CSV data found for ${statKey}`);

@@ -9,12 +9,16 @@ export interface EntityExtractionResult {
 	negativeClauses: NegativeClauseInfo[];
 	locations: LocationInfo[];
 	timeFrames: TimeFrameInfo[];
+	competitionTypes: CompetitionTypeInfo[];
+	competitions: CompetitionInfo[];
+	results: ResultInfo[];
+	opponentOwnGoals: boolean;
 	goalInvolvements: boolean;
 }
 
 export interface EntityInfo {
 	value: string;
-	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league' | 'opposition';
+	type: 'player' | 'team' | 'fixture' | 'weeklyTOTW' | 'seasonTOTW' | 'playersOfTheMonth' | 'captainAndAwards' | 'league' | 'opposition' | 'competitionType' | 'competition' | 'result';
 	originalText: string;
 	position: number;
 }
@@ -57,6 +61,26 @@ export interface TimeFrameInfo {
 	position: number;
 }
 
+export interface CompetitionTypeInfo {
+	value: string;
+	type: 'league' | 'cup' | 'friendly';
+	originalText: string;
+	position: number;
+}
+
+export interface CompetitionInfo {
+	value: string;
+	originalText: string;
+	position: number;
+}
+
+export interface ResultInfo {
+	value: string;
+	type: 'win' | 'draw' | 'loss' | 'W' | 'D' | 'L';
+	originalText: string;
+	position: number;
+}
+
 // Entity pseudonyms and antonyms
 export const ENTITY_PSEUDONYMS = {
 	// Player references
@@ -85,7 +109,7 @@ export const ENTITY_PSEUDONYMS = {
 // Stat type pseudonyms and antonyms
 export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
-	'Goals Conceded': ['goals conceded', 'conceded goals', 'goals against', 'conceded'],
+	'Goals Conceded': ['goals has conceded', 'goals have conceded', 'goals conceded', 'conceded goals', 'goals against', 'conceded'],
 	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
 	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
@@ -95,10 +119,10 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Red Cards': ['red cards', 'red card', 'reds', 'dismissals', 'sendings off'],
 	'Saves': ['goalkeeper saves', 'saves made', 'saves', 'save', 'saved'],
 	'Clean Sheets': ['clean sheet kept', 'clean sheets', 'clean sheet', 'shutouts'],
-	'Penalties Scored': ['penalties have scored', 'penalties has scored', 'penalties scored', 'penalty scored', 'penalty goals', 'pen scored'],
-	'Penalties Missed': ['penalties have missed', 'penalties has missed', 'penalties missed', 'penalty missed', 'missed penalties', 'pen missed'],
-	'Penalties Conceded': ['penalties conceded', 'penalty conceded', 'pen conceded', 'conceded penalties', 'penalties has conceded', 'penalties have conceded'],
-	'Penalties Saved': ['penalties have saved', 'penalties has saved', 'penalties saved', 'penalty saved', 'saved penalties', 'pen saved'],
+	'Penalties Scored': ['penalties have scored', 'penalties has scored', 'penalties scored', 'penalty scored', 'penalty goals', 'pen scored', 'penalties.*scored'],
+	'Penalties Missed': ['penalties have missed', 'penalties has missed', 'penalties missed', 'penalty missed', 'missed penalties', 'pen missed', 'penalties.*missed'],
+	'Penalties Conceded': ['penalties conceded', 'penalty conceded', 'pen conceded', 'conceded penalties', 'penalties has conceded', 'penalties have conceded', 'penalties.*conceded'],
+	'Penalties Saved': ['penalties have saved', 'penalties has saved', 'penalties saved', 'penalty saved', 'saved penalties', 'pen saved', 'penalties.*saved'],
 	'Goal Involvements': ['goal involvements', 'goal involvement', 'goals and assists', 'contributions'],
 	'Man of the Match': ['man of the match', 'player of the match', 'best player', 'mom', 'moms'],
 	'Double Game Weeks': ['double game weeks', 'double games', 'dgw', 'double weeks'],
@@ -109,19 +133,45 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Co Players': ['co players', 'teammates', 'played with', 'team mates'],
 	'Opponents': ['opponents', 'played against', 'faced', 'versus'],
 	'Fantasy Points': ['fantasy points', 'fantasy score', 'fantasy point', 'points', 'ftp', 'fp'],
-	'Goals Per Appearance': ['goals on average does', 'goals on average has', 'goals per appearance', 'goals per app', 'goals per game', 'goals per match', 'goals on average', 'average goals'],
+	'Goals Per Appearance': ['goals on average has scored', 'goals per appearance', 'goals per app', 'goals per game', 'goals per match', 'goals on average scored', 'average goals scored'],
 	'Conceded Per Appearance': ['conceded on average does', 'conceded per appearance', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
 	'Minutes Per Goal': ['minutes does it take on average', 'minutes does it take', 'minutes per goal', 'mins per goal', 'time per goal', 'minutes on average', 'average minutes'],
 	'Score': ['goals scored', 'score', 'scores', 'scoring'],
 	'Awards': ['awards', 'prizes', 'honors', 'honours', 'recognition'],
 	'Leagues': ['leagues', 'league titles', 'championships', 'titles'],
 	'Penalty record': ['penalty conversion rate', 'penalty record', 'spot kick record', 'pen conversion'],
-	'Home': ['home games', 'home matches', 'at home', 'home'],
+	'Home': ['home games', 'home matches', 'at home'],
 	'Away': ['away games', 'away matches', 'away from home', 'on the road', 'away'],
-	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season'],
+	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season', 'prolific season', 'was most prolific season', 'most prolific season was', 'what was most prolific season', 'most prolific season what', 'prolific season was', 'was prolific season'],
+	'Assists Per Appearance': ['assists per appearance', 'assists per app', 'assists per game', 'assisting rate', 'assists on average', 'average assists', 'assists per match'],
+	'Fantasy Points Per Appearance': ['fantasy points per appearance', 'fantasy points per app', 'fantasy points per game', 'fantasy rate', 'fantasy points on average', 'average fantasy points', 'fantasy points per match'],
+	'Goals Conceded Per Appearance': ['goals conceded per appearance', 'goals conceded per app', 'goals conceded per game', 'conceding rate', 'goals conceded on average', 'average goals conceded', 'goals conceded per match'],
 	'Team Analysis': ['most appearances for', 'most goals for', 'played for', 'teams played for'],
 	'Season Analysis': ['seasons played in', 'seasons', 'years played'],
 	'Distance Travelled': ['distance travelled', 'distance traveled', 'miles travelled', 'miles traveled', 'how far', 'travelled', 'traveled', 'distance', 'miles'],
+	// Position-related stat types
+	'Goalkeeper Appearances': ['goalkeeper appearances', 'goalkeeper appearance', 'gk appearances', 'gk appearance', 'keeper appearances', 'keeper appearance', 'goalie appearances', 'goalie appearance', 'been a goalkeeper', 'played as goalkeeper', 'goalkeeper games', 'goalkeeper games played', 'times played as goalkeeper', 'games played as goalkeeper', 'played as a goalkeeper', 'times has played as goalkeeper', 'games has played as goalkeeper'],
+	'Defender Appearances': ['defender appearances', 'defender appearance', 'def appearances', 'def appearance', 'defence appearances', 'defence appearance', 'defense appearances', 'defense appearance', 'been a defender', 'played as defender', 'defender games', 'defender games played', 'times played as defender', 'games played as defender', 'played as a defender', 'times has played as defender', 'games has played as defender'],
+	'Midfielder Appearances': ['midfielder appearances', 'midfielder appearance', 'mid appearances', 'mid appearance', 'center mid appearances', 'center mid appearance', 'central midfielder appearances', 'central midfielder appearance', 'been a midfielder', 'played as midfielder', 'midfielder games', 'midfielder games played'],
+	'Forward Appearances': ['forward appearances', 'forward appearance', 'fwd appearances', 'fwd appearance', 'striker appearances', 'striker appearance', 'attacker appearances', 'attacker appearance', 'been a forward', 'played as forward', 'forward games', 'forward games played'],
+	'Most Common Position': ['most common position', 'favorite position', 'main position', 'primary position', 'position played most', 'most played position', 'commonest position', 'usual position'],
+	
+	// Team-specific appearances
+	'1st XI Apps': ['1st team appearances', '1st team apps', '1st team games', '1s appearances', '1s apps', '1s games', 'appearances for 1s', 'apps for 1s', 'games for 1s', 'appearances for 1st', 'apps for 1st', 'games for 1st', 'appearances for the 1s', 'apps for the 1s', 'games for the 1s', 'appearances for the 1st', 'apps for the 1st', 'games for the 1st'],
+	'2nd XI Apps': ['2nd team appearances', '2nd team apps', '2nd team games', '2s appearances', '2s apps', '2s games', 'appearances for 2s', 'apps for 2s', 'games for 2s', 'appearances for 2nd', 'apps for 2nd', 'games for 2nd', 'appearances for the 2s', 'apps for the 2s', 'games for the 2s', 'appearances for the 2nd', 'apps for the 2nd', 'games for the 2nd'],
+	'3rd XI Apps': ['3rd team appearances', '3rd team apps', '3rd team games', '3s appearances', '3s apps', '3s games', 'appearances for 3s', 'apps for 3s', 'games for 3s', 'appearances for 3rd', 'apps for 3rd', 'games for 3rd', 'appearances for the 3s', 'apps for the 3s', 'games for the 3s', 'appearances for the 3rd', 'apps for the 3rd', 'games for the 3rd'],
+	'4th XI Apps': ['4th team appearances', '4th team apps', '4th team games', '4s appearances', '4s apps', '4s games', 'appearances for 4s', 'apps for 4s', 'games for 4s', 'appearances for 4th', 'apps for 4th', 'games for 4th', 'appearances for the 4s', 'apps for the 4s', 'games for the 4s', 'appearances for the 4th', 'apps for the 4th', 'games for the 4th'],
+	'5th XI Apps': ['5th team appearances', '5th team apps', '5th team games', '5s appearances', '5s apps', '5s games', 'appearances for 5s', 'apps for 5s', 'games for 5s', 'appearances for 5th', 'apps for 5th', 'games for 5th', 'appearances for the 5s', 'apps for the 5s', 'games for the 5s', 'appearances for the 5th', 'apps for the 5th', 'games for the 5th'],
+	'6th XI Apps': ['6th team appearances', '6th team apps', '6th team games', '6s appearances', '6s apps', '6s games', 'appearances for 6s', 'apps for 6s', 'games for 6s', 'appearances for 6th', 'apps for 6th', 'games for 6th', 'appearances for the 6s', 'apps for the 6s', 'games for the 6s', 'appearances for the 6th', 'apps for the 6th', 'games for the 6th'],
+	'7th XI Apps': ['7th team appearances', '7th team apps', '7th team games', '7s appearances', '7s apps', '7s games', 'appearances for 7s', 'apps for 7s', 'games for 7s', 'appearances for 7th', 'apps for 7th', 'games for 7th', 'appearances for the 7s', 'apps for the 7s', 'games for the 7s', 'appearances for the 7th', 'apps for the 7th', 'games for the 7th'],
+	'8th XI Apps': ['8th team appearances', '8th team apps', '8th team games', '8s appearances', '8s apps', '8s games', 'appearances for 8s', 'apps for 8s', 'games for 8s', 'appearances for 8th', 'apps for 8th', 'games for 8th', 'appearances for the 8s', 'apps for the 8s', 'games for the 8s', 'appearances for the 8th', 'apps for the 8th', 'games for the 8th'],
+	// Season-specific appearances
+	'2016/17 Apps': ['2016/17 appearances', 'appearances in 2016/17', 'apps in 2016/17', 'games in 2016/17', 'appear in 2016/17', '2016/17 apps', '2016/17 games', '2016/17 season appearances', '2016/17 season apps', '2016/17 season games', 'appearances in 2016-17', 'apps in 2016-17', 'games in 2016-17', 'appear in 2016-17', '2016-17 appearances', '2016-17 apps', '2016-17 games', 'appearances in 16/17', 'apps in 16/17', 'games in 16/17', 'appear in 16/17', '16/17 appearances', '16/17 apps', '16/17 games', 'appearances in 16-17', 'apps in 16-17', 'games in 16-17', 'appear in 16-17', '16-17 appearances', '16-17 apps', '16-17 games'],
+	'2017/18 Apps': ['2017/18 appearances', 'appearances in 2017/18', 'apps in 2017/18', 'games in 2017/18', 'appear in 2017/18', '2017/18 apps', '2017/18 games', '2017/18 season appearances', '2017/18 season apps', '2017/18 season games', 'appearances in 2017-18', 'apps in 2017-18', 'games in 2017-18', 'appear in 2017-18', '2017-18 appearances', '2017-18 apps', '2017-18 games', 'appearances in 17/18', 'apps in 17/18', 'games in 17/18', 'appear in 17/18', '17/18 appearances', '17/18 apps', '17/18 games', 'appearances in 17-18', 'apps in 17-18', 'games in 17-18', 'appear in 17-18', '17-18 appearances', '17-18 apps', '17-18 games'],
+	'2018/19 Apps': ['2018/19 appearances', 'appearances in 2018/19', 'apps in 2018/19', 'games in 2018/19', 'appear in 2018/19', '2018/19 apps', '2018/19 games', '2018/19 season appearances', '2018/19 season apps', '2018/19 season games', 'appearances in 2018-19', 'apps in 2018-19', 'games in 2018-19', 'appear in 2018-19', '2018-19 appearances', '2018-19 apps', '2018-19 games', 'appearances in 18/19', 'apps in 18/19', 'games in 18/19', 'appear in 18/19', '18/19 appearances', '18/19 apps', '18/19 games', 'appearances in 18-19', 'apps in 18-19', 'games in 18-19', 'appear in 18-19', '18-19 appearances', '18-19 apps', '18-19 games'],
+	'2019/20 Apps': ['2019/20 appearances', 'appearances in 2019/20', 'apps in 2019/20', 'games in 2019/20', 'appear in 2019/20', '2019/20 apps', '2019/20 games', '2019/20 season appearances', '2019/20 season apps', '2019/20 season games', 'appearances in 2019-20', 'apps in 2019-20', 'games in 2019-20', 'appear in 2019-20', '2019-20 appearances', '2019-20 apps', '2019-20 games', 'appearances in 19/20', 'apps in 19/20', 'games in 19/20', 'appear in 19/20', '19/20 appearances', '19/20 apps', '19/20 games', 'appearances in 19-20', 'apps in 19-20', 'games in 19-20', 'appear in 19-20', '19-20 appearances', '19-20 apps', '19-20 games'],
+	'2020/21 Apps': ['2020/21 appearances', 'appearances in 2020/21', 'apps in 2020/21', 'games in 2020/21', 'appear in 2020/21', '2020/21 apps', '2020/21 games', '2020/21 season appearances', '2020/21 season apps', '2020/21 season games', 'appearances in 2020-21', 'apps in 2020-21', 'games in 2020-21', 'appear in 2020-21', '2020-21 appearances', '2020-21 apps', '2020-21 games', 'appearances in 20/21', 'apps in 20/21', 'games in 20/21', 'appear in 20/21', '20/21 appearances', '20/21 apps', '20/21 games', 'appearances in 20-21', 'apps in 20-21', 'games in 20-21', 'appear in 20-21', '20-21 appearances', '20-21 apps', '20-21 games'],
+	'2021/22 Apps': ['2021/22 appearances', 'appearances in 2021/22', 'apps in 2021/22', 'games in 2021/22', 'appear in 2021/22', '2021/22 apps', '2021/22 games', '2021/22 season appearances', '2021/22 season apps', '2021/22 season games', 'appearances in 2021-22', 'apps in 2021-22', 'games in 2021-22', 'appear in 2021-22', '2021-22 appearances', '2021-22 apps', '2021-22 games', 'appearances in 21/22', 'apps in 21/22', 'games in 21/22', 'appear in 21/22', '21/22 appearances', '21/22 apps', '21/22 games', 'appearances in 21-22', 'apps in 21-22', 'games in 21-22', 'appear in 21-22', '21-22 appearances', '21-22 apps', '21-22 games'],
 };
 
 // Stat indicator pseudonyms and antonyms
@@ -173,6 +223,36 @@ export const TIME_FRAME_PSEUDONYMS = {
 	'between_dates': ['between', 'from', 'to', 'until', 'since'],
 };
 
+// Competition type pseudonyms
+export const COMPETITION_TYPE_PSEUDONYMS = {
+	'league': ['league', 'leagues', 'league games', 'league matches'],
+	'cup': ['cup', 'cups', 'cup games', 'cup matches', 'cup competition', 'cup competitions'],
+	'friendly': ['friendly', 'friendlies', 'friendly games', 'friendly matches', 'friendly competition', 'friendly competitions'],
+};
+
+// Competition pseudonyms (specific competition names)
+export const COMPETITION_PSEUDONYMS = {
+	'Premier': ['premier', 'premier division', 'premier league'],
+	'Intermediate South': ['intermediate south', 'intermediate', 'inter south'],
+	'Seven South': ['seven south', '7 south', '7s south'],
+	'Intermediate': ['intermediate', 'inter'],
+	'Seven': ['seven', '7s', '7'],
+	'South': ['south'],
+	'North': ['north'],
+	'East': ['east'],
+	'West': ['west'],
+};
+
+// Result pseudonyms
+export const RESULT_PSEUDONYMS = {
+	'win': ['win', 'wins', 'won', 'winning', 'victory', 'victories'],
+	'draw': ['draw', 'draws', 'drew', 'drawing', 'tie', 'ties', 'tied', 'tying'],
+	'loss': ['loss', 'losses', 'lost', 'losing', 'defeat', 'defeats', 'defeated'],
+	'W': ['w', 'wins'],
+	'D': ['d', 'draws'],
+	'L': ['l', 'losses'],
+};
+
 export class EntityExtractor {
 	private question: string;
 	private lowerQuestion: string;
@@ -182,7 +262,13 @@ export class EntityExtractor {
 	constructor(question: string) {
 		this.question = question;
 		this.lowerQuestion = question.toLowerCase();
-		this.nlpDoc = nlp(question);
+		try {
+			this.nlpDoc = nlp(question);
+		} catch (error) {
+			console.error('❌ NLP Error:', error);
+			// Fallback to basic text processing if NLP fails
+			this.nlpDoc = { match: () => ({ out: () => [] }) };
+		}
 		this.entityResolver = EntityNameResolver.getInstance();
 	}
 
@@ -195,6 +281,10 @@ export class EntityExtractor {
 			negativeClauses: this.extractNegativeClauses(),
 			locations: this.extractLocations(),
 			timeFrames: this.extractTimeFrames(),
+			competitionTypes: this.extractCompetitionTypes(),
+			competitions: this.extractCompetitions(),
+			results: this.extractResults(),
+			opponentOwnGoals: this.detectOpponentOwnGoals(),
 			goalInvolvements: this.detectGoalInvolvements(),
 		};
 	}
@@ -307,9 +397,9 @@ export class EntityExtractor {
 	private async extractStatTypes(): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 		
-		// Debug logging
-		console.log('🔍 Stat Type Debug - Question:', this.question);
-		console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
+		// Debug logging (commented out for production)
+		// console.log('🔍 Stat Type Debug - Question:', this.question);
+		// console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
 		
 		// Check for goal involvements first
 		if (this.lowerQuestion.includes('goal involvements') || this.lowerQuestion.includes('goal involvement')) {
@@ -328,9 +418,9 @@ export class EntityExtractor {
 			sortedPseudonyms.forEach(pseudonym => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
 				const matches = this.findMatches(regex);
-				if (matches.length > 0) {
-					console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
-				}
+				// if (matches.length > 0) {
+				// 	console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
+				// }
 				matches.forEach(match => {
 					statTypes.push({
 						value: key,
@@ -344,7 +434,7 @@ export class EntityExtractor {
 		// Add fuzzy matching for stat types
 		await this.addFuzzyStatTypeMatches(statTypes);
 
-		console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
+		// console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
 		return statTypes;
 	}
 
@@ -576,6 +666,75 @@ export class EntityExtractor {
 		return timeFrames;
 	}
 
+	private extractCompetitionTypes(): CompetitionTypeInfo[] {
+		const competitionTypes: CompetitionTypeInfo[] = [];
+		
+		Object.entries(COMPETITION_TYPE_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					competitionTypes.push({
+						value: key,
+						type: key as any,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return competitionTypes;
+	}
+
+	private extractCompetitions(): CompetitionInfo[] {
+		const competitions: CompetitionInfo[] = [];
+		
+		Object.entries(COMPETITION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					competitions.push({
+						value: key,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return competitions;
+	}
+
+	private extractResults(): ResultInfo[] {
+		const results: ResultInfo[] = [];
+		
+		Object.entries(RESULT_PSEUDONYMS).forEach(([key, pseudonyms]) => {
+			pseudonyms.forEach(pseudonym => {
+				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				const matches = this.findMatches(regex);
+				matches.forEach(match => {
+					results.push({
+						value: key,
+						type: key as any,
+						originalText: match.text,
+						position: match.position
+					});
+				});
+			});
+		});
+
+		return results;
+	}
+
+	private detectOpponentOwnGoals(): boolean {
+		return this.lowerQuestion.includes('opponent own goals') || 
+			   this.lowerQuestion.includes('opponent own goal') ||
+			   this.lowerQuestion.includes('oppo own goals') ||
+			   this.lowerQuestion.includes('oppo own goal');
+	}
+
 	private detectGoalInvolvements(): boolean {
 		return this.lowerQuestion.includes('goal involvements') || this.lowerQuestion.includes('goal involvement');
 	}
@@ -600,16 +759,17 @@ export class EntityExtractor {
 	private extractPlayerNamesWithNLP(): Array<{text: string, position: number}> {
 		const players: Array<{text: string, position: number}> = [];
 		
-		// Get all proper nouns (potential player names)
-		const properNouns = this.nlpDoc.match('#ProperNoun+').out('array');
-		
-		// Get all nouns that might be player names
-		const nouns = this.nlpDoc.match('#Noun+').out('array');
-		
-		// Debug logging
-		console.log('🔍 NLP Debug - Question:', this.question);
-		console.log('🔍 NLP Debug - Proper nouns:', properNouns);
-		console.log('🔍 NLP Debug - Nouns:', nouns);
+		try {
+			// Get all proper nouns (potential player names)
+			const properNouns = this.nlpDoc.match('#ProperNoun+').out('array');
+			
+			// Get all nouns that might be player names
+			const nouns = this.nlpDoc.match('#Noun+').out('array');
+			
+		// Debug logging (commented out for production)
+		// console.log('🔍 NLP Debug - Question:', this.question);
+		// console.log('🔍 NLP Debug - Proper nouns:', properNouns);
+		// console.log('🔍 NLP Debug - Nouns:', nouns);
 		
 		// Combine and filter potential player names
 		const potentialNames = [...properNouns, ...nouns];
@@ -625,7 +785,11 @@ export class EntityExtractor {
 			'week', 'month', 'year', 'game', 'games', 'match', 'matches', 'league', 'premier',
 			'championship', 'conference', 'national', 'division', 'tier', 'level',
 			'home', 'away', 'playing', 'whilst', 'between', 'and', 'got', 'has', 'have',
-			'open play goals', 'open play goal', 'play goals', 'play goal', 'football', 'soccer', 'sport', 'sports'
+			'open play goals', 'open play goal', 'play goals', 'play goal', 'football', 'soccer', 'sport', 'sports',
+			// Additional common words that were causing entity extraction issues
+			'it', 'its', 'this', 'that', 'these', 'those', 'they', 'them', 'their', 'there',
+			'times', 'time', 'count', 'total', 'stats', 'stat', 'percentage', 'percent', '%',
+			'clubs', 'club', 'appearance', 'goal', 'average', 'score', 'take', 'takes', 'many'
 		];
 		
 		// Find positions of potential names in the original text
@@ -701,8 +865,23 @@ export class EntityExtractor {
 			index === self.findIndex(p => p.text === player.text)
 		);
 		
-		console.log('🔍 Player Debug - Final players:', uniquePlayers);
+		// console.log('🔍 Player Debug - Final players:', uniquePlayers);
 		return uniquePlayers.sort((a, b) => a.position - b.position);
+		} catch (error) {
+			console.error('❌ NLP Processing Error:', error);
+			// Fallback to basic word extraction if NLP fails
+			const words = this.question.split(/\s+/);
+			const potentialNames = words.filter(word => 
+				word.length >= 2 && 
+				/^[A-Z]/.test(word) &&
+				!['How', 'What', 'Where', 'When', 'Why', 'Which', 'Who'].includes(word)
+			);
+			
+			return potentialNames.map((name, index) => ({
+				text: name,
+				position: this.question.indexOf(name)
+			}));
+		}
 	}
 
 	/**
