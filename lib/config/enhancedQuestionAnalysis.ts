@@ -450,11 +450,9 @@ export class EnhancedQuestionAnalyzer {
 			// Calculated stats
 			'Goal Involvements': 'GI',
 			'All Goals Scored': 'ALLGSC',
-			'Goals Per Appearance': 'GperAPP',
 			'Conceded Per Appearance': 'CPERAPP',
 			'Minutes Per Goal': 'MPERG',
 			'Minutes Per Clean Sheet': 'MPERCLS',
-			'Fantasy Points Per Appearance': 'FTPPERAPP',
 			
 			// Location stats
 			'Home': 'HOME',
