@@ -587,6 +587,73 @@ const STAT_TEST_CONFIGS = [
 	},
 ];
 
+// Helper function to format values according to stat configuration (same as chatbot)
+function formatValueByMetric(metric, value) {
+	console.log(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
+	// Handle BigInt values from Neo4j first
+	if (typeof value === 'bigint') {
+		return value.toString();
+	}
+	
+	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
+	if (typeof value === 'string') {
+		// Check if it's a numeric string
+		if (!isNaN(parseFloat(value)) && isFinite(value)) {
+			// It's a numeric string, convert to number and continue with formatting
+			value = parseFloat(value);
+		} else {
+			// It's a non-numeric string (like position names), return as-is
+			return value;
+		}
+	}
+	
+	// Import the actual statObject from config.ts
+	let statObject;
+	try {
+		// Try to require the compiled version first
+		console.log('🔧 Trying to load config.js...');
+		statObject = require('../../config/config.js').statObject;
+		console.log('🔧 Successfully loaded config.js');
+	} catch (e) {
+		console.log('🔧 Using hardcoded statObject fallback, error:', e.message);
+		// Fallback to hardcoded values for now (since TypeScript import is failing)
+		statObject = {
+			FTP: { numberDecimalPlaces: 0 },
+			MIN: { numberDecimalPlaces: 0 },
+			C: { numberDecimalPlaces: 0 },
+			G: { numberDecimalPlaces: 0 },
+			A: { numberDecimalPlaces: 0 },
+			APP: { numberDecimalPlaces: 0 },
+			CLS: { numberDecimalPlaces: 0 },
+			Y: { numberDecimalPlaces: 0 },
+			R: { numberDecimalPlaces: 0 },
+			SAVES: { numberDecimalPlaces: 0 },
+			OG: { numberDecimalPlaces: 0 },
+			PSC: { numberDecimalPlaces: 0 },
+			PM: { numberDecimalPlaces: 0 },
+			PCO: { numberDecimalPlaces: 0 },
+			PSV: { numberDecimalPlaces: 0 },
+			GperAPP: { numberDecimalPlaces: 1 },
+			CperAPP: { numberDecimalPlaces: 1 },
+			FTPperAPP: { numberDecimalPlaces: 1 },
+			MPERG: { numberDecimalPlaces: 1 },
+			MPERCLS: { numberDecimalPlaces: 1 },
+			DIST: { numberDecimalPlaces: 0 }
+		};
+	}
+	
+	const metricConfig = statObject[metric];
+	if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
+		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+		console.log(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
+		return Number(value).toFixed(decimalPlaces);
+	}
+	
+	// Default to integer if no config found
+	console.log(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
+	return Math.round(Number(value)).toString();
+}
+
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
 
@@ -845,8 +912,10 @@ async function runTestsProgrammatically() {
 					console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
 
 					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
-						expectedValue = player[statConfig.key];
-						console.log(`✅ Found CSV data for ${statKey}: ${expectedValue}`);
+						const rawValue = player[statConfig.key];
+						// Format the expected value according to stat configuration (same as chatbot)
+						expectedValue = formatValueByMetric(statConfig.key, rawValue);
+						console.log(`✅ Found CSV data for ${statKey}: ${rawValue} -> formatted: ${expectedValue}`);
 					} else {
 						expectedValue = "N/A";
 						console.log(`❌ No CSV data found for ${statKey}`);
@@ -1278,9 +1347,13 @@ function generateEmailContent(testResults) {
 				}
 
 				// Format expected value to handle large numbers properly
+				// Note: expectedValue is already formatted by formatValueByMetric() with correct decimal places
 				let formattedExpectedValue = expectedValue;
 				if (typeof expectedValue === "number" && expectedValue >= 1000) {
 					formattedExpectedValue = expectedValue.toLocaleString();
+				} else if (typeof expectedValue === "string" && !isNaN(parseFloat(expectedValue)) && parseFloat(expectedValue) >= 1000) {
+					// Handle already-formatted strings that represent large numbers
+					formattedExpectedValue = parseFloat(expectedValue).toLocaleString();
 				}
 
 				html += `

@@ -576,9 +576,16 @@ function formatValueByMetric(metric, value) {
 		return value.toString();
 	}
 	
-	// Handle string values (like position names)
+	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
 	if (typeof value === 'string') {
-		return value;
+		// Check if it's a numeric string
+		if (!isNaN(parseFloat(value)) && isFinite(value)) {
+			// It's a numeric string, convert to number and continue with formatting
+			value = parseFloat(value);
+		} else {
+			// It's a non-numeric string (like position names), return as-is
+			return value;
+		}
 	}
 	
 	// Import the actual statObject from config.ts
@@ -1206,9 +1213,13 @@ function generateEmailContent(testResults) {
 				}
 
 				// Format expected value to handle large numbers properly
+				// Note: expectedValue is already formatted by formatValueByMetric() with correct decimal places
 				let formattedExpectedValue = expectedValue;
 				if (typeof expectedValue === "number" && expectedValue >= 1000) {
 					formattedExpectedValue = expectedValue.toLocaleString();
+				} else if (typeof expectedValue === "string" && !isNaN(parseFloat(expectedValue)) && parseFloat(expectedValue) >= 1000) {
+					// Handle already-formatted strings that represent large numbers
+					formattedExpectedValue = parseFloat(expectedValue).toLocaleString();
 				}
 
 				html += `
