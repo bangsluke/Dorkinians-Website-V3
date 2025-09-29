@@ -488,21 +488,8 @@ export class EnhancedQuestionAnalyzer {
 			'8th XI Goals': '8sGoals',
 			'Most Scored For Team': 'MostScoredForTeam',
 			
-			// Season-specific stats
-			'2016/17 Apps': '2016/17Apps',
-			'2017/18 Apps': '2017/18Apps',
-			'2018/19 Apps': '2018/19Apps',
-			'2019/20 Apps': '2019/20Apps',
-			'2020/21 Apps': '2020/21Apps',
-			'2021/22 Apps': '2021/22Apps',
+			// Season-specific stats (dynamic)
 			'Number Seasons Played For': 'NumberSeasonsPlayedFor',
-			
-			'2016/17 Goals': '2016/17Goals',
-			'2017/18 Goals': '2017/18Goals',
-			'2018/19 Goals': '2018/19Goals',
-			'2019/20 Goals': '2019/20Goals',
-			'2020/21 Goals': '2020/21Goals',
-			'2021/22 Goals': '2021/22Goals',
 			'Most Prolific Season': 'MostProlificSeason',
 			
 			// Average calculation metrics
@@ -531,86 +518,89 @@ export class EnhancedQuestionAnalyzer {
 			'Double Game Weeks': 'DOUBLE_GAME_WEEKS',
 		};
 		
+		// Handle dynamic seasonal metrics
+		if (statType.includes(' Apps') && statType.match(/\d{4}\/\d{2}/)) {
+			// Convert "2018/19 Apps" to "2018/19Apps"
+			return statType.replace(' Apps', 'Apps');
+		}
+		
+		if (statType.includes(' Goals') && statType.match(/\d{4}\/\d{2}/)) {
+			// Convert "2018/19 Goals" to "2018/19Goals"
+			return statType.replace(' Goals', 'Goals');
+		}
+		
 		return mapping[statType] || statType;
 	}
 
 	/**
 	 * Corrects season-specific queries that were incorrectly mapped
 	 */
+	/**
+	 * Dynamically extracts season from question text using regex patterns
+	 * Supports various formats: 2018/19, 2018-19, 18/19, 2018/2019, etc.
+	 */
+	private extractSeasonFromQuestion(): string | null {
+		const question = this.question;
+		
+		// Pattern 1: Full year format with slash (2018/19, 2019/20, etc.)
+		const fullYearSlashMatch = question.match(/(\d{4})\/(\d{2})/);
+		if (fullYearSlashMatch) {
+			const startYear = fullYearSlashMatch[1];
+			const endYear = fullYearSlashMatch[2];
+			// Convert 2-digit end year to 4-digit if needed
+			const fullEndYear = endYear.startsWith('20') ? endYear : `20${endYear}`;
+			return `${startYear}/${endYear}`;
+		}
+		
+		// Pattern 2: Full year format with hyphen (2018-19, 2019-20, etc.)
+		const fullYearHyphenMatch = question.match(/(\d{4})-(\d{2})/);
+		if (fullYearHyphenMatch) {
+			const startYear = fullYearHyphenMatch[1];
+			const endYear = fullYearHyphenMatch[2];
+			const fullEndYear = endYear.startsWith('20') ? endYear : `20${endYear}`;
+			return `${startYear}/${endYear}`;
+		}
+		
+		// Pattern 3: Short year format with slash (18/19, 19/20, etc.)
+		const shortYearSlashMatch = question.match(/(\d{2})\/(\d{2})/);
+		if (shortYearSlashMatch) {
+			const startYear = shortYearSlashMatch[1];
+			const endYear = shortYearSlashMatch[2];
+			const fullStartYear = startYear.startsWith('20') ? startYear : `20${startYear}`;
+			const fullEndYear = endYear.startsWith('20') ? endYear : `20${endYear}`;
+			return `${fullStartYear}/${endYear}`;
+		}
+		
+		// Pattern 4: Full year format with full end year (2018/2019, 2019/2020, etc.)
+		const fullYearFullMatch = question.match(/(\d{4})\/(\d{4})/);
+		if (fullYearFullMatch) {
+			const startYear = fullYearFullMatch[1];
+			const endYear = fullYearFullMatch[2];
+			// Convert to short format for consistency
+			const shortEndYear = endYear.substring(2);
+			return `${startYear}/${shortEndYear}`;
+		}
+		
+		return null;
+	}
+
 	private correctSeasonSpecificQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 		
-		// Check for season-specific goal queries
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('21/22')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2021/22 Goals',
-				originalText: 'goals in 21/22',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('20/21')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2020/21 Goals',
-				originalText: 'goals in 20/21',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('19/20')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2019/20 Goals',
-				originalText: 'goals in 19/20',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('18/19')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2018/19 Goals',
-				originalText: 'goals in 18/19',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('17/18')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2017/18 Goals',
-				originalText: 'goals in 17/18',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('goals') && lowerQuestion.includes('16/17')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2016/17 Goals',
-				originalText: 'goals in 16/17',
-				position: lowerQuestion.indexOf('goals')
-			});
-			return filteredStats;
+		// Dynamic season detection for goals
+		if (lowerQuestion.includes('goals')) {
+			const seasonMatch = this.extractSeasonFromQuestion();
+			if (seasonMatch) {
+				const filteredStats = statTypes.filter(stat => 
+					!['All Goals Scored', 'Goals', 'Score'].includes(stat.value)
+				);
+				filteredStats.push({
+					value: `${seasonMatch} Goals`,
+					originalText: `goals in ${seasonMatch}`,
+					position: lowerQuestion.indexOf('goals')
+				});
+				return filteredStats;
+			}
 		}
 		
 		return statTypes;
@@ -725,150 +715,20 @@ export class EnhancedQuestionAnalyzer {
 	private correctSeasonSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 		
-		// Check for season-specific appearance queries
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('21/22')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2021/22 Apps',
-				originalText: 'appearances in 21/22',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('20/21')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2020/21 Apps',
-				originalText: 'appearances in 20/21',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('19/20')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2019/20 Apps',
-				originalText: 'appearances in 19/20',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('18/19')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2018/19 Apps',
-				originalText: 'appearances in 18/19',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('17/18')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2017/18 Apps',
-				originalText: 'appearances in 17/18',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		if (lowerQuestion.includes('appearances') && lowerQuestion.includes('16/17')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2016/17 Apps',
-				originalText: 'appearances in 16/17',
-				position: lowerQuestion.indexOf('appearances')
-			});
-			return filteredStats;
-		}
-		
-		// Also check for "apps" and "games" patterns
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('21/22')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2021/22 Apps',
-				originalText: 'apps in 21/22',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
-		}
-		
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('20/21')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2020/21 Apps',
-				originalText: 'apps in 20/21',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
-		}
-		
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('19/20')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2019/20 Apps',
-				originalText: 'apps in 19/20',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
-		}
-		
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('18/19')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2018/19 Apps',
-				originalText: 'apps in 18/19',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
-		}
-		
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('17/18')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2017/18 Apps',
-				originalText: 'apps in 17/18',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
-		}
-		
-		if ((lowerQuestion.includes('apps') || lowerQuestion.includes('games')) && lowerQuestion.includes('16/17')) {
-			const filteredStats = statTypes.filter(stat => 
-				!['Appearances', 'Apps', 'Games'].includes(stat.value)
-			);
-			filteredStats.push({
-				value: '2016/17 Apps',
-				originalText: 'apps in 16/17',
-				position: lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
-			});
-			return filteredStats;
+		// Dynamic season detection for appearances, apps, and games
+		if (lowerQuestion.includes('appearances') || lowerQuestion.includes('apps') || lowerQuestion.includes('games')) {
+			const seasonMatch = this.extractSeasonFromQuestion();
+			if (seasonMatch) {
+				const filteredStats = statTypes.filter(stat => 
+					!['Appearances', 'Apps', 'Games'].includes(stat.value)
+				);
+				filteredStats.push({
+					value: `${seasonMatch} Apps`,
+					originalText: `appearances in ${seasonMatch}`,
+					position: lowerQuestion.indexOf('appearances') || lowerQuestion.indexOf('apps') || lowerQuestion.indexOf('games')
+				});
+				return filteredStats;
+			}
 		}
 		
 		return statTypes;

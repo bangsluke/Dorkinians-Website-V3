@@ -600,17 +600,24 @@ export class ChatbotService {
 		const playerNodeMetrics = [
 			'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 
 			'PSC', 'PM', 'PCO', 'PSV', 'FTP', 'DIST',
-			'GK', 'DEF', 'MID', 'FWD'
+			'GK', 'DEF', 'MID', 'FWD',
+			// Non-seasonal metrics that are stored directly on Player node
+			'MOSTPROLIFICSEASON', 'MOSTCOMMONPOSITION', 'NUMBERSEASONSPLAYEDFOR'
 		];
 		
-		// Metrics that need MatchDetail join (including complex calculations)
+		// Metrics that need MatchDetail join (including complex calculations and seasonal metrics)
 		const matchDetailMetrics = [
 			'APP', 'ALLGSC', 'GI', 'HOME', 'AWAY',
-			'MOSTCOMMONPOSITION', 'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP',
+			'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP',
+			// All seasonal metrics should use MatchDetail for dynamic calculation
 			'2016/17GOALS', '2017/18GOALS', '2018/19GOALS', '2019/20GOALS', '2020/21GOALS', '2021/22GOALS',
-			'2016/17APPS', '2017/18APPS', '2018/19APPS', '2019/20APPS', '2020/21APPS', '2021/22APPS',
-			'MOSTPROLIFICSEASON'
+			'2016/17APPS', '2017/18APPS', '2018/19APPS', '2019/20APPS', '2020/21APPS', '2021/22APPS'
 		];
+		
+		// Check if it's a seasonal metric (contains year pattern) - these should use MatchDetail
+		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
+			return true; // Seasonal metrics should use MatchDetail for dynamic calculation
+		}
 		
 		return matchDetailMetrics.includes(metric.toUpperCase());
 	}
@@ -660,15 +667,30 @@ export class ChatbotService {
 			case 'HOME': return 'count(DISTINCT md) as value';
 			case 'AWAY': return 'count(DISTINCT md) as value';
 			// Season-specific goals
-			case '2016/17GOALS': return 'coalesce(sum(CASE WHEN md.season = "2016/17" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			case '2017/18GOALS': return 'coalesce(sum(CASE WHEN md.season = "2017/18" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			case '2018/19GOALS': return 'coalesce(sum(CASE WHEN md.season = "2018/19" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			case '2019/20GOALS': return 'coalesce(sum(CASE WHEN md.season = "2019/20" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			case '2020/21GOALS': return 'coalesce(sum(CASE WHEN md.season = "2020/21" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			case '2021/22GOALS': return 'coalesce(sum(CASE WHEN md.season = "2021/22" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value';
-			// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
-			default: return '0 as value';
+			// Dynamic seasonal metrics (any season)
+			default:
+				// Check if it's a seasonal goals metric
+				if (metric.match(/\d{4}\/\d{2}GOALS/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})GOALS/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value`;
+					}
+				}
+				
+				// Check if it's a seasonal appearances metric
+				if (metric.match(/\d{4}\/\d{2}APPS/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})APPS/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						return `coalesce(count(CASE WHEN f.season = "${season}" THEN 1 END), 0) as value`;
+					}
+				}
+				break;
 		}
+		
+		// Default fallback for unrecognized metrics
+		return '0 as value';
 	}
 
 	/**
@@ -815,6 +837,15 @@ export class ChatbotService {
 				whereConditions.push(`f.homeOrAway = 'Home'`);
 			} else if (metric === 'AWAY') {
 				whereConditions.push(`f.homeOrAway = 'Away'`);
+			}
+			
+			// Add seasonal metric filters (dynamic for any season)
+			if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
+				const seasonMatch = metric.match(/(\d{4}\/\d{2})(GOALS|APPS)/i);
+				if (seasonMatch) {
+					const season = seasonMatch[1];
+					whereConditions.push(`f.season = "${season}"`);
+				}
 			}
 
 			// Add WHERE clause if we have conditions
