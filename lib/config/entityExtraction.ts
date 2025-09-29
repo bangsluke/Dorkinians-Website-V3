@@ -109,8 +109,8 @@ export const ENTITY_PSEUDONYMS = {
 // Stat type pseudonyms and antonyms
 export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
-	'Goals Conceded': ['goals has conceded', 'goals have conceded', 'goals conceded', 'conceded goals', 'goals against', 'conceded'],
-	'Goals': ['goals', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
+	'Goals Conceded': ['goals has conceded', 'goals have conceded', 'goals conceded', 'conceded goals', 'goals against'],
+	'Goals': ['goals(?!\\s+(?:on\\s+average\\s+does|conceded))', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
 	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
 	'Apps': ['apps', 'appearances', 'played in', 'played with'],
@@ -119,6 +119,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Red Cards': ['red cards', 'red card', 'reds', 'dismissals', 'sendings off'],
 	'Saves': ['goalkeeper saves', 'saves made', 'saves', 'save', 'saved'],
 	'Clean Sheets': ['clean sheet kept', 'clean sheets', 'clean sheet', 'shutouts'],
+	'Minutes Per Clean Sheet': ['minutes does.*need to get a clean sheet', 'minutes per clean sheet', 'mins per clean sheet', 'time per clean sheet', 'minutes on average.*clean sheet', 'average minutes.*clean sheet'],
 	'Penalties Scored': ['penalties have scored', 'penalties has scored', 'penalties scored', 'penalty scored', 'penalty goals', 'pen scored', 'penalties.*scored'],
 	'Penalties Missed': ['penalties have missed', 'penalties has missed', 'penalties missed', 'penalty missed', 'missed penalties', 'pen missed', 'penalties.*missed'],
 	'Penalties Conceded': ['penalties conceded', 'penalty conceded', 'pen conceded', 'conceded penalties', 'penalties has conceded', 'penalties have conceded', 'penalties.*conceded'],
@@ -134,7 +135,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Opponents': ['opponents', 'played against', 'faced', 'versus'],
 	'Fantasy Points': ['fantasy points', 'fantasy score', 'fantasy point', 'points', 'ftp', 'fp'],
 	'Goals Per Appearance': ['goals on average has scored', 'goals per appearance', 'goals per app', 'goals per game', 'goals per match', 'goals on average scored', 'average goals scored'],
-	'Conceded Per Appearance': ['conceded on average does', 'conceded per appearance', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
+	'Conceded Per Appearance': ['goals on average does.*concede per match', 'goals on average does.*concede per game', 'conceded on average does', 'conceded per appearance', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
 	'Minutes Per Goal': ['minutes does it take on average', 'minutes does it take', 'minutes per goal', 'mins per goal', 'time per goal', 'minutes on average', 'average minutes'],
 	'Score': ['goals scored', 'score', 'scores', 'scoring'],
 	'Awards': ['awards', 'prizes', 'honors', 'honours', 'recognition'],
@@ -416,7 +417,23 @@ export class EntityExtractor {
 			const sortedPseudonyms = [...pseudonyms].sort((a, b) => b.length - a.length);
 			
 			sortedPseudonyms.forEach(pseudonym => {
-				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				// Use word boundaries only for single words, not for phrases with spaces
+				const hasSpaces = pseudonym.includes(' ');
+				// Check if this is a regex pattern (contains .* or similar)
+				const isRegexPattern = pseudonym.includes('.*') || pseudonym.includes('\\d') || pseudonym.includes('\\w');
+				
+				let regex;
+				if (isRegexPattern) {
+					// Don't escape regex patterns, use them as-is
+					regex = new RegExp(pseudonym, 'gi');
+				} else if (hasSpaces) {
+					// Escape special characters for literal matching
+					regex = new RegExp(pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+				} else {
+					// Use word boundaries for single words
+					regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+				}
+				
 				const matches = this.findMatches(regex);
 				// if (matches.length > 0) {
 				// 	console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
