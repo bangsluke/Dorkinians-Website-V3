@@ -1080,6 +1080,14 @@ async function runTestsProgrammatically() {
 						!chatbotAnswer.includes("Error") &&
 						!chatbotAnswer.includes("I couldn't find any relevant information") &&
 						!chatbotAnswer.includes("I couldn't find relevant information for your question") &&
+						!chatbotAnswer.includes("Database connection error") &&
+						!chatbotAnswer.includes("Database error") &&
+						!chatbotAnswer.includes("Player not found") &&
+						!chatbotAnswer.includes("Team not found") &&
+						!chatbotAnswer.includes("Missing context") &&
+						!chatbotAnswer.includes("Please clarify your question") &&
+						!chatbotAnswer.includes("No data found") &&
+						!chatbotAnswer.includes("MatchDetail data unavailable") &&
 						cypherQuery !== "N/A" &&
 						expectedValue !== "N/A";
 

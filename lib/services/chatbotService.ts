@@ -1026,7 +1026,31 @@ export class ChatbotService {
 		let visualization: any = null;
 		const sources = ["Neo4j Database"];
 
-		if (data && data.data) {
+		// Enhanced error handling with specific error messages
+		if (!data) {
+			answer = "Database connection error: Unable to connect to the club's database. Please try again later.";
+		} else if (data.type === "error") {
+			answer = `Database error: ${data.error || "An unknown error occurred while querying the database."}`;
+		} else if (data.type === "player_not_found") {
+			answer = data.message || `Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+		} else if (data.type === "team_not_found") {
+			answer = data.message || `Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams?.join(", ") || "Unknown"}.`;
+		} else if (data.type === "no_context") {
+			answer = "Missing context: Please specify which player or team you're asking about.";
+		} else if (data.type === "clarification_needed") {
+			answer = data.message || "Please clarify your question with more specific details.";
+		} else if (data && data.data && Array.isArray(data.data) && data.data.length === 0) {
+			// Query executed successfully but returned no results
+			const metric = data.metric || "data";
+			const playerName = data.playerName || "the requested entity";
+			
+			// Check if this is a MatchDetail query that failed - try Player node fallback
+			if (metric && ['CPERAPP', 'GPERAPP', 'APP', 'FTPPERAPP'].includes(metric.toUpperCase())) {
+				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
+			} else {
+				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
+			}
+		} else if (data && data.data) {
 			if (data.type === "specific_player" && data.data.length > 0) {
 				const playerData = data.data[0];
 				const playerName = data.playerName;
