@@ -12,6 +12,9 @@
     - [Component State Management](#component-state-management)
   - [Debugging \& Problem Solving](#debugging--problem-solving)
     - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
+  - [Change Verification Protocol](#change-verification-protocol)
+  - [Debug-First Approach Protocol](#debug-first-approach-protocol)
+  - [Naming Consistency Enforcement Protocol](#naming-consistency-enforcement-protocol)
   - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
     - [Progressive Problem Escalation](#progressive-problem-escalation)
 - [Build \& Development Workflow](#build--development-workflow)
@@ -53,6 +56,15 @@
   - [Graph Database Relationship Counting Protocol](#graph-database-relationship-counting-protocol)
   - [Systematic Data Discrepancy Analysis Protocol](#systematic-data-discrepancy-analysis-protocol)
   - [User Technical Guidance Priority Protocol](#user-technical-guidance-priority-protocol)
+- [Database Integrity \& Data Management](#database-integrity--data-management)
+  - [Data Source Verification Protocol](#data-source-verification-protocol)
+  - [User Data Authority Protocol](#user-data-authority-protocol)
+  - [Database Relationship Integrity Protocol](#database-relationship-integrity-protocol)
+  - [Data Integrity Testing Protocol](#data-integrity-testing-protocol)
+  - [Batch Processing Safety Protocol](#batch-processing-safety-protocol)
+- [Environment-Specific Operations](#environment-specific-operations)
+  - [Shell Environment Compatibility Protocol](#shell-environment-compatibility-protocol)
+  - [Temporary File Management Protocol](#temporary-file-management-protocol)
 
 ## React & Next.js Best Practices
 
@@ -118,6 +130,36 @@
 - **Rationale**: Console logs provide concrete evidence of the actual execution flow
 - **Implementation**: Add strategic console.log statements to trace state changes and component lifecycle
 
+### Change Verification Protocol
+
+- **Rule**: Always verify that code changes are actually applied and active in the running system before considering fixes complete
+- **Rationale**: Development environments with caching, hot reloading, or build systems may not immediately reflect changes, leading to false assumptions about fix effectiveness
+- **Implementation**:
+  - Test changes immediately after implementation using actual API calls or user scenarios
+  - Restart development servers when necessary to ensure changes are loaded
+  - Verify behavior matches expected changes, not just that code was modified
+- **Example**: Entity extraction changes not working → restart dev server → verify with actual chatbot API calls
+
+### Debug-First Approach Protocol
+
+- **Rule**: Create targeted debug scripts to isolate and verify issues before making modifications to production code
+- **Rationale**: Debug scripts provide controlled environments to test hypotheses and verify root causes without affecting the main system
+- **Implementation**:
+  - Create focused debug scripts that test specific components or patterns
+  - Use debug scripts to verify assumptions before implementing fixes
+  - Clean up debug scripts after successful problem resolution
+- **Example**: Pattern matching issues → create debug script to test regex patterns → verify correct patterns → implement targeted fixes
+
+### Naming Consistency Enforcement Protocol
+
+- **Rule**: Maintain consistent naming conventions across all system components (entity extraction, priority systems, metric mapping) to prevent mismatches
+- **Rationale**: Inconsistent naming between system components causes silent failures where data flows correctly but components can't find each other
+- **Implementation**:
+  - Audit naming conventions across all related components
+  - Ensure entity extraction outputs match priority system inputs
+  - Verify metric mappings use consistent naming throughout the pipeline
+- **Example**: Entity extraction finds "Conceded Per Appearance" but priority system looks for "Goals Conceded Per Appearance" → align naming conventions
+
 ### Complete Data Flow Analysis Protocol
 
 - **Rule**: When debugging complex systems, trace the entire data pipeline from input to output, not just suspected problem areas
@@ -126,6 +168,7 @@
   - Map the complete data flow: input → analysis → processing → output
   - Add logging at each stage to trace data transformation
   - Identify where the data diverges from expected behavior
+  - Verify each component in the pipeline independently before making changes
 - **Example**: Query building issues → trace from question analysis through entity extraction to query generation
 
 #### Progressive Problem Escalation
@@ -470,5 +513,79 @@
   - Use theoretical analysis to validate and extend user guidance, not replace it
   - Test user-specified approaches before exploring alternative solutions
 - **Example**: User says "only count PLAYED_IN relationships" → implement that specific counting method rather than investigating all relationship types
+
+## Database Integrity & Data Management
+
+### Data Source Verification Protocol
+
+- **Rule**: When investigating data discrepancies, always confirm which data source the user is referencing before assuming database issues
+- **Rationale**: Data synchronization issues between sources can cause apparent discrepancies that aren't actually database problems
+- **Implementation**:
+  - Ask users to specify which data source they're viewing when reporting discrepancies
+  - Verify data source consistency before investigating database issues
+  - Accept user corrections about data accuracy immediately rather than continuing to investigate
+- **Example**: Database shows 27 players, user sees 14 → confirm user's data source before investigating database corruption
+
+### User Data Authority Protocol
+
+- **Rule**: When users correct data assumptions or report data fixes, accept their corrections immediately without further investigation
+- **Rationale**: Users have authoritative knowledge of their data and corrections indicate the actual state of the system
+- **Implementation**:
+  - Accept user data corrections as definitive
+  - Update analysis based on user corrections rather than defending previous assumptions
+  - Proceed with fixes based on corrected data state
+- **Example**: User reports "data was incorrect, I have now fixed it" → accept correction and re-run integrity tests
+
+### Database Relationship Integrity Protocol
+
+- **Rule**: When creating relationships between database nodes, ensure proper matching logic to prevent incorrect connections
+- **Rationale**: Incorrect relationship creation (e.g., connecting all nodes of one type to all nodes of another type) causes massive data corruption
+- **Implementation**:
+  - Implement specific matching criteria for relationship creation (e.g., opposition team + home/away status)
+  - Verify relationship creation logic with small test datasets before full deployment
+  - Monitor relationship counts for unexpected inflation patterns
+- **Example**: MatchDetail-Fixture relationships → match by opposition team and home/away status, not just date
+
+### Data Integrity Testing Protocol
+
+- **Rule**: Implement comprehensive data integrity tests to catch relationship corruption and data quality issues early
+- **Rationale**: Data integrity issues can cause cascading failures throughout the system and are expensive to fix after deployment
+- **Implementation**:
+  - Create tests for maximum relationships per node, duplicate prevention, and orphaned records
+  - Run integrity tests after any major data operations
+  - Include tests for business rules (e.g., maximum players per match, maximum fixtures per date)
+- **Example**: Test for max 18 MatchDetail nodes per Fixture, max 9 Fixtures per date, no orphaned records
+
+### Batch Processing Safety Protocol
+
+- **Rule**: Use smaller batch sizes and delays for large database operations to prevent timeouts and connection issues
+- **Rationale**: Large batch operations can overwhelm database connections and cause operation failures
+- **Implementation**:
+  - Use batch sizes of 50-100 for complex operations, 1000+ for simple operations
+  - Add delays between batches (200-500ms) to prevent overwhelming the database
+  - Implement custom count queries for operations that can't use generic batching
+- **Example**: PLAYED_IN relationship creation → use 50-record batches with 200ms delays
+
+## Environment-Specific Operations
+
+### Shell Environment Compatibility Protocol
+
+- **Rule**: Always verify shell environment and use appropriate command syntax for the target system
+- **Rationale**: Different shells (PowerShell, Bash, Zsh) have different syntax requirements and command chaining operators
+- **Implementation**:
+  - Check shell type before using command chaining operators (`&&` vs `;` vs separate commands)
+  - Use PowerShell-compatible commands when working in Windows PowerShell
+  - Test command syntax in the target environment before execution
+- **Example**: PowerShell doesn't support `&&` → use separate `cd` and `node` commands instead of `cd && node`
+
+### Temporary File Management Protocol
+
+- **Rule**: Always clean up temporary development files while preserving user-requested files
+- **Rationale**: Temporary files clutter the workspace and can cause confusion, but user-requested files should be preserved
+- **Implementation**:
+  - Identify which files were created for debugging vs. user-requested functionality
+  - Delete temporary investigation scripts after successful problem resolution
+  - Preserve files that users specifically requested or that provide ongoing value
+- **Example**: Delete `debug-*.js` and `investigate-*.js` files, keep `test-data-integrity.js` if user requested it
 
 > [Back to Table of Contents](#table-of-contents)

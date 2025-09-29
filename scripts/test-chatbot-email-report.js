@@ -524,7 +524,7 @@ const STAT_TEST_CONFIGS = [
 		key: "MostProlificSeason",
 		metric: "mostProlificSeason",
 		questionTemplate: "What was {playerName}'s most prolific season?",
-		responsePattern: /([A-Za-z0-9\-\/]+)/,
+		responsePattern: /(\d{4}\/\d{2})/,
 		description: "Most Prolific Season",
 	},
 	// Positional Statistics
@@ -576,9 +576,16 @@ function formatValueByMetric(metric, value) {
 		return value.toString();
 	}
 	
-	// Handle string values (like position names)
+	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
 	if (typeof value === 'string') {
-		return value;
+		// Check if it's a numeric string
+		if (!isNaN(parseFloat(value)) && isFinite(value)) {
+			// It's a numeric string, convert to number and continue with formatting
+			value = parseFloat(value);
+		} else {
+			// It's a non-numeric string (like position names), return as-is
+			return value;
+		}
 	}
 	
 	// Import the actual statObject from config.ts
@@ -612,7 +619,7 @@ function formatValueByMetric(metric, value) {
 			FTPperAPP: { numberDecimalPlaces: 1 },
 			MPERG: { numberDecimalPlaces: 1 },
 			MPERCLS: { numberDecimalPlaces: 1 },
-			DIST: { numberDecimalPlaces: 0 }
+			DIST: { numberDecimalPlaces: 1 }
 		};
 	}
 	
@@ -952,6 +959,15 @@ async function runTestsProgrammatically() {
 						!chatbotAnswer.includes("error") &&
 						!chatbotAnswer.includes("Error") &&
 						!chatbotAnswer.includes("I couldn't find any relevant information") &&
+						!chatbotAnswer.includes("I couldn't find relevant information for your question") &&
+						!chatbotAnswer.includes("Database connection error") &&
+						!chatbotAnswer.includes("Database error") &&
+						!chatbotAnswer.includes("Player not found") &&
+						!chatbotAnswer.includes("Team not found") &&
+						!chatbotAnswer.includes("Missing context") &&
+						!chatbotAnswer.includes("Please clarify your question") &&
+						!chatbotAnswer.includes("No data found") &&
+						!chatbotAnswer.includes("MatchDetail data unavailable") &&
 						cypherQuery !== "N/A" &&
 						expectedValue !== "N/A";
 
@@ -1206,9 +1222,13 @@ function generateEmailContent(testResults) {
 				}
 
 				// Format expected value to handle large numbers properly
+				// Note: expectedValue is already formatted by formatValueByMetric() with correct decimal places
 				let formattedExpectedValue = expectedValue;
 				if (typeof expectedValue === "number" && expectedValue >= 1000) {
 					formattedExpectedValue = expectedValue.toLocaleString();
+				} else if (typeof expectedValue === "string" && !isNaN(parseFloat(expectedValue)) && parseFloat(expectedValue) >= 1000) {
+					// Handle already-formatted strings that represent large numbers
+					formattedExpectedValue = parseFloat(expectedValue).toLocaleString();
 				}
 
 				html += `
