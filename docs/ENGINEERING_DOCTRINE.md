@@ -12,6 +12,9 @@
     - [Component State Management](#component-state-management)
   - [Debugging \& Problem Solving](#debugging--problem-solving)
     - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
+  - [Change Verification Protocol](#change-verification-protocol)
+  - [Debug-First Approach Protocol](#debug-first-approach-protocol)
+  - [Naming Consistency Enforcement Protocol](#naming-consistency-enforcement-protocol)
   - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
     - [Progressive Problem Escalation](#progressive-problem-escalation)
 - [Build \& Development Workflow](#build--development-workflow)
@@ -118,6 +121,36 @@
 - **Rationale**: Console logs provide concrete evidence of the actual execution flow
 - **Implementation**: Add strategic console.log statements to trace state changes and component lifecycle
 
+### Change Verification Protocol
+
+- **Rule**: Always verify that code changes are actually applied and active in the running system before considering fixes complete
+- **Rationale**: Development environments with caching, hot reloading, or build systems may not immediately reflect changes, leading to false assumptions about fix effectiveness
+- **Implementation**:
+  - Test changes immediately after implementation using actual API calls or user scenarios
+  - Restart development servers when necessary to ensure changes are loaded
+  - Verify behavior matches expected changes, not just that code was modified
+- **Example**: Entity extraction changes not working → restart dev server → verify with actual chatbot API calls
+
+### Debug-First Approach Protocol
+
+- **Rule**: Create targeted debug scripts to isolate and verify issues before making modifications to production code
+- **Rationale**: Debug scripts provide controlled environments to test hypotheses and verify root causes without affecting the main system
+- **Implementation**:
+  - Create focused debug scripts that test specific components or patterns
+  - Use debug scripts to verify assumptions before implementing fixes
+  - Clean up debug scripts after successful problem resolution
+- **Example**: Pattern matching issues → create debug script to test regex patterns → verify correct patterns → implement targeted fixes
+
+### Naming Consistency Enforcement Protocol
+
+- **Rule**: Maintain consistent naming conventions across all system components (entity extraction, priority systems, metric mapping) to prevent mismatches
+- **Rationale**: Inconsistent naming between system components causes silent failures where data flows correctly but components can't find each other
+- **Implementation**:
+  - Audit naming conventions across all related components
+  - Ensure entity extraction outputs match priority system inputs
+  - Verify metric mappings use consistent naming throughout the pipeline
+- **Example**: Entity extraction finds "Conceded Per Appearance" but priority system looks for "Goals Conceded Per Appearance" → align naming conventions
+
 ### Complete Data Flow Analysis Protocol
 
 - **Rule**: When debugging complex systems, trace the entire data pipeline from input to output, not just suspected problem areas
@@ -126,6 +159,7 @@
   - Map the complete data flow: input → analysis → processing → output
   - Add logging at each stage to trace data transformation
   - Identify where the data diverges from expected behavior
+  - Verify each component in the pipeline independently before making changes
 - **Example**: Query building issues → trace from question analysis through entity extraction to query generation
 
 #### Progressive Problem Escalation

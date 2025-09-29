@@ -1079,6 +1079,7 @@ async function runTestsProgrammatically() {
 						!chatbotAnswer.includes("error") &&
 						!chatbotAnswer.includes("Error") &&
 						!chatbotAnswer.includes("I couldn't find any relevant information") &&
+						!chatbotAnswer.includes("I couldn't find relevant information for your question") &&
 						cypherQuery !== "N/A" &&
 						expectedValue !== "N/A";
 

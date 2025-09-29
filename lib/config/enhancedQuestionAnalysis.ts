@@ -361,6 +361,11 @@ export class EnhancedQuestionAnalyzer {
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
 			'Own Goals',          // Most specific - own goals - helps stop the chatbot returning goals
+			'Goals Conceded Per Appearance', // Most specific - average calculation metrics
+			'Conceded Per Appearance', // Most specific - average calculation metrics (alternative naming)
+			'Goals Per Appearance',     // Average calculation metrics
+			'Assists Per Appearance',
+			'Fantasy Points Per Appearance',
 			'Goals Conceded',     // More specific than general goals
 			'Open Play Goals',    // More specific than general goals
 			'Penalties Scored',   // More specific than general goals
@@ -392,10 +397,6 @@ export class EnhancedQuestionAnalyzer {
 			'Midfielder Appearances',
 			'Forward Appearances',
 			'Most Common Position',
-			'Goals Per Appearance',     // Average calculation metrics
-			'Assists Per Appearance',
-			'Fantasy Points Per Appearance',
-			'Goals Conceded Per Appearance',
 			'Goals',              // General goals (lower priority)
 			'Assists',
 			'Apps',
