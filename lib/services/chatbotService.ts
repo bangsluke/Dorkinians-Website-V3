@@ -602,21 +602,26 @@ export class ChatbotService {
 			'PSC', 'PM', 'PCO', 'PSV', 'FTP', 'DIST',
 			'GK', 'DEF', 'MID', 'FWD',
 			// Non-seasonal metrics that are stored directly on Player node
-			'MOSTPROLIFICSEASON', 'MOSTCOMMONPOSITION', 'NUMBERSEASONSPLAYEDFOR'
+			'MOSTPROLIFICSEASON', 'MOSTCOMMONPOSITION', 'NUMBERSEASONSPLAYEDFOR',
+			// APP metric - use Player node directly for now (fallback approach)
+			'APP'
 		];
 		
-		// Metrics that need MatchDetail join (including complex calculations and seasonal metrics)
+		// Metrics that need MatchDetail join (including complex calculations)
 		const matchDetailMetrics = [
-			'APP', 'ALLGSC', 'GI', 'HOME', 'AWAY',
-			'MPERG', 'MPERCLS', 'FTPPERAPP', 'GPERAPP', 'CPERAPP',
-			// All seasonal metrics should use MatchDetail for dynamic calculation
+			'ALLGSC', 'GI', 'HOME', 'AWAY',
+			'MPERG', 'MPERCLS', 'FTPPERAPP', 'CPERAPP', 'GPERAPP'
+		];
+		
+		// Seasonal metrics - try MatchDetail first, fallback to Player node
+		const seasonalMetrics = [
 			'2016/17GOALS', '2017/18GOALS', '2018/19GOALS', '2019/20GOALS', '2020/21GOALS', '2021/22GOALS',
 			'2016/17APPS', '2017/18APPS', '2018/19APPS', '2019/20APPS', '2020/21APPS', '2021/22APPS'
 		];
 		
-		// Check if it's a seasonal metric (contains year pattern) - these should use MatchDetail
+		// Check if it's a seasonal metric (contains year pattern) - these use Player node directly
 		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
-			return true; // Seasonal metrics should use MatchDetail for dynamic calculation
+			return false; // Seasonal metrics use Player node directly for now (fallback approach)
 		}
 		
 		return matchDetailMetrics.includes(metric.toUpperCase());
@@ -647,8 +652,24 @@ export class ChatbotService {
 			case 'DEF': return 'coalesce(p.def, 0)';
 			case 'MID': return 'coalesce(p.mid, 0)';
 			case 'FWD': return 'coalesce(p.fwd, 0)';
-			// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
-			default: return '0';
+			case 'APP': return 'coalesce(p.appearances, 0)';
+			case 'MOSTPROLIFICSEASON': return 'p.mostProlificSeason';
+			// Seasonal metrics - dynamic handling
+			default:
+				// Check if it's a seasonal metric (contains year pattern)
+				if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})(GOALS|APPS)/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						const type = seasonMatch[2];
+						// Convert season format from 2017/18 to 201718 for database property names
+						const dbSeason = season.replace('/', '');
+						const playerField = `${type.toLowerCase()}${dbSeason}`;
+						return `coalesce(p.${playerField}, 0)`;
+					}
+				}
+				// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
+				return '0';
 		}
 	}
 
@@ -860,12 +881,8 @@ export class ChatbotService {
 		// Handle special cases that need custom queries
 		if (metric === 'MOSTCOMMONPOSITION') {
 			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.class IS NOT NULL AND md.class <> ""
-				WITH p, md.class as position, count(md) as count
-				ORDER BY count DESC
-				LIMIT 1
-				RETURN p.playerName as playerName, position as value
+				MATCH (p:Player {playerName: $playerName})
+				RETURN p.playerName as playerName, p.mostCommonPosition as value
 			`;
 		} else if (metric === 'MPERG') {
 			query = `
@@ -904,6 +921,18 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
+		} else if (metric.toUpperCase() === 'CPERAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE toInteger(md.conceded) END) as totalConceded,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalConceded / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
 		} else if (metric.toUpperCase() === 'GPERAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
@@ -917,26 +946,10 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'CPERAPP') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WITH p, 
-					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE toInteger(md.conceded) END) as totalConceded,
-					count(md) as totalAppearances
-				RETURN p.playerName as playerName, 
-					CASE 
-						WHEN totalAppearances > 0 THEN round(100.0 * totalConceded / totalAppearances) / 100.0
-						ELSE 0.0 
-					END as value
-			`;
 		} else if (metric.toUpperCase() === 'MOSTPROLIFICSEASON') {
 			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season IS NOT NULL
-				WITH p, md.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE toInteger(md.goals) END) as goals
-				ORDER BY goals DESC
-				LIMIT 1
-				RETURN p.playerName as playerName, season as value
+				MATCH (p:Player {playerName: $playerName})
+				RETURN p.playerName as playerName, p.mostProlificSeason as value
 			`;
 		} else if (metric === 'TEAM_ANALYSIS') {
 			query = `
@@ -950,45 +963,10 @@ export class ChatbotService {
 		} else if (metric === 'SEASON_ANALYSIS') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season IS NOT NULL
-				WITH p, collect(DISTINCT md.season) as seasons
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.season IS NOT NULL
+				WITH p, collect(DISTINCT f.season) as seasons
 				RETURN p.playerName as playerName, size(seasons) as value
-			`;
-		} else if (metric === '2016/17APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2016/17"
-				RETURN p.playerName as playerName, count(md) as value
-			`;
-		} else if (metric === '2017/18APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2017/18"
-				RETURN p.playerName as playerName, count(md) as value
-			`;
-		} else if (metric === '2018/19APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2018/19"
-				RETURN p.playerName as playerName, count(md) as value
-			`;
-		} else if (metric === '2019/20APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2019/20"
-				RETURN p.playerName as playerName, count(md) as value
-			`;
-		} else if (metric === '2020/21APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2020/21"
-				RETURN p.playerName as playerName, count(md) as value
-			`;
-		} else if (metric === '2021/22APPS') {
-			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				WHERE md.season = "2021/22"
-				RETURN p.playerName as playerName, count(md) as value
 			`;
 		}
 
@@ -1076,7 +1054,7 @@ export class ChatbotService {
 			const playerName = data.playerName || "the requested entity";
 			
 			// Check if this is a MatchDetail query that failed - try Player node fallback
-			if (metric && ['CPERAPP', 'GPERAPP', 'APP', 'FTPPERAPP'].includes(metric.toUpperCase())) {
+			if (metric && ['CPERAPP', 'FTPPERAPP', 'GPERAPP', 'MPERG', 'MPERCLS'].includes(metric.toUpperCase())) {
 				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
 			} else {
 				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;

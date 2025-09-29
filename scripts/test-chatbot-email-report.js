@@ -524,7 +524,7 @@ const STAT_TEST_CONFIGS = [
 		key: "MostProlificSeason",
 		metric: "mostProlificSeason",
 		questionTemplate: "What was {playerName}'s most prolific season?",
-		responsePattern: /([A-Za-z0-9\-\/]+)/,
+		responsePattern: /(\d{4}\/\d{2})/,
 		description: "Most Prolific Season",
 	},
 	// Positional Statistics
@@ -619,7 +619,7 @@ function formatValueByMetric(metric, value) {
 			FTPperAPP: { numberDecimalPlaces: 1 },
 			MPERG: { numberDecimalPlaces: 1 },
 			MPERCLS: { numberDecimalPlaces: 1 },
-			DIST: { numberDecimalPlaces: 0 }
+			DIST: { numberDecimalPlaces: 1 }
 		};
 	}
 	

@@ -638,7 +638,7 @@ function formatValueByMetric(metric, value) {
 			FTPperAPP: { numberDecimalPlaces: 1 },
 			MPERG: { numberDecimalPlaces: 1 },
 			MPERCLS: { numberDecimalPlaces: 1 },
-			DIST: { numberDecimalPlaces: 0 }
+			DIST: { numberDecimalPlaces: 1 }
 		};
 	}
 	
@@ -891,8 +891,8 @@ async function runTestsProgrammatically() {
 			const playerName = player["PLAYER NAME"];
 			console.log(`\n🧪 Testing player: ${playerName}`);
 
-			// Use only first 2 test configurations to avoid timeout
-			const testConfigs = STAT_TEST_CONFIGS.slice(0, 2);
+			// Use first 25 test configurations to include MperG test
+			const testConfigs = STAT_TEST_CONFIGS.slice(0, 25);
 			console.log(`🔍 Testing ${testConfigs.length} configurations to avoid timeout`);
 
 			for (const statConfig of testConfigs) {

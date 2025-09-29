@@ -119,6 +119,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Red Cards': ['red cards', 'red card', 'reds', 'dismissals', 'sendings off'],
 	'Saves': ['goalkeeper saves', 'saves made', 'saves', 'save', 'saved'],
 	'Clean Sheets': ['clean sheet kept', 'clean sheets', 'clean sheet', 'shutouts'],
+	'Minutes Per Clean Sheet': ['minutes does.*need to get a clean sheet', 'minutes per clean sheet', 'mins per clean sheet', 'time per clean sheet', 'minutes on average.*clean sheet', 'average minutes.*clean sheet'],
 	'Penalties Scored': ['penalties have scored', 'penalties has scored', 'penalties scored', 'penalty scored', 'penalty goals', 'pen scored', 'penalties.*scored'],
 	'Penalties Missed': ['penalties have missed', 'penalties has missed', 'penalties missed', 'penalty missed', 'missed penalties', 'pen missed', 'penalties.*missed'],
 	'Penalties Conceded': ['penalties conceded', 'penalty conceded', 'pen conceded', 'conceded penalties', 'penalties has conceded', 'penalties have conceded', 'penalties.*conceded'],

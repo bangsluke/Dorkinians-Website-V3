@@ -366,6 +366,8 @@ export class EnhancedQuestionAnalyzer {
 			'Goals Per Appearance',     // Average calculation metrics
 			'Assists Per Appearance',
 			'Fantasy Points Per Appearance',
+			'Minutes Per Goal',   // More specific than general minutes
+			'Minutes Per Clean Sheet', // More specific than general minutes
 			'Goals Conceded',     // More specific than general goals
 			'Open Play Goals',    // More specific than general goals
 			'Penalties Scored',   // More specific than general goals
@@ -561,7 +563,17 @@ export class EnhancedQuestionAnalyzer {
 			return `${startYear}/${endYear}`;
 		}
 		
-		// Pattern 3: Short year format with slash (18/19, 19/20, etc.)
+		// Pattern 3: Full year range format (2021 to 2022, 2018 to 2019, etc.)
+		const fullYearRangeMatch = question.match(/(\d{4})\s+to\s+(\d{4})/);
+		if (fullYearRangeMatch) {
+			const startYear = fullYearRangeMatch[1];
+			const endYear = fullYearRangeMatch[2];
+			// Convert second year to 2-digit format for season notation
+			const shortEndYear = endYear.substring(2);
+			return `${startYear}/${shortEndYear}`;
+		}
+		
+		// Pattern 4: Short year format with slash (18/19, 19/20, etc.)
 		const shortYearSlashMatch = question.match(/(\d{2})\/(\d{2})/);
 		if (shortYearSlashMatch) {
 			const startYear = shortYearSlashMatch[1];
