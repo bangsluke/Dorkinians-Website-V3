@@ -301,9 +301,27 @@ export default function AdminPanel() {
 					});
 					setLastCompletedJobDuration(0); // Reset duration for failed jobs
 				} else if (statusData.status === "not_found") {
-					setResult(null); // Clear result if not found
-					setError("Job ID not found. Please trigger seeding again.");
-					setLastStatusCheck(`❌ Job ID not found. Please trigger seeding again.`);
+					// Don't clear result, keep it for debugging
+					setError(`Job ID not found: ${jobId}. This could mean the job failed early or there's a communication issue.`);
+					setLastStatusCheck(`❌ Job ID not found: ${jobId} at ${new Date().toLocaleString()}`);
+					
+					// Try to get more information about what jobs exist
+					try {
+						const jobsResponse = await fetch(`${herokuUrl}/jobs`, {
+							method: "GET",
+							headers: { "Content-Type": "application/json" },
+							mode: "cors",
+							signal: controller.signal,
+						});
+						if (jobsResponse.ok) {
+							const jobsData = await jobsResponse.json();
+							console.log("Available jobs:", jobsData);
+							// Update error with more context
+							setError(`Job ID not found: ${jobId}. Available jobs: ${Object.keys(jobsData.jobs || {}).length}. Check console for details.`);
+						}
+					} catch (jobsError) {
+						console.error("Failed to fetch jobs list:", jobsError);
+					}
 				} else if (result) {
 					setResult({
 						success: true,
@@ -530,7 +548,7 @@ export default function AdminPanel() {
 							value={emailAddress}
 							onChange={(e) => setEmailAddress(e.target.value)}
 							placeholder='bangsluke@gmail.com'
-							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-200'
+							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-600'
 						/>
 					</div>
 					<div className='flex items-center'>
@@ -585,6 +603,84 @@ export default function AdminPanel() {
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
 					}`}>
 					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Production Status"}
+				</button>
+				<button
+					onClick={async () => {
+						if (!jobId) {
+							setError("No job ID available. Please trigger seeding first.");
+							return;
+						}
+						
+						setStatusCheckLoading(true);
+						setError(null);
+						
+						try {
+							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+							const response = await fetch(`${herokuUrl}/logs/${jobId}`, {
+								method: "GET",
+								headers: { "Content-Type": "application/json" },
+								mode: "cors",
+							});
+							
+							if (response.ok) {
+								const logsData = await response.json();
+								console.log("Job logs:", logsData);
+								setError(`Job logs retrieved. Check console for details. Log entries: ${logsData.logs?.length || 0}`);
+							} else {
+								setError(`Failed to retrieve logs: HTTP ${response.status}`);
+							}
+						} catch (err) {
+							setError(`Failed to retrieve logs: ${err instanceof Error ? err.message : 'Unknown error'}`);
+						} finally {
+							setStatusCheckLoading(false);
+						}
+					}}
+					disabled={statusCheckLoading || !jobId}
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700"
+					}`}>
+					{statusCheckLoading ? "🔄 Loading..." : "📋 Get Job Logs"}
+				</button>
+				<button
+					onClick={async () => {
+						if (!jobId) {
+							setError("No job ID available. Please trigger seeding first.");
+							return;
+						}
+						
+						setStatusCheckLoading(true);
+						setError(null);
+						
+						try {
+							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+							const response = await fetch(`${herokuUrl}/trigger-failure-email`, {
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({
+									jobId: jobId,
+									emailAddress: emailAddress,
+									reason: "Manual failure email trigger from admin panel"
+								}),
+								mode: "cors",
+							});
+							
+							if (response.ok) {
+								const data = await response.json();
+								setError(`Failure email sent: ${data.message}`);
+							} else {
+								setError(`Failed to send failure email: HTTP ${response.status}`);
+							}
+						} catch (err) {
+							setError(`Failed to send failure email: ${err instanceof Error ? err.message : 'Unknown error'}`);
+						} finally {
+							setStatusCheckLoading(false);
+						}
+					}}
+					disabled={statusCheckLoading || !jobId}
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"
+					}`}>
+					{statusCheckLoading ? "🔄 Sending..." : "📧 Send Failure Email"}
 				</button>
 				<button
 					onClick={async () => {
@@ -660,6 +756,21 @@ export default function AdminPanel() {
 				<div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
 					<h3 className='text-lg font-semibold text-red-800 mb-2'>❌ Error</h3>
 					<p className='text-red-700 mb-2'>{error}</p>
+					
+					{/* Additional Context for Job Not Found Errors */}
+					{error.includes('Job ID not found') && (
+						<div className='mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded'>
+							<h4 className='text-sm font-semibold text-yellow-800 mb-2'>🔍 Job Not Found Analysis:</h4>
+							<ul className='text-sm text-yellow-700 space-y-1'>
+								<li>• The job may have failed during initialization (before logging started)</li>
+								<li>• Check if the Heroku service is running and accessible</li>
+								<li>• The job may have completed but status was not properly updated</li>
+								<li>• Try clicking &ldquo;Get Job Logs&rdquo; to see if any logs were created</li>
+								<li>• Check &ldquo;Debug: List All Jobs&rdquo; to see what jobs exist on Heroku</li>
+							</ul>
+						</div>
+					)}
+					
 					<div className='mt-3 p-3 bg-red-100 border border-red-300 rounded'>
 						<h4 className='text-sm font-semibold text-red-800 mb-2'>🔍 Troubleshooting Steps:</h4>
 						<ul className='text-sm text-red-700 space-y-1'>
@@ -684,19 +795,19 @@ export default function AdminPanel() {
 
 					<div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
 						<div>
-							<p className='text-sm text-gray-600'>Environment</p>
-							<p className='font-semibold'>{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
+							<p className='text-sm text-gray-800 font-medium'>Environment</p>
+							<p className='font-semibold text-gray-900'>{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
 						</div>
 						<div>
-							<p className='text-sm text-gray-600'>Timestamp</p>
-							<p className='font-semibold'>{new Date(result.timestamp).toLocaleString()}</p>
+							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
+							<p className='font-semibold text-gray-900'>{new Date(result.timestamp).toLocaleString()}</p>
 						</div>
 						<div>
-							<p className='text-sm text-gray-600'>Status</p>
+							<p className='text-sm text-gray-800 font-medium'>Status</p>
 							<p className={`font-semibold ${statusInfo?.color}`}>{statusInfo?.text}</p>
 						</div>
 						<div>
-							<p className='text-sm text-gray-600'>Elapsed Time</p>
+							<p className='text-sm text-gray-800 font-medium'>Elapsed Time</p>
 							<p className='font-semibold text-blue-600'>{elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}</p>
 						</div>
 					</div>
@@ -815,17 +926,17 @@ export default function AdminPanel() {
 
 			{/* Debug Information Section */}
 			<div className='p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4'>
-				<h3 className='text-lg font-semibold text-gray-800 mb-2'>🔧 Debug Information</h3>
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
+				<h3 className='text-lg font-semibold text-gray-900 mb-2'>🔧 Debug Information</h3>
+				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-900'>
 					<div>
-						<p><strong>Current Job ID:</strong> {jobId || 'None'}</p>
-						<p><strong>Last Status Check:</strong> {lastStatusCheck || 'Never'}</p>
-						<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '0s'}</p>
+						<p className='text-gray-900'><strong>Current Job ID:</strong> {jobId || 'None'}</p>
+						<p className='text-gray-900'><strong>Last Status Check:</strong> {lastStatusCheck || 'Never'}</p>
+						<p className='text-gray-900'><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '0s'}</p>
 					</div>
 					<div>
-						<p><strong>Environment:</strong> Production</p>
-						<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? 'Enabled' : 'Disabled'}</p>
-						<p><strong>Email Address:</strong> {emailAddress}</p>
+						<p className='text-gray-900'><strong>Environment:</strong> Production</p>
+						<p className='text-gray-900'><strong>Email Notifications:</strong> {sendEmailAtCompletion ? 'Enabled' : 'Disabled'}</p>
+						<p className='text-gray-900'><strong>Email Address:</strong> {emailAddress}</p>
 					</div>
 				</div>
 			</div>
