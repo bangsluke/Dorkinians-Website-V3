@@ -64,12 +64,17 @@ export default function AdminPanel() {
 			}
 		}
 
+		// Use backend duration when job is completed
+		if (result?.status === "completed" && result?.result?.duration) {
+			setElapsedTime(Math.floor(result.result.duration / 1000)); // Convert ms to seconds
+		}
+
 		return () => {
 			if (timerRef.current) {
 				clearInterval(timerRef.current);
 			}
 		};
-	}, [result?.status]);
+	}, [result?.status, result?.result?.duration]);
 
 	// Cleanup function for component unmount
 	useEffect(() => {
@@ -336,7 +341,7 @@ export default function AdminPanel() {
 							exitCode: 0,
 							nodesCreated: statusData.result?.nodesCreated || 0,
 							relationshipsCreated: statusData.result?.relationshipsCreated || 0,
-							errorCount: statusData.result?.errors?.length || 0,
+							errorCount: statusData.result?.errorCount || 0,
 							errors: statusData.result?.errors || [],
 							duration: statusData.result?.duration || 0,
 						},
@@ -643,47 +648,6 @@ export default function AdminPanel() {
 				</button>
 				<button
 					onClick={async () => {
-						if (!jobId) {
-							setError("No job ID available. Please trigger seeding first.");
-							return;
-						}
-						
-						setStatusCheckLoading(true);
-						setError(null);
-						
-						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-							const response = await fetch(`${herokuUrl}/trigger-failure-email`, {
-								method: "POST",
-								headers: { "Content-Type": "application/json" },
-								body: JSON.stringify({
-									jobId: jobId,
-									emailAddress: emailAddress,
-									reason: "Manual failure email trigger from admin panel"
-								}),
-								mode: "cors",
-							});
-							
-							if (response.ok) {
-								const data = await response.json();
-								setError(`Failure email sent: ${data.message}`);
-							} else {
-								setError(`Failed to send failure email: HTTP ${response.status}`);
-							}
-						} catch (err) {
-							setError(`Failed to send failure email: ${err instanceof Error ? err.message : 'Unknown error'}`);
-						} finally {
-							setStatusCheckLoading(false);
-						}
-					}}
-					disabled={statusCheckLoading || !jobId}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
-						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-red-600 hover:bg-red-700"
-					}`}>
-					{statusCheckLoading ? "🔄 Sending..." : "📧 Send Failure Email"}
-				</button>
-				<button
-					onClick={async () => {
 						setJobsLoading(true);
 						setError(null);
 
@@ -767,6 +731,7 @@ export default function AdminPanel() {
 								<li>• The job may have completed but status was not properly updated</li>
 								<li>• Try clicking &ldquo;Get Job Logs&rdquo; to see if any logs were created</li>
 								<li>• Check &ldquo;Debug: List All Jobs&rdquo; to see what jobs exist on Heroku</li>
+								<li>• Failure emails are sent automatically when jobs fail</li>
 							</ul>
 						</div>
 					)}
@@ -937,6 +902,9 @@ export default function AdminPanel() {
 						<p className='text-gray-900'><strong>Environment:</strong> Production</p>
 						<p className='text-gray-900'><strong>Email Notifications:</strong> {sendEmailAtCompletion ? 'Enabled' : 'Disabled'}</p>
 						<p className='text-gray-900'><strong>Email Address:</strong> {emailAddress}</p>
+						{result?.result?.duration && (
+							<p className='text-gray-900'><strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}</p>
+						)}
 					</div>
 				</div>
 			</div>
