@@ -1635,12 +1635,12 @@ export class ChatbotService {
 	private async queryPlayerCaptainAwardsData(playerName: string): Promise<any> {
 		console.log(`🔍 Querying for Captain awards for player: ${playerName}`);
 		const query = `
-			MATCH (p:Player {playerName: $playerName})-[r:CAPTAIN]->(award)
+			MATCH (p:Player {playerName: $playerName})-[r:HAS_CAPTAIN_AWARDS]->(ca:CaptainsAndAwards)
 			RETURN p.playerName as playerName, 
-			       award.date as date, 
-			       award.team as team,
-			       award.season as season
-			ORDER BY award.date DESC
+			       ca.season as season,
+			       r.awardType as awardType,
+			       ca.id as nodeId
+			ORDER BY ca.season DESC, r.awardType
 		`;
 
 		try {
@@ -1674,10 +1674,13 @@ export class ChatbotService {
 	private async queryPlayerOpponentsData(playerName: string): Promise<any> {
 		console.log(`🔍 Querying for opponents for player: ${playerName}`);
 		const query = `
-			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-			WHERE md.opponent IS NOT NULL
-			RETURN md.opponent as opponent, count(md) as gamesPlayed
-			ORDER BY gamesPlayed DESC
+			MATCH (p:Player {playerName: $playerName})-[r:PLAYED_AGAINST_OPPONENT]->(od:OppositionDetails)
+			RETURN od.opposition as opponent, 
+			       r.timesPlayed as gamesPlayed,
+			       r.goalsScored as goalsScored,
+			       r.assists as assists,
+			       r.lastPlayed as lastPlayed
+			ORDER BY r.timesPlayed DESC, r.goalsScored DESC, r.assists DESC
 			LIMIT 20
 		`;
 
@@ -2044,7 +2047,7 @@ export class ChatbotService {
 		if (oppositionName) {
 			// Specific opposition query
 			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture)
 				WHERE f.opposition = $oppositionName
 				RETURN p.playerName as playerName, ${returnClause}
 			`;
@@ -2052,7 +2055,7 @@ export class ChatbotService {
 		} else {
 			// All oppositions query (for "most goals against" type questions)
 			query = `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)-[:HAS_MATCH_DETAILS]->(f:Fixture)
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture)
 				RETURN f.opposition as opposition, ${returnClause}
 				ORDER BY value DESC
 				LIMIT 10
