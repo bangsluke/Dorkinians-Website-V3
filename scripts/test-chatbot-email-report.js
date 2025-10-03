@@ -906,9 +906,7 @@ async function runTestsProgrammatically() {
 						} else {
 							// Fallback to API call
 							console.log(`🌐 Using API fallback for: ${question}`);
-							const baseUrl = process.env.NODE_ENV === 'production' 
-								? 'https://dorkinians-website-v3.netlify.app'
-								: 'http://localhost:3000';
+							const baseUrl = 'https://dorkinians-website-v3.netlify.app';
 								
 							const response = await fetch(`${baseUrl}/api/chatbot`, {
 								method: "POST",

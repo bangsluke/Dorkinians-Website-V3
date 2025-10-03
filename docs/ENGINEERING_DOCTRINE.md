@@ -12,8 +12,10 @@
     - [Component State Management](#component-state-management)
   - [Debugging \& Problem Solving](#debugging--problem-solving)
     - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
+    - [Schema Alignment Verification Protocol](#schema-alignment-verification-protocol)
   - [Change Verification Protocol](#change-verification-protocol)
   - [Debug-First Approach Protocol](#debug-first-approach-protocol)
+    - [Systematic Error Investigation Protocol](#systematic-error-investigation-protocol)
   - [Naming Consistency Enforcement Protocol](#naming-consistency-enforcement-protocol)
   - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
     - [Progressive Problem Escalation](#progressive-problem-escalation)
@@ -55,6 +57,7 @@
   - [Question Analysis Priority Protocol](#question-analysis-priority-protocol)
   - [Graph Database Relationship Counting Protocol](#graph-database-relationship-counting-protocol)
   - [Systematic Data Discrepancy Analysis Protocol](#systematic-data-discrepancy-analysis-protocol)
+  - [Data Corruption Investigation Protocol](#data-corruption-investigation-protocol)
   - [User Technical Guidance Priority Protocol](#user-technical-guidance-priority-protocol)
 - [Database Integrity \& Data Management](#database-integrity--data-management)
   - [Data Source Verification Protocol](#data-source-verification-protocol)
@@ -130,6 +133,16 @@
 - **Rationale**: Console logs provide concrete evidence of the actual execution flow
 - **Implementation**: Add strategic console.log statements to trace state changes and component lifecycle
 
+### Schema Alignment Verification Protocol
+
+- **Rule**: When making backend schema changes, proactively check and update frontend code to ensure consistency
+- **Rationale**: Schema changes often require corresponding updates to frontend queries and data access patterns
+- **Implementation**:
+  - Review frontend chatbot queries for outdated relationship types or data sources
+  - Update query patterns to match new schema definitions
+  - Verify relationship directions and property access patterns
+- **Example**: Backend schema changes Captain Awards relationship type → update frontend queries from `CAPTAIN` to `HAS_CAPTAIN_AWARDS`
+
 ### Change Verification Protocol
 
 - **Rule**: Always verify that code changes are actually applied and active in the running system before considering fixes complete
@@ -149,6 +162,17 @@
   - Use debug scripts to verify assumptions before implementing fixes
   - Clean up debug scripts after successful problem resolution
 - **Example**: Pattern matching issues → create debug script to test regex patterns → verify correct patterns → implement targeted fixes
+
+### Systematic Error Investigation Protocol
+
+- **Rule**: When users report multiple errors, investigate each error individually rather than trying to fix all at once
+- **Rationale**: Each error may have a different root cause, and parallel debugging often leads to incomplete fixes and missed root causes
+- **Implementation**:
+  - Identify and fix the most critical issue first
+  - Verify the fix works before moving to the next issue
+  - Use systematic verification at each step
+  - Create targeted diagnostic scripts for each specific error
+- **Example**: Captain Awards + Opposition + Fixture connection errors → investigate Captain Awards first → verify fix → then investigate Opposition → verify fix → then investigate Fixture connections
 
 ### Naming Consistency Enforcement Protocol
 
@@ -503,6 +527,16 @@
   - Trace the complete data pipeline from input through storage to query execution
   - Compare expected vs actual counts across multiple related metrics to identify patterns
 - **Example**: Home games 5x higher than expected → investigate if `HAS_MATCH_DETAILS` relationships are creating duplicates
+
+### Data Corruption Investigation Protocol
+
+- **Rule**: When users report data discrepancies, always verify the actual database state against source data before assuming logic errors
+- **Rationale**: Data corruption at the node level can cause relationship queries to return incorrect results, even when the relationship creation logic is correct
+- **Implementation**:
+  - Create targeted diagnostic scripts to check actual database values vs expected source data
+  - Use direct database queries to inspect node properties rather than assuming relationship logic is the issue
+  - Investigate data corruption possibilities when unexpected values appear in database queries
+- **Example**: Captain Awards showing unexpected player names → check actual CaptainsAndAwards node properties vs CSV source data
 
 ### User Technical Guidance Priority Protocol
 
