@@ -658,8 +658,18 @@ export default function AdminPanel() {
 			{/* Error Display */}
 			{error && (
 				<div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
-					<h3 className='text-lg font-semibold text-red-800 mb-2'>Error</h3>
-					<p className='text-red-700'>{error}</p>
+					<h3 className='text-lg font-semibold text-red-800 mb-2'>❌ Error</h3>
+					<p className='text-red-700 mb-2'>{error}</p>
+					<div className='mt-3 p-3 bg-red-100 border border-red-300 rounded'>
+						<h4 className='text-sm font-semibold text-red-800 mb-2'>🔍 Troubleshooting Steps:</h4>
+						<ul className='text-sm text-red-700 space-y-1'>
+							<li>• Check if the Heroku seeder service is running</li>
+							<li>• Verify network connectivity to Heroku</li>
+							<li>• Check the browser console for additional error details</li>
+							<li>• Try refreshing the page and attempting again</li>
+							<li>• If the issue persists, check the Heroku logs for detailed error information</li>
+						</ul>
+					</div>
 				</div>
 			)}
 
@@ -802,6 +812,23 @@ export default function AdminPanel() {
 					</div>
 				</div>
 			)}
+
+			{/* Debug Information Section */}
+			<div className='p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4'>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>🔧 Debug Information</h3>
+				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm'>
+					<div>
+						<p><strong>Current Job ID:</strong> {jobId || 'None'}</p>
+						<p><strong>Last Status Check:</strong> {lastStatusCheck || 'Never'}</p>
+						<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '0s'}</p>
+					</div>
+					<div>
+						<p><strong>Environment:</strong> Production</p>
+						<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? 'Enabled' : 'Disabled'}</p>
+						<p><strong>Email Address:</strong> {emailAddress}</p>
+					</div>
+				</div>
+			</div>
 
 			{/* Information Section */}
 			<div className='p-4 bg-blue-50 border border-blue-200 rounded-lg'>

@@ -175,6 +175,14 @@ export async function POST(request: NextRequest) {
 			// Don't fail the function if email fails
 		}
 
+		// Parse request body to get email configuration
+		const requestBody = await request.json();
+		const emailConfig = requestBody.emailConfig || {
+			emailAddress: process.env.SMTP_TO_EMAIL || "bangsluke@gmail.com",
+			sendEmailAtStart: false,
+			sendEmailAtCompletion: true
+		};
+
 		// Trigger Heroku seeding service (fire-and-forget)
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
 		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
@@ -188,6 +196,7 @@ export async function POST(request: NextRequest) {
 			body: JSON.stringify({
 				environment,
 				jobId,
+				emailConfig,
 			}),
 		})
 			.then((response) => {
