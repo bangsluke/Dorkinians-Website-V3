@@ -888,9 +888,8 @@ export class ChatbotService {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as totalMinutes,
-					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
-					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as totalGoals
+					sum(coalesce(md.minutes, 0)) as totalMinutes,
+					sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals
 				RETURN p.playerName as playerName, 
 					CASE 
 						WHEN totalGoals > 0 THEN round(100.0 * totalMinutes / totalGoals) / 100.0
@@ -901,8 +900,8 @@ export class ChatbotService {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as totalMinutes,
-					sum(CASE WHEN md.cleanSheets IS NULL OR md.cleanSheets = "" THEN 0 ELSE md.cleanSheets END) as totalCleanSheets
+					sum(coalesce(md.minutes, 0)) as totalMinutes,
+					sum(coalesce(md.cleanSheets, 0)) as totalCleanSheets
 				RETURN p.playerName as playerName, 
 					CASE 
 						WHEN totalCleanSheets > 0 THEN round(100.0 * totalMinutes / totalCleanSheets) / 100.0
@@ -913,7 +912,7 @@ export class ChatbotService {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = "" THEN 0 ELSE md.fantasyPoints END) as totalFantasyPoints,
+					sum(coalesce(md.fantasyPoints, 0)) as totalFantasyPoints,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
@@ -925,24 +924,23 @@ export class ChatbotService {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.conceded IS NULL OR md.conceded = "" THEN 0 ELSE toInteger(md.conceded) END) as totalConceded,
+					sum(coalesce(md.conceded, 0)) as totalConceded,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN totalAppearances > 0 THEN round(100.0 * totalConceded / totalAppearances) / 100.0
+						WHEN totalAppearances > 0 THEN round(10.0 * totalConceded / totalAppearances) / 10.0
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'GPERAPP') {
+		} else if (metric.toUpperCase() === 'GPERAPP' || metric === 'GperAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE toInteger(md.goals) END) + 
-					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE toInteger(md.penaltiesScored) END) as totalGoals,
+					sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN totalAppearances > 0 THEN round(100.0 * totalGoals / totalAppearances) / 100.0
+						WHEN totalAppearances > 0 THEN round(10.0 * totalGoals / totalAppearances) / 10.0
 						ELSE 0.0 
 					END as value
 			`;
