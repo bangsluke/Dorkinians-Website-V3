@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.10",
+	version: "1.1.11",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -500,6 +500,139 @@ export const statObject = {
 		numberDecimalPlaces: 1,
 		statCategory: "Per App/Minute Stat",
 		iconName: "FantasyPointsPerAppearance-Icon",
+	},
+	MINperAPP: {
+		statName: "minutesPerApp",
+		displayText: "Minutes Per Appearance", // The text displayed at all times on the page.
+		shortText: "MINperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "minutes per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of minutes played per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Per App/Minute Stat",
+		iconName: "MinutesPerAppearance-Icon",
+		statUnit: "mins",
+	},
+	MOMperAPP: {
+		statName: "momPerApp",
+		displayText: "Man of the Match Per Appearance", // The text displayed at all times on the page.
+		shortText: "MOMperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "man of the match per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of man of the match awards per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "MOMPerAppearance-Icon",
+	},
+	YperAPP: {
+		statName: "yellowCardsPerApp",
+		displayText: "Yellow Cards Per Appearance", // The text displayed at all times on the page.
+		shortText: "YperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "yellow cards per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of yellow cards received per appearance by the player.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "YellowCardsPerAppearance-Icon",
+	},
+	RperAPP: {
+		statName: "redCardsPerApp",
+		displayText: "Red Cards Per Appearance", // The text displayed at all times on the page.
+		shortText: "RperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "red cards per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of red cards received per appearance by the player.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "RedCardsPerAppearance-Icon",
+	},
+	SAVESperAPP: {
+		statName: "savesPerApp",
+		displayText: "Saves Per Appearance", // The text displayed at all times on the page.
+		shortText: "SAVESperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "saves per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of saves made per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "SavesPerAppearance-Icon",
+	},
+	OGperAPP: {
+		statName: "ownGoalsPerApp",
+		displayText: "Own Goals Per Appearance", // The text displayed at all times on the page.
+		shortText: "OGperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "own goals per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of own goals scored per appearance by the player.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "OwnGoalsPerAppearance-Icon",
+	},
+	CLSperAPP: {
+		statName: "cleanSheetsPerApp",
+		displayText: "Clean Sheets Per Appearance", // The text displayed at all times on the page.
+		shortText: "CLSperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "clean sheets per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of clean sheets achieved per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "CleanSheetsPerAppearance-Icon",
+	},
+	PSCperAPP: {
+		statName: "penaltiesScoredPerApp",
+		displayText: "Penalties Scored Per Appearance", // The text displayed at all times on the page.
+		shortText: "PSCperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties scored per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of penalties scored per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "PenaltiesScoredPerAppearance-Icon",
+	},
+	PMperAPP: {
+		statName: "penaltiesMissedPerApp",
+		displayText: "Penalties Missed Per Appearance", // The text displayed at all times on the page.
+		shortText: "PMperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties missed per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of penalties missed per appearance by the player.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "PenaltiesMissedPerAppearance-Icon",
+	},
+	PCOperAPP: {
+		statName: "penaltiesConcededPerApp",
+		displayText: "Penalties Conceded Per Appearance", // The text displayed at all times on the page.
+		shortText: "PCOperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties conceded per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of penalties conceded per appearance by the player.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "PenaltiesConcededPerAppearance-Icon",
+	},
+	PSVperAPP: {
+		statName: "penaltiesSavedPerApp",
+		displayText: "Penalties Saved Per Appearance", // The text displayed at all times on the page.
+		shortText: "PSVperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties saved per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of penalties saved per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "PenaltiesSavedPerAppearance-Icon",
 	},
 	DIST: {
 		statName: "distance",

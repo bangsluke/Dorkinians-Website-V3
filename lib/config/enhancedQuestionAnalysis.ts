@@ -363,11 +363,22 @@ export class EnhancedQuestionAnalyzer {
 			'Own Goals',          // Most specific - own goals - helps stop the chatbot returning goals
 			'Goals Conceded Per Appearance', // Most specific - average calculation metrics
 			'Conceded Per Appearance', // Most specific - average calculation metrics (alternative naming)
-			'Goals Per Appearance',     // Average calculation metrics
-			'Assists Per Appearance',
-			'Fantasy Points Per Appearance',
 			'Minutes Per Goal',   // More specific than general minutes
 			'Minutes Per Clean Sheet', // More specific than general minutes
+			'Minutes Per Appearance',   // More specific than general minutes - MOVED UP to test priority
+			'Man of the Match Per Appearance', // More specific than general MOM
+			'Goals Per Appearance',     // Average calculation metrics - MOVED DOWN to test priority
+			'Assists Per Appearance',
+			'Fantasy Points Per Appearance',
+			'Yellow Cards Per Appearance', // More specific than general yellow cards
+			'Red Cards Per Appearance', // More specific than general red cards
+			'Saves Per Appearance', // More specific than general saves
+			'Own Goals Per Appearance', // More specific than general own goals
+			'Clean Sheets Per Appearance', // More specific than general clean sheets
+			'Penalties Scored Per Appearance', // More specific than general penalties scored
+			'Penalties Missed Per Appearance', // More specific than general penalties missed
+			'Penalties Conceded Per Appearance', // More specific than general penalties conceded
+			'Penalties Saved Per Appearance', // More specific than general penalties saved
 			'Goals Conceded',     // More specific than general goals
 			'Open Play Goals',    // More specific than general goals
 			'Penalties Scored',   // More specific than general goals
@@ -453,9 +464,6 @@ export class EnhancedQuestionAnalyzer {
 			// Calculated stats
 			'Goal Involvements': 'GI',
 			'All Goals Scored': 'ALLGSC',
-			'Conceded Per Appearance': 'CPERAPP',
-			'Minutes Per Goal': 'MPERG',
-			'Minutes Per Clean Sheet': 'MPERCLS',
 			
 			// Location stats
 			'Home': 'HOME',
@@ -496,9 +504,25 @@ export class EnhancedQuestionAnalyzer {
 			
 			// Average calculation metrics
 			'Goals Per Appearance': 'GperAPP',
-			'Assists Per Appearance': 'APERAPP',
-			'Fantasy Points Per Appearance': 'FTPPERAPP',
-			'Goals Conceded Per Appearance': 'CPERAPP',
+			'Conceded Per Appearance': 'CperAPP',
+			'Minutes Per Goal': 'MperG',
+			'Minutes Per Clean Sheet': 'MperCLS',
+			'Assists Per Appearance': 'AperAPP',
+			'Fantasy Points Per Appearance': 'FTPperAPP',
+			'Goals Conceded Per Appearance': 'CperAPP',
+			
+			// Additional Per Appearance metrics
+			'Minutes Per Appearance': 'MINperAPP',
+			'Man of the Match Per Appearance': 'MOMperAPP',
+			'Yellow Cards Per Appearance': 'YperAPP',
+			'Red Cards Per Appearance': 'RperAPP',
+			'Saves Per Appearance': 'SAVESperAPP',
+			'Own Goals Per Appearance': 'OGperAPP',
+			'Clean Sheets Per Appearance': 'CLSperAPP',
+			'Penalties Scored Per Appearance': 'PSCperAPP',
+			'Penalties Missed Per Appearance': 'PMperAPP',
+			'Penalties Conceded Per Appearance': 'PCOperAPP',
+			'Penalties Saved Per Appearance': 'PSVperAPP',
 			
 			// Awards and special stats
 			'Man of the Match': 'MOM',
