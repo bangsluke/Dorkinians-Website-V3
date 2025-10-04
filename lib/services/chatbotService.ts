@@ -361,7 +361,8 @@ export class ChatbotService {
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
-			const metric = (metrics[0] || "").toUpperCase();
+			const originalMetric = metrics[0] || "";
+			const metric = originalMetric.toUpperCase();
 
 			// Check if this is a team-specific question
 			// First check if the player name itself is a team
@@ -465,12 +466,12 @@ export class ChatbotService {
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
 					this.logToBoth(`❌ Player not found: ${actualPlayerName}`);
-					return { 
-						type: "player_not_found", 
-						data: [], 
+					return {
+						type: "player_not_found",
+						data: [],
 						message: `I couldn't find a player named "${actualPlayerName}" in the database. Please check the spelling or try a different player name.`,
 						playerName: actualPlayerName,
-						metric
+						metric: originalMetric
 					};
 				}
 
@@ -486,7 +487,7 @@ export class ChatbotService {
 					this.logToBoth(`❌ No results found for ${actualPlayerName} with metric ${metric}`);
 				}
 
-				return { type: "specific_player", data: result, playerName: actualPlayerName, metric, cypherQuery: query };
+				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: originalMetric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth(`❌ Error in player query:`, error, "error");
 				return { type: "error", data: [], error: "Error querying player data" };
@@ -884,7 +885,7 @@ export class ChatbotService {
 				MATCH (p:Player {playerName: $playerName})
 				RETURN p.playerName as playerName, p.mostCommonPosition as value
 			`;
-		} else if (metric === 'MPERG') {
+		} else if (metric.toUpperCase() === 'MPERG' || metric === 'MperG') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -896,7 +897,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric === 'MPERCLS') {
+		} else if (metric.toUpperCase() === 'MPERCLS' || metric === 'MperCLS') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -908,7 +909,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric === 'FTPPERAPP') {
+		} else if (metric.toUpperCase() === 'FTPPERAPP' || metric === 'FTPperAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -920,11 +921,12 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'CPERAPP') {
+		} else if (metric.toUpperCase() === 'CPERAPP' || metric === 'CperAPP') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WITH p, 
-					sum(coalesce(md.conceded, 0)) as totalConceded,
+					sum(coalesce(f.conceded, 0)) as totalConceded,
 					count(md) as totalAppearances
 				RETURN p.playerName as playerName, 
 					CASE 
@@ -941,6 +943,139 @@ export class ChatbotService {
 				RETURN p.playerName as playerName, 
 					CASE 
 						WHEN totalAppearances > 0 THEN round(10.0 * totalGoals / totalAppearances) / 10.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'MINPERAPP' || metric === 'MINperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.minutes, 0)) as totalMinutes,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalMinutes / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'MOMPERAPP' || metric === 'MOMperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.mom, 0)) as totalMOM,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalMOM / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'YPERAPP' || metric === 'YperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.yellowCards, 0)) as totalYellowCards,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalYellowCards / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'RPERAPP' || metric === 'RperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.redCards, 0)) as totalRedCards,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalRedCards / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'SAVESPERAPP' || metric === 'SAVESperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.saves, 0)) as totalSaves,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalSaves / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'OGPERAPP' || metric === 'OGperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.ownGoals, 0)) as totalOwnGoals,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalOwnGoals / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'CLSPERAPP' || metric === 'CLSperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN coalesce(f.conceded, 0) = 0 THEN 1 ELSE 0 END) as totalCleanSheets,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalCleanSheets / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'PSCPERAPP' || metric === 'PSCperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.penaltiesScored, 0)) as totalPenaltiesScored,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalPenaltiesScored / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'PMPERAPP' || metric === 'PMperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.penaltiesMissed, 0)) as totalPenaltiesMissed,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalPenaltiesMissed / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'PCOPERAPP' || metric === 'PCOperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.penaltiesConceded, 0)) as totalPenaltiesConceded,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalPenaltiesConceded / totalAppearances) / 100.0
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'PSVPERAPP' || metric === 'PSVperAPP') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WITH p, 
+					sum(coalesce(md.penaltiesSaved, 0)) as totalPenaltiesSaved,
+					count(md) as totalAppearances
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalAppearances > 0 THEN round(100.0 * totalPenaltiesSaved / totalAppearances) / 100.0
 						ELSE 0.0 
 					END as value
 			`;

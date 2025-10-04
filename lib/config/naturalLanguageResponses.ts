@@ -81,6 +81,17 @@ export const verbMappings: { [key: string]: VerbMapping[] } = {
 	MperG: [{ verb: "takes", alternativeVerbs: ["takes", "requires"], context: "minutes per goal" }],
 	MperCLS: [{ verb: "takes", alternativeVerbs: ["takes", "requires"], context: "minutes per clean sheet" }],
 	FTPperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "earned"], context: "fantasy points per appearance" }],
+	MINperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "played"], context: "minutes per appearance" }],
+	MOMperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "won"], context: "man of the match per appearance" }],
+	YperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "received"], context: "yellow cards per appearance" }],
+	RperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "received"], context: "red cards per appearance" }],
+	SAVESperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "made"], context: "saves per appearance" }],
+	OGperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "scored"], context: "own goals per appearance" }],
+	CLSperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "kept"], context: "clean sheets per appearance" }],
+	PSCperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "scored"], context: "penalties scored per appearance" }],
+	PMperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "missed"], context: "penalties missed per appearance" }],
+	PCOperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "conceded"], context: "penalties conceded per appearance" }],
+	PSVperAPP: [{ verb: "averaged", alternativeVerbs: ["averaged", "saved"], context: "penalties saved per appearance" }],
 	DIST: [{ verb: "travelled", alternativeVerbs: ["travelled", "covered"], context: "distance" }],
 };
 

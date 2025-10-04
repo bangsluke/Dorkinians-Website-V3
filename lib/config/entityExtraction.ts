@@ -113,7 +113,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Goals': ['goals(?!\\s+(?:on\\s+average\\s+does|conceded))', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
 	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
-	'Apps': ['apps', 'appearances', 'played in', 'played with'],
+	'Apps': ['apps', 'played in', 'played with', 'Appearances', 'total appearances', 'number of appearances', 'how many appearances', 'appearances made', 'appearances played'],
 	'Minutes': ['minutes of football', 'minutes played', 'playing time', 'time played', 'minutes', 'minute', 'mins'],
 	'Yellow Cards': ['yellow cards', 'yellow card', 'yellows', 'bookings', 'cautions'],
 	'Red Cards': ['red cards', 'red card', 'reds', 'dismissals', 'sendings off'],
@@ -134,19 +134,30 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Co Players': ['co players', 'teammates', 'played with', 'team mates'],
 	'Opponents': ['opponents', 'played against', 'faced', 'versus'],
 	'Fantasy Points': ['fantasy points', 'fantasy score', 'fantasy point', 'points', 'ftp', 'fp'],
-	'Goals Per Appearance': ['goals on average has scored', 'goals per appearance', 'goals per app', 'goals per game', 'goals per match', 'goals on average scored', 'average goals scored'],
-	'Conceded Per Appearance': ['goals on average does.*concede per match', 'goals on average does.*concede per game', 'conceded on average does', 'conceded per appearance', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
+	'Goals Per Appearance': ['goals per game', 'goals per match', 'goals on average scored', 'average goals scored'],
+	'Conceded Per Appearance': ['goals on average does.*concede per match', 'goals on average does.*concede per game', 'conceded on average does', 'conceded per app', 'conceded per game', 'conceded per match', 'conceded on average', 'average conceded'],
 	'Minutes Per Goal': ['minutes does it take on average', 'minutes does it take', 'minutes per goal', 'mins per goal', 'time per goal', 'minutes on average', 'average minutes'],
-	'Score': ['goals scored', 'score', 'scores', 'scoring'],
+	'Score': ['goals scored', 'scores', 'scoring', 'score'],
 	'Awards': ['awards', 'prizes', 'honors', 'honours', 'recognition'],
 	'Leagues': ['leagues', 'league titles', 'championships', 'titles'],
 	'Penalty record': ['penalty conversion rate', 'penalty record', 'spot kick record', 'pen conversion'],
 	'Home': ['home games', 'home matches', 'at home'],
 	'Away': ['away games', 'away matches', 'away from home', 'on the road', 'away'],
 	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season', 'prolific season', 'was most prolific season', 'most prolific season was', 'what was most prolific season', 'most prolific season what', 'prolific season was', 'was prolific season'],
-	'Assists Per Appearance': ['assists per appearance', 'assists per app', 'assists per game', 'assisting rate', 'assists on average', 'average assists', 'assists per match'],
-	'Fantasy Points Per Appearance': ['fantasy points per appearance', 'fantasy points per app', 'fantasy points per game', 'fantasy rate', 'fantasy points on average', 'average fantasy points', 'fantasy points per match'],
-	'Goals Conceded Per Appearance': ['goals conceded per appearance', 'goals conceded per app', 'goals conceded per game', 'conceding rate', 'goals conceded on average', 'average goals conceded', 'goals conceded per match'],
+	'Assists Per Appearance': ['assists per app', 'assists per game', 'assisting rate', 'assists on average', 'average assists', 'assists per match'],
+	'Fantasy Points Per Appearance': ['fantasy points does.*score per appearance', 'fantasy points per appearance', 'fantasy points per app', 'fantasy points per game', 'fantasy rate', 'fantasy points on average', 'average fantasy points', 'fantasy points per match'],
+	'Goals Conceded Per Appearance': ['goals conceded per app', 'goals conceded per game', 'conceding rate', 'goals conceded on average', 'average goals conceded', 'goals conceded per match'],
+	'Minutes Per Appearance': ['minutes per appearance', 'minutes per app', 'minutes per game', 'time per appearance', 'time per app', 'time per game', 'minutes on average', 'average minutes'],
+	'Man of the Match Per Appearance': ['mom per appearance', 'mom per app', 'mom per game', 'man of the match per appearance', 'man of the match per app', 'man of the match per game', 'mom on average', 'average mom'],
+	'Yellow Cards Per Appearance': ['yellow cards per appearance', 'yellow cards per app', 'yellow cards per game', 'yellows per appearance', 'yellows per app', 'yellows per game', 'yellow cards on average', 'average yellow cards'],
+	'Red Cards Per Appearance': ['red cards per appearance', 'red cards per app', 'red cards per game', 'reds per appearance', 'reds per app', 'reds per game', 'red cards on average', 'average red cards'],
+	'Saves Per Appearance': ['saves per appearance', 'saves per app', 'saves per game', 'save per appearance', 'save per app', 'save per game', 'saves on average', 'average saves'],
+	'Own Goals Per Appearance': ['own goals per appearance', 'own goals per app', 'own goals per game', 'own goal per appearance', 'own goal per app', 'own goal per game', 'own goals on average', 'average own goals'],
+	'Clean Sheets Per Appearance': ['clean sheets per appearance', 'clean sheets per app', 'clean sheets per game', 'clean sheet per appearance', 'clean sheet per app', 'clean sheet per game', 'clean sheets on average', 'average clean sheets'],
+	'Penalties Scored Per Appearance': ['penalties scored per appearance', 'penalties scored per app', 'penalties scored per game', 'penalty scored per appearance', 'penalty scored per app', 'penalty scored per game', 'penalties scored on average', 'average penalties scored'],
+	'Penalties Missed Per Appearance': ['penalties missed per appearance', 'penalties missed per app', 'penalties missed per game', 'penalty missed per appearance', 'penalty missed per app', 'penalty missed per game', 'penalties missed on average', 'average penalties missed'],
+	'Penalties Conceded Per Appearance': ['penalties conceded per appearance', 'penalties conceded per app', 'penalties conceded per game', 'penalty conceded per appearance', 'penalty conceded per app', 'penalty conceded per game', 'penalties conceded on average', 'average penalties conceded'],
+	'Penalties Saved Per Appearance': ['penalties saved per appearance', 'penalties saved per app', 'penalties saved per game', 'penalty saved per appearance', 'penalty saved per app', 'penalty saved per game', 'penalties saved on average', 'average penalties saved'],
 	'Team Analysis': ['most appearances for', 'most goals for', 'played for', 'teams played for'],
 	'Season Analysis': ['seasons played in', 'seasons', 'years played'],
 	'Distance Travelled': ['distance travelled', 'distance traveled', 'miles travelled', 'miles traveled', 'how far', 'travelled', 'traveled', 'distance', 'miles'],
@@ -435,8 +446,9 @@ export class EntityExtractor {
 				}
 				
 				const matches = this.findMatches(regex);
-				// if (matches.length > 0) {
+				// if (matches.length > 0 && pseudonym.includes('appearance')) {
 				// 	console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
+				// 	console.log(`🔍 Stat Type Debug - Regex:`, regex);
 				// }
 				matches.forEach(match => {
 					statTypes.push({
@@ -468,8 +480,8 @@ export class EntityExtractor {
 			
 			if (alreadyMatched || word.length < 3) continue;
 			
-			// Try to find fuzzy matches for this word
-			const bestMatch = await this.findBestStatTypeMatch(word);
+			// Try to find fuzzy matches for this word with context awareness
+			const bestMatch = await this.findBestStatTypeMatchWithContext(word, existingStatTypes);
 			if (bestMatch) {
 				// Check if this word appears in the original question
 				const position = this.question.toLowerCase().indexOf(word);
@@ -482,6 +494,109 @@ export class EntityExtractor {
 				}
 			}
 		}
+	}
+
+	private async findBestStatTypeMatchWithContext(word: string, existingStatTypes: StatTypeInfo[]): Promise<string | null> {
+		// Get all stat type pseudonyms
+		const allPseudonyms: string[] = [];
+		Object.values(STAT_TYPE_PSEUDONYMS).forEach(pseudonyms => {
+			allPseudonyms.push(...pseudonyms);
+		});
+		
+		// Find the best match using the entity resolver
+		const bestMatch = await this.entityResolver.getBestMatch(word, 'stat_type');
+		
+		// If no match found, try manual fuzzy matching with context awareness
+		if (!bestMatch) {
+			let bestScore = 0;
+			let bestStatType = null;
+			
+			// Special handling for "appearance" - only match if we have context
+			if (word === 'appearance') {
+				// Map all MatchDetails stats to their corresponding "Per Appearance" stat types
+				const matchDetailsStats = [
+					{ stat: 'minutes', statType: 'Minutes Per Appearance' },
+					{ stat: 'mom', statType: 'Man of the Match Per Appearance' },
+					{ stat: 'goals', statType: 'Goals Per Appearance' },
+					{ stat: 'assists', statType: 'Assists Per Appearance' },
+					{ stat: 'yellowCards', statType: 'Yellow Cards Per Appearance' },
+					{ stat: 'redCards', statType: 'Red Cards Per Appearance' },
+					{ stat: 'saves', statType: 'Saves Per Appearance' },
+					{ stat: 'ownGoals', statType: 'Own Goals Per Appearance' },
+					{ stat: 'conceded', statType: 'Conceded Per Appearance' },
+					{ stat: 'cleanSheets', statType: 'Clean Sheets Per Appearance' },
+					{ stat: 'penaltiesScored', statType: 'Penalties Scored Per Appearance' },
+					{ stat: 'penaltiesMissed', statType: 'Penalties Missed Per Appearance' },
+					{ stat: 'penaltiesConceded', statType: 'Penalties Conceded Per Appearance' },
+					{ stat: 'penaltiesSaved', statType: 'Penalties Saved Per Appearance' },
+					{ stat: 'fantasyPoints', statType: 'Fantasy Points Per Appearance' }
+				];
+				
+				// Check for context clues in the question text
+				for (const { stat, statType } of matchDetailsStats) {
+					// Check for various forms of the stat name in the question
+					const statPatterns = this.getStatPatterns(stat);
+					const hasContext = statPatterns.some(pattern => 
+						this.lowerQuestion.includes(pattern)
+					);
+					
+					if (hasContext) {
+						return statType;
+					}
+				}
+				
+				// If no specific context found, don't match "appearance" by itself
+				return null;
+			}
+			
+			// For other words, use normal fuzzy matching
+			for (const [statType, pseudonyms] of Object.entries(STAT_TYPE_PSEUDONYMS)) {
+				for (const pseudonym of pseudonyms) {
+					const score = this.calculateSimilarity(word, pseudonym);
+					if (score > bestScore && score > 0.7) { // Threshold for fuzzy matching
+						bestScore = score;
+						bestStatType = statType;
+					}
+				}
+			}
+			
+			return bestStatType;
+		}
+		
+		return bestMatch;
+	}
+
+	/**
+	 * Get various patterns for a stat name to check for context
+	 * Reuses existing patterns from STAT_TYPE_PSEUDONYMS to avoid duplication
+	 */
+	private getStatPatterns(stat: string): string[] {
+		// Map internal stat names to their corresponding STAT_TYPE_PSEUDONYMS keys
+		const statMapping: { [key: string]: string } = {
+			'minutes': 'Minutes',
+			'mom': 'Man of the Match',
+			'goals': 'Goals',
+			'assists': 'Assists',
+			'yellowCards': 'Yellow Cards',
+			'redCards': 'Red Cards',
+			'saves': 'Saves',
+			'ownGoals': 'Own Goals',
+			'conceded': 'Goals Conceded',
+			'cleanSheets': 'Clean Sheets',
+			'penaltiesScored': 'Penalties Scored',
+			'penaltiesMissed': 'Penalties Missed',
+			'penaltiesConceded': 'Penalties Conceded',
+			'penaltiesSaved': 'Penalties Saved',
+			'fantasyPoints': 'Fantasy Points'
+		};
+		
+		const mappedStat = statMapping[stat];
+		if (mappedStat && mappedStat in STAT_TYPE_PSEUDONYMS) {
+			return STAT_TYPE_PSEUDONYMS[mappedStat as keyof typeof STAT_TYPE_PSEUDONYMS];
+		}
+		
+		// Fallback to the original stat name if no mapping found
+		return [stat];
 	}
 
 	private async findBestStatTypeMatch(word: string): Promise<string | null> {
