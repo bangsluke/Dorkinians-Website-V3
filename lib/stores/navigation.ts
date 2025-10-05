@@ -33,31 +33,24 @@ export interface PlayerData {
 	minutesPerCleanSheet: number;
 	fantasyPointsPerApp: number;
 	distance: number;
-	homeGames: number;
-	homeWins: number;
-	homeGamesPercentWon: number;
-	awayGames: number;
-	awayWins: number;
-	awayGamesPercentWon: number;
-	gamesPercentWon: number;
-	apps1s: number;
-	apps2s: number;
-	apps3s: number;
-	apps4s: number;
-	apps5s: number;
-	apps6s: number;
-	apps7s: number;
-	apps8s: number;
+	// Derived stats from statObject
+	openPlayGoalsScored: number;
+	goalInvolvements: number;
+	minutesPerApp: number;
+	momPerApp: number;
+	yellowCardsPerApp: number;
+	redCardsPerApp: number;
+	savesPerApp: number;
+	ownGoalsPerApp: number;
+	cleanSheetsPerApp: number;
+	penaltiesScoredPerApp: number;
+	penaltiesMissedPerApp: number;
+	penaltiesConcededPerApp: number;
+	penaltiesSavedPerApp: number;
+	
+	// Team and season tracking
 	mostPlayedForTeam: string;
 	numberTeamsPlayedFor: number;
-	goals1s: number;
-	goals2s: number;
-	goals3s: number;
-	goals4s: number;
-	goals5s: number;
-	goals6s: number;
-	goals7s: number;
-	goals8s: number;
 	mostScoredForTeam: string;
 	numberSeasonsPlayedFor: number;
 	graphLabel: string;
@@ -67,6 +60,30 @@ export interface PlayerData {
 export interface CachedPlayerData {
 	playerData: PlayerData;
 	selectedDate: string; // YYYY-MM-DD format
+}
+
+// Filter interfaces
+export interface PlayerFilters {
+	timeRange: {
+		type: 'season' | 'beforeDate' | 'afterDate' | 'betweenDates';
+		seasons: string[];
+		beforeDate: string;
+		afterDate: string;
+		startDate: string;
+		endDate: string;
+	};
+	teams: string[];
+	location: ('Home' | 'Away')[];
+	opposition: {
+		allOpposition: boolean;
+		searchTerm: string;
+	};
+	competition: {
+		types: ('League' | 'Cup' | 'Friendly')[];
+		searchTerm: string;
+	};
+	result: ('Win' | 'Draw' | 'Loss')[];
+	position: ('GK' | 'DEF' | 'MID' | 'FWD')[];
 }
 
 interface NavigationState {
@@ -85,6 +102,18 @@ interface NavigationState {
 	// Player data caching
 	cachedPlayerData: CachedPlayerData | null;
 	isLoadingPlayerData: boolean;
+	// Filter state
+	playerFilters: PlayerFilters;
+	isFilterSidebarOpen: boolean;
+	hasUnsavedFilters: boolean;
+	// Filter data cache
+	filterData: {
+		seasons: Array<{season: string, startDate: string, endDate: string}>;
+		teams: Array<{name: string}>;
+		opposition: Array<{name: string}>;
+		competitions: Array<{name: string, type: string}>;
+	};
+	isFilterDataLoaded: boolean;
 	// Navigation actions
 	setMainPage: (page: MainPage) => void;
 	setStatsSubPage: (page: StatsSubPage) => void;
@@ -97,6 +126,12 @@ interface NavigationState {
 	// Player data actions
 	fetchAndCachePlayerData: (playerName: string) => Promise<void>;
 	validateAndRefreshPlayerData: (playerName: string) => Promise<void>;
+	// Filter actions
+	openFilterSidebar: () => void;
+	closeFilterSidebar: () => void;
+	updatePlayerFilters: (filters: Partial<PlayerFilters>) => void;
+	applyPlayerFilters: () => Promise<void>;
+	resetPlayerFilters: () => void;
 	// Swipe navigation helpers
 	nextStatsSubPage: () => void;
 	previousStatsSubPage: () => void;
@@ -106,6 +141,8 @@ interface NavigationState {
 	previousClubInfoSubPage: () => void;
 	// Initialization
 	initializeFromStorage: () => void;
+	// Filter data loading
+	loadFilterData: () => Promise<void>;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -119,6 +156,39 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	isEditMode: false,
 	cachedPlayerData: null,
 	isLoadingPlayerData: false,
+	// Filter initial state
+	playerFilters: {
+		timeRange: {
+			type: 'season',
+			seasons: [],
+			beforeDate: '',
+			afterDate: '',
+			startDate: '',
+			endDate: ''
+		},
+		teams: [],
+		location: ['Home', 'Away'],
+		opposition: {
+			allOpposition: true,
+			searchTerm: ''
+		},
+		competition: {
+			types: ['League', 'Cup'],
+			searchTerm: ''
+		},
+		result: ['Win', 'Draw', 'Loss'],
+		position: ['GK', 'DEF', 'MID', 'FWD']
+	},
+	isFilterSidebarOpen: false,
+	hasUnsavedFilters: false,
+	// Filter data cache
+	filterData: {
+		seasons: [],
+		teams: [],
+		opposition: [],
+		competitions: []
+	},
+	isFilterDataLoaded: false,
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
@@ -360,5 +430,150 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
 		const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1;
 		set({ currentClubInfoSubPage: subPages[prevIndex] });
+	},
+
+	// Filter actions
+	openFilterSidebar: () => {
+		set({ isFilterSidebarOpen: true });
+	},
+
+	closeFilterSidebar: () => {
+		const { hasUnsavedFilters } = get();
+		if (hasUnsavedFilters) {
+			const confirmed = window.confirm("You have unsaved filter changes. Are you sure you want to close without applying them?");
+			if (!confirmed) return;
+		}
+		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
+	},
+
+	updatePlayerFilters: (filters: Partial<PlayerFilters>) => {
+		const currentFilters = get().playerFilters;
+		const newFilters = { ...currentFilters, ...filters };
+		set({ 
+			playerFilters: newFilters,
+			hasUnsavedFilters: true 
+		});
+	},
+
+	applyPlayerFilters: async () => {
+		const { selectedPlayer, playerFilters } = get();
+		if (!selectedPlayer) return;
+
+		// Apply filters for player
+		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
+		
+		// Fetch filtered player data
+		try {
+			set({ isLoadingPlayerData: true });
+			
+			const response = await fetch('/api/player-data-filtered', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					playerName: selectedPlayer,
+					filters: playerFilters
+				})
+			});
+
+			if (response.ok) {
+				const data = await response.json();
+				
+				// Log copyable query for debugging
+				if (data.debug && data.debug.copyPasteQuery) {
+					console.log('🔍 COPY-PASTE QUERY FOR MANUAL TESTING:');
+					console.log(data.debug.copyPasteQuery);
+				}
+				
+				const currentDate = new Date().toISOString().split('T')[0];
+				
+				// Cache the filtered data
+				const cachedData: CachedPlayerData = {
+					playerData: data.playerData,
+					selectedDate: currentDate
+				};
+
+				// Save to localStorage
+				if (typeof window !== "undefined") {
+					localStorage.setItem("dorkinians-cached-player-data", JSON.stringify(cachedData));
+				}
+
+				set({ 
+					cachedPlayerData: cachedData,
+					isLoadingPlayerData: false 
+				});
+			} else {
+				console.error('❌ Failed to fetch filtered player data');
+				const errorText = await response.text();
+				console.error('❌ Error response:', errorText);
+				set({ isLoadingPlayerData: false });
+			}
+		} catch (error) {
+			console.error('❌ Error fetching filtered player data:', error);
+			set({ isLoadingPlayerData: false });
+		}
+	},
+
+	resetPlayerFilters: () => {
+		set({
+			playerFilters: {
+				timeRange: {
+					type: 'season',
+					seasons: [],
+					beforeDate: '',
+					afterDate: '',
+					startDate: '',
+					endDate: ''
+				},
+				teams: [],
+				location: ['Home', 'Away'],
+				opposition: {
+					allOpposition: true,
+					searchTerm: ''
+				},
+				competition: {
+					types: ['League', 'Cup'],
+					searchTerm: ''
+				},
+				result: ['Win', 'Draw', 'Loss'],
+				position: ['GK', 'DEF', 'MID', 'FWD']
+			},
+			hasUnsavedFilters: false
+		});
+	},
+
+	// Load filter data asynchronously
+	loadFilterData: async () => {
+		if (get().isFilterDataLoaded) return; // Already loaded
+
+		try {
+			// Load all filter data in parallel
+			const [seasonsResponse, teamsResponse, oppositionResponse, competitionsResponse] = await Promise.all([
+				fetch('/api/seasons'),
+				fetch('/api/teams'),
+				fetch('/api/opposition'),
+				fetch('/api/competitions')
+			]);
+
+			const [seasons, teams, opposition, competitions] = await Promise.all([
+				seasonsResponse.json(),
+				teamsResponse.json(),
+				oppositionResponse.json(),
+				competitionsResponse.json()
+			]);
+
+			set({
+				filterData: {
+					seasons: seasons.seasons || [],
+					teams: teams.teams || [],
+					opposition: opposition.opposition || [],
+					competitions: competitions.competitions || []
+				},
+				isFilterDataLoaded: true
+			});
+		} catch (error) {
+			console.error('Failed to load filter data:', error);
+		}
 	},
 }));
