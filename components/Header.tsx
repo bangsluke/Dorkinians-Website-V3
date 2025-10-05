@@ -1,16 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Cog6ToothIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon, XMarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Image from "next/image";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
 	isSettingsPage?: boolean;
+	onFilterClick?: () => void;
+	showFilterIcon?: boolean;
 }
 
-export default function Header({ onSettingsClick, isSettingsPage = false }: HeaderProps) {
+export default function Header({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false }: HeaderProps) {
 	const { setMainPage } = useNavigationStore();
 
 	const handleLogoClick = () => {
@@ -37,15 +39,30 @@ export default function Header({ onSettingsClick, isSettingsPage = false }: Head
 					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
 				</motion.div>
 
-				{/* Settings/Close Icon */}
-				<motion.button
-					onClick={onSettingsClick}
-					className='p-2 rounded-full hover:bg-white/20 transition-colors'
-					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.9 }}
-					title={isSettingsPage ? "Close settings" : "Open settings"}>
-					{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-white' /> : <Cog6ToothIcon className='w-6 h-6 text-white' />}
-				</motion.button>
+				{/* Right side icons */}
+				<div className='flex items-center space-x-2'>
+					{/* Filter Icon - only show on Player Stats page */}
+					{showFilterIcon && onFilterClick && (
+						<motion.button
+							onClick={onFilterClick}
+							className='p-2 rounded-full hover:bg-white/20 transition-colors'
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.9 }}
+							title='Open filters'>
+							<FunnelIcon className='w-6 h-6 text-white' />
+						</motion.button>
+					)}
+
+					{/* Settings/Close Icon */}
+					<motion.button
+						onClick={onSettingsClick}
+						className='p-2 rounded-full hover:bg-white/20 transition-colors'
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.9 }}
+						title={isSettingsPage ? "Close settings" : "Open settings"}>
+						{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-white' /> : <Cog6ToothIcon className='w-6 h-6 text-white' />}
+					</motion.button>
+				</div>
 			</div>
 		</motion.header>
 	);

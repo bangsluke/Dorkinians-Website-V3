@@ -76,6 +76,8 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage } = useNavigationStore();
 
+	// Component state
+
 	const handleEditClick = () => {
 		enterEditMode();
 		setMainPage("home");
