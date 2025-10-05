@@ -9,13 +9,15 @@
     - [HTML Validation in React Components](#html-validation-in-react-components)
   - [State Management Patterns](#state-management-patterns)
     - [Zustand Store Design](#zustand-store-design)
+    - [Async Data Loading Store Pattern](#async-data-loading-store-pattern)
     - [Component State Management](#component-state-management)
+  - [Async Data Loading UI State Protocol](#async-data-loading-ui-state-protocol)
   - [Debugging \& Problem Solving](#debugging--problem-solving)
     - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
-    - [Schema Alignment Verification Protocol](#schema-alignment-verification-protocol)
+  - [Schema Alignment Verification Protocol](#schema-alignment-verification-protocol)
   - [Change Verification Protocol](#change-verification-protocol)
   - [Debug-First Approach Protocol](#debug-first-approach-protocol)
-    - [Systematic Error Investigation Protocol](#systematic-error-investigation-protocol)
+  - [Systematic Error Investigation Protocol](#systematic-error-investigation-protocol)
   - [Naming Consistency Enforcement Protocol](#naming-consistency-enforcement-protocol)
   - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
     - [Progressive Problem Escalation](#progressive-problem-escalation)
@@ -30,6 +32,7 @@
   - [Testing Protocol](#testing-protocol)
   - [Test Script Safety Protocol](#test-script-safety-protocol)
   - [User Experience Validation Protocol](#user-experience-validation-protocol)
+  - [Proactive UX Design Protocol](#proactive-ux-design-protocol)
   - [Fallback Mechanism Design](#fallback-mechanism-design)
   - [Iterative Correction Protocol](#iterative-correction-protocol)
   - [Documentation Verification Protocol](#documentation-verification-protocol)
@@ -119,11 +122,28 @@
 - **Rationale**: Prevents state updates during render phase which violate React rules
 - **Implementation**: Use useEffect for side effects, keep store actions pure
 
+#### Async Data Loading Store Pattern
+
+- **Rule**: Implement background data loading with store-level caching to improve user experience
+- **Rationale**: Pre-loading filter data eliminates loading delays and improves perceived performance
+- **Implementation**:
+  - Load data asynchronously on site initialization using Promise.all for parallel loading
+  - Cache data in store state with loading flags to prevent duplicate API calls
+  - Use data array length checks for UI state decisions rather than loading flags
+- **Example**: Load seasons, teams, opposition, and competitions data in parallel on site load, cache in store, check `filterData.seasons.length === 0` for loading states
+
 #### Component State Management
 
 - **Rule**: Each component should manage its own tooltip/UI state independently
 - **Rationale**: Prevents state conflicts and makes components more reusable
 - **Implementation**: Use individual useState hooks per component instance rather than shared state
+
+### Async Data Loading UI State Protocol
+
+- **Rule**: When implementing background data loading, always check actual data availability (array length) rather than loading flags for UI state decisions
+- **Rationale**: Loading flags may not accurately reflect data availability during async operations, causing false loading states
+- **Implementation**: Use `dataArray.length === 0` instead of `!isLoading` for loading state conditions
+- **Example**: `{filterData.seasons.length === 0 ? "Loading..." : <DataComponent />}` instead of `{!isLoading ? "Loading..." : <DataComponent />}`
 
 ### Debugging & Problem Solving
 
@@ -277,6 +297,16 @@
   - For UI changes: Confirm user-visible changes, not just component rendering
   - For data generation: Distinguish between sample data and comprehensive coverage requirements
 - **Example**: Email script reports "sent successfully" but user reports "table not showing" - investigate actual email content
+
+### Proactive UX Design Protocol
+
+- **Rule**: Consider user experience and space efficiency during initial implementation, not just after user feedback
+- **Rationale**: Proactive UX design prevents user corrections and improves initial user satisfaction
+- **Implementation**:
+  - Use grid layouts for checkbox lists to improve space efficiency
+  - Consider mobile responsiveness and screen real estate during design
+  - Anticipate user workflow needs and optimize accordingly
+- **Example**: Implement two-column layout for seasons checkboxes during initial development rather than waiting for user feedback about space efficiency
 
 ### Fallback Mechanism Design
 

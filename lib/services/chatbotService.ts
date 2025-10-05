@@ -39,19 +39,33 @@ export class ChatbotService {
 	}
 
 	// Helper function to format values according to config
-	private formatValueByMetric(metric: string, value: number | bigint | string): string {
+	private formatValueByMetric(metric: string, value: number | bigint | string | any): string {
 		// Handle BigInt values from Neo4j first
 		if (typeof value === 'bigint') {
 			return value.toString();
 		}
 		
-		// Handle string values (like position names)
+		// Handle Neo4j Integer objects (e.g., {low: 445, high: 0})
+		if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
+			value = value.low + (value.high * 4294967296); // Convert Neo4j Integer to number
+		}
+		
+		// Handle string values (like position names) - but check if it's a number string first
 		if (typeof value === 'string') {
-			return value;
+			// Check if it's a numeric string that needs formatting
+			const numValue = parseFloat(value);
+			if (!isNaN(numValue)) {
+				// It's a numeric string, continue with formatting logic
+				value = numValue;
+			} else {
+				// It's a non-numeric string, return as-is
+				return value;
+			}
 		}
 		
 		// Find the metric config
 		const metricConfig = statObject[metric as keyof typeof statObject];
+		
 		if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
 			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
 			return Number(value).toFixed(decimalPlaces);
@@ -466,9 +480,9 @@ export class ChatbotService {
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
 					this.logToBoth(`❌ Player not found: ${actualPlayerName}`);
-					return {
-						type: "player_not_found",
-						data: [],
+					return { 
+						type: "player_not_found", 
+						data: [], 
 						message: `I couldn't find a player named "${actualPlayerName}" in the database. Please check the spelling or try a different player name.`,
 						playerName: actualPlayerName,
 						metric: originalMetric
@@ -635,7 +649,7 @@ export class ChatbotService {
 		switch (metric.toUpperCase()) {
 			case 'MIN': return 'coalesce(p.minutes, 0)';
 			case 'MOM': return 'coalesce(p.mom, 0)';
-			case 'G': return 'coalesce(p.goals, 0)';
+			case 'G': return 'coalesce(p.allGoalsScored, 0)';
 			case 'A': return 'coalesce(p.assists, 0)';
 			case 'Y': return 'coalesce(p.yellowCards, 0)';
 			case 'R': return 'coalesce(p.redCards, 0)';
@@ -900,13 +914,14 @@ export class ChatbotService {
 		} else if (metric.toUpperCase() === 'MPERCLS' || metric === 'MperCLS') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WITH p, 
 					sum(coalesce(md.minutes, 0)) as totalMinutes,
-					sum(coalesce(md.cleanSheets, 0)) as totalCleanSheets
+					sum(CASE WHEN coalesce(f.conceded, 0) = 0 THEN 1 ELSE 0 END) as totalCleanSheets
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN totalCleanSheets > 0 THEN round(100.0 * totalMinutes / totalCleanSheets) / 100.0
-						ELSE 0.0 
+						WHEN totalCleanSheets > 0 THEN toInteger(round(totalMinutes / totalCleanSheets))
+						ELSE 0 
 					END as value
 			`;
 		} else if (metric.toUpperCase() === 'FTPPERAPP' || metric === 'FTPperAPP') {
@@ -1111,6 +1126,23 @@ export class ChatbotService {
 		const metricName = getMetricDisplayName(metric, value);
 		const formattedValue = this.formatValueByMetric(metric, value);
 		const verb = getAppropriateVerb(metric, value);
+		
+		// Special handling for specific metrics with custom formatting
+		if (metric === 'CperAPP') {
+			return `${playerName} has averaged ${formattedValue} goals conceded per appearance.`;
+		}
+		
+		if (metric === 'MperG') {
+			return `${playerName} averages ${formattedValue} minutes per goal scored.`;
+		}
+		
+		if (metric === 'MperCLS') {
+			return `${playerName} takes on average ${formattedValue} minutes to keep a clean sheet.`;
+		}
+		
+		if (metric === 'FTPperAPP') {
+			return `${playerName} averages ${formattedValue} fantasy points per appearance.`;
+		}
 		
 		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
 		let finalMetricName = metricName;

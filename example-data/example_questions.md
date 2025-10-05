@@ -44,3 +44,4 @@
 | Which was my highest scoring season?                                                                  | Record               | StatsData   |
 | Which season did Oli Goddard score the most goals for the 2s?                                         | Record               | StatsData   |
 | How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?   | NumberCard           | StatsData   |
+| Which opposition have I played the most games against?                                             | Table                | StatsData   |
