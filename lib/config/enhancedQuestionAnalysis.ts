@@ -367,9 +367,9 @@ export class EnhancedQuestionAnalyzer {
 			'Minutes Per Clean Sheet', // More specific than general minutes
 			'Minutes Per Appearance',   // More specific than general minutes - MOVED UP to test priority
 			'Man of the Match Per Appearance', // More specific than general MOM
+			'Fantasy Points Per Appearance', // MOVED UP to take priority over Goals Per Appearance
 			'Goals Per Appearance',     // Average calculation metrics - MOVED DOWN to test priority
 			'Assists Per Appearance',
-			'Fantasy Points Per Appearance',
 			'Yellow Cards Per Appearance', // More specific than general yellow cards
 			'Red Cards Per Appearance', // More specific than general red cards
 			'Saves Per Appearance', // More specific than general saves
