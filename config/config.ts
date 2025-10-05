@@ -439,6 +439,18 @@ export const statObject = {
 		statCategory: "Performance Stat",
 		iconName: "FantasyPoints-Icon",
 	},
+	GI: {
+		statName: "goalInvolvements",
+		displayText: "Goal Involvements", // The text displayed at all times on the page.
+		shortText: "GI", // Used for short displays such as on the Comparison tab.
+		wordedText: "goal involvements", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of goal involvements achieved by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Performance Stat",
+		iconName: "GoalInvolvements-Icon",
+	},
 	GperAPP: {
 		statName: "goalsPerApp",
 		displayText: "Goals Per Appearance", // The text displayed at all times on the page.
