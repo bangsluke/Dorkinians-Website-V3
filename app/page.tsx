@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
+import FilterSidebar from "@/components/filters/FilterSidebar";
 import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
 import TOTWContainer from "@/components/TOTWContainer";
@@ -16,6 +17,7 @@ import UpdateToast from "@/components/UpdateToast";
 export default function HomePage() {
 	const {
 		currentMainPage,
+		currentStatsSubPage,
 		selectedPlayer,
 		isPlayerSelected,
 		isEditMode,
@@ -24,6 +26,10 @@ export default function HomePage() {
 		initializeFromStorage,
 		validateAndRefreshPlayerData,
 		setMainPage,
+		openFilterSidebar,
+		closeFilterSidebar,
+		isFilterSidebarOpen,
+		loadFilterData,
 	} = useNavigationStore();
 
 	// console log the state of the home page
@@ -36,10 +42,11 @@ export default function HomePage() {
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 
-	// Initialize from localStorage after mount
+	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
 		initializeFromStorage();
-	}, [initializeFromStorage]);
+		loadFilterData(); // Load filter data asynchronously
+	}, [initializeFromStorage, loadFilterData]);
 
 	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
@@ -83,6 +90,13 @@ export default function HomePage() {
 	const handleSettingsClick = () => {
 		window.location.href = "/settings";
 	};
+
+	const handleFilterClick = () => {
+		openFilterSidebar();
+	};
+
+	// Check if we should show the filter icon (only on Player Stats page)
+	const showFilterIcon = currentMainPage === "stats" && currentStatsSubPage === "player-stats";
 
 	const renderCurrentPage = () => {
 		switch (currentMainPage) {
@@ -240,7 +254,11 @@ export default function HomePage() {
 		<>
 			<div className='min-h-screen'>
 				{/* Header */}
-				<Header onSettingsClick={handleSettingsClick} />
+				<Header 
+					onSettingsClick={handleSettingsClick} 
+					onFilterClick={handleFilterClick}
+					showFilterIcon={showFilterIcon}
+				/>
 
 				{/* Main Content */}
 				<main className='main-content-container'>
@@ -253,6 +271,12 @@ export default function HomePage() {
 
 				{/* Footer Navigation */}
 				<FooterNavigation />
+
+				{/* Filter Sidebar */}
+				<FilterSidebar 
+					isOpen={isFilterSidebarOpen}
+					onClose={closeFilterSidebar}
+				/>
 			</div>
 
 			{/* Update Toast */}
