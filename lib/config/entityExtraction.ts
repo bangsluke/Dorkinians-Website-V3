@@ -110,7 +110,7 @@ export const ENTITY_PSEUDONYMS = {
 export const STAT_TYPE_PSEUDONYMS = {
 	'Own Goals': ['own goals scored', 'own goal scored', 'own goals', 'own goal', 'og'],
 	'Goals Conceded': ['goals has conceded', 'goals have conceded', 'goals conceded', 'conceded goals', 'goals against'],
-	'Goals': ['goals(?!\\s+(?:on\\s+average\\s+does|conceded))', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
+	'Goals': ['goals(?!\\s+(?:on\\s+average\\s+does|conceded|from\\s+open\\s+play|in\\s+open\\s+play))', 'scoring', 'prolific', 'strikes', 'finishes', 'netted'],
 	'Open Play Goals': ['open play goals', 'open play goal', 'goals from open play', 'goals in open play', 'goals scored from open play', 'goals scored in open play', 'scored from open play', 'scored in open play', 'non-penalty goals', 'non penalty goals'],
 	'Assists': ['assists made', 'assists provided', 'assists', 'assist', 'assisting', 'assisted'],
 	'Apps': ['apps', 'played in', 'played with', 'Appearances', 'total appearances', 'number of appearances', 'how many appearances', 'appearances made', 'appearances played'],
@@ -143,6 +143,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 	'Penalty record': ['penalty conversion rate', 'penalty record', 'spot kick record', 'pen conversion'],
 	'Home': ['home games', 'home matches', 'at home'],
 	'Away': ['away games', 'away matches', 'away from home', 'on the road', 'away'],
+	'Home Games % Won': ['home games percentage won', 'home games percent won', 'home games % won', 'percentage of home games won', 'percent of home games won', '% of home games won', 'home win rate', 'home success rate'],
+	'Away Games % Won': ['away games percentage won', 'away games percent won', 'away games % won', 'percentage of away games won', 'percent of away games won', '% of away games won', 'away win rate', 'away success rate'],
+	'Games % Won': ['games percentage won', 'games percent won', 'games % won', 'percentage of games won', 'percent of games won', '% of games won', 'win rate', 'success rate', 'overall win rate'],
 	'Most Prolific Season': ['most prolific season', 'best season', 'top season', 'highest scoring season', 'prolific season', 'was most prolific season', 'most prolific season was', 'what was most prolific season', 'most prolific season what', 'prolific season was', 'was prolific season'],
 	'Assists Per Appearance': ['assists per app', 'assists per game', 'assisting rate', 'assists on average', 'average assists', 'assists per match'],
 	'Fantasy Points Per Appearance': ['fantasy points does.*score per appearance', 'fantasy points per appearance', 'fantasy points per app', 'fantasy points per game', 'fantasy rate', 'fantasy points on average', 'average fantasy points', 'fantasy points per match'],
