@@ -262,6 +262,11 @@ export class EnhancedQuestionAnalyzer {
 			return "temporal";
 		}
 
+		// Check for percentage queries
+		if (lowerQuestion.includes('percentage') || lowerQuestion.includes('percent') || lowerQuestion.includes('%')) {
+			return "player";
+		}
+
 		// Check for specific question patterns
 		if (lowerQuestion.includes('streak') || lowerQuestion.includes('consecutive') || lowerQuestion.includes('in a row')) {
 			return "streak";
@@ -355,8 +360,14 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect season-specific appearance queries
 		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(teamAppearanceCorrectedStats);
 		
+		// CRITICAL FIX: Detect open play goals queries
+		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
+		
+		// CRITICAL FIX: Detect percentage queries
+		const percentageCorrectedStats = this.correctPercentageQueries(openPlayCorrectedStats);
+		
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = appearanceCorrectedStats.map(stat => stat.value);
+		const statTypes = percentageCorrectedStats.map(stat => stat.value);
 		
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
@@ -534,7 +545,7 @@ export class EnhancedQuestionAnalyzer {
 			'Opponents': 'OPPONENTS',
 			
 			// Other stats
-			'Open Play Goals': 'G',
+			'Open Play Goals': 'OPENPLAYGOALS',
 			'Score': 'G',
 			'Awards': 'MOM',
 			'Leagues': 'TOTW',
@@ -864,15 +875,80 @@ export class EnhancedQuestionAnalyzer {
 		return statTypes;
 	}
 
+	private correctOpenPlayGoalsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for open play goals phrases that were incorrectly broken down
+		if (lowerQuestion.includes('goals') && lowerQuestion.includes('open play')) {
+			// Remove incorrect "Goals", "G", "AllGSC" mappings
+			const filteredStats = statTypes.filter(stat => 
+				!['Goals', 'G', 'AllGSC', 'All Goals Scored'].includes(stat.value)
+			);
+			
+			// Add correct "Open Play Goals" mapping
+			filteredStats.push({
+				value: 'Open Play Goals',
+				originalText: 'goals from open play',
+				position: lowerQuestion.indexOf('goals')
+			});
+			
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
+	private correctPercentageQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Check for percentage queries and map to correct metrics
+		if (lowerQuestion.includes('percentage') || lowerQuestion.includes('percent') || lowerQuestion.includes('%')) {
+			// Remove any existing stat types that might be incorrect
+			const filteredStats = statTypes.filter(stat => 
+				!['Home', 'Away', 'Games', 'Wins'].includes(stat.value)
+			);
+			
+			// Add correct percentage metric based on context
+			if (lowerQuestion.includes('home games') && lowerQuestion.includes('won')) {
+				filteredStats.push({
+					value: 'Home Games % Won',
+					originalText: 'percentage of home games won',
+					position: lowerQuestion.indexOf('percentage') || lowerQuestion.indexOf('percent') || lowerQuestion.indexOf('%')
+				});
+			} else if (lowerQuestion.includes('away games') && lowerQuestion.includes('won')) {
+				filteredStats.push({
+					value: 'Away Games % Won',
+					originalText: 'percentage of away games won',
+					position: lowerQuestion.indexOf('percentage') || lowerQuestion.indexOf('percent') || lowerQuestion.indexOf('%')
+				});
+			} else if (lowerQuestion.includes('games') && lowerQuestion.includes('won')) {
+				filteredStats.push({
+					value: 'Games % Won',
+					originalText: 'percentage of games won',
+					position: lowerQuestion.indexOf('percentage') || lowerQuestion.indexOf('percent') || lowerQuestion.indexOf('%')
+				});
+			}
+			
+			return filteredStats;
+		}
+		
+		return statTypes;
+	}
+
 
 	private extractLegacyTimeRange(extractionResult: EntityExtractionResult): string | undefined {
 		// Convert extracted time frames to legacy format
-		console.log("🔍 Time frames extracted:", extractionResult.timeFrames);
+		// Debug logging - only show in debug mode
+		if (process.env.DEBUG_MODE === 'true') {
+			console.log("🔍 Time frames extracted:", extractionResult.timeFrames);
+		}
 		
 		// Look for range type first (e.g., "20/03/2022 to 21/10/24")
 		const rangeFrame = extractionResult.timeFrames.find(tf => tf.type === 'range' && tf.value.includes(' to '));
 		if (rangeFrame) {
-			console.log("🔍 Using range time frame:", rangeFrame.value);
+			if (process.env.DEBUG_MODE === 'true') {
+				console.log("🔍 Using range time frame:", rangeFrame.value);
+			}
 			return rangeFrame.value;
 		}
 		

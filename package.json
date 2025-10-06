@@ -18,7 +18,8 @@
 		"test:watch": "jest --watch",
 		"test:coverage": "jest --coverage",
 		"test:integration": "jest --testPathPattern=integration",
-		"test:chatbot-report": "node scripts/test-chatbot-email-report.js"
+		"test:chatbot-report": "node scripts/test-chatbot-email-report.js",
+		"test:chatbot-report:debug": "cross-env DEBUG_MODE=true node scripts/test-chatbot-email-report.js"
 	},
 	"dependencies": {
 		"@headlessui/react": "^1.7.17",
