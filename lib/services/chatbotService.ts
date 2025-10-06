@@ -97,7 +97,11 @@ export class ChatbotService {
 		// Debug logging for metric config lookup
 		if (metric.includes('%')) {
 			this.logToBoth(`🔧 Looking up metric config for "${metric}":`, metricConfig);
+			this.logToBoth(`🔧 Resolved metric: "${resolvedMetric}"`);
 			this.logToBoth(`🔧 Available statObject keys:`, Object.keys(statObject).filter(key => key.includes('%')));
+			if (metricConfig) {
+				this.logToBoth(`🔧 Metric config numberDecimalPlaces:`, metricConfig.numberDecimalPlaces);
+			}
 		}
 		
 		if (metricConfig && typeof metricConfig === 'object') {
@@ -2386,7 +2390,7 @@ export class ChatbotService {
 
 	// Query ranking data for "which" questions (top players/teams)
 	private async queryRankingData(entities: string[], metrics: string[], analysis: any): Promise<any> {
-		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`);
+		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null);
 		
 		if (metrics.length === 0) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };

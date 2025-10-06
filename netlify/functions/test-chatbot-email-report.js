@@ -607,13 +607,14 @@ function formatValueByMetric(metric, value) {
 		}
 	}
 	
-	// Import the actual statObject from config.ts
+	// Import the actual statObject from config.ts using ts-node
 	let statObject;
 	try {
-		// Try to require the compiled version first
-		console.log('🔧 Trying to load config.js...');
-		statObject = require('../../config/config.js').statObject;
-		console.log('🔧 Successfully loaded config.js');
+		// Register ts-node to handle TypeScript imports
+		require('ts-node/register');
+		console.log('🔧 Loading config.ts via ts-node...');
+		statObject = require('../../config/config.ts').statObject;
+		console.log('🔧 Successfully loaded config.ts');
 	} catch (e) {
 		console.log('🔧 Using hardcoded statObject fallback, error:', e.message);
 		// Fallback to hardcoded values for now (since TypeScript import is failing)

@@ -602,13 +602,14 @@ function formatValueByMetric(metric, value) {
 		}
 	}
 	
-	// Import the actual statObject from config.ts
+	// Import the actual statObject from config.ts using ts-node
 	let statObject;
 	try {
-		// Try to require the compiled version first
-		logDebug('🔧 Trying to load config.js...');
-		statObject = require('../config/config.js').statObject;
-		logDebug('🔧 Successfully loaded config.js');
+		// Register ts-node to handle TypeScript imports
+		require('ts-node/register');
+		logDebug('🔧 Loading config.ts via ts-node...');
+		statObject = require('../config/config.ts').statObject;
+		logDebug('🔧 Successfully loaded config.ts');
 	} catch (e) {
 		logDebug('🔧 Using hardcoded statObject fallback, error:', e.message);
 		// Fallback to hardcoded values for now (since TypeScript import is failing)
@@ -635,17 +636,30 @@ function formatValueByMetric(metric, value) {
 			MPERCLS: { numberDecimalPlaces: 1 },
 			DIST: { numberDecimalPlaces: 1 },
 			// Percentage metrics fallback to ensure one decimal place in emails
-			"HomeGames%Won": { numberDecimalPlaces: 1 },
-			"AwayGames%Won": { numberDecimalPlaces: 1 },
-			"Games%Won": { numberDecimalPlaces: 1 }
+			"HomeGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
+			"AwayGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
+			"Games%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" }
 		};
 	}
 	
 	const metricConfig = statObject[metric];
-	if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
-		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-		logDebug(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
-		return Number(value).toFixed(decimalPlaces);
+	if (metricConfig && typeof metricConfig === 'object') {
+		// Handle percentage formatting
+		if (metricConfig.statFormat === 'Percentage') {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			// Check if value is already a percentage (>= 1) or a decimal (< 1)
+			const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
+			const result = percentageValue.toFixed(decimalPlaces) + '%';
+			logDebug(`🔧 Percentage formatting ${metric}: ${value} -> ${percentageValue} -> ${result}`);
+			return result;
+		}
+		
+		// Handle other numeric formatting
+		if ('numberDecimalPlaces' in metricConfig) {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			logDebug(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
+			return Number(value).toFixed(decimalPlaces);
+		}
 	}
 	
 	// Default to integer if no config found
