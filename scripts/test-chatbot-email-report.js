@@ -18,6 +18,20 @@ const nodemailer = require("nodemailer");
 // Load environment variables
 require("dotenv").config();
 
+// Check for debug mode
+const isDebugMode = process.env.DEBUG_MODE === 'true';
+
+// Conditional logging functions
+const logMinimal = (message) => {
+	console.log(message);
+};
+
+const logDebug = (message) => {
+	if (isDebugMode) {
+		console.log(message);
+	}
+};
+
 // Set up console logging to file
 const logDir = path.join(__dirname, "..", "logs");
 if (!fs.existsSync(logDir)) {
@@ -259,7 +273,7 @@ const STAT_TEST_CONFIGS = [
 	},
 	{
 		key: "HomeGames%Won",
-		metric: "homeGamesPercentWon",
+		metric: "HomeGames%Won",
 		questionTemplate: "What percentage of home games has {playerName} won?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Home Games % Won",
@@ -280,14 +294,14 @@ const STAT_TEST_CONFIGS = [
 	},
 	{
 		key: "AwayGames%Won",
-		metric: "awayGamesPercentWon",
+		metric: "AwayGames%Won",
 		questionTemplate: "What percent of away games has {playerName} won?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Away Games % Won",
 	},
 	{
 		key: "Games%Won",
-		metric: "gamesPercentWon",
+		metric: "Games%Won",
 		questionTemplate: "What % of games has {playerName} won?",
 		responsePattern: /(\d+(?:\.\d+)?)/,
 		description: "Games % Won",
@@ -570,7 +584,7 @@ let ChatbotService = null;
 
 // Helper function to format values according to stat configuration (same as chatbot)
 function formatValueByMetric(metric, value) {
-	console.log(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
+	logDebug(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
 	// Handle BigInt values from Neo4j first
 	if (typeof value === 'bigint') {
 		return value.toString();
@@ -588,15 +602,16 @@ function formatValueByMetric(metric, value) {
 		}
 	}
 	
-	// Import the actual statObject from config.ts
+	// Import the actual statObject from config.ts using ts-node
 	let statObject;
 	try {
-		// Try to require the compiled version first
-		console.log('🔧 Trying to load config.js...');
-		statObject = require('../config/config.js').statObject;
-		console.log('🔧 Successfully loaded config.js');
+		// Register ts-node to handle TypeScript imports
+		require('ts-node/register');
+		logDebug('🔧 Loading config.ts via ts-node...');
+		statObject = require('../config/config.ts').statObject;
+		logDebug('🔧 Successfully loaded config.ts');
 	} catch (e) {
-		console.log('🔧 Using hardcoded statObject fallback, error:', e.message);
+		logDebug('🔧 Using hardcoded statObject fallback, error:', e.message);
 		// Fallback to hardcoded values for now (since TypeScript import is failing)
 		statObject = {
 			FTP: { numberDecimalPlaces: 0 },
@@ -619,19 +634,36 @@ function formatValueByMetric(metric, value) {
 			FTPperAPP: { numberDecimalPlaces: 1 },
 			MPERG: { numberDecimalPlaces: 1 },
 			MPERCLS: { numberDecimalPlaces: 1 },
-			DIST: { numberDecimalPlaces: 1 }
+			DIST: { numberDecimalPlaces: 1 },
+			// Percentage metrics fallback to ensure one decimal place in emails
+			"HomeGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
+			"AwayGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
+			"Games%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" }
 		};
 	}
 	
 	const metricConfig = statObject[metric];
-	if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
-		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-		console.log(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
-		return Number(value).toFixed(decimalPlaces);
+	if (metricConfig && typeof metricConfig === 'object') {
+		// Handle percentage formatting
+		if (metricConfig.statFormat === 'Percentage') {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			// Check if value is already a percentage (>= 1) or a decimal (< 1)
+			const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
+			const result = percentageValue.toFixed(decimalPlaces) + '%';
+			logDebug(`🔧 Percentage formatting ${metric}: ${value} -> ${percentageValue} -> ${result}`);
+			return result;
+		}
+		
+		// Handle other numeric formatting
+		if ('numberDecimalPlaces' in metricConfig) {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			logDebug(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
+			return Number(value).toFixed(decimalPlaces);
+		}
 	}
 	
 	// Default to integer if no config found
-	console.log(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
+	logDebug(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
 	return Math.round(Number(value)).toString();
 }
 
@@ -724,31 +756,31 @@ async function fetchTestData() {
 
 		// Proper CSV parsing to handle quoted fields and commas within fields
 		function parseCSV(csvText) {
-			console.log("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
-			console.log("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
+			logDebug("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
+			logDebug("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
 
 			const lines = csvText.split("\n").filter((line) => line.trim());
-			console.log("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
-			console.log("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
+			logDebug("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
+			logDebug("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
 
 			if (lines.length === 0) {
-				console.log("🔍 CSV PARSING DEBUG: No lines found, returning empty array");
+				logDebug("🔍 CSV PARSING DEBUG: No lines found, returning empty array");
 				return [];
 			}
 
 			// Parse headers
-			console.log("🔍 CSV PARSING DEBUG: Parsing header line...");
+			logDebug("🔍 CSV PARSING DEBUG: Parsing header line...");
 			const headers = parseCSVLine(lines[0]);
-			console.log("🔍 CSV PARSING DEBUG: Parsed headers:", headers);
-			console.log("🔍 CSV PARSING DEBUG: Header count:", headers.length);
+			logDebug("🔍 CSV PARSING DEBUG: Parsed headers:", headers);
+			logDebug("🔍 CSV PARSING DEBUG: Header count:", headers.length);
 
 			const data = [];
 
 			for (let i = 1; i < lines.length; i++) {
-				console.log(`🔍 CSV PARSING DEBUG: Parsing line ${i}...`);
+				logDebug(`🔍 CSV PARSING DEBUG: Parsing line ${i}...`);
 				const values = parseCSVLine(lines[i]);
-				console.log(`🔍 CSV PARSING DEBUG: Line ${i} values:`, values);
-				console.log(`🔍 CSV PARSING DEBUG: Line ${i} value count:`, values.length);
+				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} values:`, values);
+				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} value count:`, values.length);
 
 				const row = {};
 
@@ -757,7 +789,7 @@ async function fetchTestData() {
 					row[header] = value;
 					if (i <= 3) {
 						// Log first 3 rows for debugging
-						console.log(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
+						logDebug(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
 					}
 				});
 
@@ -765,18 +797,18 @@ async function fetchTestData() {
 
 				if (i <= 3) {
 					// Log first 3 complete rows
-					console.log(`🔍 CSV PARSING DEBUG: Complete row ${i}:`, row);
+					logDebug(`🔍 CSV PARSING DEBUG: Complete row ${i}:`, row);
 				}
 			}
 
-			console.log("🔍 CSV PARSING DEBUG: Total parsed rows:", data.length);
-			console.log("🔍 CSV PARSING DEBUG: First row keys:", Object.keys(data[0] || {}));
+			logDebug("🔍 CSV PARSING DEBUG: Total parsed rows:", data.length);
+			logDebug("🔍 CSV PARSING DEBUG: First row keys:", Object.keys(data[0] || {}));
 
 			return data;
 		}
 
 		function parseCSVLine(line) {
-			console.log(`🔍 CSV LINE DEBUG: Parsing line: "${line}"`);
+			logDebug(`🔍 CSV LINE DEBUG: Parsing line: "${line}"`);
 			const result = [];
 			let current = "";
 			let inQuotes = false;
@@ -789,16 +821,16 @@ async function fetchTestData() {
 						// Escaped quote
 						current += '"';
 						i++; // Skip next quote
-						console.log(`🔍 CSV LINE DEBUG: Found escaped quote at position ${i}`);
+						logDebug(`🔍 CSV LINE DEBUG: Found escaped quote at position ${i}`);
 					} else {
 						// Toggle quote state
 						inQuotes = !inQuotes;
-						console.log(`🔍 CSV LINE DEBUG: Toggle quotes at position ${i}, inQuotes: ${inQuotes}`);
+						logDebug(`🔍 CSV LINE DEBUG: Toggle quotes at position ${i}, inQuotes: ${inQuotes}`);
 					}
 				} else if (char === "," && !inQuotes) {
 					// Field separator
 					result.push(current.trim());
-					console.log(`🔍 CSV LINE DEBUG: Field separator at position ${i}, added field: "${current.trim()}"`);
+					logDebug(`🔍 CSV LINE DEBUG: Field separator at position ${i}, added field: "${current.trim()}"`);
 					current = "";
 				} else {
 					current += char;
@@ -807,8 +839,8 @@ async function fetchTestData() {
 
 			// Add the last field
 			result.push(current.trim());
-			console.log(`🔍 CSV LINE DEBUG: Final field: "${current.trim()}"`);
-			console.log(`🔍 CSV LINE DEBUG: Parsed result:`, result);
+			logDebug(`🔍 CSV LINE DEBUG: Final field: "${current.trim()}"`);
+			logDebug(`🔍 CSV LINE DEBUG: Parsed result:`, result);
 
 			return result;
 		}
@@ -876,24 +908,24 @@ async function runTestsProgrammatically() {
 					let expectedValue, chatbotAnswer, cypherQuery;
 
 					// First, get the expected value from CSV data
-					console.log(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
-					console.log(`🔍 DEBUG: Player data for ${playerName}:`, player);
+					logDebug(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
+					logDebug(`🔍 DEBUG: Player data for ${playerName}:`, player);
 
 					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
 						const rawValue = player[statConfig.key];
 						// Format the expected value according to stat configuration (same as chatbot)
 						expectedValue = formatValueByMetric(statConfig.key, rawValue);
-						console.log(`✅ Found CSV data for ${statKey}: ${rawValue} -> formatted: ${expectedValue}`);
+						logDebug(`✅ Found CSV data for ${statKey}: ${rawValue} -> formatted: ${expectedValue}`);
 					} else {
 						expectedValue = "N/A";
-						console.log(`❌ No CSV data found for ${statKey}`);
+						logDebug(`❌ No CSV data found for ${statKey}`);
 					}
 
 					try {
 						// Try to use the chatbot service directly first
 						const chatbotService = await loadChatbotService();
 						if (chatbotService) {
-							console.log(`🤖 Using chatbot service for: ${question}`);
+							// Logging handled by chatbot service
 							const response = await chatbotService.getInstance().processQuestion({
 								question: question,
 								userContext: playerName,
@@ -901,8 +933,8 @@ async function runTestsProgrammatically() {
 							chatbotAnswer = response.answer || "Empty response or error";
 							cypherQuery = response.cypherQuery || "N/A";
 
-							console.log(`✅ Chatbot response: ${chatbotAnswer}`);
-							console.log(`🔍 Cypher query: ${cypherQuery}`);
+							logMinimal(`✅ Chatbot response: ${chatbotAnswer}`);
+							logMinimal(`🔍 Cypher query: ${cypherQuery}`);
 						} else {
 							// Fallback to API call
 							console.log(`🌐 Using API fallback for: ${question}`);

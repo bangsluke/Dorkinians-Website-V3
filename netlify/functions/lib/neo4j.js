@@ -1,5 +1,15 @@
 const neo4j = require("neo4j-driver");
 
+// Check for debug mode
+const isDebugMode = process.env.DEBUG_MODE === 'true';
+
+// Conditional logging functions
+const logDebug = (message) => {
+	if (isDebugMode) {
+		console.log(message);
+	}
+};
+
 class Neo4jService {
 	constructor() {
 		this.driver = null;
@@ -14,10 +24,10 @@ class Neo4jService {
 			const username = process.env.PROD_NEO4J_USER;
 			const password = process.env.PROD_NEO4J_PASSWORD;
 
-			console.log(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
-			console.log(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
-			console.log(`🔧 Username configured: ${username ? "Yes" : "No"}`);
-			console.log(`🔧 Password configured: ${password ? "Yes" : "No"}`);
+			logDebug(`🔧 Connection attempt - Environment: ${process.env.NODE_ENV}`);
+			logDebug(`🔧 URI configured: ${uri ? "Yes" : "No"}`);
+			logDebug(`🔧 Username configured: ${username ? "Yes" : "No"}`);
+			logDebug(`🔧 Password configured: ${password ? "Yes" : "No"}`);
 
 			if (!uri || !username || !password) {
 				const missingVars = [];
@@ -33,9 +43,9 @@ class Neo4jService {
 			await this.driver.verifyConnectivity();
 			this.isConnected = true;
 
-			console.log("✅ Neo4j connection established");
-			console.log(`📍 Connected to: ${uri}`);
-			console.log(`🏷️ Graph Label: ${this.GRAPH_LABEL}`);
+			logDebug("✅ Neo4j connection established");
+			logDebug(`📍 Connected to: ${uri}`);
+			logDebug(`🏷️ Graph Label: ${this.GRAPH_LABEL}`);
 			return true;
 		} catch (error) {
 			console.error("❌ Neo4j connection failed:", error);
@@ -49,7 +59,7 @@ class Neo4jService {
 			await this.driver.close();
 			this.driver = null;
 			this.isConnected = false;
-			console.log("🔌 Neo4j connection closed");
+			logDebug("🔌 Neo4j connection closed");
 		}
 	}
 

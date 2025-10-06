@@ -270,7 +270,7 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "home games percentage won",
 		singular: "home game percentage won",
 		plural: "home games percentage won",
-		aliases: ["home win rate", "home success rate"],
+		aliases: ["home win rate", "home success rate", "Home Games % Won"],
 		description: "Percentage of home games won",
 	},
 	{
@@ -294,7 +294,7 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "away games percentage won",
 		singular: "away game percentage won",
 		plural: "away games percentage won",
-		aliases: ["away win rate", "away success rate"],
+		aliases: ["away win rate", "away success rate", "Away Games % Won"],
 		description: "Percentage of away games won",
 	},
 	{
@@ -302,7 +302,7 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "games percentage won",
 		singular: "game percentage won",
 		plural: "games percentage won",
-		aliases: ["win rate", "success rate", "overall win rate"],
+		aliases: ["win rate", "success rate", "overall win rate", "Games % Won"],
 		description: "Overall percentage of games won",
 	},
 	// Team-specific metrics

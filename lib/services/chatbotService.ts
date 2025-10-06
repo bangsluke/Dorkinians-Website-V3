@@ -4,6 +4,7 @@ import { statObject, QuestionType, VisualizationType } from "../../config/config
 import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
 import { EnhancedQuestionAnalyzer, EnhancedQuestionAnalysis } from "../config/enhancedQuestionAnalysis";
 import { EntityNameResolver, EntityResolutionResult } from "./entityNameResolver";
+import { loggingService } from "./loggingService";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -40,6 +41,11 @@ export class ChatbotService {
 
 	// Helper function to format values according to config
 	private formatValueByMetric(metric: string, value: number | bigint | string | any): string {
+		// Debug logging for percentage metrics
+		if (metric.includes('%') || metric.includes('HomeGames%Won') || (value && typeof value === 'object' && value.originalPercentage === 51.8)) {
+			this.logToBoth(`🔧 formatValueByMetric called with metric: "${metric}", value: ${JSON.stringify(value)}, type: ${typeof value}`);
+		}
+		
 		// Handle BigInt values from Neo4j first
 		if (typeof value === 'bigint') {
 			return value.toString();
@@ -52,27 +58,116 @@ export class ChatbotService {
 		
 		// Handle string values (like position names) - but check if it's a number string first
 		if (typeof value === 'string') {
-			// Check if it's a numeric string that needs formatting
-			const numValue = parseFloat(value);
-			if (!isNaN(numValue)) {
-				// It's a numeric string, continue with formatting logic
-				value = numValue;
+			// Check if it's already a percentage string (ends with %)
+			if (value.endsWith('%')) {
+				// For percentage strings, we need to preserve the original percentage value
+				// and mark it as already processed to avoid double conversion
+				const numericPart = parseFloat(value.replace('%', ''));
+				if (!isNaN(numericPart)) {
+					// Store the original percentage value and mark it as already processed
+					value = {
+						originalPercentage: numericPart,
+						isAlreadyPercentage: true
+					};
+					if (metric.includes('HomeGames%Won') || value.originalPercentage === 51.8) {
+						this.logToBoth(`🔧 Converting percentage string: "${value.originalPercentage}%" -> preserving as percentage value`);
+					}
+				} else {
+					// If we can't parse it, return as-is
+					return value;
+				}
 			} else {
-				// It's a non-numeric string, return as-is
-				return value;
+				// Check if it's a numeric string that needs formatting
+				const numValue = parseFloat(value);
+				if (!isNaN(numValue)) {
+					// It's a numeric string, continue with formatting logic
+					value = numValue;
+				} else {
+					// It's a non-numeric string, return as-is
+					return value;
+				}
 			}
 		}
 		
+		// Resolve metric alias to canonical key before looking up config
+		const resolvedMetric = (findMetricByAlias(metric)?.key || metric) as keyof typeof statObject;
 		// Find the metric config
-		const metricConfig = statObject[metric as keyof typeof statObject];
+		const metricConfig = statObject[resolvedMetric];
 		
-		if (metricConfig && typeof metricConfig === 'object' && 'numberDecimalPlaces' in metricConfig) {
-			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-			return Number(value).toFixed(decimalPlaces);
+		// Debug logging for metric config lookup
+		if (metric.includes('%')) {
+			this.logToBoth(`🔧 Looking up metric config for "${metric}":`, metricConfig);
+			this.logToBoth(`🔧 Resolved metric: "${resolvedMetric}"`);
+			this.logToBoth(`🔧 Available statObject keys:`, Object.keys(statObject).filter(key => key.includes('%')));
+			if (metricConfig) {
+				this.logToBoth(`🔧 Metric config numberDecimalPlaces:`, metricConfig.numberDecimalPlaces);
+			}
+		}
+		
+		if (metricConfig && typeof metricConfig === 'object') {
+			// Handle percentage formatting
+			if (metricConfig.statFormat === 'Percentage') {
+				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+				
+				// Check if this is already a processed percentage value
+				if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+					// Use the original percentage value and apply decimal places
+					const result = value.originalPercentage.toFixed(decimalPlaces) + '%';
+					if (metric.includes('%')) {
+						this.logToBoth(`🔧 Percentage formatting (already processed): ${value.originalPercentage}% -> ${result}`);
+						this.logToBoth(`🔧 Final result: "${result}"`);
+					}
+					return result;
+				}
+				
+				// Check if value is already a percentage (>= 1) or a decimal (< 1)
+				const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
+				const result = percentageValue.toFixed(decimalPlaces) + '%';
+				if (metric.includes('%')) {
+					this.logToBoth(`🔧 Percentage formatting: ${value} -> ${percentageValue} -> ${result}`);
+					this.logToBoth(`🔧 Final result: "${result}"`);
+				}
+				return result;
+			}
+			
+			// Handle other numeric formatting
+			if ('numberDecimalPlaces' in metricConfig) {
+				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+				
+				// Check if this is already a processed percentage value
+				if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+					// Use the original percentage value and apply decimal places
+					const result = value.originalPercentage.toFixed(decimalPlaces);
+					if (metric.includes('%')) {
+						this.logToBoth(`🔧 Decimal formatting (already processed): ${value.originalPercentage} -> ${result}`);
+					}
+					return result;
+				}
+				
+				const result = Number(value).toFixed(decimalPlaces);
+				if (metric.includes('%')) {
+					this.logToBoth(`🔧 Decimal formatting: ${value} -> ${result}`);
+				}
+				return result;
+			}
 		}
 		
 		// Default to integer if no config found
-		return Math.round(Number(value)).toString();
+		// Check if this is already a processed percentage value
+		if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+			// Use the original percentage value
+			const result = value.originalPercentage.toString();
+			if (metric.includes('%')) {
+				this.logToBoth(`🔧 Default formatting (already processed): ${value.originalPercentage} -> ${result}`);
+			}
+			return result;
+		}
+		
+		const result = Math.round(Number(value)).toString();
+		if (metric.includes('%')) {
+			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`);
+		}
+		return result;
 	}
 
 	// Resolve player name using fuzzy matching
@@ -112,24 +207,12 @@ export class ChatbotService {
 
 	// Helper method to log to both server and client consoles
 	private logToBoth(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
-		// Server-side logging
-		if (level === "log") {
-			console.log(message, data);
-		} else if (level === "warn") {
-			console.warn(message, data);
-		} else {
-			console.error(message, data);
-		}
+		loggingService.log(message, data, level);
+	}
 
-		// Client-side logging (will show in browser console)
-		// Note: This will always log to client console for debugging purposes
-		if (level === "log") {
-			console.log(`🤖 [CLIENT] ${message}`, data);
-		} else if (level === "warn") {
-			console.warn(`🤖 [CLIENT] ${message}`, data);
-		} else {
-			console.error(`🤖 [CLIENT] ${message}`, data);
-		}
+	// Helper method for minimal logging (always shown)
+	private logMinimal(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
+		loggingService.logMinimal(message, data, level);
 	}
 
 	private convertDateFormat(dateStr: string): string {
@@ -236,7 +319,7 @@ export class ChatbotService {
 		this.lastQueryBreakdown = null;
 
 		// Essential logging for debugging
-		this.logToBoth(`🤖 Processing: ${context.question} | Context: ${context.userContext || "None"}`);
+		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`);
 
 		try {
 			// Ensure Neo4j connection
@@ -376,7 +459,18 @@ export class ChatbotService {
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
 			const originalMetric = metrics[0] || "";
-			const metric = originalMetric.toUpperCase();
+			
+			// Normalize metric names before uppercase conversion
+			let normalizedMetric = originalMetric;
+			if (originalMetric === 'Home Games % Won') {
+				normalizedMetric = 'HomeGames%Won';
+			} else if (originalMetric === 'Away Games % Won') {
+				normalizedMetric = 'AwayGames%Won';
+			} else if (originalMetric === 'Games % Won') {
+				normalizedMetric = 'Games%Won';
+			}
+			
+			const metric = normalizedMetric.toUpperCase();
 
 			// Check if this is a team-specific question
 			// First check if the player name itself is a team
@@ -619,7 +713,9 @@ export class ChatbotService {
 			// Non-seasonal metrics that are stored directly on Player node
 			'MOSTPROLIFICSEASON', 'MOSTCOMMONPOSITION', 'NUMBERSEASONSPLAYEDFOR',
 			// APP metric - use Player node directly for now (fallback approach)
-			'APP'
+			'APP',
+			// Open play goals and percentage calculations
+			'OPENPLAYGOALS', 'HOMEGAMES%WON', 'AWAYGAMES%WON', 'GAMES%WON'
 		];
 		
 		// Metrics that need MatchDetail join (including complex calculations)
@@ -650,6 +746,7 @@ export class ChatbotService {
 			case 'MIN': return 'coalesce(p.minutes, 0)';
 			case 'MOM': return 'coalesce(p.mom, 0)';
 			case 'G': return 'coalesce(p.allGoalsScored, 0)';
+			case 'OPENPLAYGOALS': return 'coalesce(p.goals, 0)';
 			case 'A': return 'coalesce(p.assists, 0)';
 			case 'Y': return 'coalesce(p.yellowCards, 0)';
 			case 'R': return 'coalesce(p.redCards, 0)';
@@ -1094,6 +1191,48 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
+		} else if (metric.toUpperCase() === 'HOMEGAMES%WON') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Home'
+				WITH p, 
+					sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as homeWins,
+					count(md) as homeGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN homeGames > 0 THEN 100.0 * homeWins / homeGames
+						ELSE 0.0 
+					END as value
+			`;
+
+		} else if (metric.toUpperCase() === 'AWAYGAMES%WON') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Away'
+				WITH p, 
+					sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins,
+					count(md) as awayGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
+						ELSE 0.0 
+					END as value
+			`;
+		} else if (metric.toUpperCase() === 'GAMES%WON') {
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as totalWins,
+					count(md) as totalGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGames > 0 THEN 100.0 * totalWins / totalGames
+						ELSE 0.0 
+					END as value
+			`;
 		} else if (metric.toUpperCase() === 'MOSTPROLIFICSEASON') {
 			query = `
 				MATCH (p:Player {playerName: $playerName})
@@ -1122,10 +1261,17 @@ export class ChatbotService {
 	}
 
 	private buildContextualResponse(playerName: string, metric: string, value: any, analysis: any): string {
+		// Resolve metric alias to canonical key for display and formatting
+		const resolvedMetricForDisplay = findMetricByAlias(metric)?.key || metric;
 		// Get the metric display name
-		const metricName = getMetricDisplayName(metric, value);
-		const formattedValue = this.formatValueByMetric(metric, value);
+		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value);
+		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value);
 		const verb = getAppropriateVerb(metric, value);
+		
+		// Debug logging for percentage issues
+		if (metric.includes('HomeGames%Won') || value === 51.764705) {
+			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`);
+		}
 		
 		// Special handling for specific metrics with custom formatting
 		if (metric === 'CperAPP') {
@@ -1239,6 +1385,9 @@ export class ChatbotService {
 					// Build contextual response and add clarification
 					answer = this.buildContextualResponse(playerName, metric, value, analysis);
 					answer = answer.replace(".", " (including both open play and penalty goals).");
+				} else if (metric === "OPENPLAYGOALS") {
+					// Special handling for open play goals
+					answer = `${playerName} has ${value} goals from open play.`;
 				} else if (metric === "points") {
 					// Build contextual response and add clarification
 					answer = this.buildContextualResponse(playerName, metric, value, analysis);
@@ -2241,7 +2390,7 @@ export class ChatbotService {
 
 	// Query ranking data for "which" questions (top players/teams)
 	private async queryRankingData(entities: string[], metrics: string[], analysis: any): Promise<any> {
-		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`);
+		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null);
 		
 		if (metrics.length === 0) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
