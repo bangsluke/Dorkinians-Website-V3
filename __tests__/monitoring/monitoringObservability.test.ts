@@ -230,11 +230,12 @@ describe("Monitoring and Observability Testing", () => {
 						expected: test.shouldSucceed,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					results.push({
 						question: test.question,
 						success: false,
 						expected: test.shouldSucceed,
-						error: error.message,
+						error: errorMessage,
 					});
 				}
 			}
@@ -328,11 +329,12 @@ describe("Monitoring and Observability Testing", () => {
 						response: response.answer,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					errorTracking.push({
 						question: scenario.question,
 						hasError: true,
 						expectedError: scenario.expectedError,
-						error: error.message,
+						error: errorMessage,
 					});
 				}
 			}
@@ -549,10 +551,11 @@ describe("Monitoring and Observability Testing", () => {
 						timestamp: startTime,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					healthResults.push({
 						name: check.name,
 						status: "error",
-						error: error.message,
+						error: errorMessage,
 						timestamp: Date.now(),
 					});
 				}

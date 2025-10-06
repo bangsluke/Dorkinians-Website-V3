@@ -255,10 +255,11 @@ describe("Enhanced Integration Testing", () => {
 						recovered: true,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					recoveryResults.push({
 						question,
 						worked: false,
-						error: error.message,
+						error: errorMessage,
 						recovered: false,
 					});
 				}
