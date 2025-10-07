@@ -671,6 +671,17 @@ function formatValueByMetric(metric, value) {
 async function loadChatbotService() {
 	if (!ChatbotService) {
 		try {
+			// Register ts-node to handle TypeScript files
+			require("ts-node").register({
+				transpileOnly: true,
+				compilerOptions: {
+					module: "commonjs",
+					target: "es2020",
+					esModuleInterop: true,
+					allowSyntheticDefaultImports: true
+				}
+			});
+			
 			// Use require instead of dynamic import for ts-node compatibility
 			const chatbotModule = require("../lib/services/chatbotService.ts");
 			ChatbotService = chatbotModule.ChatbotService;
