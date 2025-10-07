@@ -678,7 +678,18 @@ async function loadChatbotService() {
 					module: "commonjs",
 					target: "es2020",
 					esModuleInterop: true,
-					allowSyntheticDefaultImports: true
+					allowSyntheticDefaultImports: true,
+					moduleResolution: "node",
+					strict: true,
+					noImplicitAny: true,
+					strictNullChecks: true,
+					strictFunctionTypes: true,
+					strictBindCallApply: true,
+					strictPropertyInitialization: true,
+					noImplicitReturns: true,
+					noFallthroughCasesInSwitch: true,
+					noUncheckedIndexedAccess: true,
+					noImplicitOverride: true
 				}
 			});
 			

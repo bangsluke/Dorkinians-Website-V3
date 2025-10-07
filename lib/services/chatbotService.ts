@@ -651,7 +651,7 @@ export class ChatbotService {
 
 
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
-		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
 		const query = `
       MATCH (t:Team)

@@ -1,0 +1,324 @@
+TypeScript Errors from chatbotService.ts - Terminal Output
+
+lib/services/chatbotService.ts:553:35 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+553     async queryTeamData(entities, metrics) {
+                             ~~~~~~~
+lib/services/chatbotService.ts:554:14 - error TS2554: Expected 2-3 arguments, but got 1.
+554         this.logToBoth(` 🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
+                 ~~~~~~~~~   
+lib/services/chatbotService.ts:188:24
+    188     logToBoth(message, data, level = "log") {     
+                             
+  ~~~~
+    An argument for 'data' was not provided.
+lib/services/chatbotService.ts:565:25 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+565     async queryClubData(entities, metrics) {
+                            ~~~~~~~~
+lib/services/chatbotService.ts:565:35 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+565     async queryClubData(entities, metrics) {
+                             ~~~~~~~
+lib/services/chatbotService.ts:574:28 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+574     async queryFixtureData(entities, metrics) {       
+                             ~~~~~~~~
+lib/services/chatbotService.ts:574:38 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+574     async queryFixtureData(entities, metrics) {       
+                             ~~~~~~~       
+lib/services/chatbotService.ts:583:31 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+583     async queryDoubleGameData(entities, metrics) {    
+                             ~~~~~~~~
+lib/services/chatbotService.ts:583:41 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+583     async queryDoubleGameData(entities, metrics) {    
+                             ~~~~~~~       
+lib/services/chatbotService.ts:615:28 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+615     metricNeedsMatchDetail(metric) {
+                             ~~~~~~
+lib/services/chatbotService.ts:647:31 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+647     getPlayerNodeReturnClause(metric) {
+                             ~~~~~~
+lib/services/chatbotService.ts:693:32 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+693     getMatchDetailReturnClause(metric) {
+                             ~~~~~~
+lib/services/chatbotService.ts:731:22 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+731     buildPlayerQuery(playerName, metric, analysis) {  
+                         ~~~~~~~~~~
+lib/services/chatbotService.ts:731:34 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+731     buildPlayerQuery(playerName, metric, analysis) {  
+                             ~~~~~~
+lib/services/chatbotService.ts:731:42 - error TS7006: Parameter 'analysis' implicitly has an 'any' type.
+731     buildPlayerQuery(playerName, metric, analysis) {  
+                             ~~~~~~~~     
+lib/services/chatbotService.ts:781:58 - error TS7006: Parameter 'team' implicitly has an 'any' type.
+781                 const mappedTeamNames = teamEntities.map(team => this.mapTeamName(team));
+                             ~~~~
+lib/services/chatbotService.ts:782:55 - error TS7006: Parameter 'team' implicitly has an 'any' type.
+782                 const teamNames = mappedTeamNames.map(team => `'${team}'`).join(', ');
+                             ~~~~
+lib/services/chatbotService.ts:787:55 - error TS7006: Parameter 'loc' implicitly has an 'any' type.
+787                 const locationFilters = locations.map(loc => {
+                             ~~~
+lib/services/chatbotService.ts:814:71 - error TS7006: Parameter 'compType' implicitly has an 'any' type.
+814                 const compTypeFilters = analysis.competitionTypes.map(compType => {
+                             ~~~~~~~~     
+lib/services/chatbotService.ts:828:70 - error TS7006: Parameter 'comp' implicitly has an 'any' type.
+828                 const competitionFilters = analysis.competitions.map(comp => `f.competition CONTAINS '${comp}'`);
+                             ~~~~
+lib/services/chatbotService.ts:833:60 - error TS7006: Parameter 'result' implicitly has an 'any' type.
+833                 const resultFilters = analysis.results.map(result => {
+                             ~~~~~~
+lib/services/chatbotService.ts:1167:29 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1167     buildContextualResponse(playerName, metric, value, analysis) {
+                             ~~~~~~~~~~
+lib/services/chatbotService.ts:1167:41 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+1167     buildContextualResponse(playerName, metric, value, analysis) {
+                             ~~~~~~       
+lib/services/chatbotService.ts:1167:49 - error TS7006: Parameter 'value' implicitly has an 'any' type.
+1167     buildContextualResponse(playerName, metric, value, analysis) {
+                             ~~~~~
+lib/services/chatbotService.ts:1167:56 - error TS7006: Parameter 'analysis' implicitly has an 'any' type.
+1167     buildContextualResponse(playerName, metric, value, analysis) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:1176:18 - error TS2554: Expected 2-3 arguments, but got 1.
+1176             this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`);
+                      ~~~~~~~~~
+lib/services/chatbotService.ts:188:24
+    188     logToBoth(message, data, level = "log") {     
+                             
+  ~~~~
+    An argument for 'data' was not provided.
+lib/services/chatbotService.ts:1230:28 - error TS7006: Parameter 'question' implicitly has an 'any' type.
+1230     async generateResponse(question, data, analysis) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:1230:38 - error TS7006: Parameter 'data' implicitly has an 'any' type.
+1230     async generateResponse(question, data, analysis) {
+                             ~~~~
+lib/services/chatbotService.ts:1230:44 - error TS7006: Parameter 'analysis' implicitly has an 'any' type.
+1230     async generateResponse(question, data, analysis) {
+                             ~~~~~~~~  
+lib/services/chatbotService.ts:1432:56 - error TS7006: Parameter 'p' implicitly has an 'any' type.
+1432                     const playerNames = data.data.map((p) => p.name || p.playerName).slice(0, 10);
+                             
+  ~
+lib/services/chatbotService.ts:1473:55 - error TS7006: Parameter 'player' implicitly has an 'any' type.
+1473                     data: data.data.slice(0, 10).map((player) => ({
+                             
+  ~~~~~~
+lib/services/chatbotService.ts:1490:43 - error TS7006: Parameter 'game' implicitly has an 'any' type.
+1490                     data: streakData.map((game) => ({
+                             
+                  ~~~~       
+lib/services/chatbotService.ts:1504:52 - error TS7006: Parameter 'sum' implicitly has an 'any' type.
+1504                 const totalGoals = dgwData.reduce((sum, game) => sum + (game.goals || 0), 0);
+                             
+                           ~~~
+lib/services/chatbotService.ts:1504:57 - error TS7006: Parameter 'game' implicitly has an 'any' type.
+1504                 const totalGoals = dgwData.reduce((sum, game) => sum + (game.goals || 0), 0);
+                             
+   ~~~~
+lib/services/chatbotService.ts:1505:54 - error TS7006: Parameter 'sum' implicitly has an 'any' type.
+1505                 const totalAssists = dgwData.reduce((sum, game) => sum + (game.assists || 0), 0);
+                             
+                           ~~~
+lib/services/chatbotService.ts:1505:59 - error TS7006: Parameter 'game' implicitly has an 'any' type.
+1505                 const totalAssists = dgwData.reduce((sum, game) => sum + (game.assists || 0), 0);
+                             
+     ~~~~
+lib/services/chatbotService.ts:1509:40 - error TS7006: Parameter 'game' implicitly has an 'any' type.
+1509                     data: dgwData.map((game) => ({   
+                             
+               ~~~~
+lib/services/chatbotService.ts:1569:27 - error TS7006: Parameter 'p' implicitly has an 'any' type.
+1569                     .map((p) => p.coPlayerName)      
+                             
+  ~
+lib/services/chatbotService.ts:1573:42 - error TS7006: Parameter 'player' implicitly has an 'any' type.
+1573                     data: coPlayers.map((player) => ({
+                             
+                 ~~~~~~      
+lib/services/chatbotService.ts:1588:27 - error TS7006: Parameter 'o' implicitly has an 'any' type.
+1588                     .map((o) => o.opponent)
+                             
+  ~
+lib/services/chatbotService.ts:1592:42 - error TS7006: Parameter 'opponent' implicitly has an 'any' type.
+1592                     data: opponents.map((opponent) => ({
+                             
+                 ~~~~~~~~    
+lib/services/chatbotService.ts:1655:55 - error TS7006: Parameter 'opp' implicitly has an 'any' type.
+1655                     data: data.data.slice(0, 10).map((opp) => ({
+                             
+                             
+  ~~~
+lib/services/chatbotService.ts:1696:46 - error TS7006: Parameter 'item' implicitly has an 'any' type.
+1696                         
+data: data.data.map((item, index) => ({
+                             
+                     ~~~~    
+lib/services/chatbotService.ts:1696:52 - error TS7006: Parameter 'index' implicitly has an 'any' type.
+1696                         
+data: data.data.map((item, index) => ({
+                             
+                           ~~~~~
+lib/services/chatbotService.ts:1725:20 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+1725     getMetricField(metric) {
+                        ~~~~~~
+lib/services/chatbotService.ts:1732:20 - error TS7006: Parameter 'question' implicitly has an 'any' type.
+1732     isTeamQuestion(question) {
+                        ~~~~~~~~
+lib/services/chatbotService.ts:1759:26 - error TS7006: Parameter 'question' implicitly has an 'any' type.
+1759     isComparisonQuestion(question) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:1780:31 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1780     async queryPlayerTOTWData(playerName, period) {  
+                             ~~~~~~~~~~
+lib/services/chatbotService.ts:1780:43 - error TS7006: Parameter 'period' implicitly has an 'any' type.
+1780     async queryPlayerTOTWData(playerName, period) {  
+                             ~~~~~~     
+lib/services/chatbotService.ts:1792:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1792         this.lastExecutedQueries.push(`TOTW_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1793:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1793         this.lastExecutedQueries.push(`TOTW_PARAMS: ${JSON.stringify({ playerName, period })}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1796:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1796         this.lastExecutedQueries.push(`TOTW_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1808:38 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1808     async queryPlayersOfTheMonthData(playerName) {   
+                             ~~~~~~~~~~      
+lib/services/chatbotService.ts:1827:40 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1827     async queryPlayerCaptainAwardsData(playerName) { 
+                             ~~~~~~~~~~    
+lib/services/chatbotService.ts:1846:36 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1846     async queryPlayerCoPlayersData(playerName) {     
+                             ~~~~~~~~~~        
+lib/services/chatbotService.ts:1864:36 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+1864     async queryPlayerOpponentsData(playerName) {     
+                             ~~~~~~~~~~        
+lib/services/chatbotService.ts:1886:27 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+1886     async queryStreakData(entities, metrics) {       
+                             ~~~~~~~~
+lib/services/chatbotService.ts:1886:37 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+1886     async queryStreakData(entities, metrics) {       
+                             ~~~~~~~
+lib/services/chatbotService.ts:1927:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1927         this.lastExecutedQueries.push(`STREAK_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1928:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1928         this.lastExecutedQueries.push(`STREAK_PARAMS: ${JSON.stringify({ playerName, metric, streakType })}`); 
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1938:31 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+1938     async queryComparisonData(entities, metrics) {   
+                             ~~~~~~~~
+lib/services/chatbotService.ts:1938:41 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+1938     async queryComparisonData(entities, metrics) {   
+                             ~~~~~~~      
+lib/services/chatbotService.ts:1997:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1997         this.lastExecutedQueries.push(`COMPARISON_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:1998:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+1998         this.lastExecutedQueries.push(`COMPARISON_PARAMS: ${JSON.stringify({ metric, metricField })}`);        
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2008:29 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+2008     async queryTemporalData(entities, metrics, timeRange) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:2008:39 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+2008     async queryTemporalData(entities, metrics, timeRange) {
+                             ~~~~~~~        
+lib/services/chatbotService.ts:2008:48 - error TS7006: Parameter 'timeRange' implicitly has an 'any' type.
+2008     async queryTemporalData(entities, metrics, timeRange) {
+                             ~~~~~~~~~
+lib/services/chatbotService.ts:2024:28 - error TS2339: Property 'startDate' does not exist on type '{ playerName: any; }'.
+2024                     params.startDate = `${year}-01-01`;
+                             
+   ~~~~~~~~~
+lib/services/chatbotService.ts:2032:28 - error TS2339: Property 'startDate' does not exist on type '{ playerName: any; }'.
+2032                     params.startDate = `${years[0]}-01-01`;
+                             
+   ~~~~~~~~~
+lib/services/chatbotService.ts:2033:28 - error TS2339: Property 'endDate' does not exist on type '{ playerName: any; }'.
+2033                     params.endDate = `${years[1]}-12-31`;
+                             
+   ~~~~~~~
+lib/services/chatbotService.ts:2040:28 - error TS2339: Property 'endDate' does not exist on type '{ playerName: any; }'.
+2040                     params.endDate = `${year}-01-01`;
+                             
+   ~~~~~~~
+lib/services/chatbotService.ts:2071:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2071         this.lastExecutedQueries.push(`TEMPORAL_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2072:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2072         this.lastExecutedQueries.push(`TEMPORAL_PARAMS: ${JSON.stringify(params)}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2082:39 - error TS7006: Parameter 'teamName' implicitly has an 'any' type.
+2082     async queryTeamSpecificPlayerData(teamName, metric) {
+                             ~~~~~~~~       
+lib/services/chatbotService.ts:2082:49 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+2082     async queryTeamSpecificPlayerData(teamName, metric) {
+                             ~~~~~~
+lib/services/chatbotService.ts:2120:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2120         this.lastExecutedQueries.push(`TEAM_SPECIFIC_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2121:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2121         this.lastExecutedQueries.push(`TEAM_SPECIFIC_PARAMS: ${JSON.stringify({ teamName: normalizedTeam, metric })}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2131:34 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+2131     async queryPlayerDataForTeam(playerName, metric, teamEntity) {
+                             ~~~~~~~~~~
+lib/services/chatbotService.ts:2131:46 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+2131     async queryPlayerDataForTeam(playerName, metric, teamEntity) {
+                             ~~~~~~  
+lib/services/chatbotService.ts:2131:54 - error TS7006: Parameter 'teamEntity' implicitly has an 'any' type.
+2131     async queryPlayerDataForTeam(playerName, metric, teamEntity) {
+                             
+                             ~~~~~~~~~~
+lib/services/chatbotService.ts:2162:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2162         this.lastExecutedQueries.push(`PLAYER_TEAM_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2163:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2163         this.lastExecutedQueries.push(`PLAYER_TEAM_PARAMS: ${JSON.stringify({ playerName, teamName: normalizedTeam, metric })}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2173:31 - error TS7006: Parameter 'playerName' implicitly has an 'any' type.
+2173     async queryOppositionData(playerName, metric, oppositionName) {
+                             ~~~~~~~~~~
+lib/services/chatbotService.ts:2173:43 - error TS7006: Parameter 'metric' implicitly has an 'any' type.
+2173     async queryOppositionData(playerName, metric, oppositionName) {
+                             ~~~~~~     
+lib/services/chatbotService.ts:2173:51 - error TS7006: Parameter 'oppositionName' implicitly has an 'any' type.     
+2173     async queryOppositionData(playerName, metric, oppositionName) {
+                             ~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2206:20 - error TS2339: Property 'oppositionName' does not exist on type '{ playerName: any; }'.
+2206             params.oppositionName = oppositionName;  
+                        ~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2217:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2217         this.lastExecutedQueries.push(`OPPOSITION_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2218:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2218         this.lastExecutedQueries.push(`OPPOSITION_PARAMS: ${JSON.stringify(params)}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2229:28 - error TS7006: Parameter 'entities' implicitly has an 'any' type.
+2229     async queryRankingData(entities, metrics, analysis) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:2229:38 - error TS7006: Parameter 'metrics' implicitly has an 'any' type.
+2229     async queryRankingData(entities, metrics, analysis) {
+                             ~~~~~~~
+lib/services/chatbotService.ts:2229:47 - error TS7006: Parameter 'analysis' implicitly has an 'any' type.
+2229     async queryRankingData(entities, metrics, analysis) {
+                             ~~~~~~~~
+lib/services/chatbotService.ts:2306:14 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2306         this.lastExecutedQueries.push(`RANKING_DATA: ${query}`);
+                  ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2332:36 - error TS2339: Property 'lastQuestionAnalysis' does not exist on type 'ChatbotService'.
+2332             questionAnalysis: this.lastQuestionAnalysis,
+                             
+           ~~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2333:33 - error TS2339: Property 'lastExecutedQueries' does not exist on type 'ChatbotService'.
+2333             cypherQueries: this.lastExecutedQueries, 
+                             
+        ~~~~~~~~~~~~~~~~~~~  
+lib/services/chatbotService.ts:2334:35 - error TS2339: Property 'lastProcessingSteps' does not exist on type 'ChatbotService'.
+2334             processingSteps: this.lastProcessingSteps,
+                             
+          ~~~~~~~~~~~~~~~~~~~
+lib/services/chatbotService.ts:2335:34 - error TS2339: Property 'lastQueryBreakdown' does not exist on type 'ChatbotService'.
+2335             queryBreakdown: this.lastQueryBreakdown, 
+                             
+         ~~~~~~~~~~~~~~~~~~  
