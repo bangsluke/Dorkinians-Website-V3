@@ -8,11 +8,11 @@ import { loggingService } from "./loggingService";
 
 export interface ChatbotResponse {
 	answer: string;
-	data?: any;
+	data?: unknown;
 	visualization?: {
 		type: VisualizationType;
-		data: any;
-		config?: any;
+		data: unknown;
+		config?: Record<string, unknown>;
 	};
 	sources: string[];
 	cypherQuery?: string;
@@ -27,6 +27,16 @@ export interface QuestionContext {
 export class ChatbotService {
 	private static instance: ChatbotService;
 	private entityResolver: EntityNameResolver;
+	
+	// Debug and tracking properties
+	public lastQuestionAnalysis: EnhancedQuestionAnalysis | null = null;
+	public lastExecutedQueries: string[] = [];
+	public lastProcessingSteps: string[] = [];
+	public lastQueryBreakdown: Record<string, unknown> | null = null;
+	
+	// Caching properties
+	private queryCache: Map<string, { data: unknown; timestamp: number }> = new Map();
+	private readonly CACHE_TTL: number = 5 * 60 * 1000; // 5 minutes
 
 	private constructor() {
 		this.entityResolver = EntityNameResolver.getInstance();
@@ -40,10 +50,10 @@ export class ChatbotService {
 	}
 
 	// Helper function to format values according to config
-	private formatValueByMetric(metric: string, value: number | bigint | string | any): string {
+	private formatValueByMetric(metric: string, value: number | bigint | string | Record<string, unknown>): string {
 		// Debug logging for percentage metrics
 		if (metric.includes('%') || metric.includes('HomeGames%Won') || (value && typeof value === 'object' && value.originalPercentage === 51.8)) {
-			this.logToBoth(`🔧 formatValueByMetric called with metric: "${metric}", value: ${JSON.stringify(value)}, type: ${typeof value}`);
+			this.logToBoth(`🔧 formatValueByMetric called with metric: "${metric}", value: ${JSON.stringify(value)}, type: ${typeof value}`, null, "log");
 		}
 		
 		// Handle BigInt values from Neo4j first
@@ -53,7 +63,8 @@ export class ChatbotService {
 		
 		// Handle Neo4j Integer objects (e.g., {low: 445, high: 0})
 		if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
-			value = value.low + (value.high * 4294967296); // Convert Neo4j Integer to number
+			const neo4jInt = value as { low: number; high: number };
+			value = neo4jInt.low + (neo4jInt.high * 4294967296); // Convert Neo4j Integer to number
 		}
 		
 		// Handle string values (like position names) - but check if it's a number string first
@@ -70,7 +81,7 @@ export class ChatbotService {
 						isAlreadyPercentage: true
 					};
 					if (metric.includes('HomeGames%Won') || value.originalPercentage === 51.8) {
-						this.logToBoth(`🔧 Converting percentage string: "${value.originalPercentage}%" -> preserving as percentage value`);
+						this.logToBoth(`🔧 Converting percentage string: "${value.originalPercentage}%" -> preserving as percentage value`, null, "log");
 					}
 				} else {
 					// If we can't parse it, return as-is
@@ -96,11 +107,11 @@ export class ChatbotService {
 		
 		// Debug logging for metric config lookup
 		if (metric.includes('%')) {
-			this.logToBoth(`🔧 Looking up metric config for "${metric}":`, metricConfig);
-			this.logToBoth(`🔧 Resolved metric: "${resolvedMetric}"`);
-			this.logToBoth(`🔧 Available statObject keys:`, Object.keys(statObject).filter(key => key.includes('%')));
+			this.logToBoth(`🔧 Looking up metric config for "${metric}":`, metricConfig, "log");
+			this.logToBoth(`🔧 Resolved metric: "${resolvedMetric}"`, null, "log");
+			this.logToBoth(`🔧 Available statObject keys:`, Object.keys(statObject).filter(key => key.includes('%')), "log");
 			if (metricConfig) {
-				this.logToBoth(`🔧 Metric config numberDecimalPlaces:`, metricConfig.numberDecimalPlaces);
+				this.logToBoth(`🔧 Metric config numberDecimalPlaces:`, metricConfig.numberDecimalPlaces, "log");
 			}
 		}
 		
@@ -110,12 +121,13 @@ export class ChatbotService {
 				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
 				
 				// Check if this is already a processed percentage value
-				if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+				if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+					const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 					// Use the original percentage value and apply decimal places
-					const result = value.originalPercentage.toFixed(decimalPlaces) + '%';
+					const result = percentageValue.originalPercentage.toFixed(decimalPlaces) + '%';
 					if (metric.includes('%')) {
-						this.logToBoth(`🔧 Percentage formatting (already processed): ${value.originalPercentage}% -> ${result}`);
-						this.logToBoth(`🔧 Final result: "${result}"`);
+						this.logToBoth(`🔧 Percentage formatting (already processed): ${percentageValue.originalPercentage}% -> ${result}`, null, "log");
+						this.logToBoth(`🔧 Final result: "${result}"`, null, "log");
 					}
 					return result;
 				}
@@ -124,8 +136,8 @@ export class ChatbotService {
 				const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
 				const result = percentageValue.toFixed(decimalPlaces) + '%';
 				if (metric.includes('%')) {
-					this.logToBoth(`🔧 Percentage formatting: ${value} -> ${percentageValue} -> ${result}`);
-					this.logToBoth(`🔧 Final result: "${result}"`);
+					this.logToBoth(`🔧 Percentage formatting: ${value} -> ${percentageValue} -> ${result}`, null, "log");
+					this.logToBoth(`🔧 Final result: "${result}"`, null, "log");
 				}
 				return result;
 			}
@@ -135,18 +147,19 @@ export class ChatbotService {
 				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
 				
 				// Check if this is already a processed percentage value
-				if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+				if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+					const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 					// Use the original percentage value and apply decimal places
-					const result = value.originalPercentage.toFixed(decimalPlaces);
+					const result = percentageValue.originalPercentage.toFixed(decimalPlaces);
 					if (metric.includes('%')) {
-						this.logToBoth(`🔧 Decimal formatting (already processed): ${value.originalPercentage} -> ${result}`);
+						this.logToBoth(`🔧 Decimal formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 					}
 					return result;
 				}
 				
 				const result = Number(value).toFixed(decimalPlaces);
 				if (metric.includes('%')) {
-					this.logToBoth(`🔧 Decimal formatting: ${value} -> ${result}`);
+					this.logToBoth(`🔧 Decimal formatting: ${value} -> ${result}`, null, "log");
 				}
 				return result;
 			}
@@ -154,18 +167,19 @@ export class ChatbotService {
 		
 		// Default to integer if no config found
 		// Check if this is already a processed percentage value
-		if (value && typeof value === 'object' && value.isAlreadyPercentage) {
+		if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+			const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 			// Use the original percentage value
-			const result = value.originalPercentage.toString();
+			const result = percentageValue.originalPercentage.toString();
 			if (metric.includes('%')) {
-				this.logToBoth(`🔧 Default formatting (already processed): ${value.originalPercentage} -> ${result}`);
+				this.logToBoth(`🔧 Default formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 			}
 			return result;
 		}
 		
 		const result = Math.round(Number(value)).toString();
 		if (metric.includes('%')) {
-			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`);
+			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`, null, "log");
 		}
 		return result;
 	}
@@ -176,42 +190,50 @@ export class ChatbotService {
 			const result = await this.entityResolver.resolveEntityName(playerName, 'player');
 			
 			if (result.exactMatch) {
-				this.logToBoth(`✅ Exact match found: ${playerName} → ${result.exactMatch}`);
+				this.logToBoth(`✅ Exact match found: ${playerName} → ${result.exactMatch}`, null, "log");
 				return result.exactMatch;
 			}
 			
 			if (result.fuzzyMatches.length > 0) {
 				const bestMatch = result.fuzzyMatches[0];
-				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`);
+				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`, null, "log");
 				return bestMatch.entityName;
 			}
 			
-			this.logToBoth(`❌ No match found for player: ${playerName}`);
+			this.logToBoth(`❌ No match found for player: ${playerName}`, null, "warn");
 			return null;
 		} catch (error) {
-			this.logToBoth(`❌ Error resolving player name: ${error}`);
+			this.logToBoth(`❌ Error resolving player name: ${error}`, null, "error");
 			return null;
 		}
 	}
 
-	// Debug tracking properties
-	private lastQuestionAnalysis: any = null;
-	private lastExecutedQueries: string[] = [];
-	private lastProcessingSteps: string[] = [];
-	private lastQueryBreakdown: any = null;
-	
-	// Query optimization
-	private queryCache: Map<string, { data: any; timestamp: number }> = new Map();
-	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+
+	// Type guards for runtime type checking
+	private isString(value: unknown): value is string {
+		return typeof value === 'string';
+	}
+
+	private isNumber(value: unknown): value is number {
+		return typeof value === 'number' && !isNaN(value);
+	}
+
+	private isArray(value: unknown): value is unknown[] {
+		return Array.isArray(value);
+	}
+
+	private isObject(value: unknown): value is Record<string, unknown> {
+		return value !== null && typeof value === 'object' && !Array.isArray(value);
+	}
 
 	// Helper method to log to both server and client consoles
-	private logToBoth(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
+	private logToBoth(message: string, data?: unknown, level: "log" | "warn" | "error" = "log"): void {
 		loggingService.log(message, data, level);
 	}
 
 	// Helper method for minimal logging (always shown)
-	private logMinimal(message: string, data?: any, level: "log" | "warn" | "error" = "log") {
+	private logMinimal(message: string, data?: unknown, level: "log" | "warn" | "error" = "log"): void {
 		loggingService.logMinimal(message, data, level);
 	}
 
@@ -292,11 +314,11 @@ export class ChatbotService {
 	}
 
 	// Cache helper methods
-	private getCacheKey(query: string, params: any): string {
+	private getCacheKey(query: string, params: Record<string, unknown>): string {
 		return `${query}:${JSON.stringify(params)}`;
 	}
 
-	private getCachedResult(cacheKey: string): any | null {
+	private getCachedResult(cacheKey: string): unknown | null {
 		const cached = this.queryCache.get(cacheKey);
 		if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
 			return cached.data;
@@ -304,7 +326,7 @@ export class ChatbotService {
 		return null;
 	}
 
-	private setCachedResult(cacheKey: string, data: any): void {
+	private setCachedResult(cacheKey: string, data: unknown): void {
 		this.queryCache.set(cacheKey, {
 			data,
 			timestamp: Date.now()
@@ -319,7 +341,7 @@ export class ChatbotService {
 		this.lastQueryBreakdown = null;
 
 		// Essential logging for debugging
-		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`);
+		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`, null, "log");
 
 		try {
 			// Ensure Neo4j connection
@@ -356,7 +378,7 @@ export class ChatbotService {
 
 			// Debug logging for complex queries
 			if (analysis.complexity === 'complex' || analysis.metrics.length > 1) {
-				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`);
+				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`, null, "log");
 			}
 
 			// Query the database
@@ -370,7 +392,7 @@ export class ChatbotService {
 			return response;
 		} catch (error) {
 			// Essential error logging
-			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, "error");
+			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
 			
 			// Provide more detailed error information for debugging
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -395,14 +417,14 @@ export class ChatbotService {
 		return enhancedAnalysis;
 	}
 
-	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<any> {
+	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
 		
 		try {
 			// Ensure Neo4j connection before querying
 			const connected = await neo4jService.connect();
 			if (!connected) {
-				this.logToBoth("❌ Neo4j connection failed", "error");
+				this.logToBoth("❌ Neo4j connection failed", null, "error");
 				return null;
 			}
 
@@ -438,7 +460,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<any> {
+	private async queryPlayerData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
 		// Use enhanced analysis data directly
 		const teamEntities = analysis.teamEntities || [];
 		const oppositionEntities = analysis.oppositionEntities || [];
@@ -447,7 +469,7 @@ export class ChatbotService {
 		
 		// Essential debug info for complex queries
 		if (teamEntities.length > 0 || timeRange || locations.length > 0) {
-			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`);
+			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`, null, "log");
 		}
 
 		// Check if we have entities (player names) to query
@@ -482,7 +504,7 @@ export class ChatbotService {
 			const resolvedPlayerName = await this.resolvePlayerName(playerName);
 			
 			if (!resolvedPlayerName) {
-				this.logToBoth(`❌ Player not found: ${playerName}`);
+				this.logToBoth(`❌ Player not found: ${playerName}`, null, "error");
 				return {
 					type: "player_not_found",
 					data: [],
@@ -498,8 +520,8 @@ export class ChatbotService {
 			// Check if there are team entities in the analysis
 			if (analysis && analysis.teamEntities && analysis.teamEntities.length > 0) {
 				const teamEntity = analysis.teamEntities[0];
-				this.logToBoth(`🔍 Detected team entity in question: ${teamEntity}`);
-				this.logToBoth(`🔍 Will use enhanced query with team filter instead of separate team method`);
+				this.logToBoth(`🔍 Detected team entity in question: ${teamEntity}`, null, "log");
+				this.logToBoth(`🔍 Will use enhanced query with team filter instead of separate team method`, null, "log");
 			}
 
 			// Check for special queries that can use enhanced relationship properties
@@ -560,7 +582,7 @@ export class ChatbotService {
 				if (timeRange) filters.push(`Time: ${timeRange}`);
 				if (oppositionEntities.length > 0) filters.push(`Opposition: ${oppositionEntities.join(',')}`);
 				if (filters.length > 0) {
-					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`);
+					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`, null, "log");
 				}
 			}
 			
@@ -573,7 +595,7 @@ export class ChatbotService {
 				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName: actualPlayerName });
 				
 				if (!playerExistsResult || playerExistsResult.length === 0) {
-					this.logToBoth(`❌ Player not found: ${actualPlayerName}`);
+					this.logToBoth(`❌ Player not found: ${actualPlayerName}`, null, "error");
 					return { 
 						type: "player_not_found", 
 						data: [], 
@@ -592,7 +614,7 @@ export class ChatbotService {
 				});
 
 				if (!result || !Array.isArray(result) || result.length === 0) {
-					this.logToBoth(`❌ No results found for ${actualPlayerName} with metric ${metric}`);
+					this.logToBoth(`❌ No results found for ${actualPlayerName} with metric ${metric}`, null, "warn");
 				}
 
 				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: originalMetric, cypherQuery: query };
@@ -608,7 +630,7 @@ export class ChatbotService {
 			return { type: "general_player", data: entities, message: "General player query" };
 		}
 
-		this.logToBoth(`🔍 No specific player query, falling back to general player query`);
+		this.logToBoth(`🔍 No specific player query, falling back to general player query`, null, "log");
 
 		// Fallback to general player query
 		const query = `
@@ -628,8 +650,8 @@ export class ChatbotService {
 
 
 
-	private async queryTeamData(entities: string[], metrics: string[]): Promise<any> {
-		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`);
+	private async queryTeamData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
 		const query = `
       MATCH (t:Team)
@@ -637,14 +659,14 @@ export class ChatbotService {
 			LIMIT 20
 		`;
 
-		const params = { graphLabel: neo4jService.GRAPH_LABEL };
+		const params = { graphLabel: neo4jService.getGraphLabel() };
 		const result = await neo4jService.executeQuery(query, params);
-		this.logToBoth(`🔍 Team data query result:`, result);
+		this.logToBoth(`🔍 Team data query result:`, result, "log");
 		
-		return { type: "team", data: result };
+		return { type: "team", data: result } as Record<string, unknown>;
 	}
 
-	private async queryClubData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryClubData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		const query = `
       MATCH (c:Club)
       RETURN c.name as name, c.id as source
@@ -652,10 +674,10 @@ export class ChatbotService {
     `;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		return result as unknown as Record<string, unknown>;
 	}
 
-	private async queryFixtureData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryFixtureData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		const query = `
       MATCH (f:Fixture)
       RETURN f.opponent as opponent, f.date as date
@@ -663,12 +685,12 @@ export class ChatbotService {
     `;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		return result as unknown as Record<string, unknown>;
 	}
 
 
 
-	private async queryDoubleGameData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryDoubleGameData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		if (entities.length === 0) {
 			return { type: "no_context", data: [], message: "No player context provided" };
 		}
@@ -690,7 +712,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryGeneralData(): Promise<any> {
+	private async queryGeneralData(): Promise<Record<string, unknown>> {
 		// Query for general information about the database
 		const query = `
       MATCH (p:Player)
@@ -698,7 +720,7 @@ export class ChatbotService {
     `;
 
 		const result = await neo4jService.executeQuery(query);
-		return result;
+		return result as unknown as Record<string, unknown>;
 	}
 
 	/**
@@ -852,7 +874,7 @@ export class ChatbotService {
 
 		// Debug complex queries only
 		if (needsFixture || !needsMatchDetail) {
-			this.logToBoth(`🔍 Query: ${metric} | MatchDetail: ${needsMatchDetail} | Fixture: ${needsFixture}`);
+			this.logToBoth(`🔍 Query: ${metric} | MatchDetail: ${needsMatchDetail} | Fixture: ${needsFixture}`, null, "log");
 		}
 
 		// Build base query structure
@@ -1260,17 +1282,17 @@ export class ChatbotService {
 		return query;
 	}
 
-	private buildContextualResponse(playerName: string, metric: string, value: any, analysis: any): string {
+	private buildContextualResponse(playerName: string, metric: string, value: unknown, analysis: EnhancedQuestionAnalysis): string {
 		// Resolve metric alias to canonical key for display and formatting
 		const resolvedMetricForDisplay = findMetricByAlias(metric)?.key || metric;
 		// Get the metric display name
-		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value);
-		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value);
-		const verb = getAppropriateVerb(metric, value);
+		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value as number);
+		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value as number);
+		const verb = getAppropriateVerb(metric, value as number);
 		
 		// Debug logging for percentage issues
 		if (metric.includes('HomeGames%Won') || value === 51.764705) {
-			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`);
+			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`, null, "log");
 		}
 		
 		// Special handling for specific metrics with custom formatting
@@ -1307,7 +1329,7 @@ export class ChatbotService {
 		}
 		
 		// Add location context if present
-		const locations = analysis.locations || (analysis.extractionResult && analysis.extractionResult.locations) || [];
+		const locations = (analysis.extractionResult && analysis.extractionResult.locations) || [];
 		if (locations && locations.length > 0) {
 			const location = locations[0].value;
 			if (location === 'home') {
@@ -1334,7 +1356,7 @@ export class ChatbotService {
 		return response;
 	}
 
-	private async generateResponse(question: string, data: any, analysis: any): Promise<ChatbotResponse> {
+	private async generateResponse(question: string, data: Record<string, unknown> | null, analysis: EnhancedQuestionAnalysis): Promise<ChatbotResponse> {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
 			dataType: data?.type,
@@ -1352,45 +1374,46 @@ export class ChatbotService {
 		} else if (data.type === "error") {
 			answer = `Database error: ${data.error || "An unknown error occurred while querying the database."}`;
 		} else if (data.type === "player_not_found") {
-			answer = data.message || `Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+			answer = (data.message as string) || `Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
 		} else if (data.type === "team_not_found") {
-			answer = data.message || `Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams?.join(", ") || "Unknown"}.`;
+			const availableTeams = (data.availableTeams as string[]) || [];
+			answer = (data.message as string) || `Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
 		} else if (data.type === "no_context") {
 			answer = "Missing context: Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
-			answer = data.message || "Please clarify your question with more specific details.";
+			answer = (data.message as string) || "Please clarify your question with more specific details.";
 		} else if (data && data.data && Array.isArray(data.data) && data.data.length === 0) {
 			// Query executed successfully but returned no results
 			const metric = data.metric || "data";
 			const playerName = data.playerName || "the requested entity";
 			
 			// Check if this is a MatchDetail query that failed - try Player node fallback
-			if (metric && ['CPERAPP', 'FTPPERAPP', 'GPERAPP', 'MPERG', 'MPERCLS'].includes(metric.toUpperCase())) {
+			if (metric && ['CPERAPP', 'FTPPERAPP', 'GPERAPP', 'MPERG', 'MPERCLS'].includes((metric as string).toUpperCase())) {
 				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
 			} else {
 				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
 			}
-		} else if (data && data.data) {
-			if (data.type === "specific_player" && data.data.length > 0) {
-				const playerData = data.data[0];
-				const playerName = data.playerName;
-				const metric = data.metric;
+		} else if (data && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			if (data.type === "specific_player") {
+				const playerData = data.data[0] as Record<string, unknown>;
+				const playerName = data.playerName as string;
+				const metric = data.metric as string;
 				const value = playerData.value !== undefined ? playerData.value : 0;
 
 				// Get the metric display name
-				const metricName = getMetricDisplayName(metric, value);
+				const metricName = getMetricDisplayName(metric, value as number);
 
 				// Enhanced handling for special metrics
 				if (metric === "AllGSC" || metric === "totalGoals") {
 					// Build contextual response and add clarification
-					answer = this.buildContextualResponse(playerName, metric, value, analysis);
+					answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 					answer = answer.replace(".", " (including both open play and penalty goals).");
 				} else if (metric === "OPENPLAYGOALS") {
 					// Special handling for open play goals
 					answer = `${playerName} has ${value} goals from open play.`;
 				} else if (metric === "points") {
 					// Build contextual response and add clarification
-					answer = this.buildContextualResponse(playerName, metric, value, analysis);
+					answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 					answer = answer.replace(".", " (Fantasy Points).");
 				} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 					// For "What was player's most prolific season?" questions
@@ -1475,7 +1498,7 @@ export class ChatbotService {
 						}
 					} else {
 						// Standard metric handling with contextual response
-						answer = this.buildContextualResponse(playerName, metric, value, analysis);
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 					}
 				}
 
@@ -1493,34 +1516,36 @@ export class ChatbotService {
 			} else if (data && data.type === "team_not_found") {
 				// Handle team not found case
 				this.logToBoth(`🔍 Handling team_not_found case:`, data);
-				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${data.availableTeams.join(", ")}.`;
+				const availableTeams = (data.availableTeams as string[]) || [];
+				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
 			} else if (data && data.type === "player_not_found") {
 				// Handle player not found case
 				this.logToBoth(`🔍 Handling player_not_found case:`, data);
-				answer = data.message || `I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+				answer = (data.message as string) || `I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
 			} else if (data && data.type === "error") {
 				// Error occurred during query
 				answer = `I encountered an error while looking up team information: ${data.error}.`;
-			} else if (data && data.type === "general_players" && data.data && data.data.length > 0) {
-				if (data.data[0].playerCount) {
+			} else if (data && data.type === "general_players" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+				const firstData = data.data[0] as Record<string, unknown>;
+				if (firstData.playerCount) {
 					// General player count question
-					answer = `The club currently has ${data.data[0].playerCount} registered players across all teams.`;
+					answer = `The club currently has ${firstData.playerCount} registered players across all teams.`;
 					visualization = {
 						type: "stats",
-						data: [{ name: "Total Players", value: data.data[0].playerCount }],
+						data: [{ name: "Total Players", value: firstData.playerCount }],
 						config: { title: "Club Statistics", type: "bar" },
 					};
 				} else {
 					// List of players
-					const playerNames = data.data.map((p: any) => p.name || p.playerName).slice(0, 10);
+					const playerNames = data.data.map((p: Record<string, unknown>) => p.name || p.playerName).slice(0, 10);
 					answer = `Here are some players in the database: ${playerNames.join(", ")}.`;
 					}
-				} else if (data && data.type === "team_specific" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "team_specific" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 					// Team-specific query (e.g., "3rd team goals")
-					const teamName = data.teamName;
-					const metric = data.metric;
-					const topPlayer = data.data[0];
-					const metricName = getMetricDisplayName(metric, topPlayer.value);
+					const teamName = data.teamName as string;
+					const metric = data.metric as string;
+					const topPlayer = data.data[0] as Record<string, unknown>;
+					const metricName = getMetricDisplayName(metric, topPlayer.value as number);
 
 					// Check if user asked for "the most" or similar superlative terms
 					const questionLower = question.toLowerCase();
@@ -1536,15 +1561,15 @@ export class ChatbotService {
 						if (template) {
 						answer = formatNaturalResponse(
 							template.template,
-							topPlayer.playerName,
+							topPlayer.playerName as string,
 							metric,
-							topPlayer.value,
+							topPlayer.value as number,
 							metricName,
 							teamName
 						);
 						} else {
 						// Fallback if no template found
-						answer = `${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} the most ${metricName} for the ${teamName} with ${topPlayer.value}.`;
+						answer = `${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value as number)} the most ${metricName} for the ${teamName} with ${topPlayer.value}.`;
 						}
 					} else {
 						// Use team-specific template for regular questions
@@ -1552,15 +1577,15 @@ export class ChatbotService {
 						if (template) {
 						answer = formatNaturalResponse(
 							template.template,
-							topPlayer.playerName,
+							topPlayer.playerName as string,
 							metric,
-							topPlayer.value,
+							topPlayer.value as number,
 							metricName,
 							teamName
 						);
 						} else {
 						// Fallback if no template found
-						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value)} ${topPlayer.value} ${metricName}.`;
+						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value as number)} ${topPlayer.value} ${metricName}.`;
 					}
 				}
 
@@ -1576,15 +1601,15 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-			} else if (data && data.type === "streak" && data.data && data.data.length > 0) {
+			} else if (data && data.type === "streak" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle streak data
-				const playerName = data.playerName;
-				const streakData = data.data;
+				const playerName = data.playerName as string;
+				const streakData = data.data as Record<string, unknown>[];
 				answer = `${playerName} has scored in ${streakData.length} games.`;
 
 						visualization = {
 					type: "chart",
-					data: streakData.map((game: any) => ({
+					data: streakData.map((game: Record<string, unknown>) => ({
 						date: game.date,
 						goals: game.goals,
 					})),
@@ -1593,18 +1618,18 @@ export class ChatbotService {
 						type: "line",
 					},
 				};
-			} else if (data && data.type === "double_game" && data.data && data.data.length > 0) {
+			} else if (data && data.type === "double_game" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle double game week data
-				const playerName = data.playerName;
-				const dgwData = data.data;
-				const totalGoals = dgwData.reduce((sum: number, game: any) => sum + (game.goals || 0), 0);
-				const totalAssists = dgwData.reduce((sum: number, game: any) => sum + (game.assists || 0), 0);
+				const playerName = data.playerName as string;
+				const dgwData = data.data as Record<string, unknown>[];
+				const totalGoals = dgwData.reduce((sum: number, game: Record<string, unknown>) => sum + ((game.goals as number) || 0), 0);
+				const totalAssists = dgwData.reduce((sum: number, game: Record<string, unknown>) => sum + ((game.assists as number) || 0), 0);
 
 				answer = `${playerName} has played ${dgwData.length} double game weeks, scoring ${totalGoals} goals and providing ${totalAssists} assists.`;
 
 						visualization = {
 							type: "table",
-					data: dgwData.map((game: any) => ({
+					data: dgwData.map((game: Record<string, unknown>) => ({
 						Date: game.date,
 						Goals: game.goals || 0,
 						Assists: game.assists || 0,
@@ -1614,10 +1639,10 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-				} else if (data && data.type === "totw_awards" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "totw_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle TOTW awards
-				const playerName = data.playerName;
-				const period = data.period;
+				const playerName = data.playerName as string;
+				const period = data.period as string;
 				const awards = data.data.length;
 				const periodText = period === "weekly" ? "weekly" : "season";
 
@@ -1631,9 +1656,9 @@ export class ChatbotService {
 						type: "bar",
 							},
 						};
-				} else if (data && data.type === "potm_awards" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "potm_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle Player of the Month awards
-				const playerName = data.playerName;
+				const playerName = data.playerName as string;
 				const awards = data.data.length;
 
 				answer = `${playerName} has received ${awards} Player of the Month award${awards === 1 ? "" : "s"}.`;
@@ -1646,9 +1671,9 @@ export class ChatbotService {
 						type: "bar",
 							},
 						};
-				} else if (data && data.type === "captain_awards" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "captain_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle Captain awards
-				const playerName = data.playerName;
+				const playerName = data.playerName as string;
 				const awards = data.data.length;
 
 				answer = `${playerName} has been captain ${awards} time${awards === 1 ? "" : "s"}.`;
@@ -1661,18 +1686,18 @@ export class ChatbotService {
 						type: "bar",
 							},
 						};
-				} else if (data && data.type === "co_players" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "co_players" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle co-players data
-				const playerName = data.playerName;
-				const coPlayers = data.data.slice(0, 10);
+				const playerName = data.playerName as string;
+				const coPlayers = data.data.slice(0, 10) as Record<string, unknown>[];
 
 				answer = `${playerName} has played with ${coPlayers.length} different players. Top co-players: ${coPlayers
-					.map((p: any) => p.coPlayerName)
+					.map((p: Record<string, unknown>) => p.coPlayerName)
 					.join(", ")}.`;
 
 						visualization = {
 							type: "table",
-					data: coPlayers.map((player: any) => ({
+					data: coPlayers.map((player: Record<string, unknown>) => ({
 						"Co-Player": player.coPlayerName,
 						"Games Together": player.gamesPlayedTogether,
 					})),
@@ -1681,18 +1706,18 @@ export class ChatbotService {
 						type: "table",
 							},
 						};
-				} else if (data && data.type === "opponents" && data.data && data.data.length > 0) {
+				} else if (data && data.type === "opponents" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opponents data
-				const playerName = data.playerName;
-				const opponents = data.data.slice(0, 10);
+				const playerName = data.playerName as string;
+				const opponents = data.data.slice(0, 10) as Record<string, unknown>[];
 
 				answer = `${playerName} has played against ${opponents.length} different opponents. Top opponents: ${opponents
-					.map((o: any) => o.opponent)
+					.map((o: Record<string, unknown>) => o.opponent)
 					.join(", ")}.`;
 
 						visualization = {
 							type: "table",
-					data: opponents.map((opponent: any) => ({
+					data: opponents.map((opponent: Record<string, unknown>) => ({
 						Opponent: opponent.opponent,
 						"Games Played": opponent.gamesPlayed,
 					})),
@@ -1701,17 +1726,17 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-			} else if (data && data.type === "temporal" && data.data && data.data.length > 0) {
+			} else if (data && data.type === "temporal" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle temporal data
-				const playerName = data.playerName;
-				const metric = data.metric;
-				const timeRange = data.timeRange;
-				const result = data.data[0];
+				const playerName = data.playerName as string;
+				const metric = data.metric as string;
+				const timeRange = data.timeRange as string;
+				const result = data.data[0] as Record<string, unknown>;
 
-				const metricName = getMetricDisplayName(metric, result.value);
+				const metricName = getMetricDisplayName(metric, result.value as number);
 				const timeText = timeRange ? ` ${timeRange}` : "";
 
-				answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName}${timeText}.`;
+				answer = `${playerName} has ${getAppropriateVerb(metric, result.value as number)} ${result.value} ${metricName}${timeText}.`;
 
 				visualization = {
 					type: "stats",
@@ -1721,16 +1746,16 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "player_team" && data.data && data.data.length > 0) {
+			} else if (data && data.type === "player_team" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle player-team specific data
-				const playerName = data.playerName;
-				const teamName = data.teamName;
-				const metric = data.metric;
-				const result = data.data[0];
+				const playerName = data.playerName as string;
+				const teamName = data.teamName as string;
+				const metric = data.metric as string;
+				const result = data.data[0] as Record<string, unknown>;
 
-				const metricName = getMetricDisplayName(metric, result.value);
+				const metricName = getMetricDisplayName(metric, result.value as number);
 
-				answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName} for the ${teamName}.`;
+				answer = `${playerName} has ${getAppropriateVerb(metric, result.value as number)} ${result.value} ${metricName} for the ${teamName}.`;
 
 				visualization = {
 					type: "stats",
@@ -1740,27 +1765,27 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "opposition" && data.data && data.data.length > 0) {
+			} else if (data && data.type === "opposition" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opposition-specific data
-				const playerName = data.playerName;
-				const metric = data.metric;
-				const oppositionName = data.oppositionName;
-				const result = data.data[0];
+				const playerName = data.playerName as string;
+				const metric = data.metric as string;
+				const oppositionName = data.oppositionName as string;
+				const result = data.data[0] as Record<string, unknown>;
 
-				const metricName = getMetricDisplayName(metric, result.value);
+				const metricName = getMetricDisplayName(metric, result.value as number);
 
 				if (oppositionName) {
 					// Specific opposition query
-					answer = `${playerName} has ${getAppropriateVerb(metric, result.value)} ${result.value} ${metricName} against ${oppositionName}.`;
+					answer = `${playerName} has ${getAppropriateVerb(metric, result.value as number)} ${result.value} ${metricName} against ${oppositionName}.`;
 				} else {
 					// All oppositions query (most goals against)
-					const topOpposition = data.data[0];
+					const topOpposition = data.data[0] as Record<string, unknown>;
 					answer = `${playerName} has scored the most ${metricName} against ${topOpposition.opposition} (${topOpposition.value}).`;
 				}
 
 				visualization = {
 					type: "stats",
-					data: data.data.slice(0, 10).map((opp: any) => ({
+					data: data.data.slice(0, 10).map((opp: Record<string, unknown>) => ({
 						name: opp.opposition || oppositionName,
 						value: opp.value,
 					})),
@@ -1769,22 +1794,22 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "ranking" && data.data) {
+			} else if (data && data.type === "ranking" && 'data' in data && Array.isArray(data.data)) {
 				// Handle ranking data (top players/teams)
-				const metric = data.metric;
-				const isPlayerQuestion = data.isPlayerQuestion;
-				const isTeamQuestion = data.isTeamQuestion;
+				const metric = data.metric as string;
+				const isPlayerQuestion = data.isPlayerQuestion as boolean;
+				const isTeamQuestion = data.isTeamQuestion as boolean;
 				const resultCount = data.data.length;
-				const requestedLimit = data.requestedLimit || 10;
+				const requestedLimit = (data.requestedLimit as number) || 10;
 				
 				if (resultCount === 0) {
 					const metricName = getMetricDisplayName(metric, 0);
 					answer = `No ${isTeamQuestion ? 'teams' : 'players'} found with ${metricName} data.`;
 				} else {
-					const metricName = getMetricDisplayName(metric, data.data[0].value);
-					const topResult = data.data[0];
-					const topName = isTeamQuestion ? topResult.teamName : topResult.playerName;
-					const topValue = topResult.value;
+					const firstResult = data.data[0] as Record<string, unknown>;
+					const metricName = getMetricDisplayName(metric, firstResult.value as number);
+					const topName = isTeamQuestion ? firstResult.teamName : firstResult.playerName;
+					const topValue = firstResult.value;
 					
 					// Determine the appropriate text based on actual result count and requested limit
 					const countText = resultCount === 1 ? "1" : 
@@ -1801,7 +1826,7 @@ export class ChatbotService {
 
 					visualization = {
 						type: "table",
-						data: data.data.map((item: any, index: number) => ({
+						data: data.data.map((item: Record<string, unknown>, index: number) => ({
 							rank: index + 1,
 							name: isTeamQuestion ? item.teamName : item.playerName,
 							value: item.value,
@@ -1825,7 +1850,7 @@ export class ChatbotService {
 			data,
 			visualization,
 			sources,
-			cypherQuery: data?.cypherQuery || "N/A",
+			cypherQuery: (data?.cypherQuery as string) || "N/A",
 		};
 	}
 
@@ -1894,7 +1919,7 @@ export class ChatbotService {
 	}
 
 	// Enhanced query methods for new relationship properties
-	private async queryPlayerTOTWData(playerName: string, period: "weekly" | "season"): Promise<any> {
+	private async queryPlayerTOTWData(playerName: string, period: "weekly" | "season"): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for TOTW awards for player: ${playerName}, period: ${period}`);
 		const relationshipType = period === "weekly" ? "IN_WEEKLY_TOTW" : "IN_SEASON_TOTW";
 
@@ -1914,8 +1939,8 @@ export class ChatbotService {
 		// Log copyable queries for debugging
 		const readyToExecuteQuery = query.replace(/\$playerName/g, `'${playerName}'`);
 		this.lastExecutedQueries.push(`TOTW_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
-		this.logToBoth(`🔍 TOTW CYPHER QUERY (with parameters):`, query);
-		this.logToBoth(`🔍 TOTW CYPHER QUERY (ready to execute):`, readyToExecuteQuery);
+		this.logToBoth(`🔍 TOTW CYPHER QUERY (with parameters):`, query, "log");
+		this.logToBoth(`🔍 TOTW CYPHER QUERY (ready to execute):`, readyToExecuteQuery, "log");
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName });
@@ -1926,7 +1951,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayersOfTheMonthData(playerName: string): Promise<any> {
+	private async queryPlayersOfTheMonthData(playerName: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for Player of the Month awards for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})-[r:PLAYER_OF_THE_MONTH]->(potm)
@@ -1946,7 +1971,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerCaptainAwardsData(playerName: string): Promise<any> {
+	private async queryPlayerCaptainAwardsData(playerName: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for Captain awards for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})-[r:HAS_CAPTAIN_AWARDS]->(ca:CaptainsAndAwards)
@@ -1966,7 +1991,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerCoPlayersData(playerName: string): Promise<any> {
+	private async queryPlayerCoPlayersData(playerName: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for co-players for player: ${playerName}`);
 		const query = `
 			MATCH (p1:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)<-[:PLAYED_IN]-(p2:Player)
@@ -1985,7 +2010,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerOpponentsData(playerName: string): Promise<any> {
+	private async queryPlayerOpponentsData(playerName: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for opponents for player: ${playerName}`);
 		const query = `
 			MATCH (p:Player {playerName: $playerName})-[r:PLAYED_AGAINST_OPPONENT]->(od:OppositionDetails)
@@ -2008,7 +2033,7 @@ export class ChatbotService {
 	}
 
 	// Enhanced query methods for streaks and temporal analysis
-	private async queryStreakData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryStreakData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying streak data for entities: ${entities}, metrics: ${metrics}`);
 		
 		if (entities.length === 0) {
@@ -2067,7 +2092,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryComparisonData(entities: string[], metrics: string[]): Promise<any> {
+	private async queryComparisonData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying comparison data for entities: ${entities}, metrics: ${metrics}`);
 		
 		if (metrics.length === 0) {
@@ -2144,7 +2169,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<any> {
+	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying temporal data for entities: ${entities}, metrics: ${metrics}, timeRange: ${timeRange}`);
 		
 		if (entities.length === 0) {
@@ -2225,7 +2250,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryTeamSpecificPlayerData(teamName: string, metric: string): Promise<any> {
+	private async queryTeamSpecificPlayerData(teamName: string, metric: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying team-specific data for team: ${teamName}, metric: ${metric}`);
 		
 		// Normalize team name
@@ -2280,7 +2305,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<any> {
+	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying player data for team: ${playerName}, metric: ${metric}, team: ${teamEntity}`);
 		
 		// Normalize team name
@@ -2328,7 +2353,7 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryOppositionData(playerName: string, metric: string, oppositionName?: string): Promise<any> {
+	private async queryOppositionData(playerName: string, metric: string, oppositionName?: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying opposition data for player: ${playerName}, metric: ${metric}, opposition: ${oppositionName}`);
 		
 		let metricField = "goals";
@@ -2389,15 +2414,15 @@ export class ChatbotService {
 	}
 
 	// Query ranking data for "which" questions (top players/teams)
-	private async queryRankingData(entities: string[], metrics: string[], analysis: any): Promise<any> {
-		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null);
+	private async queryRankingData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 		
 		if (metrics.length === 0) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
 		}
 
 		const metric = metrics[0];
-		const lowerQuestion = analysis.question?.toLowerCase() || '';
+		const lowerQuestion = (analysis as any).question?.toLowerCase() || '';
 		
 		// Determine if this is asking about players or teams
 		const isPlayerQuestion = lowerQuestion.includes('player') || lowerQuestion.includes('who');
@@ -2478,7 +2503,7 @@ export class ChatbotService {
 
 		try {
 			const result = await neo4jService.executeQuery(query);
-			this.logToBoth(`🔍 Ranking query result:`, result);
+			this.logToBoth(`🔍 Ranking query result:`, result, "log");
 
 			if (!result || result.length === 0) {
 				return { type: "no_data", data: [], message: "No ranking data found" };
@@ -2502,7 +2527,7 @@ export class ChatbotService {
 		}
 	}
 
-	public getProcessingDetails(): any {
+	public getProcessingDetails(): Record<string, unknown> {
 		return {
 			questionAnalysis: this.lastQuestionAnalysis,
 			cypherQueries: this.lastExecutedQueries,

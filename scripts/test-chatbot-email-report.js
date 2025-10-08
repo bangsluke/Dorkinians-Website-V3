@@ -15,6 +15,32 @@ const fs = require("fs");
 const path = require("path");
 const nodemailer = require("nodemailer");
 
+// Enhanced logging for debugging
+const debugLogFile = path.join(__dirname, 'test-chatbot-debug.log');
+const debugLogStream = fs.createWriteStream(debugLogFile, { flags: 'w' });
+
+// Override console methods to log to both console and debug file
+const originalConsole = {
+	log: console.log,
+	error: console.error,
+	warn: console.warn
+};
+
+function logToBoth(message, level = 'log') {
+	const timestamp = new Date().toISOString();
+	const logMessage = `[${timestamp}] ${message}`;
+	
+	// Write to debug file
+	debugLogStream.write(logMessage + '\n');
+	
+	// Write to console
+	originalConsole[level](message);
+}
+
+console.log = (message) => logToBoth(message, 'log');
+console.error = (message) => logToBoth(message, 'error');
+console.warn = (message) => logToBoth(message, 'warn');
+
 // Load environment variables
 require("dotenv").config();
 
@@ -668,16 +694,94 @@ function formatValueByMetric(metric, value) {
 }
 
 // Function to load chatbot service
-async function loadChatbotService() {
+function loadChatbotService() {
 	if (!ChatbotService) {
 		try {
-			// Use require instead of dynamic import for ts-node compatibility
-			const chatbotModule = require("../lib/services/chatbotService.ts");
-			ChatbotService = chatbotModule.ChatbotService;
-			console.log("✅ ChatbotService loaded successfully");
+		// Clear ALL caches to force fresh compilation
+		if (require.cache) {
+			Object.keys(require.cache).forEach(key => {
+				delete require.cache[key];
+			});
+		}
+		
+		// Clear ts-node cache specifically
+		if (require.extensions['.ts']) {
+			delete require.extensions['.ts'];
+		}
+			
+			// Register ts-node with comprehensive configuration
+			require("ts-node").register({
+				transpileOnly: true,
+				compilerOptions: {
+					target: "es2020",
+					module: "commonjs",
+					moduleResolution: "node",
+					esModuleInterop: true,
+					allowSyntheticDefaultImports: true,
+					strict: true,
+					skipLibCheck: true,
+					noEmit: true,
+					// Additional options to ensure proper class recognition
+					experimentalDecorators: true,
+					emitDecoratorMetadata: true,
+					strictPropertyInitialization: false,
+					noImplicitAny: true,
+					strictNullChecks: true,
+					strictFunctionTypes: true,
+					strictBindCallApply: true,
+					noImplicitReturns: true,
+					noFallthroughCasesInSwitch: true,
+					noUncheckedIndexedAccess: true,
+					noImplicitOverride: true
+				}
+			});
+			
+			console.log("✅ ts-node registered with minimal configuration");
+			
+			// Load the TypeScript file with simplified approach
+			const path = require('path');
+			const fs = require('fs');
+			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
+			console.log(`📁 Loading: ${chatbotPath}`);
+			
+			// Verify file exists and get timestamp
+			const stats = fs.statSync(chatbotPath);
+			console.log(`📁 File timestamp: ${stats.mtime.toISOString()}`);
+			console.log(`📁 File size: ${stats.size} bytes`);
+			
+			const chatbotModule = require(chatbotPath);
+			console.log("✅ TypeScript file loaded successfully");
+			
+			// Check for ChatbotService
+			if (chatbotModule.ChatbotService) {
+				ChatbotService = chatbotModule.ChatbotService;
+				console.log("✅ ChatbotService loaded successfully");
+			} else {
+				console.log("❌ ChatbotService not found in module");
+				console.log("📝 Available exports:", Object.keys(chatbotModule));
+				throw new Error("ChatbotService not found in module");
+			}
 		} catch (error) {
-			console.log("⚠️ Could not load ChatbotService:", error.message);
+			// Temporarily restore original console methods to avoid corruption
+			const originalLog = console.log;
+			const originalError = console.error;
+			const originalWarn = console.warn;
+			
+			// Restore original console methods
+			console.log = originalConsole.log;
+			console.error = originalConsole.error;
+			console.warn = originalConsole.warn;
+			
+			console.log("⚠️ Could not load ChatbotService:");
+			console.log("⚠️ Error type:", error.constructor.name);
+			console.log("⚠️ Error message:", error.message);
+			console.log("⚠️ Error stack:", error.stack);
 			console.log("⚠️ Falling back to CSV-based testing");
+			
+			// Restore overridden console methods
+			console.log = originalLog;
+			console.error = originalError;
+			console.warn = originalWarn;
 		}
 	}
 	return ChatbotService;
@@ -923,7 +1027,7 @@ async function runTestsProgrammatically() {
 
 					try {
 						// Try to use the chatbot service directly first
-						const chatbotService = await loadChatbotService();
+						const chatbotService = loadChatbotService();
 						if (chatbotService) {
 							// Logging handled by chatbot service
 							const response = await chatbotService.getInstance().processQuestion({
@@ -1437,4 +1541,8 @@ async function main() {
 main().catch((error) => {
 	console.error("❌ Script failed:", error);
 	process.exit(1);
+}).finally(() => {
+	// Close the debug log stream
+	debugLogStream.end();
+	console.log(`📝 Full debug log saved to: ${debugLogFile}`);
 });

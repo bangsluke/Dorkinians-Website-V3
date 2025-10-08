@@ -35,14 +35,14 @@ describe("ChatbotService Basic Tests", () => {
 		});
 
 		test("should contain expected players", () => {
-			const playerNames = FALLBACK_TEST_DATA.map((p) => p.playerName);
+			const playerNames = FALLBACK_TEST_DATA.map((p: { playerName: string }) => p.playerName);
 			expect(playerNames).toContain("Luke Bangs");
 			expect(playerNames).toContain("Oli Goddard");
 			expect(playerNames).toContain("Jonny Sourris");
 		});
 
 		test("should have valid numeric data", () => {
-			FALLBACK_TEST_DATA.forEach((player) => {
+			FALLBACK_TEST_DATA.forEach((player: { goals: number; assists: number; appearances: number }) => {
 				expect(typeof player.goals).toBe("number");
 				expect(typeof player.goals).toBe("number");
 				expect(typeof player.assists).toBe("number");
