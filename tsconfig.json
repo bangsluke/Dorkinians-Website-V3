@@ -20,7 +20,7 @@
 			}
 		],
 		"baseUrl": ".",
-		"types": ["jest", "@testing-library/jest-dom", "node"],
+		"types": ["jest", "node"],
 		"paths": {
 			"@/*": ["./*"],
 			"@/components/*": ["./components/*"],
