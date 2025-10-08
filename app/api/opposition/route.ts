@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
 			WHERE f.opposition IS NOT NULL AND f.opposition <> ''
 			WITH DISTINCT f.opposition as oppositionName
 		`;
-		
+
 		const params: any = { graphLabel: neo4jService.getGraphLabel() };
-		
+
 		if (search && search.trim()) {
 			query += ` AND f.opposition CONTAINS $search`;
 			params.search = search.trim();
 		}
-		
+
 		query += `
 			RETURN oppositionName
 			ORDER BY oppositionName

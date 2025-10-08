@@ -13,35 +13,36 @@ require("dotenv").config();
 
 function analyzeLogs() {
 	console.log("🔍 Analyzing chatbot test logs...");
-	
+
 	const logDir = path.join(__dirname, "..", "logs");
-	
+
 	if (!fs.existsSync(logDir)) {
 		console.log("❌ Logs directory not found. Run the enhanced logging test first.");
 		return;
 	}
-	
+
 	// Find the most recent log files
-	const logFiles = fs.readdirSync(logDir)
-		.filter(file => file.startsWith('test-execution-') && file.endsWith('.log'))
+	const logFiles = fs
+		.readdirSync(logDir)
+		.filter((file) => file.startsWith("test-execution-") && file.endsWith(".log"))
 		.sort()
 		.reverse();
-	
+
 	if (logFiles.length === 0) {
 		console.log("❌ No test execution logs found. Run the enhanced logging test first.");
 		return;
 	}
-	
+
 	const latestLogFile = path.join(logDir, logFiles[0]);
-	const errorLogFile = latestLogFile.replace('test-execution-', 'test-errors-');
-	const debugLogFile = latestLogFile.replace('test-execution-', 'test-debug-');
-	
+	const errorLogFile = latestLogFile.replace("test-execution-", "test-errors-");
+	const debugLogFile = latestLogFile.replace("test-execution-", "test-debug-");
+
 	console.log(`📝 Analyzing log file: ${latestLogFile}`);
-	
+
 	// Read and analyze the main log file
-	const logContent = fs.readFileSync(latestLogFile, 'utf8');
-	const lines = logContent.split('\n');
-	
+	const logContent = fs.readFileSync(latestLogFile, "utf8");
+	const lines = logContent.split("\n");
+
 	// Analysis categories
 	const analysis = {
 		totalLines: lines.length,
@@ -56,79 +57,88 @@ function analyzeLogs() {
 			commonErrors: {},
 			commonWarnings: {},
 			responsePatterns: {},
-			queryPatterns: {}
-		}
+			queryPatterns: {},
+		},
 	};
-	
+
 	// Analyze each line
 	lines.forEach((line, index) => {
 		const lineNumber = index + 1;
-		
+
 		// Extract timestamp and level
 		const timestampMatch = line.match(/^\[([^\]]+)\]\s+(\w+):\s+(.+)$/);
 		if (!timestampMatch) return;
-		
+
 		const [, timestamp, level, message] = timestampMatch;
-		
+
 		// Categorize messages
-		if (level === 'ERROR') {
+		if (level === "ERROR") {
 			analysis.errors.push({ lineNumber, timestamp, message });
-			
+
 			// Track common error patterns
-			const errorKey = message.toLowerCase().replace(/\d+/g, 'N').replace(/"[^"]*"/g, 'STRING');
+			const errorKey = message
+				.toLowerCase()
+				.replace(/\d+/g, "N")
+				.replace(/"[^"]*"/g, "STRING");
 			analysis.patterns.commonErrors[errorKey] = (analysis.patterns.commonErrors[errorKey] || 0) + 1;
 		}
-		
-		if (level === 'WARN') {
+
+		if (level === "WARN") {
 			analysis.warnings.push({ lineNumber, timestamp, message });
-			
-			const warningKey = message.toLowerCase().replace(/\d+/g, 'N').replace(/"[^"]*"/g, 'STRING');
+
+			const warningKey = message
+				.toLowerCase()
+				.replace(/\d+/g, "N")
+				.replace(/"[^"]*"/g, "STRING");
 			analysis.patterns.commonWarnings[warningKey] = (analysis.patterns.commonWarnings[warningKey] || 0) + 1;
 		}
-		
+
 		// Track API calls
-		if (message.includes('API call') || message.includes('fetch') || message.includes('response')) {
+		if (message.includes("API call") || message.includes("fetch") || message.includes("response")) {
 			analysis.apiCalls.push({ lineNumber, timestamp, message });
 		}
-		
+
 		// Track database queries
-		if (message.includes('Cypher') || message.includes('MATCH') || message.includes('RETURN')) {
+		if (message.includes("Cypher") || message.includes("MATCH") || message.includes("RETURN")) {
 			analysis.databaseQueries.push({ lineNumber, timestamp, message });
-			
+
 			// Extract query patterns
 			const queryMatch = message.match(/(MATCH|RETURN|WHERE|WITH|ORDER BY|LIMIT)/gi);
 			if (queryMatch) {
-				const pattern = queryMatch.join(' ').toLowerCase();
+				const pattern = queryMatch.join(" ").toLowerCase();
 				analysis.patterns.queryPatterns[pattern] = (analysis.patterns.queryPatterns[pattern] || 0) + 1;
 			}
 		}
-		
+
 		// Track chatbot responses
-		if (message.includes('Chatbot response') || message.includes('answer') || message.includes('response')) {
+		if (message.includes("Chatbot response") || message.includes("answer") || message.includes("response")) {
 			analysis.chatbotResponses.push({ lineNumber, timestamp, message });
-			
+
 			// Track response patterns
-			if (message.includes('I couldn\'t find') || message.includes('No data found') || message.includes('error')) {
-				const responseKey = message.toLowerCase().replace(/\d+/g, 'N').replace(/"[^"]*"/g, 'STRING');
+			if (message.includes("I couldn't find") || message.includes("No data found") || message.includes("error")) {
+				const responseKey = message
+					.toLowerCase()
+					.replace(/\d+/g, "N")
+					.replace(/"[^"]*"/g, "STRING");
 				analysis.patterns.responsePatterns[responseKey] = (analysis.patterns.responsePatterns[responseKey] || 0) + 1;
 			}
 		}
-		
+
 		// Track fallbacks
-		if (message.includes('fallback') || message.includes('CSV') || message.includes('Using API fallback')) {
+		if (message.includes("fallback") || message.includes("CSV") || message.includes("Using API fallback")) {
 			analysis.fallbacks.push({ lineNumber, timestamp, message });
 		}
-		
+
 		// Track performance metrics
-		if (message.includes('time') || message.includes('duration') || message.includes('ms')) {
+		if (message.includes("time") || message.includes("duration") || message.includes("ms")) {
 			analysis.performance.push({ lineNumber, timestamp, message });
 		}
 	});
-	
+
 	// Generate analysis report
 	console.log("\n📊 LOG ANALYSIS REPORT");
 	console.log("=" * 50);
-	
+
 	console.log(`\n📈 OVERVIEW:`);
 	console.log(`  - Total log lines: ${analysis.totalLines}`);
 	console.log(`  - Errors: ${analysis.errors.length}`);
@@ -137,43 +147,43 @@ function analyzeLogs() {
 	console.log(`  - Database queries: ${analysis.databaseQueries.length}`);
 	console.log(`  - Chatbot responses: ${analysis.chatbotResponses.length}`);
 	console.log(`  - Fallbacks: ${analysis.fallbacks.length}`);
-	
+
 	// Most common errors
 	console.log(`\n❌ TOP ERRORS:`);
 	const topErrors = Object.entries(analysis.patterns.commonErrors)
-		.sort(([,a], [,b]) => b - a)
+		.sort(([, a], [, b]) => b - a)
 		.slice(0, 5);
 	topErrors.forEach(([pattern, count], index) => {
 		console.log(`  ${index + 1}. (${count}x) ${pattern}`);
 	});
-	
+
 	// Most common warnings
 	console.log(`\n⚠️ TOP WARNINGS:`);
 	const topWarnings = Object.entries(analysis.patterns.commonWarnings)
-		.sort(([,a], [,b]) => b - a)
+		.sort(([, a], [, b]) => b - a)
 		.slice(0, 5);
 	topWarnings.forEach(([pattern, count], index) => {
 		console.log(`  ${index + 1}. (${count}x) ${pattern}`);
 	});
-	
+
 	// Response patterns
 	console.log(`\n🤖 RESPONSE PATTERNS:`);
 	const topResponsePatterns = Object.entries(analysis.patterns.responsePatterns)
-		.sort(([,a], [,b]) => b - a)
+		.sort(([, a], [, b]) => b - a)
 		.slice(0, 5);
 	topResponsePatterns.forEach(([pattern, count], index) => {
 		console.log(`  ${index + 1}. (${count}x) ${pattern}`);
 	});
-	
+
 	// Query patterns
 	console.log(`\n🔍 QUERY PATTERNS:`);
 	const topQueryPatterns = Object.entries(analysis.patterns.queryPatterns)
-		.sort(([,a], [,b]) => b - a)
+		.sort(([, a], [, b]) => b - a)
 		.slice(0, 5);
 	topQueryPatterns.forEach(([pattern, count], index) => {
 		console.log(`  ${index + 1}. (${count}x) ${pattern}`);
 	});
-	
+
 	// Detailed error analysis
 	if (analysis.errors.length > 0) {
 		console.log(`\n🔍 DETAILED ERROR ANALYSIS:`);
@@ -181,7 +191,7 @@ function analyzeLogs() {
 			console.log(`  ${index + 1}. Line ${error.lineNumber}: ${error.message}`);
 		});
 	}
-	
+
 	// Fallback analysis
 	if (analysis.fallbacks.length > 0) {
 		console.log(`\n🔄 FALLBACK ANALYSIS:`);
@@ -190,32 +200,32 @@ function analyzeLogs() {
 			console.log(`  ${index + 1}. Line ${fallback.lineNumber}: ${fallback.message}`);
 		});
 	}
-	
+
 	// Recommendations
 	console.log(`\n💡 RECOMMENDATIONS:`);
-	
+
 	if (analysis.errors.length > 0) {
 		console.log(`  - Fix ${analysis.errors.length} errors identified in the logs`);
 	}
-	
+
 	if (analysis.fallbacks.length > 0) {
 		console.log(`  - Investigate ${analysis.fallbacks.length} fallback scenarios`);
 		console.log(`  - Check database connectivity and query performance`);
 	}
-	
-	if (analysis.patterns.responsePatterns['i couldn\'t find'] > 0) {
+
+	if (analysis.patterns.responsePatterns["i couldn't find"] > 0) {
 		console.log(`  - Improve entity resolution for player name matching`);
 	}
-	
-	if (analysis.patterns.responsePatterns['no data found'] > 0) {
+
+	if (analysis.patterns.responsePatterns["no data found"] > 0) {
 		console.log(`  - Check database data availability and query accuracy`);
 	}
-	
+
 	// Save detailed analysis to file
-	const analysisFile = path.join(logDir, `log-analysis-${new Date().toISOString().replace(/[:.]/g, '-')}.json`);
+	const analysisFile = path.join(logDir, `log-analysis-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 	fs.writeFileSync(analysisFile, JSON.stringify(analysis, null, 2));
 	console.log(`\n📝 Detailed analysis saved to: ${analysisFile}`);
-	
+
 	return analysis;
 }
 

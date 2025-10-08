@@ -17,11 +17,11 @@ export async function POST(request: NextRequest) {
 		const { playerName, filters } = body;
 
 		// Enhanced validation
-		if (!playerName || typeof playerName !== 'string' || playerName.trim() === '') {
+		if (!playerName || typeof playerName !== "string" || playerName.trim() === "") {
 			return NextResponse.json({ error: "Valid player name is required" }, { status: 400, headers: corsHeaders });
 		}
 
-		if (!filters || typeof filters !== 'object') {
+		if (!filters || typeof filters !== "object") {
 			return NextResponse.json({ error: "Filters object is required" }, { status: 400, headers: corsHeaders });
 		}
 
@@ -58,17 +58,17 @@ export async function POST(request: NextRequest) {
 		// Time Range filters - optimized for performance
 		if (filters.timeRange) {
 			const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
-			
-			if (type === 'season' && seasons && seasons.length > 0) {
+
+			if (type === "season" && seasons && seasons.length > 0) {
 				conditions.push(`f.season IN $seasons`);
 				params.seasons = seasons;
-			} else if (type === 'beforeDate' && beforeDate) {
+			} else if (type === "beforeDate" && beforeDate) {
 				conditions.push(`f.date <= $beforeDate`);
 				params.beforeDate = beforeDate;
-			} else if (type === 'afterDate' && afterDate) {
+			} else if (type === "afterDate" && afterDate) {
 				conditions.push(`f.date >= $afterDate`);
 				params.afterDate = afterDate;
-			} else if (type === 'betweenDates' && startDate && endDate) {
+			} else if (type === "betweenDates" && startDate && endDate) {
 				conditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 				params.startDate = startDate;
 				params.endDate = endDate;
@@ -83,10 +83,8 @@ export async function POST(request: NextRequest) {
 
 		// Location filters - corrected field name from schema
 		if (filters.location && filters.location.length > 0) {
-			const locationConditions = filters.location.map((loc: string) => 
-				loc === 'Home' ? 'f.homeOrAway = "Home"' : 'f.homeOrAway = "Away"'
-			);
-			conditions.push(`(${locationConditions.join(' OR ')})`);
+			const locationConditions = filters.location.map((loc: string) => (loc === "Home" ? 'f.homeOrAway = "Home"' : 'f.homeOrAway = "Away"'));
+			conditions.push(`(${locationConditions.join(" OR ")})`);
 		}
 
 		// Opposition filters - case-insensitive search
@@ -112,9 +110,9 @@ export async function POST(request: NextRequest) {
 		// Result filters - optimized mapping
 		if (filters.result && filters.result.length > 0) {
 			const resultMapping: { [key: string]: string } = {
-				'Win': 'W',
-				'Draw': 'D', 
-				'Loss': 'L'
+				Win: "W",
+				Draw: "D",
+				Loss: "L",
 			};
 			const resultValues = filters.result.map((r: string) => resultMapping[r]).filter(Boolean);
 			if (resultValues.length > 0) {
@@ -131,7 +129,7 @@ export async function POST(request: NextRequest) {
 
 		// Apply all conditions at once for better performance
 		if (conditions.length > 0) {
-			query += ` WHERE ${conditions.join(' AND ')}`;
+			query += ` WHERE ${conditions.join(" AND ")}`;
 		}
 
 		// Optimized return with early aggregation - corrected to use MatchDetail data
@@ -144,8 +142,8 @@ export async function POST(request: NextRequest) {
 		const copyPasteQuery = query.replace(/\$(\w+)/g, (match, paramName) => {
 			const value = params[paramName];
 			if (Array.isArray(value)) {
-				return `[${value.map(v => `"${v}"`).join(', ')}]`;
-			} else if (typeof value === 'string') {
+				return `[${value.map((v) => `"${v}"`).join(", ")}]`;
+			} else if (typeof value === "string") {
 				return `"${value}"`;
 			}
 			return value;
@@ -165,7 +163,7 @@ export async function POST(request: NextRequest) {
 
 		// Convert Neo4j node objects to plain objects for calculateFilteredStats
 		const plainMatchDetails = filteredMatchDetails.map((node: any) => ({
-			properties: node.properties
+			properties: node.properties,
 		}));
 
 		// Calculate filtered stats from the match details
@@ -181,11 +179,11 @@ export async function POST(request: NextRequest) {
 		};
 
 		// Include copyable query in response for debugging
-		const response = { 
+		const response = {
 			playerData,
 			debug: {
-				copyPasteQuery
-			}
+				copyPasteQuery,
+			},
 		};
 
 		return NextResponse.json(response, { headers: corsHeaders });
@@ -200,72 +198,78 @@ function validateFilters(filters: any): string | null {
 	// Validate timeRange
 	if (filters.timeRange) {
 		const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
-		
-		if (!type || !['season', 'beforeDate', 'afterDate', 'betweenDates'].includes(type)) {
+
+		if (!type || !["season", "beforeDate", "afterDate", "betweenDates"].includes(type)) {
 			return "Invalid timeRange type";
 		}
-		
-		if (type === 'season' && (!seasons || !Array.isArray(seasons) || seasons.length === 0)) {
+
+		if (type === "season" && (!seasons || !Array.isArray(seasons) || seasons.length === 0)) {
 			return "Seasons array is required for season filter";
 		}
-		
-		if (type === 'beforeDate' && !beforeDate) {
+
+		if (type === "beforeDate" && !beforeDate) {
 			return "beforeDate is required for beforeDate filter";
 		}
-		
-		if (type === 'afterDate' && !afterDate) {
+
+		if (type === "afterDate" && !afterDate) {
 			return "afterDate is required for afterDate filter";
 		}
-		
-		if (type === 'betweenDates' && (!startDate || !endDate)) {
+
+		if (type === "betweenDates" && (!startDate || !endDate)) {
 			return "startDate and endDate are required for betweenDates filter";
 		}
 	}
-	
+
 	// Validate teams
-	if (filters.teams && (!Array.isArray(filters.teams) || filters.teams.some((team: any) => typeof team !== 'string'))) {
+	if (filters.teams && (!Array.isArray(filters.teams) || filters.teams.some((team: any) => typeof team !== "string"))) {
 		return "Teams must be an array of strings";
 	}
-	
+
 	// Validate location
-	if (filters.location && (!Array.isArray(filters.location) || filters.location.some((loc: any) => !['Home', 'Away'].includes(loc)))) {
+	if (filters.location && (!Array.isArray(filters.location) || filters.location.some((loc: any) => !["Home", "Away"].includes(loc)))) {
 		return "Location must be an array containing 'Home' and/or 'Away'";
 	}
-	
+
 	// Validate opposition
 	if (filters.opposition) {
-		if (typeof filters.opposition !== 'object' || 
-			typeof filters.opposition.allOpposition !== 'boolean' ||
-			(typeof filters.opposition.searchTerm !== 'string' && filters.opposition.searchTerm !== undefined)) {
+		if (
+			typeof filters.opposition !== "object" ||
+			typeof filters.opposition.allOpposition !== "boolean" ||
+			(typeof filters.opposition.searchTerm !== "string" && filters.opposition.searchTerm !== undefined)
+		) {
 			return "Invalid opposition filter structure";
 		}
 	}
-	
+
 	// Validate competition
 	if (filters.competition) {
-		if (typeof filters.competition !== 'object') {
+		if (typeof filters.competition !== "object") {
 			return "Competition filter must be an object";
 		}
-		
-		if (filters.competition.types && (!Array.isArray(filters.competition.types) || 
-			filters.competition.types.some((type: any) => !['League', 'Cup', 'Friendly'].includes(type)))) {
+
+		if (
+			filters.competition.types &&
+			(!Array.isArray(filters.competition.types) ||
+				filters.competition.types.some((type: any) => !["League", "Cup", "Friendly"].includes(type)))
+		) {
 			return "Competition types must be an array containing 'League', 'Cup', and/or 'Friendly'";
 		}
-		
-		if (filters.competition.searchTerm && typeof filters.competition.searchTerm !== 'string') {
+
+		if (filters.competition.searchTerm && typeof filters.competition.searchTerm !== "string") {
 			return "Competition search term must be a string";
 		}
 	}
-	
+
 	// Validate result
-	if (filters.result && (!Array.isArray(filters.result) || 
-		filters.result.some((result: any) => !['Win', 'Draw', 'Loss'].includes(result)))) {
+	if (
+		filters.result &&
+		(!Array.isArray(filters.result) || filters.result.some((result: any) => !["Win", "Draw", "Loss"].includes(result)))
+	) {
 		return "Result must be an array containing 'Win', 'Draw', and/or 'Loss'";
 	}
-	
+
 	return null;
 }
-
 
 function calculateFilteredStats(matchDetails: any[]): any {
 	if (!matchDetails || matchDetails.length === 0) {
@@ -289,7 +293,7 @@ function calculateFilteredStats(matchDetails: any[]): any {
 			penaltiesSaved: 0,
 			fantasyPoints: 0,
 			distance: 0,
-			
+
 			// Derived stats
 			allGoalsScored: 0,
 			openPlayGoalsScored: 0,
@@ -310,7 +314,7 @@ function calculateFilteredStats(matchDetails: any[]): any {
 			penaltiesMissedPerApp: 0,
 			penaltiesConcededPerApp: 0,
 			penaltiesSavedPerApp: 0,
-			
+
 			// Team and season tracking
 			mostPlayedForTeam: "",
 			numberTeamsPlayedFor: 0,
@@ -349,7 +353,7 @@ function calculateFilteredStats(matchDetails: any[]): any {
 
 	matchDetails.forEach((matchDetail: any) => {
 		const props = matchDetail.properties;
-		
+
 		appearances++;
 		minutes += Number(props.minutes) || 0;
 		mom += Number(props.mom) || 0;
@@ -400,8 +404,8 @@ function calculateFilteredStats(matchDetails: any[]): any {
 	const penaltiesSavedPerApp = appearances > 0 ? penaltiesSaved / appearances : 0;
 
 	// Find most played for team and most scored for team
-	const mostPlayedForTeam = Object.keys(teamCounts).reduce((a, b) => teamCounts[a] > teamCounts[b] ? a : b, '');
-	const mostScoredForTeam = Object.keys(teamGoals).reduce((a, b) => teamGoals[a] > teamGoals[b] ? a : b, '');
+	const mostPlayedForTeam = Object.keys(teamCounts).reduce((a, b) => (teamCounts[a] > teamCounts[b] ? a : b), "");
+	const mostScoredForTeam = Object.keys(teamGoals).reduce((a, b) => (teamGoals[a] > teamGoals[b] ? a : b), "");
 
 	return {
 		// Basic stats from statObject
@@ -422,7 +426,7 @@ function calculateFilteredStats(matchDetails: any[]): any {
 		penaltiesSaved,
 		fantasyPoints,
 		distance,
-		
+
 		// Derived stats from statObject
 		allGoalsScored,
 		openPlayGoalsScored,
@@ -443,7 +447,7 @@ function calculateFilteredStats(matchDetails: any[]): any {
 		penaltiesMissedPerApp,
 		penaltiesConcededPerApp,
 		penaltiesSavedPerApp,
-		
+
 		// Team and season tracking (for derived stats)
 		mostPlayedForTeam,
 		numberTeamsPlayedFor: Object.keys(teamCounts).length,

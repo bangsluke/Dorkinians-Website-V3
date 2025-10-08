@@ -16,36 +16,36 @@ const path = require("path");
 const nodemailer = require("nodemailer");
 
 // Enhanced logging for debugging
-const debugLogFile = path.join(__dirname, 'test-chatbot-debug.log');
-const debugLogStream = fs.createWriteStream(debugLogFile, { flags: 'w' });
+const debugLogFile = path.join(__dirname, "test-chatbot-debug.log");
+const debugLogStream = fs.createWriteStream(debugLogFile, { flags: "w" });
 
 // Override console methods to log to both console and debug file
 const originalConsole = {
 	log: console.log,
 	error: console.error,
-	warn: console.warn
+	warn: console.warn,
 };
 
-function logToBoth(message, level = 'log') {
+function logToBoth(message, level = "log") {
 	const timestamp = new Date().toISOString();
 	const logMessage = `[${timestamp}] ${message}`;
-	
+
 	// Write to debug file
-	debugLogStream.write(logMessage + '\n');
-	
+	debugLogStream.write(logMessage + "\n");
+
 	// Write to console
 	originalConsole[level](message);
 }
 
-console.log = (message) => logToBoth(message, 'log');
-console.error = (message) => logToBoth(message, 'error');
-console.warn = (message) => logToBoth(message, 'warn');
+console.log = (message) => logToBoth(message, "log");
+console.error = (message) => logToBoth(message, "error");
+console.warn = (message) => logToBoth(message, "warn");
 
 // Load environment variables
 require("dotenv").config();
 
 // Check for debug mode
-const isDebugMode = process.env.DEBUG_MODE === 'true';
+const isDebugMode = process.env.DEBUG_MODE === "true";
 
 // Conditional logging functions
 const logMinimal = (message) => {
@@ -612,12 +612,12 @@ let ChatbotService = null;
 function formatValueByMetric(metric, value) {
 	logDebug(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
 	// Handle BigInt values from Neo4j first
-	if (typeof value === 'bigint') {
+	if (typeof value === "bigint") {
 		return value.toString();
 	}
-	
+
 	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
-	if (typeof value === 'string') {
+	if (typeof value === "string") {
 		// Check if it's a numeric string
 		if (!isNaN(parseFloat(value)) && isFinite(value)) {
 			// It's a numeric string, convert to number and continue with formatting
@@ -627,17 +627,17 @@ function formatValueByMetric(metric, value) {
 			return value;
 		}
 	}
-	
+
 	// Import the actual statObject from config.ts using ts-node
 	let statObject;
 	try {
 		// Register ts-node to handle TypeScript imports
-		require('ts-node/register');
-		logDebug('🔧 Loading config.ts via ts-node...');
-		statObject = require('../config/config.ts').statObject;
-		logDebug('🔧 Successfully loaded config.ts');
+		require("ts-node/register");
+		logDebug("🔧 Loading config.ts via ts-node...");
+		statObject = require("../config/config.ts").statObject;
+		logDebug("🔧 Successfully loaded config.ts");
 	} catch (e) {
-		logDebug('🔧 Using hardcoded statObject fallback, error:', e.message);
+		logDebug("🔧 Using hardcoded statObject fallback, error:", e.message);
 		// Fallback to hardcoded values for now (since TypeScript import is failing)
 		statObject = {
 			FTP: { numberDecimalPlaces: 0 },
@@ -664,30 +664,30 @@ function formatValueByMetric(metric, value) {
 			// Percentage metrics fallback to ensure one decimal place in emails
 			"HomeGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
 			"AwayGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
-			"Games%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" }
+			"Games%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
 		};
 	}
-	
+
 	const metricConfig = statObject[metric];
-	if (metricConfig && typeof metricConfig === 'object') {
+	if (metricConfig && typeof metricConfig === "object") {
 		// Handle percentage formatting
-		if (metricConfig.statFormat === 'Percentage') {
+		if (metricConfig.statFormat === "Percentage") {
 			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
 			// Check if value is already a percentage (>= 1) or a decimal (< 1)
 			const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
-			const result = percentageValue.toFixed(decimalPlaces) + '%';
+			const result = percentageValue.toFixed(decimalPlaces) + "%";
 			logDebug(`🔧 Percentage formatting ${metric}: ${value} -> ${percentageValue} -> ${result}`);
 			return result;
 		}
-		
+
 		// Handle other numeric formatting
-		if ('numberDecimalPlaces' in metricConfig) {
+		if ("numberDecimalPlaces" in metricConfig) {
 			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
 			logDebug(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
 			return Number(value).toFixed(decimalPlaces);
 		}
 	}
-	
+
 	// Default to integer if no config found
 	logDebug(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
 	return Math.round(Number(value)).toString();
@@ -697,18 +697,18 @@ function formatValueByMetric(metric, value) {
 function loadChatbotService() {
 	if (!ChatbotService) {
 		try {
-		// Clear ALL caches to force fresh compilation
-		if (require.cache) {
-			Object.keys(require.cache).forEach(key => {
-				delete require.cache[key];
-			});
-		}
-		
-		// Clear ts-node cache specifically
-		if (require.extensions['.ts']) {
-			delete require.extensions['.ts'];
-		}
-			
+			// Clear ALL caches to force fresh compilation
+			if (require.cache) {
+				Object.keys(require.cache).forEach((key) => {
+					delete require.cache[key];
+				});
+			}
+
+			// Clear ts-node cache specifically
+			if (require.extensions[".ts"]) {
+				delete require.extensions[".ts"];
+			}
+
 			// Register ts-node with comprehensive configuration
 			require("ts-node").register({
 				transpileOnly: true,
@@ -732,26 +732,26 @@ function loadChatbotService() {
 					noImplicitReturns: true,
 					noFallthroughCasesInSwitch: true,
 					noUncheckedIndexedAccess: true,
-					noImplicitOverride: true
-				}
+					noImplicitOverride: true,
+				},
 			});
-			
+
 			console.log("✅ ts-node registered with minimal configuration");
-			
+
 			// Load the TypeScript file with simplified approach
-			const path = require('path');
-			const fs = require('fs');
+			const path = require("path");
+			const fs = require("fs");
 			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
 			console.log(`📁 Loading: ${chatbotPath}`);
-			
+
 			// Verify file exists and get timestamp
 			const stats = fs.statSync(chatbotPath);
 			console.log(`📁 File timestamp: ${stats.mtime.toISOString()}`);
 			console.log(`📁 File size: ${stats.size} bytes`);
-			
+
 			const chatbotModule = require(chatbotPath);
 			console.log("✅ TypeScript file loaded successfully");
-			
+
 			// Check for ChatbotService
 			if (chatbotModule.ChatbotService) {
 				ChatbotService = chatbotModule.ChatbotService;
@@ -766,18 +766,18 @@ function loadChatbotService() {
 			const originalLog = console.log;
 			const originalError = console.error;
 			const originalWarn = console.warn;
-			
+
 			// Restore original console methods
 			console.log = originalConsole.log;
 			console.error = originalConsole.error;
 			console.warn = originalConsole.warn;
-			
+
 			console.log("⚠️ Could not load ChatbotService:");
 			console.log("⚠️ Error type:", error.constructor.name);
 			console.log("⚠️ Error message:", error.message);
 			console.log("⚠️ Error stack:", error.stack);
 			console.log("⚠️ Falling back to CSV-based testing");
-			
+
 			// Restore overridden console methods
 			console.log = originalLog;
 			console.error = originalError;
@@ -807,10 +807,8 @@ const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL
 async function checkServerHealth() {
 	try {
 		// Use production URL when running in Netlify environment
-		const baseUrl = process.env.NODE_ENV === 'production' 
-			? 'https://dorkinians-website-v3.netlify.app'
-			: 'http://localhost:3000';
-			
+		const baseUrl = process.env.NODE_ENV === "production" ? "https://dorkinians-website-v3.netlify.app" : "http://localhost:3000";
+
 		const response = await fetch(`${baseUrl}/api/chatbot`, {
 			method: "POST",
 			headers: {
@@ -1042,8 +1040,8 @@ async function runTestsProgrammatically() {
 						} else {
 							// Fallback to API call
 							console.log(`🌐 Using API fallback for: ${question}`);
-							const baseUrl = 'https://dorkinians-website-v3.netlify.app';
-								
+							const baseUrl = "https://dorkinians-website-v3.netlify.app";
+
 							const response = await fetch(`${baseUrl}/api/chatbot`, {
 								method: "POST",
 								headers: {
@@ -1538,11 +1536,13 @@ async function main() {
 }
 
 // Run the main function
-main().catch((error) => {
-	console.error("❌ Script failed:", error);
-	process.exit(1);
-}).finally(() => {
-	// Close the debug log stream
-	debugLogStream.end();
-	console.log(`📝 Full debug log saved to: ${debugLogFile}`);
-});
+main()
+	.catch((error) => {
+		console.error("❌ Script failed:", error);
+		process.exit(1);
+	})
+	.finally(() => {
+		// Close the debug log stream
+		debugLogStream.end();
+		console.log(`📝 Full debug log saved to: ${debugLogFile}`);
+	});

@@ -1,9 +1,11 @@
 # TypeScript Error Remediation Plan
 
 ## Overview
+
 This document outlines the systematic approach to fix TypeScript errors in `lib/services/chatbotService.ts` that are preventing the chatbot service from loading in the test script.
 
 ## Current Status
+
 - ✅ Test script works with fallback to CSV/API data
 - ❌ ChatbotService fails to load due to TypeScript compilation errors
 - ❌ Production deployment will fail without fixes
@@ -11,18 +13,22 @@ This document outlines the systematic approach to fix TypeScript errors in `lib/
 ## Error Categories
 
 ### 1. Missing Class Properties (Critical - 7 errors)
+
 - `lastQuestionAnalysis`, `lastExecutedQueries`, `lastProcessingSteps`, `lastQueryBreakdown`
 - `queryCache`, `CACHE_TTL`, `entityResolver`
 
 ### 2. Implicit `any` Types (High Priority - 50+ errors)
+
 - Function parameters without explicit types
 - Method parameters missing type annotations
 
 ### 3. Missing Method Arguments (Medium Priority - 20+ errors)
+
 - `logToBoth()` calls missing `data` and `level` parameters
 - `loggingService.log()` calls with incorrect argument counts
 
 ### 4. Property Access Errors (Medium Priority - 10+ errors)
+
 - Accessing properties that don't exist on objects
 - Type mismatches in object property access
 
@@ -34,14 +40,14 @@ This document outlines the systematic approach to fix TypeScript errors in `lib/
 
 ```typescript
 export class ChatbotService {
-    // Add these missing properties:
-    public lastQuestionAnalysis: EnhancedQuestionAnalysis | null = null;
-    public lastExecutedQueries: string[] = [];
-    public lastProcessingSteps: string[] = [];
-    public lastQueryBreakdown: Record<string, unknown> | null = null;
-    private queryCache: Map<string, { data: unknown; timestamp: number }> = new Map();
-    private readonly CACHE_TTL: number = 5 * 60 * 1000; // 5 minutes
-    private entityResolver: EntityNameResolver;
+	// Add these missing properties:
+	public lastQuestionAnalysis: EnhancedQuestionAnalysis | null = null;
+	public lastExecutedQueries: string[] = [];
+	public lastProcessingSteps: string[] = [];
+	public lastQueryBreakdown: Record<string, unknown> | null = null;
+	private queryCache: Map<string, { data: unknown; timestamp: number }> = new Map();
+	private readonly CACHE_TTL: number = 5 * 60 * 1000; // 5 minutes
+	private entityResolver: EntityNameResolver;
 }
 ```
 
@@ -73,15 +79,16 @@ this.logToBoth(`Error message`, error, "error");
 
 ```typescript
 // Fix object property access:
-if ('startDate' in data && 'endDate' in data) {
-    const timeData = data as { startDate: string; endDate: string };
-    // Use timeData.startDate and timeData.endDate
+if ("startDate" in data && "endDate" in data) {
+	const timeData = data as { startDate: string; endDate: string };
+	// Use timeData.startDate and timeData.endDate
 }
 ```
 
 ## Implementation Strategy
 
 ### Execution Order:
+
 1. **Start with Class Properties (Foundation)**
    - Add all missing properties to the class
    - Ensure proper initialization
@@ -105,12 +112,14 @@ if ('startDate' in data && 'endDate' in data) {
 ### Testing Strategy
 
 **After Each Step:**
+
 1. Run `npx tsc --noEmit --strict lib/services/chatbotService.ts`
 2. Check for new TypeScript errors
 3. Fix any new issues that arise
 4. Verify no regressions
 
 **Final Verification:**
+
 1. All TypeScript errors resolved
 2. Test script loads ChatbotService successfully
 3. ChatbotService executes questions without errors
@@ -119,18 +128,21 @@ if ('startDate' in data && 'endDate' in data) {
 ## Success Criteria
 
 ### TypeScript Compilation:
+
 - [ ] `npx tsc --noEmit --strict lib/services/chatbotService.ts` passes with 0 errors
 - [ ] All class properties properly defined
 - [ ] All method parameters explicitly typed
 - [ ] All logging calls have correct arguments
 
 ### Functionality Testing:
+
 - [ ] ChatbotService loads successfully in test script
 - [ ] ChatbotService executes questions without errors
 - [ ] All existing functionality preserved
 - [ ] No performance degradation
 
 ### Integration Testing:
+
 - [ ] Test script uses ChatbotService instead of fallback
 - [ ] Real-time database queries work
 - [ ] Natural language processing functions
@@ -141,8 +153,9 @@ if ('startDate' in data && 'endDate' in data) {
 **Total Time: ~2 hours**
 
 **Breakdown:**
+
 - **Step 1 (Class Properties):** 30 minutes
-- **Step 2 (Explicit Types):** 45 minutes  
+- **Step 2 (Explicit Types):** 45 minutes
 - **Step 3 (Logging Calls):** 20 minutes
 - **Step 4 (Property Access):** 25 minutes
 - **Testing & Verification:** 20 minutes
@@ -150,11 +163,13 @@ if ('startDate' in data && 'endDate' in data) {
 ## Risk Mitigation
 
 ### Potential Issues:
+
 1. **Breaking Changes:** Some method signatures might change
 2. **Performance Impact:** Type checking might be slower
 3. **Dependencies:** Ensure all imports are properly typed
 
 ### Safety Measures:
+
 1. **Backup Strategy:** Create backup of current file
 2. **Rollback Plan:** Keep working version available
 3. **Incremental Testing:** Test after each step
@@ -171,8 +186,9 @@ When continuing this TypeScript remediation work:
 6. **Verify success criteria** before considering the task complete
 
 ## Current Status
+
 - [x] Step 1: Missing Class Properties ✅ COMPLETED (Verified by direct tsc)
-- [ ] Step 2: Implicit `any` Types  
+- [ ] Step 2: Implicit `any` Types
 - [ ] Step 3: Logging Method Calls
 - [ ] Step 4: Property Access Errors
 - [ ] Final Verification

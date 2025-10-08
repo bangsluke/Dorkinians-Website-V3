@@ -342,26 +342,31 @@ npm run dev          # Start development server
 The project uses a **single source of truth** architecture where `database-dorkinians/config/schema.js` is the master schema file that must be manually synchronized to `V3-Dorkinians-Website/lib/config/schema.js`.
 
 **Master Location:**
+
 - `database-dorkinians/config/schema.js` (source of truth)
 
 **Synced Location:**
+
 - `V3-Dorkinians-Website/lib/config/schema.js` (copy for alignment)
 
 ### Automated Syncing
 
 **NPM Script (Recommended):**
+
 ```bash
 cd database-dorkinians
 npm run sync-schema
 ```
 
 **PowerShell Script (Windows):**
+
 ```powershell
 cd database-dorkinians
 .\scripts\sync-schema.ps1
 ```
 
 **VS Code Tasks:**
+
 - Press `Ctrl+Shift+P` → "Tasks: Run Task" → "Sync Schema to V3-Dorkinians-Website"
 
 ### Manual Process
@@ -373,6 +378,7 @@ cd database-dorkinians
 3. **Deploy both repositories** to ensure consistency
 
 **Schema Dependencies:**
+
 - `lib/config/schemaBridge.js` - Main schema bridge
 - `lib/services/csvHeaderValidator.js` - CSV validation
 - `lib/services/dataSeederService.js` - Data seeding logic
@@ -385,6 +391,7 @@ cd database-dorkinians
 ### PWA Setup
 
 **Core PWA Files:**
+
 ```
 public/
 ├── manifest.json                 # PWA manifest
@@ -406,6 +413,7 @@ public/
 ### Icon Requirements
 
 **Design Specifications:**
+
 - **Background**: #1C8841 (Dorkinians green)
 - **Foreground**: White elements (logo, text)
 - **Format**: PNG with transparency support
@@ -429,6 +437,7 @@ public/
 ### iOS Splash Screens
 
 **Device Coverage:**
+
 - **iPhone 6.7"**: 1290x2796 (portrait), 2796x1290 (landscape)
 - **iPhone 6.1"**: 1170x2532 (portrait), 2532x1170 (landscape)
 - **iPhone 5.5"**: 1242x2208 (portrait), 2208x1242 (landscape)
@@ -436,6 +445,7 @@ public/
 - **iPad 11"**: 1668x2388 (portrait), 2388x1668 (landscape)
 
 **Generation Process:**
+
 1. Open `public/apple-touch-startup-image.html` in a browser
 2. Use the download buttons to generate each splash screen
 3. Save files with exact names in the `public/` directory
@@ -443,22 +453,26 @@ public/
 ### Data Persistence
 
 **localStorage Implementation:**
+
 - **Player Selection**: Automatically saves and restores the last selected player
 - **Cross-Session Persistence**: Data survives browser restarts, app closures, and device reboots
 - **PWA Integration**: Works seamlessly with PWA installation and offline functionality
 
 **Storage Keys:**
+
 - `dorkinians-selected-player`: Stores the currently selected player name
 
 ### Update Strategy
 
 **Version Management:**
+
 1. **Increment version** in `package.json` for each release
 2. **Service worker** automatically detects updates
 3. **Update notification** appears to installed PWA users
 4. **One-click update** process for seamless experience
 
 **Update Flow:**
+
 ```
 User has PWA installed → New version deployed →
 Service worker detects update → Update notification appears →
@@ -466,6 +480,7 @@ User clicks "Update Now" → Page reloads → New version active
 ```
 
 **Testing:**
+
 - **Chrome DevTools**: Application tab → Manifest
 - **Lighthouse**: PWA audit score
 - **Real devices**: Install on iOS/Android
@@ -842,6 +857,7 @@ The system supports automated weekly chatbot testing using external cron service
 #### Random Test Selection Approach
 
 **How It Works:**
+
 - **Total Available Tests**: 204 tests (3 players × 68 test configurations)
 - **Random Selection**: Each week, randomly selects 1 test from the full set
 - **No Duplicates**: Ensures the same test isn't run twice in a single execution
@@ -854,14 +870,14 @@ The system supports automated weekly chatbot testing using external cron service
 2. Create new cronjob:
    - **Title**: `Weekly Random Chatbot Test`
    - **URL**: `https://dorkinians-website-v3.netlify.app/api/chatbot-test`
-   - **Method**: POST
-          - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 1}`
+   - **Method**: POST - **Request Body**: `{"emailAddress": "your-email@example.com", "maxTests": 1}`
    - **Headers**: `Content-Type: application/json`
    - **Schedule**: Weekly on Saturday at 5:00 AM (`0 5 * * 6`)
    - **Timeout**: 30 seconds
    - **Retry**: 2 attempts on failure
 
 **Manual Testing:**
+
 ```bash
 curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
   -H "Content-Type: application/json" \
@@ -872,21 +888,22 @@ curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
 
 ```json
 {
-  "success": true,
-  "message": "Random chatbot test completed successfully",
-  "selectedTests": 1,
-  "totalAvailableTests": 204,
-  "processedTests": 1,
-  "passedTests": 1,
-  "failedTests": 0,
-  "successRate": "100.0%",
-  "output": "Random tests completed: 1/1 passed (1 selected from 204 available)"
+	"success": true,
+	"message": "Random chatbot test completed successfully",
+	"selectedTests": 1,
+	"totalAvailableTests": 204,
+	"processedTests": 1,
+	"passedTests": 1,
+	"failedTests": 0,
+	"successRate": "100.0%",
+	"output": "Random tests completed: 1/1 passed (1 selected from 204 available)"
 }
 ```
 
 #### Test Coverage
 
 **Random Selection Benefits:**
+
 - **Efficient**: Tests only 1 random test per week (0.5% of total)
 - **Comprehensive Over Time**: All 204 tests will be tested within ~204 weeks
 - **No Duplicates**: Each weekly run tests different combinations
@@ -894,6 +911,7 @@ curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
 - **Diverse Coverage**: Tests different players and statistics each week
 
 **Test Categories Covered:**
+
 - **Basic Statistics**: Goals, assists, appearances, minutes, etc.
 - **Advanced Statistics**: Goals per appearance, minutes per goal, etc.
 - **Home/Away Statistics**: Home wins, away wins, percentages
@@ -904,6 +922,7 @@ curl -X POST "https://dorkinians-website-v3.netlify.app/api/chatbot-test" \
 #### Email Reports
 
 Test results are automatically emailed to the configured address with:
+
 - Comprehensive test summary
 - Detailed pass/fail breakdown with expected vs received values
 - Cypher query analysis

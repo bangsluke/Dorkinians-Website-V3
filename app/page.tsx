@@ -254,11 +254,7 @@ export default function HomePage() {
 		<>
 			<div className='min-h-screen'>
 				{/* Header */}
-				<Header 
-					onSettingsClick={handleSettingsClick} 
-					onFilterClick={handleFilterClick}
-					showFilterIcon={showFilterIcon}
-				/>
+				<Header onSettingsClick={handleSettingsClick} onFilterClick={handleFilterClick} showFilterIcon={showFilterIcon} />
 
 				{/* Main Content */}
 				<main className='main-content-container'>
@@ -273,10 +269,7 @@ export default function HomePage() {
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}
-				<FilterSidebar 
-					isOpen={isFilterSidebarOpen}
-					onClose={closeFilterSidebar}
-				/>
+				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} />
 			</div>
 
 			{/* Update Toast */}

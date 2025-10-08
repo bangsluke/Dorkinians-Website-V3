@@ -180,7 +180,7 @@ export async function POST(request: NextRequest) {
 		const emailConfig = requestBody.emailConfig || {
 			emailAddress: process.env.SMTP_TO_EMAIL || "bangsluke@gmail.com",
 			sendEmailAtStart: false,
-			sendEmailAtCompletion: true
+			sendEmailAtCompletion: true,
 		};
 
 		// Trigger Heroku seeding service (fire-and-forget)

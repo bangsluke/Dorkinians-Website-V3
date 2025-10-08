@@ -1,7 +1,7 @@
 const neo4j = require("neo4j-driver");
 
 // Check for debug mode
-const isDebugMode = process.env.DEBUG_MODE === 'true';
+const isDebugMode = process.env.DEBUG_MODE === "true";
 
 // Conditional logging functions
 const logDebug = (message) => {
