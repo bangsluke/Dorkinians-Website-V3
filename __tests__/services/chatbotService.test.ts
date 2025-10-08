@@ -134,7 +134,7 @@ describe("ChatbotService", () => {
 			}
 
 			// Validate response contains correct value
-			const statConfig = STAT_TEST_CONFIGS.find(config => config.metric === metric);
+			const statConfig = STAT_TEST_CONFIGS.find((config) => config.metric === metric);
 			if (statConfig) {
 				const isValid = validateResponse(response.answer, expectedValue, statConfig, playerName);
 				expect(isValid).toBe(true);

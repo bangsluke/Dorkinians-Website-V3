@@ -63,12 +63,14 @@ The chatbot is the core functionality of the application, processing natural lan
 The chatbot uses a sophisticated entity extraction pipeline for sports terminology:
 
 **Core Libraries** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts)):
+
 - **`natural`**: Fuzzy string matching for all entity types (players, teams, oppositions, leagues)
 - **`compromise`**: Advanced text parsing and linguistic analysis for better entity extraction
 - **Custom Entity Extraction**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) for domain-specific sports terminology
 - **Entity Name Resolution**: [`lib/services/entityNameResolver.ts`](./lib/services/entityNameResolver.ts) for intelligent fuzzy matching of all entity types
 
 **7-Class Entity Recognition** ([`EntityExtractor` class](./lib/config/entityExtraction.ts)):
+
 - **Players**: Up to 3 per question with fuzzy matching, typo tolerance, and pseudonym support
 - **Teams**: 1st, 2nd, 3rd etc. team recognition with ordinal number parsing
 - **Stat Types**: Goals, appearances, TOTW, penalties, etc. with 50+ pseudonyms
@@ -79,6 +81,7 @@ The chatbot uses a sophisticated entity extraction pipeline for sports terminolo
 - **Time Frames**: Seasons, dates, gameweeks, streaks, temporal expressions
 
 **Advanced Entity Name Resolution**:
+
 - **Comprehensive Fuzzy Matching**: Handles typos for players, teams, oppositions, and leagues
   - Players: "Luk Bangs" → "Luke Bangs"
 - **Multiple Algorithms**: Jaro-Winkler, Levenshtein, and Dice coefficient
@@ -92,23 +95,29 @@ The chatbot uses a sophisticated entity extraction pipeline for sports terminolo
 The chatbot processes user questions through a sophisticated multi-stage pipeline:
 
 ### Stage 1: Text Preprocessing
+
 **File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (EntityExtractor constructor)
+
 - **Question Normalization**: Converts to lowercase, removes special characters, normalizes whitespace
 - **Context Extraction**: Analyzes user context and previous conversation state
 - **Linguistic Analysis**: Uses `compromise` library for advanced text parsing and part-of-speech tagging
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Normalized**: `"how many goals has luk bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24"`
 - **NLP Analysis**: Identifies "Luk Bangs" as proper noun, "goals" as noun, "3s" as number+noun, "home" as location, dates as temporal expressions
 
 ### Stage 2: Entity Recognition
+
 **File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (extractEntities method)
+
 - **Multi-Pass Extraction**: Uses regex patterns and NLP techniques to identify entities
 - **7-Class Recognition**: Players, teams, stat types, indicators, question types, negative clauses, locations, time frames
 - **Pseudonym Support**: Handles 50+ alternative names for stats and entities
 - **Context-Aware**: Considers surrounding words and phrases for better accuracy
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Player**: "Luk Bangs" (proper noun detection)
 - **Stat Type**: "goals" (matches stat pseudonyms)
 - **Team**: "3s" (regex pattern `/\b(1s|2s|3s|4s|5s|6s|7s|8s)/`)
@@ -117,13 +126,16 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Question Type**: "how many" (interrogative detection)
 
 ### Stage 3: Fuzzy Resolution
+
 **File**: [`lib/config/entityExtraction.ts`](./lib/config/entityExtraction.ts) (resolveEntitiesWithFuzzyMatching method)
+
 - **Intelligent Matching**: Resolves all entities using multiple fuzzy matching algorithms
 - **Confidence Scoring**: Only suggests matches above 60% confidence threshold
 - **Type-Specific Logic**: Different strategies for players, teams, oppositions, and leagues
 - **Database Integration**: Queries live database for comprehensive entity matching
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Player Resolution**: "Luk Bangs" → "Luke Bangs" (fuzzy match, confidence: 0.92)
 - **Team Resolution**: "3s" → "3rd XI" (fuzzy match, confidence: 0.85)
 - **Location Resolution**: "home" → "home" (exact match, confidence: 1.0)
@@ -131,12 +143,15 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Time Frame Resolution**: "between 20/03/2022 and 21/10/24" → "2022-03-20 to 2024-10-21" (date parsing)
 
 ### Stage 4: Question Analysis
+
 **File**: [`lib/config/enhancedQuestionAnalysis.ts`](./lib/config/enhancedQuestionAnalysis.ts) (analyze method)
+
 - **Complexity Assessment**: Categorizes questions as simple, moderate, or complex
 - **Clarification Detection**: Identifies ambiguous queries requiring user input
 - **Intent Classification**: Determines question type and required response format
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Question Type**: "player" (specific player query)
 - **Complexity**: "complex" (multiple entities: player + team + location + stat + time frame)
 - **Team Context**: Detected team entity "3rd XI"
@@ -145,18 +160,21 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Requires Clarification**: No (all entities resolved)
 
 ### Stage 5: Database Query Execution
+
 **File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (queryRelevantData method)
+
 - **Query Construction**: Builds optimized Cypher queries based on analysis
 - **Performance Optimization**: Uses caching and query optimization techniques
 - **Error Handling**: Graceful fallbacks for database connectivity issues
 - **Result Processing**: Formats and structures data for presentation
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Query Type**: Player + Team + Location + Time Range query
 - **Cypher Query**:
   ```cypher
   MATCH (p:Player {playerName: "Luke Bangs"})-[:PLAYED_IN]->(md:MatchDetail)
-  WHERE md.team = "3rd XI" 
+  WHERE md.team = "3rd XI"
     AND md.location = "home"
     AND md.matchDate >= date("2022-03-20")
     AND md.matchDate <= date("2024-10-21")
@@ -165,13 +183,16 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Database Result**: `[{ playerName: "Luke Bangs", value: 4 }]`
 
 ### Stage 6: Natural Language Response Generation
+
 **File**: [`lib/config/naturalLanguageResponses.ts`](./lib/config/naturalLanguageResponses.ts) (imported functions)
+
 - **Template Selection**: Chooses appropriate response templates based on question type
 - **Verb Conjugation**: Automatically selects correct verb forms (has/have, is/are, etc.)
 - **Contextual Formatting**: Adapts language based on data type and user context
 - **Personalization**: Uses appropriate pronouns and references based on user selection
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Template**: Player-specific response with team, location, and time context
 - **Verb Selection**: "has" (singular player)
 - **Number Formatting**: "4" (integer)
@@ -179,13 +200,16 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Generated Text**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
 
 ### Stage 7: Response Assembly
+
 **File**: [`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts) (generateResponse method)
+
 - **Data Integration**: Combines database results with natural language templates
 - **Visualization Selection**: Chooses appropriate chart/table types based on data
 - **Source Attribution**: Tracks and reports data sources for transparency
 - **Quality Validation**: Ensures response accuracy and completeness
 
 **Example**: `"How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?"`
+
 - **Final Answer**: "Luke Bangs has scored 4 goals for the 3rd XI at home between March 2022 and October 2024."
 - **Visualization**: NumberCard (single value display)
 - **Data**: `{ playerName: "Luke Bangs", value: 4, team: "3rd XI", location: "home", timeRange: "2022-03-20 to 2024-10-21" }`
@@ -197,6 +221,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 ### Core Processing Files
 
 **`lib/config/entityExtraction.ts`** - Entity Recognition Engine
+
 - **Purpose**: Identifies and extracts all relevant entities from user questions
 - **Key Features**:
   - 7-class entity recognition (players, teams, stats, indicators, etc.)
@@ -206,6 +231,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
   - Fuzzy matching integration for all entity types
 
 **`lib/services/entityNameResolver.ts`** - Intelligent Entity Resolution
+
 - **Purpose**: Resolves entity names using fuzzy matching algorithms
 - **Key Features**:
   - Multi-algorithm fuzzy matching (Jaro-Winkler, Levenshtein, Dice coefficient)
@@ -215,6 +241,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
   - Caching system for performance optimization
 
 **`lib/config/naturalLanguageResponses.ts`** - Response Generation Engine
+
 - **Purpose**: Generates natural, contextually appropriate responses
 - **Key Features**:
   - Template-based response generation
@@ -224,6 +251,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
   - Dynamic language adaptation
 
 **`lib/config/enhancedQuestionAnalysis.ts`** - Question Intelligence
+
 - **Purpose**: Analyzes question complexity and determines processing requirements
 - **Key Features**:
   - Complexity assessment (simple/moderate/complex)
@@ -232,6 +260,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
   - Integration with fuzzy matching for entity resolution
 
 **`lib/services/chatbotService.ts`** - Main Orchestration Engine
+
 - **Purpose**: Coordinates the entire query processing pipeline
 - **Key Features**:
   - Query analysis and routing
@@ -241,6 +270,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
   - Performance optimization and caching
 
 **Fuzzy Matching Benefits**:
+
 - **Typo Tolerance**: Users can misspell names and still get accurate results
 - **Variation Handling**: Handles different ways of referring to the same entity
 - **Confidence-Based**: Only suggests matches above 60% confidence to avoid false positives
@@ -248,6 +278,7 @@ The chatbot processes user questions through a sophisticated multi-stage pipelin
 - **Comprehensive Coverage**: Works across all entity types in the system
 
 **Advanced Features**:
+
 - **Multi-Entity Support**: Complex comparisons (e.g., "How many goals have I, Kieran Mackrell and Ali Robins scored?")
 - **Special Logic**: "Goal involvements" = goals + assists, comprehensive pseudonym recognition
 - **Clarification Detection**: Identifies ambiguous queries requiring user clarification
@@ -300,12 +331,14 @@ The chatbot processes natural language queries through a sophisticated multi-sta
 ### Response Generation
 
 **Core Processing** ([`lib/services/chatbotService.ts`](./lib/services/chatbotService.ts)):
+
 - **`generateResponse()` method**: Processes database results into user-friendly responses
 - **`naturalLanguageResponses.ts`**: Human-readable formatting and response templates
 - **Metric Formatting**: Applies decimal places and units based on `config/config.ts` settings
 - **Error Handling**: Structured error responses with debugging information
 
 **Visualization Pipeline** ([`components/ChatbotInterface.tsx`](./components/ChatbotInterface.tsx)):
+
 - **Recharts Integration**: Seamless Next.js integration with mobile-optimized charts
 - **Custom Components**: Reusable chart components for different data types
 - **Response Types**: Statistical summaries, player comparisons, team analytics, historical trends
@@ -313,17 +346,19 @@ The chatbot processes natural language queries through a sophisticated multi-sta
 - **Performance**: Tree-shakeable, minimal bundle impact
 
 **Response Structure**:
+
 ```typescript
 interface ChatbotResponse {
-  answer: string;           // Human-readable answer
-  data?: any;              // Raw data for visualization
-  visualization?: {        // Chart configuration
-    type: "chart" | "table" | "calendar" | "stats";
-    data: any;
-    config?: any;
-  };
-  sources: string[];       // Data source references
-  cypherQuery?: string;    // Debug: executed Cypher query
+	answer: string; // Human-readable answer
+	data?: any; // Raw data for visualization
+	visualization?: {
+		// Chart configuration
+		type: "chart" | "table" | "calendar" | "stats";
+		data: any;
+		config?: any;
+	};
+	sources: string[]; // Data source references
+	cypherQuery?: string; // Debug: executed Cypher query
 }
 ```
 
@@ -400,10 +435,12 @@ SMTP_TO_EMAIL=recipient@example.com
 The project uses a unified schema system where configuration files are synchronized between repositories:
 
 **Master Locations:**
+
 - **Schema**: `database-dorkinians/config/schema.js` (master)
 - **Data Sources**: `database-dorkinians/config/dataSources.js` (master)
 
 **Sync Process:**
+
 1. Edit schema in `database-dorkinians/config/schema.js`
 2. Run sync script: `npm run sync-config`
 3. Deploy both repositories
@@ -419,17 +456,19 @@ The project uses a unified schema system where configuration files are synchroni
 **Method**: POST
 
 **Request Body**:
+
 ```json
 {
-  "query": "How many goals has Luke Bangs scored this season?",
-  "context": {
-    "userId": "optional-user-id",
-    "sessionId": "optional-session-id"
-  }
+	"query": "How many goals has Luke Bangs scored this season?",
+	"context": {
+		"userId": "optional-user-id",
+		"sessionId": "optional-session-id"
+	}
 }
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -458,21 +497,23 @@ The project uses a unified schema system where configuration files are synchroni
 **Method**: GET
 
 **Query Parameters**:
+
 - `environment`: "production" or "development"
 
 **Response**:
+
 ```json
 {
-  "success": true,
-  "message": "Database seeding completed successfully",
-  "environment": "production",
-  "timestamp": "2024-01-01T06:00:00.000Z",
-  "result": {
-    "success": true,
-    "exitCode": 0,
-    "nodesCreated": 1500,
-    "relationshipsCreated": 3000
-  }
+	"success": true,
+	"message": "Database seeding completed successfully",
+	"environment": "production",
+	"timestamp": "2024-01-01T06:00:00.000Z",
+	"result": {
+		"success": true,
+		"exitCode": 0,
+		"nodesCreated": 1500,
+		"relationshipsCreated": 3000
+	}
 }
 ```
 

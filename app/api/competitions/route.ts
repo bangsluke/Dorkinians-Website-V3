@@ -28,14 +28,14 @@ export async function GET(request: NextRequest) {
 			WHERE f.competition IS NOT NULL AND f.competition <> ''
 			WITH DISTINCT f.competition as competitionName, f.compType as compType
 		`;
-		
+
 		const params: any = { graphLabel: neo4jService.getGraphLabel() };
-		
+
 		if (search && search.trim()) {
 			query += ` AND f.competition CONTAINS $search`;
 			params.search = search.trim();
 		}
-		
+
 		query += `
 			RETURN competitionName, compType
 			ORDER BY competitionName

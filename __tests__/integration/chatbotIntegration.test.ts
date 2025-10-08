@@ -191,8 +191,8 @@ describe("Chatbot Integration Tests", () => {
 				};
 
 				const goalsResponse = await chatbotService.processQuestion(goalsContext);
-				const goalsConfig = STAT_TEST_CONFIGS.find(config => config.metric === "goals")!;
-		const goalsValid = validateResponse(goalsResponse.answer, playerData!.goals, goalsConfig, playerData!.playerName);
+				const goalsConfig = STAT_TEST_CONFIGS.find((config) => config.metric === "goals")!;
+				const goalsValid = validateResponse(goalsResponse.answer, playerData!.goals, goalsConfig, playerData!.playerName);
 				expect(goalsValid).toBe(true);
 
 				// Test assists question
@@ -203,8 +203,8 @@ describe("Chatbot Integration Tests", () => {
 				};
 
 				const assistsResponse = await chatbotService.processQuestion(assistsContext);
-				const assistsConfig = STAT_TEST_CONFIGS.find(config => config.metric === "assists")!;
-		const assistsValid = validateResponse(assistsResponse.answer, playerData!.assists, assistsConfig, playerData!.playerName);
+				const assistsConfig = STAT_TEST_CONFIGS.find((config) => config.metric === "assists")!;
+				const assistsValid = validateResponse(assistsResponse.answer, playerData!.assists, assistsConfig, playerData!.playerName);
 				expect(assistsValid).toBe(true);
 			}
 		});

@@ -11,14 +11,10 @@ export interface Neo4jService {
 		toLabel: string,
 		toProps: Record<string, any>,
 		relationshipType: string,
-		relProps?: Record<string, any>
+		relProps?: Record<string, any>,
 	): Promise<any>;
 	findNode(label: string, properties: Record<string, any>): Promise<any>;
-	updateNode(
-		label: string,
-		matchProps: Record<string, any>,
-		updateProps: Record<string, any>
-	): Promise<any>;
+	updateNode(label: string, matchProps: Record<string, any>, updateProps: Record<string, any>): Promise<any>;
 	deleteNode(label: string, properties: Record<string, any>): Promise<number>;
 	clearAllData(): Promise<number>;
 	getDataStats(): Promise<{

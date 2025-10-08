@@ -1,4 +1,4 @@
-const { neo4jService } = require('./lib/neo4j');
+const { neo4jService } = require("./lib/neo4j");
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -8,20 +8,20 @@ const corsHeaders = {
 
 exports.handler = async (event, context) => {
 	// Handle CORS preflight requests
-	if (event.httpMethod === 'OPTIONS') {
+	if (event.httpMethod === "OPTIONS") {
 		return {
 			statusCode: 200,
 			headers: corsHeaders,
-			body: ''
+			body: "",
 		};
 	}
 
 	// Only allow GET requests
-	if (event.httpMethod !== 'GET') {
+	if (event.httpMethod !== "GET") {
 		return {
 			statusCode: 405,
 			headers: corsHeaders,
-			body: JSON.stringify({ error: 'Method not allowed' })
+			body: JSON.stringify({ error: "Method not allowed" }),
 		};
 	}
 
@@ -32,7 +32,7 @@ exports.handler = async (event, context) => {
 			return {
 				statusCode: 500,
 				headers: corsHeaders,
-				body: JSON.stringify({ error: "Database connection failed" })
+				body: JSON.stringify({ error: "Database connection failed" }),
 			};
 		}
 
@@ -57,14 +57,14 @@ exports.handler = async (event, context) => {
 		return {
 			statusCode: 200,
 			headers: corsHeaders,
-			body: JSON.stringify({ players })
+			body: JSON.stringify({ players }),
 		};
 	} catch (error) {
-		console.error('Error fetching players:', error);
+		console.error("Error fetching players:", error);
 		return {
 			statusCode: 500,
 			headers: corsHeaders,
-			body: JSON.stringify({ error: "Failed to fetch players" })
+			body: JSON.stringify({ error: "Failed to fetch players" }),
 		};
 	}
 };

@@ -5,7 +5,16 @@ import { useState, useEffect } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PWAInstallButton from "@/components/PWAInstallButton";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
-import { HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon, ArrowLeftIcon, ClockIcon, CheckCircleIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import {
+	HomeIcon,
+	ChartBarIcon,
+	TrophyIcon,
+	InformationCircleIcon,
+	ArrowLeftIcon,
+	ClockIcon,
+	CheckCircleIcon,
+	XCircleIcon,
+} from "@heroicons/react/24/outline";
 
 const navigationItems = [
 	{
@@ -158,25 +167,16 @@ export default function Settings() {
 					<h2 className='text-xl font-semibold text-white mb-6'>Database Status</h2>
 					<div className='bg-white/10 rounded-lg p-4 space-y-3'>
 						<div className='flex items-center space-x-3'>
-							{seedingStatus.lastSeedingStatus === 'success' && (
-								<CheckCircleIcon className='w-5 h-5 text-green-400' />
-							)}
-							{seedingStatus.lastSeedingStatus === 'failed' && (
-								<XCircleIcon className='w-5 h-5 text-red-400' />
-							)}
-							{seedingStatus.lastSeedingStatus === 'running' && (
-								<ClockIcon className='w-5 h-5 text-yellow-400 animate-pulse' />
-							)}
-							{!seedingStatus.lastSeedingStatus && (
-								<ClockIcon className='w-5 h-5 text-gray-400' />
-							)}
+							{seedingStatus.lastSeedingStatus === "success" && <CheckCircleIcon className='w-5 h-5 text-green-400' />}
+							{seedingStatus.lastSeedingStatus === "failed" && <XCircleIcon className='w-5 h-5 text-red-400' />}
+							{seedingStatus.lastSeedingStatus === "running" && <ClockIcon className='w-5 h-5 text-yellow-400 animate-pulse' />}
+							{!seedingStatus.lastSeedingStatus && <ClockIcon className='w-5 h-5 text-gray-400' />}
 							<div className='flex-1'>
-								<p className='text-sm text-gray-300'>
-									{seedingStatusService.getStatusSummary()}
-								</p>
-								{seedingStatus.lastSeedingStatus === 'success' && seedingStatus.lastSeedingNodesCreated && (
+								<p className='text-sm text-gray-300'>{seedingStatusService.getStatusSummary()}</p>
+								{seedingStatus.lastSeedingStatus === "success" && seedingStatus.lastSeedingNodesCreated && (
 									<p className='text-xs text-gray-400 mt-1'>
-										Created {seedingStatus.lastSeedingNodesCreated.toLocaleString()} nodes and {seedingStatus.lastSeedingRelationshipsCreated?.toLocaleString()} relationships
+										Created {seedingStatus.lastSeedingNodesCreated.toLocaleString()} nodes and{" "}
+										{seedingStatus.lastSeedingRelationshipsCreated?.toLocaleString()} relationships
 									</p>
 								)}
 							</div>

@@ -74,9 +74,9 @@ export default function ChatbotInterface() {
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({ 
+				body: JSON.stringify({
 					question: question.trim(),
-					userContext: selectedPlayer || undefined
+					userContext: selectedPlayer || undefined,
 				}),
 			});
 
@@ -86,7 +86,7 @@ export default function ChatbotInterface() {
 
 			const data: ChatbotResponse & { debug?: any } = await res.json(); // Parse the response as a ChatbotResponse object
 			// console.log(`🤖 Frontend: Received response:`, data);
-			
+
 			// Log full debug info to the client
 			console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
 				"1. question": data.debug.question,
@@ -97,9 +97,9 @@ export default function ChatbotInterface() {
 			// Log Cypher queries prominently if available
 			if (data.debug?.processingDetails?.cypherQueries?.length > 0) {
 				// console.log(`🤖 [CLIENT] 🎯 CYPHER QUERIES EXECUTED:`, data.debug.processingDetails.cypherQueries);
-				
+
 				// Find and log copyable queries
-				const readyToExecuteQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('READY_TO_EXECUTE:'));
+				const readyToExecuteQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith("READY_TO_EXECUTE:"));
 				// const parameterizedQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('PLAYER_DATA:'));
 
 				// Log parameterized query
@@ -108,10 +108,10 @@ export default function ChatbotInterface() {
 				// 	console.log(`🤖 [CLIENT] 📋 PARAMETERIZED CYPHER QUERY (with variables):`);
 				// 	console.log(cleanQuery);
 				// }
-				
+
 				// Log ready to execute query to the client so that they can paste it into Neo4j Aura for debugging
 				if (readyToExecuteQuery) {
-					const cleanQuery = readyToExecuteQuery.replace('READY_TO_EXECUTE: ', '');
+					const cleanQuery = readyToExecuteQuery.replace("READY_TO_EXECUTE: ", "");
 					console.log(`🤖 [CLIENT] 📋 COPYABLE CYPHER QUERY (ready to paste into Neo4j Aura):`);
 					console.log(cleanQuery);
 				}
@@ -129,7 +129,7 @@ export default function ChatbotInterface() {
 			// 	// Log detailed processing information if available
 			// 	if (data.debug.processingDetails) {
 			// 		console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
-					
+
 			// 		// Enhanced Cypher query logging
 			// 		if (data.debug.processingDetails.cypherQueries && data.debug.processingDetails.cypherQueries.length > 0) {
 			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES (${data.debug.processingDetails.cypherQueries.length} executed):`);
@@ -139,7 +139,7 @@ export default function ChatbotInterface() {
 			// 		} else {
 			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES: No queries executed`);
 			// 		}
-					
+
 			// 		// console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
 			// 		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
 			// 	}
@@ -190,23 +190,30 @@ export default function ChatbotInterface() {
 							<table className='min-w-full text-sm'>
 								<thead>
 									<tr className='border-b border-yellow-400/20'>
-										{visualization.config && 'columns' in visualization.config && Array.isArray(visualization.config.columns) && visualization.config.columns.map((col: string) => (
-											<th key={col} className='text-left py-2 px-3 font-medium text-yellow-300'>
-												{col === "name" ? "Player Name" : col}
-											</th>
-										))}
+										{visualization.config &&
+											"columns" in visualization.config &&
+											Array.isArray(visualization.config.columns) &&
+											visualization.config.columns.map((col: string) => (
+												<th key={col} className='text-left py-2 px-3 font-medium text-yellow-300'>
+													{col === "name" ? "Player Name" : col}
+												</th>
+											))}
 									</tr>
 								</thead>
 								<tbody>
-									{Array.isArray(visualization.data) && visualization.data.slice(0, 5).map((row: any, index: number) => (
-										<tr key={index} className='border-b border-yellow-400/10'>
-											{visualization.config && 'columns' in visualization.config && Array.isArray(visualization.config.columns) && visualization.config.columns.map((col: string) => (
-												<td key={col} className='py-2 px-3 text-white'>
-													{row[col] || "-"}
-												</td>
-											))}
-										</tr>
-									))}
+									{Array.isArray(visualization.data) &&
+										visualization.data.slice(0, 5).map((row: any, index: number) => (
+											<tr key={index} className='border-b border-yellow-400/10'>
+												{visualization.config &&
+													"columns" in visualization.config &&
+													Array.isArray(visualization.config.columns) &&
+													visualization.config.columns.map((col: string) => (
+														<td key={col} className='py-2 px-3 text-white'>
+															{row[col] || "-"}
+														</td>
+													))}
+											</tr>
+										))}
 								</tbody>
 							</table>
 						</div>
@@ -218,7 +225,9 @@ export default function ChatbotInterface() {
 					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
 						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
 						<div className='text-3xl font-bold text-yellow-300'>
-							{visualization.data && typeof visualization.data === 'object' && 'value' in visualization.data ? (visualization.data as any).value : visualization.data}
+							{visualization.data && typeof visualization.data === "object" && "value" in visualization.data
+								? (visualization.data as any).value
+								: visualization.data}
 						</div>
 					</div>
 				);
@@ -273,10 +282,7 @@ export default function ChatbotInterface() {
 					</button>
 				</div>
 				{/* Mobile button - shown below input on mobile screens */}
-				<button
-					type='submit'
-					disabled={!question.trim() || isLoading}
-					className='CTA px-4 py-2 text-sm w-full md:hidden'>
+				<button type='submit' disabled={!question.trim() || isLoading} className='CTA px-4 py-2 text-sm w-full md:hidden'>
 					{isLoading ? (
 						<div className='flex items-center justify-center space-x-2'>
 							<svg className='animate-spin h-4 w-4' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
@@ -329,7 +335,6 @@ export default function ChatbotInterface() {
 
 						{/* Visualization */}
 						{response.visualization && renderVisualization(response.visualization)}
-
 					</motion.div>
 				)}
 			</AnimatePresence>
