@@ -40,7 +40,7 @@
   - [Data Source Integrity Protocol](#data-source-integrity-protocol)
   - [Data Structure Verification Protocol](#data-structure-verification-protocol)
   - [Test Failure Logic Protocol](#test-failure-logic-protocol)
-  - [TBL\_TestData Validation Protocol](#tbl_testdata-validation-protocol)
+  - [TBL_TestData Validation Protocol](#tbl_testdata-validation-protocol)
   - [External Service Connection Protocol](#external-service-connection-protocol)
   - [Structured Error Handling Protocol](#structured-error-handling-protocol)
   - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol-1)
@@ -208,7 +208,7 @@
 
 - **Rule**: When debugging complex systems, trace the entire data pipeline from input to output, not just suspected problem areas
 - **Rationale**: Root causes often exist upstream from where symptoms appear, and fixing downstream issues creates fragile workarounds
-- **Implementation**: 
+- **Implementation**:
   - Map the complete data flow: input → analysis → processing → output
   - Add logging at each stage to trace data transformation
   - Identify where the data diverges from expected behavior

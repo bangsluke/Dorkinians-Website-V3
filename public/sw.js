@@ -1,1 +1,148 @@
-if(!self.define){let e,s={};const c=(c,a)=>(c=new URL(c+".js",a).href,s[c]||new Promise(s=>{if("document"in self){const e=document.createElement("script");e.src=c,e.onload=s,document.head.appendChild(e)}else e=c,importScripts(c),s()}).then(()=>{let e=s[c];if(!e)throw new Error(`Module ${c} didn’t register its module`);return e}));self.define=(a,i)=>{const n=e||("document"in self?document.currentScript.src:"")||location.href;if(s[n])return;let t={};const o=e=>c(e,n),r={module:{uri:n},exports:t,require:o};s[n]=Promise.all(a.map(e=>r[e]||o(e))).then(e=>(i(...e),t))}}define(["./workbox-00a24876"],function(e){"use strict";importScripts(),self.skipWaiting(),e.clientsClaim(),e.precacheAndRoute([{url:"/_next/app-build-manifest.json",revision:"e8e0775e48b5cc7c46d73c43337fc7e7"},{url:"/_next/static/9Gk_vAfeGlgslhZWaPl6C/_buildManifest.js",revision:"c155cce658e53418dec34664328b51ac"},{url:"/_next/static/9Gk_vAfeGlgslhZWaPl6C/_ssgManifest.js",revision:"b6652df95db52feb4daf4eca35380933"},{url:"/_next/static/chunks/117-86f5342d92bbb1ba.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/21-72ea3cf2adfc554a.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/323.f612c466ce7d0203.js",revision:"f612c466ce7d0203"},{url:"/_next/static/chunks/739-3e044396b88974aa.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/808-8a2356e195ad5ef4.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/822.870854e8f20aec55.js",revision:"870854e8f20aec55"},{url:"/_next/static/chunks/app/_not-found/page-a91f86d1e85c8e4b.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/app/admin/page-42a6690c8903813b.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/app/layout-dcee517b34430ef7.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/app/page-1c74f662ab16dec7.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/app/settings/layout-4c77dfc4c4ac33d4.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/app/settings/page-7144e67c9b613c8c.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/fd9d1056-1225178e105cf676.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/framework-f66176bb897dc684.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/main-2de824ecceb99eed.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/main-app-a352906abe073953.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/pages/_app-72b849fbd24ac258.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/pages/_error-7ba65e1336b92748.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/chunks/polyfills-42372ed130431b0a.js",revision:"846118c33b2c0e922d7b3a7676f81f6f"},{url:"/_next/static/chunks/webpack-8dd39702a61a785b.js",revision:"9Gk_vAfeGlgslhZWaPl6C"},{url:"/_next/static/css/08f6902b8db101da.css",revision:"08f6902b8db101da"},{url:"/_next/static/media/19cfc7226ec3afaa-s.woff2",revision:"9dda5cfc9a46f256d0e131bb535e46f8"},{url:"/_next/static/media/21350d82a1f187e9-s.woff2",revision:"4e2553027f1d60eff32898367dd4d541"},{url:"/_next/static/media/8e9860b6e62d6359-s.woff2",revision:"01ba6c2a184b8cba08b0d57167664d75"},{url:"/_next/static/media/ba9851c3c22cd980-s.woff2",revision:"9e494903d6b0ffec1a1e14d34427d44d"},{url:"/_next/static/media/c5fe6dc8356a8c31-s.woff2",revision:"027a89e9ab733a145db70f09b8a18b42"},{url:"/_next/static/media/df0a9ae256c0569c-s.woff2",revision:"d54db44de5ccb18886ece2fda72bdfe0"},{url:"/_next/static/media/e4af272ccee01ff0-s.p.woff2",revision:"65850a373e258f1c897a2b3d75eb74de"},{url:"/apple-touch-startup-image.html",revision:"902691f055ddc6e89626846f5d6ebe1f"},{url:"/icons/icon-128x128.png",revision:"3ac4d12ea5b52cb1edda8e03ae8c652e"},{url:"/icons/icon-144x144.png",revision:"e03f788d3abf3274de888438eedcde26"},{url:"/icons/icon-152x152.png",revision:"c458b08fe8a7c89ef5972306b4e47102"},{url:"/icons/icon-16x16.png",revision:"bc8d761826f646111855533596466663"},{url:"/icons/icon-180x180.png",revision:"083cb9c2792af49126b6e5d7be91a856"},{url:"/icons/icon-192x192.png",revision:"0c62e72f3b497da86ca6761005a1329d"},{url:"/icons/icon-32x32.png",revision:"6817a84db9121f3344a15001e7efca88"},{url:"/icons/icon-384x384.png",revision:"7ad881e73220f7f7e48140ba103041c2"},{url:"/icons/icon-512x512.png",revision:"ddf4419a148975b9dc90cd0fd3d24a2c"},{url:"/icons/icon-72x72.png",revision:"21b956b20f5aae380f36e5d5ad0bdbc0"},{url:"/icons/icon-96x96.png",revision:"a74c903254fff243ba8da12901d1f447"},{url:"/icons/icon-iOS-192x192.png",revision:"a57bf9255049b921eab4b84794a2fc49"},{url:"/manifest.json",revision:"a1c0b7c8100c21e2da0711a618811d1f"},{url:"/stat-icons/Appearance-Icon.webp",revision:"594041f90890e92b83ad74e6135c3136"},{url:"/stat-icons/Assists-Icon.webp",revision:"7d0d8d66ce4ea449aae10a87c5e5cba8"},{url:"/stat-icons/AwayGames-Icon.webp",revision:"77cc66c4778f41e49594db8e1eca0a75"},{url:"/stat-icons/AwayWins-Icon.webp",revision:"e79ec8b1f523c97dcbab75e499f6ad3b"},{url:"/stat-icons/CleanSheet-Icon.webp",revision:"a978a4ed44cf7b4743809f6169a191ee"},{url:"/stat-icons/Conceded-Icon.webp",revision:"f17361aa141ab90b5d27836860f8f2cd"},{url:"/stat-icons/ConcededPerAppearance-Icon.webp",revision:"35b4092b982c87cab0186745b03919d4"},{url:"/stat-icons/DistanceTravelled-Icon.webp",revision:"a4ca1e009f16460dcef25503825ab5b5"},{url:"/stat-icons/FantasyPoints-Icon.webp",revision:"857c0afda8fe856c894d13b76d652780"},{url:"/stat-icons/FantasyPointsPerAppearance-Icon.webp",revision:"9e4f20ef0e23840f0e80dd23f8c746ed"},{url:"/stat-icons/Goals-Icon.webp",revision:"2c77bb856a7b0548f56a69068ac177f1"},{url:"/stat-icons/GoalsPerAppearance-Icon.webp",revision:"ff9b97a93d4f69895555335ce156e8dc"},{url:"/stat-icons/HomeGames-Icon.webp",revision:"ab1fd18e196983abf1b96df8cceb733a"},{url:"/stat-icons/HomeWins-Icon.webp",revision:"bcf27533bb1a16e6682f0adcd660874b"},{url:"/stat-icons/Minutes-Icon.webp",revision:"8683b5cd4f419ff34908feb5bf0f924d"},{url:"/stat-icons/MinutesPerCleanSheet-Icon.webp",revision:"644de15e6e1da93ae03b7a69db6ef78c"},{url:"/stat-icons/MinutesPerGoal-Icon.webp",revision:"5769e0cacad90c3cf97d857d1dae5415"},{url:"/stat-icons/MoM-Icon.webp",revision:"7b5d6abcf267e6831dc72ea8c77569a1"},{url:"/stat-icons/MostPlayedForTeam-Icon.webp",revision:"dfb98ca2c50a27c7604288322fb87cf2"},{url:"/stat-icons/MostScoredForTeam-Icon.webp",revision:"0ad51f6c9e7434c8708fdc7c6c4b36be"},{url:"/stat-icons/NumberSeasonsPlayedFor-Icon.webp",revision:"a09bd63b2ddbca89df9d084404997128"},{url:"/stat-icons/NumberTeamsPlayedFor-Icon.webp",revision:"d43352c44a7427531fd1617d39b02e1c"},{url:"/stat-icons/OwnGoal-Icon.webp",revision:"cbdbd802c1cc3625b6080650364198f9"},{url:"/stat-icons/PenaltiesConceded-Icon.webp",revision:"424a5b2332b1f12846e34ed3dbbaa8ed"},{url:"/stat-icons/PenaltiesMissed-Icon.webp",revision:"99a3852f235550a30350f99036e639d1"},{url:"/stat-icons/PenaltiesSaved-Icon.webp",revision:"420c59237fda8e036b12918de31a6d9f"},{url:"/stat-icons/PenaltiesScored-Icon.webp",revision:"d14d3d39b074970a634eb176cc2b472e"},{url:"/stat-icons/PercentageAwayGamesWon-Icon.webp",revision:"d48e86f57096bdea05ac5ec44c66376e"},{url:"/stat-icons/PercentageGamesWon-Icon.webp",revision:"567421d2ae4cf4a8c79dadbf9359ec20"},{url:"/stat-icons/PercentageHomeGamesWon-Icon.webp",revision:"30ffb327200af71e507eac90d10abe9c"},{url:"/totw-images/KeeperKit.svg",revision:"ba00624b9436c33553ee6b17f1782642"},{url:"/totw-images/KingfisherBeer.jpeg",revision:"7c30236dddde8825929bd4bd38cef1a3"},{url:"/totw-images/Kit.svg",revision:"e620dcb9b813653d72d70d04ca53bcbf"},{url:"/totw-images/RefKit.svg",revision:"79f6a6608ed62df1ec05c67394bcd33f"}],{ignoreURLParametersMatching:[]}),e.cleanupOutdatedCaches(),e.registerRoute("/",new e.NetworkFirst({cacheName:"start-url",plugins:[{cacheWillUpdate:async({request:e,response:s,event:c,state:a})=>s&&"opaqueredirect"===s.type?new Response(s.body,{status:200,statusText:"OK",headers:s.headers}):s}]}),"GET"),e.registerRoute(/^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,new e.CacheFirst({cacheName:"google-fonts",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,new e.StaleWhileRevalidate({cacheName:"static-font-assets",plugins:[new e.ExpirationPlugin({maxEntries:4,maxAgeSeconds:31536e3})]}),"GET"),e.registerRoute(/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,new e.CacheFirst({cacheName:"static-image-assets",plugins:[new e.ExpirationPlugin({maxEntries:64,maxAgeSeconds:2592e3})]}),"GET")});
+if (!self.define) {
+	let e,
+		s = {};
+	const c = (c, a) => (
+		(c = new URL(c + ".js", a).href),
+		s[c] ||
+			new Promise((s) => {
+				if ("document" in self) {
+					const e = document.createElement("script");
+					((e.src = c), (e.onload = s), document.head.appendChild(e));
+				} else ((e = c), importScripts(c), s());
+			}).then(() => {
+				let e = s[c];
+				if (!e) throw new Error(`Module ${c} didn’t register its module`);
+				return e;
+			})
+	);
+	self.define = (a, i) => {
+		const n = e || ("document" in self ? document.currentScript.src : "") || location.href;
+		if (s[n]) return;
+		let t = {};
+		const o = (e) => c(e, n),
+			r = { module: { uri: n }, exports: t, require: o };
+		s[n] = Promise.all(a.map((e) => r[e] || o(e))).then((e) => (i(...e), t));
+	};
+}
+define(["./workbox-00a24876"], function (e) {
+	"use strict";
+	(importScripts(),
+		self.skipWaiting(),
+		e.clientsClaim(),
+		e.precacheAndRoute(
+			[
+				{ url: "/_next/app-build-manifest.json", revision: "e8e0775e48b5cc7c46d73c43337fc7e7" },
+				{ url: "/_next/static/9Gk_vAfeGlgslhZWaPl6C/_buildManifest.js", revision: "c155cce658e53418dec34664328b51ac" },
+				{ url: "/_next/static/9Gk_vAfeGlgslhZWaPl6C/_ssgManifest.js", revision: "b6652df95db52feb4daf4eca35380933" },
+				{ url: "/_next/static/chunks/117-86f5342d92bbb1ba.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/21-72ea3cf2adfc554a.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/323.f612c466ce7d0203.js", revision: "f612c466ce7d0203" },
+				{ url: "/_next/static/chunks/739-3e044396b88974aa.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/808-8a2356e195ad5ef4.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/822.870854e8f20aec55.js", revision: "870854e8f20aec55" },
+				{ url: "/_next/static/chunks/app/_not-found/page-a91f86d1e85c8e4b.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/app/admin/page-42a6690c8903813b.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/app/layout-dcee517b34430ef7.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/app/page-1c74f662ab16dec7.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/app/settings/layout-4c77dfc4c4ac33d4.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/app/settings/page-7144e67c9b613c8c.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/fd9d1056-1225178e105cf676.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/framework-f66176bb897dc684.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/main-2de824ecceb99eed.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/main-app-a352906abe073953.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/pages/_app-72b849fbd24ac258.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/pages/_error-7ba65e1336b92748.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/chunks/polyfills-42372ed130431b0a.js", revision: "846118c33b2c0e922d7b3a7676f81f6f" },
+				{ url: "/_next/static/chunks/webpack-8dd39702a61a785b.js", revision: "9Gk_vAfeGlgslhZWaPl6C" },
+				{ url: "/_next/static/css/08f6902b8db101da.css", revision: "08f6902b8db101da" },
+				{ url: "/_next/static/media/19cfc7226ec3afaa-s.woff2", revision: "9dda5cfc9a46f256d0e131bb535e46f8" },
+				{ url: "/_next/static/media/21350d82a1f187e9-s.woff2", revision: "4e2553027f1d60eff32898367dd4d541" },
+				{ url: "/_next/static/media/8e9860b6e62d6359-s.woff2", revision: "01ba6c2a184b8cba08b0d57167664d75" },
+				{ url: "/_next/static/media/ba9851c3c22cd980-s.woff2", revision: "9e494903d6b0ffec1a1e14d34427d44d" },
+				{ url: "/_next/static/media/c5fe6dc8356a8c31-s.woff2", revision: "027a89e9ab733a145db70f09b8a18b42" },
+				{ url: "/_next/static/media/df0a9ae256c0569c-s.woff2", revision: "d54db44de5ccb18886ece2fda72bdfe0" },
+				{ url: "/_next/static/media/e4af272ccee01ff0-s.p.woff2", revision: "65850a373e258f1c897a2b3d75eb74de" },
+				{ url: "/apple-touch-startup-image.html", revision: "902691f055ddc6e89626846f5d6ebe1f" },
+				{ url: "/icons/icon-128x128.png", revision: "3ac4d12ea5b52cb1edda8e03ae8c652e" },
+				{ url: "/icons/icon-144x144.png", revision: "e03f788d3abf3274de888438eedcde26" },
+				{ url: "/icons/icon-152x152.png", revision: "c458b08fe8a7c89ef5972306b4e47102" },
+				{ url: "/icons/icon-16x16.png", revision: "bc8d761826f646111855533596466663" },
+				{ url: "/icons/icon-180x180.png", revision: "083cb9c2792af49126b6e5d7be91a856" },
+				{ url: "/icons/icon-192x192.png", revision: "0c62e72f3b497da86ca6761005a1329d" },
+				{ url: "/icons/icon-32x32.png", revision: "6817a84db9121f3344a15001e7efca88" },
+				{ url: "/icons/icon-384x384.png", revision: "7ad881e73220f7f7e48140ba103041c2" },
+				{ url: "/icons/icon-512x512.png", revision: "ddf4419a148975b9dc90cd0fd3d24a2c" },
+				{ url: "/icons/icon-72x72.png", revision: "21b956b20f5aae380f36e5d5ad0bdbc0" },
+				{ url: "/icons/icon-96x96.png", revision: "a74c903254fff243ba8da12901d1f447" },
+				{ url: "/icons/icon-iOS-192x192.png", revision: "a57bf9255049b921eab4b84794a2fc49" },
+				{ url: "/manifest.json", revision: "a1c0b7c8100c21e2da0711a618811d1f" },
+				{ url: "/stat-icons/Appearance-Icon.webp", revision: "594041f90890e92b83ad74e6135c3136" },
+				{ url: "/stat-icons/Assists-Icon.webp", revision: "7d0d8d66ce4ea449aae10a87c5e5cba8" },
+				{ url: "/stat-icons/AwayGames-Icon.webp", revision: "77cc66c4778f41e49594db8e1eca0a75" },
+				{ url: "/stat-icons/AwayWins-Icon.webp", revision: "e79ec8b1f523c97dcbab75e499f6ad3b" },
+				{ url: "/stat-icons/CleanSheet-Icon.webp", revision: "a978a4ed44cf7b4743809f6169a191ee" },
+				{ url: "/stat-icons/Conceded-Icon.webp", revision: "f17361aa141ab90b5d27836860f8f2cd" },
+				{ url: "/stat-icons/ConcededPerAppearance-Icon.webp", revision: "35b4092b982c87cab0186745b03919d4" },
+				{ url: "/stat-icons/DistanceTravelled-Icon.webp", revision: "a4ca1e009f16460dcef25503825ab5b5" },
+				{ url: "/stat-icons/FantasyPoints-Icon.webp", revision: "857c0afda8fe856c894d13b76d652780" },
+				{ url: "/stat-icons/FantasyPointsPerAppearance-Icon.webp", revision: "9e4f20ef0e23840f0e80dd23f8c746ed" },
+				{ url: "/stat-icons/Goals-Icon.webp", revision: "2c77bb856a7b0548f56a69068ac177f1" },
+				{ url: "/stat-icons/GoalsPerAppearance-Icon.webp", revision: "ff9b97a93d4f69895555335ce156e8dc" },
+				{ url: "/stat-icons/HomeGames-Icon.webp", revision: "ab1fd18e196983abf1b96df8cceb733a" },
+				{ url: "/stat-icons/HomeWins-Icon.webp", revision: "bcf27533bb1a16e6682f0adcd660874b" },
+				{ url: "/stat-icons/Minutes-Icon.webp", revision: "8683b5cd4f419ff34908feb5bf0f924d" },
+				{ url: "/stat-icons/MinutesPerCleanSheet-Icon.webp", revision: "644de15e6e1da93ae03b7a69db6ef78c" },
+				{ url: "/stat-icons/MinutesPerGoal-Icon.webp", revision: "5769e0cacad90c3cf97d857d1dae5415" },
+				{ url: "/stat-icons/MoM-Icon.webp", revision: "7b5d6abcf267e6831dc72ea8c77569a1" },
+				{ url: "/stat-icons/MostPlayedForTeam-Icon.webp", revision: "dfb98ca2c50a27c7604288322fb87cf2" },
+				{ url: "/stat-icons/MostScoredForTeam-Icon.webp", revision: "0ad51f6c9e7434c8708fdc7c6c4b36be" },
+				{ url: "/stat-icons/NumberSeasonsPlayedFor-Icon.webp", revision: "a09bd63b2ddbca89df9d084404997128" },
+				{ url: "/stat-icons/NumberTeamsPlayedFor-Icon.webp", revision: "d43352c44a7427531fd1617d39b02e1c" },
+				{ url: "/stat-icons/OwnGoal-Icon.webp", revision: "cbdbd802c1cc3625b6080650364198f9" },
+				{ url: "/stat-icons/PenaltiesConceded-Icon.webp", revision: "424a5b2332b1f12846e34ed3dbbaa8ed" },
+				{ url: "/stat-icons/PenaltiesMissed-Icon.webp", revision: "99a3852f235550a30350f99036e639d1" },
+				{ url: "/stat-icons/PenaltiesSaved-Icon.webp", revision: "420c59237fda8e036b12918de31a6d9f" },
+				{ url: "/stat-icons/PenaltiesScored-Icon.webp", revision: "d14d3d39b074970a634eb176cc2b472e" },
+				{ url: "/stat-icons/PercentageAwayGamesWon-Icon.webp", revision: "d48e86f57096bdea05ac5ec44c66376e" },
+				{ url: "/stat-icons/PercentageGamesWon-Icon.webp", revision: "567421d2ae4cf4a8c79dadbf9359ec20" },
+				{ url: "/stat-icons/PercentageHomeGamesWon-Icon.webp", revision: "30ffb327200af71e507eac90d10abe9c" },
+				{ url: "/totw-images/KeeperKit.svg", revision: "ba00624b9436c33553ee6b17f1782642" },
+				{ url: "/totw-images/KingfisherBeer.jpeg", revision: "7c30236dddde8825929bd4bd38cef1a3" },
+				{ url: "/totw-images/Kit.svg", revision: "e620dcb9b813653d72d70d04ca53bcbf" },
+				{ url: "/totw-images/RefKit.svg", revision: "79f6a6608ed62df1ec05c67394bcd33f" },
+			],
+			{ ignoreURLParametersMatching: [] },
+		),
+		e.cleanupOutdatedCaches(),
+		e.registerRoute(
+			"/",
+			new e.NetworkFirst({
+				cacheName: "start-url",
+				plugins: [
+					{
+						cacheWillUpdate: async ({ request: e, response: s, event: c, state: a }) =>
+							s && "opaqueredirect" === s.type ? new Response(s.body, { status: 200, statusText: "OK", headers: s.headers }) : s,
+					},
+				],
+			}),
+			"GET",
+		),
+		e.registerRoute(
+			/^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
+			new e.CacheFirst({ cacheName: "google-fonts", plugins: [new e.ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 31536e3 })] }),
+			"GET",
+		),
+		e.registerRoute(
+			/\.(?:eot|otf|ttc|ttf|woff|woff2|font.css)$/i,
+			new e.StaleWhileRevalidate({
+				cacheName: "static-font-assets",
+				plugins: [new e.ExpirationPlugin({ maxEntries: 4, maxAgeSeconds: 31536e3 })],
+			}),
+			"GET",
+		),
+		e.registerRoute(
+			/\.(?:jpg|jpeg|gif|png|svg|ico|webp)$/i,
+			new e.CacheFirst({ cacheName: "static-image-assets", plugins: [new e.ExpirationPlugin({ maxEntries: 64, maxAgeSeconds: 2592e3 })] }),
+			"GET",
+		));
+});

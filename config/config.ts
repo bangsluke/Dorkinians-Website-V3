@@ -98,73 +98,87 @@ export const usefulLinks: UsefulLink[] = [
 ];
 
 // Question type definitions for chatbot system
-export type QuestionType = "player" | "team" | "club" | "fixture" | "comparison" | "streak" | "double_game" | "temporal" | "general" | "ranking" | "clarification_needed";
+export type QuestionType =
+	| "player"
+	| "team"
+	| "club"
+	| "fixture"
+	| "comparison"
+	| "streak"
+	| "double_game"
+	| "temporal"
+	| "general"
+	| "ranking"
+	| "clarification_needed";
 
-export const questionTypes: Record<QuestionType, { displayName: string; description: string; hasVisualization: boolean; visualizationType?: VisualizationType }> = {
+export const questionTypes: Record<
+	QuestionType,
+	{ displayName: string; description: string; hasVisualization: boolean; visualizationType?: VisualizationType }
+> = {
 	player: {
 		displayName: "Player Statistics",
 		description: "Questions about individual player performance and statistics",
 		hasVisualization: true,
-		visualizationType: "NumberCard"
+		visualizationType: "NumberCard",
 	},
 	team: {
 		displayName: "Team Performance",
 		description: "Questions about team standings, results, and performance",
 		hasVisualization: true,
-		visualizationType: "Table"
+		visualizationType: "Table",
 	},
 	club: {
 		displayName: "Club Information",
 		description: "Questions about club-wide information and general statistics",
 		hasVisualization: true,
-		visualizationType: "Table"
+		visualizationType: "Table",
 	},
 	fixture: {
 		displayName: "Fixture Details",
 		description: "Questions about specific matches and fixtures",
 		hasVisualization: true,
-		visualizationType: "Table"
+		visualizationType: "Table",
 	},
 	comparison: {
 		displayName: "Player Comparison",
 		description: "Questions comparing multiple players or teams",
 		hasVisualization: true,
-		visualizationType: "Table"
+		visualizationType: "Table",
 	},
 	streak: {
 		displayName: "Streak Analysis",
 		description: "Questions about consecutive performances or records",
 		hasVisualization: true,
-		visualizationType: "Calendar"
+		visualizationType: "Calendar",
 	},
 	double_game: {
 		displayName: "Double Game Weeks",
 		description: "Questions about double game week performances",
 		hasVisualization: true,
-		visualizationType: "NumberCard"
+		visualizationType: "NumberCard",
 	},
 	temporal: {
 		displayName: "Time-based Queries",
 		description: "Questions about performance over specific time periods",
 		hasVisualization: true,
-		visualizationType: "Calendar"
+		visualizationType: "Calendar",
 	},
 	general: {
 		displayName: "General Information",
 		description: "General questions about the club or football",
-		hasVisualization: false
+		hasVisualization: false,
 	},
 	ranking: {
 		displayName: "Rankings & Records",
 		description: "Questions about who has the highest/lowest statistics",
 		hasVisualization: true,
-		visualizationType: "Record"
+		visualizationType: "Record",
 	},
 	clarification_needed: {
 		displayName: "Clarification Required",
 		description: "Questions that need clarification before processing",
-		hasVisualization: false
-	}
+		hasVisualization: false,
+	},
 };
 
 // Visualization type definitions
@@ -174,23 +188,23 @@ export const visualizationTypes: Record<VisualizationType, { displayName: string
 	NumberCard: {
 		displayName: "Number Card",
 		description: "Simple numeric display for single values or counts",
-		useCase: "Goals scored, appearances, clean sheets, etc."
+		useCase: "Goals scored, appearances, clean sheets, etc.",
 	},
 	Table: {
 		displayName: "Data Table",
 		description: "Tabular display for multiple records or comparisons",
-		useCase: "League tables, player comparisons, team standings, etc."
+		useCase: "League tables, player comparisons, team standings, etc.",
 	},
 	Calendar: {
 		displayName: "Calendar View",
 		description: "Time-based visualization for streaks and temporal data",
-		useCase: "Consecutive games, scoring streaks, performance over time, etc."
+		useCase: "Consecutive games, scoring streaks, performance over time, etc.",
 	},
 	Record: {
 		displayName: "Record Display",
 		description: "Specialized display for records and achievements",
-		useCase: "Personal bests, season records, milestone achievements, etc."
-	}
+		useCase: "Personal bests, season records, milestone achievements, etc.",
+	},
 };
 
 // Function to generate league links from dataSources
