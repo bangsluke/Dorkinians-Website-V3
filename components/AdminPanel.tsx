@@ -272,7 +272,7 @@ export default function AdminPanel() {
 					// Update seeding status service for successful completion
 					if (statusData.result.success) {
 						seedingStatusService.updateSeedingSuccess({
-							jobId: jobId || 'unknown',
+							jobId: jobId || "unknown",
 							timestamp: new Date().toISOString(),
 							duration: statusData.result.duration || 0,
 							nodesCreated: statusData.result.nodesCreated || 0,
@@ -300,7 +300,7 @@ export default function AdminPanel() {
 
 					// Update seeding status service for failure
 					seedingStatusService.updateSeedingFailure({
-						jobId: jobId || 'unknown',
+						jobId: jobId || "unknown",
 						timestamp: new Date().toISOString(),
 						duration: 0,
 					});
@@ -309,7 +309,7 @@ export default function AdminPanel() {
 					// Don't clear result, keep it for debugging
 					setError(`Job ID not found: ${jobId}. This could mean the job failed early or there's a communication issue.`);
 					setLastStatusCheck(`❌ Job ID not found: ${jobId} at ${new Date().toLocaleString()}`);
-					
+
 					// Try to get more information about what jobs exist
 					try {
 						const jobsResponse = await fetch(`${herokuUrl}/jobs`, {
@@ -615,10 +615,10 @@ export default function AdminPanel() {
 							setError("No job ID available. Please trigger seeding first.");
 							return;
 						}
-						
+
 						setStatusCheckLoading(true);
 						setError(null);
-						
+
 						try {
 							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
 							const response = await fetch(`${herokuUrl}/logs/${jobId}`, {
@@ -626,7 +626,7 @@ export default function AdminPanel() {
 								headers: { "Content-Type": "application/json" },
 								mode: "cors",
 							});
-							
+
 							if (response.ok) {
 								const logsData = await response.json();
 								console.log("Job logs:", logsData);
@@ -635,7 +635,7 @@ export default function AdminPanel() {
 								setError(`Failed to retrieve logs: HTTP ${response.status}`);
 							}
 						} catch (err) {
-							setError(`Failed to retrieve logs: ${err instanceof Error ? err.message : 'Unknown error'}`);
+							setError(`Failed to retrieve logs: ${err instanceof Error ? err.message : "Unknown error"}`);
 						} finally {
 							setStatusCheckLoading(false);
 						}
@@ -720,9 +720,9 @@ export default function AdminPanel() {
 				<div className='mb-6 p-4 bg-red-50 border border-red-200 rounded-lg'>
 					<h3 className='text-lg font-semibold text-red-800 mb-2'>❌ Error</h3>
 					<p className='text-red-700 mb-2'>{error}</p>
-					
+
 					{/* Additional Context for Job Not Found Errors */}
-					{error.includes('Job ID not found') && (
+					{error.includes("Job ID not found") && (
 						<div className='mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded'>
 							<h4 className='text-sm font-semibold text-yellow-800 mb-2'>🔍 Job Not Found Analysis:</h4>
 							<ul className='text-sm text-yellow-700 space-y-1'>
@@ -735,7 +735,7 @@ export default function AdminPanel() {
 							</ul>
 						</div>
 					)}
-					
+
 					<div className='mt-3 p-3 bg-red-100 border border-red-300 rounded'>
 						<h4 className='text-sm font-semibold text-red-800 mb-2'>🔍 Troubleshooting Steps:</h4>
 						<ul className='text-sm text-red-700 space-y-1'>
@@ -894,16 +894,30 @@ export default function AdminPanel() {
 				<h3 className='text-lg font-semibold text-gray-900 mb-2'>🔧 Debug Information</h3>
 				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-900'>
 					<div>
-						<p className='text-gray-900'><strong>Current Job ID:</strong> {jobId || 'None'}</p>
-						<p className='text-gray-900'><strong>Last Status Check:</strong> {lastStatusCheck || 'Never'}</p>
-						<p className='text-gray-900'><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : '0s'}</p>
+						<p className='text-gray-900'>
+							<strong>Current Job ID:</strong> {jobId || "None"}
+						</p>
+						<p className='text-gray-900'>
+							<strong>Last Status Check:</strong> {lastStatusCheck || "Never"}
+						</p>
+						<p className='text-gray-900'>
+							<strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}
+						</p>
 					</div>
 					<div>
-						<p className='text-gray-900'><strong>Environment:</strong> Production</p>
-						<p className='text-gray-900'><strong>Email Notifications:</strong> {sendEmailAtCompletion ? 'Enabled' : 'Disabled'}</p>
-						<p className='text-gray-900'><strong>Email Address:</strong> {emailAddress}</p>
+						<p className='text-gray-900'>
+							<strong>Environment:</strong> Production
+						</p>
+						<p className='text-gray-900'>
+							<strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}
+						</p>
+						<p className='text-gray-900'>
+							<strong>Email Address:</strong> {emailAddress}
+						</p>
 						{result?.result?.duration && (
-							<p className='text-gray-900'><strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}</p>
+							<p className='text-gray-900'>
+								<strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}
+							</p>
 						)}
 					</div>
 				</div>

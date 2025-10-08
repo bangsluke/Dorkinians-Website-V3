@@ -47,7 +47,7 @@ export interface PlayerData {
 	penaltiesMissedPerApp: number;
 	penaltiesConcededPerApp: number;
 	penaltiesSavedPerApp: number;
-	
+
 	// Team and season tracking
 	mostPlayedForTeam: string;
 	numberTeamsPlayedFor: number;
@@ -65,7 +65,7 @@ export interface CachedPlayerData {
 // Filter interfaces
 export interface PlayerFilters {
 	timeRange: {
-		type: 'season' | 'beforeDate' | 'afterDate' | 'betweenDates';
+		type: "season" | "beforeDate" | "afterDate" | "betweenDates";
 		seasons: string[];
 		beforeDate: string;
 		afterDate: string;
@@ -73,17 +73,17 @@ export interface PlayerFilters {
 		endDate: string;
 	};
 	teams: string[];
-	location: ('Home' | 'Away')[];
+	location: ("Home" | "Away")[];
 	opposition: {
 		allOpposition: boolean;
 		searchTerm: string;
 	};
 	competition: {
-		types: ('League' | 'Cup' | 'Friendly')[];
+		types: ("League" | "Cup" | "Friendly")[];
 		searchTerm: string;
 	};
-	result: ('Win' | 'Draw' | 'Loss')[];
-	position: ('GK' | 'DEF' | 'MID' | 'FWD')[];
+	result: ("Win" | "Draw" | "Loss")[];
+	position: ("GK" | "DEF" | "MID" | "FWD")[];
 }
 
 interface NavigationState {
@@ -108,10 +108,10 @@ interface NavigationState {
 	hasUnsavedFilters: boolean;
 	// Filter data cache
 	filterData: {
-		seasons: Array<{season: string, startDate: string, endDate: string}>;
-		teams: Array<{name: string}>;
-		opposition: Array<{name: string}>;
-		competitions: Array<{name: string, type: string}>;
+		seasons: Array<{ season: string; startDate: string; endDate: string }>;
+		teams: Array<{ name: string }>;
+		opposition: Array<{ name: string }>;
+		competitions: Array<{ name: string; type: string }>;
 	};
 	isFilterDataLoaded: boolean;
 	// Navigation actions
@@ -159,25 +159,25 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Filter initial state
 	playerFilters: {
 		timeRange: {
-			type: 'season',
+			type: "season",
 			seasons: [],
-			beforeDate: '',
-			afterDate: '',
-			startDate: '',
-			endDate: ''
+			beforeDate: "",
+			afterDate: "",
+			startDate: "",
+			endDate: "",
 		},
 		teams: [],
-		location: ['Home', 'Away'],
+		location: ["Home", "Away"],
 		opposition: {
 			allOpposition: true,
-			searchTerm: ''
+			searchTerm: "",
 		},
 		competition: {
-			types: ['League', 'Cup'],
-			searchTerm: ''
+			types: ["League", "Cup"],
+			searchTerm: "",
 		},
-		result: ['Win', 'Draw', 'Loss'],
-		position: ['GK', 'DEF', 'MID', 'FWD']
+		result: ["Win", "Draw", "Loss"],
+		position: ["GK", "DEF", "MID", "FWD"],
 	},
 	isFilterSidebarOpen: false,
 	hasUnsavedFilters: false,
@@ -186,7 +186,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		seasons: [],
 		teams: [],
 		opposition: [],
-		competitions: []
+		competitions: [],
 	},
 	isFilterDataLoaded: false,
 
@@ -195,7 +195,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem("dorkinians-selected-player");
 			const cachedData = localStorage.getItem("dorkinians-cached-player-data");
-
 
 			if (cachedData) {
 				try {
@@ -449,9 +448,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => {
 		const currentFilters = get().playerFilters;
 		const newFilters = { ...currentFilters, ...filters };
-		set({ 
+		set({
 			playerFilters: newFilters,
-			hasUnsavedFilters: true 
+			hasUnsavedFilters: true,
 		});
 	},
 
@@ -461,37 +460,37 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		// Apply filters for player
 		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
-		
+
 		// Fetch filtered player data
 		try {
 			set({ isLoadingPlayerData: true });
-			
-			const response = await fetch('/api/player-data-filtered', {
-				method: 'POST',
+
+			const response = await fetch("/api/player-data-filtered", {
+				method: "POST",
 				headers: {
-					'Content-Type': 'application/json',
+					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
 					playerName: selectedPlayer,
-					filters: playerFilters
-				})
+					filters: playerFilters,
+				}),
 			});
 
 			if (response.ok) {
 				const data = await response.json();
-				
+
 				// Log copyable query for debugging
 				if (data.debug && data.debug.copyPasteQuery) {
-					console.log('🔍 COPY-PASTE QUERY FOR MANUAL TESTING:');
+					console.log("🔍 COPY-PASTE QUERY FOR MANUAL TESTING:");
 					console.log(data.debug.copyPasteQuery);
 				}
-				
-				const currentDate = new Date().toISOString().split('T')[0];
-				
+
+				const currentDate = new Date().toISOString().split("T")[0];
+
 				// Cache the filtered data
 				const cachedData: CachedPlayerData = {
 					playerData: data.playerData,
-					selectedDate: currentDate
+					selectedDate: currentDate,
 				};
 
 				// Save to localStorage
@@ -499,18 +498,18 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					localStorage.setItem("dorkinians-cached-player-data", JSON.stringify(cachedData));
 				}
 
-				set({ 
+				set({
 					cachedPlayerData: cachedData,
-					isLoadingPlayerData: false 
+					isLoadingPlayerData: false,
 				});
 			} else {
-				console.error('❌ Failed to fetch filtered player data');
+				console.error("❌ Failed to fetch filtered player data");
 				const errorText = await response.text();
-				console.error('❌ Error response:', errorText);
+				console.error("❌ Error response:", errorText);
 				set({ isLoadingPlayerData: false });
 			}
 		} catch (error) {
-			console.error('❌ Error fetching filtered player data:', error);
+			console.error("❌ Error fetching filtered player data:", error);
 			set({ isLoadingPlayerData: false });
 		}
 	},
@@ -519,27 +518,27 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({
 			playerFilters: {
 				timeRange: {
-					type: 'season',
+					type: "season",
 					seasons: [],
-					beforeDate: '',
-					afterDate: '',
-					startDate: '',
-					endDate: ''
+					beforeDate: "",
+					afterDate: "",
+					startDate: "",
+					endDate: "",
 				},
 				teams: [],
-				location: ['Home', 'Away'],
+				location: ["Home", "Away"],
 				opposition: {
 					allOpposition: true,
-					searchTerm: ''
+					searchTerm: "",
 				},
 				competition: {
-					types: ['League', 'Cup'],
-					searchTerm: ''
+					types: ["League", "Cup"],
+					searchTerm: "",
 				},
-				result: ['Win', 'Draw', 'Loss'],
-				position: ['GK', 'DEF', 'MID', 'FWD']
+				result: ["Win", "Draw", "Loss"],
+				position: ["GK", "DEF", "MID", "FWD"],
 			},
-			hasUnsavedFilters: false
+			hasUnsavedFilters: false,
 		});
 	},
 
@@ -550,17 +549,17 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		try {
 			// Load all filter data in parallel
 			const [seasonsResponse, teamsResponse, oppositionResponse, competitionsResponse] = await Promise.all([
-				fetch('/api/seasons'),
-				fetch('/api/teams'),
-				fetch('/api/opposition'),
-				fetch('/api/competitions')
+				fetch("/api/seasons"),
+				fetch("/api/teams"),
+				fetch("/api/opposition"),
+				fetch("/api/competitions"),
 			]);
 
 			const [seasons, teams, opposition, competitions] = await Promise.all([
 				seasonsResponse.json(),
 				teamsResponse.json(),
 				oppositionResponse.json(),
-				competitionsResponse.json()
+				competitionsResponse.json(),
 			]);
 
 			set({
@@ -568,12 +567,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					seasons: seasons.seasons || [],
 					teams: teams.teams || [],
 					opposition: opposition.opposition || [],
-					competitions: competitions.competitions || []
+					competitions: competitions.competitions || [],
 				},
-				isFilterDataLoaded: true
+				isFilterDataLoaded: true,
 			});
 		} catch (error) {
-			console.error('Failed to load filter data:', error);
+			console.error("Failed to load filter data:", error);
 		}
 	},
 }));

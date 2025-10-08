@@ -27,13 +27,13 @@ export interface QuestionContext {
 export class ChatbotService {
 	private static instance: ChatbotService;
 	private entityResolver: EntityNameResolver;
-	
+
 	// Debug and tracking properties
 	public lastQuestionAnalysis: EnhancedQuestionAnalysis | null = null;
 	public lastExecutedQueries: string[] = [];
 	public lastProcessingSteps: string[] = [];
 	public lastQueryBreakdown: Record<string, unknown> | null = null;
-	
+
 	// Caching properties
 	private queryCache: Map<string, { data: unknown; timestamp: number }> = new Map();
 	private readonly CACHE_TTL: number = 5 * 60 * 1000; // 5 minutes
@@ -52,35 +52,43 @@ export class ChatbotService {
 	// Helper function to format values according to config
 	private formatValueByMetric(metric: string, value: number | bigint | string | Record<string, unknown>): string {
 		// Debug logging for percentage metrics
-		if (metric.includes('%') || metric.includes('HomeGames%Won') || (value && typeof value === 'object' && value.originalPercentage === 51.8)) {
-			this.logToBoth(`🔧 formatValueByMetric called with metric: "${metric}", value: ${JSON.stringify(value)}, type: ${typeof value}`, null, "log");
+		if (
+			metric.includes("%") ||
+			metric.includes("HomeGames%Won") ||
+			(value && typeof value === "object" && value.originalPercentage === 51.8)
+		) {
+			this.logToBoth(
+				`🔧 formatValueByMetric called with metric: "${metric}", value: ${JSON.stringify(value)}, type: ${typeof value}`,
+				null,
+				"log",
+			);
 		}
-		
+
 		// Handle BigInt values from Neo4j first
-		if (typeof value === 'bigint') {
+		if (typeof value === "bigint") {
 			return value.toString();
 		}
-		
+
 		// Handle Neo4j Integer objects (e.g., {low: 445, high: 0})
-		if (value && typeof value === 'object' && 'low' in value && 'high' in value) {
+		if (value && typeof value === "object" && "low" in value && "high" in value) {
 			const neo4jInt = value as { low: number; high: number };
-			value = neo4jInt.low + (neo4jInt.high * 4294967296); // Convert Neo4j Integer to number
+			value = neo4jInt.low + neo4jInt.high * 4294967296; // Convert Neo4j Integer to number
 		}
-		
+
 		// Handle string values (like position names) - but check if it's a number string first
-		if (typeof value === 'string') {
+		if (typeof value === "string") {
 			// Check if it's already a percentage string (ends with %)
-			if (value.endsWith('%')) {
+			if (value.endsWith("%")) {
 				// For percentage strings, we need to preserve the original percentage value
 				// and mark it as already processed to avoid double conversion
-				const numericPart = parseFloat(value.replace('%', ''));
+				const numericPart = parseFloat(value.replace("%", ""));
 				if (!isNaN(numericPart)) {
 					// Store the original percentage value and mark it as already processed
 					value = {
 						originalPercentage: numericPart,
-						isAlreadyPercentage: true
+						isAlreadyPercentage: true,
 					};
-					if (metric.includes('HomeGames%Won') || value.originalPercentage === 51.8) {
+					if (metric.includes("HomeGames%Won") || value.originalPercentage === 51.8) {
 						this.logToBoth(`🔧 Converting percentage string: "${value.originalPercentage}%" -> preserving as percentage value`, null, "log");
 					}
 				} else {
@@ -99,86 +107,90 @@ export class ChatbotService {
 				}
 			}
 		}
-		
+
 		// Resolve metric alias to canonical key before looking up config
 		const resolvedMetric = (findMetricByAlias(metric)?.key || metric) as keyof typeof statObject;
 		// Find the metric config
 		const metricConfig = statObject[resolvedMetric];
-		
+
 		// Debug logging for metric config lookup
-		if (metric.includes('%')) {
+		if (metric.includes("%")) {
 			this.logToBoth(`🔧 Looking up metric config for "${metric}":`, metricConfig, "log");
 			this.logToBoth(`🔧 Resolved metric: "${resolvedMetric}"`, null, "log");
-			this.logToBoth(`🔧 Available statObject keys:`, Object.keys(statObject).filter(key => key.includes('%')), "log");
+			this.logToBoth(
+				`🔧 Available statObject keys:`,
+				Object.keys(statObject).filter((key) => key.includes("%")),
+				"log",
+			);
 			if (metricConfig) {
 				this.logToBoth(`🔧 Metric config numberDecimalPlaces:`, metricConfig.numberDecimalPlaces, "log");
 			}
 		}
-		
-		if (metricConfig && typeof metricConfig === 'object') {
+
+		if (metricConfig && typeof metricConfig === "object") {
 			// Handle percentage formatting
-			if (metricConfig.statFormat === 'Percentage') {
+			if (metricConfig.statFormat === "Percentage") {
 				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-				
+
 				// Check if this is already a processed percentage value
-				if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+				if (value && typeof value === "object" && "isAlreadyPercentage" in value && "originalPercentage" in value) {
 					const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 					// Use the original percentage value and apply decimal places
-					const result = percentageValue.originalPercentage.toFixed(decimalPlaces) + '%';
-					if (metric.includes('%')) {
+					const result = percentageValue.originalPercentage.toFixed(decimalPlaces) + "%";
+					if (metric.includes("%")) {
 						this.logToBoth(`🔧 Percentage formatting (already processed): ${percentageValue.originalPercentage}% -> ${result}`, null, "log");
 						this.logToBoth(`🔧 Final result: "${result}"`, null, "log");
 					}
 					return result;
 				}
-				
+
 				// Check if value is already a percentage (>= 1) or a decimal (< 1)
 				const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
-				const result = percentageValue.toFixed(decimalPlaces) + '%';
-				if (metric.includes('%')) {
+				const result = percentageValue.toFixed(decimalPlaces) + "%";
+				if (metric.includes("%")) {
 					this.logToBoth(`🔧 Percentage formatting: ${value} -> ${percentageValue} -> ${result}`, null, "log");
 					this.logToBoth(`🔧 Final result: "${result}"`, null, "log");
 				}
 				return result;
 			}
-			
+
 			// Handle other numeric formatting
-			if ('numberDecimalPlaces' in metricConfig) {
+			if ("numberDecimalPlaces" in metricConfig) {
 				const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-				
+
 				// Check if this is already a processed percentage value
-				if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+				if (value && typeof value === "object" && "isAlreadyPercentage" in value && "originalPercentage" in value) {
 					const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 					// Use the original percentage value and apply decimal places
 					const result = percentageValue.originalPercentage.toFixed(decimalPlaces);
-					if (metric.includes('%')) {
+					if (metric.includes("%")) {
 						this.logToBoth(`🔧 Decimal formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 					}
 					return result;
 				}
-				
+
 				const result = Number(value).toFixed(decimalPlaces);
-				if (metric.includes('%')) {
+				if (metric.includes("%")) {
 					this.logToBoth(`🔧 Decimal formatting: ${value} -> ${result}`, null, "log");
 				}
 				return result;
 			}
 		}
-		
+
 		// Default to integer if no config found
 		// Check if this is already a processed percentage value
-		if (value && typeof value === 'object' && 'isAlreadyPercentage' in value && 'originalPercentage' in value) {
+		if (value && typeof value === "object" && "isAlreadyPercentage" in value && "originalPercentage" in value) {
 			const percentageValue = value as { originalPercentage: number; isAlreadyPercentage: boolean };
 			// Use the original percentage value
 			const result = percentageValue.originalPercentage.toString();
-			if (metric.includes('%')) {
+			if (metric.includes("%")) {
 				this.logToBoth(`🔧 Default formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 			}
 			return result;
 		}
-		
+
 		const result = Math.round(Number(value)).toString();
-		if (metric.includes('%')) {
+		if (metric.includes("%")) {
 			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`, null, "log");
 		}
 		return result;
@@ -187,19 +199,23 @@ export class ChatbotService {
 	// Resolve player name using fuzzy matching
 	private async resolvePlayerName(playerName: string): Promise<string | null> {
 		try {
-			const result = await this.entityResolver.resolveEntityName(playerName, 'player');
-			
+			const result = await this.entityResolver.resolveEntityName(playerName, "player");
+
 			if (result.exactMatch) {
 				this.logToBoth(`✅ Exact match found: ${playerName} → ${result.exactMatch}`, null, "log");
 				return result.exactMatch;
 			}
-			
+
 			if (result.fuzzyMatches.length > 0) {
 				const bestMatch = result.fuzzyMatches[0];
-				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`, null, "log");
+				this.logToBoth(
+					`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`,
+					null,
+					"log",
+				);
 				return bestMatch.entityName;
 			}
-			
+
 			this.logToBoth(`❌ No match found for player: ${playerName}`, null, "warn");
 			return null;
 		} catch (error) {
@@ -208,15 +224,13 @@ export class ChatbotService {
 		}
 	}
 
-
-
 	// Type guards for runtime type checking
 	private isString(value: unknown): value is string {
-		return typeof value === 'string';
+		return typeof value === "string";
 	}
 
 	private isNumber(value: unknown): value is number {
-		return typeof value === 'number' && !isNaN(value);
+		return typeof value === "number" && !isNaN(value);
 	}
 
 	private isArray(value: unknown): value is unknown[] {
@@ -224,7 +238,7 @@ export class ChatbotService {
 	}
 
 	private isObject(value: unknown): value is Record<string, unknown> {
-		return value !== null && typeof value === 'object' && !Array.isArray(value);
+		return value !== null && typeof value === "object" && !Array.isArray(value);
 	}
 
 	// Helper method to log to both server and client consoles
@@ -239,12 +253,12 @@ export class ChatbotService {
 
 	private convertDateFormat(dateStr: string): string {
 		// Convert DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD
-		const parts = dateStr.split('/');
+		const parts = dateStr.split("/");
 		if (parts.length === 3) {
-			let day = parts[0].padStart(2, '0');
-			let month = parts[1].padStart(2, '0');
+			let day = parts[0].padStart(2, "0");
+			let month = parts[1].padStart(2, "0");
 			let year = parts[2];
-			
+
 			// Handle 2-digit years
 			if (year.length === 2) {
 				const currentYear = new Date().getFullYear();
@@ -252,7 +266,7 @@ export class ChatbotService {
 				const yearNum = parseInt(year);
 				year = (century + yearNum).toString();
 			}
-			
+
 			return `${year}-${month}-${day}`;
 		}
 		return dateStr; // Return as-is if format not recognized
@@ -260,8 +274,8 @@ export class ChatbotService {
 
 	private formatDate(dateStr: string): string {
 		// Convert YYYY-MM-DD to DD/MM/YYYY
-		if (dateStr.includes('-') && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
-			const parts = dateStr.split('-');
+		if (dateStr.includes("-") && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+			const parts = dateStr.split("-");
 			const year = parts[0];
 			const month = parts[1];
 			const day = parts[2];
@@ -272,8 +286,8 @@ export class ChatbotService {
 
 	private formatTimeRange(timeRange: string): string {
 		// Format a time range like "2022-03-20 to 2024-10-21" to "20/03/2022 to 21/10/2024"
-		if (timeRange.includes(' to ')) {
-			const [startDate, endDate] = timeRange.split(' to ');
+		if (timeRange.includes(" to ")) {
+			const [startDate, endDate] = timeRange.split(" to ");
 			const formattedStart = this.formatDate(startDate.trim());
 			const formattedEnd = this.formatDate(endDate.trim());
 			return `${formattedStart} to ${formattedEnd}`;
@@ -284,32 +298,32 @@ export class ChatbotService {
 	private mapTeamName(teamName: string): string {
 		// Map common team name variations to database format
 		const teamMapping: { [key: string]: string } = {
-			'1s': '1st XI',
-			'2s': '2nd XI', 
-			'3s': '3rd XI',
-			'4s': '4th XI',
-			'5s': '5th XI',
-			'6s': '6th XI',
-			'7s': '7th XI',
-			'8s': '8th XI',
-			'1st': '1st XI',
-			'2nd': '2nd XI',
-			'3rd': '3rd XI',
-			'4th': '4th XI',
-			'5th': '5th XI',
-			'6th': '6th XI',
-			'7th': '7th XI',
-			'8th': '8th XI',
-			'first': '1st XI',
-			'second': '2nd XI',
-			'third': '3rd XI',
-			'fourth': '4th XI',
-			'fifth': '5th XI',
-			'sixth': '6th XI',
-			'seventh': '7th XI',
-			'eighth': '8th XI'
+			"1s": "1st XI",
+			"2s": "2nd XI",
+			"3s": "3rd XI",
+			"4s": "4th XI",
+			"5s": "5th XI",
+			"6s": "6th XI",
+			"7s": "7th XI",
+			"8s": "8th XI",
+			"1st": "1st XI",
+			"2nd": "2nd XI",
+			"3rd": "3rd XI",
+			"4th": "4th XI",
+			"5th": "5th XI",
+			"6th": "6th XI",
+			"7th": "7th XI",
+			"8th": "8th XI",
+			first: "1st XI",
+			second: "2nd XI",
+			third: "3rd XI",
+			fourth: "4th XI",
+			fifth: "5th XI",
+			sixth: "6th XI",
+			seventh: "7th XI",
+			eighth: "8th XI",
 		};
-		
+
 		return teamMapping[teamName.toLowerCase()] || teamName;
 	}
 
@@ -320,7 +334,7 @@ export class ChatbotService {
 
 	private getCachedResult(cacheKey: string): unknown | null {
 		const cached = this.queryCache.get(cacheKey);
-		if (cached && (Date.now() - cached.timestamp) < this.CACHE_TTL) {
+		if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
 			return cached.data;
 		}
 		return null;
@@ -329,7 +343,7 @@ export class ChatbotService {
 	private setCachedResult(cacheKey: string, data: unknown): void {
 		this.queryCache.set(cacheKey, {
 			data,
-			timestamp: Date.now()
+			timestamp: Date.now(),
 		});
 	}
 
@@ -377,8 +391,8 @@ export class ChatbotService {
 			};
 
 			// Debug logging for complex queries
-			if (analysis.complexity === 'complex' || analysis.metrics.length > 1) {
-				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`, null, "log");
+			if (analysis.complexity === "complex" || analysis.metrics.length > 1) {
+				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(", ")}`, null, "log");
 			}
 
 			// Query the database
@@ -393,11 +407,11 @@ export class ChatbotService {
 		} catch (error) {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
-			
+
 			// Provide more detailed error information for debugging
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			const errorType = error instanceof Error ? error.constructor.name : typeof error;
-			
+
 			return {
 				answer: `I'm sorry, I encountered an error while processing your question. Error details: ${errorType}: ${errorMessage}. Please try again later.`,
 				sources: [],
@@ -406,20 +420,17 @@ export class ChatbotService {
 		}
 	}
 
-	private async analyzeQuestion(
-		question: string,
-		userContext?: string,
-	): Promise<EnhancedQuestionAnalysis> {
+	private async analyzeQuestion(question: string, userContext?: string): Promise<EnhancedQuestionAnalysis> {
 		// Use enhanced question analysis
 		const analyzer = new EnhancedQuestionAnalyzer(question, userContext);
 		const enhancedAnalysis = await analyzer.analyze();
-		
+
 		return enhancedAnalysis;
 	}
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
-		
+
 		try {
 			// Ensure Neo4j connection before querying
 			const connected = await neo4jService.connect();
@@ -428,7 +439,7 @@ export class ChatbotService {
 				return null;
 			}
 
-			// 
+			//
 			switch (type) {
 				case "player":
 					return await this.queryPlayerData(entities, metrics, analysis);
@@ -460,16 +471,24 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryPlayerData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+	private async queryPlayerData(
+		entities: string[],
+		metrics: string[],
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
 		// Use enhanced analysis data directly
 		const teamEntities = analysis.teamEntities || [];
 		const oppositionEntities = analysis.oppositionEntities || [];
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
-		
+
 		// Essential debug info for complex queries
 		if (teamEntities.length > 0 || timeRange || locations.length > 0) {
-			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`, null, "log");
+			this.logToBoth(
+				`🔍 Complex player query - Teams: ${teamEntities.join(",") || "none"}, Time: ${timeRange || "none"}, Locations: ${locations.length}`,
+				null,
+				"log",
+			);
 		}
 
 		// Check if we have entities (player names) to query
@@ -481,17 +500,17 @@ export class ChatbotService {
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
 			const originalMetric = metrics[0] || "";
-			
+
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = originalMetric;
-			if (originalMetric === 'Home Games % Won') {
-				normalizedMetric = 'HomeGames%Won';
-			} else if (originalMetric === 'Away Games % Won') {
-				normalizedMetric = 'AwayGames%Won';
-			} else if (originalMetric === 'Games % Won') {
-				normalizedMetric = 'Games%Won';
+			if (originalMetric === "Home Games % Won") {
+				normalizedMetric = "HomeGames%Won";
+			} else if (originalMetric === "Away Games % Won") {
+				normalizedMetric = "AwayGames%Won";
+			} else if (originalMetric === "Games % Won") {
+				normalizedMetric = "Games%Won";
 			}
-			
+
 			const metric = normalizedMetric.toUpperCase();
 
 			// Check if this is a team-specific question
@@ -502,7 +521,7 @@ export class ChatbotService {
 
 			// Resolve player name with fuzzy matching
 			const resolvedPlayerName = await this.resolvePlayerName(playerName);
-			
+
 			if (!resolvedPlayerName) {
 				this.logToBoth(`❌ Player not found: ${playerName}`, null, "error");
 				return {
@@ -510,7 +529,7 @@ export class ChatbotService {
 					data: [],
 					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
 					playerName,
-					metric
+					metric,
 				};
 			}
 
@@ -563,29 +582,30 @@ export class ChatbotService {
 			// - Results (wins, draws, losses, W, D, L)
 			// - Opponent own goals
 			// This improves query performance for simple appearance/stat queries that don't need Fixture data
-			const needsFixture = teamEntities.length > 0 || 
-								locations.length > 0 || 
-								timeRange || 
-								oppositionEntities.length > 0 || 
-								metrics.includes('HOME') || 
-								metrics.includes('AWAY') ||
-								(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
-								(analysis.competitions && analysis.competitions.length > 0) ||
-								(analysis.results && analysis.results.length > 0) ||
-								(analysis.opponentOwnGoals === true);
-			
+			const needsFixture =
+				teamEntities.length > 0 ||
+				locations.length > 0 ||
+				timeRange ||
+				oppositionEntities.length > 0 ||
+				metrics.includes("HOME") ||
+				metrics.includes("AWAY") ||
+				(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+				(analysis.competitions && analysis.competitions.length > 0) ||
+				(analysis.results && analysis.results.length > 0) ||
+				analysis.opponentOwnGoals === true;
+
 			// Debug complex queries with filters
 			if (needsFixture) {
 				const filters = [];
-				if (teamEntities.length > 0) filters.push(`Teams: ${teamEntities.join(',')}`);
-				if (locations.length > 0) filters.push(`Locations: ${locations.map(l => l.type).join(',')}`);
+				if (teamEntities.length > 0) filters.push(`Teams: ${teamEntities.join(",")}`);
+				if (locations.length > 0) filters.push(`Locations: ${locations.map((l) => l.type).join(",")}`);
 				if (timeRange) filters.push(`Time: ${timeRange}`);
-				if (oppositionEntities.length > 0) filters.push(`Opposition: ${oppositionEntities.join(',')}`);
+				if (oppositionEntities.length > 0) filters.push(`Opposition: ${oppositionEntities.join(",")}`);
 				if (filters.length > 0) {
-					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`, null, "log");
+					this.logToBoth(`🔍 Complex query with filters: ${filters.join(" | ")}`, null, "log");
 				}
 			}
-			
+
 			// Build the optimal query using unified architecture
 			const query = this.buildPlayerQuery(actualPlayerName, metric, analysis);
 
@@ -593,15 +613,15 @@ export class ChatbotService {
 				// First check if the player exists
 				const playerExistsQuery = `MATCH (p:Player {playerName: $playerName}) RETURN p.playerName as playerName LIMIT 1`;
 				const playerExistsResult = await neo4jService.executeQuery(playerExistsQuery, { playerName: actualPlayerName });
-				
+
 				if (!playerExistsResult || playerExistsResult.length === 0) {
 					this.logToBoth(`❌ Player not found: ${actualPlayerName}`, null, "error");
-					return { 
-						type: "player_not_found", 
-						data: [], 
+					return {
+						type: "player_not_found",
+						data: [],
 						message: `I couldn't find a player named "${actualPlayerName}" in the database. Please check the spelling or try a different player name.`,
 						playerName: actualPlayerName,
-						metric: originalMetric
+						metric: originalMetric,
 					};
 				}
 
@@ -648,8 +668,6 @@ export class ChatbotService {
 		return { type: "general_players", data: result };
 	}
 
-
-
 	private async queryTeamData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
@@ -662,7 +680,7 @@ export class ChatbotService {
 		const params = { graphLabel: neo4jService.getGraphLabel() };
 		const result = await neo4jService.executeQuery(query, params);
 		this.logToBoth(`🔍 Team data query result:`, result, "log");
-		
+
 		return { type: "team", data: result } as Record<string, unknown>;
 	}
 
@@ -687,8 +705,6 @@ export class ChatbotService {
 		const result = await neo4jService.executeQuery(query);
 		return result as unknown as Record<string, unknown>;
 	}
-
-
 
 	private async queryDoubleGameData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		if (entities.length === 0) {
@@ -729,34 +745,63 @@ export class ChatbotService {
 	private metricNeedsMatchDetail(metric: string): boolean {
 		// Metrics that can be retrieved directly from Player node
 		const playerNodeMetrics = [
-			'MIN', 'MOM', 'G', 'A', 'Y', 'R', 'SAVES', 'OG', 'C', 'CLS', 
-			'PSC', 'PM', 'PCO', 'PSV', 'FTP', 'DIST',
-			'GK', 'DEF', 'MID', 'FWD',
+			"MIN",
+			"MOM",
+			"G",
+			"A",
+			"Y",
+			"R",
+			"SAVES",
+			"OG",
+			"C",
+			"CLS",
+			"PSC",
+			"PM",
+			"PCO",
+			"PSV",
+			"FTP",
+			"DIST",
+			"GK",
+			"DEF",
+			"MID",
+			"FWD",
 			// Non-seasonal metrics that are stored directly on Player node
-			'MOSTPROLIFICSEASON', 'MOSTCOMMONPOSITION', 'NUMBERSEASONSPLAYEDFOR',
+			"MOSTPROLIFICSEASON",
+			"MOSTCOMMONPOSITION",
+			"NUMBERSEASONSPLAYEDFOR",
 			// APP metric - use Player node directly for now (fallback approach)
-			'APP',
+			"APP",
 			// Open play goals and percentage calculations
-			'OPENPLAYGOALS', 'HOMEGAMES%WON', 'AWAYGAMES%WON', 'GAMES%WON'
+			"OPENPLAYGOALS",
+			"HOMEGAMES%WON",
+			"AWAYGAMES%WON",
+			"GAMES%WON",
 		];
-		
+
 		// Metrics that need MatchDetail join (including complex calculations)
-		const matchDetailMetrics = [
-			'ALLGSC', 'GI', 'HOME', 'AWAY',
-			'MPERG', 'MPERCLS', 'FTPPERAPP', 'CPERAPP', 'GPERAPP'
-		];
-		
+		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP"];
+
 		// Seasonal metrics - try MatchDetail first, fallback to Player node
 		const seasonalMetrics = [
-			'2016/17GOALS', '2017/18GOALS', '2018/19GOALS', '2019/20GOALS', '2020/21GOALS', '2021/22GOALS',
-			'2016/17APPS', '2017/18APPS', '2018/19APPS', '2019/20APPS', '2020/21APPS', '2021/22APPS'
+			"2016/17GOALS",
+			"2017/18GOALS",
+			"2018/19GOALS",
+			"2019/20GOALS",
+			"2020/21GOALS",
+			"2021/22GOALS",
+			"2016/17APPS",
+			"2017/18APPS",
+			"2018/19APPS",
+			"2019/20APPS",
+			"2020/21APPS",
+			"2021/22APPS",
 		];
-		
+
 		// Check if it's a seasonal metric (contains year pattern) - these use Player node directly
 		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
 			return false; // Seasonal metrics use Player node directly for now (fallback approach)
 		}
-		
+
 		return matchDetailMetrics.includes(metric.toUpperCase());
 	}
 
@@ -765,29 +810,52 @@ export class ChatbotService {
 	 */
 	private getPlayerNodeReturnClause(metric: string): string {
 		switch (metric.toUpperCase()) {
-			case 'MIN': return 'coalesce(p.minutes, 0)';
-			case 'MOM': return 'coalesce(p.mom, 0)';
-			case 'G': return 'coalesce(p.allGoalsScored, 0)';
-			case 'OPENPLAYGOALS': return 'coalesce(p.goals, 0)';
-			case 'A': return 'coalesce(p.assists, 0)';
-			case 'Y': return 'coalesce(p.yellowCards, 0)';
-			case 'R': return 'coalesce(p.redCards, 0)';
-			case 'SAVES': return 'coalesce(p.saves, 0)';
-			case 'OG': return 'coalesce(p.ownGoals, 0)';
-			case 'C': return 'coalesce(p.conceded, 0)';
-			case 'CLS': return 'coalesce(p.cleanSheets, 0)';
-			case 'PSC': return 'coalesce(p.penaltiesScored, 0)';
-			case 'PM': return 'coalesce(p.penaltiesMissed, 0)';
-			case 'PCO': return 'coalesce(p.penaltiesConceded, 0)';
-			case 'PSV': return 'coalesce(p.penaltiesSaved, 0)';
-			case 'FTP': return 'coalesce(p.fantasyPoints, 0)';
-			case 'DIST': return 'coalesce(p.distance, 0)';
-			case 'GK': return 'coalesce(p.gk, 0)';
-			case 'DEF': return 'coalesce(p.def, 0)';
-			case 'MID': return 'coalesce(p.mid, 0)';
-			case 'FWD': return 'coalesce(p.fwd, 0)';
-			case 'APP': return 'coalesce(p.appearances, 0)';
-			case 'MOSTPROLIFICSEASON': return 'p.mostProlificSeason';
+			case "MIN":
+				return "coalesce(p.minutes, 0)";
+			case "MOM":
+				return "coalesce(p.mom, 0)";
+			case "G":
+				return "coalesce(p.allGoalsScored, 0)";
+			case "OPENPLAYGOALS":
+				return "coalesce(p.goals, 0)";
+			case "A":
+				return "coalesce(p.assists, 0)";
+			case "Y":
+				return "coalesce(p.yellowCards, 0)";
+			case "R":
+				return "coalesce(p.redCards, 0)";
+			case "SAVES":
+				return "coalesce(p.saves, 0)";
+			case "OG":
+				return "coalesce(p.ownGoals, 0)";
+			case "C":
+				return "coalesce(p.conceded, 0)";
+			case "CLS":
+				return "coalesce(p.cleanSheets, 0)";
+			case "PSC":
+				return "coalesce(p.penaltiesScored, 0)";
+			case "PM":
+				return "coalesce(p.penaltiesMissed, 0)";
+			case "PCO":
+				return "coalesce(p.penaltiesConceded, 0)";
+			case "PSV":
+				return "coalesce(p.penaltiesSaved, 0)";
+			case "FTP":
+				return "coalesce(p.fantasyPoints, 0)";
+			case "DIST":
+				return "coalesce(p.distance, 0)";
+			case "GK":
+				return "coalesce(p.gk, 0)";
+			case "DEF":
+				return "coalesce(p.def, 0)";
+			case "MID":
+				return "coalesce(p.mid, 0)";
+			case "FWD":
+				return "coalesce(p.fwd, 0)";
+			case "APP":
+				return "coalesce(p.appearances, 0)";
+			case "MOSTPROLIFICSEASON":
+				return "p.mostProlificSeason";
 			// Seasonal metrics - dynamic handling
 			default:
 				// Check if it's a seasonal metric (contains year pattern)
@@ -797,13 +865,13 @@ export class ChatbotService {
 						const season = seasonMatch[1];
 						const type = seasonMatch[2];
 						// Convert season format from 2017/18 to 201718 for database property names
-						const dbSeason = season.replace('/', '');
+						const dbSeason = season.replace("/", "");
 						const playerField = `${type.toLowerCase()}${dbSeason}`;
 						return `coalesce(p.${playerField}, 0)`;
 					}
 				}
 				// Complex calculation metrics (MostCommonPosition, MPERG, MPERCLS, FTPPERAPP, GPERAPP, CPERAPP) are handled by custom queries in buildPlayerQuery and don't need return clauses here
-				return '0';
+				return "0";
 		}
 	}
 
@@ -812,15 +880,20 @@ export class ChatbotService {
 	 */
 	private getMatchDetailReturnClause(metric: string): string {
 		switch (metric.toUpperCase()) {
-			case 'APP': return 'count(md) as value';
-			case 'ALLGSC': return `
+			case "APP":
+				return "count(md) as value";
+			case "ALLGSC":
+				return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
 				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
-			case 'GI': return `
+			case "GI":
+				return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
 				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as value`;
-			case 'HOME': return 'count(DISTINCT md) as value';
-			case 'AWAY': return 'count(DISTINCT md) as value';
+			case "HOME":
+				return "count(DISTINCT md) as value";
+			case "AWAY":
+				return "count(DISTINCT md) as value";
 			// Season-specific goals
 			// Dynamic seasonal metrics (any season)
 			default:
@@ -832,7 +905,7 @@ export class ChatbotService {
 						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value`;
 					}
 				}
-				
+
 				// Check if it's a seasonal appearances metric
 				if (metric.match(/\d{4}\/\d{2}APPS/i)) {
 					const seasonMatch = metric.match(/(\d{4}\/\d{2})APPS/i);
@@ -843,9 +916,9 @@ export class ChatbotService {
 				}
 				break;
 		}
-		
+
 		// Default fallback for unrecognized metrics
-		return '0 as value';
+		return "0 as value";
 	}
 
 	/**
@@ -859,18 +932,19 @@ export class ChatbotService {
 
 		// Determine if this metric needs MatchDetail join or can use Player node directly
 		const needsMatchDetail = this.metricNeedsMatchDetail(metric);
-		
+
 		// Check if we need Fixture relationship for any filters
-		const needsFixture = teamEntities.length > 0 || 
-							locations.length > 0 || 
-							timeRange || 
-							oppositionEntities.length > 0 || 
-							metric === 'HOME' || 
-							metric === 'AWAY' ||
-							(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
-							(analysis.competitions && analysis.competitions.length > 0) ||
-							(analysis.results && analysis.results.length > 0) ||
-							(analysis.opponentOwnGoals === true);
+		const needsFixture =
+			teamEntities.length > 0 ||
+			locations.length > 0 ||
+			timeRange ||
+			oppositionEntities.length > 0 ||
+			metric === "HOME" ||
+			metric === "AWAY" ||
+			(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+			(analysis.competitions && analysis.competitions.length > 0) ||
+			(analysis.results && analysis.results.length > 0) ||
+			analysis.opponentOwnGoals === true;
 
 		// Debug complex queries only
 		if (needsFixture || !needsMatchDetail) {
@@ -879,7 +953,7 @@ export class ChatbotService {
 
 		// Build base query structure
 		let query: string;
-		
+
 		if (!needsMatchDetail) {
 			// Use direct Player node query (no MatchDetail join needed)
 			query = `
@@ -903,35 +977,37 @@ export class ChatbotService {
 
 			// Build WHERE conditions for enhanced filters
 			const whereConditions = [];
-			
+
 			// Add team filter if specified
 			if (teamEntities.length > 0) {
-				const mappedTeamNames = teamEntities.map(team => this.mapTeamName(team));
-				const teamNames = mappedTeamNames.map(team => `'${team}'`).join(', ');
+				const mappedTeamNames = teamEntities.map((team) => this.mapTeamName(team));
+				const teamNames = mappedTeamNames.map((team) => `'${team}'`).join(", ");
 				whereConditions.push(`f.team IN [${teamNames}]`);
 			}
-			
+
 			// Add location filter if specified (only if not already handled by metric)
-			if (locations.length > 0 && metric !== 'HOME' && metric !== 'AWAY') {
-				const locationFilters = locations.map(loc => {
-					if (loc.type === 'home') return `f.homeOrAway = 'Home'`;
-					if (loc.type === 'away') return `f.homeOrAway = 'Away'`;
-					return null;
-				}).filter(Boolean);
+			if (locations.length > 0 && metric !== "HOME" && metric !== "AWAY") {
+				const locationFilters = locations
+					.map((loc) => {
+						if (loc.type === "home") return `f.homeOrAway = 'Home'`;
+						if (loc.type === "away") return `f.homeOrAway = 'Away'`;
+						return null;
+					})
+					.filter(Boolean);
 				if (locationFilters.length > 0) {
-					whereConditions.push(`(${locationFilters.join(' OR ')})`);
+					whereConditions.push(`(${locationFilters.join(" OR ")})`);
 				}
 			}
-			
+
 			// Add opposition filter if specified
 			if (oppositionEntities.length > 0) {
 				const oppositionName = oppositionEntities[0];
 				whereConditions.push(`f.opposition = '${oppositionName}'`);
 			}
-			
+
 			// Add time range filter if specified
 			if (timeRange) {
-				const dateRange = timeRange.split(' to ');
+				const dateRange = timeRange.split(" to ");
 				if (dateRange.length === 2) {
 					const startDate = this.convertDateFormat(dateRange[0].trim());
 					const endDate = this.convertDateFormat(dateRange[1].trim());
@@ -941,44 +1017,52 @@ export class ChatbotService {
 
 			// Add competition type filter if specified
 			if (analysis.competitionTypes && analysis.competitionTypes.length > 0) {
-				const compTypeFilters = analysis.competitionTypes.map(compType => {
-					switch (compType.toLowerCase()) {
-						case 'league': return `f.compType = 'League'`;
-						case 'cup': return `f.compType = 'Cup'`;
-						case 'friendly': return `f.compType = 'Friendly'`;
-						default: return null;
-					}
-				}).filter(Boolean);
+				const compTypeFilters = analysis.competitionTypes
+					.map((compType) => {
+						switch (compType.toLowerCase()) {
+							case "league":
+								return `f.compType = 'League'`;
+							case "cup":
+								return `f.compType = 'Cup'`;
+							case "friendly":
+								return `f.compType = 'Friendly'`;
+							default:
+								return null;
+						}
+					})
+					.filter(Boolean);
 				if (compTypeFilters.length > 0) {
-					whereConditions.push(`(${compTypeFilters.join(' OR ')})`);
+					whereConditions.push(`(${compTypeFilters.join(" OR ")})`);
 				}
 			}
 
 			// Add competition filter if specified
 			if (analysis.competitions && analysis.competitions.length > 0) {
-				const competitionFilters = analysis.competitions.map(comp => `f.competition CONTAINS '${comp}'`);
-				whereConditions.push(`(${competitionFilters.join(' OR ')})`);
+				const competitionFilters = analysis.competitions.map((comp) => `f.competition CONTAINS '${comp}'`);
+				whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 			}
 
 			// Add result filter if specified
 			if (analysis.results && analysis.results.length > 0) {
-				const resultFilters = analysis.results.map(result => {
-					switch (result.toLowerCase()) {
-						case 'win':
-						case 'w':
-							return `f.result = 'W'`;
-						case 'draw':
-						case 'd':
-							return `f.result = 'D'`;
-						case 'loss':
-						case 'l':
-							return `f.result = 'L'`;
-						default:
-							return null;
-					}
-				}).filter(Boolean);
+				const resultFilters = analysis.results
+					.map((result) => {
+						switch (result.toLowerCase()) {
+							case "win":
+							case "w":
+								return `f.result = 'W'`;
+							case "draw":
+							case "d":
+								return `f.result = 'D'`;
+							case "loss":
+							case "l":
+								return `f.result = 'L'`;
+							default:
+								return null;
+						}
+					})
+					.filter(Boolean);
 				if (resultFilters.length > 0) {
-					whereConditions.push(`(${resultFilters.join(' OR ')})`);
+					whereConditions.push(`(${resultFilters.join(" OR ")})`);
 				}
 			}
 
@@ -988,12 +1072,12 @@ export class ChatbotService {
 			}
 
 			// Add special metric filters
-			if (metric === 'HOME') {
+			if (metric === "HOME") {
 				whereConditions.push(`f.homeOrAway = 'Home'`);
-			} else if (metric === 'AWAY') {
+			} else if (metric === "AWAY") {
 				whereConditions.push(`f.homeOrAway = 'Away'`);
 			}
-			
+
 			// Add seasonal metric filters (dynamic for any season)
 			if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})(GOALS|APPS)/i);
@@ -1005,7 +1089,7 @@ export class ChatbotService {
 
 			// Add WHERE clause if we have conditions
 			if (whereConditions.length > 0) {
-				query += ` WHERE ${whereConditions.join(' AND ')}`;
+				query += ` WHERE ${whereConditions.join(" AND ")}`;
 			}
 
 			// Add return clause
@@ -1013,12 +1097,12 @@ export class ChatbotService {
 		}
 
 		// Handle special cases that need custom queries
-		if (metric === 'MOSTCOMMONPOSITION') {
+		if (metric === "MOSTCOMMONPOSITION") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})
 				RETURN p.playerName as playerName, p.mostCommonPosition as value
 			`;
-		} else if (metric.toUpperCase() === 'MPERG' || metric === 'MperG') {
+		} else if (metric.toUpperCase() === "MPERG" || metric === "MperG") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1030,7 +1114,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'MPERCLS' || metric === 'MperCLS') {
+		} else if (metric.toUpperCase() === "MPERCLS" || metric === "MperCLS") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1043,7 +1127,7 @@ export class ChatbotService {
 						ELSE 0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'FTPPERAPP' || metric === 'FTPperAPP') {
+		} else if (metric.toUpperCase() === "FTPPERAPP" || metric === "FTPperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1055,7 +1139,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'CPERAPP' || metric === 'CperAPP') {
+		} else if (metric.toUpperCase() === "CPERAPP" || metric === "CperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1068,7 +1152,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'GPERAPP' || metric === 'GperAPP') {
+		} else if (metric.toUpperCase() === "GPERAPP" || metric === "GperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1080,7 +1164,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'MINPERAPP' || metric === 'MINperAPP') {
+		} else if (metric.toUpperCase() === "MINPERAPP" || metric === "MINperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1092,7 +1176,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'MOMPERAPP' || metric === 'MOMperAPP') {
+		} else if (metric.toUpperCase() === "MOMPERAPP" || metric === "MOMperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1104,7 +1188,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'YPERAPP' || metric === 'YperAPP') {
+		} else if (metric.toUpperCase() === "YPERAPP" || metric === "YperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1116,7 +1200,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'RPERAPP' || metric === 'RperAPP') {
+		} else if (metric.toUpperCase() === "RPERAPP" || metric === "RperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1128,7 +1212,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'SAVESPERAPP' || metric === 'SAVESperAPP') {
+		} else if (metric.toUpperCase() === "SAVESPERAPP" || metric === "SAVESperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1140,7 +1224,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'OGPERAPP' || metric === 'OGperAPP') {
+		} else if (metric.toUpperCase() === "OGPERAPP" || metric === "OGperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1152,7 +1236,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'CLSPERAPP' || metric === 'CLSperAPP') {
+		} else if (metric.toUpperCase() === "CLSPERAPP" || metric === "CLSperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1165,7 +1249,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'PSCPERAPP' || metric === 'PSCperAPP') {
+		} else if (metric.toUpperCase() === "PSCPERAPP" || metric === "PSCperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1177,7 +1261,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'PMPERAPP' || metric === 'PMperAPP') {
+		} else if (metric.toUpperCase() === "PMPERAPP" || metric === "PMperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1189,7 +1273,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'PCOPERAPP' || metric === 'PCOperAPP') {
+		} else if (metric.toUpperCase() === "PCOPERAPP" || metric === "PCOperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1201,7 +1285,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'PSVPERAPP' || metric === 'PSVperAPP') {
+		} else if (metric.toUpperCase() === "PSVPERAPP" || metric === "PSVperAPP") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WITH p, 
@@ -1213,7 +1297,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'HOMEGAMES%WON') {
+		} else if (metric.toUpperCase() === "HOMEGAMES%WON") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1227,8 +1311,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-
-		} else if (metric.toUpperCase() === 'AWAYGAMES%WON') {
+		} else if (metric.toUpperCase() === "AWAYGAMES%WON") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1242,7 +1325,7 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'GAMES%WON') {
+		} else if (metric.toUpperCase() === "GAMES%WON") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1255,12 +1338,12 @@ export class ChatbotService {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === 'MOSTPROLIFICSEASON') {
+		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})
 				RETURN p.playerName as playerName, p.mostProlificSeason as value
 			`;
-		} else if (metric === 'TEAM_ANALYSIS') {
+		} else if (metric === "TEAM_ANALYSIS") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.team IS NOT NULL
@@ -1269,7 +1352,7 @@ export class ChatbotService {
 				LIMIT 1
 				RETURN p.playerName as playerName, team as value
 			`;
-		} else if (metric === 'SEASON_ANALYSIS') {
+		} else if (metric === "SEASON_ANALYSIS") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -1289,59 +1372,63 @@ export class ChatbotService {
 		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value as number);
 		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		const verb = getAppropriateVerb(metric, value as number);
-		
+
 		// Debug logging for percentage issues
-		if (metric.includes('HomeGames%Won') || value === 51.764705) {
-			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`, null, "log");
+		if (metric.includes("HomeGames%Won") || value === 51.764705) {
+			this.logToBoth(
+				`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`,
+				null,
+				"log",
+			);
 		}
-		
+
 		// Special handling for specific metrics with custom formatting
-		if (metric === 'CperAPP') {
+		if (metric === "CperAPP") {
 			return `${playerName} has averaged ${formattedValue} goals conceded per appearance.`;
 		}
-		
-		if (metric === 'MperG') {
+
+		if (metric === "MperG") {
 			return `${playerName} averages ${formattedValue} minutes per goal scored.`;
 		}
-		
-		if (metric === 'MperCLS') {
+
+		if (metric === "MperCLS") {
 			return `${playerName} takes on average ${formattedValue} minutes to keep a clean sheet.`;
 		}
-		
-		if (metric === 'FTPperAPP') {
+
+		if (metric === "FTPperAPP") {
 			return `${playerName} averages ${formattedValue} fantasy points per appearance.`;
 		}
-		
+
 		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
 		let finalMetricName = metricName;
 		if (verb && metricName.toLowerCase().includes(verb.toLowerCase())) {
 			// Remove the verb from the metric name to avoid duplication
-			finalMetricName = metricName.toLowerCase().replace(verb.toLowerCase(), '').trim();
+			finalMetricName = metricName.toLowerCase().replace(verb.toLowerCase(), "").trim();
 		}
-		
+
 		// Start with the basic response
 		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
-		
+
 		// Add team context if present
 		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
 			const teamName = this.mapTeamName(analysis.teamEntities[0]);
 			response += ` for the ${teamName}`;
 		}
-		
+
 		// Add location context if present
 		const locations = (analysis.extractionResult && analysis.extractionResult.locations) || [];
 		if (locations && locations.length > 0) {
 			const location = locations[0].value;
-			if (location === 'home') {
+			if (location === "home") {
 				response += ` whilst playing at home`;
-			} else if (location === 'away') {
+			} else if (location === "away") {
 				response += ` whilst playing away`;
 			}
 		}
-		
+
 		// Add time range context if present (but ignore placeholder values)
-		if (analysis.timeRange && analysis.timeRange !== 'between_dates' && analysis.timeRange.trim() !== '') {
-			if (analysis.timeRange.includes(' to ')) {
+		if (analysis.timeRange && analysis.timeRange !== "between_dates" && analysis.timeRange.trim() !== "") {
+			if (analysis.timeRange.includes(" to ")) {
 				const formattedTimeRange = this.formatTimeRange(analysis.timeRange);
 				response += ` between ${formattedTimeRange}`;
 			} else {
@@ -1349,14 +1436,18 @@ export class ChatbotService {
 				response += ` on ${formattedDate}`;
 			}
 		}
-		
+
 		// Add period for final sentence
-		response += '.';
-		
+		response += ".";
+
 		return response;
 	}
 
-	private async generateResponse(question: string, data: Record<string, unknown> | null, analysis: EnhancedQuestionAnalysis): Promise<ChatbotResponse> {
+	private async generateResponse(
+		question: string,
+		data: Record<string, unknown> | null,
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<ChatbotResponse> {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
 			dataType: data?.type,
@@ -1374,10 +1465,14 @@ export class ChatbotService {
 		} else if (data.type === "error") {
 			answer = `Database error: ${data.error || "An unknown error occurred while querying the database."}`;
 		} else if (data.type === "player_not_found") {
-			answer = (data.message as string) || `Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+			answer =
+				(data.message as string) ||
+				`Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
 		} else if (data.type === "team_not_found") {
 			const availableTeams = (data.availableTeams as string[]) || [];
-			answer = (data.message as string) || `Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
+			answer =
+				(data.message as string) ||
+				`Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
 		} else if (data.type === "no_context") {
 			answer = "Missing context: Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
@@ -1386,14 +1481,14 @@ export class ChatbotService {
 			// Query executed successfully but returned no results
 			const metric = data.metric || "data";
 			const playerName = data.playerName || "the requested entity";
-			
+
 			// Check if this is a MatchDetail query that failed - try Player node fallback
-			if (metric && ['CPERAPP', 'FTPPERAPP', 'GPERAPP', 'MPERG', 'MPERCLS'].includes((metric as string).toUpperCase())) {
+			if (metric && ["CPERAPP", "FTPPERAPP", "GPERAPP", "MPERG", "MPERCLS"].includes((metric as string).toUpperCase())) {
 				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
 			} else {
 				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
 			}
-		} else if (data && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+		} else if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 			if (data.type === "specific_player") {
 				const playerData = data.data[0] as Record<string, unknown>;
 				const playerName = data.playerName as string;
@@ -1459,7 +1554,11 @@ export class ChatbotService {
 				} else if (metric === "MOSTCOMMONPOSITION") {
 					// For "What is player's most common position played?" questions
 					const questionLower = question.toLowerCase();
-					if (questionLower.includes("most common position") || questionLower.includes("favorite position") || questionLower.includes("main position")) {
+					if (
+						questionLower.includes("most common position") ||
+						questionLower.includes("favorite position") ||
+						questionLower.includes("main position")
+					) {
 						// Use the actual query result from Cypher
 						const position = value || "Unknown";
 						answer = `${playerName}'s most common position is ${position}.`;
@@ -1521,11 +1620,13 @@ export class ChatbotService {
 			} else if (data && data.type === "player_not_found") {
 				// Handle player not found case
 				this.logToBoth(`🔍 Handling player_not_found case:`, data);
-				answer = (data.message as string) || `I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+				answer =
+					(data.message as string) ||
+					`I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
 			} else if (data && data.type === "error") {
 				// Error occurred during query
 				answer = `I encountered an error while looking up team information: ${data.error}.`;
-			} else if (data && data.type === "general_players" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "general_players" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				const firstData = data.data[0] as Record<string, unknown>;
 				if (firstData.playerCount) {
 					// General player count question
@@ -1539,59 +1640,59 @@ export class ChatbotService {
 					// List of players
 					const playerNames = data.data.map((p: Record<string, unknown>) => p.name || p.playerName).slice(0, 10);
 					answer = `Here are some players in the database: ${playerNames.join(", ")}.`;
-					}
-				} else if (data && data.type === "team_specific" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
-					// Team-specific query (e.g., "3rd team goals")
-					const teamName = data.teamName as string;
-					const metric = data.metric as string;
-					const topPlayer = data.data[0] as Record<string, unknown>;
-					const metricName = getMetricDisplayName(metric, topPlayer.value as number);
+				}
+			} else if (data && data.type === "team_specific" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+				// Team-specific query (e.g., "3rd team goals")
+				const teamName = data.teamName as string;
+				const metric = data.metric as string;
+				const topPlayer = data.data[0] as Record<string, unknown>;
+				const metricName = getMetricDisplayName(metric, topPlayer.value as number);
 
-					// Check if user asked for "the most" or similar superlative terms
-					const questionLower = question.toLowerCase();
-					const usesSuperlative =
-						questionLower.includes("the most") ||
-						questionLower.includes("highest") ||
-						questionLower.includes("best") ||
-						questionLower.includes("top");
+				// Check if user asked for "the most" or similar superlative terms
+				const questionLower = question.toLowerCase();
+				const usesSuperlative =
+					questionLower.includes("the most") ||
+					questionLower.includes("highest") ||
+					questionLower.includes("best") ||
+					questionLower.includes("top");
 
-					if (usesSuperlative) {
-						// Use comparison template for superlative questions
-						const template = getResponseTemplate("comparison", "Player comparison (highest)");
-						if (template) {
+				if (usesSuperlative) {
+					// Use comparison template for superlative questions
+					const template = getResponseTemplate("comparison", "Player comparison (highest)");
+					if (template) {
 						answer = formatNaturalResponse(
 							template.template,
 							topPlayer.playerName as string,
 							metric,
 							topPlayer.value as number,
 							metricName,
-							teamName
+							teamName,
 						);
-						} else {
+					} else {
 						// Fallback if no template found
 						answer = `${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value as number)} the most ${metricName} for the ${teamName} with ${topPlayer.value}.`;
-						}
-					} else {
-						// Use team-specific template for regular questions
-						const template = getResponseTemplate("team_specific", "Team-specific player statistics");
-						if (template) {
+					}
+				} else {
+					// Use team-specific template for regular questions
+					const template = getResponseTemplate("team_specific", "Team-specific player statistics");
+					if (template) {
 						answer = formatNaturalResponse(
 							template.template,
 							topPlayer.playerName as string,
 							metric,
 							topPlayer.value as number,
 							metricName,
-							teamName
+							teamName,
 						);
-						} else {
+					} else {
 						// Fallback if no template found
 						answer = `For the ${teamName}, ${topPlayer.playerName} has ${getAppropriateVerb(metric, topPlayer.value as number)} ${topPlayer.value} ${metricName}.`;
 					}
 				}
 
 				// Create visualization for team data
-					visualization = {
-						type: "table",
+				visualization = {
+					type: "table",
 					data: data.data.slice(0, 10).map((player: any) => ({
 						Player: player.playerName,
 						[metricName]: player.value,
@@ -1601,13 +1702,13 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-			} else if (data && data.type === "streak" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "streak" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle streak data
 				const playerName = data.playerName as string;
 				const streakData = data.data as Record<string, unknown>[];
 				answer = `${playerName} has scored in ${streakData.length} games.`;
 
-						visualization = {
+				visualization = {
 					type: "chart",
 					data: streakData.map((game: Record<string, unknown>) => ({
 						date: game.date,
@@ -1618,7 +1719,7 @@ export class ChatbotService {
 						type: "line",
 					},
 				};
-			} else if (data && data.type === "double_game" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "double_game" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle double game week data
 				const playerName = data.playerName as string;
 				const dgwData = data.data as Record<string, unknown>[];
@@ -1627,8 +1728,8 @@ export class ChatbotService {
 
 				answer = `${playerName} has played ${dgwData.length} double game weeks, scoring ${totalGoals} goals and providing ${totalAssists} assists.`;
 
-						visualization = {
-							type: "table",
+				visualization = {
+					type: "table",
 					data: dgwData.map((game: Record<string, unknown>) => ({
 						Date: game.date,
 						Goals: game.goals || 0,
@@ -1639,7 +1740,7 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
-				} else if (data && data.type === "totw_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "totw_awards" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle TOTW awards
 				const playerName = data.playerName as string;
 				const period = data.period as string;
@@ -1648,45 +1749,45 @@ export class ChatbotService {
 
 				answer = `${playerName} has received ${awards} ${periodText} Team of the Week award${awards === 1 ? "" : "s"}.`;
 
-						visualization = {
+				visualization = {
 					type: "stats",
 					data: [{ name: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`, value: awards }],
-							config: {
+					config: {
 						title: `${playerName} - ${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`,
 						type: "bar",
-							},
-						};
-				} else if (data && data.type === "potm_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+					},
+				};
+			} else if (data && data.type === "potm_awards" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle Player of the Month awards
 				const playerName = data.playerName as string;
 				const awards = data.data.length;
 
 				answer = `${playerName} has received ${awards} Player of the Month award${awards === 1 ? "" : "s"}.`;
 
-						visualization = {
+				visualization = {
 					type: "stats",
 					data: [{ name: "Player of the Month Awards", value: awards }],
-							config: {
+					config: {
 						title: `${playerName} - Player of the Month Awards`,
 						type: "bar",
-							},
-						};
-				} else if (data && data.type === "captain_awards" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+					},
+				};
+			} else if (data && data.type === "captain_awards" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle Captain awards
 				const playerName = data.playerName as string;
 				const awards = data.data.length;
 
 				answer = `${playerName} has been captain ${awards} time${awards === 1 ? "" : "s"}.`;
 
-						visualization = {
+				visualization = {
 					type: "stats",
 					data: [{ name: "Captain Awards", value: awards }],
-							config: {
+					config: {
 						title: `${playerName} - Captain Awards`,
 						type: "bar",
-							},
-						};
-				} else if (data && data.type === "co_players" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+					},
+				};
+			} else if (data && data.type === "co_players" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle co-players data
 				const playerName = data.playerName as string;
 				const coPlayers = data.data.slice(0, 10) as Record<string, unknown>[];
@@ -1695,18 +1796,18 @@ export class ChatbotService {
 					.map((p: Record<string, unknown>) => p.coPlayerName)
 					.join(", ")}.`;
 
-						visualization = {
-							type: "table",
+				visualization = {
+					type: "table",
 					data: coPlayers.map((player: Record<string, unknown>) => ({
 						"Co-Player": player.coPlayerName,
 						"Games Together": player.gamesPlayedTogether,
 					})),
-							config: {
+					config: {
 						title: `${playerName} - Co-Players`,
 						type: "table",
-							},
-						};
-				} else if (data && data.type === "opponents" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+					},
+				};
+			} else if (data && data.type === "opponents" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opponents data
 				const playerName = data.playerName as string;
 				const opponents = data.data.slice(0, 10) as Record<string, unknown>[];
@@ -1715,18 +1816,18 @@ export class ChatbotService {
 					.map((o: Record<string, unknown>) => o.opponent)
 					.join(", ")}.`;
 
-						visualization = {
-							type: "table",
+				visualization = {
+					type: "table",
 					data: opponents.map((opponent: Record<string, unknown>) => ({
 						Opponent: opponent.opponent,
 						"Games Played": opponent.gamesPlayed,
 					})),
-							config: {
+					config: {
 						title: `${playerName} - Opponents`,
 						type: "table",
 					},
 				};
-			} else if (data && data.type === "temporal" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "temporal" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle temporal data
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
@@ -1746,7 +1847,7 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "player_team" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "player_team" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle player-team specific data
 				const playerName = data.playerName as string;
 				const teamName = data.teamName as string;
@@ -1765,7 +1866,7 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "opposition" && 'data' in data && Array.isArray(data.data) && data.data.length > 0) {
+			} else if (data && data.type === "opposition" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opposition-specific data
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
@@ -1794,28 +1895,33 @@ export class ChatbotService {
 						type: "bar",
 					},
 				};
-			} else if (data && data.type === "ranking" && 'data' in data && Array.isArray(data.data)) {
+			} else if (data && data.type === "ranking" && "data" in data && Array.isArray(data.data)) {
 				// Handle ranking data (top players/teams)
 				const metric = data.metric as string;
 				const isPlayerQuestion = data.isPlayerQuestion as boolean;
 				const isTeamQuestion = data.isTeamQuestion as boolean;
 				const resultCount = data.data.length;
 				const requestedLimit = (data.requestedLimit as number) || 10;
-				
+
 				if (resultCount === 0) {
 					const metricName = getMetricDisplayName(metric, 0);
-					answer = `No ${isTeamQuestion ? 'teams' : 'players'} found with ${metricName} data.`;
+					answer = `No ${isTeamQuestion ? "teams" : "players"} found with ${metricName} data.`;
 				} else {
 					const firstResult = data.data[0] as Record<string, unknown>;
 					const metricName = getMetricDisplayName(metric, firstResult.value as number);
 					const topName = isTeamQuestion ? firstResult.teamName : firstResult.playerName;
 					const topValue = firstResult.value;
-					
+
 					// Determine the appropriate text based on actual result count and requested limit
-					const countText = resultCount === 1 ? "1" : 
-									 resultCount < requestedLimit ? `top ${resultCount}` : 
-									 requestedLimit === 10 ? "top 10" : `top ${requestedLimit}`;
-					
+					const countText =
+						resultCount === 1
+							? "1"
+							: resultCount < requestedLimit
+								? `top ${resultCount}`
+								: requestedLimit === 10
+									? "top 10"
+									: `top ${requestedLimit}`;
+
 					if (isPlayerQuestion) {
 						answer = `The player with the highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText} players:`;
 					} else if (isTeamQuestion) {
@@ -1832,13 +1938,13 @@ export class ChatbotService {
 							value: item.value,
 						})),
 						config: {
-							title: `${countText.charAt(0).toUpperCase() + countText.slice(1)} ${isTeamQuestion ? 'Teams' : 'Players'} - ${metricName}`,
+							title: `${countText.charAt(0).toUpperCase() + countText.slice(1)} ${isTeamQuestion ? "Teams" : "Players"} - ${metricName}`,
 							type: "table",
 							columns: [
 								{ key: "rank", label: "Rank" },
 								{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
-								{ key: "value", label: metricName }
-							]
+								{ key: "value", label: metricName },
+							],
 						},
 					};
 				}
@@ -2035,19 +2141,19 @@ export class ChatbotService {
 	// Enhanced query methods for streaks and temporal analysis
 	private async queryStreakData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying streak data for entities: ${entities}, metrics: ${metrics}`);
-		
+
 		if (entities.length === 0) {
 			return { type: "no_context", data: [], message: "No player context provided" };
 		}
 
 		const playerName = entities[0];
 		const metric = metrics[0] || "goals";
-		
+
 		// Determine streak type based on metric
 		let streakType = "goals";
 		let streakField = "goals";
 		let streakCondition = "md.goals > 0";
-		
+
 		switch (metric.toLowerCase()) {
 			case "assists":
 			case "a":
@@ -2094,7 +2200,7 @@ export class ChatbotService {
 
 	private async queryComparisonData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying comparison data for entities: ${entities}, metrics: ${metrics}`);
-		
+
 		if (metrics.length === 0) {
 			return { type: "no_context", data: [], message: "No metric specified for comparison" };
 		}
@@ -2142,14 +2248,16 @@ export class ChatbotService {
 
 		// Determine if we need MatchDetail join based on metric
 		const needsMatchDetail = !["penalties_scored", "psc", "fantasy_points", "ftp", "clean_sheets", "cls"].includes(metric.toLowerCase());
-		
-		const query = needsMatchDetail ? `
+
+		const query = needsMatchDetail
+			? `
 			MATCH (p:Player)-[:PLAYED_IN]->(md:MatchDetail)
 			WHERE p.allowOnSite = true
 			RETURN p.playerName as playerName, ${returnClause}
 			ORDER BY value DESC
 			LIMIT 20
-		` : `
+		`
+			: `
 			MATCH (p:Player)
 			WHERE p.allowOnSite = true
 			RETURN p.playerName as playerName, ${returnClause}
@@ -2171,18 +2279,18 @@ export class ChatbotService {
 
 	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying temporal data for entities: ${entities}, metrics: ${metrics}, timeRange: ${timeRange}`);
-		
+
 		if (entities.length === 0) {
 			return { type: "no_context", data: [], message: "No player context provided" };
 		}
 
 		const playerName = entities[0];
 		const metric = metrics[0] || "goals";
-		
+
 		// Parse time range
 		let dateFilter = "";
 		let params: any = { playerName };
-		
+
 		if (timeRange) {
 			// Handle various time range formats
 			if (timeRange.includes("since")) {
@@ -2252,10 +2360,10 @@ export class ChatbotService {
 
 	private async queryTeamSpecificPlayerData(teamName: string, metric: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying team-specific data for team: ${teamName}, metric: ${metric}`);
-		
+
 		// Normalize team name
 		const normalizedTeam = teamName.replace(/(\d+)(st|nd|rd|th)?/, "$1s");
-		
+
 		let metricField = "goals";
 		let returnClause = "coalesce(sum(md.goals), 0) as value";
 
@@ -2307,10 +2415,10 @@ export class ChatbotService {
 
 	private async queryPlayerDataForTeam(playerName: string, metric: string, teamEntity: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying player data for team: ${playerName}, metric: ${metric}, team: ${teamEntity}`);
-		
+
 		// Normalize team name
 		const normalizedTeam = teamEntity.replace(/(\d+)(st|nd|rd|th)?/, "$1s");
-		
+
 		let metricField = "goals";
 		let returnClause = "coalesce(sum(md.goals), 0) as value";
 
@@ -2355,7 +2463,7 @@ export class ChatbotService {
 
 	private async queryOppositionData(playerName: string, metric: string, oppositionName?: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying opposition data for player: ${playerName}, metric: ${metric}, opposition: ${oppositionName}`);
-		
+
 		let metricField = "goals";
 		let returnClause = "coalesce(sum(md.goals), 0) as value";
 
@@ -2414,24 +2522,28 @@ export class ChatbotService {
 	}
 
 	// Query ranking data for "which" questions (top players/teams)
-	private async queryRankingData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+	private async queryRankingData(
+		entities: string[],
+		metrics: string[],
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
 		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
-		
+
 		if (metrics.length === 0) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
 		}
 
 		const metric = metrics[0];
-		const lowerQuestion = (analysis as any).question?.toLowerCase() || '';
-		
+		const lowerQuestion = (analysis as any).question?.toLowerCase() || "";
+
 		// Determine if this is asking about players or teams
-		const isPlayerQuestion = lowerQuestion.includes('player') || lowerQuestion.includes('who');
-		const isTeamQuestion = lowerQuestion.includes('team');
-		
+		const isPlayerQuestion = lowerQuestion.includes("player") || lowerQuestion.includes("who");
+		const isTeamQuestion = lowerQuestion.includes("team");
+
 		// Check if user asked for a specific number (e.g., "top 3", "top 5")
 		const topNumberMatch = lowerQuestion.match(/top\s+(\d+)/);
 		const requestedLimit = topNumberMatch ? parseInt(topNumberMatch[1]) : 10;
-		
+
 		// Get the metric configuration
 		const metricConfig = findMetricByAlias(metric);
 		if (!metricConfig) {
@@ -2469,7 +2581,7 @@ export class ChatbotService {
 
 		// Use a higher limit to ensure we get all available results, then trim to requested count
 		const maxLimit = Math.max(requestedLimit * 2, 50); // Ensure we get enough results
-		
+
 		if (isPlayerQuestion) {
 			// Query for top players
 			query = `
@@ -2519,7 +2631,7 @@ export class ChatbotService {
 				isPlayerQuestion: isPlayerQuestion,
 				isTeamQuestion: isTeamQuestion,
 				requestedLimit: requestedLimit,
-				cypherQuery: query
+				cypherQuery: query,
 			};
 		} catch (error) {
 			this.logToBoth(`❌ Error in queryRankingData:`, error, "error");
