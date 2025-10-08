@@ -6,6 +6,11 @@ module.exports = {
 	transform: {
 		"^.+\\.ts$": "ts-jest",
 	},
+	globals: {
+		"ts-jest": {
+			tsconfig: "tsconfig.test.json"
+		}
+	},
 	moduleNameMapper: {
 		"^@/(.*)$": "<rootDir>/$1",
 	},

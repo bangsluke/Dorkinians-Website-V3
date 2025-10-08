@@ -20,7 +20,7 @@
 			}
 		],
 		"baseUrl": ".",
-		"types": ["jest", "node"],
+		"types": ["node"],
 		"paths": {
 			"@/*": ["./*"],
 			"@/components/*": ["./components/*"],

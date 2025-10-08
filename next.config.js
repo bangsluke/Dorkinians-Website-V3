@@ -47,6 +47,7 @@ const nextConfig = {
 		unoptimized: true,
 		domains: ["docs.google.com"],
 	},
+	// TypeScript configuration will be handled via tsconfig files
 	// Enable API routes for development and production
 	// experimental: {
 	// 	appDir: true
