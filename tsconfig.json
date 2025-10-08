@@ -1,17 +1,18 @@
 {
 	"compilerOptions": {
-		"target": "es5",
-		"lib": ["dom", "dom.iterable", "es6"],
+		"target": "es2020",
+		"lib": ["dom", "dom.iterable", "es6", "es2016", "es2017", "es2018", "es2019", "es2020"],
 		"allowJs": true,
 		"skipLibCheck": true,
 		"strict": true,
 		"noEmit": true,
 		"esModuleInterop": true,
-		"module": "esnext",
-		"moduleResolution": "bundler",
+		"module": "commonjs",
+		"moduleResolution": "node",
 		"resolveJsonModule": true,
 		"isolatedModules": true,
 		"jsx": "preserve",
+		"downlevelIteration": true,
 		"incremental": true,
 		"plugins": [
 			{
@@ -19,6 +20,7 @@
 			}
 		],
 		"baseUrl": ".",
+		"types": ["jest", "@testing-library/jest-dom", "node"],
 		"paths": {
 			"@/*": ["./*"],
 			"@/components/*": ["./components/*"],
@@ -27,6 +29,6 @@
 			"@/utils/*": ["./utils/*"]
 		}
 	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "global.d.ts", ".next/types/**/*.ts"],
 	"exclude": ["node_modules"]
 }

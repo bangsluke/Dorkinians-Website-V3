@@ -378,8 +378,9 @@ describe("Performance and Load Testing", () => {
 						timestamp: Date.now() - startTime,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					results.push({
-						error: error.message,
+						error: errorMessage,
 						timestamp: Date.now() - startTime,
 					});
 				}

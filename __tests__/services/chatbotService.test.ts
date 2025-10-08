@@ -39,7 +39,7 @@ jest.mock("../../lib/neo4j", () => ({
 }));
 
 import { ChatbotService, QuestionContext } from "../../lib/services/chatbotService";
-import { fetchTestData, getTestPlayerNames, generateTestQuestions, validateResponse } from "../utils/testUtils";
+import { fetchTestData, getTestPlayerNames, generateTestQuestions, validateResponse, STAT_TEST_CONFIGS } from "../utils/testUtils";
 
 // No mocking - testing against real production database
 // This tests actual chatbot performance with real data
@@ -134,8 +134,11 @@ describe("ChatbotService", () => {
 			}
 
 			// Validate response contains correct value
-			const isValid = validateResponse(response.answer, expectedValue, metric);
-			expect(isValid).toBe(true);
+			const statConfig = STAT_TEST_CONFIGS.find(config => config.metric === metric);
+			if (statConfig) {
+				const isValid = validateResponse(response.answer, expectedValue, statConfig, playerName);
+				expect(isValid).toBe(true);
+			}
 		});
 	});
 

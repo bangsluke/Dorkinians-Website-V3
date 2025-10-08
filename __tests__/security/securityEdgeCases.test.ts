@@ -215,9 +215,10 @@ describe("Security and Edge Cases Testing", () => {
 						response: response.answer,
 					});
 				} catch (error) {
+					const errorMessage = error instanceof Error ? error.message : String(error);
 					responses.push({
 						success: false,
-						error: error.message,
+						error: errorMessage,
 					});
 				}
 			}
