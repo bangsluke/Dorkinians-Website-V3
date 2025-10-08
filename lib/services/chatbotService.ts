@@ -126,7 +126,7 @@ export class ChatbotService {
 					// Use the original percentage value and apply decimal places
 					const result = percentageValue.originalPercentage.toFixed(decimalPlaces) + '%';
 					if (metric.includes('%')) {
-						this.logToBoth(`🔧 Percentage formatting (already processed): ${percentageValue.originalPercentage}% -> ${result}`);
+						this.logToBoth(`🔧 Percentage formatting (already processed): ${percentageValue.originalPercentage}% -> ${result}`, null, "log");
 						this.logToBoth(`🔧 Final result: "${result}"`, null, "log");
 					}
 					return result;
@@ -152,7 +152,7 @@ export class ChatbotService {
 					// Use the original percentage value and apply decimal places
 					const result = percentageValue.originalPercentage.toFixed(decimalPlaces);
 					if (metric.includes('%')) {
-						this.logToBoth(`🔧 Decimal formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`);
+						this.logToBoth(`🔧 Decimal formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 					}
 					return result;
 				}
@@ -172,14 +172,14 @@ export class ChatbotService {
 			// Use the original percentage value
 			const result = percentageValue.originalPercentage.toString();
 			if (metric.includes('%')) {
-				this.logToBoth(`🔧 Default formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`);
+				this.logToBoth(`🔧 Default formatting (already processed): ${percentageValue.originalPercentage} -> ${result}`, null, "log");
 			}
 			return result;
 		}
 		
 		const result = Math.round(Number(value)).toString();
 		if (metric.includes('%')) {
-			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`);
+			this.logToBoth(`🔧 Default formatting (no config found): ${value} -> ${result}`, null, "log");
 		}
 		return result;
 	}
@@ -196,7 +196,7 @@ export class ChatbotService {
 			
 			if (result.fuzzyMatches.length > 0) {
 				const bestMatch = result.fuzzyMatches[0];
-				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`);
+				this.logToBoth(`🔍 Fuzzy match found: ${playerName} → ${bestMatch.entityName} (confidence: ${bestMatch.confidence.toFixed(2)})`, null, "log");
 				return bestMatch.entityName;
 			}
 			
@@ -341,7 +341,7 @@ export class ChatbotService {
 		this.lastQueryBreakdown = null;
 
 		// Essential logging for debugging
-		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`);
+		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`, null, "log");
 
 		try {
 			// Ensure Neo4j connection
@@ -378,7 +378,7 @@ export class ChatbotService {
 
 			// Debug logging for complex queries
 			if (analysis.complexity === 'complex' || analysis.metrics.length > 1) {
-				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`);
+				this.logToBoth(`🔍 Complex query - Type: ${analysis.type}, Metrics: ${analysis.metrics.join(', ')}`, null, "log");
 			}
 
 			// Query the database
@@ -392,7 +392,7 @@ export class ChatbotService {
 			return response;
 		} catch (error) {
 			// Essential error logging
-			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, "error");
+			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
 			
 			// Provide more detailed error information for debugging
 			const errorMessage = error instanceof Error ? error.message : String(error);
@@ -424,7 +424,7 @@ export class ChatbotService {
 			// Ensure Neo4j connection before querying
 			const connected = await neo4jService.connect();
 			if (!connected) {
-				this.logToBoth("❌ Neo4j connection failed", "error");
+				this.logToBoth("❌ Neo4j connection failed", null, "error");
 				return null;
 			}
 
@@ -469,7 +469,7 @@ export class ChatbotService {
 		
 		// Essential debug info for complex queries
 		if (teamEntities.length > 0 || timeRange || locations.length > 0) {
-			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`);
+			this.logToBoth(`🔍 Complex player query - Teams: ${teamEntities.join(',') || 'none'}, Time: ${timeRange || 'none'}, Locations: ${locations.length}`, null, "log");
 		}
 
 		// Check if we have entities (player names) to query
@@ -582,7 +582,7 @@ export class ChatbotService {
 				if (timeRange) filters.push(`Time: ${timeRange}`);
 				if (oppositionEntities.length > 0) filters.push(`Opposition: ${oppositionEntities.join(',')}`);
 				if (filters.length > 0) {
-					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`);
+					this.logToBoth(`🔍 Complex query with filters: ${filters.join(' | ')}`, null, "log");
 				}
 			}
 			
@@ -630,7 +630,7 @@ export class ChatbotService {
 			return { type: "general_player", data: entities, message: "General player query" };
 		}
 
-		this.logToBoth(`🔍 No specific player query, falling back to general player query`);
+		this.logToBoth(`🔍 No specific player query, falling back to general player query`, null, "log");
 
 		// Fallback to general player query
 		const query = `
@@ -661,7 +661,7 @@ export class ChatbotService {
 
 		const params = { graphLabel: neo4jService.getGraphLabel() };
 		const result = await neo4jService.executeQuery(query, params);
-		this.logToBoth(`🔍 Team data query result:`, result);
+		this.logToBoth(`🔍 Team data query result:`, result, "log");
 		
 		return { type: "team", data: result } as Record<string, unknown>;
 	}
@@ -1292,7 +1292,7 @@ export class ChatbotService {
 		
 		// Debug logging for percentage issues
 		if (metric.includes('HomeGames%Won') || value === 51.764705) {
-			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`);
+			this.logToBoth(`🔧 buildContextualResponse - metric: ${metric}, value: ${value}, formattedValue: ${formattedValue}, metricName: ${metricName}`, null, "log");
 		}
 		
 		// Special handling for specific metrics with custom formatting
@@ -1939,8 +1939,8 @@ export class ChatbotService {
 		// Log copyable queries for debugging
 		const readyToExecuteQuery = query.replace(/\$playerName/g, `'${playerName}'`);
 		this.lastExecutedQueries.push(`TOTW_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
-		this.logToBoth(`🔍 TOTW CYPHER QUERY (with parameters):`, query);
-		this.logToBoth(`🔍 TOTW CYPHER QUERY (ready to execute):`, readyToExecuteQuery);
+		this.logToBoth(`🔍 TOTW CYPHER QUERY (with parameters):`, query, "log");
+		this.logToBoth(`🔍 TOTW CYPHER QUERY (ready to execute):`, readyToExecuteQuery, "log");
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName });
@@ -2415,7 +2415,7 @@ export class ChatbotService {
 
 	// Query ranking data for "which" questions (top players/teams)
 	private async queryRankingData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
-		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null);
+		this.logToBoth(`🔍 queryRankingData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 		
 		if (metrics.length === 0) {
 			return { type: "no_metrics", data: [], message: "No metrics specified for ranking" };
@@ -2503,7 +2503,7 @@ export class ChatbotService {
 
 		try {
 			const result = await neo4jService.executeQuery(query);
-			this.logToBoth(`🔍 Ranking query result:`, result);
+			this.logToBoth(`🔍 Ranking query result:`, result, "log");
 
 			if (!result || result.length === 0) {
 				return { type: "no_data", data: [], message: "No ranking data found" };
