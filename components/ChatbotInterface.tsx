@@ -190,7 +190,7 @@ export default function ChatbotInterface() {
 							<table className='min-w-full text-sm'>
 								<thead>
 									<tr className='border-b border-yellow-400/20'>
-										{visualization.config?.columns?.map((col: string) => (
+										{visualization.config && 'columns' in visualization.config && Array.isArray(visualization.config.columns) && visualization.config.columns.map((col: string) => (
 											<th key={col} className='text-left py-2 px-3 font-medium text-yellow-300'>
 												{col === "name" ? "Player Name" : col}
 											</th>
@@ -198,9 +198,9 @@ export default function ChatbotInterface() {
 									</tr>
 								</thead>
 								<tbody>
-									{visualization.data?.slice(0, 5).map((row: any, index: number) => (
+									{Array.isArray(visualization.data) && visualization.data.slice(0, 5).map((row: any, index: number) => (
 										<tr key={index} className='border-b border-yellow-400/10'>
-											{visualization.config?.columns?.map((col: string) => (
+											{visualization.config && 'columns' in visualization.config && Array.isArray(visualization.config.columns) && visualization.config.columns.map((col: string) => (
 												<td key={col} className='py-2 px-3 text-white'>
 													{row[col] || "-"}
 												</td>
@@ -218,7 +218,7 @@ export default function ChatbotInterface() {
 					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
 						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
 						<div className='text-3xl font-bold text-yellow-300'>
-							{visualization.data?.value || visualization.data}
+							{visualization.data && typeof visualization.data === 'object' && 'value' in visualization.data ? (visualization.data as any).value : visualization.data}
 						</div>
 					</div>
 				);
