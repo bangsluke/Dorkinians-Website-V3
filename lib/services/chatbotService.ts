@@ -24,6 +24,13 @@ export interface QuestionContext {
 	dataSources?: string[];
 }
 
+export interface ProcessingDetails {
+	questionAnalysis: EnhancedQuestionAnalysis | null;
+	cypherQueries: string[];
+	processingSteps: string[];
+	queryBreakdown: Record<string, unknown> | null;
+}
+
 export class ChatbotService {
 	private static instance: ChatbotService;
 	private entityResolver: EntityNameResolver;
@@ -1456,7 +1463,7 @@ export class ChatbotService {
 		});
 
 		let answer = "I couldn't find relevant information for your question.";
-		let visualization: any = null;
+		let visualization: ChatbotResponse['visualization'] = undefined;
 		const sources = ["Neo4j Database"];
 
 		// Enhanced error handling with specific error messages
@@ -1604,7 +1611,7 @@ export class ChatbotService {
 				// Create visualization for numerical data
 				if (typeof value === "number") {
 					visualization = {
-						type: "stats",
+						type: "NumberCard",
 						data: [{ name: playerName, value: value, metric: metricName }],
 						config: {
 							title: `${playerName} - ${metricName}`,
@@ -1632,7 +1639,7 @@ export class ChatbotService {
 					// General player count question
 					answer = `The club currently has ${firstData.playerCount} registered players across all teams.`;
 					visualization = {
-						type: "stats",
+						type: "NumberCard",
 						data: [{ name: "Total Players", value: firstData.playerCount }],
 						config: { title: "Club Statistics", type: "bar" },
 					};
@@ -1692,8 +1699,8 @@ export class ChatbotService {
 
 				// Create visualization for team data
 				visualization = {
-					type: "table",
-					data: data.data.slice(0, 10).map((player: any) => ({
+					type: "Table",
+					data: data.data.slice(0, 10).map((player: Record<string, unknown>) => ({
 						Player: player.playerName,
 						[metricName]: player.value,
 					})),
@@ -1709,7 +1716,7 @@ export class ChatbotService {
 				answer = `${playerName} has scored in ${streakData.length} games.`;
 
 				visualization = {
-					type: "chart",
+					type: "Calendar",
 					data: streakData.map((game: Record<string, unknown>) => ({
 						date: game.date,
 						goals: game.goals,
@@ -1729,7 +1736,7 @@ export class ChatbotService {
 				answer = `${playerName} has played ${dgwData.length} double game weeks, scoring ${totalGoals} goals and providing ${totalAssists} assists.`;
 
 				visualization = {
-					type: "table",
+					type: "Table",
 					data: dgwData.map((game: Record<string, unknown>) => ({
 						Date: game.date,
 						Goals: game.goals || 0,
@@ -1750,7 +1757,7 @@ export class ChatbotService {
 				answer = `${playerName} has received ${awards} ${periodText} Team of the Week award${awards === 1 ? "" : "s"}.`;
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: [{ name: `${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`, value: awards }],
 					config: {
 						title: `${playerName} - ${periodText.charAt(0).toUpperCase() + periodText.slice(1)} TOTW Awards`,
@@ -1765,7 +1772,7 @@ export class ChatbotService {
 				answer = `${playerName} has received ${awards} Player of the Month award${awards === 1 ? "" : "s"}.`;
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: [{ name: "Player of the Month Awards", value: awards }],
 					config: {
 						title: `${playerName} - Player of the Month Awards`,
@@ -1780,7 +1787,7 @@ export class ChatbotService {
 				answer = `${playerName} has been captain ${awards} time${awards === 1 ? "" : "s"}.`;
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: [{ name: "Captain Awards", value: awards }],
 					config: {
 						title: `${playerName} - Captain Awards`,
@@ -1797,7 +1804,7 @@ export class ChatbotService {
 					.join(", ")}.`;
 
 				visualization = {
-					type: "table",
+					type: "Table",
 					data: coPlayers.map((player: Record<string, unknown>) => ({
 						"Co-Player": player.coPlayerName,
 						"Games Together": player.gamesPlayedTogether,
@@ -1817,7 +1824,7 @@ export class ChatbotService {
 					.join(", ")}.`;
 
 				visualization = {
-					type: "table",
+					type: "Table",
 					data: opponents.map((opponent: Record<string, unknown>) => ({
 						Opponent: opponent.opponent,
 						"Games Played": opponent.gamesPlayed,
@@ -1840,7 +1847,7 @@ export class ChatbotService {
 				answer = `${playerName} has ${getAppropriateVerb(metric, result.value as number)} ${result.value} ${metricName}${timeText}.`;
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: [{ name: metricName, value: result.value }],
 					config: {
 						title: `${playerName} - ${metricName}${timeText}`,
@@ -1859,7 +1866,7 @@ export class ChatbotService {
 				answer = `${playerName} has ${getAppropriateVerb(metric, result.value as number)} ${result.value} ${metricName} for the ${teamName}.`;
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: [{ name: metricName, value: result.value }],
 					config: {
 						title: `${playerName} - ${metricName} (${teamName})`,
@@ -1885,7 +1892,7 @@ export class ChatbotService {
 				}
 
 				visualization = {
-					type: "stats",
+					type: "NumberCard",
 					data: data.data.slice(0, 10).map((opp: Record<string, unknown>) => ({
 						name: opp.opposition || oppositionName,
 						value: opp.value,
@@ -1931,7 +1938,7 @@ export class ChatbotService {
 					}
 
 					visualization = {
-						type: "table",
+						type: "Table",
 						data: data.data.map((item: Record<string, unknown>, index: number) => ({
 							rank: index + 1,
 							name: isTeamQuestion ? item.teamName : item.playerName,
@@ -2289,7 +2296,7 @@ export class ChatbotService {
 
 		// Parse time range
 		let dateFilter = "";
-		let params: any = { playerName };
+		let params: Record<string, string> = { playerName };
 
 		if (timeRange) {
 			// Handle various time range formats
@@ -2489,7 +2496,7 @@ export class ChatbotService {
 		}
 
 		let query = "";
-		let params: any = { playerName };
+		let params: Record<string, string> = { playerName };
 
 		if (oppositionName) {
 			// Specific opposition query
@@ -2639,7 +2646,7 @@ export class ChatbotService {
 		}
 	}
 
-	public getProcessingDetails(): Record<string, unknown> {
+	public getProcessingDetails(): ProcessingDetails {
 		return {
 			questionAnalysis: this.lastQuestionAnalysis,
 			cypherQueries: this.lastExecutedQueries,

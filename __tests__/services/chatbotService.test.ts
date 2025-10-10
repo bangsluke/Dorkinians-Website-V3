@@ -255,7 +255,7 @@ describe("ChatbotService", () => {
 			// Get processing details to verify question analysis
 			const processingDetails = chatbotService.getProcessingDetails();
 			expect(processingDetails.questionAnalysis).toBeDefined();
-			expect(processingDetails.questionAnalysis.type).toBe("player");
+			expect(processingDetails.questionAnalysis?.type).toBe("player");
 		});
 
 		test("should extract correct metrics from questions", async () => {
@@ -274,8 +274,8 @@ describe("ChatbotService", () => {
 				await chatbotService.processQuestion(context);
 				const processingDetails = chatbotService.getProcessingDetails();
 
-				expect(processingDetails.questionAnalysis.metrics).toBeDefined();
-				expect(processingDetails.questionAnalysis.metrics.length).toBeGreaterThan(0);
+				expect(processingDetails.questionAnalysis?.metrics).toBeDefined();
+				expect(processingDetails.questionAnalysis?.metrics.length).toBeGreaterThan(0);
 			}
 		});
 	});
