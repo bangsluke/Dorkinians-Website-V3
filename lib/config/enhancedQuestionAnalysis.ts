@@ -380,8 +380,11 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
+		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(extractionResult.statTypes);
+
 		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
-		const correctedStatTypes = this.correctPenaltyPhrases(extractionResult.statTypes);
+		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
 
 		// CRITICAL FIX: Detect most prolific season queries
 		const prolificCorrectedStats = this.correctMostProlificSeasonQueries(correctedStatTypes);
@@ -389,11 +392,8 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect season-specific queries
 		const seasonCorrectedStats = this.correctSeasonSpecificQueries(prolificCorrectedStats);
 
-		// CRITICAL FIX: Detect team-specific appearance queries
-		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(seasonCorrectedStats);
-
 		// CRITICAL FIX: Detect season-specific appearance queries
-		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(teamAppearanceCorrectedStats);
+		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(seasonCorrectedStats);
 
 		// CRITICAL FIX: Detect open play goals queries
 		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
@@ -522,15 +522,15 @@ export class EnhancedQuestionAnalyzer {
 			"Away Games % Won": "AwayGames%Won",
 			"Games % Won": "Games%Won",
 
-			// Team-specific stats
-			"1st XI Apps": "1sApps",
-			"2nd XI Apps": "2sApps",
-			"3rd XI Apps": "3sApps",
-			"4th XI Apps": "4sApps",
-			"5th XI Apps": "5sApps",
-			"6th XI Apps": "6sApps",
-			"7th XI Apps": "7sApps",
-			"8th XI Apps": "8sApps",
+			// Team-specific stats (keep the full format for proper response generation)
+			// "1st XI Apps": "1sApps",  // Commented out to preserve full format
+			// "2nd XI Apps": "2sApps",
+			// "3rd XI Apps": "3sApps",
+			// "4th XI Apps": "4sApps",
+			// "5th XI Apps": "5sApps",
+			// "6th XI Apps": "6sApps",
+			// "7th XI Apps": "7sApps",
+			// "8th XI Apps": "8sApps",
 			"Most Played For Team": "MostPlayedForTeam",
 			"Number Teams Played For": "NumberTeamsPlayedFor",
 
@@ -691,86 +691,126 @@ export class EnhancedQuestionAnalyzer {
 	 */
 	private correctTeamSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
+		
 
-		// Check for team-specific appearance patterns
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("1s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "1st XI Apps",
-				originalText: "appearances for 1s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
+		// Enhanced team-specific appearance patterns to handle all variations
+		// Pattern 1: "appearances/apps/games for Xs" or "Xs appearances/apps/games"
+		const teamAppearancePattern1 = /(appearances?|apps?|games?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?/i;
+		// Pattern 2: "Xs appearances/apps/games" (team first)
+		const teamAppearancePattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i;
+		// Pattern 3: "appearance count for Xs" or "Xs appearance count"
+		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+.*?\s+)?(?:playing\s+for\s+(?:the\s+)?|for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 4: "how many times...played for Xs"
+		const teamAppearancePattern4 = /(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 5: "games for Xs has...played"
+		const teamAppearancePattern5 = /(?:games?|appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:played|made|achieved)/i;
+		// Pattern 6: "appearances for Xs...made/achieved"
+		const teamAppearancePattern6 = /(appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:made|achieved|has)/i;
+		// Pattern 7: "provide...appearance count for Xs"
+		const teamAppearancePattern7 = /(?:provide|give).*?(?:appearance\s+count|apps?|appearances?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 8: "how many times has X played for Ys" (missing pattern)
+		const teamAppearancePattern8 = /(?:how\s+many\s+times|times)\s+has\s+.*?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		
+		let match = lowerQuestion.match(teamAppearancePattern1);
+		let teamReference: string | undefined;
+		let appearanceTerm: string | undefined;
+		
+		if (match) {
+			teamReference = match[2].toLowerCase();
+			appearanceTerm = match[1];
+		} else {
+			match = lowerQuestion.match(teamAppearancePattern2);
+			if (match) {
+				teamReference = match[1].toLowerCase();
+				appearanceTerm = match[2];
+			} else {
+				match = lowerQuestion.match(teamAppearancePattern3);
+				if (match) {
+					teamReference = match[2].toLowerCase();
+					appearanceTerm = "appearances";
+				} else {
+					match = lowerQuestion.match(teamAppearancePattern4);
+					if (match) {
+						teamReference = match[1].toLowerCase();
+						appearanceTerm = "times played";
+					} else {
+						match = lowerQuestion.match(teamAppearancePattern5);
+						if (match) {
+							teamReference = match[1].toLowerCase();
+							appearanceTerm = "games";
+						} else {
+							match = lowerQuestion.match(teamAppearancePattern6);
+							if (match) {
+								teamReference = match[2].toLowerCase();
+								appearanceTerm = match[1];
+							} else {
+								match = lowerQuestion.match(teamAppearancePattern7);
+								if (match) {
+									teamReference = match[1].toLowerCase();
+									appearanceTerm = "appearances";
+								} else {
+									match = lowerQuestion.match(teamAppearancePattern8);
+									if (match) {
+										teamReference = match[1].toLowerCase();
+										appearanceTerm = "times played";
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("2s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "2nd XI Apps",
-				originalText: "appearances for 2s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("3s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "3rd XI Apps",
-				originalText: "appearances for 3s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("4s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "4th XI Apps",
-				originalText: "appearances for 4s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("5s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "5th XI Apps",
-				originalText: "appearances for 5s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("6s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "6th XI Apps",
-				originalText: "appearances for 6s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("7s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "7th XI Apps",
-				originalText: "appearances for 7s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
-		}
-
-		if (lowerQuestion.includes("appearances") && lowerQuestion.includes("8s")) {
-			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
-			filteredStats.push({
-				value: "8th XI Apps",
-				originalText: "appearances for 8s",
-				position: lowerQuestion.indexOf("appearances"),
-			});
-			return filteredStats;
+		
+		if (match && teamReference && appearanceTerm) {
+			// Map team reference to database format
+			const teamMapping: { [key: string]: string } = {
+				"1s": "1st XI",
+				"2s": "2nd XI", 
+				"3s": "3rd XI",
+				"4s": "4th XI",
+				"5s": "5th XI",
+				"6s": "6th XI",
+				"7s": "7th XI",
+				"8s": "8th XI",
+				"1st": "1st XI",
+				"2nd": "2nd XI",
+				"3rd": "3rd XI", 
+				"4th": "4th XI",
+				"5th": "5th XI",
+				"6th": "6th XI",
+				"7th": "7th XI",
+				"8th": "8th XI",
+				"first": "1st XI",
+				"second": "2nd XI",
+				"third": "3rd XI",
+				"fourth": "4th XI",
+				"fifth": "5th XI",
+				"sixth": "6th XI",
+				"seventh": "7th XI",
+				"eighth": "8th XI"
+			};
+			
+			const mappedTeam = teamMapping[teamReference];
+			if (mappedTeam) {
+				// Filter out ALL appearance-related metrics and per-appearance metrics
+				const filteredStats = statTypes.filter((stat) => 
+					!["Appearances", "Apps", "Games", "Goals Per Appearance", "GperAPP", "Assists Per Appearance", 
+					  "APperAPP", "Minutes Per Appearance", "Saves Per Appearance", "Clean Sheets Per Appearance",
+					  "Yellow Cards Per Appearance", "Red Cards Per Appearance", "Own Goals Per Appearance",
+					  "Conceded Per Appearance", "Penalties Scored Per Appearance", "Penalties Missed Per Appearance",
+					  "Penalties Conceded Per Appearance", "Penalties Saved Per Appearance", "Fantasy Points Per Appearance",
+					  "Man of the Match Per Appearance"].includes(stat.value)
+				);
+				const newMetric = `${mappedTeam} Apps`;
+				// Add the new metric to the filtered stats
+				filteredStats.push({
+					value: newMetric,
+					originalText: `${appearanceTerm} for ${teamReference}`,
+					position: lowerQuestion.indexOf(appearanceTerm || "appearances"),
+				});
+				return filteredStats;
+			}
 		}
 
 		return statTypes;

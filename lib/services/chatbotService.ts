@@ -757,6 +757,16 @@ export class ChatbotService {
 		// Metrics that need MatchDetail join (including complex calculations)
 		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP"];
 
+		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
+		if (metric.match(/^\d+sApps$/i)) {
+			return true; // Team-specific appearances need MatchDetail join to filter by team
+		}
+
+		// Check if it's a team-specific appearance metric (1st XI Apps, 2nd XI Apps, etc.)
+		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+			return true; // Team-specific appearances need MatchDetail join to filter by team
+		}
+
 		// Check if it's a seasonal metric (contains year pattern) - these use Player node directly
 		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
 			return false; // Seasonal metrics use Player node directly for now (fallback approach)
@@ -854,9 +864,19 @@ export class ChatbotService {
 				return "count(DISTINCT md) as value";
 			case "AWAY":
 				return "count(DISTINCT md) as value";
+			// Team-specific appearance metrics (1sApps, 2sApps, etc.)
+			default:
+				// Check if it's a team-specific appearance metric
+				if (metric.match(/^\d+sApps$/i)) {
+					return "count(md) as value";
+				}
+
+				// Check if it's a team-specific appearance metric (1st XI Apps, 2nd XI Apps, etc.)
+				if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+					return "count(md) as value";
+				}
 			// Season-specific goals
 			// Dynamic seasonal metrics (any season)
-			default:
 				// Check if it's a seasonal goals metric
 				if (metric.match(/\d{4}\/\d{2}GOALS/i)) {
 					const seasonMatch = metric.match(/(\d{4}\/\d{2})GOALS/i);
@@ -941,8 +961,26 @@ export class ChatbotService {
 			// Add team filter if specified
 			if (teamEntities.length > 0) {
 				const mappedTeamNames = teamEntities.map((team) => this.mapTeamName(team));
-				const teamNames = mappedTeamNames.map((team) => `'${team}'`).join(", ");
-				whereConditions.push(`f.team IN [${teamNames}]`);
+				const teamNames = mappedTeamNames.map((team) => `toUpper('${team}')`).join(", ");
+				whereConditions.push(`toUpper(f.team) IN [${teamNames}]`);
+			}
+
+			// Add team-specific appearance filter if metric is team-specific (1sApps, 2sApps, etc.)
+			if (metric.match(/^\d+sApps$/i)) {
+				const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
+				if (teamNumber) {
+					const teamName = this.mapTeamName(`${teamNumber}s`);
+					whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+				}
+			}
+
+			// Add team-specific appearance filter if metric is team-specific (1st XI Apps, 2nd XI Apps, etc.)
+			if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+				const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
+				if (teamMatch) {
+					const teamName = teamMatch[1] + " XI";
+					whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+				}
 			}
 
 			// Add location filter if specified (only if not already handled by metric)
@@ -996,8 +1034,10 @@ export class ChatbotService {
 				}
 			}
 
-			// Add competition filter if specified
-			if (analysis.competitions && analysis.competitions.length > 0) {
+			// Add competition filter if specified (but not for team-specific appearance queries)
+			if (analysis.competitions && analysis.competitions.length > 0 && 
+				!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
+				!metric.match(/^\d+sApps$/i)) {
 				const competitionFilters = analysis.competitions.map((comp) => `f.competition CONTAINS '${comp}'`);
 				whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 			}
@@ -1442,8 +1482,18 @@ export class ChatbotService {
 			const metric = data.metric || "data";
 			const playerName = data.playerName || "the requested entity";
 
+			// Check if this is a team-specific appearance query - return 0 instead of "No data found"
+			if (metric && typeof metric === 'string' && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i) || metric.match(/^(\d+)sApps$/i);
+				if (teamMatch) {
+					const teamName = teamMatch[1] + (metric.includes("XI") ? " XI" : "s");
+					answer = `${playerName} has made 0 appearances for the ${teamName}.`;
+				} else {
+					answer = `${playerName} has made 0 appearances.`;
+				}
+			}
 			// Check if this is a MatchDetail query that failed - try Player node fallback
-			if (metric && ["CPERAPP", "FTPPERAPP", "GPERAPP", "MPERG", "MPERCLS"].includes((metric as string).toUpperCase())) {
+			else if (metric && ["CPERAPP", "FTPPERAPP", "GPERAPP", "MPERG", "MPERCLS"].includes((metric as string).toUpperCase())) {
 				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
 			} else {
 				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
@@ -1454,6 +1504,7 @@ export class ChatbotService {
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
 				const value = playerData.value !== undefined ? playerData.value : 0;
+				
 
 				// Get the metric display name
 				const metricName = getMetricDisplayName(metric, value as number);
@@ -1529,6 +1580,21 @@ export class ChatbotService {
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
 						answer = `${playerName} made ${value} ${value === 1 ? "appearance" : "appearances"} in the ${season} season.`;
+					}
+				} else if (metric.match(/^\d+sApps$/i)) {
+					// For team-specific appearance queries (e.g., "1sApps", "2sApps", etc.)
+					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
+					const teamName = this.mapTeamName(`${teamNumber}s`);
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
+						answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
+					}
+				} else if (metric && typeof metric === 'string' && metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+					// For team-specific appearance queries (e.g., "1st XI Apps", "2nd XI Apps", etc.)
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
+					if (teamMatch) {
+						const teamName = teamMatch[1] + " XI";
+						answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
 					}
 				} else {
 					// Handle appearances count special case
