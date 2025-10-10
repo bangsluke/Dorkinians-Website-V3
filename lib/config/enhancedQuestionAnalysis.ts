@@ -18,6 +18,7 @@ export interface EnhancedQuestionAnalysis {
 	complexity: "simple" | "moderate" | "complex";
 	requiresClarification: boolean;
 	clarificationMessage?: string;
+	question: string;
 }
 
 // EnhancedQuestionAnalyzer class processes the question and returns an EnhancedQuestionAnalysis object
@@ -82,6 +83,7 @@ export class EnhancedQuestionAnalyzer {
 			complexity,
 			requiresClarification,
 			clarificationMessage: requiresClarification ? this.generateClarificationMessage(extractionResult, complexity) : undefined,
+			question: this.question,
 		};
 	}
 
