@@ -1343,12 +1343,24 @@ export class ChatbotService {
 				MATCH (p:Player {playerName: $playerName})
 				RETURN p.playerName as playerName, p.mostProlificSeason as value
 			`;
-		} else if (metric === "TEAM_ANALYSIS") {
+		} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
 			query = `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.team IS NOT NULL
 				WITH p, md.team as team, count(md) as appearances, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
-				ORDER BY appearances DESC, goals DESC
+				WITH p, team, appearances, goals,
+					CASE 
+						WHEN team = "1st XI" THEN 1
+						WHEN team = "2nd XI" THEN 2
+						WHEN team = "3rd XI" THEN 3
+						WHEN team = "4th XI" THEN 4
+						WHEN team = "5th XI" THEN 5
+						WHEN team = "6th XI" THEN 6
+						WHEN team = "7th XI" THEN 7
+						WHEN team = "8th XI" THEN 8
+						ELSE 9
+					END as teamOrder
+				ORDER BY appearances DESC, teamOrder ASC
 				LIMIT 1
 				RETURN p.playerName as playerName, team as value
 			`;
@@ -1529,14 +1541,23 @@ export class ChatbotService {
 						const season = value; // e.g., "2018/19"
 						answer = `${playerName}'s most prolific season was ${season}.`;
 					}
-				} else if (metric === "MostPlayedForTeam") {
+				} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
 					// For "What team has player made the most appearances for?" questions
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("what team has") && questionLower.includes("made the most appearances for")) {
 						// Use the actual query results from Cypher
-						const teamName = value; // e.g., "3s"
-						const appearancesCount = playerData.appearancesCount || 0;
-						answer = `${playerName} has made the most appearances for the ${teamName} (${appearancesCount} appearances).`;
+						const teamName = String(value); // e.g., "3rd XI"
+						// Convert team name to expected format (e.g., "3rd XI" -> "3s")
+						const teamDisplayName = teamName
+							.replace("1st XI", "1s")
+							.replace("2nd XI", "2s") 
+							.replace("3rd XI", "3s")
+							.replace("4th XI", "4s")
+							.replace("5th XI", "5s")
+							.replace("6th XI", "6s")
+							.replace("7th XI", "7s")
+							.replace("8th XI", "8s");
+						answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
 					}
 				} else if (metric === "MostScoredForTeam") {
 					// For "What team has player scored the most goals for?" questions

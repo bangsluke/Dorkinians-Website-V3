@@ -401,8 +401,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect percentage queries
 		const percentageCorrectedStats = this.correctPercentageQueries(openPlayCorrectedStats);
 
+		// CRITICAL FIX: Detect "most appearances for team" queries
+		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
+
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = percentageCorrectedStats.map((stat) => stat.value);
+		const statTypes = mostAppearancesCorrectedStats.map((stat) => stat.value);
 
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
@@ -969,6 +972,32 @@ export class EnhancedQuestionAnalyzer {
 					position: lowerQuestion.indexOf("percentage") || lowerQuestion.indexOf("percent") || lowerQuestion.indexOf("%"),
 				});
 			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects "most appearances for team" queries
+	 */
+	private correctMostAppearancesForTeamQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Pattern to detect "most appearances for team" questions
+		const mostAppearancesPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:made\s+the\s+most\s+appearances\s+for|made\s+most\s+appearances\s+for|most\s+appearances\s+for|played\s+for\s+most|played\s+most\s+for)/i;
+
+		if (mostAppearancesPattern.test(lowerQuestion)) {
+			// Remove any existing stat types that might be incorrect
+			const filteredStats = statTypes.filter((stat) => !["Appearances", "Apps", "Games"].includes(stat.value));
+
+			// Add the correct metric
+			filteredStats.push({
+				value: "Most Played For Team",
+				originalText: "most appearances for team",
+				position: lowerQuestion.indexOf("most appearances") || lowerQuestion.indexOf("most played"),
+			});
 
 			return filteredStats;
 		}

@@ -16,7 +16,7 @@ const path = require("path");
 const nodemailer = require("nodemailer");
 
 // Enhanced logging for debugging
-const debugLogFile = path.join(__dirname, "test-chatbot-debug.log");
+const debugLogFile = path.join(__dirname, "..", "logs", "test-chatbot-debug.log");
 const debugLogStream = fs.createWriteStream(debugLogFile, { flags: "w" });
 
 // Override console methods to log to both console and debug file
@@ -121,832 +121,12 @@ require("ts-node").register({
 	},
 });
 
-// Define comprehensive STAT_TEST_CONFIGS for testing
-const STAT_TEST_CONFIGS = [
-	{
-		key: "APP",
-		metric: "APP",
-		questionTemplate: "How many appearances has {playerName} made?",
-		responsePattern: /(\d+)/,
-		description: "Appearances",
-	},
-	{
-		key: "MIN",
-		metric: "MIN",
-		questionTemplate: "How many minutes of football has {playerName} played?",
-		responsePattern: /(\d+)/,
-		description: "Minutes",
-	},
-	{
-		key: "MOM",
-		metric: "MOM",
-		questionTemplate: "How many MoMs has {playerName} received?",
-		responsePattern: /(\d+)/,
-		description: "Man of the Match awards",
-	},
-	{
-		key: "G",
-		metric: "G",
-		questionTemplate: "How many goals has {playerName} scored from open play?",
-		responsePattern: /(\d+)/,
-		description: "Goals",
-	},
-	{
-		key: "A",
-		metric: "A",
-		questionTemplate: "How many assists has {playerName} achieved?",
-		responsePattern: /(\d+)/,
-		description: "Assists",
-	},
-	{
-		key: "Y",
-		metric: "Y",
-		questionTemplate: "How many yellow cards has {playerName} received?",
-		responsePattern: /(\d+)/,
-		description: "Yellow Cards",
-	},
-	{
-		key: "R",
-		metric: "R",
-		questionTemplate: "How many red cards has {playerName} received?",
-		responsePattern: /(\d+)/,
-		description: "Red Cards",
-	},
-	{
-		key: "SAVES",
-		metric: "SAVES",
-		questionTemplate: "How many saves has {playerName} made?",
-		responsePattern: /(\d+)/,
-		description: "Saves",
-	},
-	{
-		key: "OG",
-		metric: "OG",
-		questionTemplate: "How many own goals has {playerName} scored?",
-		responsePattern: /(\d+)/,
-		description: "Own Goals",
-	},
-	{
-		key: "C",
-		metric: "C",
-		questionTemplate: "How many goals has {playerName} conceded?",
-		responsePattern: /(\d+)/,
-		description: "Goals Conceded",
-	},
-	{
-		key: "CLS",
-		metric: "CLS",
-		questionTemplate: "How many clean sheets has {playerName} achieved?",
-		responsePattern: /(\d+)/,
-		description: "Clean Sheets",
-	},
-	{
-		key: "PSC",
-		metric: "PSC",
-		questionTemplate: "How many penalties has {playerName} scored?",
-		responsePattern: /(\d+)/,
-		description: "Penalties Scored",
-	},
-	{
-		key: "PM",
-		metric: "PM",
-		questionTemplate: "How many penalties has {playerName} missed?",
-		responsePattern: /(\d+)/,
-		description: "Penalties Missed",
-	},
-	{
-		key: "PCO",
-		metric: "PCO",
-		questionTemplate: "How many penalties has {playerName} conceded?",
-		responsePattern: /(\d+)/,
-		description: "Penalties Conceded",
-	},
-	{
-		key: "PSV",
-		metric: "PSV",
-		questionTemplate: "How many penalties has {playerName} saved?",
-		responsePattern: /(\d+)/,
-		description: "Penalties Saved",
-	},
-	{
-		key: "FTP",
-		metric: "FTP",
-		questionTemplate: "How many fantasy points does {playerName} have?",
-		responsePattern: /(\d+)/,
-		description: "Fantasy Points",
-	},
-	// Advanced Statistics
-	{
-		key: "AllGSC",
-		metric: "AllGSC",
-		questionTemplate: "How many goals has {playerName} scored?",
-		responsePattern: /(\d+)/,
-		description: "All Goals Scored",
-	},
-	{
-		key: "GperAPP",
-		metric: "GperAPP",
-		questionTemplate: "How many goals on average has {playerName} scored per appearance?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Goals per Appearance",
-	},
-	{
-		key: "CperAPP",
-		metric: "CperAPP",
-		questionTemplate: "How many goals on average does {playerName} concede per match?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Goals Conceded per Appearance",
-	},
-	{
-		key: "MperG",
-		metric: "MperG",
-		questionTemplate: "How many minutes does it take on average for {playerName} to score?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Minutes per Goal",
-	},
-	{
-		key: "MperCLS",
-		metric: "MperCLS",
-		questionTemplate: "On average, how many minutes does {playerName} need to get a clean sheet?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Minutes per Clean Sheet",
-	},
-	{
-		key: "FTPperAPP",
-		metric: "FTPperAPP",
-		questionTemplate: "How many fantasy points does {playerName} score per appearance?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Fantasy Points per Appearance",
-	},
-	{
-		key: "DIST",
-		metric: "DIST",
-		questionTemplate: "How far has {playerName} travelled to get to games?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Distance Travelled",
-	},
-	// Home/Away Statistics
-	{
-		key: "HomeGames",
-		metric: "homeGames",
-		questionTemplate: "How many home games has {playerName} played?",
-		responsePattern: /(\d+)/,
-		description: "Home Games",
-	},
-	{
-		key: "HomeWins",
-		metric: "homeWins",
-		questionTemplate: "How many home games has {playerName} won?",
-		responsePattern: /(\d+)/,
-		description: "Home Wins",
-	},
-	{
-		key: "HomeGames%Won",
-		metric: "HomeGames%Won",
-		questionTemplate: "What percentage of home games has {playerName} won?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Home Games % Won",
-	},
-	{
-		key: "AwayGames",
-		metric: "awayGames",
-		questionTemplate: "How many away games has {playerName} played?",
-		responsePattern: /(\d+)/,
-		description: "Away Games",
-	},
-	{
-		key: "AwayWins",
-		metric: "awayWins",
-		questionTemplate: "How many away games have {playerName} won?",
-		responsePattern: /(\d+)/,
-		description: "Away Wins",
-	},
-	{
-		key: "AwayGames%Won",
-		metric: "AwayGames%Won",
-		questionTemplate: "What percent of away games has {playerName} won?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Away Games % Won",
-	},
-	{
-		key: "Games%Won",
-		metric: "Games%Won",
-		questionTemplate: "What % of games has {playerName} won?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
-		description: "Games % Won",
-	},
-	// Team-Specific Appearances
-	{
-		key: "1sApps",
-		metric: "firstTeamApps",
-		questionTemplate: "How many appearances has {playerName} made for the 1s?",
-		responsePattern: /(\d+)/,
-		description: "1st Team Appearances",
-	},
-	{
-		key: "2sApps",
-		metric: "secondTeamApps",
-		questionTemplate: "How many apps has {playerName} made for the 2s?",
-		responsePattern: /(\d+)/,
-		description: "2nd Team Appearances",
-	},
-	{
-		key: "3sApps",
-		metric: "thirdTeamApps",
-		questionTemplate: "How many times has {playerName} played for the 3s?",
-		responsePattern: /(\d+)/,
-		description: "3rd Team Appearances",
-	},
-	{
-		key: "4sApps",
-		metric: "fourthTeamApps",
-		questionTemplate: "What is the appearance count for {playerName} playing for the 4s?",
-		responsePattern: /(\d+)/,
-		description: "4th Team Appearances",
-	},
-	{
-		key: "5sApps",
-		metric: "fifthTeamApps",
-		questionTemplate: "How many games for the 5s has {playerName} played?",
-		responsePattern: /(\d+)/,
-		description: "5th Team Appearances",
-	},
-	{
-		key: "6sApps",
-		metric: "sixthTeamApps",
-		questionTemplate: "How many appearances for the 6s has {playerName} made?",
-		responsePattern: /(\d+)/,
-		description: "6th Team Appearances",
-	},
-	{
-		key: "7sApps",
-		metric: "seventhTeamApps",
-		questionTemplate: "How many apps for the 7s has {playerName} achieved?",
-		responsePattern: /(\d+)/,
-		description: "7th Team Appearances",
-	},
-	{
-		key: "8sApps",
-		metric: "eighthTeamApps",
-		questionTemplate: "Provide me with {playerName} appearance count for the 8s.",
-		responsePattern: /(\d+)/,
-		description: "8th Team Appearances",
-	},
-	{
-		key: "MostPlayedForTeam",
-		metric: "mostPlayedForTeam",
-		questionTemplate: "What team has {playerName} made the most appearances for?",
-		responsePattern: /([A-Za-z0-9\s]+)/,
-		description: "Most Played For Team",
-	},
-	{
-		key: "NumberTeamsPlayedFor",
-		metric: "numberTeamsPlayedFor",
-		questionTemplate: "How many of the clubs teams has {playerName} played for?",
-		responsePattern: /(\d+)/,
-		description: "Number of Teams Played For",
-	},
-	// Team-Specific Goals
-	{
-		key: "1sGoals",
-		metric: "firstTeamGoals",
-		questionTemplate: "How many goals has {playerName} scored for the 1s?",
-		responsePattern: /(\d+)/,
-		description: "1st Team Goals",
-	},
-	{
-		key: "2sGoals",
-		metric: "secondTeamGoals",
-		questionTemplate: "What is the goal count of {playerName} for the 2nd team?",
-		responsePattern: /(\d+)/,
-		description: "2nd Team Goals",
-	},
-	{
-		key: "3sGoals",
-		metric: "thirdTeamGoals",
-		questionTemplate: "How many goals in total has {playerName} scored for the 3s?",
-		responsePattern: /(\d+)/,
-		description: "3rd Team Goals",
-	},
-	{
-		key: "4sGoals",
-		metric: "fourthTeamGoals",
-		questionTemplate: "How many goals have I scored for the 4s?",
-		responsePattern: /(\d+)/,
-		description: "4th Team Goals",
-	},
-	{
-		key: "5sGoals",
-		metric: "fifthTeamGoals",
-		questionTemplate: "How many goals has {playerName} scored for the 5th XI?",
-		responsePattern: /(\d+)/,
-		description: "5th Team Goals",
-	},
-	{
-		key: "6sGoals",
-		metric: "sixthTeamGoals",
-		questionTemplate: "What are the goal stats for {playerName} for the 6s?",
-		responsePattern: /(\d+)/,
-		description: "6th Team Goals",
-	},
-	{
-		key: "7sGoals",
-		metric: "seventhTeamGoals",
-		questionTemplate: "How many goals have {playerName} got for the 7s?",
-		responsePattern: /(\d+)/,
-		description: "7th Team Goals",
-	},
-	{
-		key: "8sGoals",
-		metric: "eighthTeamGoals",
-		questionTemplate: "How many goals has {playerName} scored for the 8s?",
-		responsePattern: /(\d+)/,
-		description: "8th Team Goals",
-	},
-	{
-		key: "MostScoredForTeam",
-		metric: "mostScoredForTeam",
-		questionTemplate: "Which team has {playerName} scored the most goals for?",
-		responsePattern: /([A-Za-z0-9\s]+)/,
-		description: "Most Scored For Team",
-	},
-	// Seasonal Appearances
-	{
-		key: "2016/17Apps",
-		metric: "season2016_17Apps",
-		questionTemplate: "How many appearances did {playerName} make in the 2016/17 season?",
-		responsePattern: /(\d+)/,
-		description: "2016/17 Season Appearances",
-	},
-	{
-		key: "2017/18Apps",
-		metric: "season2017_18Apps",
-		questionTemplate: "How many apps did {playerName} make in 2017/18?",
-		responsePattern: /(\d+)/,
-		description: "2017/18 Season Appearances",
-	},
-	{
-		key: "2018/19Apps",
-		metric: "season2018_19Apps",
-		questionTemplate: "How many games did {playerName} play in in 2018-19?",
-		responsePattern: /(\d+)/,
-		description: "2018/19 Season Appearances",
-	},
-	{
-		key: "2019/20Apps",
-		metric: "season2019_20Apps",
-		questionTemplate: "How many apps did {playerName} have in 2019/20?",
-		responsePattern: /(\d+)/,
-		description: "2019/20 Season Appearances",
-	},
-	{
-		key: "2020/21Apps",
-		metric: "season2020_21Apps",
-		questionTemplate: "How many games did {playerName} appear in in 2020/21?",
-		responsePattern: /(\d+)/,
-		description: "2020/21 Season Appearances",
-	},
-	{
-		key: "2021/22Apps",
-		metric: "season2021_22Apps",
-		questionTemplate: "How many appearances did {playerName} make in 2021 to 2022?",
-		responsePattern: /(\d+)/,
-		description: "2021/22 Season Appearances",
-	},
-	{
-		key: "NumberSeasonsPlayedFor",
-		metric: "numberSeasonsPlayedFor",
-		questionTemplate: "How many seasons has {playerName} played in?",
-		responsePattern: /(\d+)/,
-		description: "Number of Seasons Played For",
-	},
-	// Seasonal Goals
-	{
-		key: "2016/17Goals",
-		metric: "season2016_17Goals",
-		questionTemplate: "How many goals did {playerName} score in the 2016/17 season?",
-		responsePattern: /(\d+)/,
-		description: "2016/17 Season Goals",
-	},
-	{
-		key: "2017/18Goals",
-		metric: "season2017_18Goals",
-		questionTemplate: "How many goals did {playerName} score in the 2017-18 season?",
-		responsePattern: /(\d+)/,
-		description: "2017/18 Season Goals",
-	},
-	{
-		key: "2018/19Goals",
-		metric: "season2018_19Goals",
-		questionTemplate: "How many goals did {playerName} get in the 2018/2019 season?",
-		responsePattern: /(\d+)/,
-		description: "2018/19 Season Goals",
-	},
-	{
-		key: "2019/20Goals",
-		metric: "season2019_20Goals",
-		questionTemplate: "How many goals did {playerName} score in 2019/20?",
-		responsePattern: /(\d+)/,
-		description: "2019/20 Season Goals",
-	},
-	{
-		key: "2020/21Goals",
-		metric: "season2020_21Goals",
-		questionTemplate: "How many goals did {playerName} score in the 20/21 season?",
-		responsePattern: /(\d+)/,
-		description: "2020/21 Season Goals",
-	},
-	{
-		key: "2021/22Goals",
-		metric: "season2021_22Goals",
-		questionTemplate: "How many goals did {playerName} score in 21/22?",
-		responsePattern: /(\d+)/,
-		description: "2021/22 Season Goals",
-	},
-	{
-		key: "MostProlificSeason",
-		metric: "mostProlificSeason",
-		questionTemplate: "What was {playerName}'s most prolific season?",
-		responsePattern: /(\d{4}\/\d{2})/,
-		description: "Most Prolific Season",
-	},
-	// Positional Statistics
-	{
-		key: "GK",
-		metric: "GK",
-		questionTemplate: "How many times has {playerName} played as a goalkeeper?",
-		responsePattern: /(\d+)/,
-		description: "Goalkeeper Appearances",
-	},
-	{
-		key: "DEF",
-		metric: "DEF",
-		questionTemplate: "How many games has {playerName} played as a defender?",
-		responsePattern: /(\d+)/,
-		description: "Defender Appearances",
-	},
-	{
-		key: "MID",
-		metric: "MID",
-		questionTemplate: "How many times has {playerName} been a midfielder?",
-		responsePattern: /(\d+)/,
-		description: "Midfielder Appearances",
-	},
-	{
-		key: "FWD",
-		metric: "FWD",
-		questionTemplate: "How many games has {playerName} been a forward?",
-		responsePattern: /(\d+)/,
-		description: "Forward Appearances",
-	},
-	{
-		key: "MostCommonPosition",
-		metric: "mostCommonPosition",
-		questionTemplate: "What is {playerName}'s most common position played?",
-		responsePattern: /is ([A-Z]+)\./,
-		description: "Most Common Position",
-	},
-];
+// Import STAT_TEST_CONFIGS from config.ts
+const { STAT_TEST_CONFIGS } = require('../config/config.ts');
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
 
-// Helper function to format values according to stat configuration (same as chatbot)
-function formatValueByMetric(metric, value) {
-	logDebug(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
-	// Handle BigInt values from Neo4j first
-	if (typeof value === "bigint") {
-		return value.toString();
-	}
-
-	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
-	if (typeof value === "string") {
-		// Check if it's a numeric string
-		if (!isNaN(parseFloat(value)) && isFinite(value)) {
-			// It's a numeric string, convert to number and continue with formatting
-			value = parseFloat(value);
-		} else {
-			// It's a non-numeric string (like position names), return as-is
-			return value;
-		}
-	}
-
-	// Import the actual statObject from config.ts using ts-node
-	let statObject;
-	try {
-		// Register ts-node to handle TypeScript imports
-		require("ts-node/register");
-		logDebug("🔧 Loading config.ts via ts-node...");
-		statObject = require("../config/config.ts").statObject;
-		logDebug("🔧 Successfully loaded config.ts");
-	} catch (e) {
-		logDebug("🔧 Using hardcoded statObject fallback, error:", e.message);
-		// Fallback to hardcoded values for now (since TypeScript import is failing)
-		statObject = {
-			FTP: { numberDecimalPlaces: 0 },
-			MIN: { numberDecimalPlaces: 0 },
-			C: { numberDecimalPlaces: 0 },
-			G: { numberDecimalPlaces: 0 },
-			A: { numberDecimalPlaces: 0 },
-			APP: { numberDecimalPlaces: 0 },
-			CLS: { numberDecimalPlaces: 0 },
-			Y: { numberDecimalPlaces: 0 },
-			R: { numberDecimalPlaces: 0 },
-			SAVES: { numberDecimalPlaces: 0 },
-			OG: { numberDecimalPlaces: 0 },
-			PSC: { numberDecimalPlaces: 0 },
-			PM: { numberDecimalPlaces: 0 },
-			PCO: { numberDecimalPlaces: 0 },
-			PSV: { numberDecimalPlaces: 0 },
-			GperAPP: { numberDecimalPlaces: 1 },
-			CperAPP: { numberDecimalPlaces: 1 },
-			FTPperAPP: { numberDecimalPlaces: 1 },
-			MPERG: { numberDecimalPlaces: 1 },
-			MPERCLS: { numberDecimalPlaces: 1 },
-			DIST: { numberDecimalPlaces: 1 },
-			// Percentage metrics fallback to ensure one decimal place in emails
-			"HomeGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
-			"AwayGames%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
-			"Games%Won": { numberDecimalPlaces: 1, statFormat: "Percentage" },
-		};
-	}
-
-	const metricConfig = statObject[metric];
-	if (metricConfig && typeof metricConfig === "object") {
-		// Handle percentage formatting
-		if (metricConfig.statFormat === "Percentage") {
-			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-			// Check if value is already a percentage (>= 1) or a decimal (< 1)
-			const percentageValue = Number(value) >= 1 ? Number(value) : Number(value) * 100;
-			const result = percentageValue.toFixed(decimalPlaces) + "%";
-			logDebug(`🔧 Percentage formatting ${metric}: ${value} -> ${percentageValue} -> ${result}`);
-			return result;
-		}
-
-		// Handle other numeric formatting
-		if ("numberDecimalPlaces" in metricConfig) {
-			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-			logDebug(`🔧 Formatting ${metric} with ${decimalPlaces} decimal places: ${value} -> ${Number(value).toFixed(decimalPlaces)}`);
-			return Number(value).toFixed(decimalPlaces);
-		}
-	}
-
-	// Default to integer if no config found
-	logDebug(`🔧 No config found for ${metric}, using default integer formatting: ${value} -> ${Math.round(Number(value)).toString()}`);
-	return Math.round(Number(value)).toString();
-}
-
-// Function to load chatbot service
-function loadChatbotService() {
-	if (!ChatbotService) {
-		try {
-			// Clear ALL caches to force fresh compilation
-			if (require.cache) {
-				Object.keys(require.cache).forEach((key) => {
-					delete require.cache[key];
-				});
-			}
-
-			// Clear ts-node cache specifically
-			if (require.extensions[".ts"]) {
-				delete require.extensions[".ts"];
-			}
-
-		// Register ts-node with minimal configuration to avoid type errors
-		require("ts-node").register({
-			transpileOnly: true,
-			skipProject: true,
-			compilerOptions: {
-				target: "es2020",
-				module: "commonjs",
-				moduleResolution: "node",
-				esModuleInterop: true,
-				allowSyntheticDefaultImports: true,
-				skipLibCheck: true,
-				noEmit: true,
-			},
-		});
-
-			console.log("✅ ts-node registered with minimal configuration");
-
-			// Load the TypeScript file with simplified approach
-			const path = require("path");
-			const fs = require("fs");
-			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
-			console.log(`📁 Loading: ${chatbotPath}`);
-
-			// Verify file exists and get timestamp
-			const stats = fs.statSync(chatbotPath);
-			console.log(`📁 File timestamp: ${stats.mtime.toISOString()}`);
-			console.log(`📁 File size: ${stats.size} bytes`);
-
-			const chatbotModule = require(chatbotPath);
-			console.log("✅ TypeScript file loaded successfully");
-
-			// Check for ChatbotService
-			if (chatbotModule.ChatbotService) {
-				ChatbotService = chatbotModule.ChatbotService;
-				console.log("✅ ChatbotService loaded successfully");
-			} else {
-				console.log("❌ ChatbotService not found in module");
-				console.log("📝 Available exports:", Object.keys(chatbotModule));
-				throw new Error("ChatbotService not found in module");
-			}
-		} catch (error) {
-			// Temporarily restore original console methods to avoid corruption
-			const originalLog = console.log;
-			const originalError = console.error;
-			const originalWarn = console.warn;
-
-			// Restore original console methods
-			console.log = originalConsole.log;
-			console.error = originalConsole.error;
-			console.warn = originalConsole.warn;
-
-			console.log("⚠️ Could not load ChatbotService:");
-			console.log("⚠️ Error type:", error.constructor.name);
-			console.log("⚠️ Error message:", error.message);
-			console.log("⚠️ Error stack:", error.stack);
-			console.log("⚠️ Falling back to CSV-based testing");
-
-			// Restore overridden console methods
-			console.log = originalLog;
-			console.error = originalError;
-			console.warn = originalWarn;
-		}
-	}
-	return ChatbotService;
-}
-
-// Email configuration (using same env vars as existing email service)
-const EMAIL_CONFIG = {
-	host: process.env.SMTP_SERVER,
-	port: parseInt(process.env.SMTP_PORT || "587", 10),
-	secure: process.env.SMTP_EMAIL_SECURE === "true",
-	auth: {
-		user: process.env.SMTP_USERNAME,
-		pass: process.env.SMTP_PASSWORD,
-	},
-	tls: {
-		rejectUnauthorized: false, // Allow self-signed certificates
-	},
-};
-
-const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL;
-
-// Check if the development server is running
-async function checkServerHealth() {
-	try {
-		// Use production URL when running in Netlify environment
-		const baseUrl = process.env.NODE_ENV === "production" ? "https://dorkinians-website-v3.netlify.app" : "http://localhost:3000";
-
-		const response = await fetch(`${baseUrl}/api/chatbot`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				question: "How many goals has Luke Bangs scored?",
-				userContext: "Luke Bangs",
-			}),
-		});
-
-		if (!response.ok) {
-			console.log(`❌ Server responded with status: ${response.status}`);
-			return false;
-		}
-
-		const data = await response.json();
-		// Check if we get a valid response (not empty or error)
-		if (!data.answer || data.answer.trim() === "") {
-			console.log("❌ Server returned empty response");
-			return false;
-		}
-
-		console.log("✅ Server is running and responding correctly");
-		return true;
-	} catch (error) {
-		console.log(`❌ Server connection failed: ${error.message}`);
-		return false;
-	}
-}
-
-// Fetch test data from CSV directly
-async function fetchTestData() {
-	try {
-		const testDataUrl =
-			"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv";
-
-		console.log("🔍 Fetching test data from CSV...");
-
-		const response = await fetch(testDataUrl);
-		if (!response.ok) {
-			throw new Error(`Failed to fetch test data: ${response.statusText}`);
-		}
-
-		const csvText = await response.text();
-		console.log("📊 CSV content length:", csvText.length);
-
-		// Proper CSV parsing to handle quoted fields and commas within fields
-		function parseCSV(csvText) {
-			logDebug("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
-			logDebug("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
-
-			const lines = csvText.split("\n").filter((line) => line.trim());
-			logDebug("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
-			logDebug("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
-
-			if (lines.length === 0) {
-				logDebug("🔍 CSV PARSING DEBUG: No lines found, returning empty array");
-				return [];
-			}
-
-			// Parse headers
-			logDebug("🔍 CSV PARSING DEBUG: Parsing header line...");
-			const headers = parseCSVLine(lines[0]);
-			logDebug("🔍 CSV PARSING DEBUG: Parsed headers:", headers);
-			logDebug("🔍 CSV PARSING DEBUG: Header count:", headers.length);
-
-			const data = [];
-
-			for (let i = 1; i < lines.length; i++) {
-				logDebug(`🔍 CSV PARSING DEBUG: Parsing line ${i}...`);
-				const values = parseCSVLine(lines[i]);
-				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} values:`, values);
-				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} value count:`, values.length);
-
-				const row = {};
-
-				headers.forEach((header, index) => {
-					const value = values[index] || "";
-					row[header] = value;
-					if (i <= 3) {
-						// Log first 3 rows for debugging
-						logDebug(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
-					}
-				});
-
-				data.push(row);
-
-				if (i <= 3) {
-					// Log first 3 complete rows
-					logDebug(`🔍 CSV PARSING DEBUG: Complete row ${i}:`, row);
-				}
-			}
-
-			logDebug("🔍 CSV PARSING DEBUG: Total parsed rows:", data.length);
-			logDebug("🔍 CSV PARSING DEBUG: First row keys:", Object.keys(data[0] || {}));
-
-			return data;
-		}
-
-		function parseCSVLine(line) {
-			logDebug(`🔍 CSV LINE DEBUG: Parsing line: "${line}"`);
-			const result = [];
-			let current = "";
-			let inQuotes = false;
-
-			for (let i = 0; i < line.length; i++) {
-				const char = line[i];
-
-				if (char === '"') {
-					if (inQuotes && line[i + 1] === '"') {
-						// Escaped quote
-						current += '"';
-						i++; // Skip next quote
-						logDebug(`🔍 CSV LINE DEBUG: Found escaped quote at position ${i}`);
-					} else {
-						// Toggle quote state
-						inQuotes = !inQuotes;
-						logDebug(`🔍 CSV LINE DEBUG: Toggle quotes at position ${i}, inQuotes: ${inQuotes}`);
-					}
-				} else if (char === "," && !inQuotes) {
-					// Field separator
-					result.push(current.trim());
-					logDebug(`🔍 CSV LINE DEBUG: Field separator at position ${i}, added field: "${current.trim()}"`);
-					current = "";
-				} else {
-					current += char;
-				}
-			}
-
-			// Add the last field
-			result.push(current.trim());
-			logDebug(`🔍 CSV LINE DEBUG: Final field: "${current.trim()}"`);
-			logDebug(`🔍 CSV LINE DEBUG: Parsed result:`, result);
-
-			return result;
-		}
-
-		const data = parseCSV(csvText);
-
-		console.log(`📊 Parsed ${data.length} players from CSV`);
-		return data;
-	} catch (error) {
-		console.error("Error fetching test data:", error);
-		return [];
-	}
-}
 
 // Alternative approach: Create comprehensive test data for all players
 async function runTestsProgrammatically() {
@@ -1404,6 +584,301 @@ function generateEmailContent(testResults) {
   `;
 
 	return html;
+}
+
+// Helper function to format values according to stat configuration (same as chatbot)
+function formatValueByMetric(metric, value) {
+	logDebug(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
+	// Handle BigInt values from Neo4j first
+	if (typeof value === "bigint") {
+		return value.toString();
+	}
+
+	// Handle string values - convert to number if it's a numeric string, otherwise return as-is
+	if (typeof value === "string") {
+		// Check if it's a numeric string
+		if (!isNaN(parseFloat(value)) && isFinite(value)) {
+			// It's a numeric string, convert to number and continue with formatting
+			value = parseFloat(value);
+		} else {
+			// It's a non-numeric string (like position names), return as-is
+			return value;
+		}
+	}
+
+	// Find the config for this metric from STAT_TEST_CONFIGS
+	const metricConfig = STAT_TEST_CONFIGS.find((config) => config.metric === metric);
+
+	if (metricConfig) {
+		// Handle special formatting based on metric type
+		if (metricConfig.key === "MostPlayedForTeam") {
+			// For team names, return as-is (already formatted by chatbot)
+			logDebug(`🔧 Team name formatting ${metric}: ${value} -> ${value}`);
+			return String(value);
+		}
+
+		// Handle regular number formatting
+		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+		const result = Number(value).toFixed(decimalPlaces);
+		logDebug(`🔧 Number formatting ${metric}: ${value} -> ${result} (${decimalPlaces} decimal places)`);
+		return result;
+	}
+
+	// Fallback for unknown metrics
+	logDebug(`🔧 No config found for ${metric}, returning as-is: ${value}`);
+	return String(value);
+}
+
+// Function to load chatbot service
+function loadChatbotService() {
+	if (!ChatbotService) {
+		try {
+			// Clear ALL caches to force fresh compilation
+			if (require.cache) {
+				Object.keys(require.cache).forEach((key) => {
+					delete require.cache[key];
+				});
+			}
+
+			// Clear ts-node cache specifically
+			if (require.extensions[".ts"]) {
+				delete require.extensions[".ts"];
+			}
+
+		// Register ts-node with minimal configuration to avoid type errors
+		require("ts-node").register({
+			transpileOnly: true,
+			skipProject: true,
+			compilerOptions: {
+				target: "es2020",
+				module: "commonjs",
+				moduleResolution: "node",
+				esModuleInterop: true,
+				allowSyntheticDefaultImports: true,
+				skipLibCheck: true,
+				noEmit: true,
+			},
+		});
+
+			console.log("✅ ts-node registered with minimal configuration");
+
+			// Load the TypeScript file with simplified approach
+			const path = require("path");
+			const fs = require("fs");
+			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
+			console.log(`📁 Loading: ${chatbotPath}`);
+
+			// Verify file exists and get timestamp
+			const stats = fs.statSync(chatbotPath);
+			console.log(`📁 File timestamp: ${stats.mtime.toISOString()}`);
+			console.log(`📁 File size: ${stats.size} bytes`);
+
+			const chatbotModule = require(chatbotPath);
+			console.log("✅ TypeScript file loaded successfully");
+
+			// Check for ChatbotService
+			if (chatbotModule.ChatbotService) {
+				ChatbotService = chatbotModule.ChatbotService;
+				console.log("✅ ChatbotService loaded successfully");
+			} else {
+				console.log("❌ ChatbotService not found in module");
+				console.log("📝 Available exports:", Object.keys(chatbotModule));
+				throw new Error("ChatbotService not found in module");
+			}
+		} catch (error) {
+			// Temporarily restore original console methods to avoid corruption
+			const originalLog = console.log;
+			const originalError = console.error;
+			const originalWarn = console.warn;
+
+			// Restore original console methods
+			console.log = originalConsole.log;
+			console.error = originalConsole.error;
+			console.warn = originalConsole.warn;
+
+			console.log("⚠️ Could not load ChatbotService:");
+			console.log("⚠️ Error type:", error.constructor.name);
+			console.log("⚠️ Error message:", error.message);
+			console.log("⚠️ Error stack:", error.stack);
+			console.log("⚠️ Falling back to CSV-based testing");
+
+			// Restore overridden console methods
+			console.log = originalLog;
+			console.error = originalError;
+			console.warn = originalWarn;
+		}
+	}
+	return ChatbotService;
+}
+
+// Email configuration (using same env vars as existing email service)
+const EMAIL_CONFIG = {
+	host: process.env.SMTP_SERVER,
+	port: parseInt(process.env.SMTP_PORT || "587", 10),
+	secure: process.env.SMTP_EMAIL_SECURE === "true",
+	auth: {
+		user: process.env.SMTP_USERNAME,
+		pass: process.env.SMTP_PASSWORD,
+	},
+	tls: {
+		rejectUnauthorized: false, // Allow self-signed certificates
+	},
+};
+
+const RECIPIENT_EMAIL = process.env.SMTP_TO_EMAIL || process.env.SMTP_FROM_EMAIL;
+
+// Check if the development server is running
+async function checkServerHealth() {
+	try {
+		// Use production URL when running in Netlify environment
+		const baseUrl = process.env.NODE_ENV === "production" ? "https://dorkinians-website-v3.netlify.app" : "http://localhost:3000";
+
+		const response = await fetch(`${baseUrl}/api/chatbot`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({
+				question: "How many goals has Luke Bangs scored?",
+				userContext: "Luke Bangs",
+			}),
+		});
+
+		if (!response.ok) {
+			console.log(`❌ Server responded with status: ${response.status}`);
+			return false;
+		}
+
+		const data = await response.json();
+		// Check if we get a valid response (not empty or error)
+		if (!data.answer || data.answer.trim() === "") {
+			console.log("❌ Server returned empty response");
+			return false;
+		}
+
+		console.log("✅ Server is running and responding correctly");
+		return true;
+	} catch (error) {
+		console.log(`❌ Server connection failed: ${error.message}`);
+		return false;
+	}
+}
+
+// Fetch test data from CSV directly
+async function fetchTestData() {
+	try {
+		const testDataUrl =
+			"https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv";
+
+		console.log("🔍 Fetching test data from CSV...");
+
+		const response = await fetch(testDataUrl);
+		if (!response.ok) {
+			throw new Error(`Failed to fetch test data: ${response.statusText}`);
+		}
+
+		const csvText = await response.text();
+		console.log("📊 CSV content length:", csvText.length);
+
+		// Proper CSV parsing to handle quoted fields and commas within fields
+		function parseCSV(csvText) {
+			logDebug("🔍 CSV PARSING DEBUG: Starting CSV parsing...");
+			logDebug("🔍 CSV PARSING DEBUG: CSV text length:", csvText.length);
+
+			const lines = csvText.split("\n").filter((line) => line.trim());
+			logDebug("🔍 CSV PARSING DEBUG: Total lines after filtering:", lines.length);
+			logDebug("🔍 CSV PARSING DEBUG: First 3 lines:", lines.slice(0, 3));
+
+			if (lines.length === 0) {
+				logDebug("🔍 CSV PARSING DEBUG: No lines found, returning empty array");
+				return [];
+			}
+
+			// Parse headers
+			logDebug("🔍 CSV PARSING DEBUG: Parsing header line...");
+			const headers = parseCSVLine(lines[0]);
+			logDebug("🔍 CSV PARSING DEBUG: Parsed headers:", headers);
+			logDebug("🔍 CSV PARSING DEBUG: Header count:", headers.length);
+
+			const data = [];
+
+			for (let i = 1; i < lines.length; i++) {
+				logDebug(`🔍 CSV PARSING DEBUG: Parsing line ${i}...`);
+				const values = parseCSVLine(lines[i]);
+				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} values:`, values);
+				logDebug(`🔍 CSV PARSING DEBUG: Line ${i} value count:`, values.length);
+
+				const row = {};
+
+				headers.forEach((header, index) => {
+					const value = values[index] || "";
+					row[header] = value;
+					if (i <= 3) {
+						// Log first 3 rows for debugging
+						logDebug(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
+					}
+				});
+
+				data.push(row);
+
+				if (i <= 3) {
+					// Log first 3 complete rows
+					logDebug(`🔍 CSV PARSING DEBUG: Complete row ${i}:`, row);
+				}
+			}
+
+			logDebug("🔍 CSV PARSING DEBUG: Total parsed rows:", data.length);
+			logDebug("🔍 CSV PARSING DEBUG: First row keys:", Object.keys(data[0] || {}));
+
+			return data;
+		}
+
+		function parseCSVLine(line) {
+			logDebug(`🔍 CSV LINE DEBUG: Parsing line: "${line}"`);
+			const result = [];
+			let current = "";
+			let inQuotes = false;
+
+			for (let i = 0; i < line.length; i++) {
+				const char = line[i];
+
+				if (char === '"') {
+					if (inQuotes && line[i + 1] === '"') {
+						// Escaped quote
+						current += '"';
+						i++; // Skip next quote
+						logDebug(`🔍 CSV LINE DEBUG: Found escaped quote at position ${i}`);
+					} else {
+						// Toggle quote state
+						inQuotes = !inQuotes;
+						logDebug(`🔍 CSV LINE DEBUG: Toggle quotes at position ${i}, inQuotes: ${inQuotes}`);
+					}
+				} else if (char === "," && !inQuotes) {
+					// Field separator
+					result.push(current.trim());
+					logDebug(`🔍 CSV LINE DEBUG: Field separator at position ${i}, added field: "${current.trim()}"`);
+					current = "";
+				} else {
+					current += char;
+				}
+			}
+
+			// Add the last field
+			result.push(current.trim());
+			logDebug(`🔍 CSV LINE DEBUG: Final field: "${current.trim()}"`);
+			logDebug(`🔍 CSV LINE DEBUG: Parsed result:`, result);
+
+			return result;
+		}
+
+		const data = parseCSV(csvText);
+
+		console.log(`📊 Parsed ${data.length} players from CSV`);
+		return data;
+	} catch (error) {
+		console.error("Error fetching test data:", error);
+		return [];
+	}
 }
 
 async function sendEmailReport(testResults) {
