@@ -178,6 +178,7 @@ async function runEnhancedChatbotTest() {
 			...process.env,
 			DEBUG_MODE: "true",
 			ENHANCED_LOGGING: "true",
+			TS_NODE_TRANSPILE_ONLY: "true",
 		};
 
 		// Execute the test script
