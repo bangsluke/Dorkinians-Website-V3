@@ -121,8 +121,8 @@ require("ts-node").register({
 	},
 });
 
-// Import STAT_TEST_CONFIGS from config.ts
-const { STAT_TEST_CONFIGS } = require('../config/config.ts');
+// Import STAT_TEST_CONFIGS and statObject from config.ts
+const { STAT_TEST_CONFIGS, statObject } = require('../config/config.ts');
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
@@ -185,10 +185,9 @@ async function runTestsProgrammatically() {
 					logDebug(`🔍 DEBUG: Player data for ${playerName}:`, player);
 
 					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
-						const rawValue = player[statConfig.key];
-						// Format the expected value according to stat configuration (same as chatbot)
-						expectedValue = formatValueByMetric(statConfig.key, rawValue);
-						logDebug(`✅ Found CSV data for ${statKey}: ${rawValue} -> formatted: ${expectedValue}`);
+						// CSV values are already formatted with correct decimal places
+						expectedValue = player[statConfig.key];
+						logDebug(`✅ Found CSV data for ${statKey}: ${expectedValue} (already formatted)`);
 					} else {
 						expectedValue = "N/A";
 						logDebug(`❌ No CSV data found for ${statKey}`);
@@ -586,6 +585,36 @@ function generateEmailContent(testResults) {
 	return html;
 }
 
+// Helper function to format CSV values immediately when reading
+function formatCSVValue(header, value) {
+	// Skip empty values
+	if (!value || value === "") {
+		return value;
+	}
+
+	// Find the stat config for this header
+	const statConfig = STAT_TEST_CONFIGS.find((config) => config.key === header);
+	
+	if (statConfig) {
+		// Get decimal places from statObject (authoritative source)
+		const statKey = statConfig.key;
+		const statObj = statObject[statKey];
+		
+		if (statObj && statObj.numberDecimalPlaces !== undefined) {
+			// Handle numeric values
+			if (!isNaN(parseFloat(value)) && isFinite(value)) {
+				const decimalPlaces = statObj.numberDecimalPlaces;
+				const result = Number(value).toFixed(decimalPlaces);
+				logDebug(`🔧 CSV formatting ${header}: ${value} -> ${result} (${decimalPlaces} decimal places)`);
+				return result;
+			}
+		}
+	}
+
+	// Return as-is for non-numeric or unknown values
+	return value;
+}
+
 // Helper function to format values according to stat configuration (same as chatbot)
 function formatValueByMetric(metric, value) {
 	logDebug(`🔧 formatValueByMetric called with metric: ${metric}, value: ${value}`);
@@ -606,7 +635,7 @@ function formatValueByMetric(metric, value) {
 		}
 	}
 
-	// Find the config for this metric from STAT_TEST_CONFIGS
+	// Find the config for this metric from STAT_TEST_CONFIGS to get the key
 	const metricConfig = STAT_TEST_CONFIGS.find((config) => config.metric === metric);
 
 	if (metricConfig) {
@@ -617,11 +646,16 @@ function formatValueByMetric(metric, value) {
 			return String(value);
 		}
 
-		// Handle regular number formatting
-		const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
-		const result = Number(value).toFixed(decimalPlaces);
-		logDebug(`🔧 Number formatting ${metric}: ${value} -> ${result} (${decimalPlaces} decimal places)`);
-		return result;
+		// Get decimal places from statObject (authoritative source)
+		const statKey = metricConfig.key;
+		const statConfig = statObject[statKey];
+		
+		if (statConfig && statConfig.numberDecimalPlaces !== undefined) {
+			const decimalPlaces = statConfig.numberDecimalPlaces;
+			const result = Number(value).toFixed(decimalPlaces);
+			logDebug(`🔧 Number formatting ${metric} (${statKey}): ${value} -> ${result} (${decimalPlaces} decimal places from statObject)`);
+			return result;
+		}
 	}
 
 	// Fallback for unknown metrics
@@ -811,11 +845,13 @@ async function fetchTestData() {
 				const row = {};
 
 				headers.forEach((header, index) => {
-					const value = values[index] || "";
-					row[header] = value;
+					const rawValue = values[index] || "";
+					// Format the value immediately using appropriate decimal places
+					const formattedValue = formatCSVValue(header, rawValue);
+					row[header] = formattedValue;
 					if (i <= 3) {
 						// Log first 3 rows for debugging
-						logDebug(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${value}"`);
+						logDebug(`🔍 CSV PARSING DEBUG: Row ${i}, Header "${header}": "${rawValue}" -> "${formattedValue}"`);
 					}
 				});
 

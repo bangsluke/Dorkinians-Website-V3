@@ -409,6 +409,8 @@ export class EnhancedQuestionAnalyzer {
 
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
+			"Season Count With Total", // Most specific season counting
+			"Season Count Simple", // Simple season counting
 			"Own Goals", // Most specific - own goals - helps stop the chatbot returning goals
 			"Goals Conceded Per Appearance", // Most specific - average calculation metrics
 			"Conceded Per Appearance", // Most specific - average calculation metrics (alternative naming)
@@ -590,6 +592,8 @@ export class EnhancedQuestionAnalyzer {
 			"Penalty record": "PSC",
 			"Team Analysis": "TEAM_ANALYSIS",
 			"Season Analysis": "SEASON_ANALYSIS",
+			"Season Count With Total": "SEASON_COUNT_WITH_TOTAL",
+			"Season Count Simple": "SEASON_COUNT_SIMPLE",
 			"Double Game Weeks": "DOUBLE_GAME_WEEKS",
 		};
 
