@@ -139,7 +139,7 @@ SEEDING PROCESS INITIATED:
 📊 Creating nodes and relationships
 📧 You'll receive another email when complete
 
-EXPECTED DURATION: ~37 minutes
+EXPECTED DURATION: ~65 minutes
 
 This process runs on Heroku infrastructure and will continue even if you close this email.
 

@@ -98,13 +98,13 @@ describe("Chatbot Integration Tests", () => {
 			expect(processingDetails.queryBreakdown).toBeDefined();
 
 			// Verify question analysis
-			expect(processingDetails.questionAnalysis.type).toBe("player");
-			expect(processingDetails.questionAnalysis.entities).toContain(playerName);
-			expect(processingDetails.questionAnalysis.metrics).toContain("G");
+			expect(processingDetails.questionAnalysis?.type).toBe("player");
+			expect(processingDetails.questionAnalysis?.entities).toContain(playerName);
+			expect(processingDetails.questionAnalysis?.metrics).toContain("G");
 
 			// Verify query breakdown
-			expect(processingDetails.queryBreakdown.playerName).toBe(playerName);
-			expect(processingDetails.queryBreakdown.statEntity).toBe("G");
+			expect(processingDetails.queryBreakdown?.playerName).toBe(playerName);
+			expect(processingDetails.queryBreakdown?.statEntity).toBe("G");
 		});
 
 		test("should handle team-specific questions", async () => {
@@ -311,7 +311,7 @@ describe("Chatbot Integration Tests", () => {
 
 				// Should have consistent processing details
 				const processingDetails = chatbotService.getProcessingDetails();
-				expect(processingDetails.queryBreakdown.playerName).toBe(playerName);
+				expect(processingDetails.queryBreakdown?.playerName).toBe(playerName);
 			}
 		});
 	});

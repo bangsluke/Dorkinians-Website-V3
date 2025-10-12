@@ -419,8 +419,10 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"penalties saved on average",
 		"average penalties saved",
 	],
-	"Team Analysis": ["most appearances for", "most goals for", "played for", "teams played for"],
+	"Team Analysis": ["most appearances for", "most goals for", "played for", "teams played for", "teams played in", "how many teams", "how many of the teams"],
 	"Season Analysis": ["seasons played in", "seasons", "years played"],
+	"Season Count With Total": ["how many of the seasons", "how many of the clubs seasons", "how many of the clubs recorded seasons", "how many of the clubs stat recorded seasons", "seasons played for", "seasons played in"],
+	"Season Count Simple": ["how many seasons has", "for how many seasons has", "how many seasons did", "for how many seasons did"],
 	"Distance Travelled": [
 		"distance travelled",
 		"distance traveled",
@@ -1249,6 +1251,23 @@ export class EntityExtractor {
 
 			// Special handling for "appearance" - only match if we have context
 			if (word === "appearance") {
+				// Check if this is a team-specific appearance query - if so, don't map to per-appearance stats
+				const teamAppearancePatterns = [
+					/appearances?.*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+					/(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?appearances?/i,
+					/appearance\s+count.*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+					/(?:provide|give).*?appearance.*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+					/(?:how\s+many\s+times|times).*?played\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+					/(?:games?|appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i
+				];
+
+				const isTeamSpecificAppearance = teamAppearancePatterns.some(pattern => pattern.test(this.lowerQuestion));
+				
+				if (isTeamSpecificAppearance) {
+					// Don't map to per-appearance stats for team-specific appearance queries
+					return null;
+				}
+
 				// Map all MatchDetails stats to their corresponding "Per Appearance" stat types
 				const matchDetailsStats = [
 					{ stat: "minutes", statType: "Minutes Per Appearance" },
@@ -1758,7 +1777,9 @@ export class EntityExtractor {
 				"%",
 				"clubs",
 				"club",
+				"clubs teams",
 				"appearance",
+				"appearance count",
 				"goal",
 				"average",
 				"score",
