@@ -878,14 +878,14 @@ export default function AdminPanel() {
 													<p className='text-xs text-gray-500'>nodes created</p>
 												</div>
 											</div>
-											{result.progressDetails.currentNodeCount >= 23000 && (
+											{result.progressDetails.currentNodeCount >= 15000 && (
 												<p className='text-xs text-green-600 mt-1 font-medium'>
-													✅ Target reached! ({result.progressDetails.currentNodeCount.toLocaleString()} ≥ 23,000)
+													✅ Target reached! ({result.progressDetails.currentNodeCount.toLocaleString()} ≥ 15,000)
 												</p>
 											)}
-											{result.progressDetails.currentNodeCount >= 20000 && result.progressDetails.currentNodeCount < 23000 && (
+											{result.progressDetails.currentNodeCount >= 12000 && result.progressDetails.currentNodeCount < 15000 && (
 												<p className='text-xs text-yellow-600 mt-1 font-medium'>
-													⚠️ Close to target ({result.progressDetails.currentNodeCount.toLocaleString()}/23,000)
+													⚠️ Close to target ({result.progressDetails.currentNodeCount.toLocaleString()}/15,000)
 												</p>
 											)}
 										</div>

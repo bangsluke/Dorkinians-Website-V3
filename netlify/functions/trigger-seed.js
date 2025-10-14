@@ -639,7 +639,43 @@ exports.handler = async (event, context) => {
 		const herokuStarted = await callHeroku();
 		
 		if (!herokuStarted) {
-			throw new Error("Failed to start Heroku seeding service after all retry attempts");
+			console.error("❌ CRITICAL: Heroku seeding service failed to start after all retry attempts");
+			console.error("❌ CRITICAL: This is a critical failure - no job was created on Heroku");
+			
+			// Send critical failure notification immediately
+			try {
+				await emailService.sendSeedingSummaryEmail({
+					success: false,
+					environment: environment,
+					jobId: jobId,
+					nodesCreated: 0,
+					relationshipsCreated: 0,
+					errorCount: 1,
+					errors: ["CRITICAL: Failed to start Heroku seeding service after all retry attempts"],
+					duration: 0,
+					startTime: new Date().toISOString(),
+					endTime: new Date().toISOString()
+				});
+				console.log("✅ CRITICAL: Critical failure notification sent");
+			} catch (emailError) {
+				console.error("❌ CRITICAL: Failed to send critical failure notification:", emailError.message);
+			}
+			
+			// Return error response to user
+			return {
+				statusCode: 500,
+				headers: { ...headers, "Content-Type": "application/json" },
+				body: JSON.stringify({
+					success: false,
+					error: "CRITICAL: Failed to start Heroku seeding service after all retry attempts",
+					message: "The seeding service could not be started. This is a critical failure.",
+					environment,
+					jobId,
+					timestamp: new Date().toISOString(),
+					status: "failed",
+					note: "Check your email for detailed failure notification."
+				}),
+			};
 		}
 
 		// Start monitoring the job (this runs in background)
