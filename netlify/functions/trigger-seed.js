@@ -504,15 +504,32 @@ exports.handler = async (event, context) => {
 		// Configure email service with environment variables (available during execution)
 		console.log("📧 EMAIL: Configuring email service...");
 		emailService.configure();
+		
+		// Check if email service is properly configured
+		if (!emailService.transporter || !emailService.config) {
+			console.warn("⚠️ EMAIL: Email service not configured - missing environment variables");
+			console.log("📧 EMAIL: Available env vars:", {
+				SMTP_SERVER: process.env.SMTP_SERVER ? "SET" : "MISSING",
+				SMTP_PORT: process.env.SMTP_PORT ? "SET" : "MISSING", 
+				SMTP_USERNAME: process.env.SMTP_USERNAME ? "SET" : "MISSING",
+				SMTP_PASSWORD: process.env.SMTP_PASSWORD ? "SET" : "MISSING",
+				SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL ? "SET" : "MISSING",
+				SMTP_TO_EMAIL: process.env.SMTP_TO_EMAIL ? "SET" : "MISSING"
+			});
+		} else {
+			console.log("✅ EMAIL: Email service configured successfully");
+		}
 
 		// Send start notification if requested
 		if (emailConfig.sendEmailAtStart && emailConfig.emailAddress) {
 			console.log("📧 START: Sending start notification email...");
+			console.log("📧 START: Email config:", emailConfig);
 			try {
 				// Temporarily override the email service recipient
 				const originalTo = emailService.config?.to;
 				if (emailService.config) {
 					emailService.config.to = emailConfig.emailAddress;
+					console.log("📧 START: Overriding recipient to:", emailConfig.emailAddress);
 				}
 
 				const startEmailSent = await emailService.sendSeedingStartEmail(environment);
@@ -528,9 +545,12 @@ exports.handler = async (event, context) => {
 				}
 			} catch (error) {
 				console.error("❌ START: Error sending start notification email:", error.message);
+				console.error("❌ START: Error stack:", error.stack);
 			}
 		} else {
 			console.log("📧 START: Start notification not requested or no email address provided");
+			console.log("📧 START: sendEmailAtStart:", emailConfig.sendEmailAtStart);
+			console.log("📧 START: emailAddress:", emailConfig.emailAddress);
 		}
 
 		// Trigger Heroku seeding service
