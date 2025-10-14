@@ -394,7 +394,7 @@ function generateEmailContent(testResults) {
 	const timestamp = new Date().toLocaleString();
 	const successRate = testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0;
 
-	// Filter out passed tests if hide mode is enabled
+ 	// Filter out passed tests if hide mode is enabled
 	const testsToShow = hidePassedTests ? testResults.testDetails.filter(test => test.status === "FAILED") : testResults.testDetails;
 	const passedTestsCount = testResults.passedTests;
 	const totalTestsCount = testResults.totalTests;
