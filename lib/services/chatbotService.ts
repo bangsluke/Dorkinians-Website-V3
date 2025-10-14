@@ -1424,6 +1424,28 @@ export class ChatbotService {
 				       seasonCount as value,
 				       firstSeason
 			`;
+		} else if (metric === "MostScoredForTeam") {
+			// Query for team with most goals scored
+			query = `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
+				WITH p, md.team as team, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+				WITH p, team, goals,
+					CASE 
+						WHEN team = "1st XI" THEN 1
+						WHEN team = "2nd XI" THEN 2
+						WHEN team = "3rd XI" THEN 3
+						WHEN team = "4th XI" THEN 4
+						WHEN team = "5th XI" THEN 5
+						WHEN team = "6th XI" THEN 6
+						WHEN team = "7th XI" THEN 7
+						WHEN team = "8th XI" THEN 8
+						ELSE 9
+					END as teamOrder
+				ORDER BY goals DESC, teamOrder ASC
+				LIMIT 1
+				RETURN p.playerName as playerName, team as value
+			`;
 		}
 
 		return query;
@@ -1642,9 +1664,18 @@ export class ChatbotService {
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("what team has") && questionLower.includes("scored the most goals for")) {
 						// Use the actual query results from Cypher
-						const teamName = value; // e.g., "4s"
-						const goalsCount = playerData.goalsCount || 0;
-						answer = `${playerName} has scored the most goals for the ${teamName} (${goalsCount} goals).`;
+						const teamName = String(value); // e.g., "4th XI"
+						// Convert team name to expected format (e.g., "4th XI" -> "4s")
+						const teamDisplayName = teamName
+							.replace("1st XI", "1s")
+							.replace("2nd XI", "2s") 
+							.replace("3rd XI", "3s")
+							.replace("4th XI", "4s")
+							.replace("5th XI", "5s")
+							.replace("6th XI", "6s")
+							.replace("7th XI", "7s")
+							.replace("8th XI", "8s");
+						answer = `${playerName} has scored the most goals for the ${teamDisplayName} team`;
 					}
 				} else if (metric === "SEASON_COUNT_WITH_TOTAL") {
 					// For "How many of the seasons has player played for/in?" questions
