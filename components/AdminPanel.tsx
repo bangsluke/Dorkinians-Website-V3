@@ -787,8 +787,28 @@ export default function AdminPanel() {
 									<p className='text-sm text-blue-600'>
 										{result.status === "pending"
 											? "Initializing seeding process..."
-											: result.currentStep || "Processing 10 data sources from Google Sheets..."}
+											: result.currentStep || "Processing data sources from Google Sheets..."}
 									</p>
+									{result.currentStep && result.currentStep.includes('Fetching CSV:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											📥 Currently fetching CSV data from Google Sheets
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Fetching external:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🌐 Currently fetching external data (league tables, fixtures, results)
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Processing CSV:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🔄 Currently processing CSV data into database nodes
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Processing external:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🔄 Currently processing external data into database nodes
+										</p>
+									)}
 									{result.progress !== undefined && (
 										<div className='mt-2'>
 											<div className='flex justify-between text-xs text-blue-600 mb-1'>
