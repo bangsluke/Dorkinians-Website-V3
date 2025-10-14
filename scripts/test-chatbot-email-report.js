@@ -50,6 +50,9 @@ process.env.TS_NODE_TRANSPILE_ONLY = "true";
 // Check for debug mode
 const isDebugMode = process.env.DEBUG_MODE === "true";
 
+// Check for hide passed tests mode
+const hidePassedTests = process.argv.includes("--hide-passed") || process.env.HIDE_PASSED_TESTS === "true";
+
 // Conditional logging functions
 const logMinimal = (message) => {
 	console.log(message);
@@ -391,6 +394,11 @@ function generateEmailContent(testResults) {
 	const timestamp = new Date().toLocaleString();
 	const successRate = testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0;
 
+	// Filter out passed tests if hide mode is enabled
+	const testsToShow = hidePassedTests ? testResults.testDetails.filter(test => test.status === "FAILED") : testResults.testDetails;
+	const passedTestsCount = testResults.passedTests;
+	const totalTestsCount = testResults.totalTests;
+
 	let html = `
     <!DOCTYPE html>
     <html>
@@ -419,13 +427,15 @@ function generateEmailContent(testResults) {
         .status-passed { color: #28a745; }
         .status-failed { color: #dc3545; }
         .category-header { background-color: #e9ecef; font-weight: bold; }
+        .hidden-info { background-color: #e3f2fd; padding: 10px; border-radius: 5px; margin: 10px 0; }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>🤖 Dorkinians Chatbot Comprehensive Test Report</h1>
+        <h1>🤖 Dorkinians Chatbot Comprehensive Test Report${hidePassedTests ? " (Failed Tests Only)" : ""}</h1>
         <p><strong>Generated:</strong> ${timestamp}</p>
         <p><strong>Test Suite:</strong> Comprehensive Stat Testing</p>
+        ${hidePassedTests ? `<p><strong>Note:</strong> This report shows only failed tests to reduce email length. ${passedTestsCount} passed tests are hidden.</p>` : ""}
       </div>
 
       <div class="summary">
@@ -437,11 +447,11 @@ function generateEmailContent(testResults) {
           </tr>
           <tr>
             <td>Total Tests</td>
-            <td>${testResults.totalTests}</td>
+            <td>${totalTestsCount}</td>
           </tr>
           <tr>
             <td>Passed Tests</td>
-            <td style="color: #28a745;">${testResults.passedTests}</td>
+            <td style="color: #28a745;">${passedTestsCount}${hidePassedTests ? " (hidden from detailed view)" : ""}</td>
           </tr>
           <tr>
             <td>Failed Tests</td>
@@ -455,14 +465,22 @@ function generateEmailContent(testResults) {
           </tr>
         </table>
       </div>
+
+      ${hidePassedTests ? `
+      <div class="hidden-info">
+        <h3>📋 Hidden Information</h3>
+        <p><strong>${passedTestsCount} passed tests</strong> have been hidden from this report to reduce email length. 
+        To see all test results including passed tests, use the standard <code>npm run test:chatbot-report</code> command.</p>
+      </div>
+      ` : ""}
   `;
 
 	// Generate detailed test results table
-	if (testResults.testDetails.length > 0) {
+	if (testsToShow.length > 0) {
 		html += `
       <div class="test-details">
-        <h2>📋 Detailed Test Results Table</h2>
-        <p>Complete comparison of all stat questions, test data values, chatbot answers, and pass/fail status:</p>
+        <h2>📋 ${hidePassedTests ? "Failed Test Results" : "Detailed Test Results Table"}</h2>
+        <p>${hidePassedTests ? `Detailed view of ${testsToShow.length} failed tests that require attention:` : "Complete comparison of all stat questions, test data values, chatbot answers, and pass/fail status:"}</p>
         
         <table class="detailed-table">
           <thead>
@@ -480,7 +498,7 @@ function generateEmailContent(testResults) {
 
 		// Group tests by category and create table rows
 		const categories = {};
-		testResults.testDetails.forEach((test) => {
+		testsToShow.forEach((test) => {
 			if (!categories[test.describe]) {
 				categories[test.describe] = [];
 			}
@@ -551,12 +569,19 @@ function generateEmailContent(testResults) {
         </table>
       </div>
     `;
+	} else if (hidePassedTests && testsToShow.length === 0) {
+		html += `
+      <div class="test-details">
+        <h2>🎉 No Failed Tests!</h2>
+        <p>All ${totalTestsCount} tests passed successfully! The chatbot is working perfectly.</p>
+      </div>
+    `;
 	}
 
 	html += `
       <div class="summary">
         <h2>📋 Test Coverage</h2>
-        <p>This comprehensive test covers all ${testResults.totalTests} stat configurations defined in the testUtils file, including:</p>
+        <p>This comprehensive test covers all ${totalTestsCount} stat configurations defined in the testUtils file, including:</p>
         <ul>
           <li>Basic Statistics (Goals, Assists, Appearances, etc.)</li>
           <li>Advanced Statistics (Goals per Appearance, Minutes per Goal, etc.)</li>
@@ -932,9 +957,9 @@ async function sendEmailReport(testResults) {
 		const mailOptions = {
 			from: EMAIL_CONFIG.auth.user,
 			to: RECIPIENT_EMAIL,
-			subject: `🤖 Dorkinians Chatbot Test Report - ${new Date().toLocaleDateString()}`,
+			subject: `🤖 Dorkinians Chatbot Test Report${hidePassedTests ? " (Failed Tests Only)" : ""} - ${new Date().toLocaleDateString()}`,
 			html: htmlContent,
-			text: `Dorkinians Chatbot Test Report\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`,
+			text: `Dorkinians Chatbot Test Report${hidePassedTests ? " (Failed Tests Only)" : ""}\n\nTotal Tests: ${testResults.totalTests}\nPassed: ${testResults.passedTests}${hidePassedTests ? " (hidden)" : ""}\nFailed: ${testResults.failedTests}\nSuccess Rate: ${testResults.totalTests > 0 ? ((testResults.passedTests / testResults.totalTests) * 100).toFixed(1) : 0}%\n\nSee HTML version for detailed results.`,
 		};
 
 		console.log("📧 Sending email report...");
