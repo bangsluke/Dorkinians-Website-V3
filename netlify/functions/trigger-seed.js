@@ -1,4 +1,4 @@
-// Simple email service implementation for Netlify Functions
+// Enhanced trigger-seed function with comprehensive monitoring
 class SimpleEmailService {
 	constructor() {
 		this.config = null;
@@ -23,7 +23,7 @@ class SimpleEmailService {
 		if (emailConfig.host && emailConfig.auth.user && emailConfig.auth.pass && emailConfig.from && emailConfig.to) {
 			try {
 				const nodemailer = require("nodemailer");
-				this.transporter = nodemailer.createTransport({
+				this.transporter = nodemailer.createTransporter({
 					host: emailConfig.host,
 					port: emailConfig.port,
 					secure: emailConfig.secure,
@@ -51,7 +51,6 @@ class SimpleEmailService {
 
 		try {
 			const subject = `🔄 Database Seeding Started - ${environment}`;
-
 			const htmlBody = this.generateSeedingStartEmail(environment);
 			const textBody = this.generateSeedingStartEmailText(environment);
 
@@ -80,8 +79,6 @@ class SimpleEmailService {
 
 		try {
 			const subject = `Database Seeding ${summary.success ? "Success" : "Failed"} - ${summary.environment}`;
-
-			// Add finish timestamp if not present
 			const summaryWithFinishTime = {
 				...summary,
 				finishTime: summary.finishTime || new Date().toISOString(),
@@ -99,193 +96,355 @@ class SimpleEmailService {
 			};
 
 			const info = await this.transporter.sendMail(mailOptions);
-			console.log("📧 Email sent successfully:", info.messageId);
+			console.log("📧 Summary email sent successfully:", info.messageId);
 			return true;
 		} catch (error) {
-			console.error("Failed to send email:", error.message);
+			console.error("Failed to send summary email:", error.message);
+			return false;
+		}
+	}
+
+	async sendCriticalErrorNotification(errorInfo) {
+		if (!this.transporter || !this.config) {
+			console.log("🚨 CRITICAL ERROR - Email service not configured, cannot send notification");
+			console.log("🚨 CRITICAL ERROR DETAILS:", errorInfo);
+			return false;
+		}
+
+		try {
+			const subject = `🚨 CRITICAL ERROR - Database Seeder - ${errorInfo.errorType}`;
+			const htmlBody = this.generateCriticalErrorEmail(errorInfo);
+			const textBody = this.generateCriticalErrorEmailText(errorInfo);
+
+			const mailOptions = {
+				from: this.config.from,
+				to: this.config.to,
+				subject: subject,
+				html: htmlBody,
+				text: textBody,
+				priority: 'high'
+			};
+
+			const info = await this.transporter.sendMail(mailOptions);
+			console.log("📧 Critical error email sent successfully:", info.messageId);
+			return true;
+		} catch (error) {
+			console.error("🚨 FAILED to send critical error email:", error.message);
+			console.error("🚨 ORIGINAL CRITICAL ERROR:", errorInfo);
 			return false;
 		}
 	}
 
 	generateSeedingStartEmail(environment) {
 		return `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<style>
-					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-					.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-					.header { background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-					.content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
-					.info-box { background: white; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #007bff; }
-					.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; }
-				</style>
-			</head>
-			<body>
-				<div class="container">
-					<div class="header">
-						<h1>🔄 Database Seeding Started</h1>
-						<p>Environment: ${environment.toUpperCase()}</p>
-						<p>Timestamp: ${new Date().toLocaleString()}</p>
-					</div>
-					
-					<div class="content">
-						<h2>Seeding Process Initiated</h2>
-						
-						<div class="info-box">
-							<h3>What's Happening:</h3>
-							<ul>
-								<li>✅ Database connection established</li>
-								<li>🔄 Processing 10 data sources from Google Sheets</li>
-								<li>🗑️ Clearing existing data and applying schema</li>
-								<li>📊 Creating nodes and relationships</li>
-								<li>📧 You'll receive another email when complete</li>
-							</ul>
-						</div>
-						
-						<div class="info-box">
-							<h3>Expected Duration:</h3>
-							<p>Based on current performance: <strong>~65 minutes</strong></p>
-							<p>This process runs on Heroku infrastructure and will continue even if you close this email.</p>
-						</div>
-						
-						<div class="footer">
-							<p>This is an automated notification from the Dorkinians Website V3 seeding system.</p>
-							<p>Monitor progress via the admin panel or wait for completion email.</p>
-						</div>
-					</div>
-				</div>
-			</body>
-			</html>
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<title>Database Seeding Started</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+			<div style="background: #007bff; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h1 style="margin: 0; font-size: 24px;">🔄 Database Seeding Started</h1>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">Environment: ${environment}</p>
+			</div>
+			
+			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h2 style="margin-top: 0; color: #007bff;">Seeding Process Initiated</h2>
+				<p>The database seeding process has been successfully started on the Heroku service.</p>
+				<p><strong>What happens next:</strong></p>
+				<ul>
+					<li>Data will be fetched from external sources</li>
+					<li>CSV files will be processed and validated</li>
+					<li>Neo4j database will be updated with new data</li>
+					<li>You will receive a completion notification when finished</li>
+				</ul>
+			</div>
+			
+			<div style="background: #d1ecf1; padding: 15px; border-radius: 5px; font-size: 14px; color: #0c5460;">
+				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${environment}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Started:</strong> ${new Date().toLocaleString()}</p>
+			</div>
+		</body>
+		</html>
 		`;
 	}
 
 	generateSeedingStartEmailText(environment) {
 		return `
-Database Seeding Started
-Environment: ${environment.toUpperCase()}
-Timestamp: ${new Date().toLocaleString()}
+🔄 Database Seeding Started
+Environment: ${environment}
 
-SEEDING PROCESS INITIATED:
-✅ Database connection established
-🔄 Processing 10 data sources from Google Sheets
-🗑️ Clearing existing data and applying schema
-📊 Creating nodes and relationships
-📧 You'll receive another email when complete
+The database seeding process has been successfully started on the Heroku service.
 
-EXPECTED DURATION: ~65 minutes
+What happens next:
+- Data will be fetched from external sources
+- CSV files will be processed and validated
+- Neo4j database will be updated with new data
+- You will receive a completion notification when finished
 
-This process runs on Heroku infrastructure and will continue even if you close this email.
-
-Monitor progress via the admin panel or wait for completion email.
-
-This is an automated notification from the Dorkinians Website V3 seeding system.
+Service: Dorkinians Database Seeder
+Environment: ${environment}
+Started: ${new Date().toLocaleString()}
 		`.trim();
 	}
 
 	generateSeedingSummaryEmail(summary) {
-		const statusIcon = summary.success ? "✅" : "❌";
-		const statusText = summary.success ? "Success" : "Failed";
-		const statusColor = summary.success ? "#28a745" : "#dc3545";
-
+		const statusIcon = summary.success ? '✅' : '❌';
+		const statusText = summary.success ? 'Success' : 'Failed';
+		const statusColor = summary.success ? '#28a745' : '#dc3545';
+		
+		const startTime = summary.startTime ? new Date(summary.startTime).toLocaleString() : 'Not recorded';
+		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
+		const durationFormatted = summary.duration ? `${(summary.duration / 1000).toFixed(2)}s` : 'Not recorded';
+		
 		return `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<style>
-					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-					.container { max-width: 600px; margin: 0 auto; padding: 20px; }
-					.header { background-color: ${statusColor}; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-					.content { background-color: #f8f9fa; padding: 20px; border-radius: 0 0 5px 5px; }
-					.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
-					.summary-item { background: white; padding: 15px; border-radius: 5px; text-align: center; }
-					.summary-number { font-size: 24px; font-weight: bold; color: ${statusColor}; }
-					.summary-label { font-size: 14px; color: #666; margin-top: 5px; }
-					.error-list { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 20px 0; }
-					.error-item { margin: 5px 0; padding: 5px; background: white; border-radius: 3px; }
-					.footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #666; }
-				</style>
-			</head>
-			<body>
-				<div class="container">
-					<div class="header">
-						<h1>${statusIcon} Database Seeding ${statusText}</h1>
-						<p>Environment: ${summary.environment.toUpperCase()}</p>
-						<p>Started: ${new Date(summary.timestamp).toLocaleString()}</p>
-						<p>Finished: ${new Date(summary.finishTime).toLocaleString()}</p>
-					</div>
-					
-					<div class="content">
-						<h2>Seeding Summary</h2>
-						
-						<div class="summary-grid">
-							<div class="summary-item">
-								<div class="summary-number">${summary.nodesCreated}</div>
-								<div class="summary-label">Nodes Created</div>
-							</div>
-							<div class="summary-item">
-								<div class="summary-number">${summary.relationshipsCreated}</div>
-								<div class="summary-label">Relationships Created</div>
-							</div>
-							<div class="summary-item">
-								<div class="summary-number">${summary.errorCount}</div>
-								<div class="summary-label">Errors in Log</div>
-							</div>
-						</div>
-						
-						${
-							summary.errors && summary.errors.length > 0
-								? `
-							<div class="error-list">
-								<h3>Errors Encountered:</h3>
-								${summary.errors.map((error) => `<div class="error-item">❌ ${error}</div>`).join("")}
-							</div>
-						`
-								: ""
-						}
-						
-						<div class="footer">
-							<p>This is an automated notification from the Dorkinians Website V3 seeding system.</p>
-							<p>For detailed error logs, check the Heroku logs.</p>
-						</div>
-					</div>
-				</div>
-			</body>
-			</html>
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<title>Database Seeding ${statusText}</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+			<div style="background: ${statusColor}; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h1 style="margin: 0; font-size: 24px;">${statusIcon} Database Seeding ${statusText}</h1>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">Environment: ${summary.environment}</p>
+			</div>
+			
+			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h2 style="margin-top: 0; color: ${statusColor};">Summary</h2>
+				<table style="width: 100%; border-collapse: collapse;">
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 200px;">Job ID:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;">${summary.jobId}</td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Status:</td>
+						<td style="padding: 8px; border: 1px solid #ddd; color: ${statusColor}; font-weight: bold;">${statusText}</td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Nodes Created:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;"><strong>${summary.nodesCreated || 0}</strong></td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Relationships Created:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;"><strong>${summary.relationshipsCreated || 0}</strong></td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Errors:</td>
+						<td style="padding: 8px; border: 1px solid #ddd; color: ${summary.errorCount > 0 ? '#dc3545' : '#28a745'};"><strong>${summary.errorCount || 0}</strong></td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Duration:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;"><strong>${durationFormatted}</strong></td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Started:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;">${startTime}</td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Finished:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;">${endTime}</td>
+					</tr>
+				</table>
+			</div>
+			
+			${summary.errors && summary.errors.length > 0 ? `
+			<div style="background: #f8d7da; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h3 style="margin-top: 0; color: #721c24;">Errors</h3>
+				<ul style="margin: 0; padding-left: 20px;">
+					${summary.errors.map(error => `<li style="margin: 5px 0;">${error}</li>`).join('')}
+				</ul>
+			</div>
+			` : ''}
+			
+			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
+				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${summary.environment}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+			</div>
+		</body>
+		</html>
 		`;
 	}
 
 	generateSeedingSummaryEmailText(summary) {
-		const statusText = summary.success ? "SUCCESS" : "FAILED";
-
+		const statusIcon = summary.success ? '✅' : '❌';
+		const statusText = summary.success ? 'Success' : 'Failed';
+		
+		const startTime = summary.startTime ? new Date(summary.startTime).toLocaleString() : 'Not recorded';
+		const endTime = summary.endTime ? new Date(summary.endTime).toLocaleString() : 'Not recorded';
+		const durationFormatted = summary.duration ? `${(summary.duration / 1000).toFixed(2)}s` : 'Not recorded';
+		
 		return `
-Database Seeding ${statusText}
-Environment: ${summary.environment.toUpperCase()}
-Started: ${new Date(summary.timestamp).toLocaleString()}
-Finished: ${new Date(summary.finishTime).toLocaleString()}
+${statusIcon} Database Seeding ${statusText}
+Environment: ${summary.environment}
 
-SUMMARY:
-- Nodes Created: ${summary.nodesCreated}
-- Relationships Created: ${summary.relationshipsCreated}
-- Errors in Log: ${summary.errorCount}
+Summary:
+- Job ID: ${summary.jobId}
+- Status: ${statusText}
+- Nodes Created: ${summary.nodesCreated || 0}
+- Relationships Created: ${summary.relationshipsCreated || 0}
+- Errors: ${summary.errorCount || 0}
+- Duration: ${durationFormatted}
+- Started: ${startTime}
+- Finished: ${endTime}
 
-${
-	summary.errors && summary.errors.length > 0
-		? `
-ERRORS ENCOUNTERED:
-${summary.errors.map((error) => `- ${error}`).join("\n")}
-`
-		: ""
-}
+${summary.errors && summary.errors.length > 0 ? `
+Errors:
+${summary.errors.map(error => `- ${error}`).join('\n')}
+` : ''}
 
-This is an automated notification from the Dorkinians Website V3 seeding system.
-For detailed error logs, check the Heroku logs.
+Service: Dorkinians Database Seeder
+Environment: ${summary.environment}
+Generated: ${new Date().toLocaleString()}
 		`.trim();
+	}
+
+	generateCriticalErrorEmail(errorInfo) {
+		return `
+		<!DOCTYPE html>
+		<html>
+		<head>
+			<meta charset="utf-8">
+			<title>Critical Error - Database Seeder</title>
+		</head>
+		<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
+			<div style="background: #dc3545; color: white; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h1 style="margin: 0; font-size: 24px;">🚨 CRITICAL ERROR - Database Seeder</h1>
+				<p style="margin: 10px 0 0 0; font-size: 16px;">${errorInfo.errorType}</p>
+			</div>
+			
+			<div style="background: #f8f9fa; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h2 style="margin-top: 0; color: #dc3545;">Error Details</h2>
+				<table style="width: 100%; border-collapse: collapse;">
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold; width: 150px;">Error Type:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;">${errorInfo.errorType}</td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Timestamp:</td>
+						<td style="padding: 8px; border: 1px solid #ddd;">${new Date(errorInfo.timestamp).toLocaleString()}</td>
+					</tr>
+					<tr>
+						<td style="padding: 8px; border: 1px solid #ddd; background: #e9ecef; font-weight: bold;">Error Message:</td>
+						<td style="padding: 8px; border: 1px solid #ddd; word-break: break-word;">${errorInfo.errorMessage}</td>
+					</tr>
+				</table>
+			</div>
+			
+			<div style="background: #fff3cd; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h3 style="margin-top: 0; color: #856404;">Stack Trace</h3>
+				<pre style="background: #f8f9fa; padding: 15px; border-radius: 3px; overflow-x: auto; font-size: 12px; line-height: 1.4;">${errorInfo.errorStack}</pre>
+			</div>
+			
+			<div style="background: #d1ecf1; padding: 20px; border-radius: 5px; margin-bottom: 20px;">
+				<h3 style="margin-top: 0; color: #0c5460;">Immediate Actions Required</h3>
+				<ul style="margin: 0; padding-left: 20px;">
+					<li>Check the application logs for additional context</li>
+					<li>Verify database connectivity and credentials</li>
+					<li>Review recent changes that might have caused this error</li>
+					<li>Consider restarting the application if the error persists</li>
+				</ul>
+			</div>
+			
+			<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-size: 14px; color: #6c757d;">
+				<p style="margin: 0;"><strong>Service:</strong> Dorkinians Database Seeder</p>
+				<p style="margin: 5px 0 0 0;"><strong>Environment:</strong> ${process.env.NODE_ENV || 'production'}</p>
+				<p style="margin: 5px 0 0 0;"><strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+			</div>
+		</body>
+		</html>
+		`;
+	}
+
+	generateCriticalErrorEmailText(errorInfo) {
+		return `
+🚨 CRITICAL ERROR - Database Seeder
+${errorInfo.errorType}
+
+Error Details:
+- Error Type: ${errorInfo.errorType}
+- Timestamp: ${new Date(errorInfo.timestamp).toLocaleString()}
+- Error Message: ${errorInfo.errorMessage}
+
+Stack Trace:
+${errorInfo.errorStack}
+
+Immediate Actions Required:
+- Check the application logs for additional context
+- Verify database connectivity and credentials
+- Review recent changes that might have caused this error
+- Consider restarting the application if the error persists
+
+Service: Dorkinians Database Seeder
+Environment: ${process.env.NODE_ENV || 'production'}
+Generated: ${new Date().toLocaleString()}
+		`;
 	}
 }
 
 // Initialize services
 const emailService = new SimpleEmailService();
+
+// Enhanced monitoring functions
+const monitorHerokuJob = async (jobId, herokuUrl, maxWaitTime = 30 * 60 * 1000) => {
+	console.log(`🔍 MONITORING: Starting to monitor job ${jobId} for up to ${maxWaitTime / 1000} seconds`);
+	
+	const startTime = Date.now();
+	const checkInterval = 30 * 1000; // Check every 30 seconds
+	let lastStatus = null;
+	
+	while (Date.now() - startTime < maxWaitTime) {
+		try {
+			const statusUrl = `${herokuUrl}/status/${jobId}`;
+			console.log(`🔍 MONITORING: Checking status at ${statusUrl}`);
+			
+			const response = await fetch(statusUrl, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json',
+					'User-Agent': 'Netlify-Function-Monitor/1.0'
+				}
+			});
+			
+			if (response.ok) {
+				const status = await response.json();
+				console.log(`🔍 MONITORING: Job ${jobId} status:`, status);
+				
+				// Check if job is completed or failed
+				if (status.status === 'completed' || status.status === 'failed') {
+					console.log(`✅ MONITORING: Job ${jobId} finished with status: ${status.status}`);
+					return {
+						success: status.status === 'completed',
+						status: status.status,
+						jobId: jobId,
+						details: status
+					};
+				}
+				
+				lastStatus = status;
+			} else {
+				console.warn(`⚠️ MONITORING: Failed to get status for job ${jobId}: ${response.status}`);
+			}
+		} catch (error) {
+			console.error(`❌ MONITORING: Error checking status for job ${jobId}:`, error.message);
+		}
+		
+		// Wait before next check
+		await new Promise(resolve => setTimeout(resolve, checkInterval));
+	}
+	
+	console.log(`⏰ MONITORING: Job ${jobId} monitoring timed out after ${maxWaitTime / 1000} seconds`);
+	return {
+		success: false,
+		status: 'timeout',
+		jobId: jobId,
+		message: 'Job monitoring timed out',
+		lastStatus: lastStatus
+	};
+};
 
 exports.handler = async (event, context) => {
 	const headers = {
@@ -374,7 +533,7 @@ exports.handler = async (event, context) => {
 			console.log("📧 START: Start notification not requested or no email address provided");
 		}
 
-		// Trigger Heroku seeding service (fire-and-forget)
+		// Trigger Heroku seeding service
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
 		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
 		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
@@ -382,21 +541,6 @@ exports.handler = async (event, context) => {
 		console.log("🔗 HEROKU: Cleaned URL:", cleanHerokuUrl);
 		const fullUrl = `${cleanHerokuUrl}/seed`;
 		console.log("🔗 HEROKU: Final URL being called:", fullUrl);
-
-		// Fire-and-forget: don't wait for response to prevent timeout
-		console.log("🌱 HEROKU: Making POST request to:", fullUrl);
-		console.log(
-			"🌱 HEROKU: Request payload:",
-			JSON.stringify({
-				environment,
-				jobId,
-				emailConfig: {
-					emailAddress: emailConfig.emailAddress,
-					sendEmailAtStart: emailConfig.sendEmailAtStart,
-					sendEmailAtCompletion: emailConfig.sendEmailAtCompletion,
-				},
-			}),
-		);
 
 		// Enhanced fetch with timeout and retry logic
 		const fetchWithTimeout = async (url, options, timeout = 30000) => {
@@ -443,7 +587,6 @@ exports.handler = async (event, context) => {
 				); // 30 second timeout
 
 				console.log("🌱 HEROKU: Response received - Status:", response.status);
-				console.log("🌱 HEROKU: Response headers:", Object.fromEntries(response.headers.entries()));
 
 				if (response.ok) {
 					const responseBody = await response.text();
@@ -454,7 +597,6 @@ exports.handler = async (event, context) => {
 					const responseBody = await response.text();
 					console.warn("⚠️ HEROKU: Heroku seeding service may have failed to start");
 					console.warn("⚠️ HEROKU: Response status:", response.status);
-					console.warn("⚠️ HEROKU: Response status text:", response.statusText);
 					console.warn("⚠️ HEROKU: Response body:", responseBody);
 					return false;
 				}
@@ -468,33 +610,80 @@ exports.handler = async (event, context) => {
 					return callHeroku(retryCount + 1, maxRetries);
 				} else {
 					console.error("❌ HEROKU: All retry attempts failed");
-					console.error("❌ HEROKU: Final error details:", {
-						name: error.name,
-						message: error.message,
-						stack: error.stack,
-						code: error.code,
-					});
-					return false;
+					throw error;
 				}
 			}
 		};
 
-		// Start the Heroku call process
-		callHeroku()
-			.then((success) => {
-				if (success) {
-					console.log("✅ HEROKU: Successfully communicated with Heroku");
+		// Call Heroku and wait for response
+		const herokuStarted = await callHeroku();
+		
+		if (!herokuStarted) {
+			throw new Error("Failed to start Heroku seeding service after all retry attempts");
+		}
+
+		// Start monitoring the job (this runs in background)
+		console.log("🔍 MONITORING: Starting background job monitoring...");
+		monitorHerokuJob(jobId, cleanHerokuUrl, 30 * 60 * 1000) // Monitor for up to 30 minutes
+			.then(async (monitoringResult) => {
+				console.log("🔍 MONITORING: Job monitoring completed:", monitoringResult);
+				
+				// Send completion notification based on monitoring result
+				if (emailConfig.sendEmailAtCompletion && emailConfig.emailAddress) {
+					console.log("📧 COMPLETION: Sending completion notification based on monitoring...");
+					try {
+						// Temporarily override the email service recipient
+						const originalTo = emailService.config?.to;
+						if (emailService.config) {
+							emailService.config.to = emailConfig.emailAddress;
+						}
+
+						await emailService.sendSeedingSummaryEmail({
+							success: monitoringResult.success,
+							environment: environment,
+							jobId: jobId,
+							nodesCreated: monitoringResult.details?.result?.nodesCreated || 0,
+							relationshipsCreated: monitoringResult.details?.result?.relationshipsCreated || 0,
+							errorCount: monitoringResult.details?.result?.errorCount || 0,
+							errors: monitoringResult.details?.result?.errors || [],
+							duration: monitoringResult.details?.result?.duration || 0,
+							startTime: monitoringResult.details?.startTime || new Date().toISOString(),
+							endTime: monitoringResult.details?.endTime || new Date().toISOString(),
+							nodeTypeBreakdown: monitoringResult.details?.result?.nodeTypeBreakdown || [],
+							relationshipTypeBreakdown: monitoringResult.details?.result?.relationshipTypeBreakdown || [],
+							logFilePath: monitoringResult.details?.logFilePath || null,
+							errorLogFilePath: monitoringResult.details?.result?.errorLogFilePath || null
+						});
+
+						console.log("✅ COMPLETION: Completion notification sent successfully");
+
+						// Restore original recipient
+						if (emailService.config && originalTo) {
+							emailService.config.to = originalTo;
+						}
+					} catch (emailError) {
+						console.error("❌ COMPLETION: Failed to send completion notification:", emailError.message);
+					}
 				} else {
-					console.error("❌ HEROKU: Failed to communicate with Heroku after all retries");
+					console.log("📧 COMPLETION: Completion notification not requested or no email address provided");
 				}
 			})
-			.catch((error) => {
-				console.error("❌ HEROKU: Unexpected error in callHeroku:", error);
+			.catch(async (monitoringError) => {
+				console.error("❌ MONITORING: Job monitoring failed:", monitoringError.message);
+				
+				// Send critical error notification for monitoring failure
+				try {
+					await emailService.sendCriticalErrorNotification({
+						errorType: 'Job Monitoring Failure',
+						errorMessage: `Failed to monitor job ${jobId}: ${monitoringError.message}`,
+						errorStack: monitoringError.stack || 'No stack trace available',
+						timestamp: new Date().toISOString()
+					});
+					console.log("✅ MONITORING: Critical error notification sent for monitoring failure");
+				} catch (emailError) {
+					console.error("❌ MONITORING: Failed to send critical error notification:", emailError.message);
+				}
 			});
-
-		// Add a small delay to allow the Heroku call to start
-		console.log("⏳ HEROKU: Allowing time for Heroku call to initiate...");
-		await new Promise((resolve) => setTimeout(resolve, 1000));
 
 		// Return immediate response
 		console.log("✅ SUCCESS: Returning immediate response");
@@ -503,13 +692,18 @@ exports.handler = async (event, context) => {
 			headers: { ...headers, "Content-Type": "application/json" },
 			body: JSON.stringify({
 				success: true,
-				message: "Database seeding started on Heroku",
+				message: "Database seeding started on Heroku with monitoring",
 				environment,
 				jobId,
 				timestamp: new Date().toISOString(),
 				status: "started",
-				note: "Seeding is running on Heroku. Check email for start and completion notifications.",
-				herokuUrl: process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com",
+				note: "Seeding is running on Heroku with background monitoring. Check email for completion notification.",
+				herokuUrl: cleanHerokuUrl,
+				monitoring: {
+					enabled: true,
+					maxWaitTime: "30 minutes",
+					checkInterval: "30 seconds"
+				}
 			}),
 		};
 	} catch (error) {
