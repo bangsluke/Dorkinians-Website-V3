@@ -101,6 +101,13 @@ export default function AdminPanel() {
 		}
 	};
 
+	// Calculate elapsed time from job start time
+	const calculateElapsedTimeFromStartTime = (startTime: string) => {
+		const start = new Date(startTime);
+		const now = new Date();
+		return Math.floor((now.getTime() - start.getTime()) / 1000);
+	};
+
 	const triggerSeeding = async () => {
 		setIsLoading(true);
 		setError(null);
@@ -269,6 +276,11 @@ export default function AdminPanel() {
 					setLastStatusCheck(`✅ Completed at ${new Date().toLocaleString()}`);
 					setLastCompletedJobDuration(statusData.result.duration || 0);
 
+					// Use backend duration for completed jobs
+					if (statusData.result.duration) {
+						setElapsedTime(Math.floor(statusData.result.duration / 1000));
+					}
+
 					// Update seeding status service for successful completion
 					if (statusData.result.success) {
 						seedingStatusService.updateSeedingSuccess({
@@ -297,6 +309,12 @@ export default function AdminPanel() {
 						},
 					});
 					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
+
+					// Calculate elapsed time for failed jobs based on start time
+					if (statusData.startTime) {
+						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
+						setElapsedTime(actualElapsedTime);
+					}
 
 					// Update seeding status service for failure
 					seedingStatusService.updateSeedingFailure({
@@ -347,6 +365,13 @@ export default function AdminPanel() {
 						},
 					});
 					setLastStatusCheck(`🔄 Last checked at ${new Date().toLocaleString()}`);
+
+					// Calculate actual elapsed time based on job start time for running jobs
+					if (statusData.startTime) {
+						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
+						setElapsedTime(actualElapsedTime);
+						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
+					}
 				}
 			} else {
 				const errorText = await response.text().catch(() => "Unknown error");
@@ -442,9 +467,21 @@ export default function AdminPanel() {
 				setJobId(specificJobId);
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
 
-				// Update last completed job duration if this job completed successfully
-				if (statusData.status === "completed" && statusData.result?.duration) {
+				// Calculate actual elapsed time based on job start time
+				if (statusData.startTime && (statusData.status === "running" || statusData.status === "initializing")) {
+					const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
+					setElapsedTime(actualElapsedTime);
+					startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
+				} else if (statusData.status === "completed" && statusData.result?.duration) {
+					// For completed jobs, use the backend duration
+					setElapsedTime(Math.floor(statusData.result.duration / 1000));
 					setLastCompletedJobDuration(statusData.result.duration);
+				} else {
+					// For failed or other statuses, calculate from start time if available
+					if (statusData.startTime) {
+						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
+						setElapsedTime(actualElapsedTime);
+					}
 				}
 			} else {
 				setError("Failed to check status for specific job");
@@ -787,8 +824,28 @@ export default function AdminPanel() {
 									<p className='text-sm text-blue-600'>
 										{result.status === "pending"
 											? "Initializing seeding process..."
-											: result.currentStep || "Processing 10 data sources from Google Sheets..."}
+											: result.currentStep || "Processing data sources from Google Sheets..."}
 									</p>
+									{result.currentStep && result.currentStep.includes('Fetching CSV:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											📥 Currently fetching CSV data from Google Sheets
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Fetching external:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🌐 Currently fetching external data (league tables, fixtures, results)
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Processing CSV:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🔄 Currently processing CSV data into database nodes
+										</p>
+									)}
+									{result.currentStep && result.currentStep.includes('Processing external:') && (
+										<p className='text-xs text-blue-500 mt-1'>
+											🔄 Currently processing external data into database nodes
+										</p>
+									)}
 									{result.progress !== undefined && (
 										<div className='mt-2'>
 											<div className='flex justify-between text-xs text-blue-600 mb-1'>
