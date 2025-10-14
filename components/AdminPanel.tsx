@@ -11,6 +11,10 @@ interface SeedingResult {
 	status: "pending" | "running" | "completed" | "failed";
 	progress?: number;
 	currentStep?: string;
+	progressDetails?: {
+		currentNodeCount?: number;
+		[key: string]: any;
+	};
 	result: {
 		success: boolean;
 		exitCode: number;
@@ -354,6 +358,7 @@ export default function AdminPanel() {
 						status: "running",
 						progress: statusData.progress || 0,
 						currentStep: statusData.currentStep || "Processing data sources",
+						progressDetails: statusData.progressDetails || {},
 						result: {
 							success: true,
 							exitCode: 0,
@@ -452,6 +457,7 @@ export default function AdminPanel() {
 									: "pending",
 					progress: statusData.progress,
 					currentStep: statusData.currentStep,
+					progressDetails: statusData.progressDetails || {},
 					result: {
 						success: statusData.status !== "failed",
 						exitCode: statusData.status === "failed" ? 1 : 0,
@@ -855,6 +861,33 @@ export default function AdminPanel() {
 											<div className='w-full bg-blue-200 rounded-full h-2'>
 												<div className='bg-blue-600 h-2 rounded-full transition-all duration-300' style={{ width: `${result.progress}%` }}></div>
 											</div>
+										</div>
+									)}
+									{/* Live Node Count Display */}
+									{result.progressDetails?.currentNodeCount && result.progressDetails.currentNodeCount > 0 && (
+										<div className='mt-3 p-3 bg-white border border-blue-200 rounded-lg'>
+											<div className='flex items-center justify-between'>
+												<div className='flex items-center gap-2'>
+													<div className='w-3 h-3 bg-green-500 rounded-full animate-pulse'></div>
+													<span className='text-sm font-semibold text-gray-800'>Live Node Count</span>
+												</div>
+												<div className='text-right'>
+													<p className='text-2xl font-bold text-green-600'>
+														{result.progressDetails.currentNodeCount.toLocaleString()}
+													</p>
+													<p className='text-xs text-gray-500'>nodes created</p>
+												</div>
+											</div>
+											{result.progressDetails.currentNodeCount >= 23000 && (
+												<p className='text-xs text-green-600 mt-1 font-medium'>
+													✅ Target reached! ({result.progressDetails.currentNodeCount.toLocaleString()} ≥ 23,000)
+												</p>
+											)}
+											{result.progressDetails.currentNodeCount >= 20000 && result.progressDetails.currentNodeCount < 23000 && (
+												<p className='text-xs text-yellow-600 mt-1 font-medium'>
+													⚠️ Close to target ({result.progressDetails.currentNodeCount.toLocaleString()}/23,000)
+												</p>
+											)}
 										</div>
 									)}
 									<p className='text-xs text-blue-500 mt-2'>
