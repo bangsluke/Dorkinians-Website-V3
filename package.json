@@ -19,6 +19,7 @@
 		"test:coverage": "jest --coverage",
 		"test:integration": "jest --testPathPattern=integration",
 		"test:chatbot-report": "node scripts/test-chatbot-email-report.js",
+		"test:chatbot-report:hide": "node scripts/test-chatbot-email-report.js --hide-passed",
 		"test:chatbot-report:debug": "cross-env DEBUG_MODE=true node scripts/test-chatbot-email-report.js",
 		"test:chatbot-report:enhanced-logging": "node scripts/test-chatbot-with-enhanced-logging.js",
 		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js"
