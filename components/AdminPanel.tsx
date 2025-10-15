@@ -659,35 +659,15 @@ export default function AdminPanel() {
 							return;
 						}
 
-						setStatusCheckLoading(true);
-						setError(null);
-
-						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-							const response = await fetch(`${herokuUrl}/logs/${jobId}`, {
-								method: "GET",
-								headers: { "Content-Type": "application/json" },
-								mode: "cors",
-							});
-
-							if (response.ok) {
-								const logsData = await response.json();
-								console.log("Job logs:", logsData);
-								setError(`Job logs retrieved. Check console for details. Log entries: ${logsData.logs?.length || 0}`);
-							} else {
-								setError(`Failed to retrieve logs: HTTP ${response.status}`);
-							}
-						} catch (err) {
-							setError(`Failed to retrieve logs: ${err instanceof Error ? err.message : "Unknown error"}`);
-						} finally {
-							setStatusCheckLoading(false);
-						}
+						// Open log viewer in new tab
+						const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+						window.open(`${herokuUrl}/logs/${jobId}/view`, '_blank');
 					}}
-					disabled={statusCheckLoading || !jobId}
+					disabled={!jobId}
 					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
-						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700"
+						!jobId ? "bg-gray-400 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700"
 					}`}>
-					{statusCheckLoading ? "🔄 Loading..." : "📋 Get Job Logs"}
+					📋 View Job Logs Online
 				</button>
 				<button
 					onClick={async () => {
@@ -750,6 +730,14 @@ export default function AdminPanel() {
 					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
 				</button>
+				<button
+					onClick={() => {
+						const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+						window.open(`${herokuUrl}/logs`, '_blank');
+					}}
+					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-indigo-600 hover:bg-indigo-700'>
+					📊 View All Logs Online
+				</button>
 			</div>
 
 			{/* Status Information */}
@@ -772,8 +760,9 @@ export default function AdminPanel() {
 								<li>• The job may have failed during initialization (before logging started)</li>
 								<li>• Check if the Heroku service is running and accessible</li>
 								<li>• The job may have completed but status was not properly updated</li>
-								<li>• Try clicking &ldquo;Get Job Logs&rdquo; to see if any logs were created</li>
+								<li>• Try clicking &ldquo;View Job Logs Online&rdquo; to see if any logs were created</li>
 								<li>• Check &ldquo;Debug: List All Jobs&rdquo; to see what jobs exist on Heroku</li>
+								<li>• Use &ldquo;View All Logs Online&rdquo; to see comprehensive job history</li>
 								<li>• Failure emails are sent automatically when jobs fail</li>
 							</ul>
 						</div>
@@ -786,7 +775,9 @@ export default function AdminPanel() {
 							<li>• Verify network connectivity to Heroku</li>
 							<li>• Check the browser console for additional error details</li>
 							<li>• Try refreshing the page and attempting again</li>
-							<li>• If the issue persists, check the Heroku logs for detailed error information</li>
+							<li>• Use &ldquo;View All Logs Online&rdquo; to see comprehensive job history and error details</li>
+							<li>• Use &ldquo;View Job Logs Online&rdquo; for specific job debugging</li>
+							<li>• Check failure emails for detailed error information</li>
 						</ul>
 					</div>
 				</div>
