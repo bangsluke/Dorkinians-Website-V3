@@ -756,7 +756,7 @@ export class ChatbotService {
 	 */
 	private metricNeedsMatchDetail(metric: string): boolean {
 		// Metrics that need MatchDetail join (including complex calculations)
-		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP"];
+		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP", "GK", "DEF", "MID", "FWD"];
 
 		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
 		if (metric.match(/^\d+sApps$/i)) {
@@ -865,6 +865,14 @@ export class ChatbotService {
 				return "count(DISTINCT md) as value";
 			case "AWAY":
 				return "count(DISTINCT md) as value";
+			case "GK":
+				return "count(md) as value";
+			case "DEF":
+				return "count(md) as value";
+			case "MID":
+				return "count(md) as value";
+			case "FWD":
+				return "count(md) as value";
 			// Team-specific appearance metrics (1sApps, 2sApps, etc.)
 			default:
 				// Check if it's a team-specific appearance metric
@@ -1077,6 +1085,17 @@ export class ChatbotService {
 				whereConditions.push(`f.homeOrAway = 'Home'`);
 			} else if (metric === "AWAY") {
 				whereConditions.push(`f.homeOrAway = 'Away'`);
+			}
+
+			// Add position filters for position-specific metrics
+			if (metric === "GK") {
+				whereConditions.push(`md.class = 'GK'`);
+			} else if (metric === "DEF") {
+				whereConditions.push(`md.class = 'DEF'`);
+			} else if (metric === "MID") {
+				whereConditions.push(`md.class = 'MID'`);
+			} else if (metric === "FWD") {
+				whereConditions.push(`md.class = 'FWD'`);
 			}
 
 			// Add seasonal metric filters (dynamic for any season)
