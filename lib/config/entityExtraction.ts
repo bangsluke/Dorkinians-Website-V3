@@ -129,6 +129,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"strikes",
 		"finishes",
 		"netted",
+		"scored",
+		"get",
+		"got",
 	],
 	"Open Play Goals": [
 		"open play goals",
@@ -142,7 +145,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"non-penalty goals",
 		"non penalty goals",
 	],
-	Assists: ["assists made", "assists provided", "assists", "assist", "assisting", "assisted"],
+	Assists: ["assists made", "assists provided", "assists", "assist", "assisting", "assisted", "get", "got"],
 	Apps: [
 		"apps",
 		"played in",
@@ -157,8 +160,8 @@ export const STAT_TYPE_PSEUDONYMS = {
 	Minutes: ["minutes of football", "minutes played", "playing time", "time played", "minutes", "minute", "mins"],
 	"Yellow Cards": ["yellow cards", "yellow card", "yellows", "bookings", "cautions"],
 	"Red Cards": ["red cards", "red card", "reds", "dismissals", "sendings off"],
-	Saves: ["goalkeeper saves", "saves made", "saves", "save", "saved"],
-	"Clean Sheets": ["clean sheet kept", "clean sheets", "clean sheet", "shutouts"],
+	Saves: ["goalkeeper saves", "saves made", "saves", "save", "saved", "get", "got"],
+	"Clean Sheets": ["clean sheet kept", "clean sheets", "clean sheet", "shutouts", "kept clean", "clean sheets scored"],
 	"Minutes Per Clean Sheet": [
 		"minutes does.*need to get a clean sheet",
 		"minutes per clean sheet",
@@ -510,6 +513,11 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"most played position",
 		"commonest position",
 		"usual position",
+		"position has played most",
+		"what position has played most",
+		"position played the most",
+		"most frequent position",
+		"position most often",
 	],
 
 	// Team-specific appearances
