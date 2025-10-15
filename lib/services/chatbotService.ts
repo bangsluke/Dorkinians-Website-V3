@@ -1117,10 +1117,14 @@ export class ChatbotService {
 		}
 
 		// Handle special cases that need custom queries
-		if (metric === "MOSTCOMMONPOSITION") {
+		if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 			query = `
-				MATCH (p:Player {playerName: $playerName})
-				RETURN p.playerName as playerName, p.mostCommonPosition as value
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.class IS NOT NULL AND md.class <> ""
+				WITH p, md.class as position, count(md) as positionCount
+				ORDER BY positionCount DESC
+				LIMIT 1
+				RETURN p.playerName as playerName, position as value
 			`;
 		} else if (metric.toUpperCase() === "MPERG" || metric === "MperG") {
 			query = `
@@ -1723,17 +1727,36 @@ export class ChatbotService {
 							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 9 teams.`;
 						}
 					}
-				} else if (metric === "MOSTCOMMONPOSITION") {
+				} else if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 					// For "What is player's most common position played?" questions
 					const questionLower = question.toLowerCase();
 					if (
 						questionLower.includes("most common position") ||
 						questionLower.includes("favorite position") ||
-						questionLower.includes("main position")
+						questionLower.includes("main position") ||
+						questionLower.includes("position played most") ||
+						questionLower.includes("position has") && questionLower.includes("played most")
 					) {
-						// Use the actual query result from Cypher
+						// Use the actual query result from Cypher and format according to specification
 						const position = value || "Unknown";
-						answer = `${playerName}'s most common position is ${position}.`;
+						let positionText = "";
+						switch (position) {
+							case "GK":
+								positionText = "in goal";
+								break;
+							case "DEF":
+								positionText = "in defence";
+								break;
+							case "MID":
+								positionText = "in midfield";
+								break;
+							case "FWD":
+								positionText = "as a forward";
+								break;
+							default:
+								positionText = `as ${position}`;
+						}
+						answer = `${playerName} has played ${positionText} the most.`;
 					}
 				} else if (metric.includes("APPS") && metric.match(/\d{4}\/\d{2}/)) {
 					// For season-specific appearance queries (e.g., "2017/18Apps")

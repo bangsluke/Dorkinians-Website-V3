@@ -510,6 +510,11 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"most played position",
 		"commonest position",
 		"usual position",
+		"position has played most",
+		"what position has played most",
+		"position played the most",
+		"most frequent position",
+		"position most often",
 	],
 
 	// Team-specific appearances
