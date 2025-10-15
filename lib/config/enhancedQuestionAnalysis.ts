@@ -608,6 +608,21 @@ export class EnhancedQuestionAnalyzer {
 			return statType.replace(" Goals", "Goals");
 		}
 
+		if (statType.includes(" Assists") && statType.match(/\d{4}\/\d{2}/)) {
+			// Convert "2018/19 Assists" to "2018/19Assists"
+			return statType.replace(" Assists", "Assists");
+		}
+
+		if (statType.includes(" Clean Sheets") && statType.match(/\d{4}\/\d{2}/)) {
+			// Convert "2018/19 Clean Sheets" to "2018/19CleanSheets"
+			return statType.replace(" Clean Sheets", "CleanSheets");
+		}
+
+		if (statType.includes(" Saves") && statType.match(/\d{4}\/\d{2}/)) {
+			// Convert "2018/19 Saves" to "2018/19Saves"
+			return statType.replace(" Saves", "Saves");
+		}
+
 		return mapping[statType] || statType;
 	}
 

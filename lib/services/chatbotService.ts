@@ -768,9 +768,9 @@ export class ChatbotService {
 			return true; // Team-specific appearances need MatchDetail join to filter by team
 		}
 
-		// Check if it's a seasonal metric (contains year pattern) - these use Player node directly
-		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
-			return false; // Seasonal metrics use Player node directly for now (fallback approach)
+		// Check if it's a seasonal metric (contains year pattern) - these use MatchDetail joins
+		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS|ASSISTS|CLEANSHEETS|SAVES|YELLOWCARDS|REDCARDS|MOM|PENALTIESSCORED|PENALTIESMISSED|PENALTIESSAVED|PENALTIESTAKEN|PENALTIESCONCEDED|OWngoals|CONCEDED|FANTASYPOINTS|DISTANCE)/i)) {
+			return true; // Seasonal metrics use MatchDetail joins for accurate data
 		}
 
 		return matchDetailMetrics.includes(metric.toUpperCase());
@@ -892,6 +892,33 @@ export class ChatbotService {
 					if (seasonMatch) {
 						const season = seasonMatch[1];
 						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value`;
+					}
+				}
+
+				// Check if it's a seasonal assists metric
+				if (metric.match(/\d{4}\/\d{2}ASSISTS/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})ASSISTS/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.assists IS NOT NULL AND md.assists <> "") THEN md.assists ELSE 0 END), 0) as value`;
+					}
+				}
+
+				// Check if it's a seasonal clean sheets metric
+				if (metric.match(/\d{4}\/\d{2}CLEANSHEETS/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})CLEANSHEETS/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.cleanSheets IS NOT NULL AND md.cleanSheets <> "") THEN md.cleanSheets ELSE 0 END), 0) as value`;
+					}
+				}
+
+				// Check if it's a seasonal saves metric
+				if (metric.match(/\d{4}\/\d{2}SAVES/i)) {
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})SAVES/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.saves IS NOT NULL AND md.saves <> "") THEN md.saves ELSE 0 END), 0) as value`;
 					}
 				}
 
@@ -1764,6 +1791,34 @@ export class ChatbotService {
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
 						answer = `${playerName} made ${value} ${value === 1 ? "appearance" : "appearances"} in the ${season} season.`;
+					}
+				} else if (metric.includes("GOALS") && metric.match(/\d{4}\/\d{2}/)) {
+					// For season-specific goals queries (e.g., "2016/17GOALS")
+					const season = metric.replace("GOALS", "");
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("get")) {
+						answer = `${playerName} scored ${value} ${value === 1 ? "goal" : "goals"} in the ${season} season.`;
+					}
+				} else if (metric.includes("ASSISTS") && metric.match(/\d{4}\/\d{2}/)) {
+					// For season-specific assists queries (e.g., "2016/17ASSISTS")
+					const season = metric.replace("ASSISTS", "");
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("assists") || questionLower.includes("assisted") || questionLower.includes("get")) {
+						answer = `${playerName} got ${value} ${value === 1 ? "assist" : "assists"} in the ${season} season.`;
+					}
+				} else if (metric.includes("CLEANSHEETS") && metric.match(/\d{4}\/\d{2}/)) {
+					// For season-specific clean sheets queries (e.g., "2016/17CLEANSHEETS")
+					const season = metric.replace("CLEANSHEETS", "");
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("clean sheets") || questionLower.includes("clean sheet") || questionLower.includes("clean sheets") || questionLower.includes("kept clean")) {
+						answer = `${playerName} kept ${value} clean sheet${value === 1 ? "" : "s"} in the ${season} season.`;
+					}
+				} else if (metric.includes("SAVES") && metric.match(/\d{4}\/\d{2}/)) {
+					// For season-specific saves queries (e.g., "2016/17SAVES")
+					const season = metric.replace("SAVES", "");
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("saves") || questionLower.includes("saved") || questionLower.includes("get")) {
+						answer = `${playerName} made ${value} ${value === 1 ? "save" : "saves"} in the ${season} season.`;
 					}
 				} else if (metric.match(/^\d+sApps$/i)) {
 					// For team-specific appearance queries (e.g., "1sApps", "2sApps", etc.)
