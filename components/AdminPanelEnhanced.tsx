@@ -32,6 +32,26 @@ interface SeedingResult {
 		healthCheck?: any;
 		timestamp: string;
 	};
+	// Enhanced error context information
+	errorContext?: {
+		jobId: string;
+		environment: string;
+		errorType: string;
+		errorMessage: string;
+		errorStack: string;
+		errorName: string;
+		errorCode?: string;
+		duration: number;
+		step: string;
+		memoryUsage: {
+			rss: number;
+			heapTotal: number;
+			heapUsed: number;
+			external: number;
+			arrayBuffers: number;
+		};
+		timestamp: string;
+	};
 }
 
 export default function AdminPanelEnhanced() {
