@@ -23,6 +23,33 @@ interface SeedingResult {
 		errorCount: number;
 		errors: string[];
 		duration: number;
+		errorDetails?: {
+			type: string;
+			message: string;
+			name: string;
+			code?: string;
+			stack?: string;
+		};
+	};
+	// Enhanced error context information
+	errorContext?: {
+		jobId: string;
+		environment: string;
+		errorType: string;
+		errorMessage: string;
+		errorStack: string;
+		errorName: string;
+		errorCode?: string;
+		duration: number;
+		step: string;
+		memoryUsage: {
+			rss: number;
+			heapTotal: number;
+			heapUsed: number;
+			external: number;
+			arrayBuffers: number;
+		};
+		timestamp: string;
 	};
 }
 
@@ -466,7 +493,10 @@ export default function AdminPanel() {
 						errorCount: statusData.result?.errors?.length || 0,
 						errors: statusData.result?.errors || [],
 						duration: statusData.result?.duration || 0,
+						errorDetails: statusData.result?.errorDetails || undefined,
 					},
+					// Enhanced error context from the API response
+					errorContext: statusData.errorContext || undefined,
 				};
 
 				setResult(newResult);
@@ -914,17 +944,122 @@ export default function AdminPanel() {
 						</div>
 					)}
 
-					{/* Errors */}
+					{/* Enhanced Error Display */}
 					{result.result.errors && result.result.errors.length > 0 && (
-						<div className='mt-4'>
-							<h4 className='text-md font-semibold text-red-800 mb-2'>Errors:</h4>
-							<ul className='list-disc list-inside space-y-1'>
+						<div className='mt-4 p-4 bg-red-50 border border-red-200 rounded-lg'>
+							<h4 className='text-lg font-semibold text-red-800 mb-3'>🚨 Error Details</h4>
+							
+							{/* Error Summary */}
+							<div className='mb-4 p-3 bg-red-100 border border-red-300 rounded'>
+								<div className='flex items-center gap-2 mb-2'>
+									<span className='text-red-800 font-semibold'>Error Count:</span>
+									<span className='px-2 py-1 bg-red-200 text-red-800 rounded text-sm font-bold'>
+										{result.result.errors.length}
+									</span>
+								</div>
+								<div className='flex items-center gap-2'>
+									<span className='text-red-800 font-semibold'>Status:</span>
+									<span className='px-2 py-1 bg-red-200 text-red-800 rounded text-sm font-bold'>
+										{result.status === 'failed' ? 'FAILED' : 'ERRORS DETECTED'}
+									</span>
+								</div>
+							</div>
+
+							{/* Individual Error Details */}
+							<div className='space-y-3'>
 								{result.result.errors.map((error, index) => (
-									<li key={index} className='text-red-700 text-sm'>
-										{error}
-									</li>
+									<div key={index} className='p-3 bg-white border border-red-300 rounded'>
+										<div className='flex items-start gap-2 mb-2'>
+											<span className='text-red-600 font-bold text-sm'>#{index + 1}</span>
+											<span className='text-red-800 font-semibold text-sm'>Error:</span>
+										</div>
+										<p className='text-red-700 text-sm ml-6 break-words'>{error}</p>
+									</div>
 								))}
-							</ul>
+							</div>
+
+							{/* Enhanced Error Context - if available */}
+							{result.errorContext && (
+								<div className='mt-4 p-3 bg-yellow-100 border border-yellow-300 rounded'>
+									<h5 className='text-sm font-semibold text-yellow-800 mb-2'>🔍 Error Context</h5>
+									<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs'>
+										<div>
+											<span className='font-semibold text-yellow-800'>Error Type:</span>
+											<span className='ml-2 text-yellow-700'>{result.errorContext.errorType || 'Unknown'}</span>
+										</div>
+										<div>
+											<span className='font-semibold text-yellow-800'>Error Name:</span>
+											<span className='ml-2 text-yellow-700'>{result.errorContext.errorName || 'Unknown'}</span>
+										</div>
+										<div>
+											<span className='font-semibold text-yellow-800'>Duration:</span>
+											<span className='ml-2 text-yellow-700'>{result.errorContext.duration ? `${result.errorContext.duration}ms` : 'Unknown'}</span>
+										</div>
+										<div>
+											<span className='font-semibold text-yellow-800'>Step:</span>
+											<span className='ml-2 text-yellow-700'>{result.errorContext.step || 'Unknown'}</span>
+										</div>
+									</div>
+									{result.errorContext.memoryUsage && (
+										<div className='mt-2'>
+											<span className='font-semibold text-yellow-800'>Memory Usage:</span>
+											<div className='ml-2 text-yellow-700 text-xs'>
+												RSS: {Math.round(result.errorContext.memoryUsage.rss / 1024 / 1024)}MB, 
+												Heap: {Math.round(result.errorContext.memoryUsage.heapUsed / 1024 / 1024)}MB
+											</div>
+										</div>
+									)}
+								</div>
+							)}
+
+							{/* Error Details - if available */}
+							{result.result.errorDetails && (
+								<div className='mt-4 p-3 bg-blue-100 border border-blue-300 rounded'>
+									<h5 className='text-sm font-semibold text-blue-800 mb-2'>📊 Technical Details</h5>
+									<div className='space-y-2 text-xs'>
+										<div>
+											<span className='font-semibold text-blue-800'>Type:</span>
+											<span className='ml-2 text-blue-700'>{result.result.errorDetails.type || 'Unknown'}</span>
+										</div>
+										<div>
+											<span className='font-semibold text-blue-800'>Name:</span>
+											<span className='ml-2 text-blue-700'>{result.result.errorDetails.name || 'Unknown'}</span>
+										</div>
+										{result.result.errorDetails.code && (
+											<div>
+												<span className='font-semibold text-blue-800'>Code:</span>
+												<span className='ml-2 text-blue-700'>{result.result.errorDetails.code}</span>
+											</div>
+										)}
+										{result.result.errorDetails.stack && (
+											<div>
+												<span className='font-semibold text-blue-800'>Stack Trace:</span>
+												<details className='mt-1'>
+													<summary className='cursor-pointer text-blue-600 hover:text-blue-800'>
+														Click to view stack trace
+													</summary>
+													<pre className='mt-2 p-2 bg-white border rounded text-xs overflow-auto max-h-32'>
+														{result.result.errorDetails.stack}
+													</pre>
+												</details>
+											</div>
+										)}
+									</div>
+								</div>
+							)}
+
+							{/* Troubleshooting Steps */}
+							<div className='mt-4 p-3 bg-gray-100 border border-gray-300 rounded'>
+								<h5 className='text-sm font-semibold text-gray-800 mb-2'>🔧 Troubleshooting Steps</h5>
+								<ul className='text-xs text-gray-700 space-y-1'>
+									<li>• Check the detailed error information above for specific failure reasons</li>
+									<li>• Review the error context to understand which step failed</li>
+									<li>• Check memory usage to see if the process ran out of memory</li>
+									<li>• Use "View Job Logs Online" for complete error logs</li>
+									<li>• Check failure emails for detailed error reports</li>
+									<li>• Try running the seeding process again after addressing the issue</li>
+								</ul>
+							</div>
 						</div>
 					)}
 				</div>
