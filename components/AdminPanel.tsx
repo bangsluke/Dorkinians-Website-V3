@@ -75,6 +75,9 @@ export default function AdminPanel() {
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 
+	// UI state
+	const [showProcessInfo, setShowProcessInfo] = useState(true);
+
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === "development";
 
@@ -145,6 +148,7 @@ export default function AdminPanel() {
 		setResult(null);
 		setLastStatusCheck(null);
 		setElapsedTime(0);
+		setShowProcessInfo(false); // Collapse process info when seeding starts
 		startTimeRef.current = Date.now();
 
 		try {
@@ -504,17 +508,18 @@ export default function AdminPanel() {
 				setLastStatusCheck(`🔍 Status checked for job ${specificJobId} at ${new Date().toLocaleString()}`);
 
 				// Calculate actual elapsed time based on job start time
-				if (statusData.startTime && (statusData.status === "running" || statusData.status === "initializing")) {
-					const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
-					setElapsedTime(actualElapsedTime);
-					startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
-				} else if (statusData.status === "completed" && statusData.result?.duration) {
-					// For completed jobs, use the backend duration
-					setElapsedTime(Math.floor(statusData.result.duration / 1000));
-					setLastCompletedJobDuration(statusData.result.duration);
-				} else {
-					// For failed or other statuses, calculate from start time if available
-					if (statusData.startTime) {
+				if (statusData.startTime) {
+					if (statusData.status === "completed" && statusData.result?.duration) {
+						// For completed jobs, use the backend duration
+						setElapsedTime(Math.floor(statusData.result.duration / 1000));
+						setLastCompletedJobDuration(statusData.result.duration);
+					} else if (statusData.status === "running" || statusData.status === "initializing") {
+						// For running jobs, calculate from start time
+						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
+						setElapsedTime(actualElapsedTime);
+						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
+					} else {
+						// For failed or other statuses, calculate from start time
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
 					}
@@ -610,7 +615,43 @@ export default function AdminPanel() {
 
 	return (
 		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
-			<h2 className='text-2xl font-bold text-gray-900 mb-6'>Database Seeding Admin Panel</h2>
+			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Database Seeding Admin Panel</h2>
+
+			{/* How the Database Seeding Process Works - Collapsible */}
+			<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
+				<button
+					onClick={() => setShowProcessInfo(!showProcessInfo)}
+					className='flex items-center justify-between w-full text-left'>
+					<h3 className='text-lg font-semibold text-blue-800'>How the Database Seeding Process Works</h3>
+					<span className='text-blue-600 text-xl font-bold'>{showProcessInfo ? '−' : '+'}</span>
+				</button>
+				{showProcessInfo && (
+					<div className='mt-3'>
+						<ul className='text-blue-700 text-sm space-y-2'>
+							<li>
+								• <strong>Step 1:</strong> Click "Trigger Database Seeding" to start the process. This triggers the Netlify function to
+								make the call to Heroku and provides immediate feedback that the database seeding process has started
+							</li>
+							<li>
+								• <strong>Step 2:</strong> The system will show "Pending" status while initializing
+							</li>
+							<li>
+								• <strong>Step 3:</strong> Status changes to "Running" as the seeding begins on Heroku
+							</li>
+							<li>
+								• <strong>Step 4:</strong> Use "Check Seeding Status" to monitor progress and get final results
+							</li>
+							<li>
+								• <strong>Step 5:</strong> If you need to check the status of a specific job, use "Debug: List All Jobs" to view all jobs
+								and their statuses. Click on the job ID to check its current status.
+							</li>
+							<li>
+								• <strong>Note:</strong> Check your email for completion notifications
+							</li>
+						</ul>
+					</div>
+				)}
+			</div>
 
 			{/* Email Configuration Section */}
 			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
@@ -626,7 +667,7 @@ export default function AdminPanel() {
 							value={emailAddress}
 							onChange={(e) => setEmailAddress(e.target.value)}
 							placeholder='bangsluke@gmail.com'
-							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-600'
+							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-800'
 						/>
 					</div>
 					<div className='flex items-center'>
@@ -665,14 +706,6 @@ export default function AdminPanel() {
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
 					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
-				</button>
-				<button
-					onClick={triggerChatbotTest}
-					disabled={chatbotTestLoading}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
-						chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
-					}`}>
-					{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
 				</button>
 				<button
 					onClick={checkStatus}
@@ -759,14 +792,6 @@ export default function AdminPanel() {
 					}}
 					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
-				</button>
-				<button
-					onClick={() => {
-						const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-						window.open(`${herokuUrl}/logs`, '_blank');
-					}}
-					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-indigo-600 hover:bg-indigo-700'>
-					📊 View All Logs Online
 				</button>
 			</div>
 
@@ -920,6 +945,26 @@ export default function AdminPanel() {
 							</div>
 						</div>
 					)}
+
+					{/* Debug Information - Moved into progress section */}
+					<div className='mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg'>
+						<h4 className='text-sm font-semibold text-gray-800 mb-2'>🔧 Debug Information</h4>
+						<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700'>
+							<div>
+								<p><strong>Current Job ID:</strong> {jobId || "None"}</p>
+								<p><strong>Last Status Check:</strong> {lastStatusCheck || "Never"}</p>
+								<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}</p>
+							</div>
+							<div>
+								<p><strong>Environment:</strong> Production</p>
+								<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}</p>
+								<p><strong>Email Address:</strong> {emailAddress}</p>
+								{result?.result?.duration && (
+									<p><strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}</p>
+								)}
+							</div>
+						</div>
+					</div>
 
 					{/* Final Statistics */}
 					{result.status === "completed" && (
@@ -1105,65 +1150,23 @@ export default function AdminPanel() {
 				</div>
 			)}
 
-			{/* Debug Information Section */}
-			<div className='p-4 bg-gray-50 border border-gray-200 rounded-lg mb-4'>
-				<h3 className='text-lg font-semibold text-gray-900 mb-2'>🔧 Debug Information</h3>
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-900'>
-					<div>
-						<p className='text-gray-900'>
-							<strong>Current Job ID:</strong> {jobId || "None"}
-						</p>
-						<p className='text-gray-900'>
-							<strong>Last Status Check:</strong> {lastStatusCheck || "Never"}
-						</p>
-						<p className='text-gray-900'>
-							<strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}
-						</p>
-					</div>
-					<div>
-						<p className='text-gray-900'>
-							<strong>Environment:</strong> Production
-						</p>
-						<p className='text-gray-900'>
-							<strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}
-						</p>
-						<p className='text-gray-900'>
-							<strong>Email Address:</strong> {emailAddress}
-						</p>
-						{result?.result?.duration && (
-							<p className='text-gray-900'>
-								<strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}
-							</p>
-						)}
-					</div>
+			{/* Chatbot Testing Section */}
+			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
+				<h3 className='text-lg font-semibold text-green-800 mb-2'>Chatbot Testing</h3>
+				<p className='text-green-700 text-sm mb-4'>
+					This button runs a comprehensive test of the chatbot functionality and sends you an email with the test results. 
+					It tests various queries to ensure the chatbot is working correctly with the current database state.
+				</p>
+				<div className='flex justify-center'>
+					<button
+						onClick={triggerChatbotTest}
+						disabled={chatbotTestLoading}
+						className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+							chatbotTestLoading ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
+						}`}>
+						{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
+					</button>
 				</div>
-			</div>
-
-			{/* Information Section */}
-			<div className='p-4 bg-blue-50 border border-blue-200 rounded-lg'>
-				<h3 className='text-lg font-semibold text-blue-800 mb-2'>How the Database Seeding Process Works</h3>
-				<ul className='text-blue-700 text-sm space-y-2'>
-					<li>
-						• <strong>Step 1:</strong> Click &ldquo;Trigger Database Seeding&rdquo; to start the process. This triggers the Netlify function to
-						make the call to Heroku and provides immediate feedback that the database seeding process has started
-					</li>
-					<li>
-						• <strong>Step 2:</strong> The system will show &ldquo;Pending&rdquo; status while initializing
-					</li>
-					<li>
-						• <strong>Step 3:</strong> Status changes to &ldquo;Running&rdquo; as the seeding begins on Heroku
-					</li>
-					<li>
-						• <strong>Step 4:</strong> Use &ldquo;Check Seeding Status&rdquo; to monitor progress and get final results
-					</li>
-					<li>
-						• <strong>Step 5:</strong> If you need to check the status of a specific job, use &ldquo;Debug: List All Jobs&rdquo; to view all jobs
-						and their statuses. Click on the job ID to check its current status.
-					</li>
-					<li>
-						• <strong>Note:</strong> Check your email for completion notifications
-					</li>
-				</ul>
 			</div>
 
 			{/* Jobs Modal */}
