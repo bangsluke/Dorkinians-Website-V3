@@ -629,20 +629,20 @@ export default function AdminPanel() {
 					<div className='mt-3'>
 						<ul className='text-blue-700 text-sm space-y-2'>
 							<li>
-								• <strong>Step 1:</strong> Click "Trigger Database Seeding" to start the process. This triggers the Netlify function to
+								• <strong>Step 1:</strong> Click &quot;Trigger Database Seeding&quot; to start the process. This triggers the Netlify function to
 								make the call to Heroku and provides immediate feedback that the database seeding process has started
 							</li>
 							<li>
-								• <strong>Step 2:</strong> The system will show "Pending" status while initializing
+								• <strong>Step 2:</strong> The system will show &quot;Pending&quot; status while initializing
 							</li>
 							<li>
-								• <strong>Step 3:</strong> Status changes to "Running" as the seeding begins on Heroku
+								• <strong>Step 3:</strong> Status changes to &quot;Running&quot; as the seeding begins on Heroku
 							</li>
 							<li>
-								• <strong>Step 4:</strong> Use "Check Seeding Status" to monitor progress and get final results
+								• <strong>Step 4:</strong> Use &quot;Check Seeding Status&quot; to monitor progress and get final results
 							</li>
 							<li>
-								• <strong>Step 5:</strong> If you need to check the status of a specific job, use "Debug: List All Jobs" to view all jobs
+								• <strong>Step 5:</strong> If you need to check the status of a specific job, use &quot;Debug: List All Jobs&quot; to view all jobs
 								and their statuses. Click on the job ID to check its current status.
 							</li>
 							<li>
@@ -812,12 +812,12 @@ export default function AdminPanel() {
 						<div className='mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded'>
 							<h4 className='text-sm font-semibold text-yellow-800 mb-2'>🔍 Job Not Found Analysis:</h4>
 							<ul className='text-sm text-yellow-700 space-y-1'>
-								<li>• The job may have failed during initialization (before logging started)</li>
-								<li>• Check if the Heroku service is running and accessible</li>
-								<li>• The job may have completed but status was not properly updated</li>
-								<li>• Try clicking &ldquo;View Job Logs Online&rdquo; to see if any logs were created</li>
-								<li>• Check &ldquo;Debug: List All Jobs&rdquo; to see what jobs exist on Heroku</li>
-								<li>• Use &ldquo;View All Logs Online&rdquo; to see comprehensive job history</li>
+							<li>• The job may have failed during initialization (before logging started)</li>
+							<li>• Check if the Heroku service is running and accessible</li>
+							<li>• The job may have completed but status was not properly updated</li>
+							<li>• Try clicking &quot;View Job Logs Online&quot; to see if any logs were created</li>
+							<li>• Check &quot;Debug: List All Jobs&quot; to see what jobs exist on Heroku</li>
+							<li>• Use &quot;View All Logs Online&quot; to see comprehensive job history</li>
 								<li>• Failure emails are sent automatically when jobs fail</li>
 							</ul>
 						</div>
@@ -830,8 +830,8 @@ export default function AdminPanel() {
 							<li>• Verify network connectivity to Heroku</li>
 							<li>• Check the browser console for additional error details</li>
 							<li>• Try refreshing the page and attempting again</li>
-							<li>• Use &ldquo;View All Logs Online&rdquo; to see comprehensive job history and error details</li>
-							<li>• Use &ldquo;View Job Logs Online&rdquo; for specific job debugging</li>
+							<li>• Use &quot;View All Logs Online&quot; to see comprehensive job history and error details</li>
+							<li>• Use &quot;View Job Logs Online&quot; for specific job debugging</li>
 							<li>• Check failure emails for detailed error information</li>
 						</ul>
 					</div>
@@ -1100,13 +1100,31 @@ export default function AdminPanel() {
 									<li>• Check the detailed error information above for specific failure reasons</li>
 									<li>• Review the error context to understand which step failed</li>
 									<li>• Check memory usage to see if the process ran out of memory</li>
-									<li>• Use "View Job Logs Online" for complete error logs</li>
+									<li>• Use &quot;View Job Logs Online&quot; for complete error logs</li>
 									<li>• Check failure emails for detailed error reports</li>
 									<li>• Try running the seeding process again after addressing the issue</li>
 								</ul>
 							</div>
 						</div>
 					)}
+				</div>
+			)}
+
+			{/* Chatbot Test Loading Overlay */}
+			{chatbotTestLoading && (
+				<div className='mb-6 p-6 rounded-lg border-2 border-blue-200 bg-blue-50'>
+					<div className='text-center'>
+						<div className='inline-flex items-center justify-center w-16 h-16 mb-4 bg-blue-100 rounded-full'>
+							<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600'></div>
+						</div>
+						<h3 className='text-lg font-semibold text-blue-600 mb-2'>🤖 Chatbot Test Running</h3>
+						<p className='text-sm text-blue-700 mb-2'>
+							The chatbot test is currently running and will take a few minutes to complete.
+						</p>
+						<p className='text-xs text-blue-600'>
+							You will receive an email with the test results once it&apos;s finished.
+						</p>
+					</div>
 				</div>
 			)}
 
@@ -1119,6 +1137,11 @@ export default function AdminPanel() {
 							{chatbotTestResult.success ? "✅ Chatbot Test Completed" : "❌ Chatbot Test Failed"}
 						</h3>
 						<p className='text-sm text-gray-600'>Completed at: {new Date(chatbotTestResult.timestamp).toLocaleString()}</p>
+						{chatbotTestResult.success && (
+							<p className='text-sm text-green-600 mt-1'>
+								📧 Email with detailed test results has been sent to {emailAddress}
+							</p>
+						)}
 					</div>
 
 					<div className='space-y-2'>
