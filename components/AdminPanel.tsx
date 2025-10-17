@@ -92,6 +92,11 @@ export default function AdminPanel() {
 			const jobStartTime = result.timestamp ? new Date(result.timestamp).getTime() : startTimeRef.current;
 			
 			if (jobStartTime) {
+				// Set elapsed time immediately for running jobs
+				const currentElapsed = Math.floor((Date.now() - jobStartTime) / 1000);
+				setElapsedTime(currentElapsed);
+				
+				// Then start the timer to continue updating
 				timerRef.current = setInterval(() => {
 					const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
 					setElapsedTime(elapsed);
