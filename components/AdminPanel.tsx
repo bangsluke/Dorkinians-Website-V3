@@ -180,7 +180,7 @@ export default function AdminPanel() {
 			for (const path of functionPaths) {
 				try {
 					console.log(`Trying function path: ${path}`);
-					response = await fetch(`${path}?environment=production`, {
+					response = await fetch(`${path}`, {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
