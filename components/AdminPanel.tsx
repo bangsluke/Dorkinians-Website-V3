@@ -74,6 +74,7 @@ export default function AdminPanel() {
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
+	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
 
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
@@ -86,11 +87,16 @@ export default function AdminPanel() {
 
 	// Timer effect
 	useEffect(() => {
-		if (startTimeRef.current && (result?.status === "pending" || result?.status === "running")) {
-			timerRef.current = setInterval(() => {
-				const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-				setElapsedTime(elapsed);
-			}, 1000);
+		if (result?.status === "pending" || result?.status === "running") {
+			// Use job start time from backend if available, otherwise use startTimeRef
+			const jobStartTime = result.timestamp ? new Date(result.timestamp).getTime() : startTimeRef.current;
+			
+			if (jobStartTime) {
+				timerRef.current = setInterval(() => {
+					const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
+					setElapsedTime(elapsed);
+				}, 1000);
+			}
 		} else {
 			if (timerRef.current) {
 				clearInterval(timerRef.current);
@@ -108,7 +114,7 @@ export default function AdminPanel() {
 				clearInterval(timerRef.current);
 			}
 		};
-	}, [result?.status, result?.result?.duration]);
+	}, [result?.status, result?.result?.duration, result?.timestamp]);
 
 	// Cleanup function for component unmount
 	useEffect(() => {
@@ -577,7 +583,7 @@ export default function AdminPanel() {
 
 	const triggerChatbotTest = async () => {
 		setChatbotTestLoading(true);
-		setError(null);
+		setChatbotTestError(null);
 		setChatbotTestResult(null);
 
 		try {
@@ -605,7 +611,7 @@ export default function AdminPanel() {
 			}
 		} catch (err) {
 			console.error("Chatbot test error:", err);
-			setError(err instanceof Error ? err.message : "Network error");
+			setChatbotTestError(err instanceof Error ? err.message : "Network error");
 		} finally {
 			setChatbotTestLoading(false);
 		}
@@ -670,35 +676,37 @@ export default function AdminPanel() {
 							className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-800'
 						/>
 					</div>
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='sendEmailAtStart'
-							checked={sendEmailAtStart}
-							onChange={(e) => setSendEmailAtStart(e.target.checked)}
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='sendEmailAtStart' className='text-sm text-gray-700'>
-							Send email when seeding starts
-						</label>
-					</div>
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='sendEmailAtCompletion'
-							checked={sendEmailAtCompletion}
-							onChange={(e) => setSendEmailAtCompletion(e.target.checked)}
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='sendEmailAtCompletion' className='text-sm text-gray-700'>
-							Send email when seeding completes
-						</label>
+					<div className='flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0'>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='sendEmailAtStart'
+								checked={sendEmailAtStart}
+								onChange={(e) => setSendEmailAtStart(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='sendEmailAtStart' className='text-sm text-gray-700'>
+								Send email when seeding starts
+							</label>
+						</div>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='sendEmailAtCompletion'
+								checked={sendEmailAtCompletion}
+								onChange={(e) => setSendEmailAtCompletion(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='sendEmailAtCompletion' className='text-sm text-gray-700'>
+								Send email when seeding completes
+							</label>
+						</div>
 					</div>
 				</div>
 			</div>
 
 			{/* Action Buttons */}
-			<div className='mb-6 flex justify-center gap-4 flex-wrap'>
+			<div className='mb-6 flex justify-center gap-4 flex-wrap lg:flex-nowrap'>
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
@@ -847,18 +855,18 @@ export default function AdminPanel() {
 						</h3>
 					</div>
 
-					<div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-4'>
+					<div className='grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4'>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Environment</p>
 							<p className='font-semibold text-gray-900'>{result.environment.charAt(0).toUpperCase() + result.environment.slice(1)}</p>
 						</div>
 						<div>
-							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
-							<p className='font-semibold text-gray-900'>{new Date(result.timestamp).toLocaleString()}</p>
-						</div>
-						<div>
 							<p className='text-sm text-gray-800 font-medium'>Status</p>
 							<p className={`font-semibold ${statusInfo?.color}`}>{statusInfo?.text}</p>
+						</div>
+						<div>
+							<p className='text-sm text-gray-800 font-medium'>Timestamp</p>
+							<p className='font-semibold text-gray-900'>{new Date(result.timestamp).toLocaleString()}</p>
 						</div>
 						<div>
 							<p className='text-sm text-gray-800 font-medium'>Elapsed Time</p>
@@ -947,7 +955,7 @@ export default function AdminPanel() {
 					)}
 
 					{/* Debug Information - Moved into progress section */}
-					<div className='mt-4 p-3 bg-gray-50 border border-gray-200 rounded-lg'>
+					<div className='mt-6 p-3 bg-gray-50 border border-gray-200 rounded-lg'>
 						<h4 className='text-sm font-semibold text-gray-800 mb-2'>🔧 Debug Information</h4>
 						<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700'>
 							<div>
@@ -1190,6 +1198,15 @@ export default function AdminPanel() {
 						{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
 					</button>
 				</div>
+				
+				{/* Chatbot Test Error Display */}
+				{chatbotTestError && (
+					<div className='mt-3 p-3 bg-red-50 border border-red-200 rounded-lg'>
+						<p className='text-red-600 text-sm'>
+							❌ <strong>Chatbot Test Error:</strong> {chatbotTestError}
+						</p>
+					</div>
+				)}
 			</div>
 
 			{/* Jobs Modal */}
