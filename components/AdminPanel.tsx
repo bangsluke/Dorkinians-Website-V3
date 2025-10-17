@@ -74,6 +74,7 @@ export default function AdminPanel() {
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
+	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
 
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
@@ -86,11 +87,16 @@ export default function AdminPanel() {
 
 	// Timer effect
 	useEffect(() => {
-		if (startTimeRef.current && (result?.status === "pending" || result?.status === "running")) {
-			timerRef.current = setInterval(() => {
-				const elapsed = Math.floor((Date.now() - startTimeRef.current!) / 1000);
-				setElapsedTime(elapsed);
-			}, 1000);
+		if (result?.status === "pending" || result?.status === "running") {
+			// Use job start time from backend if available, otherwise use startTimeRef
+			const jobStartTime = result.timestamp ? new Date(result.timestamp).getTime() : startTimeRef.current;
+			
+			if (jobStartTime) {
+				timerRef.current = setInterval(() => {
+					const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
+					setElapsedTime(elapsed);
+				}, 1000);
+			}
 		} else {
 			if (timerRef.current) {
 				clearInterval(timerRef.current);
@@ -108,7 +114,7 @@ export default function AdminPanel() {
 				clearInterval(timerRef.current);
 			}
 		};
-	}, [result?.status, result?.result?.duration]);
+	}, [result?.status, result?.result?.duration, result?.timestamp]);
 
 	// Cleanup function for component unmount
 	useEffect(() => {
@@ -577,7 +583,7 @@ export default function AdminPanel() {
 
 	const triggerChatbotTest = async () => {
 		setChatbotTestLoading(true);
-		setError(null);
+		setChatbotTestError(null);
 		setChatbotTestResult(null);
 
 		try {
@@ -605,7 +611,7 @@ export default function AdminPanel() {
 			}
 		} catch (err) {
 			console.error("Chatbot test error:", err);
-			setError(err instanceof Error ? err.message : "Network error");
+			setChatbotTestError(err instanceof Error ? err.message : "Network error");
 		} finally {
 			setChatbotTestLoading(false);
 		}
@@ -1190,6 +1196,15 @@ export default function AdminPanel() {
 						{chatbotTestLoading ? "🔄 Testing..." : "🤖 Run Chatbot Test & Email"}
 					</button>
 				</div>
+				
+				{/* Chatbot Test Error Display */}
+				{chatbotTestError && (
+					<div className='mt-3 p-3 bg-red-50 border border-red-200 rounded-lg'>
+						<p className='text-red-600 text-sm'>
+							❌ <strong>Chatbot Test Error:</strong> {chatbotTestError}
+						</p>
+					</div>
+				)}
 			</div>
 
 			{/* Jobs Modal */}
