@@ -333,6 +333,7 @@ const schema = {
       'ID': 'id',
       'SEASON': 'season',
       'WEEK': 'week',
+      'BEST FORMATION': 'bestFormation',  
       'TOTW SCORE': 'totwScore',
       'PLAYER COUNT': 'playerCount',
       'STAR MAN': 'starMan',
@@ -358,6 +359,7 @@ const schema = {
       id: { type: 'string', required: true },
       season: { type: 'string', required: true },
       week: { type: 'string', required: true },
+      bestFormation: { type: 'string', required: false },
       totwScore: { type: 'integer', required: false },
       playerCount: { type: 'integer', required: false },
       starMan: { type: 'string', required: false },
@@ -391,6 +393,7 @@ const schema = {
     csvColumns: {
       'ID': 'id',
       'SEASON': 'season',
+      'BEST FORMATION': 'bestFormation',
       'TOTW SCORE': 'totwScore',
       'STAR MAN': 'starMan',
       'STAR MAN SCORE': 'starManScore',
@@ -414,6 +417,7 @@ const schema = {
     properties: {
       id: { type: 'string', required: true },
       season: { type: 'string', required: true },
+      bestFormation: { type: 'string', required: false },
       totwScore: { type: 'integer', required: false },
       starMan: { type: 'string', required: false },
       starManScore: { type: 'integer', required: false },
@@ -715,103 +719,103 @@ const schema = {
   },
 
   // ============================================================================
-  // TBL_LeagueTables - Single node per league table with full standings
+  // TBL_LeagueTables - SKIPPED for memory optimization (web scraping disabled)
   // ============================================================================
-  TBL_LeagueTables: {
-    csvColumns: {
-      'Team': 'team',
-      'Season': 'season',
-      'URL_Type': 'urlType',
-      'League_Name': 'leagueName',
-      'HTML_Table_Number': 'htmlTableNumber',
-      'URL': 'url'
-    },
-    requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      team: { type: 'string', required: true },
-      season: { type: 'string', required: true },
-      urlType: { type: 'string', required: true },
-      leagueName: { type: 'string', required: true },
-      htmlTableNumber: { type: 'integer', required: true },
-      url: { type: 'string', required: true },
-      lastUpdated: { type: 'datetime', required: false },
-      standings: { type: 'string', required: false },
-      totalTeams: { type: 'integer', required: false },
-      htmlContent: { type: 'string', required: false },
-      dataSource: { type: 'string', required: false },
-      dataSourceUrl: { type: 'string', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
+  // TBL_LeagueTables: {
+  //   csvColumns: {
+  //     'Team': 'team',
+  //     'Season': 'season',
+  //     'URL_Type': 'urlType',
+  //     'League_Name': 'leagueName',
+  //     'HTML_Table_Number': 'htmlTableNumber',
+  //     'URL': 'url'
+  //   },
+  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
+  //   nodeType: 'LeagueTable',
+  //   properties: {
+  //     id: { type: 'string', required: true },
+  //     team: { type: 'string', required: true },
+  //     season: { type: 'string', required: true },
+  //     urlType: { type: 'string', required: true },
+  //     leagueName: { type: 'string', required: true },
+  //     htmlTableNumber: { type: 'integer', required: true },
+  //     url: { type: 'string', required: true },
+  //     lastUpdated: { type: 'datetime', required: false },
+  //     standings: { type: 'string', required: false },
+  //     totalTeams: { type: 'integer', required: false },
+  //     htmlContent: { type: 'string', required: false },
+  //     dataSource: { type: 'string', required: false },
+  //     dataSourceUrl: { type: 'string', required: false }
+  //   },
+  //   idPattern: 'leaguetable_{season}_{team}',
+  //   constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
+  // },
 
   // ============================================================================
-  // TBL_ExternalFixtures - External fixture data from FA Full Time and other sources
+  // TBL_ExternalFixtures - SKIPPED for memory optimization (web scraping disabled)
   // ============================================================================
-  TBL_ExternalFixtures: {
-    csvColumns: {
-      'Team': 'team',
-      'Season': 'season',
-      'URL_Type': 'urlType',
-      'League_Name': 'leagueName',
-      'HTML_Table_Number': 'htmlTableNumber',
-      'URL': 'url'
-    },
-    requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-    nodeType: 'ExternalFixture',
-    properties: {
-      id: { type: 'string', required: true },
-      team: { type: 'string', required: true },
-      season: { type: 'string', required: true },
-      urlType: { type: 'string', required: true },
-      leagueName: { type: 'string', required: true },
-      htmlTableNumber: { type: 'integer', required: true },
-      url: { type: 'string', required: true },
-      lastUpdated: { type: 'datetime', required: false },
-      fixtures: { type: 'string', required: false },
-      totalTeams: { type: 'integer', required: false },
-      htmlContent: { type: 'string', required: false },
-      dataSource: { type: 'string', required: false },
-      dataSourceUrl: { type: 'string', required: false }
-    },
-    idPattern: 'externalfixture_{season}_{team}',
-    constraints: ['CREATE CONSTRAINT externalfixture_id IF NOT EXISTS FOR (ef:ExternalFixture) REQUIRE ef.id IS UNIQUE']
-  },
+  // TBL_ExternalFixtures: {
+  //   csvColumns: {
+  //     'Team': 'team',
+  //     'Season': 'season',
+  //     'URL_Type': 'urlType',
+  //     'League_Name': 'leagueName',
+  //     'HTML_Table_Number': 'htmlTableNumber',
+  //     'URL': 'url'
+  //   },
+  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
+  //   nodeType: 'ExternalFixture',
+  //   properties: {
+  //     id: { type: 'string', required: true },
+  //     team: { type: 'string', required: true },
+  //     season: { type: 'string', required: true },
+  //     urlType: { type: 'string', required: true },
+  //     leagueName: { type: 'string', required: true },
+  //     htmlTableNumber: { type: 'integer', required: true },
+  //     url: { type: 'string', required: true },
+  //     lastUpdated: { type: 'datetime', required: false },
+  //     fixtures: { type: 'string', required: false },
+  //     totalTeams: { type: 'integer', required: false },
+  //     htmlContent: { type: 'string', required: false },
+  //     dataSource: { type: 'string', required: false },
+  //     dataSourceUrl: { type: 'string', required: false }
+  //   },
+  //   idPattern: 'externalfixture_{season}_{team}',
+  //   constraints: ['CREATE CONSTRAINT externalfixture_id IF NOT EXISTS FOR (ef:ExternalFixture) REQUIRE ef.id IS UNIQUE']
+  // },
 
   // ============================================================================
-  // TBL_ExternalResults - External result data from FA Full Time and other sources
+  // TBL_ExternalResults - SKIPPED for memory optimization (web scraping disabled)
   // ============================================================================
-  TBL_ExternalResults: {
-    csvColumns: {
-      'Team': 'team',
-      'Season': 'season',
-      'URL_Type': 'urlType',
-      'League_Name': 'leagueName',
-      'HTML_Table_Number': 'htmlTableNumber',
-      'URL': 'url'
-    },
-    requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-    nodeType: 'ExternalResult',
-    properties: {
-      id: { type: 'string', required: true },
-      team: { type: 'string', required: true },
-      season: { type: 'string', required: true },
-      urlType: { type: 'string', required: true },
-      leagueName: { type: 'string', required: true },
-      htmlTableNumber: { type: 'integer', required: true },
-      url: { type: 'string', required: true },
-      lastUpdated: { type: 'datetime', required: false },
-      results: { type: 'string', required: false },
-      totalTeams: { type: 'integer', required: false },
-      htmlContent: { type: 'string', required: false },
-      dataSource: { type: 'string', required: false },
-      dataSourceUrl: { type: 'string', required: false }
-    },
-    idPattern: 'externalresult_{season}_{team}',
-    constraints: ['CREATE CONSTRAINT externalresult_id IF NOT EXISTS FOR (er:ExternalResult) REQUIRE er.id IS UNIQUE']
-  },
+  // TBL_ExternalResults: {
+  //   csvColumns: {
+  //     'Team': 'team',
+  //     'Season': 'season',
+  //     'URL_Type': 'urlType',
+  //     'League_Name': 'leagueName',
+  //     'HTML_Table_Number': 'htmlTableNumber',
+  //     'URL': 'url'
+  //   },
+  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
+  //   nodeType: 'ExternalResult',
+  //   properties: {
+  //     id: { type: 'string', required: true },
+  //     team: { type: 'string', required: true },
+  //     season: { type: 'string', required: true },
+  //     urlType: { type: 'string', required: true },
+  //     leagueName: { type: 'string', required: true },
+  //     htmlTableNumber: { type: 'integer', required: true },
+  //     url: { type: 'string', required: true },
+  //     lastUpdated: { type: 'datetime', required: false },
+  //     results: { type: 'string', required: false },
+  //     totalTeams: { type: 'integer', required: false },
+  //     htmlContent: { type: 'string', required: false },
+  //     dataSource: { type: 'string', required: false },
+  //     dataSourceUrl: { type: 'string', required: false }
+  //   },
+  //   idPattern: 'externalresult_{season}_{team}',
+  //   constraints: ['CREATE CONSTRAINT externalresult_id IF NOT EXISTS FOR (er:ExternalResult) REQUIRE er.id IS UNIQUE']
+  // },
 
 };
 
