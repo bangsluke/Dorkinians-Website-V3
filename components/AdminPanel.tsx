@@ -1023,9 +1023,6 @@ export default function AdminPanel() {
 								<p><strong>Environment:</strong> Production</p>
 								<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}</p>
 								<p><strong>Email Address:</strong> {emailAddress}</p>
-								{result?.result?.duration && (
-									<p><strong>Backend Duration:</strong> {formatElapsedTime(Math.floor(result.result.duration / 1000))}</p>
-								)}
 							</div>
 						</div>
 					</div>
