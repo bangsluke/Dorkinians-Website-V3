@@ -85,24 +85,10 @@ export default function AdminPanel() {
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-	// Timer effect
+	// Timer effect - simplified since timer management is now handled in status check functions
 	useEffect(() => {
-		if (result?.status === "pending" || result?.status === "running") {
-			// Use job start time from backend if available, otherwise use startTimeRef
-			const jobStartTime = result.timestamp ? new Date(result.timestamp).getTime() : startTimeRef.current;
-			
-			if (jobStartTime) {
-				// Set elapsed time immediately for running jobs
-				const currentElapsed = Math.floor((Date.now() - jobStartTime) / 1000);
-				setElapsedTime(currentElapsed);
-				
-				// Then start the timer to continue updating
-				timerRef.current = setInterval(() => {
-					const elapsed = Math.floor((Date.now() - jobStartTime) / 1000);
-					setElapsedTime(elapsed);
-				}, 1000);
-			}
-		} else {
+		// Only handle cleanup when status changes to non-running states
+		if (result?.status === "completed" || result?.status === "failed") {
 			if (timerRef.current) {
 				clearInterval(timerRef.current);
 				timerRef.current = null;
@@ -119,7 +105,7 @@ export default function AdminPanel() {
 				clearInterval(timerRef.current);
 			}
 		};
-	}, [result?.status, result?.result?.duration, result?.timestamp]);
+	}, [result?.status, result?.result?.duration]);
 
 	// Cleanup function for component unmount
 	useEffect(() => {
@@ -418,6 +404,15 @@ export default function AdminPanel() {
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
 						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
+						
+						// Clear any existing timer and start a new one with the correct start time
+						if (timerRef.current) {
+							clearInterval(timerRef.current);
+						}
+						timerRef.current = setInterval(() => {
+							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
+							setElapsedTime(elapsed);
+						}, 1000);
 					}
 				}
 			} else {
@@ -529,6 +524,15 @@ export default function AdminPanel() {
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
 						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
+						
+						// Clear any existing timer and start a new one with the correct start time
+						if (timerRef.current) {
+							clearInterval(timerRef.current);
+						}
+						timerRef.current = setInterval(() => {
+							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
+							setElapsedTime(elapsed);
+						}, 1000);
 					} else {
 						// For failed or other statuses, calculate from start time
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
