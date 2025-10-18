@@ -288,7 +288,9 @@ export default function AdminPanel() {
 				}
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
-				throw new Error("Failed to trigger seeding - all function paths failed");
+				addDebugLog("💡 Check Heroku app status: https://dashboard.heroku.com/apps/database-dorkinians", 'info');
+				addDebugLog("💡 The Netlify function is working but can't connect to Heroku", 'info');
+				throw new Error("Failed to trigger seeding - Heroku service is unreachable. Check Heroku dashboard for app status.");
 			}
 		} catch (err) {
 			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
