@@ -223,6 +223,7 @@ const schema = {
     csvColumns: {
       'ID': 'id',
       'SEASON': 'season',
+      'SEASON WEEK': 'seasonWeek',
       'DATE': 'date',
       'TEAM': 'team',
       'COMP TYPE': 'compType',
@@ -239,11 +240,12 @@ const schema = {
       'CONCEDED': 'conceded',
       'EXTRACTED PICKER': 'extractedPicker',
     },
-    requiredColumns: ['ID', 'SEASON', 'DATE', 'TEAM', 'COMP TYPE', 'COMPETITION', 'OPPOSITION', 'HOME/AWAY', 'RESULT', 'HOME SCORE', 'AWAY SCORE'],
+    requiredColumns: ['ID', 'SEASON', 'SEASON WEEK', 'DATE', 'TEAM', 'COMP TYPE', 'COMPETITION', 'OPPOSITION', 'HOME/AWAY', 'RESULT', 'HOME SCORE', 'AWAY SCORE'],
     nodeType: 'Fixture',
     properties: {
       id: { type: 'string', required: true },
       season: { type: 'string', required: true },
+      seasonWeek: { type: 'string', required: true },
       date: { type: 'date', required: true },
       team: { type: 'string', required: true },
       compType: { type: 'string', required: true },
@@ -274,6 +276,7 @@ const schema = {
     csvColumns: {
       'ID': 'id',
       'SEASON': 'season',
+      'SEASON WEEK': 'seasonWeek',
       'DATE': 'date',
       'TEAM': 'team',
       'PLAYER NAME': 'playerName',
@@ -295,11 +298,12 @@ const schema = {
       'IMPORTED_FIXTURE_DETAIL': 'importedFixtureDetail',
       'FTP': 'fantasyPoints'
     },
-    requiredColumns: ['ID', 'SEASON', 'DATE', 'TEAM', 'PLAYER NAME', 'MIN', 'CLASS'],
+    requiredColumns: ['ID', 'SEASON', 'SEASON WEEK', 'DATE', 'TEAM', 'PLAYER NAME', 'MIN', 'CLASS'],
     nodeType: 'MatchDetail',
     properties: {
       id: { type: 'string', required: true },
       season: { type: 'string', required: true },
+      seasonWeek: { type: 'string', required: true },
       date: { type: 'date', required: true },
       team: { type: 'string', required: true },
       playerName: { type: 'string', required: true },
@@ -719,6 +723,164 @@ const schema = {
   },
 
   // ============================================================================
+  // TBL_PlayersOfTheMonth - Player of the month awards
+  // ============================================================================
+  TBL_PlayersOfTheMonth: {
+    csvColumns: {
+      'ID': 'id',
+      'SEASON': 'season',
+      'MONTH': 'month',
+      'PLAYER1_NAME': 'player1Name',
+      'PLAYER2_NAME': 'player2Name',
+      'PLAYER3_NAME': 'player3Name',
+      'PLAYER4_NAME': 'player4Name',
+      'PLAYER5_NAME': 'player5Name',
+      'PLAYER1_POINTS': 'player1Points',
+      'PLAYER2_POINTS': 'player2Points',
+      'PLAYER3_POINTS': 'player3Points',
+      'PLAYER4_POINTS': 'player4Points',
+      'PLAYER5_POINTS': 'player5Points'
+    },
+    requiredColumns: ['ID', 'SEASON', 'MONTH'],
+    nodeType: 'PlayersOfTheMonth',
+    properties: {
+      id: { type: 'string', required: true },
+      season: { type: 'string', required: true },
+      month: { type: 'string', required: true },
+      player1Name: { type: 'string', required: false },
+      player2Name: { type: 'string', required: false },
+      player3Name: { type: 'string', required: false },
+      player4Name: { type: 'string', required: false },
+      player5Name: { type: 'string', required: false },
+      player1Points: { type: 'integer', required: false },
+      player2Points: { type: 'integer', required: false },
+      player3Points: { type: 'integer', required: false },
+      player4Points: { type: 'integer', required: false },
+      player5Points: { type: 'integer', required: false }
+    },
+    idPattern: 'pom_{season}_{month}',
+    constraints: ['CREATE CONSTRAINT playersofthemonth_id IF NOT EXISTS FOR (pm:PlayersOfTheMonth) REQUIRE pm.id IS UNIQUE']
+  },
+
+  // ============================================================================
+  // TBL_CaptainsAndAwards - Captain appointments and awards
+  // ============================================================================
+  TBL_CaptainsAndAwards: {
+    csvColumns: {
+      'ID': 'id',
+      'SEASON': 'season',
+      'CLUB_CAPTAIN': 'clubCaptain',
+      'FIRST_XI_CAPTAINS': 'firstXICaptains',
+      'SECOND_XI_CAPTAINS': 'secondXICaptains',
+      'THIRD_XI_CAPTAINS': 'thirdXICaptains',
+      'FOURTH_XI_CAPTAINS': 'fourthXICaptains',
+      'FIFTH_XI_CAPTAINS': 'fifthXICaptains',
+      'SIXTH_XI_CAPTAINS': 'sixthXICaptains',
+      'SEVENTH_XI_CAPTAINS': 'seventhXICaptains',
+      'EIGHTH_XI_CAPTAINS': 'eighthXICaptains',
+      'VETS_CAPTAIN': 'vetsCaptain',
+      'PLAYER_OF_THE_SEASON': 'playerOfTheSeason',
+      'YOUNG_PLAYER_OF_THE_SEASON': 'youngPlayerOfTheSeason',
+      'GOLDEN_BOOT': 'goldenBoot',
+      'MOST_IMPROVED_PLAYER': 'mostImprovedPlayer',
+      'NEWCOMER_OF_THE_YEAR': 'newcomerOfTheYear',
+      'ALAN_LAMBERT_SPORTSMANSHIP': 'alanLambertSportsmanship',
+      'CHAIRMANS_CUP': 'chairmansCup',
+      'PETER_MILLS_VOLUNTEERS': 'peterMillsVolunteers',
+      'GOALKEEPER_OF_THE_YEAR': 'goalkeeperOfTheYear',
+      'FIRST_XI_SQUAD_PLAYER': 'firstXISquadPlayer',
+      'SECOND_XI_SQUAD_PLAYER': 'secondXISquadPlayer',
+      'THIRD_XI_SQUAD_PLAYER': 'thirdXISquadPlayer',
+      'FOURTH_XI_SQUAD_PLAYER': 'fourthXISquadPlayer',
+      'FIFTH_XI_SQUAD_PLAYER': 'fifthXISquadPlayer',
+      'SIXTH_XI_SQUAD_PLAYER': 'sixthXISquadPlayer',
+      'SEVENTH_XI_SQUAD_PLAYER': 'seventhXISquadPlayer',
+      'EIGHTH_XI_SQUAD_PLAYER': 'eighthXISquadPlayer',
+      'VETS_SQUAD_PLAYER': 'vetsSquadPlayer'
+    },
+    requiredColumns: ['ID', 'SEASON'],
+    nodeType: 'CaptainsAndAwards',
+    properties: {
+      id: { type: 'string', required: true },
+      season: { type: 'string', required: true },
+      clubCaptain: { type: 'string', required: false },
+      firstXICaptains: { type: 'string', required: false },
+      secondXICaptains: { type: 'string', required: false },
+      thirdXICaptains: { type: 'string', required: false },
+      fourthXICaptains: { type: 'string', required: false },
+      fifthXICaptains: { type: 'string', required: false },
+      sixthXICaptains: { type: 'string', required: false },
+      seventhXICaptains: { type: 'string', required: false },
+      eighthXICaptains: { type: 'string', required: false },
+      vetsCaptain: { type: 'string', required: false },
+      playerOfTheSeason: { type: 'string', required: false },
+      youngPlayerOfTheSeason: { type: 'string', required: false },
+      goldenBoot: { type: 'string', required: false },
+      mostImprovedPlayer: { type: 'string', required: false },
+      newcomerOfTheYear: { type: 'string', required: false },
+      alanLambertSportsmanship: { type: 'string', required: false },
+      chairmansCup: { type: 'string', required: false },
+      peterMillsVolunteers: { type: 'string', required: false },
+      goalkeeperOfTheYear: { type: 'string', required: false },
+      firstXISquadPlayer: { type: 'string', required: false },
+      secondXISquadPlayer: { type: 'string', required: false },
+      thirdXISquadPlayer: { type: 'string', required: false },
+      fourthXISquadPlayer: { type: 'string', required: false },
+      fifthXISquadPlayer: { type: 'string', required: false },
+      sixthXISquadPlayer: { type: 'string', required: false },
+      seventhXISquadPlayer: { type: 'string', required: false },
+      eighthXISquadPlayer: { type: 'string', required: false },
+      vetsSquadPlayer: { type: 'string', required: false }
+    },
+    idPattern: 'ca_{season}',
+    constraints: ['CREATE CONSTRAINT captainsandawards_id IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE ca.id IS UNIQUE']
+  },
+
+  // ============================================================================
+  // TBL_OppositionDetails - Opposition team information
+  // ============================================================================
+  TBL_OppositionDetails: {
+    csvColumns: {
+      'ID': 'id',
+      'OPPOSITION': 'opposition',
+      'LEAGUE': 'league',
+      'DIVISION': 'division',
+      'SEASON': 'season',
+      'HOME_OR_AWAY': 'homeOrAway',
+      'FIRST_PLAYED': 'firstPlayed',
+      'LAST_PLAYED': 'lastPlayed',
+      'TOTAL_GAMES': 'totalGames',
+      'WINS': 'wins',
+      'DRAWS': 'draws',
+      'LOSSES': 'losses',
+      'GOALS_FOR': 'goalsFor',
+      'GOALS_AGAINST': 'goalsAgainst',
+      'WIN_PERCENTAGE': 'winPercentage'
+    },
+    requiredColumns: ['ID', 'OPPOSITION'],
+    nodeType: 'OppositionDetails',
+    properties: {
+      id: { type: 'string', required: true },
+      opposition: { type: 'string', required: true },
+      league: { type: 'string', required: false },
+      division: { type: 'string', required: false },
+      season: { type: 'string', required: false },
+      homeOrAway: { type: 'string', required: false },
+      firstPlayed: { type: 'date', required: false },
+      lastPlayed: { type: 'date', required: false },
+      totalGames: { type: 'integer', required: false },
+      wins: { type: 'integer', required: false },
+      draws: { type: 'integer', required: false },
+      losses: { type: 'integer', required: false },
+      goalsFor: { type: 'integer', required: false },
+      goalsAgainst: { type: 'integer', required: false },
+      winPercentage: { type: 'number', required: false }
+    },
+    idPattern: 'opp_{opposition}',
+    constraints: ['CREATE CONSTRAINT oppositiondetails_id IF NOT EXISTS FOR (od:OppositionDetails) REQUIRE od.id IS UNIQUE']
+  },
+
+  // ============================================================================
   // TBL_LeagueTables - SKIPPED for memory optimization (web scraping disabled)
   // ============================================================================
   // TBL_LeagueTables: {
@@ -905,6 +1067,16 @@ const relationships = {
       lastPlayed: { type: 'date', required: false }
     },
     conditions: 'EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture) WHERE toLower(trim(f.opposition)) = toLower(trim(od.opposition)) }'
+  },
+  // TOTW to MatchDetail relationship for frontend data loading
+  TOTW_HAS_DETAILS: {
+    from: 'WeeklyTOTW',
+    to: 'MatchDetail',
+    type: 'TOTW_HAS_DETAILS',
+    properties: {
+      seasonWeek: { type: 'string', required: true }
+    },
+    conditions: 'wt.season + "-" + wt.week = md.seasonWeek'
   },
 };
 
