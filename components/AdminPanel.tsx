@@ -76,6 +76,10 @@ export default function AdminPanel() {
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
 
+	// Debug console state
+	const [debugLogs, setDebugLogs] = useState<string[]>([]);
+	const [showDebugLogs, setShowDebugLogs] = useState(false);
+
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
 
@@ -84,6 +88,24 @@ export default function AdminPanel() {
 
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Helper function to log to both console and page
+	const addDebugLog = (message: string, type: 'info' | 'warn' | 'error' = 'info') => {
+		const timestamp = new Date().toLocaleTimeString();
+		const logMessage = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+		
+		// Log to console
+		if (type === 'error') {
+			console.error(logMessage);
+		} else if (type === 'warn') {
+			console.warn(logMessage);
+		} else {
+			console.log(logMessage);
+		}
+		
+		// Add to page logs
+		setDebugLogs(prev => [...prev.slice(-49), logMessage]); // Keep last 50 logs
+	};
 
 	// Timer effect - simplified since timer management is now handled in status check functions
 	useEffect(() => {
@@ -146,7 +168,9 @@ export default function AdminPanel() {
 		setLastStatusCheck(null);
 		setElapsedTime(0);
 		setShowProcessInfo(false); // Collapse process info when seeding starts
+		setDebugLogs([]); // Clear previous logs
 		startTimeRef.current = Date.now();
+		addDebugLog("Starting seeding process...");
 
 		try {
 			// Show immediate feedback that seeding has started
@@ -169,6 +193,7 @@ export default function AdminPanel() {
 
 			// Try different paths for the Netlify function
 			const functionPaths = ["/.netlify/functions/trigger-seed", "/api/trigger-seed", "/trigger-seed"];
+			addDebugLog(`Trying ${functionPaths.length} function paths: ${functionPaths.join(", ")}`);
 
 			let response = null;
 			let data = null;
@@ -176,7 +201,9 @@ export default function AdminPanel() {
 
 			for (const path of functionPaths) {
 				try {
-					console.log(`Trying function path: ${path}`);
+					addDebugLog(`Trying function path: ${path}`);
+					addDebugLog(`Full URL: ${window.location.origin}${path}`);
+					
 					response = await fetch(`${path}`, {
 						method: "POST",
 						headers: {
@@ -192,24 +219,41 @@ export default function AdminPanel() {
 						}),
 					});
 
+					const responseInfo = {
+						status: response.status,
+						statusText: response.statusText,
+						ok: response.ok,
+						headers: Object.fromEntries(response.headers.entries())
+					};
+					
+					addDebugLog(`Response for ${path}: ${JSON.stringify(responseInfo)}`);
+
 					if (response.ok) {
 						const contentType = response.headers.get("content-type");
 						if (contentType && contentType.includes("application/json")) {
 							data = await response.json();
 							successfulPath = path;
-							console.log(`✅ Success with path: ${path}`);
-							console.log("Function response:", data);
+							addDebugLog(`✅ Success with path: ${path}`, 'info');
+							addDebugLog(`Function response: ${JSON.stringify(data)}`, 'info');
 							break;
 						} else {
-							console.warn(`Path ${path} returned non-JSON response:`, contentType);
+							addDebugLog(`Path ${path} returned non-JSON response: ${contentType}`, 'warn');
 							const textResponse = await response.text();
-							console.warn("Response preview:", textResponse.substring(0, 200));
+							addDebugLog(`Response preview: ${textResponse.substring(0, 200)}`, 'warn');
 						}
 					} else {
-						console.warn(`Path ${path} returned status:`, response.status);
+						addDebugLog(`Path ${path} returned status: ${response.status}`, 'warn');
+						const errorText = await response.text().catch(() => "Could not read error response");
+						addDebugLog(`Error response for ${path}: ${errorText.substring(0, 200)}`, 'warn');
 					}
 				} catch (pathError) {
-					console.warn(`Path ${path} failed:`, pathError);
+					const errorDetails = {
+						name: (pathError as Error).name,
+						message: (pathError as Error).message,
+						stack: (pathError as Error).stack?.substring(0, 200)
+					};
+					addDebugLog(`Path ${path} failed: ${(pathError as Error).message}`, 'error');
+					addDebugLog(`Error details for ${path}: ${JSON.stringify(errorDetails)}`, 'error');
 				}
 			}
 
@@ -243,10 +287,11 @@ export default function AdminPanel() {
 					});
 				}
 			} else {
+				addDebugLog("❌ All function paths failed", 'error');
 				throw new Error("Failed to trigger seeding - all function paths failed");
 			}
 		} catch (err) {
-			console.error("Seeding trigger error:", err);
+			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
 			setError(err instanceof Error ? err.message : "Network error");
 		} finally {
 			setIsLoading(false);
@@ -982,6 +1027,30 @@ export default function AdminPanel() {
 							</div>
 						</div>
 					</div>
+
+					{/* Debug Console Logs */}
+					{debugLogs.length > 0 && (
+						<div className='mt-4 p-3 bg-gray-900 border border-gray-700 rounded-lg'>
+							<div className='flex justify-between items-center mb-2'>
+								<h4 className='text-sm font-semibold text-green-400 mb-2'>🐛 Debug Console Logs</h4>
+								<button
+									onClick={() => setShowDebugLogs(!showDebugLogs)}
+									className='text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600'
+								>
+									{showDebugLogs ? 'Hide' : 'Show'} ({debugLogs.length})
+								</button>
+							</div>
+							{showDebugLogs && (
+								<div className='bg-black text-green-400 p-3 rounded text-xs font-mono max-h-64 overflow-y-auto'>
+									{debugLogs.map((log, index) => (
+										<div key={index} className='mb-1 whitespace-pre-wrap'>
+											{log}
+										</div>
+									))}
+								</div>
+							)}
+						</div>
+					)}
 
 					{/* Final Statistics */}
 					{result.status === "completed" && (
