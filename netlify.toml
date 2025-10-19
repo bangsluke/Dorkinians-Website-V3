@@ -59,6 +59,16 @@
   to = "/.netlify/functions/trigger-seed"
   status = 200
 
+[[redirects]]
+  from = "/api/debug/*"
+  to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/storage/*"
+  to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/storage/:splat"
+  status = 200
+
 # Handle all other routes - serve index.html for SPA routing
 [[redirects]]
   from = "/*"

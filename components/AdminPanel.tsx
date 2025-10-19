@@ -82,7 +82,6 @@ export default function AdminPanel() {
 
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
-	const [activeTab, setActiveTab] = useState<'seeding' | 'monitoring'>('seeding');
 
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === "development";
@@ -675,38 +674,9 @@ export default function AdminPanel() {
 	const statusInfo = getStatusDisplay();
 
 	return (
-		<div className='max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
+		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
 			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Database Seeding Admin Panel</h2>
 
-			{/* Tab Navigation */}
-			<div className='mb-6 border-b border-gray-200'>
-				<nav className='-mb-px flex space-x-8'>
-					<button
-						onClick={() => setActiveTab('seeding')}
-						className={`py-2 px-1 border-b-2 font-medium text-sm ${
-							activeTab === 'seeding'
-								? 'border-blue-500 text-blue-600'
-								: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-						}`}
-					>
-						Database Seeding
-					</button>
-					<button
-						onClick={() => setActiveTab('monitoring')}
-						className={`py-2 px-1 border-b-2 font-medium text-sm ${
-							activeTab === 'monitoring'
-								? 'border-blue-500 text-blue-600'
-								: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-						}`}
-					>
-						Job Monitoring
-					</button>
-				</nav>
-			</div>
-
-			{/* Tab Content */}
-			{activeTab === 'seeding' && (
-				<>
 					{/* How the Database Seeding Process Works - Collapsible */}
 					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
 				<button
@@ -1273,6 +1243,16 @@ export default function AdminPanel() {
 				</div>
 			)}
 
+			{/* Job Monitoring Section */}
+			<div className='mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg'>
+				<h3 className='text-lg font-semibold text-purple-800 mb-2'>Job Monitoring Dashboard</h3>
+				<p className='text-purple-700 text-sm mb-4'>
+					Monitor job execution, performance metrics, and debug information in real-time. 
+					View detailed analyses of completed jobs and track system health.
+				</p>
+				<JobMonitoringDashboard />
+			</div>
+
 			{/* Chatbot Testing Section */}
 			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
 				<h3 className='text-lg font-semibold text-green-800 mb-2'>Chatbot Testing</h3>
@@ -1387,13 +1367,6 @@ export default function AdminPanel() {
 						</div>
 					</div>
 				</div>
-			)}
-				</>
-			)}
-
-			{/* Monitoring Tab */}
-			{activeTab === 'monitoring' && (
-				<JobMonitoringDashboard />
 			)}
 		</div>
 	);

@@ -56,6 +56,7 @@ interface StorageStats {
 const JobMonitoringDashboard: React.FC = () => {
   const [analyses, setAnalyses] = useState<JobAnalysis[]>([]);
   const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [currentJobs, setCurrentJobs] = useState<any[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +65,7 @@ const JobMonitoringDashboard: React.FC = () => {
   // Fetch job analyses
   const fetchJobAnalyses = async () => {
     try {
-      const response = await fetch('/api/debug/jobs');
+      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/jobs');
       if (response.ok) {
         const data = await response.json();
         setAnalyses(data.analyses || []);
@@ -80,7 +81,7 @@ const JobMonitoringDashboard: React.FC = () => {
   // Fetch storage statistics
   const fetchStorageStats = async () => {
     try {
-      const response = await fetch('/api/storage/stats');
+      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/api/storage/stats');
       if (response.ok) {
         const data = await response.json();
         setStorageStats(data.stats);
@@ -92,10 +93,25 @@ const JobMonitoringDashboard: React.FC = () => {
     }
   };
 
+  // Fetch current jobs
+  const fetchCurrentJobs = async () => {
+    try {
+      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/jobs');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentJobs(data.jobs || []);
+      } else {
+        throw new Error('Failed to fetch current jobs');
+      }
+    } catch (err) {
+      console.error('Error fetching current jobs:', err);
+    }
+  };
+
   // Fetch detailed job analysis
   const fetchJobAnalysis = async (jobId: string) => {
     try {
-      const response = await fetch(`/api/debug/jobs/${jobId}`);
+      const response = await fetch(`https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/jobs/${jobId}`);
       if (response.ok) {
         const data = await response.json();
         setSelectedJob(data.analysis);
@@ -113,6 +129,7 @@ const JobMonitoringDashboard: React.FC = () => {
     const refreshData = () => {
       fetchJobAnalyses();
       fetchStorageStats();
+      fetchCurrentJobs();
     };
 
     refreshData();
@@ -187,6 +204,7 @@ const JobMonitoringDashboard: React.FC = () => {
             onClick={() => {
               fetchJobAnalyses();
               fetchStorageStats();
+              fetchCurrentJobs();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
@@ -241,79 +259,168 @@ const JobMonitoringDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Current Jobs */}
+      {currentJobs.length > 0 && (
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">Current Jobs ({currentJobs.length})</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Job ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Current Step
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Started
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Last Update
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {currentJobs.map((job) => (
+                  <tr key={job.jobId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                      {job.jobId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-medium ${getStatusColor(job.status)}`}>
+                        {job.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${job.progress || 0}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-xs text-gray-500">{job.progress || 0}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {job.currentStep || 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Job Analyses List */}
       <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Job Analyses ({analyses.length})</h3>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Job ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Progress
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Issues
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {analyses.map((analysis) => (
-                <tr key={analysis.jobId} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                    {analysis.jobId}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`text-sm font-medium ${getStatusColor(analysis.summary.status)}`}>
-                      {analysis.summary.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDuration(analysis.summary.duration)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {analysis.summary.progress}%
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex space-x-2">
-                      {analysis.summary.errorCount > 0 && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          {analysis.summary.errorCount} errors
-                        </span>
-                      )}
-                      {analysis.summary.warningCount > 0 && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                          {analysis.summary.warningCount} warnings
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => fetchJobAnalysis(analysis.jobId)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      View Details
-                    </button>
-                  </td>
+        {analyses.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Job ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Duration
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Progress
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Issues
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {analyses.map((analysis) => (
+                  <tr key={analysis.jobId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                      {analysis.jobId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`text-sm font-medium ${getStatusColor(analysis.summary.status)}`}>
+                        {analysis.summary.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatDuration(analysis.summary.duration)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {analysis.summary.progress}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex space-x-2">
+                        {analysis.summary.errorCount > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            {analysis.summary.errorCount} errors
+                          </span>
+                        )}
+                        {analysis.summary.warningCount > 0 && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            {analysis.summary.warningCount} warnings
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => fetchJobAnalysis(analysis.jobId)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        View Details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-4">
+              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Job Analyses Yet</h3>
+            <p className="text-gray-500 mb-4">
+              Job analyses are created when jobs complete or fail. Start a seeding job to see detailed analysis.
+            </p>
+            <div className="text-sm text-gray-400">
+              <p>• Job analyses provide detailed performance metrics</p>
+              <p>• Memory usage tracking and leak detection</p>
+              <p>• Error pattern analysis and recommendations</p>
+              <p>• Step-by-step execution timeline</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Selected Job Details */}
