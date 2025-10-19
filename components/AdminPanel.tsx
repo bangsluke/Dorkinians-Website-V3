@@ -999,7 +999,7 @@ export default function AdminPanel() {
 									)}
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
-										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : "~65 minutes"}
+										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : "~35 minutes"}
 									</p>
 									<p className='text-xs text-blue-500'>Check your email for start and completion notifications.</p>
 								</div>
