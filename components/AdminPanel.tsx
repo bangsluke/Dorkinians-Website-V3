@@ -76,9 +76,8 @@ export default function AdminPanel() {
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
 
-	// Debug console state
-	const [debugLogs, setDebugLogs] = useState<string[]>([]);
-	const [showDebugLogs, setShowDebugLogs] = useState(false);
+	// Debug information state
+	const [showDebugInfo, setShowDebugInfo] = useState(false);
 
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
@@ -103,8 +102,7 @@ export default function AdminPanel() {
 			console.log(logMessage);
 		}
 		
-		// Add to page logs
-		setDebugLogs(prev => [...prev.slice(-49), logMessage]); // Keep last 50 logs
+		// Debug logging removed
 	};
 
 	// Timer effect - simplified since timer management is now handled in status check functions
@@ -168,7 +166,6 @@ export default function AdminPanel() {
 		setLastStatusCheck(null);
 		setElapsedTime(0);
 		setShowProcessInfo(false); // Collapse process info when seeding starts
-		setDebugLogs([]); // Clear previous logs
 		startTimeRef.current = Date.now();
 		addDebugLog("Starting seeding process...");
 
@@ -1002,7 +999,7 @@ export default function AdminPanel() {
 									)}
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
-										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : "~65 minutes"}
+										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : "~35 minutes"}
 									</p>
 									<p className='text-xs text-blue-500'>Check your email for start and completion notifications.</p>
 								</div>
@@ -1010,46 +1007,33 @@ export default function AdminPanel() {
 						</div>
 					)}
 
-					{/* Debug Information - Moved into progress section */}
+					{/* Debug Information - Collapsible */}
 					<div className='mt-6 p-3 bg-gray-50 border border-gray-200 rounded-lg'>
-						<h4 className='text-sm font-semibold text-gray-800 mb-2'>🔧 Debug Information</h4>
-						<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700'>
-							<div>
-								<p><strong>Current Job ID:</strong> {jobId || "None"}</p>
-								<p><strong>Last Status Check:</strong> {lastStatusCheck || "Never"}</p>
-								<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}</p>
-							</div>
-							<div>
-								<p><strong>Environment:</strong> Production</p>
-								<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}</p>
-								<p><strong>Email Address:</strong> {emailAddress}</p>
-							</div>
+						<div className='flex justify-between items-center mb-2'>
+							<h4 className='text-sm font-semibold text-gray-800'>🔧 Debug Information</h4>
+							<button
+								onClick={() => setShowDebugInfo(!showDebugInfo)}
+								className='text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300'
+							>
+								{showDebugInfo ? 'Hide' : 'Show'}
+							</button>
 						</div>
+						{showDebugInfo && (
+							<div className='grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-gray-700'>
+								<div>
+									<p><strong>Current Job ID:</strong> {jobId || "None"}</p>
+									<p><strong>Last Status Check:</strong> {lastStatusCheck || "Never"}</p>
+									<p><strong>Elapsed Time:</strong> {elapsedTime > 0 ? formatElapsedTime(elapsedTime) : "0s"}</p>
+								</div>
+								<div>
+									<p><strong>Environment:</strong> Production</p>
+									<p><strong>Email Notifications:</strong> {sendEmailAtCompletion ? "Enabled" : "Disabled"}</p>
+									<p><strong>Email Address:</strong> {emailAddress}</p>
+								</div>
+							</div>
+						)}
 					</div>
 
-					{/* Debug Console Logs */}
-					{debugLogs.length > 0 && (
-						<div className='mt-4 p-3 bg-gray-900 border border-gray-700 rounded-lg'>
-							<div className='flex justify-between items-center mb-2'>
-								<h4 className='text-sm font-semibold text-green-400 mb-2'>🐛 Debug Console Logs</h4>
-								<button
-									onClick={() => setShowDebugLogs(!showDebugLogs)}
-									className='text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded hover:bg-gray-600'
-								>
-									{showDebugLogs ? 'Hide' : 'Show'} ({debugLogs.length})
-								</button>
-							</div>
-							{showDebugLogs && (
-								<div className='bg-black text-green-400 p-3 rounded text-xs font-mono max-h-64 overflow-y-auto'>
-									{debugLogs.map((log, index) => (
-										<div key={index} className='mb-1 whitespace-pre-wrap'>
-											{log}
-										</div>
-									))}
-								</div>
-							)}
-						</div>
-					)}
 
 					{/* Final Statistics */}
 					{result.status === "completed" && (

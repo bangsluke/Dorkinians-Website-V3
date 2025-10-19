@@ -389,7 +389,7 @@ Generated: ${new Date().toLocaleString()}
 const emailService = new SimpleEmailService();
 
 // Enhanced monitoring functions
-const monitorHerokuJob = async (jobId, herokuUrl, maxWaitTime = 30 * 60 * 1000) => {
+const monitorHerokuJob = async (jobId, herokuUrl, maxWaitTime = 35 * 60 * 1000) => {
 	console.log(`🔍 MONITORING: Starting to monitor job ${jobId} for up to ${maxWaitTime / 1000} seconds`);
 	
 	const startTime = Date.now();
@@ -680,7 +680,7 @@ exports.handler = async (event, context) => {
 
 		// Start monitoring the job (this runs in background)
 		console.log("🔍 MONITORING: Starting background job monitoring...");
-		monitorHerokuJob(jobId, cleanHerokuUrl, 30 * 60 * 1000) // Monitor for up to 30 minutes
+		monitorHerokuJob(jobId, cleanHerokuUrl, 35 * 60 * 1000) // Monitor for up to 35 minutes
 			.then(async (monitoringResult) => {
 				console.log("🔍 MONITORING: Job monitoring completed:", monitoringResult);
 				
@@ -757,7 +757,7 @@ exports.handler = async (event, context) => {
 				herokuUrl: cleanHerokuUrl,
 				monitoring: {
 					enabled: true,
-					maxWaitTime: "30 minutes",
+					maxWaitTime: "35 minutes",
 					checkInterval: "30 seconds"
 				}
 			}),

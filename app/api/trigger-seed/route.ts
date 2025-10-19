@@ -111,7 +111,7 @@ class SimpleEmailService {
 						
 						<div class="info-box">
 							<h3>Expected Duration:</h3>
-							<p>Based on current performance: <strong>~30 minutes</strong></p>
+							<p>Based on current performance: <strong>~35 minutes</strong></p>
 							<p>This process runs on Heroku infrastructure and will continue even if you close this email.</p>
 						</div>
 						
@@ -139,7 +139,7 @@ SEEDING PROCESS INITIATED:
 📊 Creating nodes and relationships
 📧 You'll receive another email when complete
 
-EXPECTED DURATION: ~65 minutes
+EXPECTED DURATION: ~35 minutes
 
 This process runs on Heroku infrastructure and will continue even if you close this email.
 

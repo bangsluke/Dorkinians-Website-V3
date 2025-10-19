@@ -59,8 +59,7 @@
     - [Manual Testing](#manual-testing)
     - [Expected Response](#expected-response)
   - [Cron Setup for Weekly Chatbot Testing](#cron-setup-for-weekly-chatbot-testing)
-    - [External Cron Service Setup](#external-cron-service-setup-1)
-    - [Manual Testing](#manual-testing-1)
+    - [Random Test Selection Approach](#random-test-selection-approach)
     - [Expected Response](#expected-response-1)
     - [Test Coverage](#test-coverage)
     - [Email Reports](#email-reports)
@@ -821,7 +820,7 @@ The system supports automated daily database updates using external cron service
    - **Title**: `Dorkinians Daily Database Update`
    - **URL**: `https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production`
    - **Schedule**: Daily at 5:00 AM (`0 5 * * *`)
-   - **Timeout**: 1800 seconds (30 minutes)
+   - **Timeout**: 2100 seconds (35 minutes)
    - **Retry**: 3 attempts on failure
 
 #### Manual Testing
