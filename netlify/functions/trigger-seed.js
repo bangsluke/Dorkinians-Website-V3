@@ -485,6 +485,13 @@ exports.handler = async (event, context) => {
 		}
 
 		const emailConfig = requestBody.emailConfig || {};
+		const seasonConfig = requestBody.seasonConfig || {
+			currentSeason: null,
+			useSeasonOverride: false,
+			fullRebuild: false,
+		};
+		
+		console.log(`🗓️ TRIGGER: Season configuration received:`, JSON.stringify(seasonConfig, null, 2));
 
 		// Detect if this is a cron job call (no email config) and set defaults
 		const isCronJob = !requestBody.emailConfig || Object.keys(requestBody.emailConfig).length === 0;
@@ -601,11 +608,7 @@ exports.handler = async (event, context) => {
 								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
 								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true,
 							},
-							seasonConfig: emailConfig.seasonConfig || {
-								currentSeason: null,
-								useSeasonOverride: false,
-								fullRebuild: false,
-							},
+							seasonConfig: seasonConfig,
 						}),
 					},
 					30000,
