@@ -405,6 +405,14 @@ export default function AdminPanel() {
 						});
 					}
 				} else if (statusData.status === "failed" && result) {
+					// Extract error information from the job status
+					const errorMessages = statusData.result?.errors || [];
+					const errorCount = statusData.result?.errorCount || errorMessages.length || 1;
+					const primaryError = errorMessages.length > 0 ? errorMessages[0] : 
+						statusData.error || 
+						statusData.currentStep || 
+						"Seeding failed - check logs for details";
+					
 					setResult({
 						success: false,
 						message: "Seeding failed",
@@ -414,11 +422,11 @@ export default function AdminPanel() {
 						result: {
 							success: false,
 							exitCode: 1,
-							nodesCreated: 0,
-							relationshipsCreated: 0,
-							errorCount: 1,
-							errors: [statusData.error || "Unknown error"],
-							duration: 0,
+							nodesCreated: statusData.result?.nodesCreated || 0,
+							relationshipsCreated: statusData.result?.relationshipsCreated || 0,
+							errorCount: errorCount,
+							errors: errorMessages.length > 0 ? errorMessages : [primaryError],
+							duration: statusData.result?.duration || 0,
 						},
 					});
 					setLastStatusCheck(`❌ Failed at ${new Date().toLocaleString()}`);
