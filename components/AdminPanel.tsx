@@ -170,6 +170,17 @@ export default function AdminPanel() {
 		startTimeRef.current = Date.now();
 		addDebugLog("Starting seeding process...");
 
+		// Start the elapsed time timer immediately
+		if (timerRef.current) {
+			clearInterval(timerRef.current);
+		}
+		timerRef.current = setInterval(() => {
+			if (startTimeRef.current) {
+				const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+				setElapsedTime(elapsed);
+			}
+		}, 1000);
+
 		try {
 			// Show immediate feedback that seeding has started
 			setResult({
@@ -177,7 +188,7 @@ export default function AdminPanel() {
 				message: "Database seeding initiated successfully",
 				environment: "production",
 				timestamp: new Date().toISOString(),
-				status: "pending",
+				status: "running",
 				result: {
 					success: true,
 					exitCode: 0,
@@ -293,6 +304,12 @@ export default function AdminPanel() {
 		} catch (err) {
 			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
 			setError(err instanceof Error ? err.message : "Network error");
+			
+			// Stop the timer on error
+			if (timerRef.current) {
+				clearInterval(timerRef.current);
+				timerRef.current = null;
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -446,18 +463,25 @@ export default function AdminPanel() {
 
 					// Calculate actual elapsed time based on job start time for running jobs
 					if (statusData.startTime) {
+						const jobStartTime = new Date(statusData.startTime).getTime();
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
-						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
 						
-						// Clear any existing timer and start a new one with the correct start time
-						if (timerRef.current) {
-							clearInterval(timerRef.current);
+						// Only restart timer if start time has changed or no timer is running
+						if (startTimeRef.current !== jobStartTime || !timerRef.current) {
+							startTimeRef.current = jobStartTime;
+							
+							// Clear any existing timer and start a new one with the correct start time
+							if (timerRef.current) {
+								clearInterval(timerRef.current);
+							}
+							timerRef.current = setInterval(() => {
+								if (startTimeRef.current) {
+									const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+									setElapsedTime(elapsed);
+								}
+							}, 1000);
 						}
-						timerRef.current = setInterval(() => {
-							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
-							setElapsedTime(elapsed);
-						}, 1000);
 					}
 				}
 			} else {
@@ -566,18 +590,25 @@ export default function AdminPanel() {
 						setLastCompletedJobDuration(statusData.result.duration);
 					} else if (statusData.status === "running" || statusData.status === "initializing") {
 						// For running jobs, calculate from start time
+						const jobStartTime = new Date(statusData.startTime).getTime();
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
-						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
 						
-						// Clear any existing timer and start a new one with the correct start time
-						if (timerRef.current) {
-							clearInterval(timerRef.current);
+						// Only restart timer if start time has changed or no timer is running
+						if (startTimeRef.current !== jobStartTime || !timerRef.current) {
+							startTimeRef.current = jobStartTime;
+							
+							// Clear any existing timer and start a new one with the correct start time
+							if (timerRef.current) {
+								clearInterval(timerRef.current);
+							}
+							timerRef.current = setInterval(() => {
+								if (startTimeRef.current) {
+									const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+									setElapsedTime(elapsed);
+								}
+							}, 1000);
 						}
-						timerRef.current = setInterval(() => {
-							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
-							setElapsedTime(elapsed);
-						}, 1000);
 					} else {
 						// For failed or other statuses, calculate from start time
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);

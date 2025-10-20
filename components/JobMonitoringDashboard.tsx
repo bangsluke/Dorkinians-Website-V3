@@ -61,6 +61,8 @@ const JobMonitoringDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lookupJobId, setLookupJobId] = useState('');
+  const [lookupResult, setLookupResult] = useState<any | null>(null);
 
   // Fetch job analyses
   const fetchJobAnalyses = async () => {
@@ -121,6 +123,25 @@ const JobMonitoringDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching job analysis:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  };
+
+  // Lookup a specific job by ID (works even if not in memory list)
+  const lookupJobById = async (jobId: string) => {
+    setLookupResult(null);
+    setError(null);
+    if (!jobId) return;
+    try {
+      const res = await fetch(`https://database-dorkinians-4bac3364a645.herokuapp.com/status/${encodeURIComponent(jobId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setLookupResult({ jobId, ...data });
+      } else {
+        const text = await res.text();
+        setLookupResult({ jobId, error: `HTTP ${res.status}: ${text}` });
+      }
+    } catch (e: any) {
+      setLookupResult({ jobId, error: e?.message || 'Network error' });
     }
   };
 
@@ -262,29 +283,31 @@ const JobMonitoringDashboard: React.FC = () => {
       {/* Current Jobs */}
       {currentJobs.length > 0 && (
         <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
+          <div className="px-4 py-3 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900">Current Jobs ({currentJobs.length})</h3>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+          
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full max-w-6xl divide-y divide-gray-200 text-xs">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Job ID
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                     Progress
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                     Current Step
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Started
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Last Update
                   </th>
                 </tr>
@@ -292,41 +315,128 @@ const JobMonitoringDashboard: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentJobs.map((job) => (
                   <tr key={job.jobId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
+                    <td className="px-3 py-2 text-xs font-mono text-gray-900 truncate" title={job.jobId}>
                       {job.jobId}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-medium ${getStatusColor(job.status)}`}>
+                    <td className="px-3 py-2">
+                      <span className={`text-xs font-medium ${getStatusColor(job.status)}`}>
                         {job.status}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2 text-xs text-gray-900">
                       <div className="flex items-center">
-                        <div className="w-full bg-gray-200 rounded-full h-2 mr-2">
+                        <div className="w-full bg-gray-200 rounded-full h-1.5 mr-1">
                           <div 
-                            className="bg-blue-600 h-2 rounded-full" 
+                            className="bg-blue-600 h-1.5 rounded-full" 
                             style={{ width: `${job.progress || 0}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs text-gray-500">{job.progress || 0}%</span>
+                        <span className="text-xs text-gray-500 min-w-0">{job.progress || 0}%</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.currentStep || 'N/A'}>
                       {job.currentStep || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}>
+                      {job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}
+                    <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
+                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden">
+            {currentJobs.map((job) => (
+              <div key={job.jobId} className="p-4 border-b border-gray-200 last:border-b-0">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-mono text-gray-900 truncate flex-1 mr-2" title={job.jobId}>
+                    {job.jobId}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(job.status)}`}>
+                    {job.status}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 w-16">Progress:</span>
+                    <div className="flex-1 flex items-center">
+                      <div className="w-full bg-gray-200 rounded-full h-1.5 mr-2">
+                        <div 
+                          className="bg-blue-600 h-1.5 rounded-full" 
+                          style={{ width: `${job.progress || 0}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs text-gray-500">{job.progress || 0}%</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-xs text-gray-500 w-16">Step:</span>
+                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.currentStep || 'N/A'}>
+                      {job.currentStep || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 w-16">Started:</span>
+                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.startTime ? new Date(job.startTime).toLocaleString() : 'N/A'}>
+                      {job.startTime ? new Date(job.startTime).toLocaleTimeString() : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 w-16">Updated:</span>
+                    <span className="text-xs text-gray-900 flex-1 truncate" title={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
+                      {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Job Lookup / Diagnostics */}
+      <div className="bg-white shadow rounded-lg mb-4">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <h3 className="text-lg font-medium text-gray-900">Lookup Job by ID</h3>
+          <p className="text-xs text-gray-500 mt-1">Use this to fetch a job even if it's not shown in Current Jobs.</p>
+        </div>
+        <div className="p-4 flex flex-col md:flex-row gap-2 items-start md:items-center">
+          <input
+            className="w-full md:w-96 border border-gray-300 rounded px-3 py-2 text-sm"
+            placeholder="Enter job ID (e.g. seed_123456789_abcdef)"
+            value={lookupJobId}
+            onChange={(e) => setLookupJobId(e.target.value)}
+          />
+          <button
+            className="px-4 py-2 bg-blue-600 text-white text-sm rounded disabled:opacity-50"
+            onClick={() => lookupJobById(lookupJobId)}
+            disabled={!lookupJobId}
+          >
+            Fetch Job Status
+          </button>
+        </div>
+        {lookupResult && (
+          <div className="px-6 pb-4 text-sm">
+            {lookupResult.error ? (
+              <div className="text-red-600">❌ {lookupResult.error}</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div><span className="text-gray-500">Job ID:</span> <span className="font-mono">{lookupResult.jobId}</span></div>
+                <div><span className="text-gray-500">Status:</span> {lookupResult.status || 'unknown'}</div>
+                <div><span className="text-gray-500">Progress:</span> {typeof lookupResult.progress === 'number' ? `${lookupResult.progress}%` : 'n/a'}</div>
+                <div className="md:col-span-3"><span className="text-gray-500">Current Step:</span> {lookupResult.currentStep || 'n/a'}</div>
+                <div><span className="text-gray-500">Started:</span> {lookupResult.startTime ? new Date(lookupResult.startTime).toLocaleString() : 'n/a'}</div>
+                <div><span className="text-gray-500">Last Update:</span> {lookupResult.lastUpdate ? new Date(lookupResult.lastUpdate).toLocaleString() : 'n/a'}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Job Analyses List */}
       <div className="bg-white shadow rounded-lg">
