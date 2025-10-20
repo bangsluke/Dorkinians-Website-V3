@@ -72,6 +72,12 @@ export default function AdminPanel() {
 	const [sendEmailAtStart, setSendEmailAtStart] = useState(false);
 	const [sendEmailAtCompletion, setSendEmailAtCompletion] = useState(true);
 
+	// Season configuration state
+	const [currentSeason, setCurrentSeason] = useState<string>("");
+	const [seasonOverride, setSeasonOverride] = useState<string>("");
+	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
+	const [fullRebuild, setFullRebuild] = useState<boolean>(false);
+
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
@@ -89,6 +95,30 @@ export default function AdminPanel() {
 
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+	// Season calculation logic
+	const calculateCurrentSeason = (date = new Date()) => {
+		const year = date.getFullYear();
+		const month = date.getMonth() + 1; // getMonth() returns 0-11
+		
+		// Before August 1st: Previous year/Current year
+		if (month < 8) {
+			const previousYear = year - 1;
+			const currentYearShort = year.toString().slice(-2);
+			return `${previousYear}/${currentYearShort}`;
+		}
+		
+		// August 1st and after: Current year/Next year
+		const nextYear = year + 1;
+		const nextYearShort = nextYear.toString().slice(-2);
+		return `${year}/${nextYearShort}`;
+	};
+
+	// Initialize current season on component mount
+	useEffect(() => {
+		const calculatedSeason = calculateCurrentSeason();
+		setCurrentSeason(calculatedSeason);
+	}, []);
 
 	// Helper function to log to both console and page
 	const addDebugLog = (message: string, type: 'info' | 'warn' | 'error' = 'info') => {
@@ -214,6 +244,11 @@ export default function AdminPanel() {
 								emailAddress: emailAddress,
 								sendEmailAtStart: sendEmailAtStart,
 								sendEmailAtCompletion: sendEmailAtCompletion,
+							},
+							seasonConfig: {
+								currentSeason: useSeasonOverride ? seasonOverride : currentSeason,
+								useSeasonOverride: useSeasonOverride,
+								fullRebuild: fullRebuild,
 							},
 						}),
 					});
@@ -785,6 +820,71 @@ export default function AdminPanel() {
 								Send email when seeding completes
 							</label>
 						</div>
+					</div>
+				</div>
+			</div>
+
+			{/* Season Configuration Section */}
+			<div className='mb-6 p-4 bg-blue-50 rounded-lg'>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Season Configuration</h3>
+				<div className='space-y-4'>
+					<div className='p-3 bg-white rounded-md border'>
+						<div className='flex items-center justify-between mb-2'>
+							<span className='text-sm font-medium text-gray-700'>Current Season:</span>
+							<span className='text-sm font-mono bg-gray-100 px-2 py-1 rounded'>{currentSeason}</span>
+						</div>
+						<p className='text-xs text-gray-600'>
+							Calculated based on current date. Before August 1st: Previous/Current year. August 1st+: Current/Next year.
+						</p>
+					</div>
+					
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='useSeasonOverride'
+							checked={useSeasonOverride}
+							onChange={(e) => setUseSeasonOverride(e.target.checked)}
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
+							Override season (for historical data correction)
+						</label>
+					</div>
+					
+					{useSeasonOverride && (
+						<div>
+							<label htmlFor='seasonOverride' className='block text-sm font-medium text-gray-700'>
+								Override Season (format: YYYY/YY):
+							</label>
+							<input
+								type='text'
+								id='seasonOverride'
+								value={seasonOverride}
+								onChange={(e) => setSeasonOverride(e.target.value)}
+								placeholder='2024/25'
+								className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-500'
+							/>
+						</div>
+					)}
+					
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='fullRebuild'
+							checked={fullRebuild}
+							onChange={(e) => setFullRebuild(e.target.checked)}
+							className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
+							Full rebuild (clear ALL data, not just current season)
+						</label>
+					</div>
+					
+					<div className='p-3 bg-yellow-50 rounded-md border border-yellow-200'>
+						<p className='text-xs text-yellow-800'>
+							<strong>Selective Clear:</strong> By default, only current season MatchDetails/Fixtures are cleared and reseeded. 
+							Historical data is preserved. Other node types (Players, etc.) are always cleared and reseeded.
+						</p>
 					</div>
 				</div>
 			</div>

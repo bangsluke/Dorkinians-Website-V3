@@ -601,6 +601,11 @@ exports.handler = async (event, context) => {
 								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
 								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true,
 							},
+							seasonConfig: emailConfig.seasonConfig || {
+								currentSeason: null,
+								useSeasonOverride: false,
+								fullRebuild: false,
+							},
 						}),
 					},
 					30000,
