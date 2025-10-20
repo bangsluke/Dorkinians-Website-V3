@@ -722,83 +722,6 @@ const schema = {
     constraints: ['CREATE CONSTRAINT testdata_id IF NOT EXISTS FOR (td:TestData) REQUIRE td.id IS UNIQUE']
   },
 
-  // ============================================================================
-  // TBL_PlayersOfTheMonth - Player of the month awards
-  // ============================================================================
-  TBL_PlayersOfTheMonth: {
-    csvColumns: {
-      'ID': 'id',
-      'SEASON': 'season',
-      'DATE': 'date',
-      '#1 Name': 'player1Name',
-      '#1 Points': 'player1Points',
-      '#2 Name': 'player2Name',
-      '#2 Points': 'player2Points',
-      '#3 Name': 'player3Name',
-      '#3 Points': 'player3Points',
-      '#4 Name': 'player4Name',
-      '#4 Points': 'player4Points',
-      '#5 Name': 'player5Name',
-      '#5 Points': 'player5Points'
-    },
-    requiredColumns: ['ID', 'SEASON', 'DATE'],
-    nodeType: 'PlayersOfTheMonth',
-    properties: {
-      id: { type: 'string', required: true },
-      season: { type: 'string', required: true },
-      date: { type: 'date', required: true },
-      player1Name: { type: 'string', required: false },
-      player2Name: { type: 'string', required: false },
-      player3Name: { type: 'string', required: false },
-      player4Name: { type: 'string', required: false },
-      player5Name: { type: 'string', required: false },
-      player1Points: { type: 'integer', required: false },
-      player2Points: { type: 'integer', required: false },
-      player3Points: { type: 'integer', required: false },
-      player4Points: { type: 'integer', required: false },
-      player5Points: { type: 'integer', required: false }
-    },
-    idPattern: 'pom_{season}_{month}',
-    constraints: ['CREATE CONSTRAINT playersofthemonth_id IF NOT EXISTS FOR (pm:PlayersOfTheMonth) REQUIRE pm.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_CaptainsAndAwards - Captain appointments and awards
-  // ============================================================================
-  TBL_CaptainsAndAwards: {
-    csvColumns: {
-      'Item': 'awardType',
-      '2016/17': 'season201617',
-      '2017/18': 'season201718',
-      '2018/19': 'season201819',
-      '2019/20': 'season201920',
-      '2020/21': 'season202021',
-      '2021/22': 'season202122',
-      '2022/23': 'season202223',
-      '2023/24': 'season202324',
-      '2024/25': 'season202425',
-      '2025/26': 'season202526',
-      '2026/27': 'season202627'
-    },
-    requiredColumns: ['Item'],
-    nodeType: 'CaptainsAndAwards',
-    properties: {
-      awardType: { type: 'string', required: true },
-      season201617: { type: 'string', required: false },
-      season201718: { type: 'string', required: false },
-      season201819: { type: 'string', required: false },
-      season201920: { type: 'string', required: false },
-      season202021: { type: 'string', required: false },
-      season202122: { type: 'string', required: false },
-      season202223: { type: 'string', required: false },
-      season202324: { type: 'string', required: false },
-      season202425: { type: 'string', required: false },
-      season202526: { type: 'string', required: false },
-      season202627: { type: 'string', required: false }
-    },
-    idPattern: 'ca_{season}',
-    constraints: ['CREATE CONSTRAINT captainsandawards_id IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE ca.id IS UNIQUE']
-  },
 
 
   // ============================================================================
@@ -925,7 +848,7 @@ const relationships = {
       ftpScore: { type: 'integer', default: 0 },
       position: { type: 'string', default: 'UNKNOWN' }
     },
-    conditions: 'p.playerName IN [wt.gk1, wt.def1, wt.def2, wt.def3, wt.def4, wt.def5, wt.mid1, wt.mid2, wt.mid3, wt.mid4, wt.mid5, wt.fwd1, wt.fwd2, wt.fwd3]'
+    conditions: 'p.playerName IN [wt.gk1, wt.def1, wt.def2, wt.def3, wt.def4, wt.def5, wt.mid1, wt.mid2, wt.mid3, wt.mid4, wt.mid5, wt.fwd1, wt.fwd2, wt.fwd3] AND wt.gk1 IS NOT NULL'
   },
   IN_SEASON_TOTW: {
     from: 'Player',
