@@ -755,24 +755,33 @@ export default function AdminPanel() {
 					<div className='mt-3'>
 						<ul className='text-blue-700 text-sm space-y-2'>
 							<li>
-								• <strong>Step 1:</strong> Click &quot;Trigger Database Seeding&quot; to start the process. This triggers the Netlify function to
-								make the call to Heroku and provides immediate feedback that the database seeding process has started
+								• <strong>Step 1:</strong> Configure season settings (optional) - Use season override for historical data correction or enable full rebuild to clear all data
 							</li>
 							<li>
-								• <strong>Step 2:</strong> The system will show &quot;Pending&quot; status while initializing
+								• <strong>Step 2:</strong> Click &quot;Trigger Database Seeding&quot; to start the process. This triggers the Netlify function to make the call to Heroku
 							</li>
 							<li>
-								• <strong>Step 3:</strong> Status changes to &quot;Running&quot; as the seeding begins on Heroku
+								• <strong>Step 3:</strong> The system will show &quot;Pending&quot; status while initializing, then &quot;Running&quot; as seeding begins
 							</li>
 							<li>
-								• <strong>Step 4:</strong> Use &quot;Check Seeding Status&quot; to monitor progress and get final results
+								• <strong>Step 4:</strong> Data clearing occurs based on your configuration:
+								<ul className='ml-4 mt-1 space-y-1'>
+									<li>• <strong>Selective Mode (default):</strong> Only current season MatchDetails/Fixtures are cleared and reseeded. Historical data is preserved.</li>
+									<li>• <strong>Full Rebuild:</strong> ALL data is cleared and reseeded from scratch</li>
+									<li>• <strong>Other node types:</strong> Players, SiteDetails, etc. are always cleared and reseeded</li>
+								</ul>
 							</li>
 							<li>
-								• <strong>Step 5:</strong> If you need to check the status of a specific job, use &quot;Debug: List All Jobs&quot; to view all jobs
-								and their statuses. Click on the job ID to check its current status.
+								• <strong>Step 5:</strong> CSV data is fetched and processed, with non-current season rows skipped in selective mode
 							</li>
 							<li>
-								• <strong>Note:</strong> Check your email for completion notifications
+								• <strong>Step 6:</strong> Use &quot;Check Seeding Status&quot; to monitor progress and get final results
+							</li>
+							<li>
+								• <strong>Step 7:</strong> Check your email for detailed completion notifications with season information
+							</li>
+							<li>
+								• <strong>Debug:</strong> Use &quot;Debug: List All Jobs&quot; to view all jobs and their statuses
 							</li>
 						</ul>
 					</div>
@@ -832,11 +841,8 @@ export default function AdminPanel() {
 					<div className='p-3 bg-white rounded-md border'>
 						<div className='flex items-center justify-between mb-2'>
 							<span className='text-sm font-medium text-gray-700'>Current Season:</span>
-							<span className='text-sm font-mono bg-gray-100 px-2 py-1 rounded'>{currentSeason}</span>
+							<span className='text-sm font-mono bg-gray-100 text-gray-800 px-2 py-1 rounded'>{currentSeason}</span>
 						</div>
-						<p className='text-xs text-gray-600'>
-							Calculated based on current date. Before August 1st: Previous/Current year. August 1st+: Current/Next year.
-						</p>
 					</div>
 					
 					<div className='flex items-center'>
