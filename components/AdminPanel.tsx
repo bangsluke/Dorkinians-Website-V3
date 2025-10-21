@@ -89,7 +89,6 @@ export default function AdminPanel() {
 
 	// UI state
 	const [showProcessInfo, setShowProcessInfo] = useState(true);
-	const [activeTab, setActiveTab] = useState<'seeding' | 'monitoring'>('seeding');
 
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === "development";
@@ -266,6 +265,17 @@ export default function AdminPanel() {
 		startTimeRef.current = Date.now();
 		addDebugLog("Starting seeding process...");
 
+		// Start the elapsed time timer immediately
+		if (timerRef.current) {
+			clearInterval(timerRef.current);
+		}
+		timerRef.current = setInterval(() => {
+			if (startTimeRef.current) {
+				const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+				setElapsedTime(elapsed);
+			}
+		}, 1000);
+
 		try {
 			// Show immediate feedback that seeding has started
 			setResult({
@@ -273,7 +283,7 @@ export default function AdminPanel() {
 				message: "Database seeding initiated successfully",
 				environment: "production",
 				timestamp: new Date().toISOString(),
-				status: "pending",
+				status: "running",
 				result: {
 					success: true,
 					exitCode: 0,
@@ -394,6 +404,12 @@ export default function AdminPanel() {
 		} catch (err) {
 			addDebugLog(`Seeding trigger error: ${err instanceof Error ? err.message : "Network error"}`, 'error');
 			setError(err instanceof Error ? err.message : "Network error");
+			
+			// Stop the timer on error
+			if (timerRef.current) {
+				clearInterval(timerRef.current);
+				timerRef.current = null;
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -555,18 +571,25 @@ export default function AdminPanel() {
 
 					// Calculate actual elapsed time based on job start time for running jobs
 					if (statusData.startTime) {
+						const jobStartTime = new Date(statusData.startTime).getTime();
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
-						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
 						
-						// Clear any existing timer and start a new one with the correct start time
-						if (timerRef.current) {
-							clearInterval(timerRef.current);
+						// Only restart timer if start time has changed or no timer is running
+						if (startTimeRef.current !== jobStartTime || !timerRef.current) {
+							startTimeRef.current = jobStartTime;
+							
+							// Clear any existing timer and start a new one with the correct start time
+							if (timerRef.current) {
+								clearInterval(timerRef.current);
+							}
+							timerRef.current = setInterval(() => {
+								if (startTimeRef.current) {
+									const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+									setElapsedTime(elapsed);
+								}
+							}, 1000);
 						}
-						timerRef.current = setInterval(() => {
-							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
-							setElapsedTime(elapsed);
-						}, 1000);
 					}
 				}
 			} else {
@@ -675,18 +698,25 @@ export default function AdminPanel() {
 						setLastCompletedJobDuration(statusData.result.duration);
 					} else if (statusData.status === "running" || statusData.status === "initializing") {
 						// For running jobs, calculate from start time
+						const jobStartTime = new Date(statusData.startTime).getTime();
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
 						setElapsedTime(actualElapsedTime);
-						startTimeRef.current = new Date(statusData.startTime).getTime(); // Set the ref for timer continuation
 						
-						// Clear any existing timer and start a new one with the correct start time
-						if (timerRef.current) {
-							clearInterval(timerRef.current);
+						// Only restart timer if start time has changed or no timer is running
+						if (startTimeRef.current !== jobStartTime || !timerRef.current) {
+							startTimeRef.current = jobStartTime;
+							
+							// Clear any existing timer and start a new one with the correct start time
+							if (timerRef.current) {
+								clearInterval(timerRef.current);
+							}
+							timerRef.current = setInterval(() => {
+								if (startTimeRef.current) {
+									const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
+									setElapsedTime(elapsed);
+								}
+							}, 1000);
 						}
-						timerRef.current = setInterval(() => {
-							const elapsed = Math.floor((Date.now() - new Date(statusData.startTime).getTime()) / 1000);
-							setElapsedTime(elapsed);
-						}, 1000);
 					} else {
 						// For failed or other statuses, calculate from start time
 						const actualElapsedTime = calculateElapsedTimeFromStartTime(statusData.startTime);
@@ -783,38 +813,9 @@ export default function AdminPanel() {
 	const statusInfo = getStatusDisplay();
 
 	return (
-		<div className='max-w-6xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
+		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
 			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Database Seeding Admin Panel</h2>
 
-			{/* Tab Navigation */}
-			<div className='mb-6 border-b border-gray-200'>
-				<nav className='-mb-px flex space-x-8'>
-					<button
-						onClick={() => setActiveTab('seeding')}
-						className={`py-2 px-1 border-b-2 font-medium text-sm ${
-							activeTab === 'seeding'
-								? 'border-blue-500 text-blue-600'
-								: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-						}`}
-					>
-						Database Seeding
-					</button>
-					<button
-						onClick={() => setActiveTab('monitoring')}
-						className={`py-2 px-1 border-b-2 font-medium text-sm ${
-							activeTab === 'monitoring'
-								? 'border-blue-500 text-blue-600'
-								: 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-						}`}
-					>
-						Job Monitoring
-					</button>
-				</nav>
-			</div>
-
-			{/* Tab Content */}
-			{activeTab === 'seeding' && (
-				<>
 					{/* How the Database Seeding Process Works - Collapsible */}
 					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
 				<button
@@ -1467,6 +1468,16 @@ export default function AdminPanel() {
 				</div>
 			)}
 
+			{/* Job Monitoring Section */}
+			<div className='mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg'>
+				<h3 className='text-lg font-semibold text-purple-800 mb-2'>Job Monitoring Dashboard</h3>
+				<p className='text-purple-700 text-sm mb-4'>
+					Monitor job execution, performance metrics, and debug information in real-time. 
+					View detailed analyses of completed jobs and track system health.
+				</p>
+				<JobMonitoringDashboard />
+			</div>
+
 			{/* Chatbot Testing Section */}
 			<div className='mt-6 p-4 bg-green-50 border border-green-200 rounded-lg'>
 				<h3 className='text-lg font-semibold text-green-800 mb-2'>Chatbot Testing</h3>
@@ -1581,13 +1592,6 @@ export default function AdminPanel() {
 						</div>
 					</div>
 				</div>
-			)}
-				</>
-			)}
-
-			{/* Monitoring Tab */}
-			{activeTab === 'monitoring' && (
-				<JobMonitoringDashboard />
 			)}
 		</div>
 	);

@@ -215,6 +215,17 @@
   - Verify each component in the pipeline independently before making changes
 - **Example**: Query building issues → trace from question analysis through entity extraction to query generation
 
+### Complete Request Flow Verification Protocol
+
+- **Rule**: When debugging API issues, always trace the complete request flow from frontend through all middleware to backend execution
+- **Rationale**: API failures can occur at any stage (frontend → Netlify → Heroku), and fixing the wrong stage wastes time
+- **Implementation**:
+  - Test each component independently: frontend → Netlify function → Heroku endpoint
+  - Use direct API calls to verify backend functionality before investigating frontend integration
+  - Check parameter passing between each stage (query params vs body params vs headers)
+  - Verify network connectivity and configuration at each layer
+- **Example**: "Job ID not found" → test Heroku endpoint directly → verify Netlify function → check frontend parameter passing
+
 #### Progressive Problem Escalation
 
 - **Rule**: When initial fixes fail, systematically escalate the approach rather than repeating the same pattern
@@ -307,6 +318,16 @@
   - Consider mobile responsiveness and screen real estate during design
   - Anticipate user workflow needs and optimize accordingly
 - **Example**: Implement two-column layout for seasons checkboxes during initial development rather than waiting for user feedback about space efficiency
+
+### Simple UI Implementation Protocol
+
+- **Rule**: When users request simple UI changes, implement them directly without over-engineering complex solutions
+- **Rationale**: Over-engineering simple requests creates unnecessary complexity and delays delivery
+- **Implementation**:
+  - Implement user requests as directly as possible
+  - Avoid creating complex systems (tabs, modals, etc.) when simple solutions suffice
+  - Focus on the core requirement rather than adding "enhancements"
+- **Example**: User wants monitoring section moved → move it directly rather than creating a tab system
 
 ### Fallback Mechanism Design
 
@@ -630,6 +651,17 @@
   - Implement custom count queries for operations that can't use generic batching
 - **Example**: PLAYED_IN relationship creation → use 50-record batches with 200ms delays
 
+### Multi-Layer Data Persistence Protocol
+
+- **Rule**: Implement redundant storage mechanisms for critical operational data that cannot be lost
+- **Rationale**: Single points of failure in data persistence can cause complete loss of operational state
+- **Implementation**:
+  - Use multiple storage layers: in-memory, file system, and external storage
+  - Implement immediate verification of data persistence after each save operation
+  - Design recovery mechanisms that can restore state from any available storage layer
+  - Add comprehensive monitoring and debugging capabilities from the start
+- **Example**: Job status tracking → in-memory Map + file system + environment variables + real-time monitoring
+
 ## Environment-Specific Operations
 
 ### Shell Environment Compatibility Protocol
@@ -651,5 +683,15 @@
   - Delete temporary investigation scripts after successful problem resolution
   - Preserve files that users specifically requested or that provide ongoing value
 - **Example**: Delete `debug-*.js` and `investigate-*.js` files, keep `test-data-integrity.js` if user requested it
+
+### Netlify-Heroku Integration Protocol
+
+- **Rule**: When creating new API endpoints, always add corresponding redirects in netlify.toml to route requests to the backend
+- **Rationale**: Frontend calls to new endpoints will fail without proper routing configuration
+- **Implementation**:
+  - Add redirect rules for new API paths in netlify.toml
+  - Test API endpoints directly before investigating frontend integration issues
+  - Verify that frontend can successfully call new endpoints through the redirect system
+- **Example**: New `/api/debug/*` endpoints → add redirect rule in netlify.toml → test frontend integration
 
 > [Back to Table of Contents](#table-of-contents)
