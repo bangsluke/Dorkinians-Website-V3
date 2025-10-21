@@ -308,24 +308,31 @@ export default function AdminPanel() {
 					addDebugLog(`Trying function path: ${path}`);
 					addDebugLog(`Full URL: ${window.location.origin}${path}`);
 					
+					const requestBody = {
+						environment: "production",
+						emailConfig: {
+							emailAddress: emailAddress,
+							sendEmailAtStart: sendEmailAtStart,
+							sendEmailAtCompletion: sendEmailAtCompletion,
+						},
+						seasonConfig: {
+							currentSeason: useSeasonOverride ? seasonOverride : currentSeason,
+							useSeasonOverride: useSeasonOverride,
+							fullRebuild: fullRebuild,
+						},
+					};
+
+					// Debug logging
+					console.log('🚀 ADMIN: Sending request body:', JSON.stringify(requestBody, null, 2));
+					console.log('🚀 ADMIN: fullRebuild state:', fullRebuild);
+					console.log('🚀 ADMIN: useSeasonOverride state:', useSeasonOverride);
+
 					response = await fetch(`${path}`, {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
 						},
-						body: JSON.stringify({
-							environment: "production",
-							emailConfig: {
-								emailAddress: emailAddress,
-								sendEmailAtStart: sendEmailAtStart,
-								sendEmailAtCompletion: sendEmailAtCompletion,
-							},
-							seasonConfig: {
-								currentSeason: useSeasonOverride ? seasonOverride : currentSeason,
-								useSeasonOverride: useSeasonOverride,
-								fullRebuild: fullRebuild,
-							},
-						}),
+						body: JSON.stringify(requestBody),
 					});
 
 					const responseInfo = {
