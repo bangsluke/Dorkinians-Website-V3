@@ -510,7 +510,11 @@ exports.handler = async (event, context) => {
 
 		// Configure email service with environment variables (available during execution)
 		console.log("📧 EMAIL: Configuring email service...");
-		emailService.configure();
+		try {
+			emailService.configure();
+		} catch (error) {
+			console.warn("⚠️ Failed to configure email service:", error.message);
+		}
 		
 		// Check if email service is properly configured
 		if (!emailService.transporter || !emailService.config) {
