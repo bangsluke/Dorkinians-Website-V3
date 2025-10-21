@@ -77,6 +77,7 @@ export default function AdminPanel() {
 	const [seasonOverride, setSeasonOverride] = useState<string>("");
 	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
 	const [fullRebuild, setFullRebuild] = useState<boolean>(false);
+	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
@@ -119,6 +120,59 @@ export default function AdminPanel() {
 		const calculatedSeason = calculateCurrentSeason();
 		setCurrentSeason(calculatedSeason);
 	}, []);
+
+	// Season validation function
+	const validateSeasonFormat = (season: string): boolean => {
+		const seasonRegex = /^\d{4}\/\d{2}$/;
+		if (!seasonRegex.test(season)) {
+			setSeasonOverrideError("Season must be in format YYYY/YY (e.g., 2024/25)");
+			return false;
+		}
+		
+		const [startYear, endYear] = season.split('/');
+		const startYearNum = parseInt(startYear);
+		const endYearNum = parseInt('20' + endYear);
+		
+		if (endYearNum !== startYearNum + 1) {
+			setSeasonOverrideError("Invalid season format - end year must be start year + 1");
+			return false;
+		}
+		
+		setSeasonOverrideError("");
+		return true;
+	};
+
+	// Handle season override checkbox change with mutual exclusivity
+	const handleSeasonOverrideChange = (checked: boolean) => {
+		if (checked && fullRebuild) {
+			setFullRebuild(false);
+		}
+		setUseSeasonOverride(checked);
+		if (!checked) {
+			setSeasonOverride("");
+			setSeasonOverrideError("");
+		}
+	};
+
+	// Handle full rebuild checkbox change with mutual exclusivity
+	const handleFullRebuildChange = (checked: boolean) => {
+		if (checked && useSeasonOverride) {
+			setUseSeasonOverride(false);
+			setSeasonOverride("");
+			setSeasonOverrideError("");
+		}
+		setFullRebuild(checked);
+	};
+
+	// Handle season override input change with validation
+	const handleSeasonOverrideInputChange = (value: string) => {
+		setSeasonOverride(value);
+		if (value.trim() === "") {
+			setSeasonOverrideError("");
+		} else {
+			validateSeasonFormat(value);
+		}
+	};
 
 	// Helper function to log to both console and page
 	const addDebugLog = (message: string, type: 'info' | 'warn' | 'error' = 'info') => {
@@ -192,6 +246,17 @@ export default function AdminPanel() {
 	};
 
 	const triggerSeeding = async () => {
+		// Validate season override if enabled
+		if (useSeasonOverride && seasonOverride.trim() === "") {
+			setError("Please enter a season override value when override is enabled.");
+			return;
+		}
+		
+		if (useSeasonOverride && seasonOverride.trim() !== "" && !validateSeasonFormat(seasonOverride)) {
+			setError(`Invalid season format: ${seasonOverrideError}`);
+			return;
+		}
+
 		setIsLoading(true);
 		setError(null);
 		setResult(null);
@@ -857,7 +922,7 @@ export default function AdminPanel() {
 							type='checkbox'
 							id='useSeasonOverride'
 							checked={useSeasonOverride}
-							onChange={(e) => setUseSeasonOverride(e.target.checked)}
+							onChange={(e) => handleSeasonOverrideChange(e.target.checked)}
 							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
 						/>
 						<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
@@ -874,10 +939,16 @@ export default function AdminPanel() {
 								type='text'
 								id='seasonOverride'
 								value={seasonOverride}
-								onChange={(e) => setSeasonOverride(e.target.value)}
+								onChange={(e) => handleSeasonOverrideInputChange(e.target.value)}
 								placeholder='2024/25'
-								className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-500'
+								className={`mt-1 block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm placeholder-gray-500 ${
+									seasonOverrideError ? 'border-red-300 bg-red-50' : 'border-gray-300'
+								}`}
+								style={{ color: '#1f2937' }}
 							/>
+							{seasonOverrideError && (
+								<p className='mt-1 text-sm text-red-600'>{seasonOverrideError}</p>
+							)}
 						</div>
 					)}
 					
@@ -886,7 +957,7 @@ export default function AdminPanel() {
 							type='checkbox'
 							id='fullRebuild'
 							checked={fullRebuild}
-							onChange={(e) => setFullRebuild(e.target.checked)}
+							onChange={(e) => handleFullRebuildChange(e.target.checked)}
 							className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
 						/>
 						<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
@@ -1152,7 +1223,8 @@ export default function AdminPanel() {
 									)}
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
-										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : "~35 minutes"}
+										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
+											fullRebuild ? "~35 minutes" : "~5 minutes"}
 									</p>
 									<p className='text-xs text-blue-500'>Check your email for start and completion notifications.</p>
 								</div>
