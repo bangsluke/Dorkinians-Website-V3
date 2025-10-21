@@ -895,7 +895,7 @@ const relationships = {
     type: 'PLAYED_WITH',
     properties: {
       timesPlayedWith: { type: 'integer', default: 1 },
-      lastPlayedWith: { type: 'string', default: null }
+      lastPlayedWith: { type: 'string', default: 'UNKNOWN' }
     },
     conditions: 'p1.playerName < p2.playerName AND EXISTS { MATCH (p1)-[:PLAYED_IN]->(md:MatchDetail)<-[:PLAYED_IN]-(p2) }'
   },
