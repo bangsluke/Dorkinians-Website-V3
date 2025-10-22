@@ -848,7 +848,7 @@ const relationships = {
       ftpScore: { type: 'integer', default: 0 },
       position: { type: 'string', default: 'UNKNOWN' }
     },
-    conditions: 'p.playerName IN [wt.gk1, wt.def1, wt.def2, wt.def3, wt.def4, wt.def5, wt.mid1, wt.mid2, wt.mid3, wt.mid4, wt.mid5, wt.fwd1, wt.fwd2, wt.fwd3] AND wt.gk1 IS NOT NULL'
+    conditions: 'p.playerName IN [wt.gk1, wt.def1, wt.def2, wt.def3, wt.def4, wt.def5, wt.mid1, wt.mid2, wt.mid3, wt.mid4, wt.mid5, wt.fwd1, wt.fwd2, wt.fwd3]'
   },
   IN_SEASON_TOTW: {
     from: 'Player',
@@ -859,7 +859,7 @@ const relationships = {
       ftpScore: { type: 'integer', default: 0 },
       position: { type: 'string', default: 'UNKNOWN' }
     },
-    conditions: 'p.playerName IN [st.gk1, st.def1, st.def2, st.def3, st.def4, st.def5, st.mid1, st.mid2, st.mid3, st.mid4, st.mid5, st.fwd1, st.fwd2, st.fwd3] AND st.gk1 IS NOT NULL'
+    conditions: 'p.playerName IN [st.gk1, st.def1, st.def2, st.def3, st.def4, st.def5, st.mid1, st.mid2, st.mid3, st.mid4, st.mid5, st.fwd1, st.fwd2, st.fwd3]'
   },
   IN_PLAYER_OF_THE_MONTH: {
     from: 'Player',
@@ -869,7 +869,7 @@ const relationships = {
       position: { type: 'string', default: 'UNKNOWN' },
       monthlyPoints: { type: 'integer', default: 0 }
     },
-    conditions: 'p.playerName IN [pm.player1Name, pm.player2Name, pm.player3Name, pm.player4Name, pm.player5Name] AND pm.player1Name IS NOT NULL'
+    conditions: 'p.playerName IN [pm.player1Name, pm.player2Name, pm.player3Name, pm.player4Name, pm.player5Name]'
   },
   HAS_CAPTAIN_AWARDS: {
     from: 'Player',
@@ -879,7 +879,7 @@ const relationships = {
       season: { type: 'string', required: true },
       awardType: { type: 'string', required: true }
     },
-    conditions: 'p.playerName IN [ca.clubCaptain, ca.firstXICaptains, ca.secondXICaptains, ca.thirdXICaptains, ca.fourthXICaptains, ca.fifthXICaptains, ca.sixthXICaptains, ca.seventhXICaptains, ca.eighthXICaptains, ca.vetsCaptain, ca.playerOfTheSeason, ca.youngPlayerOfTheSeason, ca.goldenBoot, ca.mostImprovedPlayer, ca.newcomerOfTheYear, ca.alanLambertSportsmanship, ca.chairmansCup, ca.peterMillsVolunteers, ca.goalkeeperOfTheYear, ca.firstXISquadPlayer, ca.secondXISquadPlayer, ca.thirdXISquadPlayer, ca.fourthXISquadPlayer, ca.fifthXISquadPlayer, ca.sixthXISquadPlayer, ca.seventhXISquadPlayer, ca.eighthXISquadPlayer, ca.vetsSquadPlayer] AND ca.clubCaptain IS NOT NULL'
+    conditions: 'p.playerName IN [ca.clubCaptain, ca.firstXICaptains, ca.secondXICaptains, ca.thirdXICaptains, ca.fourthXICaptains, ca.fifthXICaptains, ca.sixthXICaptains, ca.seventhXICaptains, ca.eighthXICaptains, ca.vetsCaptain, ca.playerOfTheSeason, ca.youngPlayerOfTheSeason, ca.goldenBoot, ca.mostImprovedPlayer, ca.newcomerOfTheYear, ca.alanLambertSportsmanship, ca.chairmansCup, ca.peterMillsVolunteers, ca.goalkeeperOfTheYear, ca.firstXISquadPlayer, ca.secondXISquadPlayer, ca.thirdXISquadPlayer, ca.fourthXISquadPlayer, ca.fifthXISquadPlayer, ca.sixthXISquadPlayer, ca.seventhXISquadPlayer, ca.eighthXISquadPlayer, ca.vetsSquadPlayer]'
   },
   HAS_MATCH_DETAILS: {
     from: 'Fixture',
@@ -920,7 +920,7 @@ const relationships = {
     properties: {
       seasonWeek: { type: 'string', required: true }
     },
-    conditions: 'wt.season + "-" + wt.week = md.seasonWeek AND wt.season IS NOT NULL AND wt.week IS NOT NULL'
+    conditions: 'wt.season + "-" + wt.week = md.seasonWeek'
   },
 };
 
