@@ -1,26 +1,83 @@
----
-description: Engineering Doctrine - Comprehensive development principles and protocols
-alwaysApply: true
----
-
 # Engineering Doctrine - V3 Dorkinians Website
-
-This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_DOCTRINE.md` to ensure all development principles are actively enforced.
 
 ## Table of Contents
 
-- [React & Next.js Best Practices](#react--nextjs-best-practices)
-  - [Component Lifecycle & Hooks Safety](#component-lifecycle--hooks-safety)
+- [Table of Contents](#table-of-contents)
+- [React \& Next.js Best Practices](#react--nextjs-best-practices)
+  - [Component Lifecycle \& Hooks Safety](#component-lifecycle--hooks-safety)
+    - [React Hooks Ordering in Transition Components](#react-hooks-ordering-in-transition-components)
+    - [HTML Validation in React Components](#html-validation-in-react-components)
   - [State Management Patterns](#state-management-patterns)
+    - [Zustand Store Design](#zustand-store-design)
+    - [Async Data Loading Store Pattern](#async-data-loading-store-pattern)
+    - [Component State Management](#component-state-management)
   - [Async Data Loading UI State Protocol](#async-data-loading-ui-state-protocol)
-  - [Debugging & Problem Solving](#debugging--problem-solving)
-- [Build & Development Workflow](#build--development-workflow)
+  - [Debugging \& Problem Solving](#debugging--problem-solving)
+    - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol)
+  - [Schema Alignment Verification Protocol](#schema-alignment-verification-protocol)
+  - [Change Verification Protocol](#change-verification-protocol)
+  - [Debug-First Approach Protocol](#debug-first-approach-protocol)
+  - [Systematic Error Investigation Protocol](#systematic-error-investigation-protocol)
+  - [Naming Consistency Enforcement Protocol](#naming-consistency-enforcement-protocol)
+  - [Complete Data Flow Analysis Protocol](#complete-data-flow-analysis-protocol)
+  - [Complete Request Flow Verification Protocol](#complete-request-flow-verification-protocol)
+  - [Multi-Layer Debugging Protocol](#multi-layer-debugging-protocol)
+    - [Progressive Problem Escalation](#progressive-problem-escalation)
+- [Build \& Development Workflow](#build--development-workflow)
+  - [TypeScript \& Build Safety](#typescript--build-safety)
+  - [Component Architecture](#component-architecture)
 - [Documentation Standards](#documentation-standards)
+  - [Markdown Documentation Protocol](#markdown-documentation-protocol)
+  - [Documentation Integration Protocol](#documentation-integration-protocol)
 - [Quality Gates](#quality-gates)
-- [Testing & Data Validation](#testing--data-validation)
-- [Natural Language Processing & Query Analysis](#natural-language-processing--query-analysis)
-- [Database Integrity & Data Management](#database-integrity--data-management)
+  - [Pre-Deployment Checklist](#pre-deployment-checklist)
+  - [Testing Protocol](#testing-protocol)
+  - [Test Script Safety Protocol](#test-script-safety-protocol)
+  - [User Experience Validation Protocol](#user-experience-validation-protocol)
+  - [Proactive UX Design Protocol](#proactive-ux-design-protocol)
+  - [Simple UI Implementation Protocol](#simple-ui-implementation-protocol)
+  - [Fallback Mechanism Design](#fallback-mechanism-design)
+  - [Iterative Correction Protocol](#iterative-correction-protocol)
+  - [Documentation Verification Protocol](#documentation-verification-protocol)
+- [Testing \& Data Validation](#testing--data-validation)
+  - [Data Source Integrity Protocol](#data-source-integrity-protocol)
+  - [Data Structure Verification Protocol](#data-structure-verification-protocol)
+  - [Test Failure Logic Protocol](#test-failure-logic-protocol)
+  - [TBL\_TestData Validation Protocol](#tbl_testdata-validation-protocol)
+  - [External Service Connection Protocol](#external-service-connection-protocol)
+  - [Structured Error Handling Protocol](#structured-error-handling-protocol)
+  - [Evidence-Based Debugging Protocol](#evidence-based-debugging-protocol-1)
+  - [Evidence-Based Diagnosis Protocol](#evidence-based-diagnosis-protocol)
+  - [Data Pipeline Verification Protocol](#data-pipeline-verification-protocol)
+  - [Log-First Debugging Strategy](#log-first-debugging-strategy)
+  - [User Instruction Adherence Protocol](#user-instruction-adherence-protocol)
+- [Natural Language Processing \& Query Analysis](#natural-language-processing--query-analysis)
+  - [Context-Aware Entity Classification Protocol](#context-aware-entity-classification-protocol)
+  - [User Domain Knowledge Leverage Protocol](#user-domain-knowledge-leverage-protocol)
+  - [Incremental Problem Resolution Protocol](#incremental-problem-resolution-protocol)
+  - [Evidence-Based Hypothesis Protocol](#evidence-based-hypothesis-protocol)
+  - [Database Schema Verification Protocol](#database-schema-verification-protocol)
+  - [Pipeline Order Discipline Protocol](#pipeline-order-discipline-protocol)
+  - [Incremental Fix Validation Protocol](#incremental-fix-validation-protocol)
+  - [Fuzzy Matching Extension Protocol](#fuzzy-matching-extension-protocol)
+  - [User Experience Formatting Protocol](#user-experience-formatting-protocol)
+  - [Question Analysis Priority Protocol](#question-analysis-priority-protocol)
+  - [Graph Database Relationship Counting Protocol](#graph-database-relationship-counting-protocol)
+  - [Systematic Data Discrepancy Analysis Protocol](#systematic-data-discrepancy-analysis-protocol)
+  - [Data Corruption Investigation Protocol](#data-corruption-investigation-protocol)
+  - [User Technical Guidance Priority Protocol](#user-technical-guidance-priority-protocol)
+- [Database Integrity \& Data Management](#database-integrity--data-management)
+  - [Data Source Verification Protocol](#data-source-verification-protocol)
+  - [User Data Authority Protocol](#user-data-authority-protocol)
+  - [Database Relationship Integrity Protocol](#database-relationship-integrity-protocol)
+  - [Data Integrity Testing Protocol](#data-integrity-testing-protocol)
+  - [Batch Processing Safety Protocol](#batch-processing-safety-protocol)
+  - [Multi-Layer Data Persistence Protocol](#multi-layer-data-persistence-protocol)
+  - [Graceful Degradation Protocol](#graceful-degradation-protocol)
 - [Environment-Specific Operations](#environment-specific-operations)
+  - [Shell Environment Compatibility Protocol](#shell-environment-compatibility-protocol)
+  - [Temporary File Management Protocol](#temporary-file-management-protocol)
+  - [Netlify-Heroku Integration Protocol](#netlify-heroku-integration-protocol)
 
 ## React & Next.js Best Practices
 
@@ -31,12 +88,38 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
 - **Rule**: Never place conditional returns after hooks in components that may be rendered during transitions (AnimatePresence, Suspense, etc.)
 - **Rationale**: Transition libraries keep components mounted during exit animations, causing hooks ordering violations when conditional returns change the execution path
 - **Implementation**: Use parent-level conditional rendering instead of component-level conditional returns for transition components
+- **Example**:
+
+  ```typescript
+  // ❌ BAD - Conditional return after hooks in AnimatePresence component
+  function StatsContainer() {
+    const { currentMainPage } = useNavigationStore();
+    // ... other hooks
+    if (currentMainPage !== "stats") return null; // Causes hooks ordering violation
+  }
+
+  // ✅ GOOD - Parent-level conditional rendering
+  case "stats":
+    return currentMainPage === "stats" ? <StatsContainer /> : null;
+  ```
 
 #### HTML Validation in React Components
 
 - **Rule**: Always validate that React component structure produces valid HTML, especially with table elements
 - **Rationale**: Invalid HTML structure causes hydration errors and breaks SSR/SSG
 - **Implementation**: Use proper React patterns for table elements and avoid wrapping table elements in non-table containers
+- **Example**:
+
+  ```typescript
+  // ❌ BAD - Invalid HTML structure
+  <StatTooltip>
+    <tr>...</tr>  // <tr> inside <div> from StatTooltip
+  </StatTooltip>
+
+  // ✅ GOOD - Valid HTML structure
+  <StatRow stat={stat} value={value} playerData={playerData} />
+  // Where StatRow renders <tr> directly in <tbody>
+  ```
 
 ### State Management Patterns
 
@@ -54,6 +137,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Load data asynchronously on site initialization using Promise.all for parallel loading
   - Cache data in store state with loading flags to prevent duplicate API calls
   - Use data array length checks for UI state decisions rather than loading flags
+- **Example**: Load seasons, teams, opposition, and competitions data in parallel on site load, cache in store, check `filterData.seasons.length === 0` for loading states
 
 #### Component State Management
 
@@ -66,6 +150,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
 - **Rule**: When implementing background data loading, always check actual data availability (array length) rather than loading flags for UI state decisions
 - **Rationale**: Loading flags may not accurately reflect data availability during async operations, causing false loading states
 - **Implementation**: Use `dataArray.length === 0` instead of `!isLoading` for loading state conditions
+- **Example**: `{filterData.seasons.length === 0 ? "Loading..." : <DataComponent />}` instead of `{!isLoading ? "Loading..." : <DataComponent />}`
 
 ### Debugging & Problem Solving
 
@@ -75,7 +160,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
 - **Rationale**: Console logs provide concrete evidence of the actual execution flow
 - **Implementation**: Add strategic console.log statements to trace state changes and component lifecycle
 
-#### Schema Alignment Verification Protocol
+### Schema Alignment Verification Protocol
 
 - **Rule**: When making backend schema changes, proactively check and update frontend code to ensure consistency
 - **Rationale**: Schema changes often require corresponding updates to frontend queries and data access patterns
@@ -83,8 +168,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Review frontend chatbot queries for outdated relationship types or data sources
   - Update query patterns to match new schema definitions
   - Verify relationship directions and property access patterns
+- **Example**: Backend schema changes Captain Awards relationship type → update frontend queries from `CAPTAIN` to `HAS_CAPTAIN_AWARDS`
 
-#### Change Verification Protocol
+### Change Verification Protocol
 
 - **Rule**: Always verify that code changes are actually applied and active in the running system before considering fixes complete
 - **Rationale**: Development environments with caching, hot reloading, or build systems may not immediately reflect changes, leading to false assumptions about fix effectiveness
@@ -92,8 +178,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Test changes immediately after implementation using actual API calls or user scenarios
   - Restart development servers when necessary to ensure changes are loaded
   - Verify behavior matches expected changes, not just that code was modified
+- **Example**: Entity extraction changes not working → restart dev server → verify with actual chatbot API calls
 
-#### Debug-First Approach Protocol
+### Debug-First Approach Protocol
 
 - **Rule**: Create targeted debug scripts to isolate and verify issues before making modifications to production code
 - **Rationale**: Debug scripts provide controlled environments to test hypotheses and verify root causes without affecting the main system
@@ -101,8 +188,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Create focused debug scripts that test specific components or patterns
   - Use debug scripts to verify assumptions before implementing fixes
   - Clean up debug scripts after successful problem resolution
+- **Example**: Pattern matching issues → create debug script to test regex patterns → verify correct patterns → implement targeted fixes
 
-#### Systematic Error Investigation Protocol
+### Systematic Error Investigation Protocol
 
 - **Rule**: When users report multiple errors, investigate each error individually rather than trying to fix all at once
 - **Rationale**: Each error may have a different root cause, and parallel debugging often leads to incomplete fixes and missed root causes
@@ -111,8 +199,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Verify the fix works before moving to the next issue
   - Use systematic verification at each step
   - Create targeted diagnostic scripts for each specific error
+- **Example**: Captain Awards + Opposition + Fixture connection errors → investigate Captain Awards first → verify fix → then investigate Opposition → verify fix → then investigate Fixture connections
 
-#### Naming Consistency Enforcement Protocol
+### Naming Consistency Enforcement Protocol
 
 - **Rule**: Maintain consistent naming conventions across all system components (entity extraction, priority systems, metric mapping) to prevent mismatches
 - **Rationale**: Inconsistent naming between system components causes silent failures where data flows correctly but components can't find each other
@@ -120,8 +209,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Audit naming conventions across all related components
   - Ensure entity extraction outputs match priority system inputs
   - Verify metric mappings use consistent naming throughout the pipeline
+- **Example**: Entity extraction finds "Conceded Per Appearance" but priority system looks for "Goals Conceded Per Appearance" → align naming conventions
 
-#### Complete Data Flow Analysis Protocol
+### Complete Data Flow Analysis Protocol
 
 - **Rule**: When debugging complex systems, trace the entire data pipeline from input to output, not just suspected problem areas
 - **Rationale**: Root causes often exist upstream from where symptoms appear, and fixing downstream issues creates fragile workarounds
@@ -130,8 +220,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Add logging at each stage to trace data transformation
   - Identify where the data diverges from expected behavior
   - Verify each component in the pipeline independently before making changes
+- **Example**: Query building issues → trace from question analysis through entity extraction to query generation
 
-#### Complete Request Flow Verification Protocol
+### Complete Request Flow Verification Protocol
 
 - **Rule**: When debugging API issues, always trace the complete request flow from frontend through all middleware to backend execution
 - **Rationale**: API failures can occur at any stage (frontend → Netlify → Heroku), and fixing the wrong stage wastes time
@@ -141,8 +232,9 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Check parameter passing between each stage (query params vs body params vs headers)
   - Verify network connectivity and configuration at each layer
   - Add comprehensive logging at every layer to create complete audit trails
+- **Example**: "Job ID not found" → test Heroku endpoint directly → verify Netlify function → check frontend parameter passing
 
-#### Multi-Layer Debugging Protocol
+### Multi-Layer Debugging Protocol
 
 - **Rule**: Implement systematic logging at every layer of a distributed system to create complete audit trails for debugging
 - **Rationale**: Complex systems have multiple failure points, and comprehensive logging enables precise root cause identification
@@ -151,6 +243,13 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use consistent log prefixes and structured data for easy filtering and analysis
   - Log both successful operations and failures with sufficient context
   - Include timing information and correlation IDs to trace request flow
+- **Example**: Frontend logs request body → Netlify logs parameter parsing → Heroku logs execution steps → Email service logs processing
+
+#### Progressive Problem Escalation
+
+- **Rule**: When initial fixes fail, systematically escalate the approach rather than repeating the same pattern
+- **Rationale**: Surface-level fixes often miss root causes
+- **Implementation**: Start with symptoms, then move to component structure, then to architectural changes
 
 ## Build & Development Workflow
 
@@ -217,6 +316,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement proper process exit handling (SIGINT, SIGTERM)
   - Clear timeouts and exit cleanly on completion or error
   - Add progress indicators for long-running operations
+- **Example**: Database connection scripts → add `setTimeout(() => process.exit(1), 30000)` and `process.on('SIGINT', () => process.exit(0))`
 
 ### User Experience Validation Protocol
 
@@ -226,6 +326,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - For email reports: Verify actual email content structure, not just delivery success
   - For UI changes: Confirm user-visible changes, not just component rendering
   - For data generation: Distinguish between sample data and comprehensive coverage requirements
+- **Example**: Email script reports "sent successfully" but user reports "table not showing" - investigate actual email content
 
 ### Proactive UX Design Protocol
 
@@ -235,6 +336,17 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use grid layouts for checkbox lists to improve space efficiency
   - Consider mobile responsiveness and screen real estate during design
   - Anticipate user workflow needs and optimize accordingly
+- **Example**: Implement two-column layout for seasons checkboxes during initial development rather than waiting for user feedback about space efficiency
+
+### Simple UI Implementation Protocol
+
+- **Rule**: When users request simple UI changes, implement them directly without over-engineering complex solutions
+- **Rationale**: Over-engineering simple requests creates unnecessary complexity and delays delivery
+- **Implementation**:
+  - Implement user requests as directly as possible
+  - Avoid creating complex systems (tabs, modals, etc.) when simple solutions suffice
+  - Focus on the core requirement rather than adding "enhancements"
+- **Example**: User wants monitoring section moved → move it directly rather than creating a tab system
 
 ### Fallback Mechanism Design
 
@@ -244,6 +356,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Always provide comprehensive fallback data generation when parsing fails
   - Design fallbacks to match the full scope of expected results, not just sample data
   - Log fallback activation clearly for debugging purposes
+- **Example**: Jest output parsing fails → generate comprehensive test details covering all scenarios and players
 
 ### Iterative Correction Protocol
 
@@ -253,6 +366,13 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - When user corrects "still not working", immediately investigate the gap between technical success and user experience
   - Don't repeat the same approach that failed; escalate to more comprehensive solutions
   - Validate fixes against user confirmation, not just technical execution
+
+### Documentation Verification Protocol
+
+1. Table of Contents includes all subsections with proper anchor links
+2. Navigation links are present between all major sections
+3. Formatting matches user's established standards
+4. No redundant or duplicate documentation files remain
 
 ## Testing & Data Validation
 
@@ -264,6 +384,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Always find a way to access the real data source, even if it requires alternative approaches
   - When TypeScript imports fail, implement direct HTTP fetching to CSV/API sources
   - If data access fails, report the failure clearly rather than using placeholder data
+- **Example**: CSV import fails → implement direct HTTP fetch to Google Sheets CSV URL
 
 ### Data Structure Verification Protocol
 
@@ -273,6 +394,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Add strategic logging to examine actual data structure
   - Use flexible field access patterns (case-insensitive, multiple naming conventions)
   - Verify field names match exactly what's in the source data
+- **Example**: CSV headers are `'PLAYER NAME'` not `playerName` or `PlayerName`
 
 ### Test Failure Logic Protocol
 
@@ -282,6 +404,17 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement strict validation functions that mark invalid data as failed
   - Never allow tests to pass when expected data is unavailable
   - Distinguish between "no data available" (FAILED) and "data available but zero" (PASSED)
+- **Example**: `getValueOrFail(value) => value === 'N/A' ? {status: 'FAILED'} : {status: 'PASSED'}`
+
+### TBL_TestData Validation Protocol
+
+- **Rule**: All test data must be sourced from the actual TBL_TestData CSV, with no hardcoded values allowed in the testing setup
+- **Rationale**: Ensures test results reflect real data accuracy and prevents false positives from placeholder values
+- **Implementation**:
+  - Source all expected values from the authoritative CSV data
+  - Implement robust CSV parsing that handles the actual data structure
+  - Generate comprehensive test coverage using real data fields
+- **Example**: Use `playerData.APP` from CSV rather than hardcoded `172` for Luke Bangs appearances
 
 ### External Service Connection Protocol
 
@@ -291,6 +424,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Add connection checks at the entry point of service operations
   - Return structured error responses when connections fail
   - Log connection attempts and failures for debugging
+- **Example**: Neo4j queries fail with "driver not initialized" → add `await neo4jService.connect()` before query execution
 
 ### Structured Error Handling Protocol
 
@@ -300,6 +434,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Return error objects with `type: "error"`, `error: message`, and `cypherQuery: "N/A"`
   - Handle error types explicitly in response generation
   - Preserve error context through the call chain
+- **Example**: `queryPlayerData` returns `{type: "error", data: [], error: "Connection failed"}` instead of `null`
 
 ### Evidence-Based Debugging Protocol
 
@@ -310,6 +445,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use grep/search tools to identify specific failure points
   - Create targeted fixes based on evidence rather than assumptions
   - Prioritize actual system outputs over theoretical analysis
+- **Example**: Analyze test failure logs to identify "No Cypher Query" pattern before creating debug scripts
 
 ### Evidence-Based Diagnosis Protocol
 
@@ -320,6 +456,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use concrete evidence to identify where the process breaks down
   - Test hypotheses with real data before implementing solutions
   - Trace through actual execution flow rather than theoretical behavior
+- **Example**: User provides specific log evidence → use that evidence to guide diagnosis rather than theoretical analysis
 
 ### Data Pipeline Verification Protocol
 
@@ -329,6 +466,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Trace data flow: source → parsing → access → usage
   - Verify each stage independently before implementing fixes
   - Use concrete data inspection rather than assumptions about data structure
+- **Example**: CSV parsing issue → verify actual CSV headers, then parsing logic, then data access patterns
 
 ### Log-First Debugging Strategy
 
@@ -338,6 +476,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Add detailed logging at each stage of data processing
   - Analyze log outputs to identify where the process breaks down
   - Use log evidence to guide targeted fixes rather than theoretical solutions
+- **Example**: Add CSV parsing logs, data access logs, and test execution logs to trace the complete flow
 
 ### User Instruction Adherence Protocol
 
@@ -347,6 +486,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Follow user-specified debugging steps precisely
   - Implement user-requested logging and analysis approaches
   - Avoid substituting alternative methods without user approval
+- **Example**: User requests "use the generated log files to debug" → implement comprehensive logging and analyze logs rather than creating new debug scripts
 
 ## Natural Language Processing & Query Analysis
 
@@ -358,6 +498,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Count only named entities (players, teams, oppositions, leagues) for complexity assessment
   - Treat locations ("home", "away"), timeframes (date ranges), and stat types as contextual filters
   - Only trigger clarification when single entity type exceeds limits (e.g., 4+ teams), not mixed entity types
+- **Example**: "How many goals has Luk Bangs got for the 3s whilst playing at home between 20/03/2022 and 21/10/24?" = 2 named entities (1 player + 1 team) + contextual filters (location + timeframe)
 
 ### User Domain Knowledge Leverage Protocol
 
@@ -367,6 +508,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Prioritize user-suggested technical approaches over complex workarounds
   - Implement user corrections immediately without defending previous decisions
   - Trust user expertise in their specific domain context
+- **Example**: User corrects complexity logic → implement user's specific approach rather than creating alternative complexity assessment methods
 
 ### Incremental Problem Resolution Protocol
 
@@ -376,6 +518,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Identify and fix the most critical issue first
   - Verify the fix works before moving to the next issue
   - Use systematic verification at each step
+- **Example**: Fix team detection → verify → fix question type priority → verify → fix duplicate entities → verify
 
 ### Evidence-Based Hypothesis Protocol
 
@@ -385,6 +528,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use console logs, debug output, and code analysis to verify assumptions
   - Test hypotheses with concrete data before implementing solutions
   - Trace through actual execution flow rather than theoretical behavior
+- **Example**: Assume entity counting issue → verify with actual entity extraction logs → implement targeted fix based on evidence
 
 ### Database Schema Verification Protocol
 
@@ -394,6 +538,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Run diagnostic queries to confirm data structure before building production logic
   - Verify node relationships and property locations through actual database calls
   - Test query patterns with real data before implementing complex business logic
+- **Example**: Assume MatchDetail contains team/location properties → verify schema shows they're in linked Fixture nodes → update queries accordingly
 
 ### Pipeline Order Discipline Protocol
 
@@ -403,6 +548,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement entity filtering before fuzzy matching to prevent stat types from being classified as players
   - Use similarity-based filtering to exclude recognized entity types from other classification stages
   - Ensure each processing stage has access to results from previous stages
+- **Example**: Stat type words ("assits") being classified as players → implement stat type filtering before player extraction
 
 ### Incremental Fix Validation Protocol
 
@@ -412,6 +558,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Apply one fix at a time and test immediately
   - Use actual API calls and user scenarios for validation
   - Verify each fix works before proceeding to the next issue
+- **Example**: Fix team mapping → test → fix time range → test → fix query routing → test
 
 ### Fuzzy Matching Extension Protocol
 
@@ -421,6 +568,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Extend existing entity resolver interfaces to support new entity types
   - Implement similarity-based matching using established algorithms (Jaro-Winkler, Levenshtein)
   - Maintain consistent confidence thresholds and matching patterns across all entity types
+- **Example**: Add stat type fuzzy matching → extend EntityNameResolver interface → implement similarity calculation for stat types
 
 ### User Experience Formatting Protocol
 
@@ -430,6 +578,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement format conversion functions for display purposes
   - Maintain internal consistency with database/API formats
   - Apply formatting at the response generation stage, not data storage stage
+- **Example**: Internal dates stored as YYYY-MM-DD → convert to DD/MM/YYYY for user responses
 
 ### Question Analysis Priority Protocol
 
@@ -439,6 +588,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - When query issues occur, first verify question analysis results
   - Check entity extraction accuracy before debugging query construction
   - Trace metric detection from question analysis through to query building
+- **Example**: Penalty queries generating home game queries → check if "penalties scored" is being extracted as "HOME" instead of "PSC"
 
 ### Graph Database Relationship Counting Protocol
 
@@ -448,6 +598,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use `count(DISTINCT node)` instead of `count(node)` when counting through relationships
   - Identify the specific relationship type that represents the intended count (e.g., `PLAYED_IN` for player appearances)
   - Verify that relationship conditions in schema are specific enough to prevent duplicate relationship creation
+- **Example**: Player-MatchDetail relationships → use `count(DISTINCT md)` to count unique match details, not all relationship instances
 
 ### Systematic Data Discrepancy Analysis Protocol
 
@@ -457,6 +608,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Look for consistent multipliers (e.g., 5-6x higher than expected) as indicators of structural issues
   - Trace the complete data pipeline from input through storage to query execution
   - Compare expected vs actual counts across multiple related metrics to identify patterns
+- **Example**: Home games 5x higher than expected → investigate if `HAS_MATCH_DETAILS` relationships are creating duplicates
 
 ### Data Corruption Investigation Protocol
 
@@ -466,6 +618,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Create targeted diagnostic scripts to check actual database values vs expected source data
   - Use direct database queries to inspect node properties rather than assuming relationship logic is the issue
   - Investigate data corruption possibilities when unexpected values appear in database queries
+- **Example**: Captain Awards showing unexpected player names → check actual CaptainsAndAwards node properties vs CSV source data
 
 ### User Technical Guidance Priority Protocol
 
@@ -475,6 +628,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - When users specify exact technical requirements (e.g., "only count PLAYED_IN relationships"), implement those requirements first
   - Use theoretical analysis to validate and extend user guidance, not replace it
   - Test user-specified approaches before exploring alternative solutions
+- **Example**: User says "only count PLAYED_IN relationships" → implement that specific counting method rather than investigating all relationship types
 
 ## Database Integrity & Data Management
 
@@ -486,6 +640,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Ask users to specify which data source they're viewing when reporting discrepancies
   - Verify data source consistency before investigating database issues
   - Accept user corrections about data accuracy immediately rather than continuing to investigate
+- **Example**: Database shows 27 players, user sees 14 → confirm user's data source before investigating database corruption
 
 ### User Data Authority Protocol
 
@@ -495,6 +650,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Accept user data corrections as definitive
   - Update analysis based on user corrections rather than defending previous assumptions
   - Proceed with fixes based on corrected data state
+- **Example**: User reports "data was incorrect, I have now fixed it" → accept correction and re-run integrity tests
 
 ### Database Relationship Integrity Protocol
 
@@ -504,6 +660,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement specific matching criteria for relationship creation (e.g., opposition team + home/away status)
   - Verify relationship creation logic with small test datasets before full deployment
   - Monitor relationship counts for unexpected inflation patterns
+- **Example**: MatchDetail-Fixture relationships → match by opposition team and home/away status, not just date
 
 ### Data Integrity Testing Protocol
 
@@ -513,6 +670,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Create tests for maximum relationships per node, duplicate prevention, and orphaned records
   - Run integrity tests after any major data operations
   - Include tests for business rules (e.g., maximum players per match, maximum fixtures per date)
+- **Example**: Test for max 18 MatchDetail nodes per Fixture, max 9 Fixtures per date, no orphaned records
 
 ### Batch Processing Safety Protocol
 
@@ -522,6 +680,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Use batch sizes of 50-100 for complex operations, 1000+ for simple operations
   - Add delays between batches (200-500ms) to prevent overwhelming the database
   - Implement custom count queries for operations that can't use generic batching
+- **Example**: PLAYED_IN relationship creation → use 50-record batches with 200ms delays
 
 ### Multi-Layer Data Persistence Protocol
 
@@ -532,6 +691,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement immediate verification of data persistence after each save operation
   - Design recovery mechanisms that can restore state from any available storage layer
   - Add comprehensive monitoring and debugging capabilities from the start
+- **Example**: Job status tracking → in-memory Map + file system + environment variables + real-time monitoring
 
 ### Graceful Degradation Protocol
 
@@ -542,6 +702,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Implement fallback mechanisms for non-critical services (email, logging, monitoring)
   - Design critical operations to continue even when supporting services fail
   - Log service failures clearly but don't let them block primary functionality
+- **Example**: Email service failure → log warning but continue with Heroku seeding operation
 
 ## Environment-Specific Operations
 
@@ -553,6 +714,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Check shell type before using command chaining operators (`&&` vs `;` vs separate commands)
   - Use PowerShell-compatible commands when working in Windows PowerShell
   - Test command syntax in the target environment before execution
+- **Example**: PowerShell doesn't support `&&` → use separate `cd` and `node` commands instead of `cd && node`
 
 ### Temporary File Management Protocol
 
@@ -562,6 +724,7 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Identify which files were created for debugging vs. user-requested functionality
   - Delete temporary investigation scripts after successful problem resolution
   - Preserve files that users specifically requested or that provide ongoing value
+- **Example**: Delete `debug-*.js` and `investigate-*.js` files, keep `test-data-integrity.js` if user requested it
 
 ### Netlify-Heroku Integration Protocol
 
@@ -571,7 +734,6 @@ This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_
   - Add redirect rules for new API paths in netlify.toml
   - Test API endpoints directly before investigating frontend integration issues
   - Verify that frontend can successfully call new endpoints through the redirect system
+- **Example**: New `/api/debug/*` endpoints → add redirect rule in netlify.toml → test frontend integration
 
----
-
-> **Reference**: This rule file imports the complete Engineering Doctrine from `docs/ENGINEERING_DOCTRINE.md` to ensure all development principles are actively enforced in Cursor AI interactions.
+> [Back to Table of Contents](#table-of-contents)
