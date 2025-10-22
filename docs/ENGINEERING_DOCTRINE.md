@@ -702,7 +702,17 @@
   - Implement fallback mechanisms for non-critical services (email, logging, monitoring)
   - Design critical operations to continue even when supporting services fail
   - Log service failures clearly but don't let them block primary functionality
-- **Example**: Email service failure → log warning but continue with Heroku seeding operation
+  - **Example**: Email service failure → log warning but continue with Heroku seeding operation
+
+### Git Hook Auto-Sync Protocol
+
+- **Rule**: Automatically sync Engineering Doctrine to Cursor rules on git commit when the doctrine file changes
+- **Rationale**: Eliminates manual sync requirements and ensures Cursor rules are always current
+- **Implementation**:
+  - Use git pre-commit hook to detect changes to `docs/ENGINEERING_DOCTRINE.md`
+  - Automatically run sync script when doctrine changes are committed
+  - Fail commit if sync fails to prevent inconsistent state
+  - **Example**: Commit changes to doctrine → hook detects change → auto-syncs to `.cursor/rules/engineering-doctrine.mdc`
 
 ## Environment-Specific Operations
 
