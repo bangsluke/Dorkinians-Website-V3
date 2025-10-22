@@ -74,6 +74,7 @@
   - [Batch Processing Safety Protocol](#batch-processing-safety-protocol)
   - [Multi-Layer Data Persistence Protocol](#multi-layer-data-persistence-protocol)
   - [Graceful Degradation Protocol](#graceful-degradation-protocol)
+  - [Git Hook Auto-Sync Protocol](#git-hook-auto-sync-protocol)
 - [Environment-Specific Operations](#environment-specific-operations)
   - [Shell Environment Compatibility Protocol](#shell-environment-compatibility-protocol)
   - [Temporary File Management Protocol](#temporary-file-management-protocol)

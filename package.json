@@ -22,10 +22,7 @@
 		"test:chatbot-report:hide": "node scripts/test-chatbot-email-report.js --hide-passed",
 		"test:chatbot-report:debug": "cross-env DEBUG_MODE=true node scripts/test-chatbot-email-report.js",
 		"test:chatbot-report:enhanced-logging": "node scripts/test-chatbot-with-enhanced-logging.js",
-		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js",
-		"watch-doctrine": "node scripts/watch-doctrine.js",
-		"sync-doctrine": "node scripts/sync-doctrine-once.js",
-		"setup-git-hooks": "node scripts/setup-git-hooks.js"
+		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js"
 	},
 	"dependencies": {
 		"@headlessui/react": "^1.7.17",
