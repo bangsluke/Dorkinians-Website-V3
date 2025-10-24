@@ -1168,7 +1168,19 @@ export default function AdminPanel() {
 			<div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg'>
 				<p className='text-sm text-gray-800 font-semibold mb-1'>Live Logs (Heroku CLI)</p>
 				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
-				<pre className='mt-2 p-2 bg-gray-900 text-gray-100 text-xs rounded'><code>heroku logs --tail --app database-dorkinians</code></pre>
+				<div className='mt-2 relative'>
+					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app database-dorkinians</code></pre>
+					<button
+						onClick={() => {
+							navigator.clipboard.writeText('heroku logs --tail --app database-dorkinians');
+							// You could add a toast notification here if desired
+						}}
+						className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
+						title='Copy to clipboard'
+					>
+						📋
+					</button>
+				</div>
 				<p className='text-xs text-gray-600 mt-2'>Requires the Heroku CLI. Install from <a href='https://devcenter.heroku.com/articles/heroku-cli' target='_blank' rel='noreferrer' className='text-blue-600 underline'>Heroku Dev Center</a>.</p>
 			</div>
 
