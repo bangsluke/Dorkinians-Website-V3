@@ -90,7 +90,11 @@ export default function AdminPanel() {
 	const [showDebugInfo, setShowDebugInfo] = useState(false);
 
 	// UI state
-	const [showProcessInfo, setShowProcessInfo] = useState(true);
+	const [showProcessInfo, setShowProcessInfo] = useState(false);
+	
+	// Toast notification state
+	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
 	// Check if we're in development mode
 	const isDevelopment = process.env.NODE_ENV === "development";
@@ -190,6 +194,17 @@ export default function AdminPanel() {
 		}
 		
 		// Debug logging removed
+	};
+
+	// Toast notification function
+	const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+		setToastMessage(message);
+		setToastType(type);
+		
+		// Auto-hide toast after 3 seconds
+		setTimeout(() => {
+			setToastMessage(null);
+		}, 3000);
 	};
 
 	// Timer effect - simplified since timer management is now handled in status check functions
@@ -1009,17 +1024,31 @@ export default function AdminPanel() {
 						</div>
 					</div>
 					
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='useSeasonOverride'
-							checked={useSeasonOverride}
-							onChange={(e) => handleSeasonOverrideChange(e.target.checked)}
-							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
-							Override season (for historical data correction)
-						</label>
+					<div className='flex flex-col sm:flex-row sm:space-x-6 space-y-2 sm:space-y-0'>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='useSeasonOverride'
+								checked={useSeasonOverride}
+								onChange={(e) => handleSeasonOverrideChange(e.target.checked)}
+								className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='useSeasonOverride' className='text-sm text-gray-700'>
+								Override season (for historical data correction)
+							</label>
+						</div>
+						<div className='flex items-center'>
+							<input
+								type='checkbox'
+								id='fullRebuild'
+								checked={fullRebuild}
+								onChange={(e) => handleFullRebuildChange(e.target.checked)}
+								className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
+							/>
+							<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
+								Full rebuild (clear ALL data, not just current season)
+							</label>
+						</div>
 					</div>
 					
 					{useSeasonOverride && (
@@ -1044,18 +1073,6 @@ export default function AdminPanel() {
 						</div>
 					)}
 					
-					<div className='flex items-center'>
-						<input
-							type='checkbox'
-							id='fullRebuild'
-							checked={fullRebuild}
-							onChange={(e) => handleFullRebuildChange(e.target.checked)}
-							className='mr-2 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded'
-						/>
-						<label htmlFor='fullRebuild' className='text-sm text-gray-700'>
-							Full rebuild (clear ALL data, not just current season)
-						</label>
-					</div>
 					
 					<div className='p-3 bg-yellow-50 rounded-md border border-yellow-200'>
 						<p className='text-xs text-yellow-800'>
@@ -1171,9 +1188,13 @@ export default function AdminPanel() {
 				<div className='mt-2 relative'>
 					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app database-dorkinians</code></pre>
 					<button
-						onClick={() => {
-							navigator.clipboard.writeText('heroku logs --tail --app database-dorkinians');
-							// You could add a toast notification here if desired
+						onClick={async () => {
+							try {
+								await navigator.clipboard.writeText('heroku logs --tail --app database-dorkinians');
+								showToast('Command copied to clipboard!', 'success');
+							} catch (err) {
+								showToast('Failed to copy to clipboard', 'error');
+							}
 						}}
 						className='absolute top-1 right-1 p-1 text-gray-400 hover:text-white transition-colors'
 						title='Copy to clipboard'
@@ -1181,7 +1202,6 @@ export default function AdminPanel() {
 						📋
 					</button>
 				</div>
-				<p className='text-xs text-gray-600 mt-2'>Requires the Heroku CLI. Install from <a href='https://devcenter.heroku.com/articles/heroku-cli' target='_blank' rel='noreferrer' className='text-blue-600 underline'>Heroku Dev Center</a>.</p>
 			</div>
 
 			{/* Status Information */}
@@ -1583,11 +1603,6 @@ export default function AdminPanel() {
 
 			{/* Job Monitoring Section */}
 			<div className='mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg'>
-				<h3 className='text-lg font-semibold text-purple-800 mb-2'>Job Monitoring Dashboard</h3>
-				<p className='text-purple-700 text-sm mb-4'>
-					Monitor job execution, performance metrics, and debug information in real-time. 
-					View detailed analyses of completed jobs and track system health.
-				</p>
 				<JobMonitoringDashboard />
 			</div>
 
@@ -1729,6 +1744,23 @@ export default function AdminPanel() {
 								Close
 							</button>
 						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Toast Notification */}
+			{toastMessage && (
+				<div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+					toastType === 'success' ? 'bg-green-500 text-white' :
+					toastType === 'error' ? 'bg-red-500 text-white' :
+					'bg-blue-500 text-white'
+				}`}>
+					<div className="flex items-center gap-2">
+						<span>
+							{toastType === 'success' ? '✅' : 
+							 toastType === 'error' ? '❌' : 'ℹ️'}
+						</span>
+						<span className="font-medium">{toastMessage}</span>
 					</div>
 				</div>
 			)}
