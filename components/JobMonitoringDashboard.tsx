@@ -162,6 +162,22 @@ const JobMonitoringDashboard: React.FC = () => {
     }
   }, [autoRefresh]);
 
+  // Listen for external refresh events from AdminPanel
+  useEffect(() => {
+    const handleExternalRefresh = (event: CustomEvent) => {
+      console.log('🔄 JobMonitoringDashboard: Received external refresh event', event.detail);
+      fetchJobAnalyses();
+      fetchStorageStats();
+      fetchCurrentJobs();
+    };
+
+    window.addEventListener('jobMonitoringRefresh', handleExternalRefresh as EventListener);
+    
+    return () => {
+      window.removeEventListener('jobMonitoringRefresh', handleExternalRefresh as EventListener);
+    };
+  }, []);
+
   // Format duration
   const formatDuration = (ms: number) => {
     const minutes = Math.floor(ms / 60000);
