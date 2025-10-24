@@ -1232,13 +1232,13 @@ export default function AdminPanel() {
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
 										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
-											fullRebuild ? "~35 minutes" : "~5 minutes"}
+											fullRebuild ? "~43 minutes" : "~5 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
 													Math.floor(lastCompletedJobDuration / 60) : 
-													(fullRebuild ? 35 : 5);
+													(fullRebuild ? 43 : 5);
 												const expectedEndTime = new Date(startTime.getTime() + (expectedDurationMinutes * 60 * 1000));
 												return expectedEndTime.toLocaleTimeString();
 											})()}</>

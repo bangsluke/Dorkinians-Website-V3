@@ -820,7 +820,7 @@ The system supports automated daily database updates using external cron service
    - **Title**: `Dorkinians Daily Database Update`
    - **URL**: `https://your-site.netlify.app/.netlify/functions/trigger-seed?environment=production`
    - **Schedule**: Daily at 5:00 AM (`0 5 * * *`)
-   - **Timeout**: 2100 seconds (35 minutes)
+   - **Timeout**: 2580 seconds (43 minutes)
    - **Retry**: 3 attempts on failure
 
 #### Manual Testing
