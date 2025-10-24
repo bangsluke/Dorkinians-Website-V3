@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { killJob as killJobUtil } from '../lib/jobUtils';
 
 interface JobAnalysis {
   jobId: string;
@@ -63,6 +64,7 @@ const JobMonitoringDashboard: React.FC = () => {
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lookupJobId, setLookupJobId] = useState('');
   const [lookupResult, setLookupResult] = useState<any | null>(null);
+  const [killingJob, setKillingJob] = useState<string | null>(null);
 
   // Fetch job analyses
   const fetchJobAnalyses = async () => {
@@ -190,12 +192,52 @@ const JobMonitoringDashboard: React.FC = () => {
     return `${mb}MB`;
   };
 
+  // Kill a specific job using shared utility
+  const killJob = async (jobIdToKill: string) => {
+    setKillingJob(jobIdToKill);
+    setError(null);
+
+    const success = await killJobUtil(jobIdToKill, {
+      onSuccess: (jobId, result) => {
+        console.log("Job kill result:", result);
+        
+        // Update the current jobs list to reflect the killed status
+        setCurrentJobs(prevJobs => {
+          const updatedJobs = prevJobs.map(job => 
+            job.jobId === jobId 
+              ? { 
+                  ...job, 
+                  status: 'killed', 
+                  currentStep: 'Job killed by user',
+                  lastUpdate: new Date().toISOString()
+                }
+              : job
+          );
+          console.log("Updated jobs after kill:", updatedJobs);
+          return updatedJobs;
+        });
+        
+        // Also refresh the current jobs to ensure we have the latest status
+        setTimeout(() => {
+          fetchCurrentJobs();
+        }, 1000);
+      },
+      onError: (jobId, errorMessage) => {
+        setError(`Failed to kill job: ${errorMessage}`);
+      },
+      onFinally: (jobId) => {
+        setKillingJob(null);
+      }
+    });
+  };
+
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed': return 'text-green-600';
       case 'failed': return 'text-red-600';
       case 'running': return 'text-blue-600';
+      case 'killed': return 'text-red-600';
       case 'lost': return 'text-yellow-600';
       default: return 'text-gray-600';
     }
@@ -326,6 +368,9 @@ const JobMonitoringDashboard: React.FC = () => {
                   <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
                     Last Update
                   </th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -358,6 +403,31 @@ const JobMonitoringDashboard: React.FC = () => {
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-900 truncate" title={job.lastUpdate ? new Date(job.lastUpdate).toLocaleString() : 'N/A'}>
                       {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-gray-900">
+                      {(job.status === 'running' || job.status === 'initializing') && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to kill job ${job.jobId}? This action cannot be undone.`)) {
+                              killJob(job.jobId);
+                            }
+                          }}
+                          disabled={killingJob === job.jobId}
+                          className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
+                        >
+                          {killingJob === job.jobId ? (
+                            <>
+                              <span className="animate-spin">⏳</span>
+                              Killing...
+                            </>
+                          ) : (
+                            <>
+                              <span>🛑</span>
+                              Kill
+                            </>
+                          )}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -408,6 +478,31 @@ const JobMonitoringDashboard: React.FC = () => {
                       {job.lastUpdate ? new Date(job.lastUpdate).toLocaleTimeString() : 'N/A'}
                     </span>
                   </div>
+                  {(job.status === 'running' || job.status === 'initializing') && (
+                    <div className="flex items-center mt-2">
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to kill job ${job.jobId}? This action cannot be undone.`)) {
+                            killJob(job.jobId);
+                          }
+                        }}
+                        disabled={killingJob === job.jobId}
+                        className="px-3 py-1 text-xs bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
+                      >
+                        {killingJob === job.jobId ? (
+                          <>
+                            <span className="animate-spin">⏳</span>
+                            Killing...
+                          </>
+                        ) : (
+                          <>
+                            <span>🛑</span>
+                            Kill Job
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
