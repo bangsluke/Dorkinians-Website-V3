@@ -405,7 +405,7 @@ export default function AdminPanel() {
 					});
 					
 					// Automatic status checking after initial delay
-					addDebugLog("🔄 Scheduling automatic status check in 5 seconds...", 'info');
+					addDebugLog("🔄 Scheduling automatic status check in 15 seconds...", 'info');
 					setTimeout(() => {
 						addDebugLog("🔍 Auto-checking status after seeding trigger...", 'info');
 						checkStatus();
@@ -413,7 +413,7 @@ export default function AdminPanel() {
 						// Trigger JobMonitoringDashboard refresh
 						addDebugLog("🔄 Triggering JobMonitoringDashboard refresh...", 'info');
 						triggerJobMonitoringRefresh();
-					}, 5000); // 5 second delay
+					}, 15000); // 15 second delay - allows time for job creation and saving
 				}
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
