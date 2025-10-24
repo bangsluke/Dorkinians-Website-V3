@@ -77,8 +77,16 @@
   - [Git Hook Auto-Sync Protocol](#git-hook-auto-sync-protocol)
 - [Environment-Specific Operations](#environment-specific-operations)
   - [Shell Environment Compatibility Protocol](#shell-environment-compatibility-protocol)
+  - [Environment Configuration Protocol](#environment-configuration-protocol)
+  - [Progressive Development Protocol](#progressive-development-protocol)
+  - [External Data Validation Protocol](#external-data-validation-protocol)
   - [Temporary File Management Protocol](#temporary-file-management-protocol)
   - [Netlify-Heroku Integration Protocol](#netlify-heroku-integration-protocol)
+- [Graph Database Operations](#graph-database-operations)
+  - [Graph Data Safety Protocol](#graph-data-safety-protocol)
+  - [Database Operations Protocol](#database-operations-protocol)
+  - [Schema Design Principles Protocol](#schema-design-principles-protocol)
+  - [Query Generation Safety Protocol](#query-generation-safety-protocol)
 
 ## React & Next.js Best Practices
 
@@ -728,6 +736,35 @@
   - Test command syntax in the target environment before execution
 - **Example**: PowerShell doesn't support `&&` → use separate `cd` and `node` commands instead of `cd && node`
 
+### Environment Configuration Protocol
+
+- **Rule**: Always confirm user's preferred environment file structure before implementation
+- **Rationale**: Environment configuration preferences vary and incorrect assumptions cause implementation conflicts
+- **Implementation**:
+  - Prefer single `.env` files with environment-specific prefixes (e.g., `DEV_`, `PROD_`) when user specifies this preference
+  - Avoid assumptions about `.env.local` vs `.env` approaches without user confirmation
+  - After asking once, assume that an `.env` file exists and only mention it when new values need to be added to it
+
+### Progressive Development Protocol
+
+- **Rule**: Start with simplest possible solutions and add complexity only after basic functionality is verified
+- **Rationale**: Complex solutions built on unverified foundations often fail and require complete rework
+- **Implementation**:
+  - Test environment configuration before implementing complex features
+  - Create minimal test scripts first, then enhance with advanced functionality
+  - Start with simplest working solution, then enhance incrementally
+  - Test each environment independently before assuming cross-compatibility
+
+### External Data Validation Protocol
+
+- **Rule**: Always verify external data source accessibility (URLs, APIs, files) before implementing data processing logic
+- **Rationale**: External data sources can be unavailable or change format, causing downstream failures
+- **Implementation**:
+  - Test data sources at the HTTP level before implementing parsing and processing logic
+  - Test CSV URLs, API endpoints, and data formats in isolation first
+  - Have fallback strategies (e.g., sample data) when external sources are temporarily unavailable
+- **Example**: CSV import fails → implement direct HTTP fetch to Google Sheets CSV URL
+
 ### Temporary File Management Protocol
 
 - **Rule**: Always clean up temporary development files while preserving user-requested files
@@ -747,5 +784,47 @@
   - Test API endpoints directly before investigating frontend integration issues
   - Verify that frontend can successfully call new endpoints through the redirect system
 - **Example**: New `/api/debug/*` endpoints → add redirect rule in netlify.toml → test frontend integration
+
+## Graph Database Operations
+
+### Graph Data Safety Protocol
+
+- **Rule**: When adding any nodes to the Neo4j graph, ensure the nodes have a property called "graphLabel" with the value "dorkiniansWebsite"
+- **Rationale**: Prevents accidental deletion of data from other projects and ensures data isolation
+- **Implementation**:
+  - Always use the `createNode()` helper method which automatically adds `graphLabel` and `createdAt` properties
+  - When clearing the graph, only delete nodes that have the property "graphLabel" with the value "dorkiniansWebsite"
+  - Always use the `clearGraphData()` method which includes pre-deletion safety checks and logging
+  - Implement safe deletion methods that verify `graphLabel` before any destructive operations
+
+### Database Operations Protocol
+
+- **Rule**: Use standardized helper methods for all Neo4j operations to ensure consistency and safety
+- **Rationale**: Manual Cypher queries can introduce errors and bypass safety mechanisms
+- **Implementation**:
+  - Use the `createNode()` helper method which automatically adds `graphLabel` and `createdAt` properties
+  - Use the `createRelationship()` helper method which ensures both nodes have the correct `graphLabel`
+  - Query nodes using `getNodesByGraphLabel()` to ensure data isolation between projects
+  - Use `getDatabaseStats()` to monitor only `dorkiniansWebsite` labeled data
+
+### Schema Design Principles Protocol
+
+- **Rule**: Prefer simple string properties over complex node types unless complex relationships provide clear analytical value
+- **Rationale**: Complex graph relationships should only be created when they provide clear analytical value
+- **Implementation**:
+  - Only create unique constraints for fields that truly need to be unique across all records
+  - Validate schema design assumptions against user requirements before implementation
+  - Consider performance vs. complexity trade-offs in relationship design
+- **Example**: Use simple string properties for team names rather than separate Team nodes unless team analysis is required
+
+### Query Generation Safety Protocol
+
+- **Rule**: Always validate and filter input properties before generating database queries, especially with dynamic schemas
+- **Rationale**: Dynamic query construction can introduce security vulnerabilities and syntax errors
+- **Implementation**:
+  - Explicitly filter out system properties (like 'id') when building Neo4j SET clauses
+  - Implement robust property filtering to prevent invalid Cypher syntax and ensure query safety
+  - Test generated queries with sample data before execution to catch syntax errors early
+- **Example**: Filter out system properties before building `SET n.property = value` clauses
 
 > [Back to Table of Contents](#table-of-contents)
