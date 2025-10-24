@@ -9,7 +9,7 @@ interface SeedingResult {
 	message: string;
 	environment: string;
 	timestamp: string;
-	status: "pending" | "running" | "completed" | "failed";
+	status: "pending" | "running" | "completed" | "failed" | "killed";
 	progress?: number;
 	currentStep?: string;
 	progressDetails?: {
@@ -66,6 +66,7 @@ export default function AdminPanel() {
 	const [jobsData, setJobsData] = useState<any>(null);
 	const [jobsLoading, setJobsLoading] = useState(false);
 	const [lastCompletedJobDuration, setLastCompletedJobDuration] = useState<number | null>(null);
+	const [killingJob, setKillingJob] = useState<string | null>(null);
 
 	// Email configuration state
 	const [emailAddress, setEmailAddress] = useState("bangsluke@gmail.com");
@@ -401,6 +402,17 @@ export default function AdminPanel() {
 						jobId: data.jobId,
 						timestamp: data.timestamp || new Date().toISOString(),
 					});
+					
+					// Automatic status checking after initial delay
+					addDebugLog("🔄 Scheduling automatic status check in 5 seconds...", 'info');
+					setTimeout(() => {
+						addDebugLog("🔍 Auto-checking status after seeding trigger...", 'info');
+						checkStatus();
+						
+						// Trigger JobMonitoringDashboard refresh
+						addDebugLog("🔄 Triggering JobMonitoringDashboard refresh...", 'info');
+						triggerJobMonitoringRefresh();
+					}, 5000); // 5 second delay
 				}
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
@@ -757,6 +769,115 @@ export default function AdminPanel() {
 		}
 	};
 
+	// Trigger JobMonitoringDashboard refresh
+	const triggerJobMonitoringRefresh = () => {
+		// Dispatch a custom event that JobMonitoringDashboard can listen to
+		const refreshEvent = new CustomEvent('jobMonitoringRefresh', {
+			detail: { timestamp: new Date().toISOString() }
+		});
+		window.dispatchEvent(refreshEvent);
+		addDebugLog("📡 Dispatched job monitoring refresh event", 'info');
+	};
+
+	// Kill a specific job
+	const killJob = async (jobIdToKill: string) => {
+		setKillingJob(jobIdToKill);
+		setError(null);
+
+		let controller: AbortController | null = null;
+		let timeoutId: NodeJS.Timeout | null = null;
+
+		try {
+			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+			controller = new AbortController();
+			timeoutId = setTimeout(() => {
+				if (controller && !controller.signal.aborted) {
+					controller.abort();
+				}
+			}, 10000); // 10 second timeout
+
+			const response = await fetch(`${herokuUrl}/jobs/${jobIdToKill}/kill`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				mode: "cors",
+				signal: controller.signal,
+			});
+
+			if (response.ok) {
+				const killResult = await response.json();
+				console.log("Job kill result:", killResult);
+				
+				// Update the jobs data to reflect the killed status
+				if (jobsData && jobsData.jobs && jobsData.jobs[jobIdToKill]) {
+					jobsData.jobs[jobIdToKill].status = 'killed';
+					jobsData.jobs[jobIdToKill].currentStep = 'Job killed by user';
+					jobsData.jobs[jobIdToKill].lastUpdate = new Date().toISOString();
+					setJobsData({ ...jobsData });
+				}
+
+				// If this was the current job being monitored, update the result
+				if (jobId === jobIdToKill) {
+					setResult({
+						success: false,
+						message: `Job ${jobIdToKill} has been killed`,
+						environment: "production",
+						timestamp: new Date().toISOString(),
+						status: "killed",
+						progress: 0,
+						currentStep: "Job killed by user",
+						result: {
+							success: false,
+							exitCode: 1,
+							nodesCreated: 0,
+							relationshipsCreated: 0,
+							errorCount: 0,
+							errors: ["Job killed by user"],
+							duration: 0,
+						},
+					});
+					setLastStatusCheck(`🛑 Job ${jobIdToKill} killed at ${new Date().toLocaleString()}`);
+				}
+
+				// Clear the current job if it was killed
+				if (jobId === jobIdToKill) {
+					setJobId(null);
+					if (timerRef.current) {
+						clearInterval(timerRef.current);
+						timerRef.current = null;
+					}
+					setElapsedTime(0);
+				}
+			} else {
+				const errorData = await response.json();
+				throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+			}
+		} catch (err) {
+			console.error("Failed to kill job:", err);
+			let errorMessage = "Failed to kill job";
+			if (err instanceof Error) {
+				if (err.name === "AbortError") {
+					errorMessage = "Request timed out after 10 seconds";
+				} else {
+					errorMessage = err.message;
+				}
+			}
+			setError(`Failed to kill job: ${errorMessage}`);
+		} finally {
+			// Ensure proper cleanup of timeout and controller
+			if (timeoutId) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
+			if (controller && !controller.signal.aborted) {
+				controller.abort();
+			}
+			controller = null;
+			setKillingJob(null);
+		}
+	};
+
 	const getStatusDisplay = () => {
 		if (!result) return null;
 
@@ -769,6 +890,8 @@ export default function AdminPanel() {
 				return { text: "Completed", color: "text-green-600", bg: "border-green-200 bg-green-50" };
 			case "failed":
 				return { text: "Failed", color: "text-red-600", bg: "border-red-200 bg-red-50" };
+			case "killed":
+				return { text: "Killed", color: "text-orange-600", bg: "border-orange-200 bg-orange-50" };
 			default:
 				return { text: "Unknown", color: "text-gray-600", bg: "border-gray-200 bg-gray-50" };
 		}
@@ -1566,7 +1689,9 @@ export default function AdminPanel() {
 																				? "text-red-600"
 																				: jobData.status === "running"
 																					? "text-blue-600"
-																					: "text-gray-600"
+																					: jobData.status === "killed"
+																						? "text-orange-600"
+																						: "text-gray-600"
 																	}`}>
 																	{jobData.status}
 																</span>
@@ -1574,17 +1699,41 @@ export default function AdminPanel() {
 															{jobData.currentStep && <p className='text-sm text-gray-600'>Current Step: {jobData.currentStep}</p>}
 															{jobData.progress !== undefined && <p className='text-sm text-gray-600'>Progress: {jobData.progress}%</p>}
 															{jobData.startTime && <p className='text-sm text-gray-600'>Started: {new Date(jobData.startTime).toLocaleString()}</p>}
-															<button
-																onClick={() => {
-																	// Close modal and set up status checking for this job
-																	setShowJobsModal(false);
-																	setJobId(jobId);
-																	// Trigger status check for this specific job
-																	checkStatusForJob(jobId);
-																}}
-																className='ml-3 px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded'>
-																Check Status
-															</button>
+															<div className='flex gap-2 mt-2'>
+																<button
+																	onClick={() => {
+																		// Close modal and set up status checking for this job
+																		setShowJobsModal(false);
+																		setJobId(jobId);
+																		// Trigger status check for this specific job
+																		checkStatusForJob(jobId);
+																	}}
+																	className='px-3 py-1 text-xs bg-blue-500 hover:bg-blue-600 text-white rounded'>
+																	Check Status
+																</button>
+																{(jobData.status === 'running' || jobData.status === 'initializing') && (
+																	<button
+																		onClick={() => {
+																			if (confirm(`Are you sure you want to kill job ${jobId}? This action cannot be undone.`)) {
+																				killJob(jobId);
+																			}
+																		}}
+																		disabled={killingJob === jobId}
+																		className='px-3 py-1 text-xs bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1'>
+																		{killingJob === jobId ? (
+																			<>
+																				<span className='animate-spin'>⏳</span>
+																				Killing...
+																			</>
+																		) : (
+																			<>
+																				<span>🛑</span>
+																				Kill Job
+																			</>
+																		)}
+																	</button>
+																)}
+															</div>
 														</div>
 													</div>
 												</div>
