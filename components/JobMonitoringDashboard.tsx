@@ -50,7 +50,6 @@ interface JobAnalysis {
 interface StorageStats {
   memoryJobs: number;
   storageDir: string;
-  externalStorageEnabled: boolean;
   totalJobs: number;
 }
 
@@ -65,6 +64,10 @@ const JobMonitoringDashboard: React.FC = () => {
   const [lookupJobId, setLookupJobId] = useState('');
   const [lookupResult, setLookupResult] = useState<any | null>(null);
   const [killingJob, setKillingJob] = useState<string | null>(null);
+  
+  // Toast notification state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
   // Fetch job analyses
   const fetchJobAnalyses = async () => {
@@ -110,6 +113,17 @@ const JobMonitoringDashboard: React.FC = () => {
     } catch (err) {
       console.error('Error fetching current jobs:', err);
     }
+  };
+
+  // Toast notification function
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToastMessage(message);
+    setToastType(type);
+    
+    // Auto-hide toast after 3 seconds
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3000);
   };
 
   // Fetch detailed job analysis
@@ -268,7 +282,7 @@ const JobMonitoringDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-gray-900">Job Monitoring Dashboard</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Job Monitoring Dashboard</h2>
         <div className="flex items-center space-x-4">
           <label className="flex items-center">
             <input
@@ -277,7 +291,7 @@ const JobMonitoringDashboard: React.FC = () => {
               onChange={(e) => setAutoRefresh(e.target.checked)}
               className="mr-2"
             />
-            Auto-refresh
+            <span className="text-black">Auto-refresh</span>
           </label>
           <button
             onClick={() => {
@@ -314,25 +328,21 @@ const JobMonitoringDashboard: React.FC = () => {
       {/* Storage Statistics */}
       {storageStats && (
         <div className="bg-white shadow rounded-lg p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Storage Statistics</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">{storageStats.memoryJobs}</div>
-              <div className="text-sm text-blue-800">Jobs in Memory</div>
-            </div>
-            <div className="bg-green-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">{storageStats.totalJobs}</div>
-              <div className="text-sm text-green-800">Total Jobs</div>
-            </div>
-            <div className="bg-purple-50 p-4 rounded-lg">
-              <div className="text-2xl font-bold text-purple-600">
-                {storageStats.externalStorageEnabled ? 'Yes' : 'No'}
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-medium text-gray-900">Storage Statistics</h3>
+            <div className="flex items-center gap-6 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-blue-600">{storageStats.memoryJobs}</span>
+                <span className="text-gray-600">Jobs in Memory</span>
               </div>
-              <div className="text-sm text-purple-800">External Storage</div>
-            </div>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="text-sm font-mono text-gray-600 truncate">{storageStats.storageDir}</div>
-              <div className="text-sm text-gray-800">Storage Directory</div>
+              <div className="flex items-center gap-2">
+                <span className="text-2xl font-bold text-green-600">{storageStats.totalJobs}</span>
+                <span className="text-gray-600">Total Jobs</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-mono text-gray-600">{storageStats.storageDir}</span>
+                <span className="text-gray-600">Storage Directory</span>
+              </div>
             </div>
           </div>
         </div>
@@ -376,8 +386,21 @@ const JobMonitoringDashboard: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {currentJobs.map((job) => (
                   <tr key={job.jobId} className="hover:bg-gray-50">
-                    <td className="px-3 py-2 text-xs font-mono text-gray-900 truncate" title={job.jobId}>
-                      {job.jobId}
+                    <td className="px-3 py-2 text-xs font-mono text-gray-900">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(job.jobId);
+                            showToast('Job ID copied to clipboard!', 'success');
+                          } catch (err) {
+                            showToast('Failed to copy Job ID', 'error');
+                          }
+                        }}
+                        className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate max-w-24 block"
+                        title={job.jobId}
+                      >
+                        {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
+                      </button>
                     </td>
                     <td className="px-3 py-2">
                       <span className={`text-xs font-medium ${getStatusColor(job.status)}`}>
@@ -440,9 +463,20 @@ const JobMonitoringDashboard: React.FC = () => {
             {currentJobs.map((job) => (
               <div key={job.jobId} className="p-4 border-b border-gray-200 last:border-b-0">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-gray-900 truncate flex-1 mr-2" title={job.jobId}>
-                    {job.jobId}
-                  </span>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(job.jobId);
+                        showToast('Job ID copied to clipboard!', 'success');
+                      } catch (err) {
+                        showToast('Failed to copy Job ID', 'error');
+                      }
+                    }}
+                    className="text-xs font-mono text-blue-600 hover:text-blue-800 hover:underline cursor-pointer truncate flex-1 mr-2 text-left"
+                    title={job.jobId}
+                  >
+                    {job.jobId.length > 12 ? `${job.jobId.substring(0, 12)}...` : job.jobId}
+                  </button>
                   <span className={`text-xs font-medium px-2 py-1 rounded ${getStatusColor(job.status)}`}>
                     {job.status}
                   </span>
@@ -782,6 +816,23 @@ const JobMonitoringDashboard: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+          toastType === 'success' ? 'bg-green-500 text-white' :
+          toastType === 'error' ? 'bg-red-500 text-white' :
+          'bg-blue-500 text-white'
+        }`}>
+          <div className="flex items-center gap-2">
+            <span>
+              {toastType === 'success' ? '✅' : 
+               toastType === 'error' ? '❌' : 'ℹ️'}
+            </span>
+            <span className="font-medium">{toastMessage}</span>
           </div>
         </div>
       )}
