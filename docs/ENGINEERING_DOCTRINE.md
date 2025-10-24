@@ -66,6 +66,9 @@
   - [Systematic Data Discrepancy Analysis Protocol](#systematic-data-discrepancy-analysis-protocol)
   - [Data Corruption Investigation Protocol](#data-corruption-investigation-protocol)
   - [User Technical Guidance Priority Protocol](#user-technical-guidance-priority-protocol)
+  - [Evidence-First Problem Solving Protocol](#evidence-first-problem-solving-protocol)
+  - [Holistic Solution Design Protocol](#holistic-solution-design-protocol)
+  - [Recovery System Transparency Protocol](#recovery-system-transparency-protocol)
 - [Database Integrity \& Data Management](#database-integrity--data-management)
   - [Data Source Verification Protocol](#data-source-verification-protocol)
   - [User Data Authority Protocol](#user-data-authority-protocol)
@@ -638,6 +641,39 @@
   - Use theoretical analysis to validate and extend user guidance, not replace it
   - Test user-specified approaches before exploring alternative solutions
 - **Example**: User says "only count PLAYED_IN relationships" → implement that specific counting method rather than investigating all relationship types
+
+### Evidence-First Problem Solving Protocol
+
+- **Rule**: Always verify assumptions with actual system behavior before proposing solutions
+- **Rationale**: Assumptions about system behavior often lead to incorrect fixes and wasted effort
+- **Implementation**:
+  - Test production systems directly rather than making assumptions about data structure or behavior
+  - Use actual CSV data analysis and system testing to identify root causes
+  - Let concrete evidence guide diagnosis rather than theoretical analysis
+  - When user observations conflict with analysis, investigate the user's perspective first
+- **Example**: CSV data analysis reveals empty rows at end of dataset → investigate actual CSV structure rather than assuming data completeness
+
+### Holistic Solution Design Protocol
+
+- **Rule**: When addressing complex systems, consider all related components and data flows, not just the immediate problem
+- **Rationale**: Complex systems have interconnected components, and fixing only the immediate issue often misses related problems
+- **Implementation**:
+  - Design complete solutions that address multiple related issues simultaneously
+  - Consider all related metrics (duration, counts, breakdowns) when combining job results
+  - Think about transparency and user experience, not just technical functionality
+  - Design for complete visibility into what happened and why
+- **Example**: Memory crash recovery → address checkpointing, recovery, email reporting, and data combination as integrated solution
+
+### Recovery System Transparency Protocol
+
+- **Rule**: Recovery mechanisms must provide complete visibility into what happened, why, and what was combined
+- **Rationale**: Users need to understand the complete process, especially when recovery was needed
+- **Implementation**:
+  - Combine data from all job phases (original + recovery) in final reports
+  - Clearly indicate when recovery was needed and why
+  - Provide breakdown of timing and contributions from each phase
+  - Use helper functions that intelligently merge breakdown data by type
+- **Example**: Recovery emails show total duration (original + auto-resume), combined node counts, and explicit recovery indicators
 
 ## Database Integrity & Data Management
 

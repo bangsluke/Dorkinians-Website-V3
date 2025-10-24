@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
+import { killJob as killJobUtil } from "../lib/jobUtils";
 
 interface SeedingResult {
 	success: boolean;
@@ -779,41 +780,20 @@ export default function AdminPanel() {
 		addDebugLog("📡 Dispatched job monitoring refresh event", 'info');
 	};
 
-	// Kill a specific job
+	// Kill a specific job using shared utility
 	const killJob = async (jobIdToKill: string) => {
 		setKillingJob(jobIdToKill);
 		setError(null);
 
-		let controller: AbortController | null = null;
-		let timeoutId: NodeJS.Timeout | null = null;
-
-		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-			controller = new AbortController();
-			timeoutId = setTimeout(() => {
-				if (controller && !controller.signal.aborted) {
-					controller.abort();
-				}
-			}, 10000); // 10 second timeout
-
-			const response = await fetch(`${herokuUrl}/jobs/${jobIdToKill}/kill`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				mode: "cors",
-				signal: controller.signal,
-			});
-
-			if (response.ok) {
-				const killResult = await response.json();
-				console.log("Job kill result:", killResult);
+		const success = await killJobUtil(jobIdToKill, {
+			onSuccess: (jobId, result) => {
+				console.log("Job kill result:", result);
 				
 				// Update the jobs data to reflect the killed status
-				if (jobsData && jobsData.jobs && jobsData.jobs[jobIdToKill]) {
-					jobsData.jobs[jobIdToKill].status = 'killed';
-					jobsData.jobs[jobIdToKill].currentStep = 'Job killed by user';
-					jobsData.jobs[jobIdToKill].lastUpdate = new Date().toISOString();
+				if (jobsData && jobsData.jobs && jobsData.jobs[jobId]) {
+					jobsData.jobs[jobId].status = 'killed';
+					jobsData.jobs[jobId].currentStep = 'Job killed by user';
+					jobsData.jobs[jobId].lastUpdate = new Date().toISOString();
 					setJobsData({ ...jobsData });
 				}
 
@@ -849,33 +829,14 @@ export default function AdminPanel() {
 					}
 					setElapsedTime(0);
 				}
-			} else {
-				const errorData = await response.json();
-				throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+			},
+			onError: (jobId, errorMessage) => {
+				setError(`Failed to kill job: ${errorMessage}`);
+			},
+			onFinally: (jobId) => {
+				setKillingJob(null);
 			}
-		} catch (err) {
-			console.error("Failed to kill job:", err);
-			let errorMessage = "Failed to kill job";
-			if (err instanceof Error) {
-				if (err.name === "AbortError") {
-					errorMessage = "Request timed out after 10 seconds";
-				} else {
-					errorMessage = err.message;
-				}
-			}
-			setError(`Failed to kill job: ${errorMessage}`);
-		} finally {
-			// Ensure proper cleanup of timeout and controller
-			if (timeoutId) {
-				clearTimeout(timeoutId);
-				timeoutId = null;
-			}
-			if (controller && !controller.signal.aborted) {
-				controller.abort();
-			}
-			controller = null;
-			setKillingJob(null);
-		}
+		});
 	};
 
 	const getStatusDisplay = () => {
