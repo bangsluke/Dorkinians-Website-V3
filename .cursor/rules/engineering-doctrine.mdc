@@ -35,6 +35,7 @@
   - [Test Script Safety Protocol](#test-script-safety-protocol)
   - [User Experience Validation Protocol](#user-experience-validation-protocol)
   - [Proactive UX Design Protocol](#proactive-ux-design-protocol)
+  - [User Experience in Technical Systems Protocol](#user-experience-in-technical-systems-protocol)
   - [Simple UI Implementation Protocol](#simple-ui-implementation-protocol)
   - [Fallback Mechanism Design](#fallback-mechanism-design)
   - [Iterative Correction Protocol](#iterative-correction-protocol)
@@ -67,6 +68,7 @@
   - [Data Corruption Investigation Protocol](#data-corruption-investigation-protocol)
   - [User Technical Guidance Priority Protocol](#user-technical-guidance-priority-protocol)
   - [Evidence-First Problem Solving Protocol](#evidence-first-problem-solving-protocol)
+  - [Systematic Problem-Solving Protocol](#systematic-problem-solving-protocol)
   - [Holistic Solution Design Protocol](#holistic-solution-design-protocol)
   - [Recovery System Transparency Protocol](#recovery-system-transparency-protocol)
 - [Database Integrity \& Data Management](#database-integrity--data-management)
@@ -75,7 +77,9 @@
   - [Database Relationship Integrity Protocol](#database-relationship-integrity-protocol)
   - [Data Integrity Testing Protocol](#data-integrity-testing-protocol)
   - [Batch Processing Safety Protocol](#batch-processing-safety-protocol)
+  - [Memory Management in Constrained Environments Protocol](#memory-management-in-constrained-environments-protocol)
   - [Multi-Layer Data Persistence Protocol](#multi-layer-data-persistence-protocol)
+  - [Platform-Aware Persistence Protocol](#platform-aware-persistence-protocol)
   - [Graceful Degradation Protocol](#graceful-degradation-protocol)
   - [Git Hook Auto-Sync Protocol](#git-hook-auto-sync-protocol)
 - [Environment-Specific Operations](#environment-specific-operations)
@@ -349,6 +353,17 @@
   - Consider mobile responsiveness and screen real estate during design
   - Anticipate user workflow needs and optimize accordingly
 - **Example**: Implement two-column layout for seasons checkboxes during initial development rather than waiting for user feedback about space efficiency
+
+### User Experience in Technical Systems Protocol
+
+- **Rule**: Balance technical completeness with user experience - verbose logging may be technically correct but poor UX
+- **Rationale**: Technical systems must serve users effectively, not just function correctly
+- **Implementation**:
+  - Consolidate verbose logs into single, informative lines
+  - Prioritize user-visible feedback over technical completeness
+  - Implement clean, consistent UI patterns across all components
+  - Use systematic approaches to reduce visual clutter and improve readability
+- **Example**: Multiple debug logs → consolidate into single comprehensive log with visual progress indicators
 
 ### Simple UI Implementation Protocol
 
@@ -653,6 +668,17 @@
   - When user observations conflict with analysis, investigate the user's perspective first
 - **Example**: CSV data analysis reveals empty rows at end of dataset → investigate actual CSV structure rather than assuming data completeness
 
+### Systematic Problem-Solving Protocol
+
+- **Rule**: Follow the pattern: analyze actual data → identify root causes → implement multiple fixes → verify results
+- **Rationale**: Systematic approaches prevent incomplete solutions and ensure comprehensive problem resolution
+- **Implementation**:
+  - Always analyze actual failure data before setting thresholds or limits
+  - Identify multiple potential root causes and address each systematically
+  - Implement multiple layers of error handling for critical systems
+  - Verify each fix independently before moving to the next issue
+- **Example**: Memory crash analysis → examine actual crash data → identify multiple causes (thresholds, persistence, recovery) → implement comprehensive solution
+
 ### Holistic Solution Design Protocol
 
 - **Rule**: When addressing complex systems, consider all related components and data flows, not just the immediate problem
@@ -727,6 +753,17 @@
   - Implement custom count queries for operations that can't use generic batching
 - **Example**: PLAYED_IN relationship creation → use 50-record batches with 200ms delays
 
+### Memory Management in Constrained Environments Protocol
+
+- **Rule**: Always set memory thresholds based on actual failure data, not theoretical limits. Implement multiple warning levels with progressive actions.
+- **Rationale**: Memory crashes in constrained environments (like Heroku's 512MB limit) require proactive management based on real failure patterns
+- **Implementation**:
+  - Analyze actual crash data to determine realistic memory thresholds
+  - Implement multiple memory warning levels (150MB, 180MB, 200MB) with progressive actions
+  - Use aggressive garbage collection triggers and memory-based pauses
+  - Implement emergency checkpoint saving before memory limits are reached
+- **Example**: Heroku memory crashes at 251MB heap → set thresholds at 200MB heap with emergency checkpoint saving
+
 ### Multi-Layer Data Persistence Protocol
 
 - **Rule**: Implement redundant storage mechanisms for critical operational data that cannot be lost
@@ -737,6 +774,16 @@
   - Design recovery mechanisms that can restore state from any available storage layer
   - Add comprehensive monitoring and debugging capabilities from the start
 - **Example**: Job status tracking → in-memory Map + file system + environment variables + real-time monitoring
+
+### Platform-Aware Persistence Protocol
+
+- **Rule**: When designing persistence layers, always consider the target platform's constraints (ephemeral filesystems, memory limits, etc.)
+- **Rationale**: Platform constraints can cause data loss if not properly accounted for in persistence design
+- **Implementation**:
+  - Use database-backed checkpoints as primary storage with file system as fallback for maximum persistence
+  - Avoid ephemeral storage locations (like `/tmp` on Heroku) for critical operational data
+  - Implement platform-specific storage strategies based on deployment environment
+- **Example**: Heroku ephemeral filesystem → use database checkpoints as primary, file system as backup
 
 ### Graceful Degradation Protocol
 
