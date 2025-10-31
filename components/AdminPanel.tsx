@@ -80,6 +80,9 @@ export default function AdminPanel() {
 	const [useSeasonOverride, setUseSeasonOverride] = useState<boolean>(false);
 	const [fullRebuild, setFullRebuild] = useState<boolean>(false);
 	const [seasonOverrideError, setSeasonOverrideError] = useState<string>("");
+	
+	// Debug logs state
+	const [debugLogs, setDebugLogs] = useState<boolean>(false);
 
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
@@ -337,6 +340,7 @@ export default function AdminPanel() {
 							useSeasonOverride: useSeasonOverride,
 							fullRebuild: fullRebuild,
 						},
+						debug: debugLogs,
 					};
 
 					// Debug logging
@@ -1010,6 +1014,29 @@ export default function AdminPanel() {
 							</label>
 						</div>
 					</div>
+				</div>
+			</div>
+
+					{/* Debug Configuration Section */}
+			<div className='mb-6 p-4 bg-gray-50 rounded-lg'>
+				<h3 className='text-lg font-semibold text-gray-800 mb-2'>Debug Configuration</h3>
+				<div className='space-y-2'>
+					<div className='flex items-center'>
+						<input
+							type='checkbox'
+							id='debugLogs'
+							checked={debugLogs}
+							onChange={(e) => setDebugLogs(e.target.checked)}
+							className='mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+						/>
+						<label htmlFor='debugLogs' className='text-sm text-gray-700'>
+							Enable debug logs (verbose logging for troubleshooting)
+						</label>
+					</div>
+					<p className='text-xs text-gray-600 ml-6'>
+						When enabled, all debug information, query details, and object properties will be logged. 
+						When disabled, only essential progress and completion logs are shown.
+					</p>
 				</div>
 			</div>
 
