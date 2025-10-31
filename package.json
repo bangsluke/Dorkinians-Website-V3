@@ -35,7 +35,7 @@
 		"@types/react-dom": "^18.2.18",
 		"autoprefixer": "^10.4.16",
 		"compromise": "^14.14.4",
-		"dotenv": "^17.2.2",
+		"dotenv": "^17.2.3",
 		"framer-motion": "^10.16.16",
 		"natural": "^8.1.0",
 		"neo4j-driver": "^5.28.2",
