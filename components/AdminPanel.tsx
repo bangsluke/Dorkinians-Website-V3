@@ -1147,6 +1147,63 @@ export default function AdminPanel() {
 				</button>
 				<button
 					onClick={async () => {
+						if (!jobId) {
+							setError("No job ID available. Please trigger seeding first.");
+							return;
+						}
+
+						// Fetch warnings log and display in modal
+						try {
+							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+							const response = await fetch(`${herokuUrl}/logs/${jobId}/warnings`);
+							const data = await response.json();
+							
+							if (data.success && data.warningsLogs) {
+								// Open warnings log in new tab with formatted display
+								const warningsWindow = window.open('', '_blank');
+								if (warningsWindow) {
+									const warningsContent = typeof data.warningsLogs === 'string' 
+										? data.warningsLogs 
+										: JSON.stringify(data.warningsLogs, null, 2);
+									
+									warningsWindow.document.write(`
+										<!DOCTYPE html>
+										<html>
+										<head>
+											<title>Warnings Log - ${jobId}</title>
+											<style>
+												body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+												pre { white-space: pre-wrap; word-wrap: break-word; }
+												.header { background: #2d2d2d; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+												.warning { color: #ffa500; }
+											</style>
+										</head>
+										<body>
+											<div class="header">
+												<h1>⚠️ Warnings Log</h1>
+												<p>Job ID: ${jobId}</p>
+											</div>
+											<pre>${warningsContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+										</body>
+										</html>
+									`);
+									warningsWindow.document.close();
+								}
+							} else {
+								setError(data.error || "No warnings log available for this job.");
+							}
+						} catch (error: any) {
+							setError(`Failed to fetch warnings log: ${error.message}`);
+						}
+					}}
+					disabled={!jobId}
+					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+						!jobId ? "bg-gray-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700"
+					}`}>
+					⚠️ View Warnings Log
+				</button>
+				<button
+					onClick={async () => {
 						setJobsLoading(true);
 						setError(null);
 
