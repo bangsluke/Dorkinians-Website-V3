@@ -665,17 +665,17 @@ export class EnhancedQuestionAnalyzer {
 			return `${startYear}/${shortEndYear}`;
 		}
 
-		// Pattern 4: Short year format with slash (18/19, 19/20, etc.)
+		// Pattern 4: Short year format with slash (18/19, 19/20, 20/21, 21/22, etc.)
 		const shortYearSlashMatch = question.match(/(\d{2})\/(\d{2})/);
 		if (shortYearSlashMatch) {
 			const startYear = shortYearSlashMatch[1];
 			const endYear = shortYearSlashMatch[2];
 			const fullStartYear = startYear.startsWith("20") ? startYear : `20${startYear}`;
-			const fullEndYear = endYear.startsWith("20") ? endYear : `20${endYear}`;
+			// Keep end year as 2-digit format for season notation (YYYY/YY)
 			return `${fullStartYear}/${endYear}`;
 		}
 
-		// Pattern 4: Full year format with full end year (2018/2019, 2019/2020, etc.)
+		// Pattern 5: Full year format with full end year (2018/2019, 2019/2020, etc.)
 		const fullYearFullMatch = question.match(/(\d{4})\/(\d{4})/);
 		if (fullYearFullMatch) {
 			const startYear = fullYearFullMatch[1];
