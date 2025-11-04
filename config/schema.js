@@ -33,6 +33,27 @@ const schema = {
       "Game rate with a MoM accounted": 'gameRateWithMoMAccounted',
       "Dorkinians Goals Scored": 'dorkiniansGoalsScored',
       "Dorkinians Goals Conceded": 'dorkiniansGoalsConceded',
+      'SiteDetails Node Count': 'siteDetailsNodeCount',
+      'Player Node Count': 'playerNodeCount',
+      'Fixture Node Count': 'fixtureNodeCount',
+      'MatchDetail Node Count': 'matchDetailNodeCount',
+      'WeeklyTOTW Node Count': 'weeklyTOTWNodeCount',
+      'SeasonTOTW Node Count': 'seasonTOTWNodeCount',
+      'PlayersOfTheMonth Node Count': 'playersOfTheMonthNodeCount',
+      'CaptainsAndAwards Node Count': 'captainsAndAwardsNodeCount',
+      'OppositionDetails Node Count': 'oppositionDetailsNodeCount',
+      'TestData Node Count': 'testDataNodeCount',
+      'Team Node Count': 'teamNodeCount',
+      'Season Node Count': 'seasonNodeCount',
+      'PLAYED_IN Relationship Count': 'playedInRelationshipCount',
+      'IN_WEEKLY_TOTW Relationship Count': 'inWeeklyTOTWRelationshipCount',
+      'IN_SEASON_TOTW Relationship Count': 'inSeasonTOTWRelationshipCount',
+      'IN_PLAYER_OF_THE_MONTH Relationship Count': 'inPlayerOfTheMonthRelationshipCount',
+      'HAS_CAPTAIN_AWARDS Relationship Count': 'hasCaptainAwardsRelationshipCount',
+      'HAS_MATCH_DETAILS Relationship Count': 'hasMatchDetailsRelationshipCount',
+      'PLAYED_WITH Relationship Count': 'playedWithRelationshipCount',
+      'PLAYED_AGAINST_OPPONENT Relationship Count': 'playedAgainstOpponentRelationshipCount',
+      'TOTW_HAS_DETAILS Relationship Count': 'totwHasDetailsRelationshipCount',
     },
     requiredColumns: ['Version Number', 'Current Season'],
     nodeType: 'SiteDetail',
@@ -51,7 +72,28 @@ const schema = {
       gamesWithoutMoMProvided: { type: 'integer', required: false },
       gameRateWithMoMAccounted: { type: 'string', required: false },
       dorkiniansGoalsScored: { type: 'integer', required: false },
-      dorkiniansGoalsConceded: { type: 'integer', required: false }
+      dorkiniansGoalsConceded: { type: 'integer', required: false },
+      siteDetailsNodeCount: { type: 'integer', required: false },
+      playerNodeCount: { type: 'integer', required: false },
+      fixtureNodeCount: { type: 'integer', required: false },
+      matchDetailNodeCount: { type: 'integer', required: false },
+      weeklyTOTWNodeCount: { type: 'integer', required: false },
+      seasonTOTWNodeCount: { type: 'integer', required: false },
+      playersOfTheMonthNodeCount: { type: 'integer', required: false },
+      captainsAndAwardsNodeCount: { type: 'integer', required: false },
+      oppositionDetailsNodeCount: { type: 'integer', required: false },
+      testDataNodeCount: { type: 'integer', required: false },
+      teamNodeCount: { type: 'integer', required: false },
+      seasonNodeCount: { type: 'integer', required: false },
+      playedInRelationshipCount: { type: 'integer', required: false },
+      inWeeklyTOTWRelationshipCount: { type: 'integer', required: false },
+      inSeasonTOTWRelationshipCount: { type: 'integer', required: false },
+      inPlayerOfTheMonthRelationshipCount: { type: 'integer', required: false },
+      hasCaptainAwardsRelationshipCount: { type: 'integer', required: false },
+      hasMatchDetailsRelationshipCount: { type: 'integer', required: false },
+      playedWithRelationshipCount: { type: 'integer', required: false },
+      playedAgainstOpponentRelationshipCount: { type: 'integer', required: false },
+      totwHasDetailsRelationshipCount: { type: 'integer', required: false }
     },
     idPattern: 'site_{versionNumber}',
     constraints: ['CREATE CONSTRAINT site_detail_id IF NOT EXISTS FOR (sd:SiteDetail) REQUIRE sd.id IS UNIQUE']
@@ -133,6 +175,7 @@ const schema = {
       'MID': 'mid',
       'FWD': 'fwd',
       'MostCommonPosition': 'mostCommonPosition',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'PLAYER NAME', 'ALLOW ON SITE'],
     nodeType: 'Player',
@@ -239,6 +282,7 @@ const schema = {
       'DORKINIANS GOALS': 'dorkiniansGoals',
       'CONCEDED': 'conceded',
       'EXTRACTED PICKER': 'extractedPicker',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON', 'SEASON WEEK NUM REF', 'DATE', 'TEAM', 'COMP TYPE', 'COMPETITION', 'OPPOSITION', 'HOME/AWAY', 'RESULT', 'HOME SCORE', 'AWAY SCORE'],
     nodeType: 'Fixture',
@@ -296,7 +340,9 @@ const schema = {
       'PCO': 'penaltiesConceded',
       'PSV': 'penaltiesSaved',
       'IMPORTED_FIXTURE_DETAIL': 'importedFixtureDetail',
-      'FTP': 'fantasyPoints'
+      'FTP': 'fantasyPoints',
+      'DIST': 'distance',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic' // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON', 'SEASON WEEK', 'DATE', 'TEAM', 'PLAYER NAME', 'MIN', 'CLASS'],
     nodeType: 'MatchDetail',
@@ -323,7 +369,8 @@ const schema = {
       penaltiesConceded: { type: 'integer', required: false },
       penaltiesSaved: { type: 'integer', required: false },
       importedFixtureDetail: { type: 'string', required: false },
-      fantasyPoints: { type: 'number', required: false }
+      fantasyPoints: { type: 'number', required: false },
+      distance: { type: 'number', required: false }
     },
     idPattern: 'match_{playerName}_{matchDate}',
     constraints: ['CREATE CONSTRAINT matchdetail_id IF NOT EXISTS FOR (md:MatchDetail) REQUIRE md.id IS UNIQUE']
@@ -356,6 +403,7 @@ const schema = {
       'FWD1': 'fwd1',
       'FWD2': 'fwd2',
       'FWD3': 'fwd3',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON', 'WEEK'],
     nodeType: 'WeeklyTOTW',
@@ -383,7 +431,7 @@ const schema = {
       fwd2: { type: 'string', required: false },
       fwd3: { type: 'string', required: false }
     },
-    idPattern: 'weeklytotw_{playerName}_{week}',
+    idPattern: 'weeklytotw_{season}_{week}',
     constraints: ['CREATE CONSTRAINT weeklytotw_id IF NOT EXISTS FOR (wt:WeeklyTOTW) REQUIRE wt.id IS UNIQUE'],
     filters: {
       'TOTW SCORE': (value) => value && value.toString().trim() !== '' && value.toString().toLowerCase() !== 'n/a'
@@ -415,6 +463,7 @@ const schema = {
       'FWD1': 'fwd1',
       'FWD2': 'fwd2',
       'FWD3': 'fwd3',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON'],
     nodeType: 'SeasonTOTW',
@@ -465,6 +514,7 @@ const schema = {
       '#4 Score': 'player4Score',
       '#5 Name': 'player5Name',
       '#5 Score': 'player5Score',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'SEASON', 'DATE', '#1 Name', '#2 Name', '#3 Name', '#4 Name', '#5 Name'],
     nodeType: 'PlayersOfTheMonth',
@@ -481,14 +531,15 @@ const schema = {
       player4Name: { type: 'string', required: false },
       player4Score: { type: 'integer', required: false },
       player5Name: { type: 'string', required: false },
-      player5Score: { type: 'integer', required: false }
+      player5Score: { type: 'integer', required: false },
+      month: { type: 'string', required: false }
     },
-    idPattern: 'potm_{playerName}_{month}_{year}',
+    idPattern: 'potm_{season}_{date}',
     constraints: ['CREATE CONSTRAINT playerofmonth_id IF NOT EXISTS FOR (pm:PlayersOfTheMonth) REQUIRE pm.id IS UNIQUE']
   },
 
   // ============================================================================
-  // TBL_CaptainsAndAwards - Captain appointments and awards (one node per season)
+  // TBL_CaptainsAndAwards - Captain appointments and awards (one node per Item)
   // ============================================================================
   TBL_CaptainsAndAwards: {
     csvColumns: {
@@ -508,39 +559,23 @@ const schema = {
     requiredColumns: ['Item'],
     nodeType: 'CaptainsAndAwards',
     properties: {
-      season: { type: 'string', required: true },
-      clubCaptain: { type: 'string', required: false },
-      firstXICaptains: { type: 'string', required: false },
-      secondXICaptains: { type: 'string', required: false },
-      thirdXICaptains: { type: 'string', required: false },
-      fourthXICaptains: { type: 'string', required: false },
-      fifthXICaptains: { type: 'string', required: false },
-      sixthXICaptains: { type: 'string', required: false },
-      seventhXICaptains: { type: 'string', required: false },
-      eighthXICaptains: { type: 'string', required: false },
-      vetsCaptain: { type: 'string', required: false },
-      playerOfTheSeason: { type: 'string', required: false },
-      youngPlayerOfTheSeason: { type: 'string', required: false },
-      goldenBoot: { type: 'string', required: false },
-      mostImprovedPlayer: { type: 'string', required: false },
-      newcomerOfTheYear: { type: 'string', required: false },
-      alanLambertSportsmanship: { type: 'string', required: false },
-      chairmansCup: { type: 'string', required: false },
-      peterMillsVolunteers: { type: 'string', required: false },
-      goalkeeperOfTheYear: { type: 'string', required: false },
-      firstXISquadPlayer: { type: 'string', required: false },
-      secondXISquadPlayer: { type: 'string', required: false },
-      thirdXISquadPlayer: { type: 'string', required: false },
-      fourthXISquadPlayer: { type: 'string', required: false },
-      fifthXISquadPlayer: { type: 'string', required: false },
-      sixthXISquadPlayer: { type: 'string', required: false },
-      seventhXISquadPlayer: { type: 'string', required: false },
-      eighthXISquadPlayer: { type: 'string', required: false },
-      vetsSquadPlayer: { type: 'string', required: false }
+      id: { type: 'string', required: true },
+      itemName: { type: 'string', required: true },
+      season201617: { type: 'string', required: false },
+      season201718: { type: 'string', required: false },
+      season201819: { type: 'string', required: false },
+      season201920: { type: 'string', required: false },
+      season202021: { type: 'string', required: false },
+      season202122: { type: 'string', required: false },
+      season202223: { type: 'string', required: false },
+      season202324: { type: 'string', required: false },
+      season202425: { type: 'string', required: false },
+      season202526: { type: 'string', required: false },
+      season202627: { type: 'string', required: false }
     },
-    idPattern: 'captainaward_{season}',
+    idPattern: 'captainaward_{itemSlug}',
     constraints: ['CREATE CONSTRAINT captainaward_id IF NOT EXISTS FOR (ca:CaptainsAndAwards) REQUIRE ca.id IS UNIQUE'],
-    // Custom node creation logic - one node per season
+    // Custom node creation logic - one node per Item with season properties
     customNodeCreation: true
   },
 
@@ -554,6 +589,7 @@ const schema = {
       'SHORT TEAM NAME': 'shortTeamName',
       'ADDRESS': 'address',
       'DISTANCE (MILES)': 'distanceMiles',
+      'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'OPPOSITION'],
     nodeType: 'OppositionDetails',
@@ -837,7 +873,7 @@ const relationships = {
       // No properties on relationships - all data stored on MatchDetail nodes
       // This eliminates data duplication and simplifies queries
     },
-    conditions: 'p.playerName = md.playerName'
+    conditions: 'toLower(trim(p.playerName)) = toLower(trim(md.playerName))'
   },
   IN_WEEKLY_TOTW: {
     from: 'Player',
@@ -893,10 +929,7 @@ const relationships = {
     from: 'Player',
     to: 'Player',
     type: 'PLAYED_WITH',
-    properties: {
-      timesPlayedWith: { type: 'integer', default: 1 },
-      lastPlayedWith: { type: 'string', default: 'UNKNOWN' }
-    },
+    properties: {},
     conditions: 'p1.playerName < p2.playerName AND EXISTS { MATCH (p1)-[:PLAYED_IN]->(md:MatchDetail)<-[:PLAYED_IN]-(p2) }'
   },
   // Opposition-specific relationships for "played against" queries
@@ -907,8 +940,7 @@ const relationships = {
     properties: {
       timesPlayed: { type: 'integer', default: 1 },
       goalsScored: { type: 'integer', default: 0 },
-      assists: { type: 'integer', default: 0 },
-      lastPlayed: { type: 'date', required: false }
+      assists: { type: 'integer', default: 0 }
     },
     conditions: 'EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture) WHERE toLower(trim(f.opposition)) = toLower(trim(od.opposition)) }'
   },
