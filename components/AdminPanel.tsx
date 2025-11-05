@@ -15,6 +15,15 @@ interface SeedingResult {
 	currentStep?: string;
 	progressDetails?: {
 		currentNodeCount?: number;
+		tableName?: string | null;
+		relationshipType?: string | null;
+		batchNumber?: number | null;
+		totalBatches?: number | null;
+		recordsProcessed?: number | null;
+		totalRecords?: number | null;
+		current?: number | null;
+		total?: number | null;
+		estimatedTimeRemaining?: number | null;
 		[key: string]: any;
 	};
 	result: {
@@ -1371,30 +1380,41 @@ export default function AdminPanel() {
 											? "Initializing seeding process..."
 											: result.currentStep || "Processing data sources from Google Sheets..."}
 									</p>
-									{result.currentStep && result.currentStep.includes('Fetching CSV:') && (
-										<p className='text-xs text-blue-500 mt-1'>
-											📥 Currently fetching CSV data from Google Sheets
-										</p>
+									
+									{/* Detailed Progress Information */}
+									{result.progressDetails && (
+										<div className='mt-2 space-y-1'>
+											{result.progressDetails.tableName && (
+												<p className='text-xs text-blue-700 font-medium'>
+													📊 Table: {result.progressDetails.tableName}
+													{result.progressDetails.recordsProcessed != null && result.progressDetails.totalRecords != null && (
+														<> - {result.progressDetails.recordsProcessed.toLocaleString()}/{result.progressDetails.totalRecords.toLocaleString()} records ({Math.round((result.progressDetails.recordsProcessed / result.progressDetails.totalRecords) * 100)}%)</>
+													)}
+													{result.progressDetails.batchNumber != null && result.progressDetails.totalBatches != null && (
+														<> - Batch {result.progressDetails.batchNumber}/{result.progressDetails.totalBatches} ({Math.round((result.progressDetails.batchNumber / result.progressDetails.totalBatches) * 100)}%)</>
+													)}
+												</p>
+											)}
+											{result.progressDetails.relationshipType && (
+												<p className='text-xs text-blue-700 font-medium'>
+													🔗 Relationship: {result.progressDetails.relationshipType}
+													{result.progressDetails.current != null && result.progressDetails.total != null && (
+														<> - {result.progressDetails.current.toLocaleString()}/{result.progressDetails.total.toLocaleString()} ({Math.round((result.progressDetails.current / result.progressDetails.total) * 100)}%)</>
+													)}
+												</p>
+											)}
+											{result.progressDetails.estimatedTimeRemaining != null && result.progressDetails.estimatedTimeRemaining > 0 && (
+												<p className='text-xs text-blue-700 font-medium'>
+													⏱️ Estimated time remaining: {formatElapsedTime(result.progressDetails.estimatedTimeRemaining)}
+												</p>
+											)}
+										</div>
 									)}
-									{result.currentStep && result.currentStep.includes('Fetching external:') && (
-										<p className='text-xs text-blue-500 mt-1'>
-											🌐 Currently fetching external data (league tables, fixtures, results)
-										</p>
-									)}
-									{result.currentStep && result.currentStep.includes('Processing CSV:') && (
-										<p className='text-xs text-blue-500 mt-1'>
-											🔄 Currently processing CSV data into database nodes
-										</p>
-									)}
-									{result.currentStep && result.currentStep.includes('Processing external:') && (
-										<p className='text-xs text-blue-500 mt-1'>
-											🔄 Currently processing external data into database nodes
-										</p>
-									)}
+									
 									{result.progress !== undefined && (
 										<div className='mt-2'>
 											<div className='flex justify-between text-xs text-blue-600 mb-1'>
-												<span>Progress</span>
+												<span>Overall Progress</span>
 												<span>{result.progress}%</span>
 											</div>
 											<div className='w-full bg-blue-200 rounded-full h-2'>

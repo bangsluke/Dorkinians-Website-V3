@@ -398,8 +398,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect open play goals queries
 		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
 
+		// CRITICAL FIX: Detect distance/travel queries
+		const distanceCorrectedStats = this.correctDistanceTravelQueries(openPlayCorrectedStats);
+
 		// CRITICAL FIX: Detect percentage queries
-		const percentageCorrectedStats = this.correctPercentageQueries(openPlayCorrectedStats);
+		const percentageCorrectedStats = this.correctPercentageQueries(distanceCorrectedStats);
 
 		// CRITICAL FIX: Detect "most appearances for team" queries
 		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
@@ -430,6 +433,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Missed Per Appearance", // More specific than general penalties missed
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
+			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -956,6 +960,51 @@ export class EnhancedQuestionAnalyzer {
 				originalText: "goals from open play",
 				position: lowerQuestion.indexOf("goals"),
 			});
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	private correctDistanceTravelQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for distance/travel phrases - prioritize these over other metrics
+		const distancePatterns = [
+			"how far",
+			"distance travelled",
+			"distance traveled",
+			"travelled to get",
+			"traveled to get",
+			"travelled to",
+			"traveled to",
+			"miles travelled",
+			"miles traveled",
+		];
+
+		const hasDistancePattern = distancePatterns.some((pattern) => lowerQuestion.includes(pattern));
+
+		if (hasDistancePattern) {
+			// Remove incorrect mappings that might be detected (goals, assists, etc.)
+			const filteredStats = statTypes.filter(
+				(stat) =>
+					!["Goals", "G", "AllGSC", "All Goals Scored", "Assists", "A", "Apps", "Appearances", "Games"].includes(stat.value),
+			);
+
+			// Check if "Distance Travelled" is already in the stats
+			const hasDistanceStat = filteredStats.some((stat) => stat.value === "Distance Travelled");
+
+			if (!hasDistanceStat) {
+				// Add correct "Distance Travelled" mapping
+				const distancePosition = lowerQuestion.indexOf("far") !== -1 ? lowerQuestion.indexOf("far") : lowerQuestion.indexOf("distance") !== -1 ? lowerQuestion.indexOf("distance") : lowerQuestion.indexOf("travelled") !== -1 ? lowerQuestion.indexOf("travelled") : lowerQuestion.indexOf("traveled") !== -1 ? lowerQuestion.indexOf("traveled") : 0;
+
+				filteredStats.push({
+					value: "Distance Travelled",
+					originalText: "distance travelled",
+					position: distancePosition,
+				});
+			}
 
 			return filteredStats;
 		}
