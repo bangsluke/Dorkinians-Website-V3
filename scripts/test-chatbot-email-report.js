@@ -130,6 +130,28 @@ const { STAT_TEST_CONFIGS, statObject } = require('../config/config.ts');
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
 
+// Helper function to extract position code from natural language response
+function extractPositionFromResponse(response) {
+	if (!response) return null;
+	
+	const lowerResponse = response.toLowerCase();
+	
+	// Check for position phrases in order of specificity
+	if (lowerResponse.includes("in goal") || lowerResponse.includes("as a goalkeeper") || lowerResponse.includes("as goalkeeper")) {
+		return "GK";
+	}
+	if (lowerResponse.includes("in defence") || lowerResponse.includes("as a defender") || lowerResponse.includes("as defender")) {
+		return "DEF";
+	}
+	if (lowerResponse.includes("in midfield") || lowerResponse.includes("as a midfielder") || lowerResponse.includes("as midfielder")) {
+		return "MID";
+	}
+	if (lowerResponse.includes("as a forward") || lowerResponse.includes("as forward")) {
+		return "FWD";
+	}
+	
+	return null;
+}
 
 // Alternative approach: Create comprehensive test data for all players
 async function runTestsProgrammatically() {
@@ -243,10 +265,15 @@ async function runTestsProgrammatically() {
 					// Extract value from chatbot answer for comparison
 					let chatbotExtractedValue = null;
 					if (chatbotAnswer) {
-						// Try to extract value from the response using the response pattern
-						const match = chatbotAnswer.match(statConfig.responsePattern);
-						if (match) {
-							chatbotExtractedValue = match[1];
+						// Special handling for MostCommonPosition - extract position from natural language
+						if (statKey === "MostCommonPosition") {
+							chatbotExtractedValue = extractPositionFromResponse(chatbotAnswer);
+						} else {
+							// Try to extract value from the response using the response pattern
+							const match = chatbotAnswer.match(statConfig.responsePattern);
+							if (match) {
+								chatbotExtractedValue = match[1];
+							}
 						}
 					}
 
@@ -257,6 +284,15 @@ async function runTestsProgrammatically() {
 					// 3. TBL_TestData value is N/A (no expected data available)
 					// 4. Chatbot returns "I couldn't find any relevant information" message
 					// 5. Chatbot answer doesn't match expected value
+					
+					// Check if this is a zero result that should accept "has never played" messages
+					const isZeroResult = expectedValue === "0" || expectedValue === 0;
+					const isPositionQuery = ["GK", "DEF", "MID", "FWD"].includes(statKey);
+					const hasNeverPlayedMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has never played");
+					
+					// Allow "No data found" messages if they're actually the correct "has never played" response for zero results
+					const isValidZeroResponse = isZeroResult && isPositionQuery && hasNeverPlayedMessage;
+					
 					const hasValidResponse =
 						chatbotAnswer &&
 						chatbotAnswer !== "Empty response or error" &&
@@ -271,7 +307,8 @@ async function runTestsProgrammatically() {
 						!chatbotAnswer.includes("Team not found") &&
 						!chatbotAnswer.includes("Missing context") &&
 						!chatbotAnswer.includes("Please clarify your question") &&
-						!chatbotAnswer.includes("No data found") &&
+						// Allow "No data found" if it's actually a valid zero result response
+						!(chatbotAnswer.includes("No data found") && !isValidZeroResponse) &&
 						!chatbotAnswer.includes("MatchDetail data unavailable") &&
 						cypherQuery !== "N/A" &&
 						expectedValue !== "N/A";
@@ -279,8 +316,15 @@ async function runTestsProgrammatically() {
 					// Check if the extracted value matches expected
 					let valuesMatch = true;
 					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
-						// For numeric values, compare as numbers
-						if (statConfig.responsePattern.source.includes("\\d")) {
+						// Special handling for zero results with "has never played" messages
+						if (isZeroResult && isPositionQuery && hasNeverPlayedMessage) {
+							// Zero result with correct "has never played" message is a match
+							valuesMatch = true;
+						} else if (statKey === "MostCommonPosition") {
+							// For MostCommonPosition, compare extracted position codes
+							valuesMatch = chatbotExtractedValue.toUpperCase() === expectedValue.toUpperCase();
+						} else if (statConfig.responsePattern.source.includes("\\d")) {
+							// For numeric values, compare as numbers
 							const expectedNumeric = parseFloat(expectedValue);
 							const chatbotNumeric = parseFloat(chatbotExtractedValue);
 							valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
@@ -288,6 +332,9 @@ async function runTestsProgrammatically() {
 							// For text values, compare as strings (case insensitive)
 							valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
 						}
+					} else if (expectedValue !== "N/A" && isZeroResult && isPositionQuery && hasNeverPlayedMessage) {
+						// Handle case where extraction failed but we have a valid zero result message
+						valuesMatch = true;
 					}
 
 					const passed = hasValidResponse && valuesMatch;
