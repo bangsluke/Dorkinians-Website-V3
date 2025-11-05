@@ -1578,7 +1578,7 @@ export class ChatbotService {
 					END as teamOrder
 				ORDER BY statValue DESC, teamOrder ASC
 				LIMIT 1
-				RETURN p.playerName as playerName, team as value
+				RETURN p.playerName as playerName, team as value, statValue as goalCount
 			`;
 		}
 
@@ -1803,7 +1803,7 @@ export class ChatbotService {
 				} else if (metric === "MostScoredForTeam") {
 					// For "What team has player scored the most X for?" questions (goals, assists, yellow cards, etc.)
 					const questionLower = question.toLowerCase();
-					if (questionLower.includes("what team has") && (questionLower.includes("most") || questionLower.includes("got"))) {
+					if ((questionLower.includes("what team has") || questionLower.includes("which team has")) && questionLower.includes("most")) {
 						// Use the actual query results from Cypher
 						const teamName = String(value); // e.g., "4th XI"
 						// Convert team name to expected format (e.g., "4th XI" -> "4s")
@@ -1821,7 +1821,14 @@ export class ChatbotService {
 						const statDisplayName = (analysis as any).mostScoredForTeamStatDisplayName || "goals";
 						const verb = statDisplayName === "goals" ? "scored" : statDisplayName === "assists" ? "got" : "got";
 						
-						answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName}`;
+						// Get goal count from playerData if available
+						const goalCount = (playerData as any)?.goalCount ?? (playerData as any)?.statValue ?? 0;
+						
+						if (goalCount > 0) {
+							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName}, having ${verb} ${goalCount} ${statDisplayName} for them`;
+						} else {
+							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName}`;
+						}
 					}
 				} else if (metric === "SEASON_COUNT_WITH_TOTAL") {
 					// For "How many of the seasons has player played for/in?" questions
@@ -1910,12 +1917,15 @@ export class ChatbotService {
 					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
 						answer = `${playerName} made ${value} ${value === 1 ? "appearance" : "appearances"} in the ${season} season.`;
 					}
-				} else if (metric.includes("GOALS") && metric.match(/\d{4}\/\d{2}/)) {
-					// For season-specific goals queries (e.g., "2016/17GOALS")
-					const season = metric.replace("GOALS", "");
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("get")) {
-						answer = `${playerName} scored ${value} ${value === 1 ? "goal" : "goals"} in the ${season} season.`;
+				} else if (metric.match(/\d{4}\/\d{2}GOALS/i)) {
+					// For season-specific goals queries (e.g., "2016/17GOALS", "2016/17Goals")
+					const seasonMatch = metric.match(/(\d{4}\/\d{2})GOALS/i);
+					if (seasonMatch) {
+						const season = seasonMatch[1];
+						const questionLower = question.toLowerCase();
+						if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("get")) {
+							answer = `${playerName} scored ${value} ${value === 1 ? "goal" : "goals"} in the ${season} season.`;
+						}
 					}
 				} else if (metric.includes("ASSISTS") && metric.match(/\d{4}\/\d{2}/)) {
 					// For season-specific assists queries (e.g., "2016/17ASSISTS")
