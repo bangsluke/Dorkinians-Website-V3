@@ -221,13 +221,19 @@ export default function ChatbotInterface() {
 				);
 
 			case "NumberCard":
+				// Handle array format: [{ name, value }]
+				const numberData = Array.isArray(visualization.data) && visualization.data.length > 0
+					? visualization.data[0]
+					: visualization.data;
+				const displayValue = numberData && typeof numberData === "object" && "value" in numberData
+					? (numberData as any).value
+					: numberData;
+				
 				return (
 					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
 						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
 						<div className='text-3xl font-bold text-yellow-300'>
-							{visualization.data && typeof visualization.data === "object" && "value" in visualization.data
-								? (visualization.data as any).value
-								: visualization.data}
+							{displayValue}
 						</div>
 					</div>
 				);
