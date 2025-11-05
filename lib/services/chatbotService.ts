@@ -1756,9 +1756,9 @@ export class ChatbotService {
 				} else if (metric === "DIST" || metric.toUpperCase() === "DIST") {
 					// For "How far has player travelled to get to games?" questions
 					const questionLower = question.toLowerCase();
-					if (questionLower.includes("travelled") || questionLower.includes("traveled") || questionLower.includes("distance")) {
+					if (questionLower.includes("travelled") || questionLower.includes("traveled") || questionLower.includes("distance") || questionLower.includes("how far")) {
 						const formattedValue = this.formatValueByMetric("DIST", value as number);
-						answer = `${playerName} has travelled ${formattedValue} miles to get to games.`;
+						answer = `${playerName} has travelled ${formattedValue} miles to games.`;
 					}
 				} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 					// For "What was player's most prolific season?" questions
