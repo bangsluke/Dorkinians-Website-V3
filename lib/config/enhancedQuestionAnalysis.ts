@@ -407,8 +407,19 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "most appearances for team" queries
 		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
 
+		// CRITICAL FIX: Detect "most scored for team" queries
+		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
+
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = mostAppearancesCorrectedStats.map((stat) => stat.value);
+		const statTypes = mostScoredForTeamCorrectedStats.map((stat) => stat.value);
+
+		// Check for dynamic season-specific goals first (highest priority)
+		// This ensures any season-specific goals query takes precedence over general goals/assists
+		const seasonGoalsPattern = /^\d{4}\/\d{2}\s+Goals$/;
+		const seasonGoalsMatch = statTypes.find((stat) => seasonGoalsPattern.test(stat));
+		if (seasonGoalsMatch) {
+			return [this.mapStatTypeToKey(seasonGoalsMatch)];
+		}
 
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
@@ -674,7 +685,8 @@ export class EnhancedQuestionAnalyzer {
 		if (shortYearSlashMatch) {
 			const startYear = shortYearSlashMatch[1];
 			const endYear = shortYearSlashMatch[2];
-			const fullStartYear = startYear.startsWith("20") ? startYear : `20${startYear}`;
+			// Check if it's already a 4-digit year (length check), not just if it starts with "20"
+			const fullStartYear = startYear.length === 4 ? startYear : `20${startYear}`;
 			// Keep end year as 2-digit format for season notation (YYYY/YY)
 			return `${fullStartYear}/${endYear}`;
 		}
@@ -696,10 +708,15 @@ export class EnhancedQuestionAnalyzer {
 		const lowerQuestion = this.question.toLowerCase();
 
 		// Dynamic season detection for goals
+		// Check for "goals" in question (even if "get" is also present, goals should take precedence)
 		if (lowerQuestion.includes("goals")) {
 			const seasonMatch = this.extractSeasonFromQuestion();
 			if (seasonMatch) {
-				const filteredStats = statTypes.filter((stat) => !["All Goals Scored", "Goals", "Score"].includes(stat.value));
+				// Filter out general goals, assists (if "get" was matched), and other conflicting stats
+				const filteredStats = statTypes.filter((stat) => 
+					!["All Goals Scored", "Goals", "Score", "Assists"].includes(stat.value)
+				);
+				// Add season-specific goals with high priority
 				filteredStats.push({
 					value: `${seasonMatch} Goals`,
 					originalText: `goals in ${seasonMatch}`,
@@ -1065,6 +1082,32 @@ export class EnhancedQuestionAnalyzer {
 				value: "Most Played For Team",
 				originalText: "most appearances for team",
 				position: lowerQuestion.indexOf("most appearances") || lowerQuestion.indexOf("most played"),
+			});
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects "most scored for team" queries
+	 */
+	private correctMostScoredForTeamQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Pattern to detect "which team has [player] scored the most goals/assists/etc for?" questions
+		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+the\s+most|scored\s+most|most\s+goals\s+for|most\s+.*?\s+for)/i;
+
+		if (mostScoredPattern.test(lowerQuestion)) {
+			// Remove any existing stat types that might be incorrect (Goals, Assists, etc.)
+			const filteredStats = statTypes.filter((stat) => !["Goals", "Assists", "Yellow Cards", "Red Cards", "Saves", "Own Goals", "Conceded", "Clean Sheets", "Penalties Scored", "Penalties Missed", "Penalties Conceded", "Penalties Saved"].includes(stat.value));
+
+			// Add the correct metric
+			filteredStats.push({
+				value: "Most Scored For Team",
+				originalText: "most scored for team",
+				position: lowerQuestion.indexOf("most") !== -1 ? lowerQuestion.indexOf("most") : 0,
 			});
 
 			return filteredStats;
