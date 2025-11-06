@@ -516,53 +516,8 @@ exports.handler = async (event, context) => {
 			console.warn("⚠️ Failed to configure email service:", error.message);
 		}
 		
-		// Check if email service is properly configured
-		if (!emailService.transporter || !emailService.config) {
-			console.warn("⚠️ EMAIL: Email service not configured - missing environment variables");
-			console.log("📧 EMAIL: Available env vars:", {
-				SMTP_SERVER: process.env.SMTP_SERVER ? "SET" : "MISSING",
-				SMTP_PORT: process.env.SMTP_PORT ? "SET" : "MISSING", 
-				SMTP_USERNAME: process.env.SMTP_USERNAME ? "SET" : "MISSING",
-				SMTP_PASSWORD: process.env.SMTP_PASSWORD ? "SET" : "MISSING",
-				SMTP_FROM_EMAIL: process.env.SMTP_FROM_EMAIL ? "SET" : "MISSING",
-				SMTP_TO_EMAIL: process.env.SMTP_TO_EMAIL ? "SET" : "MISSING"
-			});
-		} else {
-			console.log("✅ EMAIL: Email service configured successfully");
-		}
-
-		// Send start notification if requested
-		if (emailConfig.sendEmailAtStart && emailConfig.emailAddress) {
-			console.log("📧 START: Sending start notification email...");
-			console.log("📧 START: Email config:", emailConfig);
-			try {
-				// Temporarily override the email service recipient
-				const originalTo = emailService.config?.to;
-				if (emailService.config) {
-					emailService.config.to = emailConfig.emailAddress;
-					console.log("📧 START: Overriding recipient to:", emailConfig.emailAddress);
-				}
-
-				const startEmailSent = await emailService.sendSeedingStartEmail(environment);
-				if (startEmailSent) {
-					console.log("✅ START: Start notification email sent successfully");
-				} else {
-					console.warn("⚠️ START: Failed to send start notification email");
-				}
-
-				// Restore original recipient
-				if (emailService.config && originalTo) {
-					emailService.config.to = originalTo;
-				}
-			} catch (error) {
-				console.error("❌ START: Error sending start notification email:", error.message);
-				console.error("❌ START: Error stack:", error.stack);
-			}
-		} else {
-			console.log("📧 START: Start notification not requested or no email address provided");
-			console.log("📧 START: sendEmailAtStart:", emailConfig.sendEmailAtStart);
-			console.log("📧 START: emailAddress:", emailConfig.emailAddress);
-		}
+		// Let Heroku handle all email notifications based on emailConfig flags
+		// This ensures consistent email handling and proper seasonInfo in emails
 
 		// Trigger Heroku seeding service
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
@@ -609,8 +564,8 @@ exports.handler = async (event, context) => {
 							jobId,
 							emailConfig: {
 								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
-								sendEmailAtStart: emailConfig.sendEmailAtStart || false,
-								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion || true,
+								sendEmailAtStart: emailConfig.sendEmailAtStart ?? false,
+								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion ?? true,
 							},
 							seasonConfig: seasonConfig,
 						}),
