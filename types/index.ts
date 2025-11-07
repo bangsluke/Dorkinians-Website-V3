@@ -38,6 +38,8 @@ export interface MatchDetail {
 	redCards: number;
 	saves: number;
 	ownGoals: number;
+	conceded: number;
+	cleanSheets: number;
 	penaltiesScored: number;
 	penaltiesMissed: number;
 	penaltiesConceded: number;

@@ -32,7 +32,7 @@ export default function TOTWContainer() {
 	};
 
 	return (
-		<div className='h-full overflow-hidden'>
+		<div className='w-full'>
 			{/* TOTW Sub-Page Dot Indicators */}
 			<div className='flex justify-center space-x-3 py-4 pb-0'>
 				{totwSubPages.map((page, index) => (
@@ -59,7 +59,7 @@ export default function TOTWContainer() {
 				drag='x'
 				dragConstraints={{ left: 0, right: 0 }}
 				onDragEnd={handleDragEnd}
-				className='h-full'>
+				className='w-full'>
 				{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}
 			</motion.div>
 		</div>
