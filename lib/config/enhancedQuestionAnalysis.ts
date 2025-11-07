@@ -363,9 +363,21 @@ export class EnhancedQuestionAnalyzer {
 		// Convert extracted entities to legacy format
 		const entities: string[] = [];
 
+		// Phrases that should not be treated as player names
+		const invalidPlayerNames = ["goal count", "goal stats", "goal stat", "stats", "stat", "count"];
+
 		extractionResult.entities.forEach((entity) => {
-			if (entity.type === "player" && entity.value === "I" && this.userContext) {
-				entities.push(this.userContext);
+			if (entity.type === "player") {
+				const lowerValue = entity.value.toLowerCase();
+				// Skip if this is an invalid player name (likely a mis-extracted phrase)
+				if (invalidPlayerNames.includes(lowerValue)) {
+					return;
+				}
+				if (entity.value === "I" && this.userContext) {
+					entities.push(this.userContext);
+				} else {
+					entities.push(entity.value);
+				}
 			} else {
 				entities.push(entity.value);
 			}
@@ -380,8 +392,11 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
+		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
+
 		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
-		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(extractionResult.statTypes);
+		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(gamesCorrectedStats);
 
 		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
 		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
@@ -583,10 +598,14 @@ export class EnhancedQuestionAnalyzer {
 			"Midfielder Appearances",
 			"Forward Appearances",
 			"Most Common Position",
+			"Most Scored For Team", // Higher priority than "Most Played For Team"
+			"Most Played For Team", // Lower priority than "Most Scored For Team"
 			"Goals", // General goals (lower priority)
 			"Assists",
 			"Apps",
+			"Games", // Map "Games" to "Apps" - should have same priority as Apps
 			"Minutes",
+			"Saves", // Lower priority than Apps/Games
 			// ... other stat types
 		];
 
@@ -606,12 +625,13 @@ export class EnhancedQuestionAnalyzer {
 	 */
 	private mapStatTypeToKey(statType: string): string {
 		const mapping: { [key: string]: string } = {
-			// Basic stats
-			Goals: "G",
-			Assists: "A",
-			Apps: "APP",
-			Appearances: "APP",
-			Minutes: "MIN",
+		// Basic stats
+		Goals: "G",
+		Assists: "A",
+		Apps: "APP",
+		Appearances: "APP",
+		Games: "APP", // Map "Games" to "APP" (appearances)
+		Minutes: "MIN",
 			"Yellow Cards": "Y",
 			"Red Cards": "R",
 			Saves: "SAVES",
@@ -831,6 +851,36 @@ export class EnhancedQuestionAnalyzer {
 				});
 				return filteredStats;
 			}
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects "games" questions to map to "Apps" instead of "Saves"
+	 */
+	private correctGamesQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Pattern to detect "games" questions (e.g., "How many games have I played?")
+		// This should map to "Apps" not "Saves"
+		const gamesPattern = /(?:how\s+many\s+games?|games?\s+(?:have|has|did)\s+.*?\s+(?:played|made|appeared))/i;
+
+		if (gamesPattern.test(lowerQuestion) || (lowerQuestion.includes("games") && lowerQuestion.includes("played"))) {
+			// Remove "Saves" if it was incorrectly detected
+			const filteredStats = statTypes.filter((stat) => stat.value !== "Saves" && stat.value !== "Saves Per Appearance");
+
+			// Add "Games" if not already present (which will map to "Apps")
+			const hasGames = filteredStats.some((stat) => stat.value === "Games" || stat.value === "Apps" || stat.value === "Appearances");
+			if (!hasGames) {
+				filteredStats.push({
+					value: "Games",
+					originalText: "games",
+					position: lowerQuestion.indexOf("games") !== -1 ? lowerQuestion.indexOf("games") : 0,
+				});
+			}
+
+			return filteredStats;
 		}
 
 		return statTypes;
@@ -1102,8 +1152,8 @@ export class EnhancedQuestionAnalyzer {
 		const teamGoalsPattern1 = /(goals?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?/i;
 		// Pattern 2: "Xs goals" (team first)
 		const teamGoalsPattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?\s+(goals?)/i;
-		// Pattern 3: "goal count for Xs" or "Xs goal count"
-		const teamGoalsPattern3 = /(?:what\s+is\s+the\s+)?(goal\s+count|count)\s+(?:for\s+.*?\s+)?(?:scored\s+for\s+(?:the\s+)?|for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 3: "goal count of/for [player] for Xs" or "Xs goal count"
+		const teamGoalsPattern3 = /(?:what\s+is\s+the\s+)?(goal\s+count|count)\s+(?:of|for)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?/i;
 		// Pattern 4: "how many goals...scored for Xs"
 		const teamGoalsPattern4 = /(?:how\s+many\s+goals?|goals?).*?(?:scored|got|have|has)\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 5: "goals for Xs has...scored"
@@ -1112,8 +1162,8 @@ export class EnhancedQuestionAnalyzer {
 		const teamGoalsPattern6 = /(goals?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:scored|got|have|has)/i;
 		// Pattern 7: "provide...goal count for Xs"
 		const teamGoalsPattern7 = /(?:provide|give).*?(?:goal\s+count|goals?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
-		// Pattern 8: "what are the goal stats for Xs"
-		const teamGoalsPattern8 = /(?:what\s+are\s+the\s+)?(goal\s+stats?|stats?)\s+(?:for\s+.*?\s+)?(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 8: "what are the goal stats for [player] for Xs"
+		const teamGoalsPattern8 = /(?:what\s+are\s+the\s+)?(goal\s+stats?|stats?)\s+(?:for\s+.*?\s+)?(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?/i;
 
 		let match = lowerQuestion.match(teamGoalsPattern1);
 		let teamReference: string | undefined;
@@ -1328,11 +1378,13 @@ export class EnhancedQuestionAnalyzer {
 		const lowerQuestion = this.question.toLowerCase();
 
 		// Pattern to detect "which team has [player] scored the most goals/assists/etc for?" questions
-		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+the\s+most|scored\s+most|most\s+goals\s+for|most\s+.*?\s+for)/i;
+		// Updated pattern to match "scored the most goals for" or "scored most goals for" or "most goals for"
+		// Made more specific to ensure it matches correctly and doesn't conflict with "most appearances for"
+		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+(?:the\s+)?most\s+(?:goals?|assists?|.*?)\s+for|scored\s+the\s+most|scored\s+most|most\s+goals?\s+for)/i;
 
 		if (mostScoredPattern.test(lowerQuestion)) {
-			// Remove any existing stat types that might be incorrect (Goals, Assists, etc.)
-			const filteredStats = statTypes.filter((stat) => !["Goals", "Assists", "Yellow Cards", "Red Cards", "Saves", "Own Goals", "Conceded", "Clean Sheets", "Penalties Scored", "Penalties Missed", "Penalties Conceded", "Penalties Saved"].includes(stat.value));
+			// Remove any existing stat types that might be incorrect (Goals, Assists, Most Played For Team, etc.)
+			const filteredStats = statTypes.filter((stat) => !["Goals", "Assists", "Yellow Cards", "Red Cards", "Saves", "Own Goals", "Conceded", "Clean Sheets", "Penalties Scored", "Penalties Missed", "Penalties Conceded", "Penalties Saved", "Most Played For Team"].includes(stat.value));
 
 			// Add the correct metric
 			filteredStats.push({
