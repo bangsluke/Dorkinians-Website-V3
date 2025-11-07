@@ -398,8 +398,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect open play goals queries
 		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
 
+		// CRITICAL FIX: Detect team-specific goals queries
+		const teamGoalsCorrectedStats = this.correctTeamSpecificGoalsQueries(openPlayCorrectedStats);
+
 		// CRITICAL FIX: Detect distance/travel queries
-		const distanceCorrectedStats = this.correctDistanceTravelQueries(openPlayCorrectedStats);
+		const distanceCorrectedStats = this.correctDistanceTravelQueries(teamGoalsCorrectedStats);
 
 		// CRITICAL FIX: Detect percentage queries
 		const percentageCorrectedStats = this.correctPercentageQueries(distanceCorrectedStats);
@@ -412,6 +415,102 @@ export class EnhancedQuestionAnalyzer {
 
 		// Convert extracted stat types to legacy format with priority handling
 		const statTypes = mostScoredForTeamCorrectedStats.map((stat) => stat.value);
+
+		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
+		const lowerQuestion = this.question.toLowerCase();
+		const hasGamesOrAppearances = lowerQuestion.includes("games") || lowerQuestion.includes("appearances") || lowerQuestion.includes("apps");
+		const hasExplicitHome = lowerQuestion.includes("home games") || lowerQuestion.includes("home matches") || lowerQuestion.includes("at home");
+		const hasExplicitAway = lowerQuestion.includes("away games") || lowerQuestion.includes("away matches") || lowerQuestion.includes("away from home") || lowerQuestion.includes("on the road");
+		
+		if (hasGamesOrAppearances && !hasExplicitHome && !hasExplicitAway) {
+			// Question asks for total games/appearances, filter out Home and Away metrics
+			const filteredStatTypes = statTypes.filter((stat) => stat !== "Home" && stat !== "Away" && stat !== "Home Games" && stat !== "Away Games");
+			if (filteredStatTypes.length > 0) {
+				// Use filtered stats for priority check
+				const seasonGoalsPattern = /^\d{4}\/\d{2}\s+Goals$/;
+				const seasonGoalsMatch = filteredStatTypes.find((stat) => seasonGoalsPattern.test(stat));
+				if (seasonGoalsMatch) {
+					return [this.mapStatTypeToKey(seasonGoalsMatch)];
+				}
+				
+				// Continue with filtered stats
+				const priorityOrder = [
+					"Season Count With Total",
+					"Season Count Simple",
+					"Own Goals",
+					"Goals Conceded Per Appearance",
+					"Conceded Per Appearance",
+					"Minutes Per Goal",
+					"Minutes Per Clean Sheet",
+					"Minutes Per Appearance",
+					"Man of the Match Per Appearance",
+					"Fantasy Points Per Appearance",
+					"Goals Per Appearance",
+					"Assists Per Appearance",
+					"Yellow Cards Per Appearance",
+					"Red Cards Per Appearance",
+					"Saves Per Appearance",
+					"Own Goals Per Appearance",
+					"Clean Sheets Per Appearance",
+					"Penalties Scored Per Appearance",
+					"Penalties Missed Per Appearance",
+					"Penalties Conceded Per Appearance",
+					"Penalties Saved Per Appearance",
+					"Distance Travelled",
+					"Goals Conceded",
+					"Open Play Goals",
+					"Penalties Scored",
+					"Penalties Missed",
+					"Penalties Conceded",
+					"Penalties Saved",
+					"2021/22 Goals",
+					"2020/21 Goals",
+					"2019/20 Goals",
+					"2018/19 Goals",
+					"2017/18 Goals",
+					"2016/17 Goals",
+					"1st XI Apps",
+					"2nd XI Apps",
+					"3rd XI Apps",
+					"4th XI Apps",
+					"5th XI Apps",
+					"6th XI Apps",
+					"7th XI Apps",
+					"8th XI Apps",
+					"1st XI Goals",
+					"2nd XI Goals",
+					"3rd XI Goals",
+					"4th XI Goals",
+					"5th XI Goals",
+					"6th XI Goals",
+					"7th XI Goals",
+					"8th XI Goals",
+					"2021/22 Apps",
+					"2020/21 Apps",
+					"2019/20 Apps",
+					"2018/19 Apps",
+					"2017/18 Apps",
+					"2016/17 Apps",
+					"Goalkeeper Appearances",
+					"Defender Appearances",
+					"Midfielder Appearances",
+					"Forward Appearances",
+					"Most Common Position",
+					"Goals",
+					"Assists",
+					"Apps",
+					"Minutes",
+				];
+				
+				for (const priorityType of priorityOrder) {
+					if (filteredStatTypes.includes(priorityType)) {
+						return [this.mapStatTypeToKey(priorityType)];
+					}
+				}
+				
+				return filteredStatTypes.map((stat) => this.mapStatTypeToKey(stat));
+			}
+		}
 
 		// Check for dynamic season-specific goals first (highest priority)
 		// This ensures any season-specific goals query takes precedence over general goals/assists
@@ -465,6 +564,14 @@ export class EnhancedQuestionAnalyzer {
 			"6th XI Apps",
 			"7th XI Apps",
 			"8th XI Apps",
+			"1st XI Goals", // Team-specific goals (most specific)
+			"2nd XI Goals",
+			"3rd XI Goals",
+			"4th XI Goals",
+			"5th XI Goals",
+			"6th XI Goals",
+			"7th XI Goals",
+			"8th XI Goals",
 			"2021/22 Apps", // Season-specific appearances
 			"2020/21 Apps",
 			"2019/20 Apps",
@@ -979,6 +1086,130 @@ export class EnhancedQuestionAnalyzer {
 			});
 
 			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects team-specific goals queries
+	 */
+	private correctTeamSpecificGoalsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Enhanced team-specific goals patterns to handle all variations
+		// Pattern 1: "goals for the Xs" or "goals for Xs"
+		const teamGoalsPattern1 = /(goals?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?/i;
+		// Pattern 2: "Xs goals" (team first)
+		const teamGoalsPattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?\s+(goals?)/i;
+		// Pattern 3: "goal count for Xs" or "Xs goal count"
+		const teamGoalsPattern3 = /(?:what\s+is\s+the\s+)?(goal\s+count|count)\s+(?:for\s+.*?\s+)?(?:scored\s+for\s+(?:the\s+)?|for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 4: "how many goals...scored for Xs"
+		const teamGoalsPattern4 = /(?:how\s+many\s+goals?|goals?).*?(?:scored|got|have|has)\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 5: "goals for Xs has...scored"
+		const teamGoalsPattern5 = /(?:goals?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:scored|got|has)/i;
+		// Pattern 6: "goals for Xs...scored/got"
+		const teamGoalsPattern6 = /(goals?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:scored|got|have|has)/i;
+		// Pattern 7: "provide...goal count for Xs"
+		const teamGoalsPattern7 = /(?:provide|give).*?(?:goal\s+count|goals?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 8: "what are the goal stats for Xs"
+		const teamGoalsPattern8 = /(?:what\s+are\s+the\s+)?(goal\s+stats?|stats?)\s+(?:for\s+.*?\s+)?(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+
+		let match = lowerQuestion.match(teamGoalsPattern1);
+		let teamReference: string | undefined;
+		let goalTerm: string | undefined;
+
+		if (match) {
+			teamReference = match[2].toLowerCase();
+			goalTerm = match[1];
+		} else {
+			match = lowerQuestion.match(teamGoalsPattern2);
+			if (match) {
+				teamReference = match[1].toLowerCase();
+				goalTerm = match[2];
+			} else {
+				match = lowerQuestion.match(teamGoalsPattern3);
+				if (match) {
+					teamReference = match[2].toLowerCase();
+					goalTerm = "goals";
+				} else {
+					match = lowerQuestion.match(teamGoalsPattern4);
+					if (match) {
+						teamReference = match[1].toLowerCase();
+						goalTerm = "goals";
+					} else {
+						match = lowerQuestion.match(teamGoalsPattern5);
+						if (match) {
+							teamReference = match[1].toLowerCase();
+							goalTerm = "goals";
+						} else {
+							match = lowerQuestion.match(teamGoalsPattern6);
+							if (match) {
+								teamReference = match[2].toLowerCase();
+								goalTerm = match[1];
+							} else {
+								match = lowerQuestion.match(teamGoalsPattern7);
+								if (match) {
+									teamReference = match[1].toLowerCase();
+									goalTerm = "goals";
+								} else {
+									match = lowerQuestion.match(teamGoalsPattern8);
+									if (match) {
+										teamReference = match[2].toLowerCase();
+										goalTerm = "goals";
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (match && teamReference && goalTerm) {
+			// Map team reference to database format
+			const teamMapping: { [key: string]: string } = {
+				"1s": "1st XI",
+				"2s": "2nd XI",
+				"3s": "3rd XI",
+				"4s": "4th XI",
+				"5s": "5th XI",
+				"6s": "6th XI",
+				"7s": "7th XI",
+				"8s": "8th XI",
+				"1st": "1st XI",
+				"2nd": "2nd XI",
+				"3rd": "3rd XI",
+				"4th": "4th XI",
+				"5th": "5th XI",
+				"6th": "6th XI",
+				"7th": "7th XI",
+				"8th": "8th XI",
+				"first": "1st XI",
+				"second": "2nd XI",
+				"third": "3rd XI",
+				"fourth": "4th XI",
+				"fifth": "5th XI",
+				"sixth": "6th XI",
+				"seventh": "7th XI",
+				"eighth": "8th XI"
+			};
+
+			const mappedTeam = teamMapping[teamReference];
+			if (mappedTeam) {
+				// Filter out general goals, open play goals, and other conflicting stats
+				const filteredStats = statTypes.filter((stat) =>
+					!["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Goals Per Appearance", "GperAPP"].includes(stat.value)
+				);
+				const newMetric = `${mappedTeam} Goals`;
+				// Add the new metric to the filtered stats
+				filteredStats.push({
+					value: newMetric,
+					originalText: `${goalTerm} for ${teamReference}`,
+					position: lowerQuestion.indexOf(goalTerm || "goals"),
+				});
+				return filteredStats;
+			}
 		}
 
 		return statTypes;
