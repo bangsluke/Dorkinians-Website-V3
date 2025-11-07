@@ -1405,7 +1405,7 @@ export default function AdminPanel() {
 											)}
 											{result.progressDetails.estimatedTimeRemaining != null && result.progressDetails.estimatedTimeRemaining > 0 && (
 												<p className='text-xs text-blue-700 font-medium'>
-													⏱️ Estimated time remaining: {formatElapsedTime(result.progressDetails.estimatedTimeRemaining)}
+													⏱️ Estimated time remaining (overall process): {formatElapsedTime(result.progressDetails.estimatedTimeRemaining)}
 												</p>
 											)}
 										</div>
@@ -1452,13 +1452,13 @@ export default function AdminPanel() {
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
 										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
-											fullRebuild ? "~43 minutes" : "~5 minutes"}
+											fullRebuild ? "~40 minutes" : "~5 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
 													Math.floor(lastCompletedJobDuration / 60) : 
-													(fullRebuild ? 43 : 5);
+													(fullRebuild ? 40 : 5);
 												const expectedEndTime = new Date(startTime.getTime() + (expectedDurationMinutes * 60 * 1000));
 												return expectedEndTime.toLocaleTimeString();
 											})()}</>
