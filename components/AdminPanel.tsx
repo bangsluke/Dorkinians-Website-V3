@@ -1405,7 +1405,7 @@ export default function AdminPanel() {
 											)}
 											{result.progressDetails.estimatedTimeRemaining != null && result.progressDetails.estimatedTimeRemaining > 0 && (
 												<p className='text-xs text-blue-700 font-medium'>
-													⏱️ Estimated time remaining (overall process): {formatElapsedTime(result.progressDetails.estimatedTimeRemaining)}
+													⏱️ Estimated time remaining (overall process): {formatElapsedTime(result.progressDetails.estimatedTimeRemaining / 1000)}
 												</p>
 											)}
 										</div>
