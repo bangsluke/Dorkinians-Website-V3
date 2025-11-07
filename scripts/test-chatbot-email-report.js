@@ -285,13 +285,18 @@ async function runTestsProgrammatically() {
 					// 4. Chatbot returns "I couldn't find any relevant information" message
 					// 5. Chatbot answer doesn't match expected value
 					
-					// Check if this is a zero result that should accept "has never played" messages
+					// Check if this is a zero result that should accept valid zero-value responses
 					const isZeroResult = expectedValue === "0" || expectedValue === 0;
 					const isPositionQuery = ["GK", "DEF", "MID", "FWD"].includes(statKey);
 					const hasNeverPlayedMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has never played");
+					const hasNotScoredMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals");
+					const hasNotScoredForTeamMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals for");
 					
-					// Allow "No data found" messages if they're actually the correct "has never played" response for zero results
-					const isValidZeroResponse = isZeroResult && isPositionQuery && hasNeverPlayedMessage;
+					// Allow valid zero-value responses for position queries ("has never played") and goals queries ("has not scored any goals")
+					const isValidZeroResponse = isZeroResult && (
+						(isPositionQuery && hasNeverPlayedMessage) ||
+						(hasNotScoredMessage || hasNotScoredForTeamMessage)
+					);
 					
 					const hasValidResponse =
 						chatbotAnswer &&
@@ -316,9 +321,9 @@ async function runTestsProgrammatically() {
 					// Check if the extracted value matches expected
 					let valuesMatch = true;
 					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
-						// Special handling for zero results with "has never played" messages
-						if (isZeroResult && isPositionQuery && hasNeverPlayedMessage) {
-							// Zero result with correct "has never played" message is a match
+						// Special handling for zero results with valid zero-value messages
+						if (isZeroResult && isValidZeroResponse) {
+							// Zero result with correct zero-value message is a match
 							valuesMatch = true;
 						} else if (statKey === "MostCommonPosition") {
 							// For MostCommonPosition, compare extracted position codes
@@ -332,7 +337,7 @@ async function runTestsProgrammatically() {
 							// For text values, compare as strings (case insensitive)
 							valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
 						}
-					} else if (expectedValue !== "N/A" && isZeroResult && isPositionQuery && hasNeverPlayedMessage) {
+					} else if (expectedValue !== "N/A" && isZeroResult && isValidZeroResponse) {
 						// Handle case where extraction failed but we have a valid zero result message
 						valuesMatch = true;
 					}
