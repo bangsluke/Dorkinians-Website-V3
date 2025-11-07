@@ -790,7 +790,7 @@ export class ChatbotService {
 	 */
 	private metricNeedsMatchDetail(metric: string): boolean {
 		// Metrics that need MatchDetail join (including complex calculations)
-		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP", "GK", "DEF", "MID", "FWD", "DIST", "MOSTSCOREDFORTEAM", "MOSTPLAYEDFORTEAM"];
+		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP", "GK", "DEF", "MID", "FWD", "DIST", "MOSTSCOREDFORTEAM", "MOSTPLAYEDFORTEAM", "FTP", "POINTS", "FANTASYPOINTS"];
 
 		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
 		if (metric.match(/^\d+sApps$/i)) {
@@ -855,8 +855,6 @@ export class ChatbotService {
 				return "coalesce(p.penaltiesConceded, 0)";
 			case "PSV":
 				return "coalesce(p.penaltiesSaved, 0)";
-			case "FTP":
-				return "coalesce(p.fantasyPoints, 0)";
 			case "DIST":
 				return "coalesce(p.distance, 0)";
 			case "GK":
@@ -919,6 +917,10 @@ export class ChatbotService {
 				return "count(md) as value";
 			case "DIST":
 				return "coalesce(sum(md.distance), 0) as value";
+			case "FTP":
+			case "POINTS":
+			case "FANTASYPOINTS":
+				return "coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = '' THEN 0 ELSE md.fantasyPoints END), 0) as value";
 			// Team-specific appearance metrics (1sApps, 2sApps, etc.)
 			default:
 				// Check if it's a team-specific appearance metric
@@ -1909,10 +1911,15 @@ export class ChatbotService {
 				} else if (metric === "OPENPLAYGOALS") {
 					// Special handling for open play goals
 					answer = `${playerName} has ${value} goals from open play.`;
-				} else if (metric === "points") {
-					// Build contextual response and add clarification
-					answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
-					answer = answer.replace(".", " (Fantasy Points).");
+				} else if (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS") {
+					// Build contextual response for fantasy points
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("fantasy points") || questionLower.includes("fantasy")) {
+						answer = `${playerName} has ${value} fantasy points.`;
+					} else {
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
+						answer = answer.replace(".", " (Fantasy Points).");
+					}
 				} else if (metric === "DIST" || metric.toUpperCase() === "DIST") {
 					// For "How far has player travelled to get to games?" questions
 					const questionLower = question.toLowerCase();
@@ -2114,6 +2121,22 @@ export class ChatbotService {
 					if (questionLower.includes("saves") || questionLower.includes("saved") || questionLower.includes("get")) {
 						answer = `${playerName} made ${value} ${value === 1 ? "save" : "saves"} in the ${season} season.`;
 					}
+				} else if (metric === "HOME" || metric.toUpperCase() === "HOME") {
+					// For home games queries
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("home games") || questionLower.includes("home matches") || questionLower.includes("at home")) {
+						answer = `${playerName} has played ${value} ${value === 1 ? "home game" : "home games"}.`;
+					} else {
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
+					}
+				} else if (metric === "AWAY" || metric.toUpperCase() === "AWAY") {
+					// For away games queries
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("away games") || questionLower.includes("away matches") || questionLower.includes("away from home") || questionLower.includes("on the road")) {
+						answer = `${playerName} has played ${value} ${value === 1 ? "away game" : "away games"}.`;
+					} else {
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
+					}
 				} else if (metric.match(/^\d+sApps$/i)) {
 					// For team-specific appearance queries (e.g., "1sApps", "2sApps", etc.)
 					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
@@ -2147,6 +2170,51 @@ export class ChatbotService {
 					if (teamMatch) {
 						const teamName = teamMatch[1] + " XI";
 						const teamDisplayName = this.mapTeamName(teamName.replace(" XI", "s"));
+						if (value === 0) {
+							answer = `${playerName} has not scored any goals for the ${teamDisplayName}.`;
+						} else {
+							answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamDisplayName}.`;
+						}
+					}
+				} else if (metric && typeof metric === 'string' && (
+					metric.match(/\d+(?:st|nd|rd|th)\s+team.*goals?/i) ||
+					metric.match(/\d+s.*goals?/i) ||
+					(question.toLowerCase().includes("goal") && (question.toLowerCase().includes("2nd team") || question.toLowerCase().includes("6s") || question.toLowerCase().includes("goal count") || question.toLowerCase().includes("goal stats")))
+				)) {
+					// Flexible handler for team-specific goals queries with variations like "2nd team", "6s", "goal count", "goal stats"
+					const questionLower = question.toLowerCase();
+					let teamDisplayName = "";
+					
+					// Try to extract team from metric first
+					const metricTeamMatch = metric.match(/(\d+(?:st|nd|rd|th))\s+team/i) || metric.match(/(\d+)s/i);
+					if (metricTeamMatch) {
+						const teamNumber = metricTeamMatch[1];
+						if (teamNumber.match(/^\d+(?:st|nd|rd|th)$/)) {
+							teamDisplayName = this.mapTeamName(teamNumber + " XI".replace(" XI", "s"));
+						} else {
+							teamDisplayName = this.mapTeamName(`${teamNumber}s`);
+						}
+					} else {
+						// Try to extract from question
+						if (questionLower.includes("2nd team") || questionLower.includes("2nd")) {
+							teamDisplayName = this.mapTeamName("2nd XI".replace(" XI", "s"));
+						} else if (questionLower.includes("6s") || questionLower.includes("6th")) {
+							teamDisplayName = this.mapTeamName("6th XI".replace(" XI", "s"));
+						} else if (questionLower.includes("3rd team") || questionLower.includes("3rd")) {
+							teamDisplayName = this.mapTeamName("3rd XI".replace(" XI", "s"));
+						} else if (questionLower.includes("1st team") || questionLower.includes("1st")) {
+							teamDisplayName = this.mapTeamName("1st XI".replace(" XI", "s"));
+						} else {
+							// Default fallback - try to find any team mention
+							const teamMatch = questionLower.match(/(\d+)(?:st|nd|rd|th)?\s*(?:team|s)/);
+							if (teamMatch) {
+								const teamNum = teamMatch[1];
+								teamDisplayName = this.mapTeamName(`${teamNum}s`);
+							}
+						}
+					}
+					
+					if (teamDisplayName && (questionLower.includes("goal") || questionLower.includes("scored") || questionLower.includes("goal count") || questionLower.includes("goal stats"))) {
 						if (value === 0) {
 							answer = `${playerName} has not scored any goals for the ${teamDisplayName}.`;
 						} else {
