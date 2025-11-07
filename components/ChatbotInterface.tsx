@@ -230,7 +230,7 @@ export default function ChatbotInterface() {
 					: numberData;
 				
 				return (
-					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+					<div className='mt-4 p-4 rounded-lg'>
 						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
 						<div className='text-3xl font-bold text-yellow-300'>
 							{displayValue}
@@ -307,7 +307,8 @@ export default function ChatbotInterface() {
 			</form>
 
 			{/* Response Display */}
-			<AnimatePresence mode='wait'>
+			<div className='mt-3 md:mt-4'>
+				<AnimatePresence mode='wait'>
 				{isLoading && (
 					<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className='text-center py-8'>
 						<div className='inline-flex items-center space-x-2'>
@@ -331,8 +332,7 @@ export default function ChatbotInterface() {
 					<motion.div
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-						className='dark-dropdown rounded-lg p-4 md:p-6 shadow-sm'>
+						exit={{ opacity: 0, y: -10 }}>
 						{/* Answer */}
 						<div className='mb-3 md:mb-4'>
 							<h3 className='font-semibold text-white mb-2 text-sm md:text-base'>Answer:</h3>
@@ -344,6 +344,7 @@ export default function ChatbotInterface() {
 					</motion.div>
 				)}
 			</AnimatePresence>
+			</div>
 
 			{/* Questions Section - Show example questions when no past questions, or past questions when available */}
 			<div className='mt-6 md:mt-8'>
@@ -358,7 +359,7 @@ export default function ChatbotInterface() {
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+									className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
 									onClick={() => {
 										setQuestion(q.question);
 										// Focus the input after setting the question
@@ -394,7 +395,7 @@ export default function ChatbotInterface() {
 
 						{/* Show past conversations or example questions based on toggle */}
 						{!showExampleQuestions ? (
-							<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2'>
+							<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2 flex flex-col items-center'>
 								{conversationHistory
 									.slice(-3)
 									.reverse()
@@ -404,7 +405,7 @@ export default function ChatbotInterface() {
 											initial={{ opacity: 0, x: -20 }}
 											animate={{ opacity: 1, x: 0 }}
 											transition={{ delay: index * 0.1 }}
-											className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+											className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors w-full'
 											onClick={() => {
 												setQuestion(conv.question);
 												// Focus the input after setting the question
