@@ -768,6 +768,16 @@ export class ChatbotService {
 			return true; // Team-specific appearances need MatchDetail join to filter by team
 		}
 
+		// Check if it's a team-specific goals metric (1sGoals, 2sGoals, etc.)
+		if (metric.match(/^\d+sGoals$/i)) {
+			return true; // Team-specific goals need MatchDetail join to filter by team
+		}
+
+		// Check if it's a team-specific goals metric (1st XI Goals, 2nd XI Goals, etc.)
+		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+			return true; // Team-specific goals need MatchDetail join to filter by team
+		}
+
 		// Check if it's a seasonal metric (contains year pattern) - these use MatchDetail joins
 		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS|ASSISTS|CLEANSHEETS|SAVES|YELLOWCARDS|REDCARDS|MOM|PENALTIESSCORED|PENALTIESMISSED|PENALTIESSAVED|PENALTIESTAKEN|PENALTIESCONCEDED|OWngoals|CONCEDED|FANTASYPOINTS|DISTANCE)/i)) {
 			return true; // Seasonal metrics use MatchDetail joins for accurate data
@@ -961,9 +971,16 @@ export class ChatbotService {
 		// Determine if this metric needs MatchDetail join or can use Player node directly
 		const needsMatchDetail = this.metricNeedsMatchDetail(metric);
 
+		// Check if this is a team-specific metric (appearances or goals) - these use md.team, not f.team
+		const isTeamSpecificMetric = metric.match(/^\d+sApps$/i) || 
+			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
+			metric.match(/^\d+sGoals$/i) ||
+			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i);
+
 		// Check if we need Fixture relationship for any filters
+		// Team-specific metrics (apps/goals) don't need Fixture - they use md.team directly
 		const needsFixture =
-			teamEntities.length > 0 ||
+			(!isTeamSpecificMetric && teamEntities.length > 0) ||
 			locations.length > 0 ||
 			timeRange ||
 			oppositionEntities.length > 0 ||
@@ -1824,10 +1841,16 @@ export class ChatbotService {
 						// Get goal count from playerData if available
 						const goalCount = (playerData as any)?.goalCount ?? (playerData as any)?.statValue ?? 0;
 						
+						// Format: "Luke Bangs has scored the most goals for the 4s (8)"
 						if (goalCount > 0) {
-							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName}, having ${verb} ${goalCount} ${statDisplayName} for them`;
+							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName} (${goalCount})`;
 						} else {
-							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName}`;
+							// If player hasn't scored for any team
+							if (statDisplayName === "goals") {
+								answer = `${playerName} has not scored for a team`;
+							} else {
+								answer = `${playerName} has not ${verb} any ${statDisplayName} for a team`;
+							}
 						}
 					}
 				} else if (metric === "SEASON_COUNT_WITH_TOTAL") {
@@ -1962,6 +1985,22 @@ export class ChatbotService {
 					if (teamMatch) {
 						const teamName = teamMatch[1] + " XI";
 						answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
+					}
+				} else if (metric.match(/^\d+sGoals$/i)) {
+					// For team-specific goals queries (e.g., "1sGoals", "2sGoals", etc.)
+					const teamNumber = metric.match(/^(\d+)sGoals$/i)?.[1];
+					const teamName = this.mapTeamName(`${teamNumber}s`);
+					const questionLower = question.toLowerCase();
+					if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("got")) {
+						answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamName}.`;
+					}
+				} else if (metric && typeof metric === 'string' && metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+					// For team-specific goals queries (e.g., "1st XI Goals", "2nd XI Goals", etc.)
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Goals$/i);
+					if (teamMatch) {
+						const teamName = teamMatch[1] + " XI";
+						const teamDisplayName = this.mapTeamName(teamName.replace(" XI", "s"));
+						answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamDisplayName}.`;
 					}
 				} else {
 					// Handle appearances count special case
