@@ -101,50 +101,90 @@ describe("Individual Question Verification Tests", () => {
 	// ============================================================================
 
 	test("How many goals has Luke Bangs scored for the 1s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals has Luke Bangs scored for the 1s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "1"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 			expectedCypherPattern: /md\.team.*1st XI/i,
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works (should say "has not scored" not "has scored 0")
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("What is the goal count of Luke Bangs for the 2nd team?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "What is the goal count of Luke Bangs for the 2nd team?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "2"],
 			expectedAnswerNotContains: ["Database error", "couldn't find a player named"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals in total has Luke Bangs scored for the 3s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals in total has Luke Bangs scored for the 3s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "3"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals have I scored for the 4s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals have I scored for the 4s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "4"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals has Luke Bangs scored for the 5th XI?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals has Luke Bangs scored for the 5th XI?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "5"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 			expectedCypherPattern: /md\.team.*5th XI/i,
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals have I got for the 5s?", async () => {
@@ -157,30 +197,54 @@ describe("Individual Question Verification Tests", () => {
 	});
 
 	test("What are the goal stats for Luke Bangs for the 6s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "What are the goal stats for Luke Bangs for the 6s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "6"],
 			expectedAnswerNotContains: ["Database error", "couldn't find a player named"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals have Luke Bangs got for the 7s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals have Luke Bangs got for the 7s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "7"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	test("How many goals has Luke Bangs scored for the 8s?", async () => {
-		await runTestCase({
+		const response = await runTestCase({
 			question: "How many goals has Luke Bangs scored for the 8s?",
 			userContext: "Luke Bangs",
 			expectedAnswerContains: ["Luke Bangs", "goals", "8"],
 			expectedAnswerNotContains: ["open play", "Database error"],
 		});
+		// Verify penalties are included in the query
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/penaltiesScored/i);
+		}
+		// Verify zero-value handling works
+		if (response.answer.includes("0")) {
+			expect(response.answer).toMatch(/has not scored any goals/i);
+		}
 	});
 
 	// ============================================================================
