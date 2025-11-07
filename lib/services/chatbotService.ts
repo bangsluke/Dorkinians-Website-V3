@@ -933,12 +933,16 @@ export class ChatbotService {
 
 				// Check if it's a team-specific goals metric (1sGoals, 2sGoals, etc.)
 				if (metric.match(/^\d+sGoals$/i)) {
-					return "coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) as value";
+					return `
+					coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+					coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
 				}
 
 				// Check if it's a team-specific goals metric (1st XI Goals, 2nd XI Goals, etc.)
 				if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
-					return "coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = \"\" THEN 0 ELSE md.goals END), 0) as value";
+					return `
+					coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+					coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
 				}
 			// Season-specific goals
 			// Dynamic seasonal metrics (any season)
@@ -1264,7 +1268,7 @@ export class ChatbotService {
 					// The key is to use OPTIONAL MATCH and then aggregate, which will always return a row
 					query += ` WITH p, collect(md) as matchDetails`;
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamName}')] END as filteredDetails`;
-					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) END as totalGoals`;
+					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END + CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) END as totalGoals`;
 					query += ` RETURN p.playerName as playerName, totalGoals as value`;
 				} else {
 					query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
@@ -1856,14 +1860,14 @@ export class ChatbotService {
 								.replace("6th XI", "6s")
 								.replace("7th XI", "7s")
 								.replace("8th XI", "8s");
-							answer = `${playerName} has scored 0 goals for the ${teamDisplayName}.`;
+							answer = `${playerName} has not scored any goals for the ${teamDisplayName}.`;
 						} else {
 							teamName = this.mapTeamName(`${teamNumber}s`);
-							answer = `${playerName} has scored 0 goals for the ${teamName}.`;
+							answer = `${playerName} has not scored any goals for the ${teamName}.`;
 						}
 					} else {
 						teamName = this.mapTeamName(`${teamNumber}s`);
-						answer = `${playerName} has scored 0 goals for the ${teamName}.`;
+						answer = `${playerName} has not scored any goals for the ${teamName}.`;
 					}
 				} else {
 					answer = `${playerName} has scored 0 goals.`;
@@ -2131,7 +2135,11 @@ export class ChatbotService {
 					const teamName = this.mapTeamName(`${teamNumber}s`);
 					const questionLower = question.toLowerCase();
 					if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("got")) {
-						answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamName}.`;
+						if (value === 0) {
+							answer = `${playerName} has not scored any goals for the ${teamName}.`;
+						} else {
+							answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamName}.`;
+						}
 					}
 				} else if (metric && typeof metric === 'string' && metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
 					// For team-specific goals queries (e.g., "1st XI Goals", "2nd XI Goals", etc.)
@@ -2139,7 +2147,11 @@ export class ChatbotService {
 					if (teamMatch) {
 						const teamName = teamMatch[1] + " XI";
 						const teamDisplayName = this.mapTeamName(teamName.replace(" XI", "s"));
-						answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamDisplayName}.`;
+						if (value === 0) {
+							answer = `${playerName} has not scored any goals for the ${teamDisplayName}.`;
+						} else {
+							answer = `${playerName} has scored ${value} ${value === 1 ? "goal" : "goals"} for the ${teamDisplayName}.`;
+						}
 					}
 				} else {
 					// Handle appearances count special case
