@@ -34,24 +34,32 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 		const weekNumber = parseInt(week, 10);
+		const weekString = week.toString();
+
+		// Construct seasonWeek string from season and week (format: "2025/26-44")
+		const seasonWeek = `${season}-${weekNumber}`;
 
 		// Fetch all MatchDetail nodes for the player in that week
 		// Using TOTW_HAS_DETAILS relationship which connects WeeklyTOTW to MatchDetail
 		// Also fetch related Fixture for match summary
+		// Explicitly filter MatchDetail by seasonWeek to ensure correct matching
 		const query = `
-			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season, week: $weekNumber})-[:TOTW_HAS_DETAILS]-(md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName})
+			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})
+			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
+			MATCH (wt)-[:TOTW_HAS_DETAILS]-(md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonWeek: $seasonWeek})
 			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[r:HAS_MATCH_DETAILS]->(md)
-			RETURN md, f.fullResult as matchSummary, f.opposition as opposition
+			RETURN md, f.fullResult as matchSummary, f.opposition as opposition, f.result as result
 			ORDER BY md.date ASC
 		`;
 
-		const result = await neo4jService.runQuery(query, { graphLabel, season, weekNumber, playerName });
+		const queryResult = await neo4jService.runQuery(query, { graphLabel, season, weekNumber, weekString, seasonWeek, playerName });
 
-		const matchDetails = result.records.map((record) => {
+		const matchDetails = queryResult.records.map((record) => {
 			const mdNode = record.get("md");
 			const properties = mdNode.properties;
 			const matchSummary = record.get("matchSummary");
 			const opposition = record.get("opposition");
+			const result = record.get("result");
 
 			return {
 				team: String(properties.team || ""),
@@ -74,6 +82,7 @@ export async function GET(request: NextRequest) {
 				penaltiesSaved: Number(properties.penaltiesSaved || 0),
 				matchSummary: matchSummary ? String(matchSummary) : null,
 				opposition: opposition ? String(opposition) : null,
+				result: result ? String(result) : null,
 			};
 		});
 
