@@ -190,9 +190,10 @@ export default function PlayerDetailModal({ playerName, matchDetails, onClose }:
 	const playerAppearances = matchDetails.length;
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4' onClick={onClose}>
+		<div className='fixed inset-0 flex items-center justify-center z-50 p-4' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }} onClick={onClose}>
 			<div
-				className='bg-green-600 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto'
+				className='rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto'
+				style={{ backgroundColor: '#0f0f0f' }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header */}

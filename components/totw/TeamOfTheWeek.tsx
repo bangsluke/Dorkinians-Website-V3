@@ -36,6 +36,7 @@ export default function TeamOfTheWeek() {
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [playerDetails, setPlayerDetails] = useState<MatchDetailWithSummary[] | null>(null);
 	const [showModal, setShowModal] = useState(false);
+	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
 	// Fetch seasons on mount
 	useEffect(() => {
@@ -176,10 +177,11 @@ export default function TeamOfTheWeek() {
 	const handlePlayerClick = async (playerName: string) => {
 		if (!selectedSeason || !selectedWeek || !playerName) return;
 
+		const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
+		console.log("[TOTW] Player details query:", queryUrl);
+
 		try {
-			const response = await fetch(
-				`/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`,
-			);
+			const response = await fetch(queryUrl);
 			const data = await response.json();
 			if (data.matchDetails) {
 				setPlayerDetails(data.matchDetails);
@@ -290,9 +292,12 @@ export default function TeamOfTheWeek() {
 		const posKey = getPosKey(positionKey);
 		if (!posKey || !formationData[posKey]) return null;
 
+		// Apply centering offsets to better center the formation on the pitch
+		// Fine-tuned offsets to align formation with background image center
+		// Shift right by ~10% and down by ~15% to center the formation horizontally and align with background image
 		return {
-			x: formationData[posKey].x,
-			y: formationData[posKey].y,
+			x: formationData[posKey].x + 10,
+			y: formationData[posKey].y + 15,
 		};
 	};
 
@@ -398,8 +403,10 @@ export default function TeamOfTheWeek() {
 					TEAM OF THE WEEK
 				</h1>
 				<div 
-					className='relative group'
-					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
+					className='relative'
+					onMouseEnter={() => setShowInfoTooltip(true)}
+					onMouseLeave={() => setShowInfoTooltip(false)}
+					onTouchStart={() => setShowInfoTooltip(!showInfoTooltip)}
 				>
 					<svg 
 						xmlns='http://www.w3.org/2000/svg' 
@@ -407,40 +414,46 @@ export default function TeamOfTheWeek() {
 						viewBox='0 0 24 24' 
 						strokeWidth={1.5} 
 						stroke='currentColor' 
-						className='w-5 h-5 text-dorkinians-yellow cursor-help'
+						className='w-5 h-5 text-dorkinians-yellow cursor-pointer touch-manipulation'
 					>
 						<path strokeLinecap='round' strokeLinejoin='round' d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z' />
 					</svg>
+					{showInfoTooltip && (
+						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none'>
+							Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.
+							<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800'></div>
+						</div>
+					)}
 				</div>
 			</div>
 
 			{/* Filters */}
 			<div className='flex flex-row gap-4 mb-6'>
-				<div className='w-1/2'>
+				<div className='w-1/3 md:w-1/2'>
 					<select
 						value={selectedSeason}
 						onChange={(e) => setSelectedSeason(e.target.value)}
-						className='w-full text-sm text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow'
+						className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
 						style={{
 							background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
 							border: 'none',
 						}}
 					>
 						{seasons.map((season) => (
-							<option key={season} value={season} style={{ backgroundColor: '#1C8841', color: 'white' }}>
+							<option key={season} value={season} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
 								{season}
 							</option>
 						))}
 					</select>
 				</div>
-				<div className='w-1/2'>
+				<div className='flex-1 md:w-1/2'>
 					<select
 						value={selectedWeek || ''}
 						onChange={(e) => {
 							const weekValue = e.target.value ? Number(e.target.value) : 0;
 							setSelectedWeek(weekValue);
 						}}
-						className='w-full text-sm text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow'
+						className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
 						style={{
 							background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
 							border: 'none',
@@ -450,7 +463,7 @@ export default function TeamOfTheWeek() {
 							<option value=''>Loading...</option>
 						) : (
 							weeks.map((week) => (
-								<option key={week.week} value={week.week} style={{ backgroundColor: '#1C8841', color: 'white' }}>
+								<option key={week.week} value={week.week} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
 									Week {week.week} ({week.dateLookup || ''})
 								</option>
 							))
@@ -460,16 +473,22 @@ export default function TeamOfTheWeek() {
 			</div>
 
 			{/* Summary Statistics */}
-			<div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 items-start'>
-				<div>
-					<p className='text-gray-300 font-bold mb-2'>TOTW TOTAL POINTS:</p>
-					<p className='text-4xl font-bold text-gray-300'>{totwData?.totwScore || 0}</p>
-					<p className='text-gray-300 mt-2'>Number Players Played: {totwData?.playerCount || 0}</p>
+			<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
+				<div className='text-center flex flex-col md:w-auto'>
+					<div className='h-5 mb-2 flex items-center justify-center'>
+						<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+					</div>
+					<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
+						<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+					</div>
+					<p className='text-gray-300 mt-2 text-xs md:text-sm'>Number Players Played: {totwData?.playerCount || 0}</p>
 				</div>
-				<div className='flex flex-col'>
-					<p className='text-gray-300 font-bold mb-2'>STAR MAN</p>
+				<div className='flex flex-col items-center flex-shrink-0'>
+					<div className='h-5 mb-2 flex items-center justify-center'>
+						<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
+					</div>
 					{totwData?.starMan && (
-						<div className='flex flex-col items-start gap-2'>
+						<div className='flex flex-col items-center gap-2'>
 							<div className='relative w-12 h-12 md:w-14 md:h-14'>
 								<Image
 									src='/totw-images/Kit.svg'
@@ -478,9 +497,9 @@ export default function TeamOfTheWeek() {
 									className='object-contain'
 								/>
 							</div>
-							<div className='bg-green-600 text-white px-4 py-1 rounded text-center'>
-								<div>{totwData.starMan}</div>
-								<div className='font-bold mt-1'>{totwData.starManScore}</div>
+							<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+								<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+								<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
 							</div>
 						</div>
 					)}
@@ -502,6 +521,7 @@ export default function TeamOfTheWeek() {
 								alt='Football Pitch'
 								fill
 								className='object-cover w-full h-full'
+								style={{ objectPosition: 'center top' }}
 								priority
 							/>
 						</div>
@@ -533,10 +553,10 @@ export default function TeamOfTheWeek() {
 												className='object-contain'
 											/>
 										</div>
-										<div className='bg-green-600 text-white px-2 py-1 rounded text-xs md:text-sm text-center min-w-[60px]'>
-											{formatPlayerName(player.name)}
+										<div className='bg-green-600 text-white px-2 py-1.5 rounded text-xs md:text-sm text-center min-w-[60px]' style={{ backgroundColor: 'rgba(28, 136, 65, 0.95)' }}>
+											<div>{formatPlayerName(player.name)}</div>
+											<div className='font-bold mt-0.5'>{Math.round(player.ftp)}</div>
 										</div>
-										<div className='text-white font-bold text-xs md:text-sm mt-1'>{player.ftp}</div>
 									</div>
 								</div>
 							);
