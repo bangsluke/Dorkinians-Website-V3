@@ -427,3 +427,13 @@
 	scrollbar-width: thin;
 	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+/* Player Detail Modal - Reduced scrollbar width (50% of default) */
+.player-detail-scrollable::-webkit-scrollbar {
+	width: 6px;
+}
+
+.player-detail-scrollable {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
