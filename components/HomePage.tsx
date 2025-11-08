@@ -61,7 +61,7 @@ export default function HomePage() {
 			<Header onSettingsClick={handleSettingsClick} />
 
 			{/* Main Content */}
-			<main className='pt-20 pb-24 px-4 h-screen'>
+			<main className='pt-20 pb-24 px-4 min-h-screen'>
 				<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
 			</main>
 
