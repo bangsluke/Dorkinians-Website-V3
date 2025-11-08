@@ -13,6 +13,7 @@ interface FTPBreakdown {
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
 	opposition?: string | null;
+	result?: string | null;
 }
 
 interface PlayerDetailModalProps {
@@ -177,94 +178,147 @@ export default function PlayerDetailModal({ playerName, matchDetails, onClose }:
 		}, 0);
 	};
 
-	// Get match summary text (e.g., "Dorkinians 1st XI 3-2 Honourable Artillery Company First")
-	const getMatchSummary = (match: MatchDetailWithSummary): string => {
-		if (match.matchSummary) {
-			return match.matchSummary;
+	// Get match summary split into team/opposition and result/score
+	const getMatchSummary = (match: MatchDetailWithSummary): { teamOpposition: string; resultScore: string } => {
+		const team = match.team || "";
+		const opposition = match.opposition || "";
+		const result = match.result || "";
+		const score = match.matchSummary || "";
+
+		if (team && opposition && result && score) {
+			// Check if score already starts with any result code (W, D, L) to avoid duplication
+			// If so, just use the score as-is
+			const scoreTrimmed = score.trim();
+			let resultScoreText = "";
+			if (scoreTrimmed.match(/^(W|D|L)\s/)) {
+				resultScoreText = scoreTrimmed;
+			} else {
+				// Otherwise, combine result and score
+				resultScoreText = `${result} ${scoreTrimmed}`;
+			}
+			return {
+				teamOpposition: `${team} vs ${opposition}`,
+				resultScore: resultScoreText,
+			};
 		}
+
 		// Fallback to basic summary
-		return `${match.team} - ${match.date}`;
+		if (match.matchSummary) {
+			return {
+				teamOpposition: match.matchSummary,
+				resultScore: "",
+			};
+		}
+		return {
+			teamOpposition: `${match.team} - ${match.date}`,
+			resultScore: "",
+		};
 	};
 
 	const totalFTP = calculateTotalFTP();
 	const playerAppearances = matchDetails.length;
 
 	return (
-		<div className='fixed inset-0 flex items-center justify-center z-50 p-4' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }} onClick={onClose}>
+		<div className='fixed inset-0 flex items-center justify-center z-50 p-2' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)', height: '90vh', maxHeight: '100vh' }} onClick={onClose}>
 			<div
-				className='rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto'
+				className='rounded-lg pt-16 pb-8 px-6 max-w-2xl w-full h-[95vh] flex flex-col'
 				style={{ backgroundColor: '#0f0f0f' }}
 				onClick={(e) => e.stopPropagation()}
 			>
-				{/* Header */}
-				<div className='flex justify-between items-center mb-4'>
-					<h2 className='text-2xl font-bold text-white uppercase'>{playerName}</h2>
-					<button onClick={onClose} className='text-white hover:text-gray-200'>
-						<XMarkIcon className='h-6 w-6' />
-					</button>
-				</div>
+				{/* Scrollable content */}
+				<div 
+					className='flex-1 overflow-y-auto min-h-0 player-detail-scrollable' 
+					style={{ 
+						WebkitOverflowScrolling: 'touch',
+						paddingTop: '1rem',
+						paddingBottom: '1rem'
+					}}
+				>
+					{/* Player Name with Close button */}
+					<div className='flex justify-between items-center mb-4'>
+						<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
+						<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
+							<XMarkIcon className='h-6 w-6' />
+						</button>
+					</div>
 
-				{/* Player Appearances */}
-				<div className='text-center mb-4'>
-					<p className='text-white'>
-						Player Appearances: <span className='font-bold'>{playerAppearances}</span>
-					</p>
-				</div>
-
-				{/* Match Details */}
-				{matchDetails.map((match, matchIndex) => {
-					const breakdown = calculateFTPBreakdown(match);
-					const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
-					const visibleStats = breakdown.filter((stat) => stat.show);
-
-					return (
-						<div key={matchIndex} className='mb-6 last:mb-0'>
-							{/* Match Summary */}
-							<p className='text-white text-center mb-3 font-semibold'>{getMatchSummary(match)}</p>
-
-							{/* Statistics Table */}
-							<div className='overflow-x-auto'>
-								<table className='w-full text-white'>
-									<thead>
-										<tr className='border-b-2 border-dorkinians-yellow'>
-											<th className='text-left py-2 px-2'>Statistics</th>
-											<th className='text-center py-2 px-2'>Value</th>
-											<th className='text-center py-2 px-2'>Points</th>
-										</tr>
-									</thead>
-									<tbody>
-										{visibleStats.map((stat, index) => (
-											<tr key={index} className='border-b border-green-500'>
-												<td className='py-2 px-2'>{stat.stat}</td>
-												<td className='text-center py-2 px-2'>{stat.value}</td>
-												<td className='text-center py-2 px-2'>{stat.points}</td>
-											</tr>
-										))}
-										{matchDetails.length > 1 && (
-											<tr className='border-t-2 border-dorkinians-yellow font-bold'>
-												<td className='py-2 px-2'>Match Total</td>
-												<td className='text-center py-2 px-2'></td>
-												<td className='text-center py-2 px-2'>{matchTotal}</td>
-											</tr>
-										)}
-									</tbody>
-								</table>
-							</div>
+					{/* Player Appearances - Only show if > 1 */}
+					{playerAppearances > 1 && (
+						<div className='text-center mb-4'>
+							<p className='text-white text-xs md:text-sm'>
+								Player Appearances: <span className='font-bold'>{playerAppearances}</span>
+							</p>
 						</div>
-					);
-				})}
+					)}
 
-				{/* Total Points */}
-				<div className='mt-4 pt-4 border-t-2 border-dorkinians-yellow'>
-					<table className='w-full text-white'>
-						<tbody>
-							<tr className='font-bold text-lg'>
-								<td className='py-2 px-2'>Total Points</td>
-								<td className='text-center py-2 px-2'></td>
-								<td className='text-center py-2 px-2'>{totalFTP}</td>
-							</tr>
-						</tbody>
-					</table>
+					{/* Match Details */}
+					{matchDetails.map((match, matchIndex) => {
+						const breakdown = calculateFTPBreakdown(match);
+						const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
+						const visibleStats = breakdown.filter((stat) => stat.show);
+						const matchSummary = getMatchSummary(match);
+
+						return (
+							<div key={matchIndex}>
+								{/* White line break between fixtures (except for first fixture) */}
+								{matchIndex > 0 && (
+									<div className='border-t border-white my-6'></div>
+								)}
+								
+								<div className={matchIndex > 0 ? 'mt-6' : 'mb-6'}>
+									{/* Match Summary - Split into two lines */}
+									<div className='text-center mb-3'>
+										<p className='text-white text-xs md:text-sm font-normal'>{matchSummary.teamOpposition}</p>
+										{matchSummary.resultScore && (
+											<p className='text-white text-sm md:text-base font-semibold mt-1'>{matchSummary.resultScore}</p>
+										)}
+									</div>
+
+									{/* Statistics Table */}
+									<div className='overflow-x-auto'>
+										<table className='w-full text-white'>
+											<thead>
+												<tr className='border-b-2 border-dorkinians-yellow'>
+													<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
+													<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
+													<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
+												</tr>
+											</thead>
+											<tbody>
+												{visibleStats.map((stat, index) => (
+													<tr key={index} className='border-b border-green-500'>
+														<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
+														<td className='text-center py-2 px-2'>{stat.value}</td>
+														<td className='text-center py-2 px-2'>{stat.points}</td>
+													</tr>
+												))}
+												{matchDetails.length > 1 && (
+													<tr className='border-t-2 border-dorkinians-yellow font-bold'>
+														<td className='py-2 px-2 text-xs md:text-sm'>Match Total</td>
+														<td className='text-center py-2 px-2'></td>
+														<td className='text-center py-2 px-2'>{matchTotal}</td>
+													</tr>
+												)}
+											</tbody>
+										</table>
+									</div>
+								</div>
+							</div>
+						);
+					})}
+
+					{/* Total Points */}
+					<div className='mt-4 pt-4 pb-4 border-t-2 border-white'>
+						<table className='w-full text-white'>
+							<tbody>
+								<tr className='font-bold text-lg'>
+									<td className='py-2 px-2'>Total Points</td>
+									<td className='text-center py-2 px-2'></td>
+									<td className='text-center py-2 px-2'>{totalFTP}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
 				</div>
 			</div>
 		</div>

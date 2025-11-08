@@ -32,7 +32,7 @@ export default function TeamOfTheWeek() {
 	const [selectedWeek, setSelectedWeek] = useState<number>(0);
 	const [totwData, setTotwData] = useState<WeeklyTOTW | null>(null);
 	const [players, setPlayers] = useState<TOTWPlayer[]>([]);
-	const [loading, setLoading] = useState(false);
+	const [loading, setLoading] = useState(true);
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [playerDetails, setPlayerDetails] = useState<MatchDetailWithSummary[] | null>(null);
 	const [showModal, setShowModal] = useState(false);
@@ -479,29 +479,43 @@ export default function TeamOfTheWeek() {
 						<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
 					</div>
 					<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
-						<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+						{loading || !totwData ? (
+							<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
+						) : (
+							<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+						)}
 					</div>
-					<p className='text-gray-300 mt-2 text-xs md:text-sm'>Number Players Played: {totwData?.playerCount || 0}</p>
+					{!loading && totwData && (
+						<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
+					)}
 				</div>
 				<div className='flex flex-col items-center flex-shrink-0'>
 					<div className='h-5 mb-2 flex items-center justify-center'>
 						<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
 					</div>
-					{totwData?.starMan && (
+					{loading || !totwData ? (
 						<div className='flex flex-col items-center gap-2'>
-							<div className='relative w-12 h-12 md:w-14 md:h-14'>
-								<Image
-									src='/totw-images/Kit.svg'
-									alt='Star Man Kit'
-									fill
-									className='object-contain'
-								/>
-							</div>
-							<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
-								<div className='text-xs md:text-sm'>{totwData.starMan}</div>
-								<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
+							<div className='relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center'>
+								<div className='animate-spin rounded-full h-12 w-12 md:h-14 md:w-14 border-b-2 border-gray-300'></div>
 							</div>
 						</div>
+					) : (
+						totwData?.starMan && (
+							<div className='flex flex-col items-center gap-2'>
+								<div className='relative w-12 h-12 md:w-14 md:h-14'>
+									<Image
+										src='/totw-images/Kit.svg'
+										alt='Star Man Kit'
+										fill
+										className='object-contain'
+									/>
+								</div>
+								<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+									<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+									<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
+								</div>
+							</div>
+						)
 					)}
 				</div>
 			</div>
@@ -555,7 +569,9 @@ export default function TeamOfTheWeek() {
 										</div>
 										<div className='bg-green-600 text-white px-2 py-1.5 rounded text-xs md:text-sm text-center min-w-[60px]' style={{ backgroundColor: 'rgba(28, 136, 65, 0.95)' }}>
 											<div>{formatPlayerName(player.name)}</div>
-											<div className='font-bold mt-0.5'>{Math.round(player.ftp)}</div>
+											<div className='font-bold mt-0.5'>
+												{!loading && totwData && Math.round(player.ftp)}
+											</div>
 										</div>
 									</div>
 								</div>
