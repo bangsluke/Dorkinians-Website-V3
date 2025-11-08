@@ -29,10 +29,12 @@ export async function GET(request: NextRequest) {
 			ORDER BY wt.season DESC
 		`;
 
-		// Fetch current season from SiteDetail node
+		// Fetch current season and latest gameweek from SiteDetail node
 		const currentSeasonQuery = `
 			MATCH (sd:SiteDetail {graphLabel: $graphLabel})
-			RETURN sd.currentSeason as currentSeason
+			RETURN sd.currentSeason as currentSeason,
+			       sd.latestGameweek as latestGameweek,
+			       sd.latestGameweekDate as latestGameweekDate
 			LIMIT 1
 		`;
 
@@ -44,8 +46,10 @@ export async function GET(request: NextRequest) {
 		const seasons = seasonsResult.records.map((record) => String(record.get("season") || ""));
 		const currentSeasonRecord = currentSeasonResult.records[0];
 		const currentSeason = currentSeasonRecord ? String(currentSeasonRecord.get("currentSeason") || "") : null;
+		const latestGameweek = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweek") || "") : null;
+		const latestGameweekDate = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweekDate") || "") : null;
 
-		return NextResponse.json({ seasons, currentSeason }, { headers: corsHeaders });
+		return NextResponse.json({ seasons, currentSeason, latestGameweek, latestGameweekDate }, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching seasons:", error);
 		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: corsHeaders });

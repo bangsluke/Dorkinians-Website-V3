@@ -42,22 +42,7 @@ export async function GET(request: NextRequest) {
 			RETURN wt
 		`;
 
-		// Fetch player relationships with FTP scores
-		// Try to get ftpScore from IN_WEEKLY_TOTW relationship first, fallback to MatchDetail fantasyPoints
-		const playersQuery = `
-			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})-[r:IN_WEEKLY_TOTW]-(p:Player {graphLabel: $graphLabel})
-			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
-			OPTIONAL MATCH (wt)-[:TOTW_HAS_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel, playerName: p.playerName})
-			WITH p, r, COALESCE(r.ftpScore, md.fantasyPoints, 0) as ftpScore, r.position as position
-			RETURN p.playerName as playerName, ftpScore, position
-		`;
-
-		const [totwResult, playersResult] = await Promise.all([
-			neo4jService.runQuery(totwQuery, { graphLabel, season, weekNumber, weekString }),
-			neo4jService.runQuery(playersQuery, { graphLabel, season, weekNumber, weekString }),
-		]);
-
-		console.log(`[API] Found ${totwResult.records.length} TOTW records, ${playersResult.records.length} player records`);
+		const totwResult = await neo4jService.runQuery(totwQuery, { graphLabel, season, weekNumber, weekString });
 
 		if (totwResult.records.length === 0) {
 			console.log(`[API] No TOTW data found for season: ${season}, week: ${weekNumber}`);
@@ -67,6 +52,27 @@ export async function GET(request: NextRequest) {
 
 		const wtNode = totwResult.records[0].get("wt");
 		const properties = wtNode.properties;
+
+		// Construct seasonWeek string from WeeklyTOTW season and week properties
+		const totwSeason = String(properties.season || season);
+		const totwWeek = Number(properties.week || weekNumber);
+		const seasonWeek = `${totwSeason}-${totwWeek}`;
+
+		console.log(`[API] Constructed seasonWeek: ${seasonWeek}`);
+
+		// Fetch player relationships with FTP scores
+		// Sum all MatchDetail fantasyPoints for each player where seasonWeek matches
+		const playersQuery = `
+			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})-[r:IN_WEEKLY_TOTW]-(p:Player {graphLabel: $graphLabel})
+			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
+			OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel, seasonWeek: $seasonWeek})
+			WITH p, r, sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore, r.position as position
+			RETURN p.playerName as playerName, totalFtpScore as ftpScore, position
+		`;
+
+		const playersResult = await neo4jService.runQuery(playersQuery, { graphLabel, season, weekNumber, weekString, seasonWeek });
+
+		console.log(`[API] Found ${totwResult.records.length} TOTW records, ${playersResult.records.length} player records`);
 
 		// Build WeeklyTOTW object
 		const totwData: WeeklyTOTW = {

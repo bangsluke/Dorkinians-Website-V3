@@ -87,15 +87,26 @@ export default function TeamOfTheWeek() {
 				
 				if (data.weeks && Array.isArray(data.weeks)) {
 					setWeeks(data.weeks);
-					if (data.currentWeek !== null && data.currentWeek !== undefined) {
-						console.log("Setting current week to:", data.currentWeek);
-						setCurrentWeek(data.currentWeek);
-						setSelectedWeek(data.currentWeek);
-					} else if (data.weeks.length > 0) {
-						const lastWeek = data.weeks[data.weeks.length - 1].week;
-						console.log("No current week found, using last week:", lastWeek);
-						setCurrentWeek(lastWeek);
-						setSelectedWeek(lastWeek);
+					// Prioritize latestGameweek from SiteDetail, then currentWeek, then last week in list
+					let weekToSelect: number | null = null;
+					if (data.latestGameweek && data.latestGameweek !== "") {
+						const latestWeekNum = Number(data.latestGameweek);
+						if (!isNaN(latestWeekNum)) {
+							weekToSelect = latestWeekNum;
+							console.log("Setting week to latestGameweek from SiteDetail:", weekToSelect);
+						}
+					}
+					if (weekToSelect === null && data.currentWeek !== null && data.currentWeek !== undefined) {
+						weekToSelect = data.currentWeek;
+						console.log("Setting week to currentWeek from API:", weekToSelect);
+					}
+					if (weekToSelect === null && data.weeks.length > 0) {
+						weekToSelect = data.weeks[data.weeks.length - 1].week;
+						console.log("Setting week to last week in list:", weekToSelect);
+					}
+					if (weekToSelect !== null) {
+						setCurrentWeek(weekToSelect);
+						setSelectedWeek(weekToSelect);
 					} else {
 						console.log("No weeks found for season:", selectedSeason);
 						setWeeks([]);
@@ -440,7 +451,7 @@ export default function TeamOfTheWeek() {
 						) : (
 							weeks.map((week) => (
 								<option key={week.week} value={week.week} style={{ backgroundColor: '#1C8841', color: 'white' }}>
-									Week {week.weekAdjusted} ({week.dateLookup || ''})
+									Week {week.week} ({week.dateLookup || ''})
 								</option>
 							))
 						)}
