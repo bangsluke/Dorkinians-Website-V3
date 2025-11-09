@@ -92,6 +92,38 @@ export interface CachedTOTWWeekData {
 	players: TOTWPlayer[];
 }
 
+// Players of the Month cache interfaces
+export interface POMMonthPlayer {
+	rank: number;
+	playerName: string;
+	ftpScore: number;
+}
+
+export interface POMMonthPlayerStats {
+	appearances: number;
+	goals: number;
+	assists: number;
+	cleanSheets: number;
+	mom: number;
+	yellowCards: number;
+	redCards: number;
+	saves: number;
+	ownGoals: number;
+	conceded: number;
+	penaltiesScored: number;
+	penaltiesMissed: number;
+	penaltiesSaved: number;
+	matchDetails: any[];
+}
+
+export interface CachedPOMSeasons {
+	seasons: string[];
+}
+
+export interface CachedPOMMonthData {
+	players: POMMonthPlayer[];
+}
+
 // Filter interfaces
 export interface PlayerFilters {
 	timeRange: {
@@ -148,6 +180,11 @@ interface NavigationState {
 	cachedTOTWSeasons: CachedTOTWSeasons | null;
 	cachedTOTWWeeks: Record<string, CachedTOTWWeeks>; // Keyed by season
 	cachedTOTWWeekData: Record<string, CachedTOTWWeekData>; // Keyed by "season:week"
+	// Players of the Month data cache
+	cachedPOMSeasons: CachedPOMSeasons | null;
+	cachedPOMMonths: Record<string, string[]>; // Keyed by season
+	cachedPOMMonthData: Record<string, CachedPOMMonthData>; // Keyed by "season:month"
+	cachedPOMPlayerStats: Record<string, POMMonthPlayerStats>; // Keyed by "season:month:playerName"
 	// Navigation actions
 	setMainPage: (page: MainPage) => void;
 	setStatsSubPage: (page: StatsSubPage) => void;
@@ -184,6 +221,15 @@ interface NavigationState {
 	getCachedTOTWSeasons: () => CachedTOTWSeasons | null;
 	getCachedTOTWWeeks: (season: string) => CachedTOTWWeeks | null;
 	getCachedTOTWWeekData: (season: string, week: number) => CachedTOTWWeekData | null;
+	// Players of the Month cache actions
+	cachePOMSeasons: (seasons: string[]) => void;
+	cachePOMMonths: (season: string, months: string[]) => void;
+	cachePOMMonthData: (season: string, month: string, players: POMMonthPlayer[]) => void;
+	cachePOMPlayerStats: (season: string, month: string, playerName: string, stats: POMMonthPlayerStats) => void;
+	getCachedPOMSeasons: () => CachedPOMSeasons | null;
+	getCachedPOMMonths: (season: string) => string[] | null;
+	getCachedPOMMonthData: (season: string, month: string) => CachedPOMMonthData | null;
+	getCachedPOMPlayerStats: (season: string, month: string, playerName: string) => POMMonthPlayerStats | null;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -234,6 +280,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	cachedTOTWSeasons: null,
 	cachedTOTWWeeks: {},
 	cachedTOTWWeekData: {},
+	// Players of the Month data cache initial state
+	cachedPOMSeasons: null,
+	cachedPOMMonths: {},
+	cachedPOMMonthData: {},
+	cachedPOMPlayerStats: {},
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
@@ -672,5 +723,69 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const { cachedTOTWWeekData } = get();
 		const cacheKey = `${season}:${week}`;
 		return cachedTOTWWeekData[cacheKey] || null;
+	},
+
+	// Players of the Month cache actions
+	cachePOMSeasons: (seasons: string[]) => {
+		set({
+			cachedPOMSeasons: {
+				seasons,
+			},
+		});
+	},
+
+	cachePOMMonths: (season: string, months: string[]) => {
+		const { cachedPOMMonths } = get();
+		set({
+			cachedPOMMonths: {
+				...cachedPOMMonths,
+				[season]: months,
+			},
+		});
+	},
+
+	cachePOMMonthData: (season: string, month: string, players: POMMonthPlayer[]) => {
+		const { cachedPOMMonthData } = get();
+		const cacheKey = `${season}:${month}`;
+		set({
+			cachedPOMMonthData: {
+				...cachedPOMMonthData,
+				[cacheKey]: {
+					players,
+				},
+			},
+		});
+	},
+
+	cachePOMPlayerStats: (season: string, month: string, playerName: string, stats: POMMonthPlayerStats) => {
+		const { cachedPOMPlayerStats } = get();
+		const cacheKey = `${season}:${month}:${playerName}`;
+		set({
+			cachedPOMPlayerStats: {
+				...cachedPOMPlayerStats,
+				[cacheKey]: stats,
+			},
+		});
+	},
+
+	getCachedPOMSeasons: () => {
+		return get().cachedPOMSeasons;
+	},
+
+	getCachedPOMMonths: (season: string) => {
+		const { cachedPOMMonths } = get();
+		return cachedPOMMonths[season] || null;
+	},
+
+	getCachedPOMMonthData: (season: string, month: string) => {
+		const { cachedPOMMonthData } = get();
+		const cacheKey = `${season}:${month}`;
+		return cachedPOMMonthData[cacheKey] || null;
+	},
+
+	getCachedPOMPlayerStats: (season: string, month: string, playerName: string) => {
+		const { cachedPOMPlayerStats } = get();
+		const cacheKey = `${season}:${month}:${playerName}`;
+		return cachedPOMPlayerStats[cacheKey] || null;
 	},
 }));
