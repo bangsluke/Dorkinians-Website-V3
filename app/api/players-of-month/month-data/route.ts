@@ -66,6 +66,32 @@ export async function GET(request: NextRequest) {
 			LIMIT 1
 		`;
 
+		// Combine season and month into format "season-month" (e.g., "2025/26-October")
+		const seasonMonth = `${season}-${month}`;
+
+		// Helper function to calculate ftpScore from MatchDetail nodes
+		const calculateFtpScore = async (playerName: string): Promise<number> => {
+			const ftpQuery = `
+				MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonMonth: $seasonMonth})
+				RETURN sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore
+			`;
+
+			const ftpResult = await neo4jService.runQuery(ftpQuery, {
+				graphLabel,
+				playerName,
+				seasonMonth,
+			});
+
+			if (ftpResult.records.length > 0) {
+				const totalFtpScore = ftpResult.records[0].get("totalFtpScore");
+				return totalFtpScore !== null && totalFtpScore !== undefined
+					? Number(totalFtpScore)
+					: 0;
+			}
+
+			return 0;
+		};
+
 		const monthNum = String(monthIndex + 1).padStart(2, "0");
 		const result = await neo4jService.runQuery(monthDataQuery, { graphLabel, season, monthNum });
 
@@ -110,12 +136,12 @@ export async function GET(request: NextRequest) {
 			const players = [];
 			for (let i = 1; i <= 5; i++) {
 				const playerName = properties[`player${i}Name`];
-				const playerScore = properties[`player${i}Score`];
 				if (playerName) {
+					const ftpScore = await calculateFtpScore(String(playerName));
 					players.push({
 						rank: i,
 						playerName: String(playerName),
-						ftpScore: playerScore !== null && playerScore !== undefined ? Number(playerScore) : 0,
+						ftpScore: ftpScore,
 					});
 				}
 			}
@@ -129,12 +155,12 @@ export async function GET(request: NextRequest) {
 		const players = [];
 		for (let i = 1; i <= 5; i++) {
 			const playerName = properties[`player${i}Name`];
-			const playerScore = properties[`player${i}Score`];
 			if (playerName) {
+				const ftpScore = await calculateFtpScore(String(playerName));
 				players.push({
 					rank: i,
 					playerName: String(playerName),
-					ftpScore: playerScore !== null && playerScore !== undefined ? Number(playerScore) : 0,
+					ftpScore: ftpScore,
 				});
 			}
 		}

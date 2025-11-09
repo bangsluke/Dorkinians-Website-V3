@@ -89,6 +89,15 @@ export async function GET(request: NextRequest) {
 		const goals = matchDetails.reduce((sum, md) => sum + md.goals, 0);
 		const assists = matchDetails.reduce((sum, md) => sum + md.assists, 0);
 		const cleanSheets = matchDetails.reduce((sum, md) => sum + md.cleanSheets, 0);
+		const mom = matchDetails.reduce((sum, md) => sum + (md.mom ? 1 : 0), 0);
+		const yellowCards = matchDetails.reduce((sum, md) => sum + md.yellowCards, 0);
+		const redCards = matchDetails.reduce((sum, md) => sum + md.redCards, 0);
+		const saves = matchDetails.reduce((sum, md) => sum + md.saves, 0);
+		const ownGoals = matchDetails.reduce((sum, md) => sum + md.ownGoals, 0);
+		const conceded = matchDetails.reduce((sum, md) => sum + md.conceded, 0);
+		const penaltiesScored = matchDetails.reduce((sum, md) => sum + md.penaltiesScored, 0);
+		const penaltiesMissed = matchDetails.reduce((sum, md) => sum + md.penaltiesMissed, 0);
+		const penaltiesSaved = matchDetails.reduce((sum, md) => sum + md.penaltiesSaved, 0);
 
 		return NextResponse.json(
 			{
@@ -97,6 +106,15 @@ export async function GET(request: NextRequest) {
 				goals,
 				assists,
 				cleanSheets,
+				mom,
+				yellowCards,
+				redCards,
+				saves,
+				ownGoals,
+				conceded,
+				penaltiesScored,
+				penaltiesMissed,
+				penaltiesSaved,
 			},
 			{ headers: corsHeaders },
 		);

@@ -13,6 +13,15 @@ interface PlayerStats {
 	goals: number;
 	assists: number;
 	cleanSheets: number;
+	mom: number;
+	yellowCards: number;
+	redCards: number;
+	saves: number;
+	ownGoals: number;
+	conceded: number;
+	penaltiesScored: number;
+	penaltiesMissed: number;
+	penaltiesSaved: number;
 	matchDetails: MatchDetailWithSummary[];
 }
 
@@ -54,9 +63,10 @@ export default function PlayersOfMonth() {
 	const [selectedMonth, setSelectedMonth] = useState<string>("");
 	const [players, setPlayers] = useState<Player[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [loadingStats, setLoadingStats] = useState(true);
 	const [expandedPlayers, setExpandedPlayers] = useState<Set<string>>(new Set());
 	const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({});
-	const [loadingStats, setLoadingStats] = useState<Set<string>>(new Set());
+	const [loadingIndividualStats, setLoadingIndividualStats] = useState<Set<string>>(new Set());
 
 	// Fetch seasons on mount
 	useEffect(() => {
@@ -72,8 +82,6 @@ export default function PlayersOfMonth() {
 				}
 			} catch (error) {
 				console.error("Error fetching seasons:", error);
-			} finally {
-				setLoading(false);
 			}
 		};
 		fetchSeasons();
@@ -153,13 +161,107 @@ export default function PlayersOfMonth() {
 			} catch (error) {
 				console.error(`[PlayersOfMonth] Error fetching month data for ${selectedMonth} ${selectedSeason}:`, error);
 				setPlayers([]);
-			} finally {
 				setLoading(false);
+				setLoadingStats(false);
+			} finally {
+				// Don't set loading to false here - wait for stats to load
 				console.log(`[PlayersOfMonth] Month data fetch completed`);
 			}
 		};
 		fetchMonthData();
 	}, [selectedSeason, selectedMonth]);
+
+	// Fetch stats for all players when players list changes
+	useEffect(() => {
+		if (!selectedSeason || !selectedMonth || players.length === 0) {
+			setLoadingStats(false);
+			if (players.length === 0) {
+				setLoading(false);
+			}
+			return;
+		}
+
+		const fetchAllPlayerStats = async () => {
+			setLoadingStats(true);
+			setLoading(true);
+			const statsPromises = players.map(async (player) => {
+				if (playerStats[player.playerName]) {
+					// Stats already loaded
+					return player.playerName;
+				}
+
+				const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(player.playerName)}`;
+				
+				try {
+					const response = await fetch(apiUrl);
+					if (!response.ok) {
+						console.error(`[PlayersOfMonth] Failed to fetch stats for ${player.playerName}`);
+						return player.playerName;
+					}
+
+					const data = await response.json();
+					if (data.matchDetails) {
+						const stats = {
+							appearances: data.appearances || 0,
+							goals: data.goals || 0,
+							assists: data.assists || 0,
+							cleanSheets: data.cleanSheets || 0,
+							mom: data.mom || 0,
+							yellowCards: data.yellowCards || 0,
+							redCards: data.redCards || 0,
+							saves: data.saves || 0,
+							ownGoals: data.ownGoals || 0,
+							conceded: data.conceded || 0,
+							penaltiesScored: data.penaltiesScored || 0,
+							penaltiesMissed: data.penaltiesMissed || 0,
+							penaltiesSaved: data.penaltiesSaved || 0,
+							matchDetails: data.matchDetails || [],
+						};
+
+						setPlayerStats((prev) => ({
+							...prev,
+							[player.playerName]: stats,
+						}));
+					}
+					return player.playerName;
+				} catch (error) {
+					console.error(`[PlayersOfMonth] Error fetching stats for ${player.playerName}:`, error);
+					return player.playerName;
+				}
+			});
+
+			await Promise.all(statsPromises);
+		};
+
+		fetchAllPlayerStats();
+	}, [players, selectedSeason, selectedMonth]);
+
+	// Check if all stats are loaded
+	useEffect(() => {
+		// Only check if we have a season and month selected (meaning we've attempted a fetch)
+		if (!selectedSeason || !selectedMonth) {
+			return;
+		}
+
+		if (players.length === 0) {
+			// Only set loading to false if we've actually attempted to fetch
+			// Use a small delay to ensure the fetch has completed
+			const timer = setTimeout(() => {
+				setLoadingStats(false);
+				setLoading(false);
+			}, 100);
+			return () => clearTimeout(timer);
+		}
+
+		const allStatsLoaded = players.length === 5 && players.every((player) => {
+			return playerStats[player.playerName] !== undefined;
+		});
+
+		if (allStatsLoaded) {
+			setLoadingStats(false);
+			setLoading(false);
+		}
+	}, [playerStats, players, selectedSeason, selectedMonth]);
 
 	// Fetch player stats when row is expanded
 	const handleRowExpand = async (playerName: string) => {
@@ -199,7 +301,7 @@ export default function PlayersOfMonth() {
 			playerName: playerName,
 		});
 
-		setLoadingStats((prev) => new Set(prev).add(playerName));
+		setLoadingIndividualStats((prev) => new Set(prev).add(playerName));
 
 		try {
 			const startTime = performance.now();
@@ -245,6 +347,15 @@ export default function PlayersOfMonth() {
 					goals: data.goals || 0,
 					assists: data.assists || 0,
 					cleanSheets: data.cleanSheets || 0,
+					mom: data.mom || 0,
+					yellowCards: data.yellowCards || 0,
+					redCards: data.redCards || 0,
+					saves: data.saves || 0,
+					ownGoals: data.ownGoals || 0,
+					conceded: data.conceded || 0,
+					penaltiesScored: data.penaltiesScored || 0,
+					penaltiesMissed: data.penaltiesMissed || 0,
+					penaltiesSaved: data.penaltiesSaved || 0,
 					matchDetails: data.matchDetails || [],
 				};
 				
@@ -264,7 +375,7 @@ export default function PlayersOfMonth() {
 				console.error(`[PlayersOfMonth] Error stack:`, error.stack);
 			}
 		} finally {
-			setLoadingStats((prev) => {
+			setLoadingIndividualStats((prev) => {
 				const newSet = new Set(prev);
 				newSet.delete(playerName);
 				return newSet;
@@ -426,7 +537,7 @@ export default function PlayersOfMonth() {
 		}, 0);
 	};
 
-	const isInitialLoading = loading || seasons.length === 0;
+	const isInitialLoading = loading || seasons.length === 0 || loadingStats;
 
 	return (
 		<div className='flex flex-col p-4 md:p-6 relative'>
@@ -487,7 +598,7 @@ export default function PlayersOfMonth() {
 			)}
 
 			{/* Players Table */}
-			{!loading && players.length > 0 && (
+			{!loading && !loadingStats && players.length > 0 && (
 				<div className='overflow-x-auto'>
 					<table className='w-full text-white'>
 						<thead>
@@ -498,21 +609,44 @@ export default function PlayersOfMonth() {
 							</tr>
 						</thead>
 						<tbody>
-							{players.map((player) => {
+							{players.map((player, index) => {
 								const isExpanded = expandedPlayers.has(player.playerName);
 								const stats = playerStats[player.playerName];
-								const isLoadingStats = loadingStats.has(player.playerName);
+								const isLoadingStats = loadingIndividualStats.has(player.playerName);
+								const isLastPlayer = index === players.length - 1;
 
 								return (
-									<>
+									<React.Fragment key={player.playerName}>
 										<tr
-											key={player.playerName}
-											className='border-b border-green-500 cursor-pointer hover:bg-gray-800 transition-colors'
+											className={`cursor-pointer hover:bg-gray-800 transition-colors ${isLastPlayer ? '' : 'border-b border-green-500'}`}
+											style={{
+												background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+											}}
 											onClick={() => handleRowExpand(player.playerName)}
 										>
-											<td className='py-2 px-2 text-xs md:text-sm'>{player.rank}</td>
-											<td className='py-2 px-2 text-xs md:text-sm'>{player.playerName}</td>
-											<td className='text-center py-2 px-2 text-xs md:text-sm font-bold'>{Math.round(player.ftpScore)}</td>
+											<td colSpan={3} className='p-0'>
+												<div className='flex flex-col'>
+													<div className='flex items-center py-2 px-2'>
+														<div className='w-1/12 text-xs md:text-sm'>{player.rank}</div>
+														<div className='flex-1 text-xs md:text-sm'>{player.playerName}</div>
+														<div className='w-1/12 text-center text-xs md:text-sm font-bold'>{Math.round(player.ftpScore)}</div>
+													</div>
+													{stats && (
+														<div className='py-1 px-2 pl-6 md:pl-8 pb-4'>
+															<div className='flex flex-wrap gap-x-4 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
+																{stats.appearances > 0 && <span>Apps: <span className='text-white font-semibold'>{stats.appearances}</span></span>}
+																{stats.goals > 0 && <span>Goals: <span className='text-white font-semibold'>{stats.goals}</span></span>}
+																{stats.assists > 0 && <span>Assists: <span className='text-white font-semibold'>{stats.assists}</span></span>}
+																{stats.cleanSheets > 0 && <span>Clean Sheets: <span className='text-white font-semibold'>{stats.cleanSheets}</span></span>}
+																{stats.mom > 0 && <span>MoM: <span className='text-white font-semibold'>{stats.mom}</span></span>}
+																{stats.saves > 0 && <span>Saves: <span className='text-white font-semibold'>{stats.saves}</span></span>}
+																{stats.penaltiesScored > 0 && <span>Pen Scored: <span className='text-white font-semibold'>{stats.penaltiesScored}</span></span>}
+																{stats.penaltiesSaved > 0 && <span>Pen Saved: <span className='text-white font-semibold'>{stats.penaltiesSaved}</span></span>}
+															</div>
+														</div>
+													)}
+												</div>
+											</td>
 										</tr>
 										{isExpanded && (
 											<tr>
@@ -617,7 +751,7 @@ export default function PlayersOfMonth() {
 												</td>
 											</tr>
 										)}
-									</>
+									</React.Fragment>
 								);
 							})}
 						</tbody>
@@ -626,7 +760,7 @@ export default function PlayersOfMonth() {
 			)}
 
 			{/* Empty State */}
-			{!loading && players.length === 0 && selectedSeason && selectedMonth && (
+			{!loading && !loadingStats && players.length === 0 && selectedSeason && selectedMonth && (
 				<div className='text-center py-8 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
 				</div>
