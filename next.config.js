@@ -1,4 +1,12 @@
 /** @type {import('next').NextConfig} */
+const fs = require("fs");
+const path = require("path");
+
+// Read version from package.json
+const packageJsonPath = path.join(__dirname, "package.json");
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+const appVersion = packageJson.version;
+
 const withPWA = require("next-pwa")({
 	dest: "public",
 	register: true,
@@ -52,6 +60,9 @@ const nextConfig = {
 	// experimental: {
 	// 	appDir: true
 	// }
+	env: {
+		NEXT_PUBLIC_APP_VERSION: appVersion,
+	},
 };
 
 module.exports = withPWA(nextConfig);
