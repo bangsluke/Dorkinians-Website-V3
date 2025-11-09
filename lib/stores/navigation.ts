@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { WeeklyTOTW } from "@/types";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
@@ -62,6 +63,35 @@ export interface CachedPlayerData {
 	selectedDate: string; // YYYY-MM-DD format
 }
 
+// TOTW cache interfaces
+export interface TOTWWeek {
+	week: number;
+	dateLookup: string;
+	weekAdjusted: string;
+}
+
+export interface TOTWPlayer {
+	playerName: string;
+	ftpScore: number;
+	position: string;
+}
+
+export interface CachedTOTWSeasons {
+	seasons: string[];
+	currentSeason: string | null;
+}
+
+export interface CachedTOTWWeeks {
+	weeks: TOTWWeek[];
+	currentWeek: number | null;
+	latestGameweek?: string;
+}
+
+export interface CachedTOTWWeekData {
+	totwData: WeeklyTOTW;
+	players: TOTWPlayer[];
+}
+
 // Filter interfaces
 export interface PlayerFilters {
 	timeRange: {
@@ -114,6 +144,10 @@ interface NavigationState {
 		competitions: Array<{ name: string; type: string }>;
 	};
 	isFilterDataLoaded: boolean;
+	// TOTW data cache
+	cachedTOTWSeasons: CachedTOTWSeasons | null;
+	cachedTOTWWeeks: Record<string, CachedTOTWWeeks>; // Keyed by season
+	cachedTOTWWeekData: Record<string, CachedTOTWWeekData>; // Keyed by "season:week"
 	// Navigation actions
 	setMainPage: (page: MainPage) => void;
 	setStatsSubPage: (page: StatsSubPage) => void;
@@ -143,6 +177,13 @@ interface NavigationState {
 	initializeFromStorage: () => void;
 	// Filter data loading
 	loadFilterData: () => Promise<void>;
+	// TOTW cache actions
+	cacheTOTWSeasons: (seasons: string[], currentSeason: string | null) => void;
+	cacheTOTWWeeks: (season: string, weeks: TOTWWeek[], currentWeek: number | null, latestGameweek?: string) => void;
+	cacheTOTWWeekData: (season: string, week: number, totwData: WeeklyTOTW, players: TOTWPlayer[]) => void;
+	getCachedTOTWSeasons: () => CachedTOTWSeasons | null;
+	getCachedTOTWWeeks: (season: string) => CachedTOTWWeeks | null;
+	getCachedTOTWWeekData: (season: string, week: number) => CachedTOTWWeekData | null;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -189,6 +230,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		competitions: [],
 	},
 	isFilterDataLoaded: false,
+	// TOTW data cache initial state
+	cachedTOTWSeasons: null,
+	cachedTOTWWeeks: {},
+	cachedTOTWWeekData: {},
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
@@ -574,5 +619,58 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		} catch (error) {
 			console.error("Failed to load filter data:", error);
 		}
+	},
+
+	// TOTW cache actions
+	cacheTOTWSeasons: (seasons: string[], currentSeason: string | null) => {
+		set({
+			cachedTOTWSeasons: {
+				seasons,
+				currentSeason,
+			},
+		});
+	},
+
+	cacheTOTWWeeks: (season: string, weeks: TOTWWeek[], currentWeek: number | null, latestGameweek?: string) => {
+		const { cachedTOTWWeeks } = get();
+		set({
+			cachedTOTWWeeks: {
+				...cachedTOTWWeeks,
+				[season]: {
+					weeks,
+					currentWeek,
+					latestGameweek,
+				},
+			},
+		});
+	},
+
+	cacheTOTWWeekData: (season: string, week: number, totwData: WeeklyTOTW, players: TOTWPlayer[]) => {
+		const { cachedTOTWWeekData } = get();
+		const cacheKey = `${season}:${week}`;
+		set({
+			cachedTOTWWeekData: {
+				...cachedTOTWWeekData,
+				[cacheKey]: {
+					totwData,
+					players,
+				},
+			},
+		});
+	},
+
+	getCachedTOTWSeasons: () => {
+		return get().cachedTOTWSeasons;
+	},
+
+	getCachedTOTWWeeks: (season: string) => {
+		const { cachedTOTWWeeks } = get();
+		return cachedTOTWWeeks[season] || null;
+	},
+
+	getCachedTOTWWeekData: (season: string, week: number) => {
+		const { cachedTOTWWeekData } = get();
+		const cacheKey = `${season}:${week}`;
+		return cachedTOTWWeekData[cacheKey] || null;
 	},
 }));

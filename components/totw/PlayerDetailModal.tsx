@@ -19,10 +19,11 @@ interface MatchDetailWithSummary extends MatchDetail {
 interface PlayerDetailModalProps {
 	playerName: string;
 	matchDetails: MatchDetailWithSummary[];
+	totwAppearances?: number;
 	onClose: () => void;
 }
 
-export default function PlayerDetailModal({ playerName, matchDetails, onClose }: PlayerDetailModalProps) {
+export default function PlayerDetailModal({ playerName, matchDetails, totwAppearances, onClose }: PlayerDetailModalProps) {
 	// Calculate FTP breakdown for a single match
 	const calculateFTPBreakdown = (match: MatchDetailWithSummary): FTPBreakdown[] => {
 		const playerClass = match.class;
@@ -241,6 +242,15 @@ export default function PlayerDetailModal({ playerName, matchDetails, onClose }:
 							<XMarkIcon className='h-6 w-6' />
 						</button>
 					</div>
+
+					{/* TOTW Appearances */}
+					{totwAppearances !== undefined && (
+						<div className='text-center mb-4'>
+							<p className='text-white text-xs md:text-sm'>
+								Number of TOTW appearances: <span className='font-bold'>{totwAppearances}</span>
+							</p>
+						</div>
+					)}
 
 					{/* Player Appearances - Only show if > 1 */}
 					{playerAppearances > 1 && (
