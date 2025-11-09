@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface Player {
 	rank: number;
@@ -57,6 +58,17 @@ interface FTPBreakdown {
 }
 
 export default function PlayersOfMonth() {
+	const {
+		cachePOMSeasons,
+		cachePOMMonths,
+		cachePOMMonthData,
+		cachePOMPlayerStats,
+		getCachedPOMSeasons,
+		getCachedPOMMonths,
+		getCachedPOMMonthData,
+		getCachedPOMPlayerStats,
+	} = useNavigationStore();
+
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
 	const [months, setMonths] = useState<string[]>([]);
@@ -68,8 +80,17 @@ export default function PlayersOfMonth() {
 	const [playerStats, setPlayerStats] = useState<Record<string, PlayerStats>>({});
 	const [loadingIndividualStats, setLoadingIndividualStats] = useState<Set<string>>(new Set());
 
-	// Fetch seasons on mount
+	// Fetch seasons on mount - check cache first
 	useEffect(() => {
+		const cachedSeasons = getCachedPOMSeasons();
+		if (cachedSeasons) {
+			setSeasons(cachedSeasons.seasons);
+			if (cachedSeasons.seasons.length > 0) {
+				setSelectedSeason(cachedSeasons.seasons[0]);
+			}
+			return;
+		}
+
 		const fetchSeasons = async () => {
 			try {
 				const response = await fetch("/api/players-of-month/seasons");
@@ -79,17 +100,29 @@ export default function PlayersOfMonth() {
 					if (data.seasons.length > 0) {
 						setSelectedSeason(data.seasons[0]);
 					}
+					cachePOMSeasons(data.seasons);
 				}
 			} catch (error) {
 				console.error("Error fetching seasons:", error);
 			}
 		};
 		fetchSeasons();
-	}, []);
+	}, [getCachedPOMSeasons, cachePOMSeasons]);
 
-	// Fetch months when season changes
+	// Fetch months when season changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason) return;
+
+		const cachedMonths = getCachedPOMMonths(selectedSeason);
+		if (cachedMonths) {
+			setMonths(cachedMonths);
+			if (cachedMonths.length > 0) {
+				setSelectedMonth(cachedMonths[cachedMonths.length - 1]);
+			} else {
+				setSelectedMonth("");
+			}
+			return;
+		}
 
 		const fetchMonths = async () => {
 			try {
@@ -102,6 +135,7 @@ export default function PlayersOfMonth() {
 					} else {
 						setSelectedMonth("");
 					}
+					cachePOMMonths(selectedSeason, data.months);
 				}
 			} catch (error) {
 				console.error("Error fetching months:", error);
@@ -110,13 +144,20 @@ export default function PlayersOfMonth() {
 			}
 		};
 		fetchMonths();
-	}, [selectedSeason]);
+	}, [selectedSeason, getCachedPOMMonths, cachePOMMonths]);
 
-	// Fetch month data when season and month are selected
+	// Fetch month data when season and month are selected - check cache first
 	useEffect(() => {
 		if (!selectedSeason || !selectedMonth) {
 			console.log(`[PlayersOfMonth] Skipping month data fetch - season: ${selectedSeason}, month: ${selectedMonth}`);
 			setPlayers([]);
+			return;
+		}
+
+		const cachedMonthData = getCachedPOMMonthData(selectedSeason, selectedMonth);
+		if (cachedMonthData) {
+			setPlayers(cachedMonthData.players);
+			setLoading(false);
 			return;
 		}
 
@@ -154,6 +195,7 @@ export default function PlayersOfMonth() {
 						});
 					});
 					setPlayers(data.players);
+					cachePOMMonthData(selectedSeason, selectedMonth, data.players);
 				} else {
 					console.warn(`[PlayersOfMonth] No players in response for ${selectedMonth} ${selectedSeason}`);
 					setPlayers([]);
@@ -169,9 +211,9 @@ export default function PlayersOfMonth() {
 			}
 		};
 		fetchMonthData();
-	}, [selectedSeason, selectedMonth]);
+	}, [selectedSeason, selectedMonth, getCachedPOMMonthData, cachePOMMonthData]);
 
-	// Fetch stats for all players when players list changes
+	// Fetch stats for all players when players list changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason || !selectedMonth || players.length === 0) {
 			setLoadingStats(false);
@@ -185,8 +227,19 @@ export default function PlayersOfMonth() {
 			setLoadingStats(true);
 			setLoading(true);
 			const statsPromises = players.map(async (player) => {
+				// Check local state first
 				if (playerStats[player.playerName]) {
 					// Stats already loaded
+					return player.playerName;
+				}
+
+				// Check cache
+				const cachedStats = getCachedPOMPlayerStats(selectedSeason, selectedMonth, player.playerName);
+				if (cachedStats) {
+					setPlayerStats((prev) => ({
+						...prev,
+						[player.playerName]: cachedStats,
+					}));
 					return player.playerName;
 				}
 
@@ -222,6 +275,7 @@ export default function PlayersOfMonth() {
 							...prev,
 							[player.playerName]: stats,
 						}));
+						cachePOMPlayerStats(selectedSeason, selectedMonth, player.playerName, stats);
 					}
 					return player.playerName;
 				} catch (error) {
@@ -234,7 +288,7 @@ export default function PlayersOfMonth() {
 		};
 
 		fetchAllPlayerStats();
-	}, [players, selectedSeason, selectedMonth]);
+	}, [players, selectedSeason, selectedMonth, playerStats, getCachedPOMPlayerStats, cachePOMPlayerStats]);
 
 	// Check if all stats are loaded
 	useEffect(() => {
@@ -263,7 +317,7 @@ export default function PlayersOfMonth() {
 		}
 	}, [playerStats, players, selectedSeason, selectedMonth]);
 
-	// Fetch player stats when row is expanded
+	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
 		console.log(`[PlayersOfMonth] handleRowExpand called for player: ${playerName}`);
 		
@@ -282,6 +336,7 @@ export default function PlayersOfMonth() {
 		console.log(`[PlayersOfMonth] Expanding row for player: ${playerName}`);
 		setExpandedPlayers((prev) => new Set(prev).add(playerName));
 		
+		// Check local state first
 		if (playerStats[playerName]) {
 			// Stats already loaded
 			console.log(`[PlayersOfMonth] Stats already cached for player: ${playerName}`, playerStats[playerName]);
@@ -290,6 +345,17 @@ export default function PlayersOfMonth() {
 
 		if (!selectedSeason || !selectedMonth) {
 			console.warn(`[PlayersOfMonth] Cannot fetch stats - missing season (${selectedSeason}) or month (${selectedMonth})`);
+			return;
+		}
+
+		// Check cache
+		const cachedStats = getCachedPOMPlayerStats(selectedSeason, selectedMonth, playerName);
+		if (cachedStats) {
+			console.log(`[PlayersOfMonth] Stats found in cache for player: ${playerName}`);
+			setPlayerStats((prev) => ({
+				...prev,
+				[playerName]: cachedStats,
+			}));
 			return;
 		}
 
@@ -364,6 +430,7 @@ export default function PlayersOfMonth() {
 					...prev,
 					[playerName]: stats,
 				}));
+				cachePOMPlayerStats(selectedSeason, selectedMonth, playerName, stats);
 				console.log(`[PlayersOfMonth] Stats successfully set for ${playerName}`);
 			} else {
 				console.warn(`[PlayersOfMonth] No matchDetails in response for ${playerName}`);
