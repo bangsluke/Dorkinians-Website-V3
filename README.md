@@ -426,6 +426,11 @@ SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
+
+# Umami Analytics (optional)
+NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
+NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
+NEXT_PUBLIC_APP_VERSION=1.1.13
 ```
 
 > [Back to Table of Contents](#table-of-contents)
@@ -532,6 +537,16 @@ For detailed technical documentation including:
 - Troubleshooting guides
 
 See: [AdditionalDetail.md](./docs/AdditionalDetail.md)
+
+For Umami Analytics setup and configuration:
+
+- Quick start with Umami Cloud (recommended, no hosting required)
+- Environment configuration
+- Obtaining website ID and script URL
+- Troubleshooting
+- Self-hosting options (advanced)
+
+See: [UMAMI_SETUP.md](./docs/UMAMI_SETUP.md)
 
 For development guidelines and best practices:
 

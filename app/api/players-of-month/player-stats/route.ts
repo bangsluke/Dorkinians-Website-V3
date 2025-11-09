@@ -8,6 +8,7 @@ const corsHeaders = {
 	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
@@ -16,12 +17,12 @@ export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
 		const season = searchParams.get("season");
-		const week = searchParams.get("week");
+		const month = searchParams.get("month");
 		const playerName = searchParams.get("playerName");
 
-		if (!season || !week || !playerName) {
+		if (!season || !month || !playerName) {
 			return NextResponse.json(
-				{ error: "Season, week, and playerName parameters are required" },
+				{ error: "Season, month, and playerName parameters are required" },
 				{ status: 400, headers: corsHeaders },
 			);
 		}
@@ -33,26 +34,23 @@ export async function GET(request: NextRequest) {
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
-		const weekNumber = parseInt(week, 10);
-		const weekString = week.toString();
 
-		// Construct seasonWeek string from season and week (format: "2025/26-44")
-		const seasonWeek = `${season}-${weekNumber}`;
+		// Combine season and month into format "season-month" (e.g., "2025/26-October")
+		const seasonMonth = `${season}-${month}`;
 
-		// Fetch all MatchDetail nodes for the player in that week
-		// Using TOTW_HAS_DETAILS relationship which connects WeeklyTOTW to MatchDetail
-		// Also fetch related Fixture for match summary
-		// Explicitly filter MatchDetail by seasonWeek to ensure correct matching
+		// Fetch all MatchDetail nodes for the player matching the seasonMonth value
 		const query = `
-			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})
-			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
-			MATCH (wt)-[:TOTW_HAS_DETAILS]-(md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonWeek: $seasonWeek})
+			MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonMonth: $seasonMonth})
 			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[r:HAS_MATCH_DETAILS]->(md)
 			RETURN md, f.fullResult as matchSummary, f.opposition as opposition, f.result as result
 			ORDER BY md.date ASC
 		`;
 
-		const queryResult = await neo4jService.runQuery(query, { graphLabel, season, weekNumber, weekString, seasonWeek, playerName });
+		const queryResult = await neo4jService.runQuery(query, {
+			graphLabel,
+			playerName,
+			seasonMonth,
+		});
 
 		const matchDetails = queryResult.records.map((record) => {
 			const mdNode = record.get("md");
@@ -86,21 +84,43 @@ export async function GET(request: NextRequest) {
 			};
 		});
 
-		// Query to count IN_WEEKLY_TOTW relationships for the player
-		const totwCountQuery = `
-			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_WEEKLY_TOTW]->(wt:WeeklyTOTW {graphLabel: $graphLabel})
-			RETURN count(r) as totwAppearances
-		`;
+		// Calculate aggregated stats
+		const appearances = matchDetails.length;
+		const goals = matchDetails.reduce((sum, md) => sum + md.goals, 0);
+		const assists = matchDetails.reduce((sum, md) => sum + md.assists, 0);
+		const cleanSheets = matchDetails.reduce((sum, md) => sum + md.cleanSheets, 0);
+		const mom = matchDetails.reduce((sum, md) => sum + (md.mom ? 1 : 0), 0);
+		const yellowCards = matchDetails.reduce((sum, md) => sum + md.yellowCards, 0);
+		const redCards = matchDetails.reduce((sum, md) => sum + md.redCards, 0);
+		const saves = matchDetails.reduce((sum, md) => sum + md.saves, 0);
+		const ownGoals = matchDetails.reduce((sum, md) => sum + md.ownGoals, 0);
+		const conceded = matchDetails.reduce((sum, md) => sum + md.conceded, 0);
+		const penaltiesScored = matchDetails.reduce((sum, md) => sum + md.penaltiesScored, 0);
+		const penaltiesMissed = matchDetails.reduce((sum, md) => sum + md.penaltiesMissed, 0);
+		const penaltiesSaved = matchDetails.reduce((sum, md) => sum + md.penaltiesSaved, 0);
 
-		const totwCountResult = await neo4jService.runQuery(totwCountQuery, { graphLabel, playerName });
-		const totwAppearances = totwCountResult.records.length > 0 
-			? Number(totwCountResult.records[0].get("totwAppearances") || 0)
-			: 0;
-
-		return NextResponse.json({ matchDetails, totwAppearances }, { headers: corsHeaders });
+		return NextResponse.json(
+			{
+				matchDetails,
+				appearances,
+				goals,
+				assists,
+				cleanSheets,
+				mom,
+				yellowCards,
+				redCards,
+				saves,
+				ownGoals,
+				conceded,
+				penaltiesScored,
+				penaltiesMissed,
+				penaltiesSaved,
+			},
+			{ headers: corsHeaders },
+		);
 	} catch (error) {
-		console.error("Error fetching player details:", error);
-		return NextResponse.json({ error: "Failed to fetch player details" }, { status: 500, headers: corsHeaders });
+		console.error("Error fetching player stats:", error);
+		return NextResponse.json({ error: "Failed to fetch player stats" }, { status: 500, headers: corsHeaders });
 	}
 }
 

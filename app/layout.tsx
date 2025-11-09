@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
+import UmamiAnalytics from "../components/UmamiAnalytics";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -54,6 +56,9 @@ export const viewport = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+	const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
+	const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+
 	return (
 		<html lang='en'>
 			<head>
@@ -70,6 +75,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			<body className={inter.className} suppressHydrationWarning={true}>
 				{children}
 				<PWAUpdateNotification />
+				{umamiScriptUrl && umamiWebsiteId && (
+					<Script
+						async
+						defer
+						data-website-id={umamiWebsiteId}
+						src={umamiScriptUrl}
+						strategy='afterInteractive'
+					/>
+				)}
+				<UmamiAnalytics />
 			</body>
 		</html>
 	);

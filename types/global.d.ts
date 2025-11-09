@@ -9,9 +9,18 @@ interface BeforeInstallPromptEvent extends Event {
 	prompt(): Promise<void>;
 }
 
+// Umami Analytics types
+interface Umami {
+	track(eventName: string, eventData?: Record<string, any>): void;
+}
+
 declare global {
 	interface WindowEventMap {
 		beforeinstallprompt: BeforeInstallPromptEvent;
+	}
+
+	interface Window {
+		umami?: Umami;
 	}
 }
 
