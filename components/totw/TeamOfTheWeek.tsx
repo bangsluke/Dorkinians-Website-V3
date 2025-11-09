@@ -5,6 +5,7 @@ import { WeeklyTOTW, MatchDetail } from "@/types";
 import { formationCoordinateObject } from "@/lib/formations/formationCoordinates";
 import PlayerDetailModal from "./PlayerDetailModal";
 import Image from "next/image";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -24,6 +25,15 @@ interface TOTWPlayer {
 }
 
 export default function TeamOfTheWeek() {
+	const {
+		cacheTOTWSeasons,
+		cacheTOTWWeeks,
+		cacheTOTWWeekData,
+		getCachedTOTWSeasons,
+		getCachedTOTWWeeks,
+		getCachedTOTWWeekData,
+	} = useNavigationStore();
+
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [currentSeason, setCurrentSeason] = useState<string | null>(null);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
@@ -35,11 +45,24 @@ export default function TeamOfTheWeek() {
 	const [loading, setLoading] = useState(true);
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [playerDetails, setPlayerDetails] = useState<MatchDetailWithSummary[] | null>(null);
+	const [totwAppearances, setTotwAppearances] = useState<number | undefined>(undefined);
 	const [showModal, setShowModal] = useState(false);
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
-	// Fetch seasons on mount
+	// Fetch seasons on mount - check cache first
 	useEffect(() => {
+		const cachedSeasons = getCachedTOTWSeasons();
+		if (cachedSeasons) {
+			setSeasons(cachedSeasons.seasons);
+			if (cachedSeasons.currentSeason) {
+				setCurrentSeason(cachedSeasons.currentSeason);
+				setSelectedSeason(cachedSeasons.currentSeason);
+			} else if (cachedSeasons.seasons.length > 0) {
+				setSelectedSeason(cachedSeasons.seasons[0]);
+			}
+			return;
+		}
+
 		const fetchSeasons = async () => {
 			try {
 				const response = await fetch("/api/totw/seasons");
@@ -52,17 +75,32 @@ export default function TeamOfTheWeek() {
 					} else if (data.seasons.length > 0) {
 						setSelectedSeason(data.seasons[0]);
 					}
+					cacheTOTWSeasons(data.seasons, data.currentSeason || null);
 				}
 			} catch (error) {
 				console.error("Error fetching seasons:", error);
 			}
 		};
 		fetchSeasons();
-	}, []);
+	}, [getCachedTOTWSeasons, cacheTOTWSeasons]);
 
-	// Fetch weeks when season changes
+	// Fetch weeks when season changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason) return;
+
+		const cachedWeeks = getCachedTOTWWeeks(selectedSeason);
+		if (cachedWeeks) {
+			setWeeks(cachedWeeks.weeks);
+			if (cachedWeeks.currentWeek !== null) {
+				setCurrentWeek(cachedWeeks.currentWeek);
+				setSelectedWeek(cachedWeeks.currentWeek);
+			} else if (cachedWeeks.weeks.length > 0) {
+				const weekToSelect = cachedWeeks.weeks[cachedWeeks.weeks.length - 1].week;
+				setCurrentWeek(weekToSelect);
+				setSelectedWeek(weekToSelect);
+			}
+			return;
+		}
 
 		const fetchWeeks = async () => {
 			try {
@@ -112,6 +150,7 @@ export default function TeamOfTheWeek() {
 						console.log("No weeks found for season:", selectedSeason);
 						setWeeks([]);
 					}
+					cacheTOTWWeeks(selectedSeason, data.weeks, weekToSelect, data.latestGameweek);
 				} else {
 					console.error("Invalid weeks data format:", data);
 					setWeeks([]);
@@ -122,11 +161,19 @@ export default function TeamOfTheWeek() {
 			}
 		};
 		fetchWeeks();
-	}, [selectedSeason]);
+	}, [selectedSeason, getCachedTOTWWeeks, cacheTOTWWeeks]);
 
-	// Fetch TOTW data when season/week changes
+	// Fetch TOTW data when season/week changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason || !selectedWeek || selectedWeek === 0) return;
+
+		const cachedWeekData = getCachedTOTWWeekData(selectedSeason, selectedWeek);
+		if (cachedWeekData) {
+			setTotwData(cachedWeekData.totwData);
+			setPlayers(cachedWeekData.players);
+			setLoading(false);
+			return;
+		}
 
 		const fetchWeekData = async () => {
 			setLoading(true);
@@ -152,6 +199,7 @@ export default function TeamOfTheWeek() {
 				if (data.totwData) {
 					setTotwData(data.totwData);
 					setPlayers(data.players || []);
+					cacheTOTWWeekData(selectedSeason, selectedWeek, data.totwData, data.players || []);
 					
 					// Log player matching for debugging
 					if (data.players && data.players.length > 0) {
@@ -171,7 +219,7 @@ export default function TeamOfTheWeek() {
 			}
 		};
 		fetchWeekData();
-	}, [selectedSeason, selectedWeek]);
+	}, [selectedSeason, selectedWeek, getCachedTOTWWeekData, cacheTOTWWeekData]);
 
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
@@ -185,6 +233,7 @@ export default function TeamOfTheWeek() {
 			const data = await response.json();
 			if (data.matchDetails) {
 				setPlayerDetails(data.matchDetails);
+				setTotwAppearances(data.totwAppearances);
 				setSelectedPlayer(playerName);
 				setShowModal(true);
 			}
@@ -393,7 +442,7 @@ export default function TeamOfTheWeek() {
 	const formation = totwData?.bestFormation || "";
 
 	return (
-		<div className='flex flex-col p-4 md:p-6'>
+		<div className='flex flex-col p-4 md:p-6 relative'>
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
@@ -472,6 +521,13 @@ export default function TeamOfTheWeek() {
 				</div>
 			</div>
 
+			{/* Central Loading Spinner */}
+			{loading && (
+				<div className='absolute inset-0 flex items-center justify-center z-50'>
+					<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
+				</div>
+			)}
+
 			{/* Summary Statistics */}
 			<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
 				<div className='text-center flex flex-col md:w-auto'>
@@ -479,11 +535,9 @@ export default function TeamOfTheWeek() {
 						<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
 					</div>
 					<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
-						{loading || !totwData ? (
-							<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
-						) : (
+						{!loading && totwData ? (
 							<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
-						)}
+						) : null}
 					</div>
 					{!loading && totwData && (
 						<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
@@ -493,40 +547,28 @@ export default function TeamOfTheWeek() {
 					<div className='h-5 mb-2 flex items-center justify-center'>
 						<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
 					</div>
-					{loading || !totwData ? (
-						<div className='flex flex-col items-center gap-2'>
-							<div className='relative w-12 h-12 md:w-14 md:h-14 flex items-center justify-center'>
-								<div className='animate-spin rounded-full h-12 w-12 md:h-14 md:w-14 border-b-2 border-gray-300'></div>
+					{!loading && totwData?.starMan && (
+						<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
+							<div className='relative w-12 h-12 md:w-14 md:h-14'>
+								<Image
+									src='/totw-images/Kit.svg'
+									alt='Star Man Kit'
+									fill
+									className='object-contain'
+								/>
+							</div>
+							<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+								<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+								<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
 							</div>
 						</div>
-					) : (
-						totwData?.starMan && (
-							<div className='flex flex-col items-center gap-2'>
-								<div className='relative w-12 h-12 md:w-14 md:h-14'>
-									<Image
-										src='/totw-images/Kit.svg'
-										alt='Star Man Kit'
-										fill
-										className='object-contain'
-									/>
-								</div>
-								<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
-									<div className='text-xs md:text-sm'>{totwData.starMan}</div>
-									<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
-								</div>
-							</div>
-						)
 					)}
 				</div>
 			</div>
 
 			{/* Pitch Visualization */}
 			<div className='relative w-full mb-6' style={{ minHeight: '500px', aspectRatio: '16/9' }}>
-				{loading ? (
-					<div className='absolute inset-0 flex items-center justify-center'>
-						<div className='text-white text-xl'>Loading...</div>
-					</div>
-				) : (
+				{!loading && (
 					<>
 						{/* Pitch Background */}
 						<div className='absolute inset-0 w-full h-full'>
@@ -586,10 +628,12 @@ export default function TeamOfTheWeek() {
 				<PlayerDetailModal
 					playerName={selectedPlayer}
 					matchDetails={playerDetails}
+					totwAppearances={totwAppearances}
 					onClose={() => {
 						setShowModal(false);
 						setSelectedPlayer(null);
 						setPlayerDetails(null);
+						setTotwAppearances(undefined);
 					}}
 				/>
 			)}

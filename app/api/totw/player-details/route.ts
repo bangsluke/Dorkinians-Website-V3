@@ -86,7 +86,18 @@ export async function GET(request: NextRequest) {
 			};
 		});
 
-		return NextResponse.json({ matchDetails }, { headers: corsHeaders });
+		// Query to count IN_WEEKLY_TOTW relationships for the player
+		const totwCountQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_WEEKLY_TOTW]->(wt:WeeklyTOTW {graphLabel: $graphLabel})
+			RETURN count(r) as totwAppearances
+		`;
+
+		const totwCountResult = await neo4jService.runQuery(totwCountQuery, { graphLabel, playerName });
+		const totwAppearances = totwCountResult.records.length > 0 
+			? Number(totwCountResult.records[0].get("totwAppearances") || 0)
+			: 0;
+
+		return NextResponse.json({ matchDetails, totwAppearances }, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching player details:", error);
 		return NextResponse.json({ error: "Failed to fetch player details" }, { status: 500, headers: corsHeaders });
