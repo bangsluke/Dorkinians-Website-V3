@@ -29,6 +29,8 @@ export class EnhancedQuestionAnalyzer {
 	private question: string;
 	private userContext?: string;
 	private extractor: EntityExtractor;
+	private static metricCorrectionCache: Map<string, StatTypeInfo[]> = new Map();
+	private static readonly METRIC_CACHE_MAX_SIZE = 500;
 
 	constructor(question: string, userContext?: string) {
 		this.question = question;
@@ -38,6 +40,31 @@ export class EnhancedQuestionAnalyzer {
 
 	async analyze(): Promise<EnhancedQuestionAnalysis> {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
+		
+		// Early exit: Check if this is clearly an invalid query before further processing
+		const namedEntities = extractionResult.entities.filter(
+			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
+		);
+		const lowerQuestion = this.question.toLowerCase();
+		const isRankingQuestion =
+			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
+			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
+		
+		// Early exit if no entities, no stat types, and not a ranking question
+		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0 && !isRankingQuestion) {
+			return {
+				type: "clarification_needed",
+				entities: [],
+				metrics: [],
+				extractionResult,
+				complexity: "simple",
+				requiresClarification: true,
+				clarificationMessage: "I need more information to help you. Please specify both who/what you're asking about AND what statistic you want to know. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'",
+				question: this.question,
+				confidence: 0.2,
+			};
+		}
+		
 		const complexity = this.assessComplexity(extractionResult);
 		const requiresClarification = this.checkClarificationNeeded(extractionResult, complexity);
 
@@ -403,6 +430,13 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// Check cache first (cache key based on question and stat types)
+		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
+		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
+		if (cached) {
+			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
+		}
+
 		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
 		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
 

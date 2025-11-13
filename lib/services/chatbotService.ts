@@ -9,6 +9,8 @@ import { spellingCorrector } from "./spellingCorrector";
 import { unansweredQuestionLogger } from "./unansweredQuestionLogger";
 import { conversationContextManager } from "./conversationContextManager";
 import { questionSimilarityMatcher } from "./questionSimilarityMatcher";
+import { queryProfiler } from "./queryProfiler";
+import { errorHandler } from "./errorHandler";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -106,6 +108,7 @@ export class ChatbotService {
 	// Caching properties
 	private queryCache: Map<string, { data: unknown; timestamp: number }> = new Map();
 	private readonly CACHE_TTL: number = 5 * 60 * 1000; // 5 minutes
+	private readonly ENABLE_QUERY_PROFILING = process.env.ENABLE_QUERY_PROFILING === "true";
 
 	private constructor() {
 		this.entityResolver = EntityNameResolver.getInstance();
@@ -304,6 +307,39 @@ export class ChatbotService {
 		loggingService.logMinimal(message, data, level);
 	}
 
+	/**
+	 * Execute a query with optional profiling for slow queries
+	 */
+	private async executeQueryWithProfiling(
+		query: string,
+		params: Record<string, unknown> = {},
+	): Promise<unknown> {
+		const startTime = Date.now();
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			const executionTime = Date.now() - startTime;
+
+			// Profile slow queries or if profiling is enabled
+			if (this.ENABLE_QUERY_PROFILING || executionTime > 1000) {
+				const { profile } = await queryProfiler.executeWithProfiling(query, params, true);
+				if (profile) {
+					this.logToBoth(
+						`⏱️ Query executed in ${executionTime}ms${profile.optimizationSuggestions?.length ? ` - Suggestions: ${profile.optimizationSuggestions.join(", ")}` : ""}`,
+						null,
+						executionTime > 2000 ? "warn" : "log",
+					);
+				}
+			}
+
+			return result;
+		} catch (error) {
+			const executionTime = Date.now() - startTime;
+			this.logToBoth(`❌ Query failed after ${executionTime}ms: ${error}`, null, "error");
+			throw error;
+		}
+	}
+
 	private convertDateFormat(dateStr: string): string {
 		// Convert DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD
 		const parts = dateStr.split("/");
@@ -492,12 +528,15 @@ export class ChatbotService {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
 
-			// Provide more detailed error information for debugging
-			const errorMessage = error instanceof Error ? error.message : String(error);
-			const errorType = error instanceof Error ? error.constructor.name : typeof error;
+			// Use error handler for better error messages
+			const errorObj = error instanceof Error ? error : new Error(String(error));
+			const errorMessage = await errorHandler.generateErrorResponse(errorObj, {
+				question: context.question,
+				analysis: this.lastQuestionAnalysis || undefined,
+			});
 
 			return {
-				answer: `I'm sorry, I encountered an error while processing your question. Error details: ${errorType}: ${errorMessage}. Please try again later.`,
+				answer: errorMessage,
 				sources: [],
 				cypherQuery: "N/A",
 			};
@@ -700,12 +739,14 @@ export class ChatbotService {
 
 				if (!playerExistsResult || playerExistsResult.length === 0) {
 					this.logToBoth(`❌ Player not found: ${actualPlayerName}`, null, "error");
+					const errorSuggestion = await errorHandler.handleEntityNotFound(actualPlayerName, "player", analysis);
 					return {
 						type: "player_not_found",
 						data: [],
-						message: `I couldn't find a player named "${actualPlayerName}" in the database. Please check the spelling or try a different player name.`,
+						message: errorSuggestion.message,
 						playerName: actualPlayerName,
 						metric: originalMetric,
+						suggestions: errorSuggestion.suggestions,
 					};
 				}
 
@@ -713,7 +754,7 @@ export class ChatbotService {
 				this.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
 				this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
 
-				const result = await neo4jService.executeQuery(query, {
+				const result = await this.executeQueryWithProfiling(query, {
 					playerName: actualPlayerName,
 					graphLabel: neo4jService.getGraphLabel(),
 				});
@@ -1766,6 +1807,47 @@ export class ChatbotService {
 		return query;
 	}
 
+	/**
+	 * Extract sources from query data and analysis
+	 */
+	private extractSources(data: Record<string, unknown> | null, analysis: EnhancedQuestionAnalysis): string[] {
+		const sources: string[] = ["Neo4j Database"];
+
+		if (!data || !("data" in data) || !Array.isArray(data.data) || data.data.length === 0) {
+			return sources;
+		}
+
+		// Extract season information if available
+		const firstRecord = data.data[0] as Record<string, unknown>;
+		if (firstRecord && typeof firstRecord === "object") {
+			if (firstRecord.season) {
+				sources.push(`Season: ${firstRecord.season}`);
+			}
+			if (firstRecord.dateRange) {
+				sources.push(`Date Range: ${firstRecord.dateRange}`);
+			}
+		}
+
+		// Add time range context if present
+		if (analysis.timeRange) {
+			sources.push(`Time Period: ${analysis.timeRange}`);
+		}
+
+		// Add team context if present
+		if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+			sources.push(`Team: ${analysis.teamEntities.map(t => this.mapTeamName(t)).join(", ")}`);
+		}
+
+		// Add location context if present
+		const locations = analysis.extractionResult?.locations || [];
+		if (locations.length > 0) {
+			const locationTypes = locations.map(l => l.type === "home" ? "Home" : l.type === "away" ? "Away" : l.value).join(", ");
+			sources.push(`Location: ${locationTypes}`);
+		}
+
+		return sources;
+	}
+
 	private buildContextualResponse(playerName: string, metric: string, value: unknown, analysis: EnhancedQuestionAnalysis): string {
 		// Resolve metric alias to canonical key for display and formatting
 		const resolvedMetricForDisplay = findMetricByAlias(metric)?.key || metric;
@@ -1870,7 +1952,7 @@ export class ChatbotService {
 
 		let answer = "I couldn't find relevant information for your question.";
 		let visualization: ChatbotResponse['visualization'] = undefined;
-		const sources = ["Neo4j Database"];
+		const sources = this.extractSources(data, analysis);
 
 		// Enhanced error handling with specific error messages
 		if (!data) {
