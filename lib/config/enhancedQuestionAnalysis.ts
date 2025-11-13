@@ -19,6 +19,9 @@ export interface EnhancedQuestionAnalysis {
 	requiresClarification: boolean;
 	clarificationMessage?: string;
 	question: string;
+	// New fields for improvements
+	confidence?: number;
+	resultQuantity?: "singular" | "plural";
 }
 
 // EnhancedQuestionAnalyzer class processes the question and returns an EnhancedQuestionAnalysis object
@@ -68,6 +71,12 @@ export class EnhancedQuestionAnalyzer {
 		// Extract opponent own goals flag
 		const opponentOwnGoals = extractionResult.opponentOwnGoals;
 
+		// Calculate confidence score
+		const confidence = this.calculateConfidence(extractionResult, complexity, requiresClarification);
+
+		// Detect result quantity (singular vs plural)
+		const resultQuantity = this.detectResultQuantity();
+
 		return {
 			type,
 			entities,
@@ -84,6 +93,8 @@ export class EnhancedQuestionAnalyzer {
 			requiresClarification,
 			clarificationMessage: requiresClarification ? this.generateClarificationMessage(extractionResult, complexity) : undefined,
 			question: this.question,
+			confidence,
+			resultQuantity,
 		};
 	}
 
@@ -1421,5 +1432,80 @@ export class EnhancedQuestionAnalyzer {
 			return extractionResult.timeFrames[0].value;
 		}
 		return undefined;
+	}
+
+	/**
+	 * Calculate confidence score based on extraction quality
+	 */
+	private calculateConfidence(
+		extractionResult: EntityExtractionResult,
+		complexity: "simple" | "moderate" | "complex",
+		requiresClarification: boolean,
+	): number {
+		if (requiresClarification) {
+			return 0.2;
+		}
+
+		const namedEntities = extractionResult.entities.filter(
+			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
+		);
+
+		let confidence = 0.5;
+
+		if (namedEntities.length > 0) {
+			confidence += 0.2;
+		}
+
+		if (extractionResult.statTypes.length > 0) {
+			confidence += 0.2;
+		}
+
+		if (complexity === "simple") {
+			confidence += 0.1;
+		} else if (complexity === "moderate") {
+			confidence += 0.05;
+		}
+
+		return Math.min(confidence, 1.0);
+	}
+
+	/**
+	 * Detect if question expects singular or plural results
+	 */
+	private detectResultQuantity(): "singular" | "plural" {
+		const lowerQuestion = this.question.toLowerCase();
+
+		const singularIndicators = [
+			/\bthe\s+top\b/,
+			/\bwhich\s+player\b/,
+			/\bwho\s+is\b/,
+			/\bthe\s+best\b/,
+			/\bthe\s+highest\b/,
+			/\bthe\s+most\s+.*\?$/,
+			/\bwho\s+has\s+the\b/,
+		];
+
+		const pluralIndicators = [
+			/\btop\s+\d+/,
+			/\bwho\s+are\b/,
+			/\blist\s+of\b/,
+			/\ball\s+the\b/,
+			/\bthe\s+top\s+\d+/,
+			/\bhow\s+many\s+.*\s+are\b/,
+		];
+
+		for (const pattern of singularIndicators) {
+			if (pattern.test(lowerQuestion)) {
+				return "singular";
+			}
+		}
+
+		for (const pattern of pluralIndicators) {
+			if (pattern.test(lowerQuestion)) {
+				return "plural";
+			}
+		}
+
+		return "plural";
 	}
 }

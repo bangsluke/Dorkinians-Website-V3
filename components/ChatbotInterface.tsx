@@ -23,6 +23,17 @@ export default function ChatbotInterface() {
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
+	const [sessionId] = useState(() => {
+		if (typeof window !== "undefined") {
+			let id = sessionStorage.getItem("chatbotSessionId");
+			if (!id) {
+				id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+				sessionStorage.setItem("chatbotSessionId", id);
+			}
+			return id;
+		}
+		return undefined;
+	});
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
@@ -68,6 +79,14 @@ export default function ChatbotInterface() {
 
 		// Try to send the question to the chatbot
 		try {
+			// Prepare conversation history for context
+			const historyForContext = conversationHistory.slice(-3).map((conv) => ({
+				question: conv.question,
+				entities: conv.response.debug?.processingDetails?.questionAnalysis?.entities || [],
+				metrics: conv.response.debug?.processingDetails?.questionAnalysis?.metrics || [],
+				timestamp: new Date(conv.timestamp).toISOString(),
+			}));
+
 			// Send the question to the chatbot via the API endpoint with the player context sent as a parameter
 			const res = await fetch("/api/chatbot", {
 				method: "POST",
@@ -77,6 +96,8 @@ export default function ChatbotInterface() {
 				body: JSON.stringify({
 					question: question.trim(),
 					userContext: selectedPlayer || undefined,
+					sessionId: sessionId,
+					conversationHistory: historyForContext,
 				}),
 			});
 
