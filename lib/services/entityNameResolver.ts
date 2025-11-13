@@ -19,7 +19,9 @@ export interface EntityResolutionResult {
 export class EntityNameResolver {
 	private static instance: EntityNameResolver;
 	private entityCache: Map<string, { entities: string[]; timestamp: number }> = new Map();
+	private fuzzyMatchCache: Map<string, EntityResolutionResult> = new Map();
 	private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+	private readonly FUZZY_CACHE_TTL = 30 * 60 * 1000; // 30 minutes for fuzzy matches
 	private readonly MIN_CONFIDENCE = 0.6; // Minimum confidence for fuzzy matches
 	private readonly MAX_SUGGESTIONS = 3;
 
@@ -41,6 +43,13 @@ export class EntityNameResolver {
 	): Promise<EntityResolutionResult> {
 		// Normalize input
 		const normalizedInput = this.normalizeEntityName(input);
+		const cacheKey = `${entityType}:${normalizedInput}`;
+
+		// Check fuzzy match cache first
+		const cachedResult = this.fuzzyMatchCache.get(cacheKey);
+		if (cachedResult) {
+			return cachedResult;
+		}
 
 		// Get all entities from database
 		const allEntities = await this.getAllEntities(entityType);
@@ -48,13 +57,16 @@ export class EntityNameResolver {
 		// Check for exact match first
 		const exactMatch = this.findExactMatch(normalizedInput, allEntities);
 		if (exactMatch) {
-			return {
+			const result: EntityResolutionResult = {
 				exactMatch,
 				fuzzyMatches: [],
 				suggestions: [],
 				allEntities,
 				entityType,
 			};
+			// Cache exact matches
+			this.fuzzyMatchCache.set(cacheKey, result);
+			return result;
 		}
 
 		// Find fuzzy matches
@@ -63,13 +75,21 @@ export class EntityNameResolver {
 		// Generate suggestions
 		const suggestions = this.generateSuggestions(normalizedInput, allEntities);
 
-		return {
+		const result: EntityResolutionResult = {
 			exactMatch: undefined,
 			fuzzyMatches,
 			suggestions,
 			allEntities,
 			entityType,
 		};
+
+		// Cache the result
+		this.fuzzyMatchCache.set(cacheKey, result);
+		
+		// Periodically clean up cache
+		this.cleanupFuzzyCache();
+
+		return result;
 	}
 
 	/**
@@ -330,6 +350,7 @@ export class EntityNameResolver {
 	 */
 	public clearCache(): void {
 		this.entityCache.clear();
+		this.fuzzyMatchCache.clear();
 	}
 
 	/**
@@ -337,5 +358,28 @@ export class EntityNameResolver {
 	 */
 	public clearCacheForType(entityType: "player" | "team" | "opposition" | "league"): void {
 		this.entityCache.delete(entityType);
+		// Clear fuzzy matches for this entity type
+		for (const key of this.fuzzyMatchCache.keys()) {
+			if (key.startsWith(`${entityType}:`)) {
+				this.fuzzyMatchCache.delete(key);
+			}
+		}
+	}
+
+	/**
+	 * Clean up expired fuzzy match cache entries
+	 */
+	private cleanupFuzzyCache(): void {
+		// Note: This is a simple implementation. For production, consider using a more sophisticated cache with TTL tracking
+		// For now, we rely on the cache size limit and manual clearing
+		const maxCacheSize = 1000;
+		if (this.fuzzyMatchCache.size > maxCacheSize) {
+			// Clear oldest entries (simple FIFO approach)
+			const entries = Array.from(this.fuzzyMatchCache.entries());
+			const toRemove = entries.slice(0, entries.length - maxCacheSize);
+			for (const [key] of toRemove) {
+				this.fuzzyMatchCache.delete(key);
+			}
+		}
 	}
 }
