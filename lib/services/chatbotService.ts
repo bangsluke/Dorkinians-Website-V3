@@ -20,6 +20,18 @@ export interface ChatbotResponse {
 	};
 	sources: string[];
 	cypherQuery?: string;
+	debug?: {
+		question?: string;
+		userContext?: string;
+		timestamp?: string;
+		serverLogs?: string;
+		processingDetails?: {
+			questionAnalysis?: EnhancedQuestionAnalysis | null;
+			cypherQueries?: string[];
+			processingSteps?: string[];
+			queryBreakdown?: Record<string, unknown> | null;
+		};
+	};
 }
 
 export interface QuestionContext {
