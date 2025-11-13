@@ -37,7 +37,17 @@ class Neo4jService {
 				throw new Error(`Neo4j connection details not configured. Missing: ${missingVars.join(", ")}`);
 			}
 
-			this.driver = neo4j.driver(uri, neo4j.auth.basic(username, password));
+			// Configure driver with connection pool settings for concurrent requests
+			this.driver = neo4j.driver(
+				uri,
+				neo4j.auth.basic(username, password),
+				{
+					maxConnectionPoolSize: 50, // Default is 50, good for concurrent requests
+					connectionAcquisitionTimeout: 60000, // 60 seconds
+					connectionTimeout: 30000, // 30 seconds
+					disableLosslessIntegers: true,
+				}
+			);
 
 			// Test connection
 			await this.driver.verifyConnectivity();
