@@ -5,6 +5,10 @@ import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "
 import { EnhancedQuestionAnalyzer, EnhancedQuestionAnalysis } from "../config/enhancedQuestionAnalysis";
 import { EntityNameResolver } from "./entityNameResolver";
 import { loggingService } from "./loggingService";
+import { spellingCorrector } from "./spellingCorrector";
+import { unansweredQuestionLogger } from "./unansweredQuestionLogger";
+import { conversationContextManager } from "./conversationContextManager";
+import { questionSimilarityMatcher } from "./questionSimilarityMatcher";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -22,6 +26,13 @@ export interface QuestionContext {
 	question: string;
 	userContext?: string;
 	dataSources?: string[];
+	sessionId?: string;
+	conversationHistory?: Array<{
+		question: string;
+		entities: string[];
+		metrics: string[];
+		timestamp: string;
+	}>;
 }
 
 export interface ProcessingDetails {
@@ -368,7 +379,18 @@ export class ChatbotService {
 		// Essential logging for debugging
 		this.logMinimal(`🤖 Using chatbot service for: ${context.question}`, null, "log");
 
+		let originalQuestion = context.question;
+		let correctedQuestion: string | undefined;
+
 		try {
+			// Apply spelling correction before analysis
+			const spellingResult = await spellingCorrector.correctSpelling(context.question);
+			if (spellingResult.corrected !== context.question && spellingResult.corrections.length > 0) {
+				correctedQuestion = spellingResult.corrected;
+				context.question = correctedQuestion;
+				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
+			}
+
 			// Ensure Neo4j connection
 			const connected = await neo4jService.connect();
 			if (!connected) {
@@ -380,11 +402,25 @@ export class ChatbotService {
 			}
 
 			// Analyze the question
-			const analysis = await this.analyzeQuestion(context.question, context.userContext);
+			let analysis = await this.analyzeQuestion(context.question, context.userContext);
+			
+			// Merge conversation context if session ID provided
+			if (context.sessionId) {
+				analysis = conversationContextManager.mergeContext(context.sessionId, analysis);
+			}
+			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
 
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
+				// Try to provide a better fallback response
+				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
+					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
+					return {
+						answer: fallbackResponse,
+						sources: [],
+					};
+				}
 				return {
 					answer: analysis.message || "Please clarify your question.",
 					sources: [],
@@ -413,6 +449,31 @@ export class ChatbotService {
 
 			// Generate the response
 			const response = await this.generateResponse(context.question, data, analysis);
+
+			// Store in conversation context if session ID provided
+			if (context.sessionId) {
+				conversationContextManager.addToHistory(context.sessionId, context.question, analysis);
+			}
+
+			// Log unanswered questions (fire-and-forget, non-blocking)
+			const shouldLog = 
+				(analysis.confidence !== undefined && analysis.confidence < 0.5) ||
+				analysis.requiresClarification ||
+				analysis.entities.length === 0 ||
+				analysis.metrics.length === 0 ||
+				(data && (data as any).type === "error" || ((data as any).data && Array.isArray((data as any).data) && (data as any).data.length === 0));
+
+			if (shouldLog) {
+				unansweredQuestionLogger.log({
+					originalQuestion,
+					correctedQuestion,
+					analysis,
+					confidence: analysis.confidence,
+					userContext: context.userContext,
+				}).catch((err) => {
+					console.error("❌ Failed to log unanswered question:", err);
+				});
+			}
 
 			return response;
 		} catch (error) {
@@ -2559,6 +2620,7 @@ export class ChatbotService {
 				const isTeamQuestion = data.isTeamQuestion as boolean;
 				const resultCount = data.data.length;
 				const requestedLimit = (data.requestedLimit as number) || 10;
+				const isSingular = analysis.resultQuantity === "singular";
 
 				if (resultCount === 0) {
 					const metricName = getMetricDisplayName(metric, 0);
@@ -2569,41 +2631,53 @@ export class ChatbotService {
 					const topName = isTeamQuestion ? firstResult.teamName : firstResult.playerName;
 					const topValue = firstResult.value;
 
-					// Determine the appropriate text based on actual result count and requested limit
-					const countText =
-						resultCount === 1
-							? "1"
-							: resultCount < requestedLimit
-								? `top ${resultCount}`
-								: requestedLimit === 10
-									? "top 10"
-									: `top ${requestedLimit}`;
-
-					if (isPlayerQuestion) {
-						answer = `The player with the highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText} players:`;
-					} else if (isTeamQuestion) {
-						answer = `The team with the highest ${metricName} is the ${topName} with ${topValue}. Here are the ${countText} teams:`;
+					if (isSingular) {
+						// Singular result - just return the answer without a table
+						if (isPlayerQuestion) {
+							answer = `${topName} has the highest ${metricName} with ${topValue}.`;
+						} else if (isTeamQuestion) {
+							answer = `The ${topName} has the highest ${metricName} with ${topValue}.`;
+						} else {
+							answer = `${topName} has the highest ${metricName} with ${topValue}.`;
+						}
+						// No visualization for singular results
 					} else {
-						answer = `The highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText}:`;
-					}
+						// Plural result - return table with top 10
+						const countText =
+							resultCount === 1
+								? "1"
+								: resultCount < requestedLimit
+									? `top ${resultCount}`
+									: requestedLimit === 10
+										? "top 10"
+										: `top ${requestedLimit}`;
 
-					visualization = {
-						type: "Table",
-						data: data.data.map((item: Record<string, unknown>, index: number) => ({
-							rank: index + 1,
-							name: isTeamQuestion ? item.teamName : item.playerName,
-							value: item.value,
-						})),
-						config: {
-							title: `${countText.charAt(0).toUpperCase() + countText.slice(1)} ${isTeamQuestion ? "Teams" : "Players"} - ${metricName}`,
-							type: "table",
-							columns: [
-								{ key: "rank", label: "Rank" },
-								{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
-								{ key: "value", label: metricName },
-							],
-						},
-					};
+						if (isPlayerQuestion) {
+							answer = `The player with the highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText} players:`;
+						} else if (isTeamQuestion) {
+							answer = `The team with the highest ${metricName} is the ${topName} with ${topValue}. Here are the ${countText} teams:`;
+						} else {
+							answer = `The highest ${metricName} is ${topName} with ${topValue}. Here are the ${countText}:`;
+						}
+
+						visualization = {
+							type: "Table",
+							data: data.data.map((item: Record<string, unknown>, index: number) => ({
+								rank: index + 1,
+								name: isTeamQuestion ? item.teamName : item.playerName,
+								value: item.value,
+							})),
+							config: {
+								title: `${countText.charAt(0).toUpperCase() + countText.slice(1)} ${isTeamQuestion ? "Teams" : "Players"} - ${metricName}`,
+								type: "table",
+								columns: [
+									{ key: "rank", label: "Rank" },
+									{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
+									{ key: "value", label: metricName },
+								],
+							},
+						};
+					}
 				}
 			}
 		}
@@ -3008,9 +3082,12 @@ export class ChatbotService {
 		const isPlayerQuestion = lowerQuestion.includes("player") || lowerQuestion.includes("who");
 		const isTeamQuestion = lowerQuestion.includes("team");
 
+		// Determine result quantity (singular vs plural)
+		const resultQuantity = analysis.resultQuantity || "plural";
+		
 		// Check if user asked for a specific number (e.g., "top 3", "top 5")
 		const topNumberMatch = lowerQuestion.match(/top\s+(\d+)/);
-		const requestedLimit = topNumberMatch ? parseInt(topNumberMatch[1]) : 10;
+		const requestedLimit = resultQuantity === "singular" ? 1 : (topNumberMatch ? parseInt(topNumberMatch[1]) : 10);
 
 		// Get the metric configuration
 		const metricConfig = findMetricByAlias(metric);

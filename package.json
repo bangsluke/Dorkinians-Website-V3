@@ -27,7 +27,7 @@
 	"dependencies": {
 		"@headlessui/react": "^1.7.17",
 		"@heroicons/react": "^2.2.0",
-		"@netlify/plugin-nextjs": "^5.13.5",
+		"@netlify/plugin-nextjs": "^5.14.0",
 		"@types/node": "^20.19.15",
 		"@types/nodemailer": "^7.0.2",
 		"@types/papaparse": "^5.3.16",
