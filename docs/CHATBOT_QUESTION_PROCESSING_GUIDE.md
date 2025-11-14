@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [Table of Contents](#table-of-contents)
 - [Overview](#overview)
 - [Question Flow Overview](#question-flow-overview)
 - [Frontend to Backend Communication](#frontend-to-backend-communication)
@@ -12,7 +13,20 @@
 - [Metric Extraction and Correction Priority](#metric-extraction-and-correction-priority)
 - [Cypher Query Generation](#cypher-query-generation)
 - [Query Building Priority Order](#query-building-priority-order)
+  - [1. Query Structure Decision](#1-query-structure-decision)
+  - [2. Base Query Pattern](#2-base-query-pattern)
+  - [3. WHERE Clause Conditions (Applied in Order)](#3-where-clause-conditions-applied-in-order)
+  - [4. RETURN Clause](#4-return-clause)
+  - [5. Special Case Queries](#5-special-case-queries)
 - [Potential Efficiency Improvements](#potential-efficiency-improvements)
+  - [1. Entity Extraction Optimization](#1-entity-extraction-optimization)
+  - [2. Stat Type Matching](#2-stat-type-matching)
+  - [3. Question Type Determination](#3-question-type-determination)
+  - [4. Metric Correction Chain](#4-metric-correction-chain)
+  - [5. Query Building](#5-query-building)
+  - [6. Fuzzy Matching Performance](#6-fuzzy-matching-performance)
+  - [7. Database Query Optimization](#7-database-query-optimization)
+  - [8. Early Exit Opportunities](#8-early-exit-opportunities)
 - [Conclusion](#conclusion)
 
 > [Back to Table of Contents](#table-of-contents)

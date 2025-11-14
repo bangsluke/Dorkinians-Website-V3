@@ -62,6 +62,11 @@ const dataSources = [
 		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv",
 		type: "StatsData",
 	},
+	{
+		name: "TBL_TestQuestions",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1744030592&single=true&output=csv",
+		type: "StatsData",
+	}
 	// TBL_DataSources - SKIPPED for memory optimization (web scraping disabled)
 	// {
 	// 	name: "TBL_DataSources",
