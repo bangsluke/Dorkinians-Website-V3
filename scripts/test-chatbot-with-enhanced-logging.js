@@ -31,7 +31,8 @@ const debugLogFile = path.join(logDir, `test-debug-${timestamp}.log`);
 
 // Create write streams for different log types
 const logStream = fs.createWriteStream(logFile, { flags: "w" });
-const errorStream = fs.createWriteStream(errorLogFile, { flags: "w" });
+// Use append mode for error stream to match appendFileSync behavior
+const errorStream = fs.createWriteStream(errorLogFile, { flags: "a" });
 const debugStream = fs.createWriteStream(debugLogFile, { flags: "w" });
 
 // Enhanced logging functions
@@ -44,6 +45,9 @@ const logToFile = (message, level = "INFO") => {
 
 	// Write to appropriate specialized log
 	if (level === "ERROR" || level === "WARN") {
+		// For errors, write synchronously to ensure it's captured even if process exits abruptly
+		fs.appendFileSync(errorLogFile, logMessage);
+		// Also write to stream for consistency
 		errorStream.write(logMessage);
 	}
 
@@ -104,6 +108,7 @@ process.on("unhandledRejection", (reason, promise) => {
 // Clean up function
 const cleanup = () => {
 	logToFile("Cleaning up log streams...", "INFO");
+	// End streams (this will flush and close them)
 	logStream.end();
 	errorStream.end();
 	debugStream.end();
@@ -182,15 +187,60 @@ async function runEnhancedChatbotTest() {
 		};
 
 		// Execute the test script
-		const result = execSync(testCommand, {
-			encoding: "utf8",
-			env: env,
-			stdio: "pipe", // Capture output
-		});
-
-		logToFile("✅ Test script execution completed", "INFO");
-		logToFile("📊 Test output captured:", "INFO");
-		logToFile(result, "INFO");
+		let result;
+		let stderrOutput = "";
+		try {
+			result = execSync(testCommand, {
+				encoding: "utf8",
+				env: env,
+				stdio: ["pipe", "pipe", "pipe"], // Capture stdin, stdout, stderr
+			});
+			logToFile("✅ Test script execution completed", "INFO");
+			logToFile("📊 Test output captured:", "INFO");
+			logToFile(result, "INFO");
+		} catch (execError) {
+			// Capture all output from the failed command
+			const stdout = execError.stdout || "";
+			const stderr = execError.stderr || "";
+			
+			logToFile("❌ Test script execution failed", "ERROR");
+			logToFile(`Error message: ${execError.message}`, "ERROR");
+			
+			// Write stdout to execution log line by line (this is the main content)
+			if (stdout) {
+				const stdoutLines = stdout.split("\n");
+				stdoutLines.forEach((line) => {
+					if (line.trim()) {
+						const timestamp = new Date().toISOString();
+						fs.appendFileSync(logFile, `[${timestamp}] INFO: ${line}\n`);
+					}
+				});
+			}
+			
+			// Write stderr to execution log line by line
+			if (stderr) {
+				const stderrLines = stderr.split("\n");
+				stderrLines.forEach((line) => {
+					if (line.trim()) {
+						const timestamp = new Date().toISOString();
+						fs.appendFileSync(logFile, `[${timestamp}] ERROR: ${line}\n`);
+						// Also log to error stream
+						logToFile(line, "ERROR");
+					}
+				});
+			}
+			
+			// If no stdout/stderr, log the error message
+			if (!stdout && !stderr) {
+				const errorMsg = execError.message || String(execError);
+				const timestamp = new Date().toISOString();
+				fs.appendFileSync(logFile, `[${timestamp}] ERROR: ${errorMsg}\n`);
+				logToFile(errorMsg, "ERROR");
+			}
+			
+			logToFile(`Full error stack: ${execError.stack || String(execError)}`, "ERROR");
+			throw execError;
+		}
 
 		// Parse results if possible
 		try {
@@ -248,6 +298,8 @@ async function main() {
 	} else {
 		console.log("❌ Enhanced test failed");
 		console.log(`📝 Check error log: ${errorLogFile}`);
+		// Ensure streams are flushed before exit
+		cleanup();
 		process.exit(1);
 	}
 }
@@ -255,5 +307,9 @@ async function main() {
 // Run the enhanced test
 main().catch((error) => {
 	console.error("❌ Enhanced test script failed:", error);
+	logToFile(`❌ Fatal error in main: ${error.message}`, "ERROR");
+	logToFile(`Stack trace: ${error.stack}`, "ERROR");
+	// Flush all streams before exit
+	cleanup();
 	process.exit(1);
 });
