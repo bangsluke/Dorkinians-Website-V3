@@ -22,7 +22,9 @@
 		"test:chatbot-report:hide": "node scripts/test-chatbot-email-report.js --hide-passed",
 		"test:chatbot-report:debug": "cross-env DEBUG_MODE=true node scripts/test-chatbot-email-report.js",
 		"test:chatbot-report:enhanced-logging": "node scripts/test-chatbot-with-enhanced-logging.js",
-		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js"
+		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js",
+		"test:questions-report": "node scripts/test-questions-email-report.js",
+		"test:questions-report:hide": "node scripts/test-questions-email-report.js --hide-passed"
 	},
 	"dependencies": {
 		"@headlessui/react": "^1.7.17",
@@ -61,7 +63,7 @@
 		"@types/node": "^24.7.0",
 		"cross-env": "^10.0.0",
 		"eslint": "^8.57.1",
-		"eslint-config-next": "14.0.4",
+		"eslint-config-next": "14.2.33",
 		"jest": "^30.1.1",
 		"prettier": "^3.6.2",
 		"ts-jest": "^29.4.1",
