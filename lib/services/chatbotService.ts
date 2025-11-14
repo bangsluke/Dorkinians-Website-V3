@@ -1126,10 +1126,10 @@ export class ChatbotService {
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
 		const needsMatchDetail = this.metricNeedsMatchDetail(metric);
-		const isTeamSpecificMetric = metric.match(/^\d+sApps$/i) || 
+		const isTeamSpecificMetric = !!(metric.match(/^\d+sApps$/i) || 
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
 			metric.match(/^\d+sGoals$/i) ||
-			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i);
+			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
 		const needsFixture =
 			(!isTeamSpecificMetric && teamEntities.length > 0) ||
 			locations.length > 0 ||
@@ -1217,13 +1217,7 @@ export class ChatbotService {
 			}
 		}
 
-		// Handle special cases that need custom queries
-		const specialCaseQuery = this.buildSpecialCaseQuery(_playerName, metric, analysis);
-		if (specialCaseQuery) {
-			return specialCaseQuery;
-		}
-
-		// This should not be reached if special cases are handled above
+		// Return the built query
 		return query;
 	}
 
@@ -1643,6 +1637,187 @@ export class ChatbotService {
 	}
 
 	/**
+	 * Build WHERE conditions for query filters
+	 */
+	private buildWhereConditions(
+		metric: string,
+		analysis: EnhancedQuestionAnalysis,
+		isTeamSpecificMetric: boolean,
+		teamEntities: string[],
+		oppositionEntities: string[],
+		timeRange: string | undefined,
+		locations: Array<{ type: string; value: string }>,
+	): string[] {
+		const whereConditions: string[] = [];
+
+		// Add team filter if specified (but skip if we have a team-specific metric - those use md.team instead)
+		if (teamEntities.length > 0 && !isTeamSpecificMetric) {
+			const mappedTeamNames = teamEntities.map((team) => this.mapTeamName(team));
+			const teamNames = mappedTeamNames.map((team) => `toUpper('${team}')`).join(", ");
+			whereConditions.push(`toUpper(f.team) IN [${teamNames}]`);
+		}
+
+		// Add team-specific appearance filter if metric is team-specific (1sApps, 2sApps, etc.)
+		if (metric.match(/^\d+sApps$/i)) {
+			const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
+			if (teamNumber) {
+				const teamName = this.mapTeamName(`${teamNumber}s`);
+				whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+			}
+		}
+
+		// Add team-specific appearance filter if metric is team-specific (1st XI Apps, 2nd XI Apps, etc.)
+		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+			const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
+			if (teamMatch) {
+				const teamName = teamMatch[1] + " XI";
+				whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+			}
+		}
+
+		// Add team-specific goals filter if metric is team-specific (1sGoals, 2sGoals, etc.)
+		if (metric.match(/^\d+sGoals$/i)) {
+			const teamNumber = metric.match(/^(\d+)sGoals$/i)?.[1];
+			if (teamNumber) {
+				const teamName = this.mapTeamName(`${teamNumber}s`);
+				if (!isTeamSpecificMetric) {
+					whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+				}
+			}
+		}
+
+		// Add team-specific goals filter if metric is team-specific (1st XI Goals, 2nd XI Goals, etc.)
+		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+			const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Goals$/i);
+			if (teamMatch) {
+				const teamName = teamMatch[1] + " XI";
+				if (!isTeamSpecificMetric) {
+					whereConditions.push(`toUpper(md.team) = toUpper('${teamName}')`);
+				}
+			}
+		}
+
+		// Add location filter if specified (only if not already handled by metric, and not for team-specific metrics)
+		if (locations.length > 0 && metric !== "HOME" && metric !== "AWAY" && !isTeamSpecificMetric) {
+			const locationFilters = locations
+				.map((loc) => {
+					if (loc.type === "home") return `f.homeOrAway = 'Home'`;
+					if (loc.type === "away") return `f.homeOrAway = 'Away'`;
+					return null;
+				})
+				.filter(Boolean);
+			if (locationFilters.length > 0) {
+				whereConditions.push(`(${locationFilters.join(" OR ")})`);
+			}
+		}
+
+		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
+		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
+			const oppositionName = oppositionEntities[0];
+			whereConditions.push(`f.opposition = '${oppositionName}'`);
+		}
+
+		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
+		if (timeRange && !isTeamSpecificMetric) {
+			const dateRange = timeRange.split(" to ");
+			if (dateRange.length === 2) {
+				const startDate = this.convertDateFormat(dateRange[0].trim());
+				const endDate = this.convertDateFormat(dateRange[1].trim());
+				whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
+			}
+		}
+
+		// Add competition type filter if specified (but not for team-specific metrics - they don't need Fixture)
+		if (analysis.competitionTypes && analysis.competitionTypes.length > 0 && !isTeamSpecificMetric) {
+			const compTypeFilters = analysis.competitionTypes
+				.map((compType) => {
+					switch (compType.toLowerCase()) {
+						case "league":
+							return `f.compType = 'League'`;
+						case "cup":
+							return `f.compType = 'Cup'`;
+						case "friendly":
+							return `f.compType = 'Friendly'`;
+						default:
+							return null;
+					}
+				})
+				.filter(Boolean);
+			if (compTypeFilters.length > 0) {
+				whereConditions.push(`(${compTypeFilters.join(" OR ")})`);
+			}
+		}
+
+		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		if (analysis.competitions && analysis.competitions.length > 0 && 
+			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
+			!metric.match(/^\d+sApps$/i) &&
+			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
+			!metric.match(/^\d+sGoals$/i)) {
+			const competitionFilters = analysis.competitions.map((comp) => `f.competition CONTAINS '${comp}'`);
+			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
+		}
+
+		// Add result filter if specified (but not for team-specific metrics - they don't need Fixture)
+		if (analysis.results && analysis.results.length > 0 && !isTeamSpecificMetric) {
+			const resultFilters = analysis.results
+				.map((result) => {
+					switch (result.toLowerCase()) {
+						case "win":
+						case "w":
+							return `f.result = 'W'`;
+						case "draw":
+						case "d":
+							return `f.result = 'D'`;
+						case "loss":
+						case "l":
+							return `f.result = 'L'`;
+						default:
+							return null;
+					}
+				})
+				.filter(Boolean);
+			if (resultFilters.length > 0) {
+				whereConditions.push(`(${resultFilters.join(" OR ")})`);
+			}
+		}
+
+		// Add opponent own goals filter if specified (but not for team-specific metrics - they don't need Fixture)
+		if (analysis.opponentOwnGoals === true && !isTeamSpecificMetric) {
+			whereConditions.push(`f.oppoOwnGoals > 0`);
+		}
+
+		// Add special metric filters
+		if (metric === "HOME") {
+			whereConditions.push(`f.homeOrAway = 'Home'`);
+		} else if (metric === "AWAY") {
+			whereConditions.push(`f.homeOrAway = 'Away'`);
+		}
+
+		// Add position filters for position-specific metrics
+		if (metric === "GK") {
+			whereConditions.push(`md.class = 'GK'`);
+		} else if (metric === "DEF") {
+			whereConditions.push(`md.class = 'DEF'`);
+		} else if (metric === "MID") {
+			whereConditions.push(`md.class = 'MID'`);
+		} else if (metric === "FWD") {
+			whereConditions.push(`md.class = 'FWD'`);
+		}
+
+		// Add seasonal metric filters (dynamic for any season)
+		if (metric.match(/\d{4}\/\d{2}(GOALS|APPS)/i)) {
+			const seasonMatch = metric.match(/(\d{4}\/\d{2})(GOALS|APPS)/i);
+			if (seasonMatch) {
+				const season = seasonMatch[1];
+				whereConditions.push(`f.season = "${season}"`);
+			}
+		}
+
+		return whereConditions;
+	}
+
+	/**
 	 * Optimize WHERE clause condition order for better query performance
 	 * Most selective conditions (equality, indexed fields) should come first
 	 */
@@ -1848,9 +2023,9 @@ export class ChatbotService {
 				const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i) || metric.match(/^(\d+)sApps$/i);
 				if (teamMatch) {
 					const teamName = teamMatch[1] + (metric.includes("XI") ? " XI" : "s");
-					answer = responseTemplateManager.formatResponse("zero_appearances", { playerName, teamName });
+					answer = responseTemplateManager.formatResponse("zero_appearances", { playerName: String(playerName), teamName: String(teamName) });
 				} else {
-					answer = responseTemplateManager.formatResponse("player_metric", { playerName, value: 0, metric: "appearances" });
+					answer = responseTemplateManager.formatResponse("player_metric", { playerName: String(playerName), value: String(0), metric: "appearances" });
 				}
 			}
 			// Check if this is a team-specific goals query - return 0 instead of "No data found"

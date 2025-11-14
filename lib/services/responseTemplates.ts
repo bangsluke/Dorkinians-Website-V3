@@ -22,7 +22,7 @@ export class ResponseTemplateManager {
 	/**
 	 * Get a formatted response using a template
 	 */
-	public formatResponse(templateKey: string, variables: Record<string, string | number>): string {
+	public formatResponse(templateKey: string, variables: Record<string, string | number | undefined>): string {
 		const cacheKey = `${templateKey}:${JSON.stringify(variables)}`;
 		
 		// Check cache first
