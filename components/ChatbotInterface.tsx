@@ -20,6 +20,7 @@ export default function ChatbotInterface() {
 	const isDevelopment = process.env.NODE_ENV === "development";
 	const [question, setQuestion] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
+	const [loadingMessage, setLoadingMessage] = useState("Thinking...");
 	const [response, setResponse] = useState<ChatbotResponse | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
@@ -65,6 +66,33 @@ export default function ChatbotInterface() {
 			localStorage.setItem("chatbotConversations", JSON.stringify(lastThree));
 		}
 	}, [conversationHistory]);
+
+	// Progressive loading message based on elapsed time
+	useEffect(() => {
+		if (!isLoading) {
+			setLoadingMessage("Thinking...");
+			return;
+		}
+
+		const startTime = Date.now();
+		setLoadingMessage("Thinking...");
+
+		const interval = setInterval(() => {
+			const elapsed = (Date.now() - startTime) / 1000;
+
+			if (elapsed >= 40) {
+				setLoadingMessage("I'm probably stuck and not going to answer.");
+			} else if (elapsed >= 20) {
+				setLoadingMessage("Real challenging question this...");
+			} else if (elapsed >= 10) {
+				setLoadingMessage("Tricky question this one...");
+			} else if (elapsed >= 5) {
+				setLoadingMessage("Thinking really hard...");
+			}
+		}, 100);
+
+		return () => clearInterval(interval);
+	}, [isLoading]);
 
 	// Handle the chatbot question submission
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -347,7 +375,7 @@ export default function ChatbotInterface() {
 					<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className='text-center py-8'>
 						<div className='inline-flex items-center space-x-2'>
 							<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400'></div>
-							<span className='text-yellow-300'>Thinking...</span>
+							<span className='text-yellow-300'>{loadingMessage}</span>
 						</div>
 					</motion.div>
 				)}

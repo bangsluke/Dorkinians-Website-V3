@@ -1,4 +1,17 @@
 {
 	"extends": ["next/core-web-vitals"],
-	"ignorePatterns": ["netlify/functions/**/*", "scripts/**/*"]
+	"ignorePatterns": ["netlify/functions/**/*", "scripts/**/*"],
+	"overrides": [
+		{
+			"files": ["next.config.js"],
+			"parser": "espree",
+			"parserOptions": {
+				"ecmaVersion": 2020,
+				"sourceType": "module"
+			},
+			"env": {
+				"node": true
+			}
+		}
+	]
 }

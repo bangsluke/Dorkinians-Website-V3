@@ -1,5 +1,6 @@
 import * as natural from "natural";
 import { EntityNameResolver } from "./entityNameResolver";
+import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 
 export interface SpellingCorrection {
 	original: string;
@@ -31,12 +32,24 @@ export class SpellingCorrector {
 		if (this.dictionaryLoaded) return;
 
 		try {
-			// Use entity resolver to get entities by attempting resolution
-			// The resolver will cache entities internally
-			const playerResult = await this.entityResolver.resolveEntityName("test", "player").catch(() => ({ allEntities: [] }));
-			const teamResult = await this.entityResolver.resolveEntityName("test", "team").catch(() => ({ allEntities: [] }));
-			const oppositionResult = await this.entityResolver.resolveEntityName("test", "opposition").catch(() => ({ allEntities: [] }));
-			const statTypeResult = await this.entityResolver.resolveEntityName("test", "stat_type").catch(() => ({ allEntities: [] }));
+			// Check if Neo4j is connected before attempting database queries
+			// Use getSession() which checks both driver and connection status
+			const session = neo4jService.getSession();
+			if (!session) {
+				console.warn("⚠️ Neo4j not connected, loading dictionary with common terms only");
+				// Still load common terms even if database is unavailable
+				this.loadCommonTerms();
+				this.dictionaryLoaded = true;
+				return;
+			}
+
+			// Parallelize entity fetching for better performance
+			const [playerResult, teamResult, oppositionResult, statTypeResult] = await Promise.all([
+				this.entityResolver.resolveEntityName("test", "player").catch(() => ({ allEntities: [] })),
+				this.entityResolver.resolveEntityName("test", "team").catch(() => ({ allEntities: [] })),
+				this.entityResolver.resolveEntityName("test", "opposition").catch(() => ({ allEntities: [] })),
+				this.entityResolver.resolveEntityName("test", "stat_type").catch(() => ({ allEntities: [] })),
+			]);
 
 			const players = playerResult.allEntities || [];
 			const teams = teamResult.allEntities || [];
@@ -48,54 +61,64 @@ export class SpellingCorrector {
 			oppositions.forEach((o) => this.dictionary.add(o.toLowerCase()));
 			statTypes.forEach((s) => this.dictionary.add(s.toLowerCase()));
 
-			const commonTerms = [
-				"goals",
-				"assists",
-				"appearances",
-				"apps",
-				"minutes",
-				"yellow",
-				"red",
-				"cards",
-				"saves",
-				"clean",
-				"sheets",
-				"penalties",
-				"scored",
-				"missed",
-				"conceded",
-				"saved",
-				"fantasy",
-				"points",
-				"home",
-				"away",
-				"team",
-				"player",
-				"season",
-				"league",
-				"cup",
-				"friendly",
-				"how",
-				"many",
-				"what",
-				"which",
-				"who",
-				"where",
-				"when",
-				"top",
-				"best",
-				"most",
-				"least",
-				"highest",
-				"lowest",
-			];
-
-			commonTerms.forEach((term) => this.dictionary.add(term.toLowerCase()));
+			this.loadCommonTerms();
 
 			this.dictionaryLoaded = true;
 		} catch (error) {
 			console.error("❌ Failed to load spelling dictionary:", error);
+			// Load common terms even if database queries fail
+			this.loadCommonTerms();
+			this.dictionaryLoaded = true;
 		}
+	}
+
+	/**
+	 * Load common terms into dictionary
+	 */
+	private loadCommonTerms(): void {
+		const commonTerms = [
+			"goals",
+			"assists",
+			"appearances",
+			"apps",
+			"minutes",
+			"yellow",
+			"red",
+			"cards",
+			"saves",
+			"clean",
+			"sheets",
+			"penalties",
+			"scored",
+			"missed",
+			"conceded",
+			"saved",
+			"fantasy",
+			"points",
+			"home",
+			"away",
+			"team",
+			"player",
+			"season",
+			"league",
+			"cup",
+			"friendly",
+			"how",
+			"many",
+			"what",
+			"which",
+			"who",
+			"where",
+			"when",
+			"top",
+			"best",
+			"most",
+			"least",
+			"highest",
+			"lowest",
+		];
+
+		commonTerms.forEach((term) => this.dictionary.add(term.toLowerCase()));
 	}
 
 	/**

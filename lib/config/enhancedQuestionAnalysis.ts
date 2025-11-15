@@ -439,9 +439,45 @@ export class EnhancedQuestionAnalyzer {
 			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
 		}
 
-		// Use pattern-based correction system with early exit
-		const correctedStats = this.applyMetricCorrections(extractionResult.statTypes, cacheKey);
-		
+		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
+		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
+
+		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
+		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(gamesCorrectedStats);
+
+		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
+		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
+
+		// CRITICAL FIX: Detect most prolific season queries
+		const prolificCorrectedStats = this.correctMostProlificSeasonQueries(correctedStatTypes);
+
+		// CRITICAL FIX: Detect season-specific queries
+		const seasonCorrectedStats = this.correctSeasonSpecificQueries(prolificCorrectedStats);
+
+		// CRITICAL FIX: Detect season-specific appearance queries
+		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(seasonCorrectedStats);
+
+		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
+		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
+
+		// CRITICAL FIX: Detect open play goals queries
+		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(fantasyPointsCorrectedStats);
+
+		// CRITICAL FIX: Detect team-specific goals queries
+		const teamGoalsCorrectedStats = this.correctTeamSpecificGoalsQueries(openPlayCorrectedStats);
+
+		// CRITICAL FIX: Detect distance/travel queries
+		const distanceCorrectedStats = this.correctDistanceTravelQueries(teamGoalsCorrectedStats);
+
+		// CRITICAL FIX: Detect percentage queries
+		const percentageCorrectedStats = this.correctPercentageQueries(distanceCorrectedStats);
+
+		// CRITICAL FIX: Detect "most appearances for team" queries
+		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
+
+		// CRITICAL FIX: Detect "most scored for team" queries
+		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
+
 		// Convert extracted stat types to legacy format with priority handling
 		const statTypes = correctedStats.map((stat) => stat.value);
 
@@ -573,7 +609,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
-			"Fantasy Points", // More specific than general stats - requires MatchDetail join
+			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -1248,6 +1284,40 @@ export class EnhancedQuestionAnalyzer {
 
 				return filteredStats;
 			}
+		}
+
+		return statTypes;
+	}
+
+	private correctFantasyPointsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for fantasy points phrases - must run before open play goals correction
+		if (lowerQuestion.includes("fantasy points") || lowerQuestion.includes("fantasy point") || lowerQuestion.includes("ftp") || (lowerQuestion.includes("points") && lowerQuestion.includes("fantasy"))) {
+			// Remove incorrect "Goals", "G", "AllGSC", "Open Play Goals", "Saves", "Saves Per Appearance" mappings
+			const filteredStats = statTypes.filter((stat) => !["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves", "Saves Per Appearance"].includes(stat.value));
+
+			// Check if "Fantasy Points" is already in the stats
+			const hasFantasyPointsStat = filteredStats.some((stat) => stat.value === "Fantasy Points");
+
+			if (!hasFantasyPointsStat) {
+				// Add correct "Fantasy Points" mapping
+				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1 
+					? lowerQuestion.indexOf("fantasy points") 
+					: lowerQuestion.indexOf("fantasy point") !== -1 
+						? lowerQuestion.indexOf("fantasy point")
+						: lowerQuestion.indexOf("ftp") !== -1
+							? lowerQuestion.indexOf("ftp")
+							: lowerQuestion.indexOf("points");
+				
+				filteredStats.push({
+					value: "Fantasy Points",
+					originalText: "fantasy points",
+					position: fantasyPosition,
+				});
+			}
+
+			return filteredStats;
 		}
 
 		return statTypes;

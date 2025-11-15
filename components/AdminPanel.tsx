@@ -98,6 +98,12 @@ export default function AdminPanel() {
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
 
+	// Unanswered questions state
+	const [unansweredQuestionsLoading, setUnansweredQuestionsLoading] = useState(false);
+	const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{ timestamp: string; question: string }>>([]);
+	const [unansweredQuestionsError, setUnansweredQuestionsError] = useState<string | null>(null);
+	const [clearingQuestions, setClearingQuestions] = useState(false);
+
 	// Debug information state
 	const [showDebugInfo, setShowDebugInfo] = useState(false);
 
@@ -136,6 +142,12 @@ export default function AdminPanel() {
 	useEffect(() => {
 		const calculatedSeason = calculateCurrentSeason();
 		setCurrentSeason(calculatedSeason);
+	}, []);
+
+	// Fetch unanswered questions on component mount
+	useEffect(() => {
+		fetchUnansweredQuestions();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// Season validation function
@@ -926,6 +938,59 @@ export default function AdminPanel() {
 			setChatbotTestError(err instanceof Error ? err.message : "Network error");
 		} finally {
 			setChatbotTestLoading(false);
+		}
+	};
+
+	const fetchUnansweredQuestions = async () => {
+		setUnansweredQuestionsLoading(true);
+		setUnansweredQuestionsError(null);
+
+		try {
+			const response = await fetch("/api/admin/unanswered-questions");
+			const data = await response.json();
+
+			if (data.success) {
+				setUnansweredQuestions(data.data || []);
+			} else {
+				throw new Error(data.error || "Failed to fetch unanswered questions");
+			}
+		} catch (err) {
+			console.error("Error fetching unanswered questions:", err);
+			setUnansweredQuestionsError(err instanceof Error ? err.message : "Network error");
+		} finally {
+			setUnansweredQuestionsLoading(false);
+		}
+	};
+
+	const clearUnansweredQuestions = async () => {
+		if (!confirm("Are you sure you want to clear all unanswered questions? This action cannot be undone.")) {
+			return;
+		}
+
+		setClearingQuestions(true);
+		setUnansweredQuestionsError(null);
+
+		try {
+			const response = await fetch("/api/admin/unanswered-questions", {
+				method: "DELETE",
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				setUnansweredQuestions([]);
+				setToastMessage("All unanswered questions cleared successfully");
+				setToastType("success");
+			} else {
+				throw new Error(data.error || "Failed to clear unanswered questions");
+			}
+		} catch (err) {
+			console.error("Error clearing unanswered questions:", err);
+			setUnansweredQuestionsError(err instanceof Error ? err.message : "Network error");
+			setToastMessage("Failed to clear unanswered questions");
+			setToastType("error");
+		} finally {
+			setClearingQuestions(false);
 		}
 	};
 
@@ -1734,6 +1799,71 @@ export default function AdminPanel() {
 						<p className='text-red-600 text-sm'>
 							❌ <strong>Chatbot Test Error:</strong> {chatbotTestError}
 						</p>
+					</div>
+				)}
+			</div>
+
+			{/* Unanswered Questions Section */}
+			<div className='mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
+				<div className='flex justify-between items-center mb-4'>
+					<div>
+						<h3 className='text-lg font-semibold text-blue-800 mb-1'>Unanswered Questions</h3>
+						<p className='text-blue-700 text-sm'>
+							Questions the chatbot couldn't answer. Total: <strong>{unansweredQuestions.length}</strong>
+						</p>
+					</div>
+					<div className='flex gap-2'>
+						<button
+							onClick={fetchUnansweredQuestions}
+							disabled={unansweredQuestionsLoading}
+							className={`px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+								unansweredQuestionsLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+							}`}>
+							{unansweredQuestionsLoading ? "🔄 Loading..." : "🔄 Refresh"}
+						</button>
+						<button
+							onClick={clearUnansweredQuestions}
+							disabled={clearingQuestions || unansweredQuestions.length === 0}
+							className={`px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+								clearingQuestions || unansweredQuestions.length === 0
+									? "bg-gray-400 cursor-not-allowed"
+									: "bg-red-600 hover:bg-red-700"
+							}`}>
+							{clearingQuestions ? "🔄 Clearing..." : "🗑️ Clear All"}
+						</button>
+					</div>
+				</div>
+
+				{/* Error Display */}
+				{unansweredQuestionsError && (
+					<div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg'>
+						<p className='text-red-600 text-sm'>
+							❌ <strong>Error:</strong> {unansweredQuestionsError}
+						</p>
+					</div>
+				)}
+
+				{/* Questions List */}
+				{unansweredQuestionsLoading ? (
+					<div className='text-center py-8 text-gray-500'>Loading questions...</div>
+				) : unansweredQuestions.length === 0 ? (
+					<div className='text-center py-8 text-gray-500'>No unanswered questions found.</div>
+				) : (
+					<div className='space-y-3 max-h-96 overflow-y-auto'>
+						{unansweredQuestions.map((item, index) => (
+							<div
+								key={index}
+								className='p-3 bg-white border border-blue-200 rounded-lg hover:shadow-md transition-shadow'>
+								<div className='flex justify-between items-start gap-4'>
+									<div className='flex-1'>
+										<p className='text-gray-800 font-medium'>{item.question}</p>
+										<p className='text-xs text-gray-500 mt-1'>
+											{new Date(item.timestamp).toLocaleString()}
+										</p>
+									</div>
+								</div>
+							</div>
+						))}
 					</div>
 				)}
 			</div>
