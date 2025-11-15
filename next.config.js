@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const fs = require("fs");
 const path = require("path");
+const webpack = require("webpack");
 
 // Read version from package.json
 const packageJsonPath = path.join(__dirname, "package.json");
@@ -62,6 +63,16 @@ const nextConfig = {
 	// }
 	env: {
 		NEXT_PUBLIC_APP_VERSION: appVersion,
+	},
+	webpack: (config, { isServer }) => {
+		// Suppress webworker-threads warning from natural library
+		// This module is optional and not needed in Next.js environment
+		config.plugins.push(
+			new webpack.IgnorePlugin({
+				resourceRegExp: /^webworker-threads$/,
+			}),
+		);
+		return config;
 	},
 };
 

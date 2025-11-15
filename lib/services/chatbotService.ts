@@ -431,15 +431,7 @@ export class ChatbotService {
 		let correctedQuestion: string | undefined;
 
 		try {
-			// Apply spelling correction before analysis
-			const spellingResult = await spellingCorrector.correctSpelling(context.question);
-			if (spellingResult.corrected !== context.question && spellingResult.corrections.length > 0) {
-				correctedQuestion = spellingResult.corrected;
-				context.question = correctedQuestion;
-				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
-			}
-
-			// Ensure Neo4j connection
+			// Ensure Neo4j connection before any database-dependent operations
 			const connected = await neo4jService.connect();
 			if (!connected) {
 				console.error("❌ Neo4j connection failed in production");
@@ -447,6 +439,14 @@ export class ChatbotService {
 					answer: "I'm sorry, I'm unable to access the club's database at the moment due to a network issue. Please try again later.",
 					sources: [],
 				};
+			}
+
+			// Apply spelling correction after connection is established
+			const spellingResult = await spellingCorrector.correctSpelling(context.question);
+			if (spellingResult.corrected !== context.question && spellingResult.corrections.length > 0) {
+				correctedQuestion = spellingResult.corrected;
+				context.question = correctedQuestion;
+				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
 			}
 
 			// Analyze the question
@@ -476,13 +476,20 @@ export class ChatbotService {
 			}
 
 			// Create detailed breakdown for debugging
+			const statEntity = analysis.metrics[0] || "None";
+			const metricConfig = statEntity !== "None" ? statObject[statEntity as keyof typeof statObject] : null;
+			const numberDecimalPlaces = metricConfig && typeof metricConfig === "object" && "numberDecimalPlaces" in metricConfig
+				? (metricConfig.numberDecimalPlaces as number)
+				: 0;
+			
 			this.lastQueryBreakdown = {
 				playerName: context.userContext || "None",
 				team: analysis.entities.find((e) => /\d+(?:st|nd|rd|th)?/.test(e)) || "None",
-				statEntity: analysis.metrics[0] || "None",
+				statEntity: statEntity,
 				questionType: analysis.type,
 				extractedEntities: analysis.entities,
 				extractedMetrics: analysis.metrics,
+				numberDecimalPlaces: numberDecimalPlaces,
 			};
 
 			// Debug logging for complex queries
@@ -753,6 +760,12 @@ export class ChatbotService {
 				// Store query for debugging
 				this.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
 				this.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
+
+				// Log copyable queries for debugging
+				const readyToExecuteQuery = query
+					.replace(/\$playerName/g, `'${actualPlayerName}'`)
+					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
+				this.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
 				const result = await this.executeQueryWithProfiling(query, {
 					playerName: actualPlayerName,
@@ -2052,32 +2065,46 @@ export class ChatbotService {
 				const playerData = data.data[0] as PlayerData;
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
-				const value = playerData.value !== undefined ? playerData.value : 0;
+				let value = playerData.value !== undefined ? playerData.value : 0;
 				
+				// Round value based on metric's numberDecimalPlaces configuration
+				const metricConfig = statObject[metric as keyof typeof statObject];
+				if (metricConfig && typeof metricConfig === "object" && "numberDecimalPlaces" in metricConfig) {
+					const decimalPlaces = metricConfig.numberDecimalPlaces as number;
+					if (typeof value === "number") {
+						value = Number(value.toFixed(decimalPlaces));
+					}
+				}
 
 				// Get the metric display name
 				const metricName = getMetricDisplayName(metric, value as number);
 
 				// Enhanced handling for special metrics
+				const questionLower = question.toLowerCase();
+				const isFantasyPointsQuestion = questionLower.includes("fantasy points") || questionLower.includes("fantasy");
+				
 				if (metric === "AllGSC" || metric === "totalGoals") {
 					// Build contextual response and add clarification
 					answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 					answer = answer.replace(".", " (including both open play and penalty goals).");
+				} else if (isFantasyPointsQuestion && (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS" || metric === "OPENPLAYGOALS")) {
+					// Prioritize fantasy points if question mentions fantasy points, even if metric was incorrectly detected as OPENPLAYGOALS
+					const formattedValue = this.formatValueByMetric("FTP", value as number);
+					answer = `${playerName} has ${formattedValue} fantasy points.`;
 				} else if (metric === "OPENPLAYGOALS") {
 					// Special handling for open play goals
 					answer = `${playerName} has ${value} goals from open play.`;
 				} else if (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS") {
 					// Build contextual response for fantasy points
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("fantasy points") || questionLower.includes("fantasy")) {
-						answer = `${playerName} has ${value} fantasy points.`;
+					if (isFantasyPointsQuestion) {
+						const formattedValue = this.formatValueByMetric("FTP", value as number);
+						answer = `${playerName} has ${formattedValue} fantasy points.`;
 					} else {
 						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 						answer = answer.replace(".", " (Fantasy Points).");
 					}
 				} else if (metric === "DIST" || metric.toUpperCase() === "DIST") {
 					// For "How far has player travelled to get to games?" questions
-					const questionLower = question.toLowerCase();
 					if (questionLower.includes("travelled") || questionLower.includes("traveled") || questionLower.includes("distance") || questionLower.includes("how far")) {
 						const formattedValue = this.formatValueByMetric("DIST", value as number);
 						answer = `${playerName} has travelled ${formattedValue} miles to games.`;
@@ -2415,6 +2442,7 @@ export class ChatbotService {
 
 				// Create visualization for numerical data
 				if (typeof value === "number") {
+					// Value is already rounded above, but ensure it's properly formatted
 					visualization = {
 						type: "NumberCard",
 						data: [{ name: playerName, value: value, metric: metricName }],

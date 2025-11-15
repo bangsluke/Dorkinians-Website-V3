@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.13",
+	version: "1.1.15",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -446,7 +446,7 @@ export const statObject = {
 		displayText: "Fantasy Points Achieved", // The text displayed at all times on the page.
 		shortText: "FTP", // Used for short displays such as on the Comparison tab.
 		wordedText: "fantasy points", // Used for chatbot responses
-		statFormat: "Integer",
+		statFormat: "Decimal",
 		description: "The number of fantasy points achieved by the player.",
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,

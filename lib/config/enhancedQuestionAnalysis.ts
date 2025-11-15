@@ -455,8 +455,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect season-specific appearance queries
 		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(seasonCorrectedStats);
 
+		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
+		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
+
 		// CRITICAL FIX: Detect open play goals queries
-		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
+		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(fantasyPointsCorrectedStats);
 
 		// CRITICAL FIX: Detect team-specific goals queries
 		const teamGoalsCorrectedStats = this.correctTeamSpecificGoalsQueries(openPlayCorrectedStats);
@@ -604,6 +607,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
+			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -1160,6 +1164,40 @@ export class EnhancedQuestionAnalyzer {
 
 				return filteredStats;
 			}
+		}
+
+		return statTypes;
+	}
+
+	private correctFantasyPointsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for fantasy points phrases - must run before open play goals correction
+		if (lowerQuestion.includes("fantasy points") || lowerQuestion.includes("fantasy point") || lowerQuestion.includes("ftp") || (lowerQuestion.includes("points") && lowerQuestion.includes("fantasy"))) {
+			// Remove incorrect "Goals", "G", "AllGSC", "Open Play Goals", "Saves", "Saves Per Appearance" mappings
+			const filteredStats = statTypes.filter((stat) => !["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves", "Saves Per Appearance"].includes(stat.value));
+
+			// Check if "Fantasy Points" is already in the stats
+			const hasFantasyPointsStat = filteredStats.some((stat) => stat.value === "Fantasy Points");
+
+			if (!hasFantasyPointsStat) {
+				// Add correct "Fantasy Points" mapping
+				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1 
+					? lowerQuestion.indexOf("fantasy points") 
+					: lowerQuestion.indexOf("fantasy point") !== -1 
+						? lowerQuestion.indexOf("fantasy point")
+						: lowerQuestion.indexOf("ftp") !== -1
+							? lowerQuestion.indexOf("ftp")
+							: lowerQuestion.indexOf("points");
+				
+				filteredStats.push({
+					value: "Fantasy Points",
+					originalText: "fantasy points",
+					position: fantasyPosition,
+				});
+			}
+
+			return filteredStats;
 		}
 
 		return statTypes;

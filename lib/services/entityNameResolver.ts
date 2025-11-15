@@ -105,6 +105,14 @@ export class EntityNameResolver {
 			return cached.entities;
 		}
 
+		// Check if Neo4j is connected before attempting database queries
+		const session = neo4jService.getSession();
+		if (!session) {
+			console.warn(`⚠️ Neo4j not connected, returning empty array for ${entityType} entities`);
+			// Return cached data if available, otherwise empty array
+			return cached?.entities || [];
+		}
+
 		try {
 			let query = "";
 			let propertyName = "";
