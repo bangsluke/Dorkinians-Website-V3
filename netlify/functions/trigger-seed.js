@@ -564,8 +564,8 @@ exports.handler = async (event, context) => {
 							jobId,
 							emailConfig: {
 								emailAddress: emailConfig.emailAddress || "bangsluke@gmail.com",
-								sendEmailAtStart: emailConfig.sendEmailAtStart ?? false,
-								sendEmailAtCompletion: emailConfig.sendEmailAtCompletion ?? true,
+								sendEmailAtStart: Boolean(emailConfig.sendEmailAtStart ?? false),
+								sendEmailAtCompletion: Boolean(emailConfig.sendEmailAtCompletion ?? true),
 							},
 							seasonConfig: seasonConfig,
 						}),
