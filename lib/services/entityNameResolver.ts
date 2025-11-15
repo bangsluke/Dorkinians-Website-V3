@@ -1,6 +1,6 @@
 import * as natural from "natural";
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
-import { LRUCache } from "../utils/lruCache.js";
+import { LRUCache } from "../utils/lruCache";
 
 export interface EntityMatch {
 	entityName: string;

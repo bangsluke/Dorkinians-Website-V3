@@ -2106,18 +2106,22 @@ export class ChatbotService {
 				answer = answer.replace(".", " (including both open play and penalty goals).");
 			} else if (metric === "OPENPLAYGOALS") {
 				// Special handling for open play goals
+				// Use formatValueByMetric to ensure proper decimal places from statObject
+				const formattedValue = this.formatValueByMetric("G", value as number);
 				answer = responseTemplateManager.formatResponse("player_metric", {
 					playerName,
-					value: String(value),
+					value: formattedValue,
 					metric: "goals from open play",
 				});
 			} else if (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS") {
 				// Build contextual response for fantasy points
 				const questionLower = question.toLowerCase();
 				if (questionLower.includes("fantasy points") || questionLower.includes("fantasy")) {
+					// Use formatValueByMetric to ensure proper decimal places from statObject
+					const formattedValue = this.formatValueByMetric("FTP", value as number);
 					answer = responseTemplateManager.formatResponse("player_metric", {
 						playerName,
-						value: String(value),
+						value: formattedValue,
 						metric: "fantasy points",
 					});
 				} else {

@@ -17,6 +17,7 @@ interface SavedConversation {
 
 export default function ChatbotInterface() {
 	const { selectedPlayer } = useNavigationStore();
+	const isDevelopment = process.env.NODE_ENV === "development";
 	const [question, setQuestion] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
 	const [response, setResponse] = useState<ChatbotResponse | null>(null);
@@ -115,26 +116,38 @@ export default function ChatbotInterface() {
 				"3. processingSteps": data.debug.processingDetails.processingSteps,
 			});
 
-			// Log Cypher queries prominently if available
-			if (data.debug?.processingDetails?.cypherQueries?.length > 0) {
-				// console.log(`🤖 [CLIENT] 🎯 CYPHER QUERIES EXECUTED:`, data.debug.processingDetails.cypherQueries);
-
-				// Find and log copyable queries
-				const readyToExecuteQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith("READY_TO_EXECUTE:"));
-				// const parameterizedQuery = data.debug.processingDetails.cypherQueries.find((q: string) => q.startsWith('PLAYER_DATA:'));
-
-				// Log parameterized query
-				// if (parameterizedQuery) {
-				// 	const cleanQuery = parameterizedQuery.replace('PLAYER_DATA: ', '');
-				// 	console.log(`🤖 [CLIENT] 📋 PARAMETERIZED CYPHER QUERY (with variables):`);
-				// 	console.log(cleanQuery);
-				// }
-
-				// Log ready to execute query to the client so that they can paste it into Neo4j Aura for debugging
-				if (readyToExecuteQuery) {
-					const cleanQuery = readyToExecuteQuery.replace("READY_TO_EXECUTE: ", "");
-					console.log(`🤖 [CLIENT] 📋 COPYABLE CYPHER QUERY (ready to paste into Neo4j Aura):`);
-					console.log(cleanQuery);
+			// Log Cypher queries prominently if available (development mode only)
+			if (isDevelopment && data.debug?.processingDetails?.cypherQueries?.length > 0) {
+				const queries = data.debug.processingDetails.cypherQueries;
+				
+				// Extract and log ready-to-execute queries first (highest priority)
+				const readyToExecuteQueries = queries.filter((q: string) => 
+					q.startsWith("READY_TO_EXECUTE:") || q.startsWith("TOTW_READY_TO_EXECUTE:")
+				);
+				
+				if (readyToExecuteQueries.length > 0) {
+					readyToExecuteQueries.forEach((query: string) => {
+						const cleanQuery = query.replace(/^(READY_TO_EXECUTE|TOTW_READY_TO_EXECUTE):\s*/, "");
+						console.log(`🤖 [CLIENT] 📋 CYPHER QUERY (ready to execute):`);
+						console.log(cleanQuery);
+					});
+				}
+				
+				// Extract and log parameterized queries (with $variable placeholders)
+				const parameterizedQueries = queries.filter((q: string) => 
+					!q.startsWith("PARAMS:") && 
+					!q.startsWith("READY_TO_EXECUTE:") && 
+					!q.startsWith("TOTW_READY_TO_EXECUTE:") &&
+					(q.includes("$") || q.match(/MATCH|RETURN|WHERE|WITH|OPTIONAL/i))
+				);
+				
+				if (parameterizedQueries.length > 0) {
+					parameterizedQueries.forEach((query: string) => {
+						// Extract query text by removing common prefixes
+						const cleanQuery = query.replace(/^(PLAYER_DATA|TOTW_DATA|STREAK_DATA|COMPARISON_DATA|TEMPORAL_DATA|TEAM_SPECIFIC_DATA|RANKING_DATA|GENERAL_PLAYERS):\s*/, "");
+						console.log(`🤖 [CLIENT] 📋 CYPHER QUERY (parameterized):`);
+						console.log(cleanQuery);
+					});
 				}
 			}
 

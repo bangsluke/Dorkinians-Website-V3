@@ -1,5 +1,5 @@
 // Centralized response template system with caching
-import { LRUCache } from "../utils/lruCache.js";
+import { LRUCache } from "../utils/lruCache";
 
 export interface ResponseTemplate {
 	template: string;

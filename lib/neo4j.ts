@@ -71,8 +71,11 @@ class Neo4jService {
 	}
 
 	async executeQuery(query: string, params: any = {}) {
-		if (!this.driver) {
-			throw new Error("Neo4j driver not initialized");
+		if (!this.driver || !this.isConnected) {
+			const connected = await this.connect();
+			if (!connected) {
+				throw new Error("Neo4j driver not initialized and connection failed");
+			}
 		}
 		const session = this.driver.session();
 		try {
@@ -87,8 +90,11 @@ class Neo4jService {
 	}
 
 	async runQuery(query: string, params: any = {}) {
-		if (!this.driver) {
-			throw new Error("Neo4j driver not initialized");
+		if (!this.driver || !this.isConnected) {
+			const connected = await this.connect();
+			if (!connected) {
+				throw new Error("Neo4j driver not initialized and connection failed");
+			}
 		}
 		const session = this.driver.session();
 		try {

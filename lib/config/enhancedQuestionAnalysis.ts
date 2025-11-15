@@ -573,6 +573,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
+			"Fantasy Points", // More specific than general stats - requires MatchDetail join
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
