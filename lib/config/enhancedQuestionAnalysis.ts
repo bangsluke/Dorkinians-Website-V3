@@ -475,11 +475,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "most appearances for team" queries
 		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
 
-		// CRITICAL FIX: Detect "most scored for team" queries
-		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
+	// CRITICAL FIX: Detect "most scored for team" queries
+	const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
-		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = correctedStats.map((stat) => stat.value);
+	// Convert extracted stat types to legacy format with priority handling
+	const statTypes = mostScoredForTeamCorrectedStats.map((stat) => stat.value);
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
