@@ -1,19 +1,20 @@
 import { fetchTestData, getAllStatConfigs, validateResponse, TestPlayerData, STAT_TEST_CONFIGS } from "./testUtils";
+import { TestConfig } from "../../config/config";
 
 describe("TestUtils Debug Tests", () => {
 	test("STAT_TEST_CONFIGS should have 70 entries", () => {
 		console.log("🔍 STAT_TEST_CONFIGS length:", STAT_TEST_CONFIGS.length);
 		console.log(
 			"🔍 STAT_TEST_CONFIGS keys:",
-			STAT_TEST_CONFIGS.map((config) => config.key),
+			STAT_TEST_CONFIGS.map((config: TestConfig) => config.key),
 		);
 
 		// Check for any undefined or null entries
-		const validEntries = STAT_TEST_CONFIGS.filter((entry) => entry && entry.key);
+		const validEntries = STAT_TEST_CONFIGS.filter((entry: TestConfig) => entry && entry.key);
 		console.log("🔍 Valid entries:", validEntries.length);
 
 		// Check for any malformed entries
-		const malformedEntries = STAT_TEST_CONFIGS.filter((entry) => !entry || !entry.key || !entry.metric);
+		const malformedEntries = STAT_TEST_CONFIGS.filter((entry: TestConfig) => !entry || !entry.key || !entry.metric);
 		if (malformedEntries.length > 0) {
 			console.log("⚠️ Malformed entries:", malformedEntries);
 		}
@@ -51,7 +52,7 @@ describe("TestUtils Debug Tests", () => {
 	});
 
 	test("All stat configs should have required properties", () => {
-		STAT_TEST_CONFIGS.forEach((config, index) => {
+		STAT_TEST_CONFIGS.forEach((config: TestConfig, index: number) => {
 			expect(config).toHaveProperty("key");
 			expect(config).toHaveProperty("metric");
 			expect(config).toHaveProperty("questionTemplate");
