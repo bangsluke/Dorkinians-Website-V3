@@ -766,7 +766,21 @@ const schema = {
     constraints: ['CREATE CONSTRAINT testdata_id IF NOT EXISTS FOR (td:TestData) REQUIRE td.id IS UNIQUE']
   },
 
-
+  // ============================================================================
+  // TBL_UnansweredQuestions - Chatbot unanswered questions storage
+  // ============================================================================
+  TBL_UnansweredQuestions: {
+    csvColumns: {},
+    requiredColumns: ['id'],
+    nodeType: 'UnansweredQuestions',
+    properties: {
+      id: { type: 'string', required: true },
+      questions: { type: 'json', required: false },
+      graphLabel: { type: 'string', required: false }
+    },
+    idPattern: 'unanswered_questions',
+    constraints: ['CREATE CONSTRAINT unansweredquestions_id IF NOT EXISTS FOR (uq:UnansweredQuestions) REQUIRE uq.id IS UNIQUE']
+  },
 
   // ============================================================================
   // TBL_LeagueTables - SKIPPED for memory optimization (web scraping disabled)
