@@ -13,6 +13,7 @@ import {
 	STAT_TEST_CONFIGS,
 	TestPlayerData,
 } from "../utils/testUtils";
+import { TestConfig } from "../../config/config";
 
 describe("Comprehensive Stat Testing", () => {
 	let chatbotService: ChatbotService;
@@ -44,7 +45,7 @@ describe("Comprehensive Stat Testing", () => {
 		const basicStats = ["APP", "MIN", "MOM", "G", "A", "Y", "R", "SAVES", "OG", "C", "CLS", "PSC", "PM", "PCO", "PSV", "FTP"];
 
 		test.each(basicStats)("should handle %s stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -71,7 +72,7 @@ describe("Comprehensive Stat Testing", () => {
 		const advancedStats = ["AllGSC", "GperAPP", "CperAPP", "MperG", "MperCLS", "FTPperAPP", "DIST"];
 
 		test.each(advancedStats)("should handle %s advanced stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -104,7 +105,7 @@ describe("Comprehensive Stat Testing", () => {
 		const homeAwayStats = ["HomeGames", "HomeWins", "HomeGames%Won", "AwayGames", "AwayWins", "AwayGames%Won", "Games%Won"];
 
 		test.each(homeAwayStats)("should handle %s home/away stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -145,7 +146,7 @@ describe("Comprehensive Stat Testing", () => {
 		];
 
 		test.each(teamAppStats)("should handle %s team appearance stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -174,7 +175,7 @@ describe("Comprehensive Stat Testing", () => {
 		const teamGoalStats = ["1sGoals", "2sGoals", "3sGoals", "4sGoals", "5sGoals", "6sGoals", "7sGoals", "8sGoals", "MostScoredForTeam"];
 
 		test.each(teamGoalStats)("should handle %s team goal stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -212,7 +213,7 @@ describe("Comprehensive Stat Testing", () => {
 		];
 
 		test.each(seasonalAppStats)("should handle %s seasonal appearance stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -249,7 +250,7 @@ describe("Comprehensive Stat Testing", () => {
 		];
 
 		test.each(seasonalGoalStats)("should handle %s seasonal goal stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -279,7 +280,7 @@ describe("Comprehensive Stat Testing", () => {
 		const positionalStats = ["GK", "DEF", "MID", "FWD", "MostCommonPosition"];
 
 		test.each(positionalStats)("should handle %s positional stat correctly", async (statKey) => {
-			const statConfig = statConfigs.find((config) => config.key === statKey);
+			const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 			expect(statConfig).toBeDefined();
 
 			const playerName = "Luke Bangs";
@@ -316,7 +317,7 @@ describe("Comprehensive Stat Testing", () => {
 
 			for (const playerName of playerNames) {
 				for (const statKey of basicStats) {
-					const statConfig = statConfigs.find((config) => config.key === statKey);
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerName);
@@ -345,7 +346,7 @@ describe("Comprehensive Stat Testing", () => {
 			const testStats = ["G", "A", "APP", "Y", "R", "FTP", "GperAPP", "MperG"];
 
 			for (const statKey of testStats) {
-				const statConfig = statConfigs.find((config) => config.key === statKey);
+				const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 				if (!statConfig) continue;
 
 				const question = statConfig.questionTemplate.replace("{playerName}", playerName);
@@ -373,7 +374,7 @@ describe("Comprehensive Stat Testing", () => {
 			const zeroValueStats = ["R", "OG", "C", "CLS", "PSC", "PM", "PCO", "PSV"];
 
 			for (const statKey of zeroValueStats) {
-				const statConfig = statConfigs.find((config) => config.key === statKey);
+				const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 				if (!statConfig) continue;
 
 				const playerName = "Luke Bangs";
@@ -400,7 +401,7 @@ describe("Comprehensive Stat Testing", () => {
 			const decimalStats = ["GperAPP", "CperAPP", "MperG", "MperCLS", "FTPperAPP"];
 
 			for (const statKey of decimalStats) {
-				const statConfig = statConfigs.find((config) => config.key === statKey);
+				const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 				if (!statConfig) continue;
 
 				const playerName = "Luke Bangs";

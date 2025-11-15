@@ -12,6 +12,7 @@ import {
 	STAT_TEST_CONFIGS,
 	TestPlayerData,
 } from "../utils/testUtils";
+import { TestConfig } from "../../config/config";
 
 describe("Data Accuracy Validation", () => {
 	let chatbotService: ChatbotService;
@@ -45,7 +46,7 @@ describe("Data Accuracy Validation", () => {
 
 			for (const playerData of referenceData) {
 				for (const statKey of basicStats) {
-					const statConfig = statConfigs.find((config) => config.key === statKey);
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerData.playerName);
@@ -126,7 +127,7 @@ describe("Data Accuracy Validation", () => {
 
 			for (const playerData of referenceData) {
 				for (const statKey of advancedStats) {
-					const statConfig = statConfigs.find((config) => config.key === statKey);
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerData.playerName);
@@ -389,7 +390,7 @@ describe("Data Accuracy Validation", () => {
 
 			for (const playerData of referenceData) {
 				for (const rangeTest of rangeTests) {
-					const statConfig = statConfigs.find((config) => config.key === rangeTest.stat.toUpperCase());
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === rangeTest.stat.toUpperCase());
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerData.playerName);
@@ -419,7 +420,7 @@ describe("Data Accuracy Validation", () => {
 
 			for (const playerData of referenceData) {
 				for (const statKey of percentageStats) {
-					const statConfig = statConfigs.find((config) => config.key === statKey);
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerData.playerName);
@@ -452,7 +453,7 @@ describe("Data Accuracy Validation", () => {
 
 			for (const playerData of referenceData) {
 				for (const statKey of basicStats) {
-					const statConfig = statConfigs.find((config) => config.key === statKey);
+					const statConfig = statConfigs.find((config: TestConfig) => config.key === statKey);
 					if (!statConfig) continue;
 
 					const question = statConfig.questionTemplate.replace("{playerName}", playerData.playerName);

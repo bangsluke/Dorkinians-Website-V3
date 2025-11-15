@@ -40,6 +40,7 @@ jest.mock("../../lib/neo4j", () => ({
 
 import { ChatbotService, QuestionContext } from "../../lib/services/chatbotService";
 import { fetchTestData, getTestPlayerNames, validateResponse, STAT_TEST_CONFIGS } from "../utils/testUtils";
+import { TestConfig } from "../../config/config";
 
 describe("Chatbot Integration Tests", () => {
 	let chatbotService: ChatbotService;
@@ -191,7 +192,7 @@ describe("Chatbot Integration Tests", () => {
 				};
 
 				const goalsResponse = await chatbotService.processQuestion(goalsContext);
-				const goalsConfig = STAT_TEST_CONFIGS.find((config) => config.metric === "goals")!;
+				const goalsConfig = STAT_TEST_CONFIGS.find((config: TestConfig) => config.metric === "goals")!;
 				const goalsValid = validateResponse(goalsResponse.answer, playerData!.goals, goalsConfig, playerData!.playerName);
 				expect(goalsValid).toBe(true);
 
@@ -203,7 +204,7 @@ describe("Chatbot Integration Tests", () => {
 				};
 
 				const assistsResponse = await chatbotService.processQuestion(assistsContext);
-				const assistsConfig = STAT_TEST_CONFIGS.find((config) => config.metric === "assists")!;
+				const assistsConfig = STAT_TEST_CONFIGS.find((config: TestConfig) => config.metric === "assists")!;
 				const assistsValid = validateResponse(assistsResponse.answer, playerData!.assists, assistsConfig, playerData!.playerName);
 				expect(assistsValid).toBe(true);
 			}
