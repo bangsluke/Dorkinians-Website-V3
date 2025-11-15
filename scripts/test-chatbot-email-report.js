@@ -30,8 +30,14 @@ function logToBoth(message, level = "log") {
 	const timestamp = new Date().toISOString();
 	const logMessage = `[${timestamp}] ${message}`;
 
-	// Write to debug file
-	debugLogStream.write(logMessage + "\n");
+	// Write to debug file (check if stream is still writable)
+	if (debugLogStream.writable && !debugLogStream.destroyed) {
+		try {
+			debugLogStream.write(logMessage + "\n");
+		} catch (error) {
+			// Stream might be closed, ignore silently
+		}
+	}
 
 	// Write to console
 	originalConsole[level](message);
@@ -81,33 +87,60 @@ const originalConsoleWarn = console.warn;
 console.log = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleLog(...args);
-	logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
+	if (logStream.writable && !logStream.destroyed) {
+		try {
+			logStream.write(`[${new Date().toISOString()}] LOG: ${message}\n`);
+		} catch (error) {
+			// Stream might be closed, ignore silently
+		}
+	}
 };
 
 console.error = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleError(...args);
-	logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
+	if (logStream.writable && !logStream.destroyed) {
+		try {
+			logStream.write(`[${new Date().toISOString()}] ERROR: ${message}\n`);
+		} catch (error) {
+			// Stream might be closed, ignore silently
+		}
+	}
 };
 
 console.warn = (...args) => {
 	const message = args.map((arg) => (typeof arg === "object" ? JSON.stringify(arg, null, 2) : String(arg))).join(" ");
 	originalConsoleWarn(...args);
-	logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
+	if (logStream.writable && !logStream.destroyed) {
+		try {
+			logStream.write(`[${new Date().toISOString()}] WARN: ${message}\n`);
+		} catch (error) {
+			// Stream might be closed, ignore silently
+		}
+	}
 };
 
 // Clean up function
+function closeAllStreams() {
+	if (logStream.writable && !logStream.destroyed) {
+		logStream.end();
+	}
+	if (debugLogStream.writable && !debugLogStream.destroyed) {
+		debugLogStream.end();
+	}
+}
+
 process.on("exit", () => {
-	logStream.end();
+	closeAllStreams();
 });
 
 process.on("SIGINT", () => {
-	logStream.end();
+	closeAllStreams();
 	process.exit(0);
 });
 
 process.on("SIGTERM", () => {
-	logStream.end();
+	closeAllStreams();
 	process.exit(0);
 });
 
@@ -1121,7 +1154,10 @@ main()
 		process.exit(1);
 	})
 	.finally(() => {
-		// Close the debug log stream
-		debugLogStream.end();
-		console.log(`📝 Full debug log saved to: ${debugLogFile}`);
+		// Close all streams before logging final message
+		if (debugLogStream.writable && !debugLogStream.destroyed) {
+			debugLogStream.end();
+		}
+		// Use original console to avoid writing to closed streams
+		originalConsole.log(`📝 Full debug log saved to: ${debugLogFile}`);
 	});

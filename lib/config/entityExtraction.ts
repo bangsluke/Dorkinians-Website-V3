@@ -981,19 +981,51 @@ export class EntityExtractor {
 	}
 
 	async extractEntities(): Promise<EntityExtractionResult> {
+		// Extract independent entity types in parallel for better performance
+		// Synchronous extractions can run in parallel using Promise.all
+		const [
+			entities,
+			statTypes,
+			statIndicators,
+			questionTypes,
+			negativeClauses,
+			locations,
+			timeFrames,
+			competitionTypes,
+			competitions,
+			results,
+		] = await Promise.all([
+			Promise.resolve(this.extractEntityInfo()),
+			this.extractStatTypes(),
+			Promise.resolve(this.extractStatIndicators()),
+			Promise.resolve(this.extractQuestionTypes()),
+			Promise.resolve(this.extractNegativeClauses()),
+			Promise.resolve(this.extractLocations()),
+			Promise.resolve(this.extractTimeFrames()),
+			Promise.resolve(this.extractCompetitionTypes()),
+			Promise.resolve(this.extractCompetitions()),
+			Promise.resolve(this.extractResults()),
+		]);
+
+		// These are simple boolean checks, can run in parallel
+		const [opponentOwnGoals, goalInvolvements] = await Promise.all([
+			Promise.resolve(this.detectOpponentOwnGoals()),
+			Promise.resolve(this.detectGoalInvolvements()),
+		]);
+
 		return {
-			entities: this.extractEntityInfo(),
-			statTypes: await this.extractStatTypes(),
-			statIndicators: this.extractStatIndicators(),
-			questionTypes: this.extractQuestionTypes(),
-			negativeClauses: this.extractNegativeClauses(),
-			locations: this.extractLocations(),
-			timeFrames: this.extractTimeFrames(),
-			competitionTypes: this.extractCompetitionTypes(),
-			competitions: this.extractCompetitions(),
-			results: this.extractResults(),
-			opponentOwnGoals: this.detectOpponentOwnGoals(),
-			goalInvolvements: this.detectGoalInvolvements(),
+			entities,
+			statTypes,
+			statIndicators,
+			questionTypes,
+			negativeClauses,
+			locations,
+			timeFrames,
+			competitionTypes,
+			competitions,
+			results,
+			opponentOwnGoals,
+			goalInvolvements,
 		};
 	}
 
@@ -1887,6 +1919,16 @@ export class EntityExtractor {
 	 */
 	public async resolveEntitiesWithFuzzyMatching(): Promise<EntityExtractionResult> {
 		const baseResult = await this.extractEntities();
+		
+		// Early exit: If no entities and no stat types found, skip fuzzy matching
+		const namedEntities = baseResult.entities.filter(
+			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
+		);
+		if (namedEntities.length === 0 && baseResult.statTypes.length === 0) {
+			// Return early without fuzzy matching to save processing time
+			return baseResult;
+		}
+		
 		const resolvedEntities: EntityInfo[] = [];
 
 		// Process each entity with fuzzy matching

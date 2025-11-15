@@ -40,8 +40,17 @@ function analyzeLogs() {
 	console.log(`📝 Analyzing log file: ${latestLogFile}`);
 
 	// Read and analyze the main log file
-	const logContent = fs.readFileSync(latestLogFile, "utf8");
-	const lines = logContent.split("\n");
+	let logContent = fs.readFileSync(latestLogFile, "utf8");
+	
+	// If execution log is empty or minimal, also read error log
+	if (logContent.trim().length < 100 && fs.existsSync(errorLogFile)) {
+		console.log(`📝 Execution log is minimal (${logContent.trim().length} chars), also analyzing error log: ${errorLogFile}`);
+		const errorContent = fs.readFileSync(errorLogFile, "utf8");
+		// Prepend error log content to execution log content for analysis
+		logContent = errorContent + (logContent.trim() ? "\n" + logContent : "");
+	}
+	
+	const lines = logContent.split("\n").filter(line => line.trim().length > 0);
 
 	// Analysis categories
 	const analysis = {
@@ -65,79 +74,121 @@ function analyzeLogs() {
 	lines.forEach((line, index) => {
 		const lineNumber = index + 1;
 
-		// Extract timestamp and level
+		// Extract timestamp and level (if present)
 		const timestampMatch = line.match(/^\[([^\]]+)\]\s+(\w+):\s+(.+)$/);
-		if (!timestampMatch) return;
+		let timestamp = null;
+		let level = null;
+		let message = line;
 
-		const [, timestamp, level, message] = timestampMatch;
+		if (timestampMatch) {
+			[, timestamp, level, message] = timestampMatch;
+		}
 
-		// Categorize messages
-		if (level === "ERROR") {
+		// Detect errors - lines starting with ❌ or containing error indicators
+		const isError = level === "ERROR" || line.includes("❌") || 
+			line.toLowerCase().includes("error") || 
+			line.toLowerCase().includes("failed") ||
+			line.toLowerCase().includes("exception");
+
+		if (isError) {
 			analysis.errors.push({ lineNumber, timestamp, message });
 
 			// Track common error patterns
 			const errorKey = message
 				.toLowerCase()
 				.replace(/\d+/g, "N")
-				.replace(/"[^"]*"/g, "STRING");
-			analysis.patterns.commonErrors[errorKey] = (analysis.patterns.commonErrors[errorKey] || 0) + 1;
+				.replace(/"[^"]*"/g, "STRING")
+				.replace(/[^\w\s]/g, "")
+				.trim()
+				.substring(0, 100); // Limit length
+			if (errorKey) {
+				analysis.patterns.commonErrors[errorKey] = (analysis.patterns.commonErrors[errorKey] || 0) + 1;
+			}
 		}
 
-		if (level === "WARN") {
+		// Detect warnings
+		const isWarning = level === "WARN" || line.includes("⚠️") || 
+			line.toLowerCase().includes("warning");
+
+		if (isWarning) {
 			analysis.warnings.push({ lineNumber, timestamp, message });
 
 			const warningKey = message
 				.toLowerCase()
 				.replace(/\d+/g, "N")
-				.replace(/"[^"]*"/g, "STRING");
-			analysis.patterns.commonWarnings[warningKey] = (analysis.patterns.commonWarnings[warningKey] || 0) + 1;
+				.replace(/"[^"]*"/g, "STRING")
+				.replace(/[^\w\s]/g, "")
+				.trim()
+				.substring(0, 100);
+			if (warningKey) {
+				analysis.patterns.commonWarnings[warningKey] = (analysis.patterns.commonWarnings[warningKey] || 0) + 1;
+			}
 		}
 
 		// Track API calls
-		if (message.includes("API call") || message.includes("fetch") || message.includes("response")) {
+		if (message.includes("API call") || message.includes("fetch") || 
+			(message.includes("response") && message.includes("http"))) {
 			analysis.apiCalls.push({ lineNumber, timestamp, message });
 		}
 
-		// Track database queries
-		if (message.includes("Cypher") || message.includes("MATCH") || message.includes("RETURN")) {
+		// Track database queries - look for Cypher keywords
+		const hasCypherKeywords = /(MATCH|RETURN|WHERE|WITH|ORDER BY|LIMIT|CREATE|DELETE|SET|MERGE)/i.test(message);
+		const hasQueryIndicators = message.includes("Cypher") || message.includes("Query") || 
+			message.includes("Neo4j") || (message.includes("Variable") && message.includes("not defined"));
+
+		if (hasCypherKeywords || hasQueryIndicators) {
 			analysis.databaseQueries.push({ lineNumber, timestamp, message });
 
 			// Extract query patterns
-			const queryMatch = message.match(/(MATCH|RETURN|WHERE|WITH|ORDER BY|LIMIT)/gi);
+			const queryMatch = message.match(/(MATCH|RETURN|WHERE|WITH|ORDER BY|LIMIT|CREATE|DELETE|SET|MERGE)/gi);
 			if (queryMatch) {
 				const pattern = queryMatch.join(" ").toLowerCase();
 				analysis.patterns.queryPatterns[pattern] = (analysis.patterns.queryPatterns[pattern] || 0) + 1;
 			}
 		}
 
-		// Track chatbot responses
-		if (message.includes("Chatbot response") || message.includes("answer") || message.includes("response")) {
+		// Track chatbot responses - lines with 🤖 [CLIENT] or chatbot indicators
+		const isChatbotResponse = line.includes("🤖") || line.includes("[CLIENT]") ||
+			message.includes("Chatbot response") || 
+			(message.includes("answer") && !message.includes("query"));
+
+		if (isChatbotResponse) {
 			analysis.chatbotResponses.push({ lineNumber, timestamp, message });
 
 			// Track response patterns
-			if (message.includes("I couldn't find") || message.includes("No data found") || message.includes("error")) {
+			if (message.includes("I couldn't find") || message.includes("No data found") || 
+				message.includes("No results found") || message.includes("No match found") ||
+				message.includes("Player not found") || message.includes("error")) {
 				const responseKey = message
 					.toLowerCase()
 					.replace(/\d+/g, "N")
-					.replace(/"[^"]*"/g, "STRING");
-				analysis.patterns.responsePatterns[responseKey] = (analysis.patterns.responsePatterns[responseKey] || 0) + 1;
+					.replace(/"[^"]*"/g, "STRING")
+					.replace(/[^\w\s]/g, "")
+					.trim()
+					.substring(0, 100);
+				if (responseKey) {
+					analysis.patterns.responsePatterns[responseKey] = (analysis.patterns.responsePatterns[responseKey] || 0) + 1;
+				}
 			}
 		}
 
 		// Track fallbacks
-		if (message.includes("fallback") || message.includes("CSV") || message.includes("Using API fallback")) {
+		if (message.includes("fallback") || message.includes("CSV") || 
+			message.includes("Using API fallback")) {
 			analysis.fallbacks.push({ lineNumber, timestamp, message });
 		}
 
 		// Track performance metrics
-		if (message.includes("time") || message.includes("duration") || message.includes("ms")) {
+		if (/\d+ms/.test(message) || message.includes("duration") || 
+			(message.includes("time") && /\d+/.test(message))) {
 			analysis.performance.push({ lineNumber, timestamp, message });
 		}
 	});
 
 	// Generate analysis report
+	const reportSeparator = "=".repeat(50);
 	console.log("\n📊 LOG ANALYSIS REPORT");
-	console.log("=" * 50);
+	console.log(reportSeparator);
 
 	console.log(`\n📈 OVERVIEW:`);
 	console.log(`  - Total log lines: ${analysis.totalLines}`);
@@ -213,12 +264,26 @@ function analyzeLogs() {
 		console.log(`  - Check database connectivity and query performance`);
 	}
 
-	if (analysis.patterns.responsePatterns["i couldn't find"] > 0) {
+	if ((analysis.patterns.responsePatterns["i couldn't find"] || 0) > 0) {
 		console.log(`  - Improve entity resolution for player name matching`);
 	}
 
-	if (analysis.patterns.responsePatterns["no data found"] > 0) {
+	if ((analysis.patterns.responsePatterns["no data found"] || 0) > 0) {
 		console.log(`  - Check database data availability and query accuracy`);
+	}
+
+	// Check for undefined patterns to avoid NaN
+	if (Object.keys(analysis.patterns.responsePatterns).length === 0) {
+		analysis.patterns.responsePatterns = {};
+	}
+	if (Object.keys(analysis.patterns.queryPatterns).length === 0) {
+		analysis.patterns.queryPatterns = {};
+	}
+	if (Object.keys(analysis.patterns.commonErrors).length === 0) {
+		analysis.patterns.commonErrors = {};
+	}
+	if (Object.keys(analysis.patterns.commonWarnings).length === 0) {
+		analysis.patterns.commonWarnings = {};
 	}
 
 	// Save detailed analysis to file

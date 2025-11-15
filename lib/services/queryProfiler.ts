@@ -40,7 +40,7 @@ export class QueryProfiler {
 
 			// If profiling is enabled and query is slow, profile it
 			if (enableProfiling || executionTime > 1000) {
-				const profile = await this.profileQuery(query, params);
+				const profile = await this.profileQuery(query, params, executionTime);
 				profile.executionTime = executionTime;
 				profile.rows = Array.isArray(result) ? result.length : 1;
 
@@ -59,9 +59,9 @@ export class QueryProfiler {
 	}
 
 	/**
-	 * Profile a query using Neo4j's PROFILE command
+	 * Profile a query using Neo4j's PROFILE command for slow queries, EXPLAIN for others
 	 */
-	private async profileQuery(query: string, params: Record<string, unknown>): Promise<QueryProfile> {
+	private async profileQuery(query: string, params: Record<string, unknown>, executionTime?: number): Promise<QueryProfile> {
 		const cacheKey = this.generateCacheKey(query, params);
 		const cached = this.profileCache.get(cacheKey);
 		if (cached) {
@@ -69,15 +69,39 @@ export class QueryProfiler {
 		}
 
 		try {
-			// Use EXPLAIN instead of PROFILE to avoid executing the query twice
-			const explainQuery = `EXPLAIN ${query}`;
-			const explainResult = await neo4jService.executeQuery(explainQuery, params);
+			// Use PROFILE for slow queries (>1000ms) to get actual execution stats
+			// Use EXPLAIN for faster queries to avoid double execution
+			const useProfile = executionTime !== undefined && executionTime > 1000;
+			const profileQuery = useProfile ? `PROFILE ${query}` : `EXPLAIN ${query}`;
+			
+			const profileResult = await neo4jService.executeQuery(profileQuery, params);
+
+			// Extract dbHits from PROFILE result if available
+			let dbHits: number | undefined;
+			if (useProfile && Array.isArray(profileResult) && profileResult.length > 0) {
+				// Try to extract dbHits from profile result
+				const firstResult = profileResult[0];
+				if (firstResult && typeof firstResult === 'object') {
+					dbHits = (firstResult as any).dbHits || (firstResult as any).plan?.dbHits;
+				}
+			}
 
 			const profile: QueryProfile = {
 				query,
-				executionTime: 0,
-				plan: explainResult,
+				executionTime: executionTime || 0,
+				plan: profileResult,
+				dbHits,
 			};
+
+			// Log execution plan for slow queries
+			if (useProfile) {
+				console.log(`🔍 PROFILE Query Plan:`, JSON.stringify(profileResult, null, 2));
+				console.log(`🔍 Query: ${query.substring(0, 200)}...`);
+				console.log(`🔍 Execution Time: ${executionTime}ms`);
+				if (dbHits) {
+					console.log(`🔍 DB Hits: ${dbHits}`);
+				}
+			}
 
 			// Cache the profile
 			if (this.profileCache.size < 100) {
@@ -89,7 +113,7 @@ export class QueryProfiler {
 			console.error("Error profiling query:", error);
 			return {
 				query,
-				executionTime: 0,
+				executionTime: executionTime || 0,
 			};
 		}
 	}

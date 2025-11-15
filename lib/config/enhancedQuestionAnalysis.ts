@@ -42,6 +42,7 @@ export class EnhancedQuestionAnalyzer {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		
 		// Early exit: Check if this is clearly an invalid query before further processing
+		// This check happens after extraction but before expensive operations like complexity assessment
 		const namedEntities = extractionResult.entities.filter(
 			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
 		);
@@ -51,6 +52,7 @@ export class EnhancedQuestionAnalyzer {
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
 		
 		// Early exit if no entities, no stat types, and not a ranking question
+		// Return immediately to avoid unnecessary processing
 		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0 && !isRankingQuestion) {
 			return {
 				type: "clarification_needed",
@@ -455,8 +457,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect season-specific appearance queries
 		const appearanceCorrectedStats = this.correctSeasonSpecificAppearanceQueries(seasonCorrectedStats);
 
+		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
+		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
+
 		// CRITICAL FIX: Detect open play goals queries
-		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(appearanceCorrectedStats);
+		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(fantasyPointsCorrectedStats);
 
 		// CRITICAL FIX: Detect team-specific goals queries
 		const teamGoalsCorrectedStats = this.correctTeamSpecificGoalsQueries(openPlayCorrectedStats);
@@ -474,7 +479,7 @@ export class EnhancedQuestionAnalyzer {
 		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = mostScoredForTeamCorrectedStats.map((stat) => stat.value);
+		const statTypes = correctedStats.map((stat) => stat.value);
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -604,6 +609,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
+			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -816,6 +822,124 @@ export class EnhancedQuestionAnalyzer {
 	/**
 	 * Corrects season-specific queries that were incorrectly mapped
 	 */
+	/**
+	 * Pattern-based metric correction system with early exit
+	 * Replaces 12 sequential correction functions with priority-based pattern matching
+	 */
+	private applyMetricCorrections(statTypes: StatTypeInfo[], cacheKey: string): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+		
+		// Define correction patterns in priority order (highest priority first)
+		// When a pattern matches, apply correction and return early
+		const correctionPatterns: Array<{
+			priority: number;
+			test: (question: string, stats: StatTypeInfo[]) => boolean;
+			apply: (question: string, stats: StatTypeInfo[]) => StatTypeInfo[];
+		}> = [
+			// Priority 1: Team-specific appearances (highest priority)
+			{
+				priority: 1,
+				test: (q, stats) => {
+					const patterns = [
+						/(appearances?|apps?|games?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+						/(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i,
+						/(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+					];
+					return patterns.some(p => p.test(q));
+				},
+				apply: (q, stats) => this.correctTeamSpecificAppearanceQueries(stats),
+			},
+			// Priority 2: Team-specific goals
+			{
+				priority: 2,
+				test: (q, stats) => {
+					const patterns = [
+						/(goals?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+						/(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?|xi))?\s+(goals?)/i,
+					];
+					return patterns.some(p => p.test(q));
+				},
+				apply: (q, stats) => this.correctTeamSpecificGoalsQueries(stats),
+			},
+			// Priority 3: Most prolific season
+			{
+				priority: 3,
+				test: (q, stats) => q.includes("most") && q.includes("prolific") && q.includes("season"),
+				apply: (q, stats) => this.correctMostProlificSeasonQueries(stats),
+			},
+			// Priority 4: Season-specific goals
+			{
+				priority: 4,
+				test: (q, stats) => q.includes("goals") && this.extractSeasonFromQuestion() !== null,
+				apply: (q, stats) => this.correctSeasonSpecificQueries(stats),
+			},
+			// Priority 5: Season-specific appearances
+			{
+				priority: 5,
+				test: (q, stats) => (q.includes("appearances") || q.includes("apps") || q.includes("games")) && this.extractSeasonFromQuestion() !== null,
+				apply: (q, stats) => this.correctSeasonSpecificAppearanceQueries(stats),
+			},
+			// Priority 6: Open play goals
+			{
+				priority: 6,
+				test: (q, stats) => q.includes("goals") && q.includes("open play"),
+				apply: (q, stats) => this.correctOpenPlayGoalsQueries(stats),
+			},
+			// Priority 7: Penalty phrases
+			{
+				priority: 7,
+				test: (q, stats) => q.includes("penalties") && (q.includes("scored") || q.includes("missed") || q.includes("conceded") || q.includes("saved")),
+				apply: (q, stats) => this.correctPenaltyPhrases(stats),
+			},
+			// Priority 8: Distance/travel
+			{
+				priority: 8,
+				test: (q, stats) => ["how far", "distance travelled", "distance traveled", "travelled", "traveled"].some(p => q.includes(p)),
+				apply: (q, stats) => this.correctDistanceTravelQueries(stats),
+			},
+			// Priority 9: Percentage queries
+			{
+				priority: 9,
+				test: (q, stats) => q.includes("percentage") || q.includes("percent") || q.includes("%"),
+				apply: (q, stats) => this.correctPercentageQueries(stats),
+			},
+			// Priority 10: Most appearances for team
+			{
+				priority: 10,
+				test: (q, stats) => /(?:what\s+team\s+has|which\s+team\s+has).*?(?:most\s+appearances\s+for|played\s+for\s+most)/i.test(q),
+				apply: (q, stats) => this.correctMostAppearancesForTeamQueries(stats),
+			},
+			// Priority 11: Most scored for team
+			{
+				priority: 11,
+				test: (q, stats) => /(?:what\s+team\s+has|which\s+team\s+has).*?(?:scored\s+(?:the\s+)?most|most\s+goals?\s+for)/i.test(q),
+				apply: (q, stats) => this.correctMostScoredForTeamQueries(stats),
+			},
+			// Priority 12: Games queries (lowest priority, catch-all)
+			{
+				priority: 12,
+				test: (q, stats) => /(?:how\s+many\s+games?|games?\s+(?:have|has|did)\s+.*?\s+(?:played|made|appeared))/i.test(q) || (q.includes("games") && q.includes("played")),
+				apply: (q, stats) => this.correctGamesQueries(stats),
+			},
+		];
+
+		// Sort by priority (lowest number = highest priority)
+		correctionPatterns.sort((a, b) => a.priority - b.priority);
+
+		// Apply first matching pattern and return early
+		for (const pattern of correctionPatterns) {
+			if (pattern.test(lowerQuestion, statTypes)) {
+				const result = pattern.apply(lowerQuestion, statTypes);
+				// Cache the result
+				EnhancedQuestionAnalyzer.metricCorrectionCache.set(cacheKey, result);
+				return result;
+			}
+		}
+
+		// No pattern matched, return original stats
+		return statTypes;
+	}
+
 	/**
 	 * Dynamically extracts season from question text using regex patterns
 	 * Supports various formats: 2018/19, 2018-19, 18/19, 2018/2019, etc.
@@ -1160,6 +1284,40 @@ export class EnhancedQuestionAnalyzer {
 
 				return filteredStats;
 			}
+		}
+
+		return statTypes;
+	}
+
+	private correctFantasyPointsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for fantasy points phrases - must run before open play goals correction
+		if (lowerQuestion.includes("fantasy points") || lowerQuestion.includes("fantasy point") || lowerQuestion.includes("ftp") || (lowerQuestion.includes("points") && lowerQuestion.includes("fantasy"))) {
+			// Remove incorrect "Goals", "G", "AllGSC", "Open Play Goals", "Saves", "Saves Per Appearance" mappings
+			const filteredStats = statTypes.filter((stat) => !["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves", "Saves Per Appearance"].includes(stat.value));
+
+			// Check if "Fantasy Points" is already in the stats
+			const hasFantasyPointsStat = filteredStats.some((stat) => stat.value === "Fantasy Points");
+
+			if (!hasFantasyPointsStat) {
+				// Add correct "Fantasy Points" mapping
+				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1 
+					? lowerQuestion.indexOf("fantasy points") 
+					: lowerQuestion.indexOf("fantasy point") !== -1 
+						? lowerQuestion.indexOf("fantasy point")
+						: lowerQuestion.indexOf("ftp") !== -1
+							? lowerQuestion.indexOf("ftp")
+							: lowerQuestion.indexOf("points");
+				
+				filteredStats.push({
+					value: "Fantasy Points",
+					originalText: "fantasy points",
+					position: fantasyPosition,
+				});
+			}
+
+			return filteredStats;
 		}
 
 		return statTypes;
