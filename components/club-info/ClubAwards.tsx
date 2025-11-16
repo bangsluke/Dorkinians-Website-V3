@@ -186,7 +186,12 @@ export default function ClubAwards() {
 			</div>
 
 			{/* Scrollable Content Area */}
-			<div className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'>
+			<div 
+				className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'
+				style={{
+					WebkitOverflowScrolling: "touch",
+				}}
+			>
 				{/* Loading State */}
 				{loading && (
 					<div className='text-center'>
@@ -197,7 +202,7 @@ export default function ClubAwards() {
 
 				{/* Awards Table */}
 				{!loading && awardsData.filter(item => item.receiver).length > 0 && (
-					<div className='overflow-x-auto'>
+					<div className='overflow-x-auto -mx-6 px-6'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
 								<tr className='bg-white/20'>
