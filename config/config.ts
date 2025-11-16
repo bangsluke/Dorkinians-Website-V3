@@ -25,9 +25,9 @@ export interface UsefulLink {
 
 export const homepageQuestions: HomepageQuestion[] = [
 	{
-		id: "goals-scored",
-		question: "How many goals have I scored?",
-		description: "Get your total goal count across all teams and seasons",
+		id: "most-prolific-season",
+		question: "What was my most prolific season?",
+		description: "See how many goals you have scored each season",
 		category: "player",
 	},
 	{
@@ -161,7 +161,7 @@ export const questionTypes: Record<
 		displayName: "Time-based Queries",
 		description: "Questions about performance over specific time periods",
 		hasVisualization: true,
-		visualizationType: "Calendar",
+		visualizationType: "NumberCard",
 	},
 	general: {
 		displayName: "General Information",

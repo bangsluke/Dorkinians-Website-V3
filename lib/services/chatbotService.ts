@@ -1124,9 +1124,50 @@ export class ChatbotService {
 	}
 
 	/**
+	 * Build query for "each season" or "per season" questions
+	 * Returns data grouped by season for any metric
+	 */
+	private buildPerSeasonQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string {
+		// Get the return clause for the metric
+		const returnClause = this.getMatchDetailReturnClause(metric);
+		
+		// Extract the aggregation part (everything before "as value")
+		const aggregationMatch = returnClause.match(/^(.+?)\s+as\s+value$/i);
+		if (!aggregationMatch) {
+			// Fallback if we can't parse it
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.season IS NOT NULL AND f.season <> ""
+				WITH p, f.season as season, count(md) as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, value
+			`;
+		}
+		
+		const aggregation = aggregationMatch[1];
+		
+		// Build query that groups by season
+		return `
+			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+			MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+			WHERE f.season IS NOT NULL AND f.season <> ""
+			WITH p, f.season as season, ${aggregation} as value
+			ORDER BY season ASC
+			RETURN p.playerName as playerName, season, value
+		`;
+	}
+
+	/**
 	 * Builds the optimal query for player data using unified architecture
 	 */
 	private buildPlayerQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string {
+		// Check for "each season" pattern first
+		const questionLower = analysis.question?.toLowerCase() || "";
+		if (questionLower.includes("each season") || questionLower.includes("per season") || questionLower.includes("every season")) {
+			return this.buildPerSeasonQuery(_playerName, metric, analysis);
+		}
+		
 		// Handle special case queries first (these have custom query structures)
 		const specialCaseQuery = this.buildSpecialCaseQuery(_playerName, metric, analysis);
 		if (specialCaseQuery) {
@@ -1484,15 +1525,14 @@ export class ChatbotService {
 					END as value
 			`;
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
-			// Query MatchDetails to find season with most goals scored
+			// Query MatchDetails to get goals per season for chart display
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WHERE f.season IS NOT NULL AND f.season <> ""
 				WITH p, f.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
-				ORDER BY goals DESC, season ASC
-				LIMIT 1
-				RETURN p.playerName as playerName, season as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, goals as value
 			`;
 		} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
 			// Check if this is a team counting question
@@ -2103,69 +2143,149 @@ export class ChatbotService {
 			}
 		} else if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 			if (data.type === "specific_player") {
-				const playerData = data.data[0] as PlayerData;
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
-				let value = playerData.value !== undefined ? playerData.value : 0;
 				
-				// Round value based on metric's numberDecimalPlaces configuration
-				const metricConfig = statObject[metric as keyof typeof statObject];
-				if (metricConfig && typeof metricConfig === "object" && "numberDecimalPlaces" in metricConfig) {
-					const decimalPlaces = metricConfig.numberDecimalPlaces as number;
-					if (typeof value === "number") {
-						value = Number(value.toFixed(decimalPlaces));
+				// Check for "each season" pattern BEFORE extracting first data item (needs full array)
+				const questionLower = question.toLowerCase();
+				if (questionLower.includes("each season") || questionLower.includes("per season") || questionLower.includes("every season")) {
+					// Check if we have array data (multiple seasons) from the query
+					if (data && data.type === "specific_player" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+						
+						// Transform data to ensure we have season and value
+						const transformedData = seasonsData
+							.map((item) => {
+								const season = item.season || "";
+								const statValue = typeof item.value === "number" ? item.value : 0;
+								return { season, value: statValue };
+							})
+							.filter((item) => item.season && item.value !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Get metric display name
+							const metricName = getMetricDisplayName(metric, transformedData[0].value);
+							
+							// Find the highest value for highlighting
+							const maxValue = Math.max(...transformedData.map((item) => item.value));
+							
+							// Create answer text
+							const totalValue = transformedData.reduce((sum, item) => sum + item.value, 0);
+							answer = `${playerName} has ${totalValue} ${metricName} across ${transformedData.length} ${transformedData.length === 1 ? "season" : "seasons"}.`;
+							
+							// Create Record visualization with all seasons
+							visualization = {
+								type: "Record",
+								data: transformedData.map((item) => ({
+									name: item.season,
+									value: item.value,
+									isHighest: item.value === maxValue,
+								})),
+								config: {
+									title: `${playerName} - ${metricName} per Season`,
+									type: "bar",
+								},
+							};
+						}
 					}
 				}
+				// Handle MOSTPROLIFICSEASON BEFORE extracting first data item (needs full array)
+				else if (metric && metric.toUpperCase() === "MOSTPROLIFICSEASON") {
+					if (questionLower.includes("most prolific season") || questionLower.includes("prolific season")) {
+						// Check if we have array data (multiple seasons) from the query
+						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+						
+						// Transform data to ensure we have season and value
+						const transformedData = seasonsData
+							.map((item) => {
+								// Handle both { season: "2019/20", value: 15 } and { value: "2019/20" } formats
+								const season = item.season || (typeof item.value === "string" ? item.value : "");
+								const goals = typeof item.value === "number" ? item.value : (item.goals as number) || 0;
+								return { season, value: goals };
+							})
+							.filter((item) => item.season && item.value !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Find the most prolific season
+							const mostProlific = transformedData.reduce((max, current) => 
+								current.value > max.value ? current : max
+							);
+							
+							answer = `${mostProlific.season} was ${playerName}'s most prolific season with ${mostProlific.value} goals.`;
+							
+							// Create Record visualization with all seasons
+							visualization = {
+								type: "Record",
+								data: transformedData.map((item) => ({
+									name: item.season,
+									value: item.value,
+									isHighest: item.season === mostProlific.season,
+								})),
+								config: {
+									title: `${playerName} - Goals per Season`,
+									type: "bar",
+								},
+							};
+						} else {
+							// Fallback if data structure is different
+							answer = `Unable to determine ${playerName}'s most prolific season.`;
+						}
+					}
+				} else {
+					// Standard processing for other metrics (extract first data item)
+					const playerData = data.data[0] as PlayerData;
+					let value = playerData.value !== undefined ? playerData.value : 0;
+					
+					// Round value based on metric's numberDecimalPlaces configuration
+					const metricConfig = statObject[metric as keyof typeof statObject];
+					if (metricConfig && typeof metricConfig === "object" && "numberDecimalPlaces" in metricConfig) {
+						const decimalPlaces = metricConfig.numberDecimalPlaces as number;
+						if (typeof value === "number") {
+							value = Number(value.toFixed(decimalPlaces));
+						}
+					}
 
-			// Get the metric display name
-			const metricName = getMetricDisplayName(metric, value as number);
+				// Get the metric display name
+				const metricName = getMetricDisplayName(metric, value as number);
 
-				// Enhanced handling for special metrics
-				const questionLower = question.toLowerCase();
-				const isFantasyPointsQuestion = questionLower.includes("fantasy points") || questionLower.includes("fantasy");
-				
-				if (metric === "AllGSC" || metric === "totalGoals") {
-					// Build contextual response and add clarification
-					answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
-					answer = answer.replace(".", " (including both open play and penalty goals).");
-				} else if (isFantasyPointsQuestion && (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS" || metric === "OPENPLAYGOALS")) {
-					// Prioritize fantasy points if question mentions fantasy points, even if metric was incorrectly detected as OPENPLAYGOALS
-					const formattedValue = this.formatValueByMetric("FTP", value as number);
-					answer = `${playerName} has ${formattedValue} fantasy points.`;
-				} else if (metric === "OPENPLAYGOALS") {
-					// Special handling for open play goals
-					answer = `${playerName} has ${value} goals from open play.`;
-				} else if (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS") {
-					// Build contextual response for fantasy points
-					if (isFantasyPointsQuestion) {
+					// Enhanced handling for special metrics
+					const questionLower = question.toLowerCase();
+					const isFantasyPointsQuestion = questionLower.includes("fantasy points") || questionLower.includes("fantasy");
+					
+					if (metric === "AllGSC" || metric === "totalGoals") {
+						// Build contextual response and add clarification
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
+						answer = answer.replace(".", " (including both open play and penalty goals).");
+					} else if (isFantasyPointsQuestion && (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS" || metric === "OPENPLAYGOALS")) {
+						// Prioritize fantasy points if question mentions fantasy points, even if metric was incorrectly detected as OPENPLAYGOALS
 						const formattedValue = this.formatValueByMetric("FTP", value as number);
 						answer = `${playerName} has ${formattedValue} fantasy points.`;
-					} else {
-						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
-						answer = answer.replace(".", " (Fantasy Points).");
-					}
-				} else if (metric === "DIST" || metric.toUpperCase() === "DIST") {
-					// For "How far has player travelled to get to games?" questions
-					if (questionLower.includes("travelled") || questionLower.includes("traveled") || questionLower.includes("distance") || questionLower.includes("how far")) {
-						const formattedValue = this.formatValueByMetric("DIST", value as number);
-						answer = `${playerName} has travelled ${formattedValue} miles to games.`;
-					}
-				} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
-					// For "What was player's most prolific season?" questions
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("most prolific season") || questionLower.includes("prolific season")) {
-						// Use the actual query results from Cypher
-						const season = value; // e.g., "2019/20"
-						answer = `${season} was ${playerName}'s most prolific season.`;
-					}
-				} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
-					// For "What team has player made the most appearances for?" questions
-					const questionLower = question.toLowerCase();
-					if (
-						(questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) ||
-						(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
-						(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
-					) {
+					} else if (metric === "OPENPLAYGOALS") {
+						// Special handling for open play goals
+						answer = `${playerName} has ${value} goals from open play.`;
+					} else if (metric === "points" || metric.toUpperCase() === "FTP" || metric.toUpperCase() === "FANTASYPOINTS") {
+						// Build contextual response for fantasy points
+						if (isFantasyPointsQuestion) {
+							const formattedValue = this.formatValueByMetric("FTP", value as number);
+							answer = `${playerName} has ${formattedValue} fantasy points.`;
+						} else {
+							answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
+							answer = answer.replace(".", " (Fantasy Points).");
+						}
+					} else if (metric === "DIST" || metric.toUpperCase() === "DIST") {
+						// For "How far has player travelled to get to games?" questions
+						if (questionLower.includes("travelled") || questionLower.includes("traveled") || questionLower.includes("distance") || questionLower.includes("how far")) {
+							const formattedValue = this.formatValueByMetric("DIST", value as number);
+							answer = `${playerName} has travelled ${formattedValue} miles to games.`;
+						}
+					} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
+						// For "What team has player made the most appearances for?" questions
+						const questionLower = question.toLowerCase();
+						if (
+							(questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) ||
+							(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
+							(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
+						) {
 						// For team counting questions
 						const teamsPlayedFor = value || 0;
 						if (teamsPlayedFor === 0) {
@@ -2493,36 +2613,23 @@ export class ChatbotService {
 						},
 					};
 				}
-			} else if (data && data.type === "team_not_found") {
-				// Handle team not found case
-				this.logToBoth(`🔍 Handling team_not_found case:`, data);
-				const availableTeams = (data.availableTeams as string[]) || [];
-				answer = `I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
-			} else if (data && data.type === "player_not_found") {
-				// Handle player not found case
-				this.logToBoth(`🔍 Handling player_not_found case:`, data);
-				answer =
-					(data.message as string) ||
-					`I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
-			} else if (data && data.type === "error") {
-				// Error occurred during query
-				answer = `I encountered an error while looking up team information: ${data.error}.`;
-			} else if (data && data.type === "general_players" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
-				const firstData = data.data[0] as Record<string, unknown>;
-				if (firstData.playerCount) {
-					// General player count question
-					answer = `The club currently has ${firstData.playerCount} registered players across all teams.`;
-					visualization = {
-						type: "NumberCard",
-						data: [{ name: "Total Players", value: firstData.playerCount }],
-						config: { title: "Club Statistics", type: "bar" },
-					};
-				} else {
-					// List of players
-					const playerNames = data.data.map((p: Record<string, unknown>) => p.name || p.playerName).slice(0, 10);
-					answer = `Here are some players in the database: ${playerNames.join(", ")}.`;
-				}
-			} else if (data && data.type === "team_specific" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+			}
+		} else if (data && data.type === "general_players" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+			const firstData = data.data[0] as Record<string, unknown>;
+			if (firstData.playerCount) {
+				// General player count question
+				answer = `The club currently has ${firstData.playerCount} registered players across all teams.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Total Players", value: firstData.playerCount }],
+					config: { title: "Club Statistics", type: "bar" },
+				};
+			} else {
+				// List of players
+				const playerNames = data.data.map((p: Record<string, unknown>) => p.name || p.playerName).slice(0, 10);
+				answer = `Here are some players in the database: ${playerNames.join(", ")}.`;
+			}
+		} else if (data && data.type === "team_specific" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Team-specific query (e.g., "3rd team goals")
 				const teamName = data.teamName as string;
 				const metric = data.metric as string;

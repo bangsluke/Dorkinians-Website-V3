@@ -6,7 +6,11 @@ import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { homepageQuestions } from "@/config/config";
+import { homepageQuestions, questionTypes } from "@/config/config";
+import NumberCard from "./chatbot-response/NumberCard";
+import Calendar from "./chatbot-response/Calendar";
+import Table from "./chatbot-response/Table";
+import Record from "./chatbot-response/Record";
 
 interface SavedConversation {
 	question: string;
@@ -208,12 +212,22 @@ export default function ChatbotInterface() {
 			// }
 
 			// Log the response structure for debugging
+			const questionAnalysis = data.debug?.processingDetails?.questionAnalysis;
+			const expectedOutputType = data.visualization?.type || 
+				(questionAnalysis?.type ? questionTypes[questionAnalysis.type]?.visualizationType : undefined);
+			const statName = questionAnalysis?.metrics?.[0] || 
+				(Array.isArray(data.visualization?.data) && data.visualization.data.length > 0 
+					? (data.visualization.data[0] as any)?.metric 
+					: undefined);
+
 			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
 				answer: data.answer,
 				hasVisualization: !!data.visualization,
 				hasDebug: !!data.debug,
 				hasProcessingDetails: !!data.debug?.processingDetails,
 				responseType: typeof data,
+				Expected_Output_Type: expectedOutputType,
+				statName: statName,
 			});
 
 			setResponse(data);
@@ -240,86 +254,6 @@ export default function ChatbotInterface() {
 		}
 	};
 
-	const renderVisualization = (visualization: ChatbotResponse["visualization"]) => {
-		if (!visualization) return null;
-
-		switch (visualization.type) {
-			case "Table":
-				return (
-					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
-						<h4 className='font-semibold text-white mb-2'>Player Information</h4>
-						<div className='overflow-x-auto'>
-							<table className='min-w-full text-sm'>
-								<thead>
-									<tr className='border-b border-yellow-400/20'>
-										{visualization.config &&
-											"columns" in visualization.config &&
-											Array.isArray(visualization.config.columns) &&
-											visualization.config.columns.map((col: string) => (
-												<th key={col} className='text-left py-2 px-3 font-medium text-yellow-300'>
-													{col === "name" ? "Player Name" : col}
-												</th>
-											))}
-									</tr>
-								</thead>
-								<tbody>
-									{Array.isArray(visualization.data) &&
-										visualization.data.slice(0, 5).map((row: any, index: number) => (
-											<tr key={index} className='border-b border-yellow-400/10'>
-												{visualization.config &&
-													"columns" in visualization.config &&
-													Array.isArray(visualization.config.columns) &&
-													visualization.config.columns.map((col: string) => (
-														<td key={col} className='py-2 px-3 text-white'>
-															{row[col] || "-"}
-														</td>
-													))}
-											</tr>
-										))}
-								</tbody>
-							</table>
-						</div>
-					</div>
-				);
-
-			case "NumberCard":
-				// Handle array format: [{ name, value }]
-				const numberData = Array.isArray(visualization.data) && visualization.data.length > 0
-					? visualization.data[0]
-					: visualization.data;
-				const displayValue = numberData && typeof numberData === "object" && "value" in numberData
-					? (numberData as any).value
-					: numberData;
-				
-				return (
-					<div className='mt-4 p-4 rounded-lg'>
-						<h4 className='font-semibold text-white mb-2'>Statistics</h4>
-						<div className='text-3xl font-bold text-yellow-300'>
-							{displayValue}
-						</div>
-					</div>
-				);
-
-			case "Calendar":
-				return (
-					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
-						<h4 className='font-semibold text-white mb-2'>Calendar View</h4>
-						<p className='text-yellow-300'>Calendar data available: {JSON.stringify(visualization.data)}</p>
-					</div>
-				);
-
-			case "Record":
-				return (
-					<div className='mt-4 p-4 dark-dropdown rounded-lg'>
-						<h4 className='font-semibold text-white mb-2'>Record Information</h4>
-						<p className='text-yellow-300'>Record data available: {JSON.stringify(visualization.data)}</p>
-					</div>
-				);
-
-			default:
-				return null;
-		}
-	};
 
 	return (
 		<div className='w-full max-w-2xl'>
@@ -402,14 +336,25 @@ export default function ChatbotInterface() {
 						</div>
 
 						{/* Visualization */}
-						{response.visualization && renderVisualization(response.visualization)}
+						{response.visualization && (
+							response.visualization.type === "NumberCard" ? (
+								<NumberCard 
+									visualization={response.visualization} 
+									metricKey={response.debug?.processingDetails?.questionAnalysis?.metrics?.[0]}
+								/>
+							) :
+							response.visualization.type === "Calendar" ? <Calendar visualization={response.visualization} /> :
+							response.visualization.type === "Table" ? <Table visualization={response.visualization} /> :
+							response.visualization.type === "Record" ? <Record visualization={response.visualization} /> :
+							null
+						)}
 					</motion.div>
 				)}
 			</AnimatePresence>
 			</div>
 
 			{/* Questions Section - Show example questions when no past questions, or past questions when available */}
-			<div className='mt-6 md:mt-8'>
+			<div className='mt-6 md:mt-8 pt-6 border-t border-white/20'>
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
