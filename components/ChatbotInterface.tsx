@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { AnimatePresence } from "framer-motion";
@@ -29,6 +29,7 @@ export default function ChatbotInterface() {
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
+	const previousPlayerRef = useRef<string | null>(null);
 	const [sessionId] = useState(() => {
 		if (typeof window !== "undefined") {
 			let id = sessionStorage.getItem("chatbotSessionId");
@@ -41,7 +42,7 @@ export default function ChatbotInterface() {
 		return undefined;
 	});
 
-	// Load conversation history from localStorage on component mount
+	// Load conversation history from localStorage on component mount or when player changes
 	useEffect(() => {
 		// console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
 		if (typeof window !== "undefined") {
@@ -49,16 +50,26 @@ export default function ChatbotInterface() {
 			if (saved) {
 				try {
 					const parsed = JSON.parse(saved);
-					// Keep only the last 3 conversations
-					const lastThree = parsed.slice(-3);
+					// Filter conversations by current player's context
+					const filteredConversations = parsed.filter(
+						(conv: SavedConversation) => conv.playerContext === selectedPlayer
+					);
+					// Keep only the last 3 conversations for this player
+					const lastThree = filteredConversations.slice(-3);
 					setConversationHistory(lastThree);
-					setShowExampleQuestions(false);
 					
-					// Restore the last question and answer if available
-					if (lastThree.length > 0) {
-						const lastConversation = lastThree[lastThree.length - 1];
-						setQuestion(lastConversation.question);
-						setResponse(lastConversation.response);
+					// Only restore conversation if player hasn't changed (initial load or same player)
+					// If player changed, the second useEffect will handle clearing
+					if (previousPlayerRef.current === null || previousPlayerRef.current === selectedPlayer) {
+						// Restore the last question and answer if available for this player
+						if (lastThree.length > 0) {
+							const lastConversation = lastThree[lastThree.length - 1];
+							setQuestion(lastConversation.question);
+							setResponse(lastConversation.response);
+							setShowExampleQuestions(false);
+						} else {
+							setShowExampleQuestions(true);
+						}
 					}
 				} catch (err) {
 					console.error("Failed to parse saved conversations:", err);
@@ -68,6 +79,18 @@ export default function ChatbotInterface() {
 				setShowExampleQuestions(true);
 			}
 		}
+	}, [selectedPlayer]);
+
+	// Clear answer when player changes
+	useEffect(() => {
+		// Only clear if player actually changed (not on initial mount)
+		if (previousPlayerRef.current !== null && previousPlayerRef.current !== selectedPlayer) {
+			// Clear response and question when player changes
+			setResponse(null);
+			setQuestion("");
+		}
+		// Update ref to current player
+		previousPlayerRef.current = selectedPlayer;
 	}, [selectedPlayer]);
 
 	// Save conversation history to localStorage whenever it changes (keep only last 3)
