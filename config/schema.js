@@ -590,6 +590,22 @@ const schema = {
   },
 
   // ============================================================================
+  // HistoricalAward - Historical awards data (loaded from historicalAwardsObject)
+  // ============================================================================
+  HistoricalAward: {
+    nodeType: 'HistoricalAward',
+    properties: {
+      id: { type: 'string', required: true },
+      itemName: { type: 'string', required: true },
+      graphLabel: { type: 'string', required: true }
+    },
+    idPattern: 'historicalaward_{itemSlug}',
+    constraints: ['CREATE CONSTRAINT historicalaward_id IF NOT EXISTS FOR (ha:HistoricalAward) REQUIRE ha.id IS UNIQUE'],
+    // Custom node creation logic - loaded from historicalAwardsObject, not CSV
+    customNodeCreation: true
+  },
+
+  // ============================================================================
   // TBL_OppositionDetails - Opposition team information
   // ============================================================================
   TBL_OppositionDetails: {

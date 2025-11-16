@@ -1,9 +1,9 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject } from "@/config/config";
+import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
@@ -49,19 +49,44 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 function formatStatValue(value: any, statFormat: string, decimalPlaces: number, statUnit?: string): string {
 	if (value === null || value === undefined) return "N/A";
 
+	// Helper to convert Neo4j Integer objects or any value to a number
+	const toNumber = (val: any): number => {
+		if (val === null || val === undefined) return 0;
+		if (typeof val === "number") {
+			if (isNaN(val)) return 0;
+			return val;
+		}
+		// Handle Neo4j Integer objects
+		if (typeof val === "object") {
+			if ("toNumber" in val && typeof val.toNumber === "function") {
+				return val.toNumber();
+			}
+			if ("low" in val && "high" in val) {
+				// Neo4j Integer format: low + high * 2^32
+				const low = val.low || 0;
+				const high = val.high || 0;
+				return low + high * 4294967296;
+			}
+		}
+		const num = Number(val);
+		return isNaN(num) ? 0 : num;
+	};
+
+	const numValue = toNumber(value);
+
 	let formattedValue: string;
 	switch (statFormat) {
 		case "Integer":
-			formattedValue = Math.round(Number(value)).toString();
+			formattedValue = Math.round(numValue).toString();
 			break;
 		case "Decimal1":
-			formattedValue = Number(value).toFixed(1);
+			formattedValue = numValue.toFixed(1);
 			break;
 		case "Decimal2":
-			formattedValue = Number(value).toFixed(decimalPlaces);
+			formattedValue = numValue.toFixed(decimalPlaces);
 			break;
 		case "Percentage":
-			formattedValue = `${Math.round(Number(value))}%`;
+			formattedValue = `${Math.round(numValue)}%`;
 			break;
 		case "String":
 			formattedValue = String(value);
@@ -74,7 +99,17 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage } = useNavigationStore();
+
+	// Get stats to display for current page
+	const statsToDisplay = useMemo(() => {
+		return statsPageConfig[currentStatsSubPage]?.statsToDisplay || [];
+	}, [currentStatsSubPage]);
+
+	// Filter statObject entries to only include stats in statsToDisplay
+	const filteredStatEntries = useMemo(() => {
+		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key));
+	}, [statsToDisplay]);
 
 	// Component state
 
@@ -150,7 +185,7 @@ export default function PlayerStats() {
 							</tr>
 						</thead>
 						<tbody>
-							{Object.entries(statObject).map(([key, stat]) => {
+							{filteredStatEntries.map(([key, stat]) => {
 								const value = playerData[stat.statName as keyof PlayerData];
 								return <StatRow key={key} stat={stat} value={value} playerData={playerData} />;
 							})}
