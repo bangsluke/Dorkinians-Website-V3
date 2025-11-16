@@ -67,8 +67,60 @@ export async function GET(request: NextRequest) {
 		const seasonPattern = /^season(\d{4})(\d{2})$/;
 		const playerNameLower = playerName.trim().toLowerCase();
 
+		// Process CaptainsAndAwards nodes
 		result.records.forEach((record) => {
 			const node = record.get("ca");
+			const properties = node.properties;
+			const awardName = String(properties.itemName || "");
+
+			// Check all season properties
+			Object.keys(properties).forEach((key) => {
+				const match = key.match(seasonPattern);
+				if (match) {
+					const year1 = match[1];
+					const year2 = match[2];
+					const season = `${year1}/${year2}`;
+					const receiverValue = properties[key];
+
+					if (receiverValue) {
+						const receiverStr = String(receiverValue).trim();
+						// Filter out placeholder values
+						const lowerValue = receiverStr.toLowerCase();
+						if (receiverStr !== "" && !['n/a', 'na', 'tbc', 'tbd', 'pending'].includes(lowerValue)) {
+							// Split by comma and ampersand to check if player is in the list
+							const receiverNames = receiverStr
+								.split(/[,&]/)
+								.map((name) => name.trim())
+								.filter((name) => name.length > 0);
+
+							// Check if player name matches any of the receivers
+							const isReceiver = receiverNames.some(
+								(name) => name.trim().toLowerCase() === playerNameLower
+							);
+
+							if (isReceiver) {
+								awards.push({
+									season,
+									awardName,
+								});
+							}
+						}
+					}
+				}
+			});
+		});
+
+		// Also query HistoricalAward nodes
+		const historicalQuery = `
+			MATCH (ha:HistoricalAward {graphLabel: $graphLabel})
+			RETURN ha
+		`;
+
+		const historicalResult = await neo4jService.runQuery(historicalQuery, { graphLabel });
+
+		// Process HistoricalAward nodes
+		historicalResult.records.forEach((record) => {
+			const node = record.get("ha");
 			const properties = node.properties;
 			const awardName = String(properties.itemName || "");
 
