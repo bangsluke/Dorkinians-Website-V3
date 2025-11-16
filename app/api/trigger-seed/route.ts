@@ -29,33 +29,56 @@ export async function POST(request: NextRequest) {
 		// Trigger Heroku seeding service (fire-and-forget)
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
 		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+		
+		// Clean URL to remove trailing slash to prevent double slashes
+		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, '');
+		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
+		console.log("🔗 HEROKU: Cleaned Heroku URL:", cleanHerokuUrl);
 
-		// Fire-and-forget: don't wait for response to prevent timeout
-		fetch(`${herokuUrl}/seed`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				environment,
-				jobId,
-				emailConfig,
-				seasonConfig,
-			}),
-		})
-			.then((response) => {
-				if (response.ok) {
-					console.log("✅ HEROKU: Heroku seeding service started successfully");
-				} else {
-					console.warn("⚠️ HEROKU: Heroku seeding service may have failed to start");
-				}
-			})
-			.catch((herokuError) => {
-				console.warn("⚠️ HEROKU: Failed to start Heroku seeding service:", herokuError);
+		// Wait for Heroku response to capture SMTP errors (with timeout)
+		let smtpError = null;
+		try {
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+			
+			const herokuResponse = await fetch(`${cleanHerokuUrl}/seed`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					environment,
+					jobId,
+					emailConfig,
+					seasonConfig,
+				}),
+				signal: controller.signal,
 			});
+			
+			clearTimeout(timeoutId);
+			
+			if (herokuResponse.ok) {
+				const herokuData = await herokuResponse.json();
+				if (herokuData.smtpError) {
+					smtpError = herokuData.smtpError;
+					console.warn("⚠️ HEROKU: SMTP error detected:", smtpError);
+				} else {
+					console.log("✅ HEROKU: Heroku seeding service started successfully");
+				}
+			} else {
+				console.warn("⚠️ HEROKU: Heroku seeding service may have failed to start");
+			}
+		} catch (herokuError: any) {
+			// If timeout or network error, continue anyway (seeding may still start)
+			if (herokuError.name === 'AbortError') {
+				console.warn("⚠️ HEROKU: Request timeout - seeding may still have started");
+			} else {
+				console.warn("⚠️ HEROKU: Failed to start Heroku seeding service:", herokuError.message);
+			}
+		}
 
-		// Return immediate response
-		console.log("✅ SUCCESS: Returning immediate response");
+		// Return response with SMTP error if present
+		console.log("✅ SUCCESS: Returning response");
 		return NextResponse.json({
 			success: true,
 			message: "Database seeding started on Heroku",
@@ -65,6 +88,7 @@ export async function POST(request: NextRequest) {
 			status: "started",
 			note: "Seeding is running on Heroku. Check email for completion notification.",
 			herokuUrl: process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com",
+			smtpError: smtpError || null, // Include SMTP error if any
 		});
 	} catch (error) {
 		console.error("❌ ERROR: Main execution error:", error);

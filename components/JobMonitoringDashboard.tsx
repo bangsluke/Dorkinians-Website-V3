@@ -64,6 +64,7 @@ const JobMonitoringDashboard: React.FC = () => {
   const [lookupJobId, setLookupJobId] = useState('');
   const [lookupResult, setLookupResult] = useState<any | null>(null);
   const [killingJob, setKillingJob] = useState<string | null>(null);
+  const [clearingDashboard, setClearingDashboard] = useState(false);
   
   // Toast notification state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -245,6 +246,52 @@ const JobMonitoringDashboard: React.FC = () => {
     });
   };
 
+  // Clear all jobs from dashboard
+  const clearAllJobs = async () => {
+    if (!confirm('Are you sure you want to clear all jobs from the dashboard? This action cannot be undone.')) {
+      return;
+    }
+
+    setClearingDashboard(true);
+    setError(null);
+
+    try {
+      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/jobs/clear-all', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        showToast(data.message || 'All jobs cleared successfully', 'success');
+        
+        // Refresh data after clearing
+        fetchJobAnalyses();
+        fetchStorageStats();
+        fetchCurrentJobs();
+      } else {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch (parseError) {
+          const text = await response.text().catch(() => '');
+          errorMessage = text || errorMessage;
+        }
+        throw new Error(errorMessage);
+      }
+    } catch (err) {
+      console.error('Error clearing jobs:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to clear jobs: ${errorMessage}`);
+      showToast(`Failed to clear jobs: ${errorMessage}`, 'error');
+    } finally {
+      setClearingDashboard(false);
+    }
+  };
+
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -299,9 +346,16 @@ const JobMonitoringDashboard: React.FC = () => {
               fetchStorageStats();
               fetchCurrentJobs();
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold"
           >
             Refresh
+          </button>
+          <button
+            onClick={clearAllJobs}
+            disabled={clearingDashboard}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs font-semibold"
+          >
+            {clearingDashboard ? 'Clearing...' : 'Clear Dashboard'}
           </button>
         </div>
       </div>
@@ -436,7 +490,7 @@ const JobMonitoringDashboard: React.FC = () => {
                             }
                           }}
                           disabled={killingJob === job.jobId}
-                          className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
+                          className="px-2 py-1 text-xs font-semibold bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
                         >
                           {killingJob === job.jobId ? (
                             <>
@@ -521,7 +575,7 @@ const JobMonitoringDashboard: React.FC = () => {
                           }
                         }}
                         disabled={killingJob === job.jobId}
-                        className="px-3 py-1 text-xs bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
+                        className="px-3 py-1 text-xs font-semibold bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white rounded flex items-center gap-1"
                       >
                         {killingJob === job.jobId ? (
                           <>
@@ -548,7 +602,7 @@ const JobMonitoringDashboard: React.FC = () => {
       <div className="bg-white shadow rounded-lg mb-4">
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Lookup Job by ID</h3>
-          <p className="text-xs text-gray-500 mt-1">Use this to fetch a job even if it's not shown in Current Jobs.</p>
+          <p className="text-xs text-gray-500 mt-1">Use this to fetch a job even if it&apos;s not shown in Current Jobs.</p>
         </div>
         <div className="p-4 flex flex-col md:flex-row gap-2 items-start md:items-center">
           <input
@@ -558,7 +612,7 @@ const JobMonitoringDashboard: React.FC = () => {
             onChange={(e) => setLookupJobId(e.target.value)}
           />
           <button
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded disabled:opacity-50"
             onClick={() => lookupJobById(lookupJobId)}
             disabled={!lookupJobId}
           >
@@ -647,7 +701,7 @@ const JobMonitoringDashboard: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <button
                         onClick={() => fetchJobAnalysis(analysis.jobId)}
-                        className="text-blue-600 hover:text-blue-900"
+                        className="text-blue-600 hover:text-blue-900 text-xs font-semibold"
                       >
                         View Details
                       </button>

@@ -416,6 +416,31 @@ export default function AdminPanel() {
 			}
 
 			if (response && response.ok && data) {
+				// Check for SMTP errors in response
+				if (data.smtpError) {
+					const smtpError = data.smtpError;
+					const errorMessage = smtpError.isAuthError
+						? `⚠️ SMTP Authentication Error: ${smtpError.message}. Gmail requires an App Password (not your regular password). Enable 2-Factor Authentication and generate an App Password at https://myaccount.google.com/apppasswords`
+						: `⚠️ SMTP Error: ${smtpError.message}. Check SMTP configuration on Heroku.`;
+					
+					// Log to console
+					console.error('📧 SMTP Error detected:', smtpError);
+					console.error('📧 SMTP Error type:', smtpError.type);
+					console.error('📧 SMTP Error message:', smtpError.message);
+					if (smtpError.isAuthError) {
+						console.error('📧 This is an authentication error. Gmail requires an App Password.');
+						console.error('📧 Steps to fix:');
+						console.error('   1. Enable 2-Factor Authentication on your Google account');
+						console.error('   2. Go to: https://myaccount.google.com/apppasswords');
+						console.error('   3. Generate an App Password for "Mail"');
+						console.error('   4. Update SMTP_PASSWORD on Heroku with the App Password');
+					}
+					
+					// Set warning message in AdminPanel
+					setError(errorMessage);
+					addDebugLog(errorMessage, 'warn');
+				}
+				
 				// Transform the Netlify function response to match expected format
 				const transformedResult: SeedingResult = {
 					success: data.success || false,
@@ -998,19 +1023,19 @@ export default function AdminPanel() {
 
 	return (
 		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
-			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Database Seeding Admin Panel</h2>
+			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Dorkinians Database Seeding Admin Panel</h2>
 
 					{/* How the Database Seeding Process Works - Collapsible */}
 					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
 				<button
 					onClick={() => setShowProcessInfo(!showProcessInfo)}
 					className='flex items-center justify-between w-full text-left'>
-					<h3 className='text-lg font-semibold text-blue-800'>How the Database Seeding Process Works</h3>
+					<h3 className='text-sm font-semibold text-blue-800'>How the Database Seeding Process Works</h3>
 					<span className='text-blue-600 text-xl font-bold'>{showProcessInfo ? '−' : '+'}</span>
 				</button>
 				{showProcessInfo && (
 					<div className='mt-3'>
-						<ul className='text-blue-700 text-sm space-y-2'>
+						<ul className='text-blue-700 text-xs space-y-2'>
 							<li>
 								• <strong>Step 1:</strong> Configure season settings (optional) - Use season override for historical data correction or enable full rebuild to clear all data
 							</li>
