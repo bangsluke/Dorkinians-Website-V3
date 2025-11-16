@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface UnansweredQuestion {
 	id: string;
@@ -34,7 +34,7 @@ export default function UnansweredQuestionsView() {
 	});
 	const [selectedQuestion, setSelectedQuestion] = useState<UnansweredQuestion | null>(null);
 
-	const fetchQuestions = async () => {
+	const fetchQuestions = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 
@@ -70,7 +70,7 @@ export default function UnansweredQuestionsView() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [filters]);
 
 	const markAsHandled = async (questionHash: string) => {
 		try {
@@ -96,7 +96,7 @@ export default function UnansweredQuestionsView() {
 
 	useEffect(() => {
 		fetchQuestions();
-	}, []);
+	}, [fetchQuestions]);
 
 	const formatDate = (dateString: string) => {
 		return new Date(dateString).toLocaleString();
