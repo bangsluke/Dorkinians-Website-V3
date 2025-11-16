@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 
 interface Player {
 	rank: number;
@@ -97,7 +98,11 @@ export default function PlayersOfMonth() {
 				const data = await response.json();
 				if (data.seasons) {
 					setSeasons(data.seasons);
-					if (data.seasons.length > 0) {
+					// Use currentSeason from localStorage, or first season
+					const currentSeason = getCurrentSeasonFromStorage();
+					if (currentSeason && data.seasons.includes(currentSeason)) {
+						setSelectedSeason(currentSeason);
+					} else if (data.seasons.length > 0) {
 						setSelectedSeason(data.seasons[0]);
 					}
 					cachePOMSeasons(data.seasons);
