@@ -142,11 +142,14 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
 			sum(CASE WHEN f.homeOrAway = "Home" AND f.result = "W" THEN 1 ELSE 0 END) as homeWins,
 			sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
-			sum(CASE WHEN f.homeOrAway = "Away" AND f.result = "W" THEN 1 ELSE 0 END) as awayWins
+			sum(CASE WHEN f.homeOrAway = "Away" AND f.result = "W" THEN 1 ELSE 0 END) as awayWins,
+			sum(CASE WHEN f.result = "W" THEN 1 ELSE 0 END) as wins,
+			sum(CASE WHEN f.result = "D" THEN 1 ELSE 0 END) as draws,
+			sum(CASE WHEN f.result = "L" THEN 1 ELSE 0 END) as losses
 		// Calculate team aggregations separately - re-match with filters
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
 		MATCH (p)-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f2:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md2)
 	`;
@@ -160,27 +163,27 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			md2.team as team,
 			md2.goals as teamGoal
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			team,
 			count(*) as teamAppearances,
 			sum(coalesce(teamGoal, 0)) as teamGoals
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, teamStats
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
 		// Handle team stats - find most played and most scored teams
 		// Use reduce to find max, handling empty teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
 			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.appearances > maxTeam.appearances THEN ts ELSE maxTeam END)
 			END as mostPlayedTeam,
@@ -194,7 +197,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(mostScoredTeam.team, "") as mostScoredForTeam,
 			size(teams) as numberTeamsPlayedFor,
 			size(seasons) as numberSeasonsPlayedFor,
-			homeGames, homeWins, awayGames, awayWins,
+			homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			goals as allGoalsScored,
 			goals - penaltiesScored as openPlayGoalsScored,
 			goals + assists as goalInvolvements,
@@ -216,7 +219,8 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			CASE WHEN appearances > 0 THEN toFloat(penaltiesSaved) / appearances ELSE 0.0 END as penaltiesSavedPerApp,
 			CASE WHEN homeGames + awayGames > 0 THEN toFloat(homeWins + awayWins) / (homeGames + awayGames) * 100 ELSE 0.0 END as gamesPercentWon,
 			CASE WHEN homeGames > 0 THEN toFloat(homeWins) / homeGames * 100 ELSE 0.0 END as homeGamesPercentWon,
-			CASE WHEN awayGames > 0 THEN toFloat(awayWins) / awayGames * 100 ELSE 0.0 END as awayGamesPercentWon
+			CASE WHEN awayGames > 0 THEN toFloat(awayWins) / awayGames * 100 ELSE 0.0 END as awayGamesPercentWon,
+			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame
 		RETURN p.id as id,
 			p.playerName as playerName,
 			p.allowOnSite as allowOnSite,
@@ -264,6 +268,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(awayWins, 0) as awayWins,
 			coalesce(awayGamesPercentWon, 0.0) as awayGamesPercentWon,
 			coalesce(gamesPercentWon, 0.0) as gamesPercentWon,
+			coalesce(pointsPerGame, 0.0) as pointsPerGame,
 			coalesce(mostPlayedForTeam, "") as mostPlayedForTeam,
 			coalesce(numberTeamsPlayedFor, 0) as numberTeamsPlayedFor,
 			coalesce(mostScoredForTeam, "") as mostScoredForTeam,
@@ -362,6 +367,7 @@ export async function GET(request: NextRequest) {
 			awayWins: toNumber(record.get("awayWins")),
 			awayGamesPercentWon: toNumber(record.get("awayGamesPercentWon")),
 			gamesPercentWon: toNumber(record.get("gamesPercentWon")),
+			pointsPerGame: toNumber(record.get("pointsPerGame")),
 			mostPlayedForTeam: record.get("mostPlayedForTeam") || "",
 			numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
 			mostScoredForTeam: record.get("mostScoredForTeam") || "",
