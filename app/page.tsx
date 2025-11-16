@@ -111,8 +111,8 @@ export default function HomePage() {
 		openFilterSidebar();
 	};
 
-	// Check if we should show the filter icon (only on Player Stats page)
-	const showFilterIcon = currentMainPage === "stats" && currentStatsSubPage === "player-stats";
+	// Check if we should show the filter icon (on all stats sub-pages)
+	const showFilterIcon = currentMainPage === "stats";
 
 	const renderCurrentPage = () => {
 		switch (currentMainPage) {

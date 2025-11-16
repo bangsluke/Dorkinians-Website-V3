@@ -1,9 +1,9 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject } from "@/config/config";
+import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
@@ -74,7 +74,17 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage } = useNavigationStore();
+
+	// Get stats to display for current page
+	const statsToDisplay = useMemo(() => {
+		return statsPageConfig[currentStatsSubPage]?.statsToDisplay || [];
+	}, [currentStatsSubPage]);
+
+	// Filter statObject entries to only include stats in statsToDisplay
+	const filteredStatEntries = useMemo(() => {
+		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key));
+	}, [statsToDisplay]);
 
 	// Component state
 
@@ -150,7 +160,7 @@ export default function PlayerStats() {
 							</tr>
 						</thead>
 						<tbody>
-							{Object.entries(statObject).map(([key, stat]) => {
+							{filteredStatEntries.map(([key, stat]) => {
 								const value = playerData[stat.statName as keyof PlayerData];
 								return <StatRow key={key} stat={stat} value={value} playerData={playerData} />;
 							})}

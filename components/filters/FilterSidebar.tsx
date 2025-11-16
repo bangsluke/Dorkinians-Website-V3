@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation";
+import { statsPageConfig } from "@/config/config";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
@@ -26,18 +27,45 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		filterData,
 		isFilterDataLoaded,
 		loadFilterData,
+		currentStatsSubPage,
 	} = useNavigationStore();
 
-	// Accordion state
-	const [accordionSections, setAccordionSections] = useState<AccordionSection[]>([
-		{ id: "timeRange", title: "Time Range", isOpen: true },
-		{ id: "team", title: "Team", isOpen: false },
-		{ id: "location", title: "Location", isOpen: false },
-		{ id: "opposition", title: "Opposition", isOpen: false },
-		{ id: "competition", title: "Competition", isOpen: false },
-		{ id: "result", title: "Result", isOpen: false },
-		{ id: "position", title: "Position", isOpen: false },
-	]);
+	// Get available filters for current page
+	const availableFilters: string[] = useMemo(() => {
+		const config = statsPageConfig[currentStatsSubPage];
+		return config?.availableFilters ? [...config.availableFilters] : [];
+	}, [currentStatsSubPage]);
+
+	// All possible accordion sections
+	const allAccordionSections: AccordionSection[] = useMemo(
+		() => [
+			{ id: "timeRange", title: "Time Range", isOpen: true },
+			{ id: "team", title: "Team", isOpen: false },
+			{ id: "location", title: "Location", isOpen: false },
+			{ id: "opposition", title: "Opposition", isOpen: false },
+			{ id: "competition", title: "Competition", isOpen: false },
+			{ id: "result", title: "Result", isOpen: false },
+			{ id: "position", title: "Position", isOpen: false },
+		],
+		[],
+	);
+
+	// Filter accordion sections to only include available ones
+	const [accordionSections, setAccordionSections] = useState<AccordionSection[]>(() => {
+		return allAccordionSections.filter((section) => availableFilters.includes(section.id));
+	});
+
+	// Update accordion sections when available filters change
+	useEffect(() => {
+		setAccordionSections((prev) => {
+			const filtered = allAccordionSections.filter((section) => availableFilters.includes(section.id));
+			// Preserve open/closed state for sections that remain
+			return filtered.map((section) => {
+				const existing = prev.find((p) => p.id === section.id);
+				return existing || section;
+			});
+		});
+	}, [availableFilters, allAccordionSections]);
 
 	// Load filter data on mount if not already loaded
 	useEffect(() => {
@@ -205,7 +233,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 							{/* Filter Content */}
 							<div className='flex-1 overflow-y-auto p-4 space-y-4'>
 								{/* Time Range Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("timeRange") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("timeRange")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -335,10 +364,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											)}
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Team Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("team") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("team")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -371,10 +402,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											)}
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Location Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("location") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("location")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -401,10 +434,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											))}
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Opposition Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("opposition") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("opposition")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -444,10 +479,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											</div>
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Competition Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("competition") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("competition")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -488,10 +525,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											</div>
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Result Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("result") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("result")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -518,10 +557,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											))}
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 
 								{/* Position Section */}
-								<div className='border border-white/20 rounded-lg bg-white/5'>
+								{availableFilters.includes("position") && (
+									<div className='border border-white/20 rounded-lg bg-white/5'>
 									<button
 										onClick={() => toggleAccordion("position")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -555,7 +596,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											))}
 										</div>
 									)}
-								</div>
+									</div>
+								)}
 							</div>
 
 							{/* Footer */}
