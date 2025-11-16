@@ -15,7 +15,7 @@ export default function Comparison() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-lg md:text-2xl font-bold text-white mb-2 md:mb-4'>Player Comparison</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Comparison</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
 					<button
 						onClick={handleEditClick}
@@ -30,8 +30,8 @@ export default function Comparison() {
 
 	return (
 		<div className='p-4 text-center'>
-			<h2 className='text-2xl font-bold text-white mb-4'>Player Comparison</h2>
-			<p className='text-white'>Compare statistics between different players will be displayed here.</p>
+			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Player Comparison</h2>
+			<p className='text-sm md:text-base text-gray-300'>Compare statistics between different players will be displayed here</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
 				<p className='text-sm text-gray-500'>⚖️ Player comparison charts and metrics will be integrated here</p>
 			</div>

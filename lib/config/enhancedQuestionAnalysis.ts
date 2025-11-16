@@ -284,7 +284,17 @@ export class EnhancedQuestionAnalyzer {
 		const hasMultipleEntities = extractionResult.entities.length > 1;
 		const hasTimeFrames = extractionResult.timeFrames.length > 0;
 
-		// Check for player-specific queries first (even with time frames)
+		// Check for streak patterns FIRST (before player check) - highest priority for streak questions
+		if (
+			lowerQuestion.includes("streak") || 
+			lowerQuestion.includes("consecutive") || 
+			lowerQuestion.includes("in a row") ||
+			(lowerQuestion.includes("longest") && (lowerQuestion.includes("scoring") || lowerQuestion.includes("goal") || lowerQuestion.includes("assist") || lowerQuestion.includes("clean sheet")))
+		) {
+			return "streak";
+		}
+
+		// Check for player-specific queries (but not if it's a streak question)
 		if (hasPlayerEntities) {
 			return "player";
 		}
@@ -307,11 +317,6 @@ export class EnhancedQuestionAnalyzer {
 		// Check for percentage queries
 		if (lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) {
 			return "player";
-		}
-
-		// Check for specific question patterns
-		if (lowerQuestion.includes("streak") || lowerQuestion.includes("consecutive") || lowerQuestion.includes("in a row")) {
-			return "streak";
 		}
 
 		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {

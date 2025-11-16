@@ -1,8 +1,8 @@
 export default function TeamStats() {
 	return (
 		<div className='p-4 text-center'>
-			<h2 className='text-2xl font-bold text-white mb-4'>Team Stats</h2>
-			<p className='text-white'>Team performance and statistics will be displayed here.</p>
+			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Team Stats</h2>
+			<p className='text-sm md:text-base text-gray-300'>Team performance and statistics will be displayed here</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
 				<p className='text-sm text-gray-500'>🏆 Team performance charts and metrics will be integrated here</p>
 			</div>
