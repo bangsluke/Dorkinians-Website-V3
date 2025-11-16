@@ -1,6 +1,9 @@
 import Papa from "papaparse";
 import { STAT_TEST_CONFIGS, TestConfig } from "../../config/config";
 
+// Re-export STAT_TEST_CONFIGS for use in test files
+export { STAT_TEST_CONFIGS };
+
 export interface TestPlayerData {
 	playerName: string;
 	goals: number;
