@@ -6,7 +6,7 @@ import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { homepageQuestions, questionTypes } from "@/config/config";
+import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
 import NumberCard from "./chatbot-response/NumberCard";
 import Calendar from "./chatbot-response/Calendar";
 import Table from "./chatbot-response/Table";
@@ -221,7 +221,9 @@ export default function ChatbotInterface() {
 			// Log the response structure for debugging
 			const questionAnalysis = data.debug?.processingDetails?.questionAnalysis;
 			const expectedOutputType = data.visualization?.type || 
-				(questionAnalysis?.type ? questionTypes[questionAnalysis.type]?.visualizationType : undefined);
+				(questionAnalysis?.type && questionAnalysis.type in questionTypes 
+					? questionTypes[questionAnalysis.type as QuestionType]?.visualizationType 
+					: undefined);
 			const statName = questionAnalysis?.metrics?.[0] || 
 				(Array.isArray(data.visualization?.data) && data.visualization.data.length > 0 
 					? (data.visualization.data[0] as any)?.metric 
