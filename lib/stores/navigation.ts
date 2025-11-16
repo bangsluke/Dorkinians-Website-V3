@@ -48,6 +48,7 @@ export interface PlayerData {
 	penaltiesMissedPerApp: number;
 	penaltiesConcededPerApp: number;
 	penaltiesSavedPerApp: number;
+	pointsPerGame: number;
 
 	// Team and season tracking
 	mostPlayedForTeam: string;
@@ -77,6 +78,7 @@ export interface TeamData {
 	winPercentage: number;
 	goalsPerGame: number;
 	goalsConcededPerGame: number;
+	pointsPerGame: number;
 	homeGames: number;
 	homeWins: number;
 	homeWinPercentage: number;

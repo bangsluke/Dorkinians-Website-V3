@@ -760,6 +760,18 @@ export const statObject = {
 		iconName: "PercentageAwayGamesWon-Icon",
 		statUnit: "%",
 	},
+	PlayerPointsPerGame: {
+		statName: "pointsPerGame",
+		displayText: "Points Per Game", // The text displayed at all times on the page.
+		shortText: "PPG", // Used for short displays such as on the Comparison tab.
+		wordedText: "points per game", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average points per game achieved by the player (3 for win, 1 for draw, 0 for loss).",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Results Stat",
+		iconName: "Goals-Icon",
+	},
 	MostPlayedForTeam: {
 		statName: "mostPlayedForTeam",
 		displayText: "Most Played For Team", // The text displayed at all times on the page.
@@ -917,6 +929,18 @@ export const statObject = {
 		statCategory: "Team Stat",
 		iconName: "Goals-Icon",
 	},
+	TeamPointsPerGame: {
+		statName: "pointsPerGame",
+		displayText: "Points Per Game",
+		shortText: "PPG",
+		wordedText: "points per game",
+		statFormat: "Decimal2",
+		description: "The average points per game achieved by the team (3 for win, 1 for draw, 0 for loss).",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Team Stat",
+		iconName: "Goals-Icon",
+	},
 	TeamGoalsPerGame: {
 		statName: "goalsPerGame",
 		displayText: "Goals Per Game",
@@ -1068,6 +1092,7 @@ export const statsPageConfig = {
 			"PSVperAPP",
 			"DIST",
 			"Games%Won",
+			"PlayerPointsPerGame",
 			"HomeGames",
 			"HomeWins",
 			"HomeGames%Won",
@@ -1092,6 +1117,7 @@ export const statsPageConfig = {
 			"TeamGoalDifference",
 			"TeamCleanSheets",
 			"TeamWinPercentage",
+			"TeamPointsPerGame",
 			"TeamGoalsPerGame",
 			"TeamGoalsConcededPerGame",
 			"TeamHomeGames",
