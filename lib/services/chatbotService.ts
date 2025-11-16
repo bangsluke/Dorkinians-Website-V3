@@ -1306,7 +1306,7 @@ export class ChatbotService {
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WITH p, 
 					sum(coalesce(md.minutes, 0)) as totalMinutes,
-					sum(CASE WHEN coalesce(f.conceded, 0) = 0 THEN 1 ELSE 0 END) as totalCleanSheets
+					count(DISTINCT CASE WHEN coalesce(f.conceded, 0) = 0 THEN f ELSE null END) as totalCleanSheets
 				RETURN p.playerName as playerName, 
 					CASE 
 						WHEN totalCleanSheets > 0 THEN toInteger(round(totalMinutes / totalCleanSheets))

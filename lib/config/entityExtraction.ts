@@ -216,7 +216,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Co Players": ["co players", "teammates", "played with", "team mates"],
 	Opponents: ["opponents", "played against", "faced", "versus"],
 	"Fantasy Points": ["fantasy points", "fantasy score", "fantasy point", "points", "ftp", "fp"],
-	"Goals Per Appearance": ["goals per game", "goals per match", "goals on average scored", "average goals scored"],
+	"Goals Per Appearance": ["goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
 	"Conceded Per Appearance": [
 		"goals on average does.*concede per match",
 		"goals on average does.*concede per game",
