@@ -57,6 +57,17 @@ export async function GET(request: NextRequest) {
 			return bYear - aYear;
 		});
 
+		// Add "Historical Awards" option at the end (after 2016/17)
+		// Find the index of "2016/17" or insert at the end
+		const historicalAwardsOption = "Historical Awards";
+		const index201617 = seasons.indexOf("2016/17");
+		if (index201617 !== -1) {
+			seasons.splice(index201617 + 1, 0, historicalAwardsOption);
+		} else {
+			// If 2016/17 not found, add at the end
+			seasons.push(historicalAwardsOption);
+		}
+
 		return NextResponse.json({ seasons }, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching award seasons:", error);

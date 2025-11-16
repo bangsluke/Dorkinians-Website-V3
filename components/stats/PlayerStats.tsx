@@ -103,12 +103,12 @@ export default function PlayerStats() {
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
-		return statsPageConfig[currentStatsSubPage]?.statsToDisplay || [];
+		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
 	}, [currentStatsSubPage]);
 
 	// Filter statObject entries to only include stats in statsToDisplay
 	const filteredStatEntries = useMemo(() => {
-		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key));
+		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
 	}, [statsToDisplay]);
 
 	// Component state
