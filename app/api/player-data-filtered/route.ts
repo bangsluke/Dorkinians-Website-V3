@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
 			awayWins: toNumber(record.get("awayWins")),
 			awayGamesPercentWon: toNumber(record.get("awayGamesPercentWon")),
 			gamesPercentWon: toNumber(record.get("gamesPercentWon")),
+			pointsPerGame: toNumber(record.get("pointsPerGame")),
 			mostPlayedForTeam: record.get("mostPlayedForTeam") || "",
 			numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
 			mostScoredForTeam: record.get("mostScoredForTeam") || "",
