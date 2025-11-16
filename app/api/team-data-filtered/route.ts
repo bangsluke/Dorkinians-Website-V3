@@ -48,21 +48,9 @@ export function buildTeamStatsQuery(teamName: string, filters: any = null): { qu
 		WITH f
 		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
 		WITH f, md
-		// Aggregate team-level stats from fixtures
+		// Aggregate team-level stats from fixtures (use collect DISTINCT to avoid counting fixtures multiple times)
 		WITH ${isWholeClub ? '"Whole Club" as team' : 'f.team as team'},
-			count(DISTINCT f) as gamesPlayed,
-			sum(CASE WHEN f.result = "W" THEN 1 ELSE 0 END) as wins,
-			sum(CASE WHEN f.result = "D" THEN 1 ELSE 0 END) as draws,
-			sum(CASE WHEN f.result = "L" THEN 1 ELSE 0 END) as losses,
-			sum(coalesce(f.dorkiniansGoals, 0)) as goalsScored,
-			sum(coalesce(f.conceded, 0)) as goalsConceded,
-			sum(CASE WHEN coalesce(f.conceded, 0) = 0 THEN 1 ELSE 0 END) as cleanSheets,
-			sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
-			sum(CASE WHEN f.homeOrAway = "Home" AND f.result = "W" THEN 1 ELSE 0 END) as homeWins,
-			sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
-			sum(CASE WHEN f.homeOrAway = "Away" AND f.result = "W" THEN 1 ELSE 0 END) as awayWins,
-			collect(DISTINCT f.season) as seasons,
-			collect(DISTINCT f.competition) as competitions,
+			collect(DISTINCT f) as fixtures,
 			// Aggregate player-level stats from match details
 			count(md) as totalAppearances,
 			sum(coalesce(md.minutes, 0)) as totalMinutes,
@@ -80,6 +68,39 @@ export function buildTeamStatsQuery(teamName: string, filters: any = null): { qu
 			sum(coalesce(md.penaltiesSaved, 0)) as totalPenaltiesSaved,
 			sum(coalesce(md.fantasyPoints, 0)) as totalFantasyPoints,
 			sum(coalesce(md.distance, 0)) as totalDistance
+		// Extract fixture-level stats from distinct fixtures
+		WITH team, fixtures, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
+			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
+			totalFantasyPoints, totalDistance,
+			size(fixtures) as gamesPlayed,
+			size([fx in fixtures WHERE fx.result = "W"]) as wins,
+			size([fx in fixtures WHERE fx.result = "D"]) as draws,
+			size([fx in fixtures WHERE fx.result = "L"]) as losses,
+			reduce(total = 0, fx in fixtures | total + coalesce(fx.dorkiniansGoals, 0)) as goalsScored,
+			reduce(total = 0, fx in fixtures | total + coalesce(fx.conceded, 0)) as goalsConceded,
+			size([fx in fixtures WHERE coalesce(fx.conceded, 0) = 0]) as cleanSheets,
+			size([fx in fixtures WHERE fx.homeOrAway = "Home"]) as homeGames,
+			size([fx in fixtures WHERE fx.homeOrAway = "Home" AND fx.result = "W"]) as homeWins,
+			size([fx in fixtures WHERE fx.homeOrAway = "Away"]) as awayGames,
+			size([fx in fixtures WHERE fx.homeOrAway = "Away" AND fx.result = "W"]) as awayWins,
+			[x IN [fx IN fixtures | fx.season] WHERE x IS NOT NULL | x] as allSeasons,
+			[x IN [fx IN fixtures | fx.competition] WHERE x IS NOT NULL | x] as allCompetitions
+		// Get distinct seasons and competitions
+		UNWIND allSeasons as season
+		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
+			homeGames, homeWins, awayGames, awayWins, allCompetitions, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
+			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
+			totalFantasyPoints, totalDistance,
+			collect(DISTINCT season) as seasons
+		UNWIND allCompetitions as competition
+		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
+			homeGames, homeWins, awayGames, awayWins, seasons, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
+			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
+			totalFantasyPoints, totalDistance,
+			collect(DISTINCT competition) as competitions
 		// Calculate derived stats
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
 			homeGames, homeWins, awayGames, awayWins, seasons, competitions,

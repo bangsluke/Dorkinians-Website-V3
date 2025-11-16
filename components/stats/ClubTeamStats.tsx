@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useState, useMemo, useEffect } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import FilterPills from "@/components/filters/FilterPills";
 
 interface Team {
 	name: string;
@@ -109,6 +110,7 @@ export default function ClubTeamStats() {
 		cachedPlayerData,
 		playerFilters,
 		currentStatsSubPage,
+		filterData,
 	} = useNavigationStore();
 
 	const [selectedTeam, setSelectedTeam] = useState<string>("Whole Club");
@@ -212,9 +214,14 @@ export default function ClubTeamStats() {
 
 	if (isLoadingTeams) {
 		return (
-			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Club Stats</h2>
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Club Stats</h2>
+					</div>
+					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+				</div>
+				<div className='flex-1 flex items-center justify-center p-4'>
 					<p className='text-white text-sm md:text-base'>Loading teams...</p>
 				</div>
 			</div>
@@ -227,6 +234,7 @@ export default function ClubTeamStats() {
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
+				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 				<div className='mb-4'>
 					<Listbox value={selectedTeam} onChange={handleTeamSelect}>
 						<div className='relative'>
@@ -287,9 +295,7 @@ export default function ClubTeamStats() {
 
 			{isLoadingTeamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
-					<div className='text-center'>
-						<p className='text-white text-sm md:text-base'>Loading team data...</p>
-					</div>
+					<p className='text-white text-sm md:text-base'>Loading team data...</p>
 				</div>
 			) : !selectedTeam ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
