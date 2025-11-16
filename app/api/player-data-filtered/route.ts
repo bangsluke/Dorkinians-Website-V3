@@ -170,7 +170,7 @@ function validateFilters(filters: any): string | null {
 	if (filters.timeRange) {
 		const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
 
-		if (!type || !["season", "beforeDate", "afterDate", "betweenDates"].includes(type)) {
+		if (!type || !["season", "beforeDate", "afterDate", "betweenDates", "allTime"].includes(type)) {
 			return "Invalid timeRange type";
 		}
 

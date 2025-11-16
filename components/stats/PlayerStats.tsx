@@ -5,6 +5,7 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import FilterPills from "@/components/filters/FilterPills";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -99,7 +100,7 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -138,9 +139,20 @@ export default function PlayerStats() {
 
 	if (isLoadingPlayerData) {
 		return (
-			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Player Stats - {selectedPlayer}</h2>
+						<button
+							onClick={handleEditClick}
+							className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+							title='Edit player selection'>
+							<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</div>
+					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+				</div>
+				<div className='flex-1 flex items-center justify-center p-4'>
 					<p className='text-white text-sm md:text-base'>Loading player data...</p>
 				</div>
 			</div>
@@ -172,6 +184,7 @@ export default function PlayerStats() {
 						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
+				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
 			<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
