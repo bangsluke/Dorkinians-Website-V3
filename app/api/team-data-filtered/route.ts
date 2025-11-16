@@ -13,7 +13,7 @@ export async function OPTIONS() {
 }
 
 // Build unified Cypher query for team stats with aggregation
-export function buildTeamStatsQuery(teamName: string, filters: any = null): { query: string; params: any } {
+function buildTeamStatsQuery(teamName: string, filters: any = null): { query: string; params: any } {
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: any = {
 		graphLabel,

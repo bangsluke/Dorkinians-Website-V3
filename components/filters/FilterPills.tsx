@@ -32,7 +32,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 	// Get available filters for current page
 	const availableFilters = useMemo(() => {
 		const config = statsPageConfig[currentStatsSubPage];
-		return config?.availableFilters || [];
+		return config?.availableFilters ? [...config.availableFilters] : [];
 	}, [currentStatsSubPage]);
 
 	// Get active filters and expand multi-value filters into individual pills

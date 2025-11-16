@@ -205,7 +205,7 @@ export default function ClubTeamStats() {
 		};
 
 		fetchTeamData();
-	}, [selectedTeam, filtersKey]);
+	}, [selectedTeam, filtersKey, playerFilters]);
 
 	// Handle team selection
 	const handleTeamSelect = (teamName: string) => {
