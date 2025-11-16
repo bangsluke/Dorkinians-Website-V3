@@ -88,7 +88,7 @@ export default function PlayerStats() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-lg md:text-2xl font-bold text-white mb-2 md:mb-4'>Player Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
 					<button
 						onClick={handleEditClick}
@@ -105,7 +105,7 @@ export default function PlayerStats() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-lg md:text-2xl font-bold text-white mb-2 md:mb-4'>Player Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
 					<p className='text-white text-sm md:text-base'>Loading player data...</p>
 				</div>
 			</div>
@@ -116,7 +116,7 @@ export default function PlayerStats() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-lg md:text-2xl font-bold text-white mb-2 md:mb-4'>Player Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
 					<p className='text-white text-sm md:text-base'>No player data available. Please try selecting the player again.</p>
 				</div>
 			</div>
@@ -129,7 +129,7 @@ export default function PlayerStats() {
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-					<h2 className='text-lg md:text-2xl font-bold text-white text-center'>Player Stats - {selectedPlayer}</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Player Stats - {selectedPlayer}</h2>
 					<button
 						onClick={handleEditClick}
 						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'

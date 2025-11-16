@@ -53,6 +53,13 @@ export default function ChatbotInterface() {
 					const lastThree = parsed.slice(-3);
 					setConversationHistory(lastThree);
 					setShowExampleQuestions(false);
+					
+					// Restore the last question and answer if available
+					if (lastThree.length > 0) {
+						const lastConversation = lastThree[lastThree.length - 1];
+						setQuestion(lastConversation.question);
+						setResponse(lastConversation.response);
+					}
 				} catch (err) {
 					console.error("Failed to parse saved conversations:", err);
 					setShowExampleQuestions(true);

@@ -32,7 +32,7 @@ export default function UsefulLinks() {
 
 	return (
 		<div className='p-4 md:p-6 h-full flex flex-col'>
-			<h2 className='text-xl md:text-2xl font-bold text-white mb-4 md:mb-6 text-center'>Useful Links</h2>
+			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 md:mb-6 text-center'>Useful Links</h2>
 
 			<div className='flex-1 overflow-y-auto pr-2 pb-4 space-y-6 md:space-y-8'>
 				{categoryOrder.map((category, categoryIndex) => {

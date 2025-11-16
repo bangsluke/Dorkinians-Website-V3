@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, PanInfo } from "framer-motion";
+import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
 import ClubInformation from "./club-info/ClubInformation";
 import MatchInformation from "./club-info/MatchInformation";
@@ -56,18 +56,21 @@ export default function ClubInfoContainer() {
 			</div>
 
 			{/* Swipeable Content */}
-			<motion.div
-				key={currentClubInfoSubPage}
-				initial={{ x: 300, opacity: 0 }}
-				animate={{ x: 0, opacity: 1 }}
-				exit={{ x: -300, opacity: 0 }}
-				transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				drag='x'
-				dragConstraints={{ left: 0, right: 0 }}
-				onDragEnd={handleDragEnd}
-				className='h-full'>
-				{clubInfoSubPages[currentIndex] ? React.createElement(clubInfoSubPages[currentIndex].component) : null}
-			</motion.div>
+			<AnimatePresence mode='wait'>
+				<motion.div
+					key={currentClubInfoSubPage}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1, x: 0 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.2 }}
+					drag='x'
+					dragConstraints={{ left: 0, right: 0 }}
+					onDragEnd={handleDragEnd}
+					style={{ position: 'relative' }}
+					className='h-full'>
+					{clubInfoSubPages[currentIndex] ? React.createElement(clubInfoSubPages[currentIndex].component) : null}
+				</motion.div>
+			</AnimatePresence>
 		</div>
 	);
 }

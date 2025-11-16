@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, PanInfo } from "framer-motion";
+import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import PlayerStats from "./stats/PlayerStats";
@@ -68,18 +68,21 @@ export default function StatsContainer() {
 			</div>
 
 			{/* Swipeable Content */}
-			<motion.div
-				key={currentPage?.id || "default"}
-				initial={{ x: 300, opacity: 0 }}
-				animate={{ x: 0, opacity: 1 }}
-				exit={{ x: -300, opacity: 0 }}
-				transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				drag='x'
-				dragConstraints={{ left: 0, right: 0 }}
-				onDragEnd={handleDragEnd}
-				className='h-full'>
-				{currentPage ? React.createElement(currentPage.component) : null}
-			</motion.div>
+			<AnimatePresence mode='wait'>
+				<motion.div
+					key={currentPage?.id || "default"}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1, x: 0 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.2 }}
+					drag='x'
+					dragConstraints={{ left: 0, right: 0 }}
+					onDragEnd={handleDragEnd}
+					style={{ position: 'relative' }}
+					className='h-full'>
+					{currentPage ? React.createElement(currentPage.component) : null}
+				</motion.div>
+			</AnimatePresence>
 		</div>
 	);
 }

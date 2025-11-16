@@ -610,7 +610,7 @@ export default function PlayersOfMonth() {
 		<div className='flex flex-col p-4 md:p-6 relative'>
 			{/* Header */}
 			<div className='text-center mb-3'>
-				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>PLAYERS OF THE MONTH</h1>
+				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>
 			</div>
 
 			{/* Loading Spinner - Show during initial load */}
