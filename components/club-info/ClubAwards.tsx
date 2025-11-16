@@ -65,8 +65,14 @@ export default function ClubAwards() {
 					let filteredSeasons = data.seasons;
 					
 					// Filter out current season and seasons later than current season
+					// Preserve "Historical Awards" option (not a season format)
 					if (currentSeason) {
 						filteredSeasons = data.seasons.filter((season: string) => {
+							// Always include "Historical Awards"
+							if (season === "Historical Awards") {
+								return true;
+							}
+							// Only filter actual season strings
 							return compareSeasons(season, currentSeason) < 0;
 						});
 					}
