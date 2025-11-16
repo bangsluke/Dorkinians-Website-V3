@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { getCachedAwardsData } from "@/lib/services/awardsPreloadService";
@@ -10,15 +10,31 @@ interface AwardData {
 	receiver: string | null;
 }
 
+interface HistoricalAwardEntry {
+	awardName: string;
+	receiver: string;
+	season: string;
+	isPlayer: boolean;
+}
+
+interface SeasonBreaker {
+	type: "season";
+	season: string;
+}
+
+type AwardDisplayItem = AwardData | HistoricalAwardEntry | SeasonBreaker;
+
 const AWARDS_SELECTED_SEASON_KEY = "dorkinians-awards-selected-season";
 
 export default function ClubAwards() {
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
 	const [awardsData, setAwardsData] = useState<AwardData[]>([]);
+	const [historicalAwardsData, setHistoricalAwardsData] = useState<AwardDisplayItem[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
 	const [showPopup, setShowPopup] = useState(false);
+	const isHistoricalAwards = selectedSeason === "Historical Awards";
 
 	// Helper function to compare seasons (e.g., "2022/23" vs "2023/24")
 	const compareSeasons = (season1: string, season2: string): number => {
@@ -49,8 +65,14 @@ export default function ClubAwards() {
 					let filteredSeasons = data.seasons;
 					
 					// Filter out current season and seasons later than current season
+					// Preserve "Historical Awards" option (not a season format)
 					if (currentSeason) {
 						filteredSeasons = data.seasons.filter((season: string) => {
+							// Always include "Historical Awards"
+							if (season === "Historical Awards") {
+								return true;
+							}
+							// Only filter actual season strings
 							return compareSeasons(season, currentSeason) < 0;
 						});
 					}
@@ -90,10 +112,31 @@ export default function ClubAwards() {
 		const fetchAwardsData = async () => {
 			setLoading(true);
 			
-			// Check cache first
+			// Handle historical awards separately
+			if (selectedSeason === "Historical Awards") {
+				try {
+					const response = await fetch(`/api/awards/historical`);
+					if (!response.ok) {
+						throw new Error("Failed to fetch historical award data");
+					}
+					const data = await response.json();
+					setHistoricalAwardsData(data.awardsData || []);
+					setAwardsData([]);
+				} catch (error) {
+					console.error("Error fetching historical award data:", error);
+					setHistoricalAwardsData([]);
+					setAwardsData([]);
+				} finally {
+					setLoading(false);
+				}
+				return;
+			}
+
+			// Regular awards - check cache first
 			const cachedData = getCachedAwardsData(selectedSeason);
 			if (cachedData) {
 				setAwardsData(cachedData);
+				setHistoricalAwardsData([]);
 				setLoading(false);
 				return;
 			}
@@ -106,9 +149,11 @@ export default function ClubAwards() {
 				}
 				const data = await response.json();
 				setAwardsData(data.awardsData || []);
+				setHistoricalAwardsData([]);
 			} catch (error) {
 				console.error("Error fetching award data:", error);
 				setAwardsData([]);
+				setHistoricalAwardsData([]);
 			} finally {
 				setLoading(false);
 			}
@@ -200,8 +245,8 @@ export default function ClubAwards() {
 					</div>
 				)}
 
-				{/* Awards Table */}
-				{!loading && awardsData.filter(item => item.receiver).length > 0 && (
+				{/* Awards Table - Regular Awards */}
+				{!loading && !isHistoricalAwards && awardsData.filter(item => item.receiver).length > 0 && (
 					<div className='overflow-x-auto -mx-6 px-6'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
@@ -247,10 +292,94 @@ export default function ClubAwards() {
 					</div>
 				)}
 
+				{/* Historical Awards Table */}
+				{!loading && isHistoricalAwards && historicalAwardsData.length > 0 && (() => {
+					// Group items by season
+					const groupedData: { season: string; awards: HistoricalAwardEntry[] }[] = [];
+					let currentSeason = "";
+					let currentGroup: HistoricalAwardEntry[] = [];
+
+					historicalAwardsData.forEach((item) => {
+						if ('type' in item && item.type === 'season') {
+							// Save previous group if it exists
+							if (currentSeason && currentGroup.length > 0) {
+								groupedData.push({ season: currentSeason, awards: currentGroup });
+							}
+							// Start new group
+							currentSeason = item.season;
+							currentGroup = [];
+						} else {
+							// Add award to current group
+							currentGroup.push(item as HistoricalAwardEntry);
+						}
+					});
+					// Add last group
+					if (currentSeason && currentGroup.length > 0) {
+						groupedData.push({ season: currentSeason, awards: currentGroup });
+					}
+
+					return (
+						<div className='overflow-x-auto -mx-6 px-6'>
+							<table className='w-full bg-transparent' style={{ borderCollapse: 'separate', borderSpacing: '0' }}>
+								<thead className='sticky top-0 z-10'>
+									<tr className='bg-white/20'>
+										<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Award Name</th>
+										<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Receiver</th>
+									</tr>
+								</thead>
+								<tbody>
+									{groupedData.map((group, groupIndex) => (
+										<Fragment key={`group-${groupIndex}`}>
+											{/* Season breaker row */}
+											<tr>
+												<td colSpan={2} className='px-2 md:px-4 py-1 md:py-2 text-white font-bold text-sm md:text-base' style={{ backgroundColor: 'rgba(255, 255, 255, 0.15)' }}>
+													{group.season}
+												</td>
+											</tr>
+											{/* Award rows with background */}
+											{group.awards.map((entry, awardIndex) => (
+												<tr key={`award-${groupIndex}-${awardIndex}`} className='border-b border-white/10 hover:bg-white/5 transition-colors' style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
+													<td className='px-2 md:px-4 py-2 md:py-3 text-white text-xs md:text-sm'>{entry.awardName}</td>
+													<td className='px-2 md:px-4 py-2 md:py-3'>
+														{entry.isPlayer ? (
+															<button
+																onClick={() => handlePlayerClick(entry.receiver)}
+																onMouseEnter={() => handlePlayerHover(entry.receiver)}
+																onMouseLeave={handlePlayerHoverEnd}
+																onTouchStart={() => handlePlayerClick(entry.receiver)}
+																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'
+															>
+																{entry.receiver}
+															</button>
+														) : (
+															<span className='text-white text-xs md:text-sm'>{entry.receiver}</span>
+														)}
+													</td>
+												</tr>
+											))}
+											{/* Gap between season groups */}
+											{groupIndex < groupedData.length - 1 && (
+												<tr>
+													<td colSpan={2} className='py-2' style={{ backgroundColor: 'transparent' }}></td>
+												</tr>
+											)}
+										</Fragment>
+									))}
+								</tbody>
+							</table>
+						</div>
+					);
+				})()}
+
 				{/* No Data Message */}
-				{!loading && awardsData.length === 0 && selectedSeason && (
+				{!loading && !isHistoricalAwards && awardsData.length === 0 && selectedSeason && (
 					<div className='text-center mt-8'>
 						<p className='text-sm md:text-base text-gray-300'>No award data available for {selectedSeason}.</p>
+					</div>
+				)}
+				{!loading && isHistoricalAwards && historicalAwardsData.length === 0 && (
+					<div className='text-center mt-8'>
+						<p className='text-sm md:text-base text-gray-300'>No historical award data available.</p>
 					</div>
 				)}
 			</div>

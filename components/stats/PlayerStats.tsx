@@ -1,10 +1,11 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject } from "@/config/config";
+import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import FilterPills from "@/components/filters/FilterPills";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -49,19 +50,44 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 function formatStatValue(value: any, statFormat: string, decimalPlaces: number, statUnit?: string): string {
 	if (value === null || value === undefined) return "N/A";
 
+	// Helper to convert Neo4j Integer objects or any value to a number
+	const toNumber = (val: any): number => {
+		if (val === null || val === undefined) return 0;
+		if (typeof val === "number") {
+			if (isNaN(val)) return 0;
+			return val;
+		}
+		// Handle Neo4j Integer objects
+		if (typeof val === "object") {
+			if ("toNumber" in val && typeof val.toNumber === "function") {
+				return val.toNumber();
+			}
+			if ("low" in val && "high" in val) {
+				// Neo4j Integer format: low + high * 2^32
+				const low = val.low || 0;
+				const high = val.high || 0;
+				return low + high * 4294967296;
+			}
+		}
+		const num = Number(val);
+		return isNaN(num) ? 0 : num;
+	};
+
+	const numValue = toNumber(value);
+
 	let formattedValue: string;
 	switch (statFormat) {
 		case "Integer":
-			formattedValue = Math.round(Number(value)).toString();
+			formattedValue = Math.round(numValue).toString();
 			break;
 		case "Decimal1":
-			formattedValue = Number(value).toFixed(1);
+			formattedValue = numValue.toFixed(1);
 			break;
 		case "Decimal2":
-			formattedValue = Number(value).toFixed(decimalPlaces);
+			formattedValue = numValue.toFixed(decimalPlaces);
 			break;
 		case "Percentage":
-			formattedValue = `${Math.round(Number(value))}%`;
+			formattedValue = `${Math.round(numValue)}%`;
 			break;
 		case "String":
 			formattedValue = String(value);
@@ -74,7 +100,17 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+
+	// Get stats to display for current page
+	const statsToDisplay = useMemo(() => {
+		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
+	}, [currentStatsSubPage]);
+
+	// Filter statObject entries to only include stats in statsToDisplay
+	const filteredStatEntries = useMemo(() => {
+		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
+	}, [statsToDisplay]);
 
 	// Component state
 
@@ -103,9 +139,20 @@ export default function PlayerStats() {
 
 	if (isLoadingPlayerData) {
 		return (
-			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Player Stats - {selectedPlayer}</h2>
+						<button
+							onClick={handleEditClick}
+							className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+							title='Edit player selection'>
+							<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						</button>
+					</div>
+					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+				</div>
+				<div className='flex-1 flex items-center justify-center p-4'>
 					<p className='text-white text-sm md:text-base'>Loading player data...</p>
 				</div>
 			</div>
@@ -137,6 +184,7 @@ export default function PlayerStats() {
 						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
+				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
 			<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
@@ -150,7 +198,7 @@ export default function PlayerStats() {
 							</tr>
 						</thead>
 						<tbody>
-							{Object.entries(statObject).map(([key, stat]) => {
+							{filteredStatEntries.map(([key, stat]) => {
 								const value = playerData[stat.statName as keyof PlayerData];
 								return <StatRow key={key} stat={stat} value={value} playerData={playerData} />;
 							})}
