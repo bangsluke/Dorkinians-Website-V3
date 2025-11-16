@@ -13,6 +13,8 @@ import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 import UpdateToast from "@/components/UpdateToast";
+import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
+import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 
 export default function HomePage() {
 	const {
@@ -46,6 +48,19 @@ export default function HomePage() {
 	useEffect(() => {
 		initializeFromStorage();
 		loadFilterData(); // Load filter data asynchronously
+		
+		// Initialize currentSeason and preload captains data
+		const initAndPreload = async () => {
+			await initializeCurrentSeason();
+			// Preload captains data for current season asynchronously
+			const currentSeason = getCurrentSeasonFromStorage();
+			if (currentSeason) {
+				preloadCaptainsData(currentSeason).catch((error) => {
+					console.error("Error preloading captains data:", error);
+				});
+			}
+		};
+		initAndPreload();
 	}, [initializeFromStorage, loadFilterData]);
 
 	// Show chatbot when player is loaded from localStorage and not in edit mode
@@ -64,7 +79,7 @@ export default function HomePage() {
 		} else {
 			setShowChatbot(false);
 		}
-	}, [currentMainPage ?? "home", isPlayerSelected, selectedPlayer, isEditMode]);
+	}, [currentMainPage, isPlayerSelected, selectedPlayer, isEditMode]);
 
 	// Validate and refresh player data on app load and when player changes
 	useEffect(() => {

@@ -6,6 +6,7 @@ import { formationCoordinateObject } from "@/lib/formations/formationCoordinates
 import PlayerDetailModal from "./PlayerDetailModal";
 import Image from "next/image";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -69,13 +70,15 @@ export default function TeamOfTheWeek() {
 				const data = await response.json();
 				if (data.seasons) {
 					setSeasons(data.seasons);
-					if (data.currentSeason) {
-						setCurrentSeason(data.currentSeason);
-						setSelectedSeason(data.currentSeason);
+					// Use currentSeason from API, or fallback to localStorage, or first season
+					const seasonToUse = data.currentSeason || getCurrentSeasonFromStorage();
+					if (seasonToUse && data.seasons.includes(seasonToUse)) {
+						setCurrentSeason(seasonToUse);
+						setSelectedSeason(seasonToUse);
 					} else if (data.seasons.length > 0) {
 						setSelectedSeason(data.seasons[0]);
 					}
-					cacheTOTWSeasons(data.seasons, data.currentSeason || null);
+					cacheTOTWSeasons(data.seasons, data.currentSeason || getCurrentSeasonFromStorage() || null);
 				}
 			} catch (error) {
 				console.error("Error fetching seasons:", error);

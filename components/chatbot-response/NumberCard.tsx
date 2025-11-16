@@ -85,7 +85,9 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 	}
 
 	// Look up stat in statObject
-	const stat = metricKey && statObject[metricKey as keyof typeof statObject];
+	const stat = (metricKey && typeof metricKey === 'string' && metricKey.length > 0 && metricKey in statObject) 
+		? statObject[metricKey as keyof typeof statObject] 
+		: undefined;
 	const iconName = stat?.iconName;
 	const wordedText = stat?.wordedText || metricDisplayName || "statistic";
 

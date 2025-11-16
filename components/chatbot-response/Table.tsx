@@ -8,9 +8,9 @@ interface TableProps {
 }
 
 export default function Table({ visualization }: TableProps) {
-	if (!visualization) return null;
-
 	const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+
+	if (!visualization) return null;
 
 	// Extract columns and data
 	const columns = visualization.config && "columns" in visualization.config
