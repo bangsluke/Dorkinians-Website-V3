@@ -60,7 +60,10 @@ export default function UsefulLinks() {
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: categoryIndex * 0.1 + linkIndex * 0.05 }}
-										className='block p-3 md:p-4 bg-gray-800/50 rounded-lg hover:bg-yellow-400/10 transition-colors group'
+										className='block p-3 md:p-4 rounded-lg hover:bg-yellow-400/10 transition-colors group'
+										style={{
+											background: "linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))",
+										}}
 										whileHover={{ scale: 1.02 }}
 										whileTap={{ scale: 0.98 }}>
 										<div className='flex items-start justify-between'>
