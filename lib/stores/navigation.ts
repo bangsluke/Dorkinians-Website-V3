@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
-export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
+export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "match-information" | "club-captains" | "club-awards" | "useful-links";
 
@@ -61,6 +61,51 @@ export interface PlayerData {
 export interface CachedPlayerData {
 	playerData: PlayerData;
 	selectedDate: string; // YYYY-MM-DD format
+}
+
+// Team data interface matching team stats query response
+export interface TeamData {
+	team: string;
+	gamesPlayed: number;
+	wins: number;
+	draws: number;
+	losses: number;
+	goalsScored: number;
+	goalsConceded: number;
+	goalDifference: number;
+	cleanSheets: number;
+	winPercentage: number;
+	goalsPerGame: number;
+	goalsConcededPerGame: number;
+	homeGames: number;
+	homeWins: number;
+	homeWinPercentage: number;
+	awayGames: number;
+	awayWins: number;
+	awayWinPercentage: number;
+	totalAppearances: number;
+	totalMinutes: number;
+	totalMOM: number;
+	totalGoals: number;
+	totalAssists: number;
+	totalYellowCards: number;
+	totalRedCards: number;
+	totalSaves: number;
+	totalOwnGoals: number;
+	totalPlayerCleanSheets: number;
+	totalPenaltiesScored: number;
+	totalPenaltiesMissed: number;
+	totalPenaltiesConceded: number;
+	totalPenaltiesSaved: number;
+	totalFantasyPoints: number;
+	totalDistance: number;
+	goalsPerAppearance: number;
+	assistsPerAppearance: number;
+	momPerAppearance: number;
+	minutesPerAppearance: number;
+	fantasyPointsPerAppearance: number;
+	numberOfSeasons: number;
+	numberOfCompetitions: number;
 }
 
 // TOTW cache interfaces
@@ -164,8 +209,9 @@ interface NavigationState {
 	// Player data caching
 	cachedPlayerData: CachedPlayerData | null;
 	isLoadingPlayerData: boolean;
-	// Filter state
-	playerFilters: PlayerFilters;
+	// Filter state - cached per stats sub-page
+	playerFiltersByPage: Record<StatsSubPage, PlayerFilters>;
+	playerFilters: PlayerFilters; // Current page filters (synced from playerFiltersByPage)
 	isFilterSidebarOpen: boolean;
 	hasUnsavedFilters: boolean;
 	// Filter data cache
@@ -203,6 +249,14 @@ interface NavigationState {
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => void;
 	applyPlayerFilters: () => Promise<void>;
 	resetPlayerFilters: () => void;
+	removeTimeRangeFilter: () => Promise<void>;
+	removeTeamFilter: (team: string) => Promise<void>;
+	removeLocationFilter: (location: "Home" | "Away") => Promise<void>;
+	removeOppositionFilter: () => Promise<void>;
+	removeCompetitionTypeFilter: (type: "League" | "Cup" | "Friendly") => Promise<void>;
+	removeCompetitionSearchFilter: () => Promise<void>;
+	removeResultFilter: (result: "Win" | "Draw" | "Loss") => Promise<void>;
+	removePositionFilter: (position: "GK" | "DEF" | "MID" | "FWD") => Promise<void>;
 	// Swipe navigation helpers
 	nextStatsSubPage: () => void;
 	previousStatsSubPage: () => void;
@@ -243,7 +297,76 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	isEditMode: false,
 	cachedPlayerData: null,
 	isLoadingPlayerData: false,
-	// Filter initial state
+	// Filter initial state - cached per page
+	playerFiltersByPage: {
+		"player-stats": {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		},
+		"club-stats": {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		},
+		"comparison": {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		},
+	},
+	// Current page filters (synced from playerFiltersByPage)
 	playerFilters: {
 		timeRange: {
 			type: "allTime",
@@ -264,7 +387,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			searchTerm: "",
 		},
 		result: ["Win", "Draw", "Loss"],
-		position: ["GK", "DEF", "MID", "FWD"],
+		position: [],
 	},
 	isFilterSidebarOpen: false,
 	hasUnsavedFilters: false,
@@ -316,6 +439,46 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			} else {
 				console.log("ℹ️ [Player Selection] No saved player found in localStorage");
 			}
+
+			// Load filters per page if available
+			const savedFilters = localStorage.getItem("dorkinians-player-filters-by-page");
+			if (savedFilters) {
+				try {
+					const parsedFilters: Record<StatsSubPage, PlayerFilters> = JSON.parse(savedFilters);
+					const currentPage = get().currentStatsSubPage;
+					set({ 
+						playerFiltersByPage: parsedFilters,
+						playerFilters: parsedFilters[currentPage] || parsedFilters["player-stats"],
+					});
+					
+					// Apply filters on initial load if player is selected
+					const { selectedPlayer: currentPlayer } = get();
+					if (currentPlayer) {
+						setTimeout(() => {
+							get().applyPlayerFilters();
+						}, 0);
+					}
+				} catch (error) {
+					console.error("❌ [Filters] Failed to parse saved filters:", error);
+					localStorage.removeItem("dorkinians-player-filters-by-page");
+					
+					// Apply default filters on initial load if player is selected
+					const { selectedPlayer: currentPlayer } = get();
+					if (currentPlayer) {
+						setTimeout(() => {
+							get().applyPlayerFilters();
+						}, 0);
+					}
+				}
+			} else {
+				// No saved filters, apply default filters on initial load if player is selected
+				const { selectedPlayer: currentPlayer } = get();
+				if (currentPlayer) {
+					setTimeout(() => {
+						get().applyPlayerFilters();
+					}, 0);
+				}
+			}
 		}
 	},
 
@@ -361,7 +524,30 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	setStatsSubPage: (page: StatsSubPage) => {
-		set({ currentStatsSubPage: page });
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const filtersByPage = get().playerFiltersByPage;
+		
+		// Save current page filters
+		const updatedFiltersByPage = {
+			...filtersByPage,
+			[currentPage]: currentFilters,
+		};
+		
+		// Load filters for new page
+		const newPageFilters = updatedFiltersByPage[page];
+		
+		set({
+			currentStatsSubPage: page,
+			playerFiltersByPage: updatedFiltersByPage,
+			playerFilters: newPageFilters,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
 	},
 
 	setTOTWSubPage: (page: TOTWSubPage) => {
@@ -466,31 +652,65 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	// Swipe navigation within stats
 	nextStatsSubPage: () => {
-		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
+		const { currentStatsSubPage, playerFilters, playerFiltersByPage } = get();
+		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
-			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const nextIndex = (currentIndex + 1) % availablePages.length;
-		set({ currentStatsSubPage: availablePages[nextIndex] });
+		const nextPage = availablePages[nextIndex];
+		
+		// Save current page filters and load next page filters
+		const updatedFiltersByPage = {
+			...playerFiltersByPage,
+			[currentStatsSubPage]: playerFilters,
+		};
+		
+		set({
+			currentStatsSubPage: nextPage,
+			playerFiltersByPage: updatedFiltersByPage,
+			playerFilters: updatedFiltersByPage[nextPage],
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
 	},
 
 	previousStatsSubPage: () => {
-		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
+		const { currentStatsSubPage, playerFilters, playerFiltersByPage } = get();
+		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
-			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
 		const prevIndex = currentIndex === 0 ? availablePages.length - 1 : currentIndex - 1;
-		set({ currentStatsSubPage: availablePages[prevIndex] });
+		const prevPage = availablePages[prevIndex];
+		
+		// Save current page filters and load previous page filters
+		const updatedFiltersByPage = {
+			...playerFiltersByPage,
+			[currentStatsSubPage]: playerFilters,
+		};
+		
+		set({
+			currentStatsSubPage: prevPage,
+			playerFiltersByPage: updatedFiltersByPage,
+			playerFilters: updatedFiltersByPage[prevPage],
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
 	},
 
 	// Swipe navigation within TOTW
@@ -542,12 +762,23 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	updatePlayerFilters: (filters: Partial<PlayerFilters>) => {
+		const currentPage = get().currentStatsSubPage;
 		const currentFilters = get().playerFilters;
 		const newFilters = { ...currentFilters, ...filters };
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: newFilters,
+		};
 		set({
 			playerFilters: newFilters,
+			playerFiltersByPage: updatedFiltersByPage,
 			hasUnsavedFilters: true,
 		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
 	},
 
 	applyPlayerFilters: async () => {
@@ -611,31 +842,259 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	resetPlayerFilters: () => {
-		set({
-			playerFilters: {
-				timeRange: {
-					type: "season",
-					seasons: [],
-					beforeDate: "",
-					afterDate: "",
-					startDate: "",
-					endDate: "",
-				},
-				teams: [],
-				location: ["Home", "Away"],
-				opposition: {
-					allOpposition: true,
-					searchTerm: "",
-				},
-				competition: {
-					types: ["League", "Cup"],
-					searchTerm: "",
-				},
-				result: ["Win", "Draw", "Loss"],
-				position: ["GK", "DEF", "MID", "FWD"],
+		const currentPage = get().currentStatsSubPage;
+		const defaultFilters: PlayerFilters = {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
 			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: defaultFilters,
+		};
+		set({
+			playerFilters: defaultFilters,
+			playerFiltersByPage: updatedFiltersByPage,
 			hasUnsavedFilters: false,
 		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+	},
+
+	removeTimeRangeFilter: async () => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters: PlayerFilters = {
+			...currentFilters,
+			timeRange: {
+				type: "allTime" as const,
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeTeamFilter: async (team: string) => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			teams: currentFilters.teams.filter((t) => t !== team),
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeLocationFilter: async (location: "Home" | "Away") => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			location: currentFilters.location.filter((l) => l !== location),
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeOppositionFilter: async () => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeCompetitionTypeFilter: async (type: "League" | "Cup" | "Friendly") => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			competition: {
+				...currentFilters.competition,
+				types: currentFilters.competition.types.filter((t) => t !== type),
+			},
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeCompetitionSearchFilter: async () => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			competition: {
+				...currentFilters.competition,
+				searchTerm: "",
+			},
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removeResultFilter: async (result: "Win" | "Draw" | "Loss") => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			result: currentFilters.result.filter((r) => r !== result),
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
+	},
+
+	removePositionFilter: async (position: "GK" | "DEF" | "MID" | "FWD") => {
+		const currentPage = get().currentStatsSubPage;
+		const currentFilters = get().playerFilters;
+		const updatedFilters = {
+			...currentFilters,
+			position: currentFilters.position.filter((p) => p !== position),
+		};
+		const updatedFiltersByPage = {
+			...get().playerFiltersByPage,
+			[currentPage]: updatedFilters,
+		};
+		set({
+			playerFilters: updatedFilters,
+			playerFiltersByPage: updatedFiltersByPage,
+			hasUnsavedFilters: false,
+		});
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+		}
+		
+		await get().applyPlayerFilters();
 	},
 
 	// Load filter data asynchronously

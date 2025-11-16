@@ -12,7 +12,7 @@ export async function OPTIONS() {
 }
 
 // Build filter conditions for Cypher query
-function buildFilterConditions(filters: any, params: any): string[] {
+export function buildFilterConditions(filters: any, params: any): string[] {
 	const conditions: string[] = [];
 
 	if (!filters) {

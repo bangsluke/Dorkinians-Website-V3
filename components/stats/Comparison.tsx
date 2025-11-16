@@ -2,9 +2,10 @@
 
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import FilterPills from "@/components/filters/FilterPills";
 
 export default function Comparison() {
-	const { selectedPlayer, enterEditMode, setMainPage } = useNavigationStore();
+	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage } = useNavigationStore();
 
 	const handleEditClick = () => {
 		enterEditMode();
@@ -31,6 +32,9 @@ export default function Comparison() {
 	return (
 		<div className='p-4 text-center'>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Player Comparison</h2>
+			<div className='flex justify-center mb-4'>
+				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+			</div>
 			<p className='text-sm md:text-base text-gray-300'>Compare statistics between different players will be displayed here</p>
 			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
 				<p className='text-sm text-gray-500'>⚖️ Player comparison charts and metrics will be integrated here</p>

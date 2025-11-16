@@ -166,7 +166,7 @@ export interface ChartConfig {
 
 // Navigation types
 export type MainPage = "home" | "stats" | "totw" | "club-info";
-export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
+export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
 
 // API response types
 export interface ChatbotResponse {
