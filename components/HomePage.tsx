@@ -24,13 +24,14 @@ export default function HomePage() {
 				return (
 					<motion.div
 						key='home'
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -20 }}
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
 						className='flex flex-col items-center justify-center h-full text-center px-6'>
 						<h1 className='text-4xl font-bold text-gray-900 mb-6'>Welcome to Dorkinians FC</h1>
-						<p className='text-xl text-gray-600 mb-8 max-w-md'>
-							Your comprehensive source for club statistics, player performance, and team insights.
+						<p className='text-sm md:text-base text-gray-300 mb-8 max-w-md'>
+							Your comprehensive source for club statistics, player performance, and team insights
 						</p>
 
 						{/* Chatbot Interface */}
@@ -39,16 +40,56 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				return <StatsContainer />;
+				return (
+					<motion.div
+						key='stats'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						style={{ position: 'relative', width: '100%', height: '100%' }}>
+						<StatsContainer />
+					</motion.div>
+				);
 
 			case "totw":
-				return <TOTWContainer />;
+				return (
+					<motion.div
+						key='totw'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						style={{ position: 'relative', width: '100%', height: '100%' }}>
+						<TOTWContainer />
+					</motion.div>
+				);
 
 			case "club-info":
-				return <ClubInfoContainer />;
+				return (
+					<motion.div
+						key='club-info'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						style={{ position: 'relative', width: '100%', height: '100%' }}>
+						<ClubInfoContainer />
+					</motion.div>
+				);
 
 			case "settings":
-				return <Settings />;
+				return (
+					<motion.div
+						key='settings'
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.2 }}
+						style={{ position: 'relative', width: '100%', height: '100%' }}>
+						<Settings />
+					</motion.div>
+				);
 
 			default:
 				return null;

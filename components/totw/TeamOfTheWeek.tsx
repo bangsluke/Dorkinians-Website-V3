@@ -449,7 +449,7 @@ export default function TeamOfTheWeek() {
 					className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'
 					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
 				>
-					TEAM OF THE WEEK
+					Team of the Week
 				</h1>
 				<div 
 					className='relative'

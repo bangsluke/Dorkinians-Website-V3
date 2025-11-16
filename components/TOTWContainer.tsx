@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { motion, PanInfo } from "framer-motion";
+import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type TOTWSubPage } from "@/lib/stores/navigation";
 import TeamOfTheWeek from "./totw/TeamOfTheWeek";
 import PlayersOfMonth from "./totw/PlayersOfMonth";
@@ -50,18 +50,21 @@ export default function TOTWContainer() {
 			</div>
 
 			{/* Swipeable Content */}
-			<motion.div
-				key={currentTOTWSubPage}
-				initial={{ x: 300, opacity: 0 }}
-				animate={{ x: 0, opacity: 1 }}
-				exit={{ x: -300, opacity: 0 }}
-				transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				drag='x'
-				dragConstraints={{ left: 0, right: 0 }}
-				onDragEnd={handleDragEnd}
-				className='w-full'>
-				{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}
-			</motion.div>
+			<AnimatePresence mode='wait'>
+				<motion.div
+					key={currentTOTWSubPage}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1, x: 0 }}
+					exit={{ opacity: 0 }}
+					transition={{ duration: 0.2 }}
+					drag='x'
+					dragConstraints={{ left: 0, right: 0 }}
+					onDragEnd={handleDragEnd}
+					style={{ position: 'relative' }}
+					className='w-full'>
+					{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}
+				</motion.div>
+			</AnimatePresence>
 		</div>
 	);
 }
