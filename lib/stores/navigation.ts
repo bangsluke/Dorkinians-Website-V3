@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
-export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
+export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "match-information" | "club-captains" | "club-awards" | "useful-links";
 
@@ -61,6 +61,51 @@ export interface PlayerData {
 export interface CachedPlayerData {
 	playerData: PlayerData;
 	selectedDate: string; // YYYY-MM-DD format
+}
+
+// Team data interface matching team stats query response
+export interface TeamData {
+	team: string;
+	gamesPlayed: number;
+	wins: number;
+	draws: number;
+	losses: number;
+	goalsScored: number;
+	goalsConceded: number;
+	goalDifference: number;
+	cleanSheets: number;
+	winPercentage: number;
+	goalsPerGame: number;
+	goalsConcededPerGame: number;
+	homeGames: number;
+	homeWins: number;
+	homeWinPercentage: number;
+	awayGames: number;
+	awayWins: number;
+	awayWinPercentage: number;
+	totalAppearances: number;
+	totalMinutes: number;
+	totalMOM: number;
+	totalGoals: number;
+	totalAssists: number;
+	totalYellowCards: number;
+	totalRedCards: number;
+	totalSaves: number;
+	totalOwnGoals: number;
+	totalPlayerCleanSheets: number;
+	totalPenaltiesScored: number;
+	totalPenaltiesMissed: number;
+	totalPenaltiesConceded: number;
+	totalPenaltiesSaved: number;
+	totalFantasyPoints: number;
+	totalDistance: number;
+	goalsPerAppearance: number;
+	assistsPerAppearance: number;
+	momPerAppearance: number;
+	minutesPerAppearance: number;
+	fantasyPointsPerAppearance: number;
+	numberOfSeasons: number;
+	numberOfCompetitions: number;
 }
 
 // TOTW cache interfaces
@@ -254,17 +299,17 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			endDate: "",
 		},
 		teams: [],
-		location: ["Home", "Away"],
+		location: [],
 		opposition: {
 			allOpposition: true,
 			searchTerm: "",
 		},
 		competition: {
-			types: ["League", "Cup"],
+			types: [],
 			searchTerm: "",
 		},
-		result: ["Win", "Draw", "Loss"],
-		position: ["GK", "DEF", "MID", "FWD"],
+		result: [],
+		position: [],
 	},
 	isFilterSidebarOpen: false,
 	hasUnsavedFilters: false,
@@ -467,10 +512,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Swipe navigation within stats
 	nextStatsSubPage: () => {
 		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
+		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
-			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
@@ -481,10 +525,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	previousStatsSubPage: () => {
 		const { currentStatsSubPage } = get();
-		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
+		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
-			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
@@ -614,7 +657,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		set({
 			playerFilters: {
 				timeRange: {
-					type: "season",
+					type: "allTime",
 					seasons: [],
 					beforeDate: "",
 					afterDate: "",
@@ -622,17 +665,17 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					endDate: "",
 				},
 				teams: [],
-				location: ["Home", "Away"],
+				location: [],
 				opposition: {
 					allOpposition: true,
 					searchTerm: "",
 				},
 				competition: {
-					types: ["League", "Cup"],
+					types: [],
 					searchTerm: "",
 				},
-				result: ["Win", "Draw", "Loss"],
-				position: ["GK", "DEF", "MID", "FWD"],
+				result: [],
+				position: [],
 			},
 			hasUnsavedFilters: false,
 		});
