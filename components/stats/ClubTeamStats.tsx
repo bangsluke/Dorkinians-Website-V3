@@ -7,6 +7,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 
 interface Team {
 	name: string;
@@ -133,6 +134,21 @@ export default function ClubTeamStats() {
 	const filteredStatEntries = useMemo(() => {
 		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
 	}, [statsToDisplay]);
+
+	// Transform teamData into pie chart data format
+	const pieChartData = useMemo(() => {
+		if (!teamData) return [];
+		
+		const wins = teamData.wins || 0;
+		const draws = teamData.draws || 0;
+		const losses = teamData.losses || 0;
+		
+		return [
+			{ name: "Wins", value: wins, color: "#22c55e" },
+			{ name: "Draws", value: draws, color: "#6b7280" },
+			{ name: "Losses", value: losses, color: "#ef4444" },
+		].filter(item => item.value > 0);
+	}, [teamData]);
 
 	// Load teams on mount
 	useEffect(() => {
@@ -311,6 +327,41 @@ export default function ClubTeamStats() {
 				</div>
 			) : (
 				<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
+					{pieChartData.length > 0 && (
+						<div className='mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-4'>
+							<ResponsiveContainer width='100%' height={300}>
+								<PieChart>
+									<Pie
+										data={pieChartData}
+										cx='50%'
+										cy='50%'
+										labelLine={false}
+										label={({ name, value }) => `${name}: ${value}`}
+										outerRadius={80}
+										fill='#8884d8'
+										dataKey='value'
+									>
+										{pieChartData.map((entry, index) => (
+											<Cell key={`cell-${index}`} fill={entry.color} />
+										))}
+									</Pie>
+									<Tooltip
+										contentStyle={{
+											backgroundColor: '#1f2937',
+											border: '1px solid rgba(249, 237, 50, 0.3)',
+											borderRadius: '8px',
+											color: '#fff',
+										}}
+										itemStyle={{ color: '#fff' }}
+									/>
+									<Legend
+										wrapperStyle={{ color: '#fff' }}
+										iconType='circle'
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+						</div>
+					)}
 					<div className='overflow-x-auto'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
