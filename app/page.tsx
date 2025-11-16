@@ -64,7 +64,7 @@ export default function HomePage() {
 		} else {
 			setShowChatbot(false);
 		}
-	}, [currentMainPage, isPlayerSelected, selectedPlayer, isEditMode]);
+	}, [currentMainPage ?? "home", isPlayerSelected, selectedPlayer, isEditMode]);
 
 	// Validate and refresh player data on app load and when player changes
 	useEffect(() => {
