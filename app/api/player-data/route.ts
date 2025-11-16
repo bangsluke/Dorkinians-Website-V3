@@ -11,6 +11,268 @@ export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
+// Build filter conditions for Cypher query
+function buildFilterConditions(filters: any, params: any): string[] {
+	const conditions: string[] = [];
+
+	if (!filters) {
+		return conditions;
+	}
+
+	// Time Range filters
+	if (filters.timeRange) {
+		const { type, seasons, beforeDate, afterDate, startDate, endDate } = filters.timeRange;
+
+		if (type === "season" && seasons && seasons.length > 0) {
+			conditions.push(`f.season IN $seasons`);
+			params.seasons = seasons;
+		} else if (type === "beforeDate" && beforeDate) {
+			conditions.push(`f.date <= $beforeDate`);
+			params.beforeDate = beforeDate;
+		} else if (type === "afterDate" && afterDate) {
+			conditions.push(`f.date >= $afterDate`);
+			params.afterDate = afterDate;
+		} else if (type === "betweenDates" && startDate && endDate) {
+			conditions.push(`f.date >= $startDate AND f.date <= $endDate`);
+			params.startDate = startDate;
+			params.endDate = endDate;
+		}
+	}
+
+	// Team filters
+	if (filters.teams && filters.teams.length > 0) {
+		conditions.push(`f.team IN $teams`);
+		params.teams = filters.teams;
+	}
+
+	// Location filters
+	if (filters.location && filters.location.length > 0) {
+		const locationConditions = filters.location.map((loc: string) => (loc === "Home" ? 'f.homeOrAway = "Home"' : 'f.homeOrAway = "Away"'));
+		conditions.push(`(${locationConditions.join(" OR ")})`);
+	}
+
+	// Opposition filters
+	if (filters.opposition && !filters.opposition.allOpposition) {
+		if (filters.opposition.searchTerm) {
+			conditions.push(`toLower(f.opposition) CONTAINS toLower($oppositionSearch)`);
+			params.oppositionSearch = filters.opposition.searchTerm;
+		}
+	}
+
+	// Competition filters
+	if (filters.competition) {
+		if (filters.competition.types && filters.competition.types.length > 0) {
+			conditions.push(`f.compType IN $compTypes`);
+			params.compTypes = filters.competition.types;
+		}
+		if (filters.competition.searchTerm) {
+			conditions.push(`toLower(f.competition) CONTAINS toLower($competitionSearch)`);
+			params.competitionSearch = filters.competition.searchTerm;
+		}
+	}
+
+	// Result filters
+	if (filters.result && filters.result.length > 0) {
+		const resultMapping: { [key: string]: string } = {
+			Win: "W",
+			Draw: "D",
+			Loss: "L",
+		};
+		const resultValues = filters.result.map((r: string) => resultMapping[r]).filter(Boolean);
+		if (resultValues.length > 0) {
+			conditions.push(`f.result IN $results`);
+			params.results = resultValues;
+		}
+	}
+
+	// Position filters
+	if (filters.position && filters.position.length > 0) {
+		conditions.push(`md.class IN $positions`);
+		params.positions = filters.position;
+	}
+
+	return conditions;
+}
+
+// Build unified Cypher query with aggregation
+export function buildPlayerStatsQuery(playerName: string, filters: any = null): { query: string; params: any } {
+	const graphLabel = neo4jService.getGraphLabel();
+	const params: any = {
+		graphLabel,
+		playerName,
+	};
+
+	// Base query - match player and join to MatchDetail and Fixture
+	let query = `
+		MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+		MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+	`;
+
+	// Build filter conditions
+	const conditions = buildFilterConditions(filters, params);
+	if (conditions.length > 0) {
+		query += ` WHERE ${conditions.join(" AND ")}`;
+	}
+
+	// Aggregation query with all stats calculated in Cypher
+	query += `
+		WITH p, md, f
+		// Aggregate all stats in a single pass
+		WITH p,
+			count(md) as appearances,
+			sum(coalesce(md.minutes, 0)) as minutes,
+			sum(coalesce(md.mom, 0)) as mom,
+			sum(coalesce(md.goals, 0)) as goals,
+			sum(coalesce(md.assists, 0)) as assists,
+			sum(coalesce(md.yellowCards, 0)) as yellowCards,
+			sum(coalesce(md.redCards, 0)) as redCards,
+			sum(coalesce(md.saves, 0)) as saves,
+			sum(coalesce(md.ownGoals, 0)) as ownGoals,
+			sum(coalesce(md.conceded, 0)) as conceded,
+			sum(coalesce(md.cleanSheets, 0)) as cleanSheets,
+			sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
+			sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
+			sum(coalesce(md.penaltiesConceded, 0)) as penaltiesConceded,
+			sum(coalesce(md.penaltiesSaved, 0)) as penaltiesSaved,
+			sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
+			sum(coalesce(md.distance, 0)) as distance,
+			collect(DISTINCT md.team) as teams,
+			collect(DISTINCT md.season) as seasons,
+			sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
+			sum(CASE WHEN f.homeOrAway = "Home" AND f.result = "W" THEN 1 ELSE 0 END) as homeWins,
+			sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
+			sum(CASE WHEN f.homeOrAway = "Away" AND f.result = "W" THEN 1 ELSE 0 END) as awayWins
+		// Calculate team aggregations separately - re-match with filters
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins
+		MATCH (p)-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f2:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md2)
+	`;
+	
+	// Re-apply same filter conditions for team aggregation (replace f with f2 and md with md2)
+	if (conditions.length > 0) {
+		const teamConditions = conditions.map((cond) => cond.replace(/\bf\./g, "f2.").replace(/\bmd\./g, "md2."));
+		query += ` WHERE ${teamConditions.join(" AND ")}`;
+	}
+	
+	query += `
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			md2.team as team,
+			md2.goals as teamGoal
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			team,
+			count(*) as teamAppearances,
+			sum(coalesce(teamGoal, 0)) as teamGoals
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins, teamStats
+		// Handle team stats - find most played and most scored teams
+		// Use reduce to find max, handling empty teamStats
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			teams, seasons, homeGames, homeWins, awayGames, awayWins,
+			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
+			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.appearances > maxTeam.appearances THEN ts ELSE maxTeam END)
+			END as mostPlayedTeam,
+			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
+			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.goals > maxTeam.goals THEN ts ELSE maxTeam END)
+			END as mostScoredTeam
+		// Calculate derived stats
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			coalesce(mostPlayedTeam.team, "") as mostPlayedForTeam,
+			coalesce(mostScoredTeam.team, "") as mostScoredForTeam,
+			size(teams) as numberTeamsPlayedFor,
+			size(seasons) as numberSeasonsPlayedFor,
+			homeGames, homeWins, awayGames, awayWins,
+			goals as allGoalsScored,
+			goals - penaltiesScored as openPlayGoalsScored,
+			goals + assists as goalInvolvements,
+			CASE WHEN appearances > 0 THEN toFloat(goals) / appearances ELSE 0.0 END as goalsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(conceded) / appearances ELSE 0.0 END as concededPerApp,
+			CASE WHEN goals > 0 THEN toFloat(minutes) / goals ELSE 0.0 END as minutesPerGoal,
+			CASE WHEN cleanSheets > 0 THEN toFloat(minutes) / cleanSheets ELSE 0.0 END as minutesPerCleanSheet,
+			CASE WHEN appearances > 0 THEN toFloat(fantasyPoints) / appearances ELSE 0.0 END as fantasyPointsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(minutes) / appearances ELSE 0.0 END as minutesPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(mom) / appearances ELSE 0.0 END as momPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(yellowCards) / appearances ELSE 0.0 END as yellowCardsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(redCards) / appearances ELSE 0.0 END as redCardsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(saves) / appearances ELSE 0.0 END as savesPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(ownGoals) / appearances ELSE 0.0 END as ownGoalsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(cleanSheets) / appearances ELSE 0.0 END as cleanSheetsPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(penaltiesScored) / appearances ELSE 0.0 END as penaltiesScoredPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(penaltiesMissed) / appearances ELSE 0.0 END as penaltiesMissedPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(penaltiesConceded) / appearances ELSE 0.0 END as penaltiesConcededPerApp,
+			CASE WHEN appearances > 0 THEN toFloat(penaltiesSaved) / appearances ELSE 0.0 END as penaltiesSavedPerApp,
+			CASE WHEN homeGames + awayGames > 0 THEN toFloat(homeWins + awayWins) / (homeGames + awayGames) * 100 ELSE 0.0 END as gamesPercentWon,
+			CASE WHEN homeGames > 0 THEN toFloat(homeWins) / homeGames * 100 ELSE 0.0 END as homeGamesPercentWon,
+			CASE WHEN awayGames > 0 THEN toFloat(awayWins) / awayGames * 100 ELSE 0.0 END as awayGamesPercentWon
+		RETURN p.id as id,
+			p.playerName as playerName,
+			p.allowOnSite as allowOnSite,
+			p.graphLabel as graphLabel,
+			coalesce(appearances, 0) as appearances,
+			coalesce(minutes, 0) as minutes,
+			coalesce(mom, 0) as mom,
+			coalesce(goals, 0) as goals,
+			coalesce(assists, 0) as assists,
+			coalesce(yellowCards, 0) as yellowCards,
+			coalesce(redCards, 0) as redCards,
+			coalesce(saves, 0) as saves,
+			coalesce(ownGoals, 0) as ownGoals,
+			coalesce(conceded, 0) as conceded,
+			coalesce(cleanSheets, 0) as cleanSheets,
+			coalesce(penaltiesScored, 0) as penaltiesScored,
+			coalesce(penaltiesMissed, 0) as penaltiesMissed,
+			coalesce(penaltiesConceded, 0) as penaltiesConceded,
+			coalesce(penaltiesSaved, 0) as penaltiesSaved,
+			coalesce(fantasyPoints, 0) as fantasyPoints,
+			coalesce(distance, 0) as distance,
+			coalesce(allGoalsScored, 0) as allGoalsScored,
+			coalesce(openPlayGoalsScored, 0) as openPlayGoalsScored,
+			coalesce(goalInvolvements, 0) as goalInvolvements,
+			coalesce(goalsPerApp, 0.0) as goalsPerApp,
+			coalesce(concededPerApp, 0.0) as concededPerApp,
+			coalesce(minutesPerGoal, 0.0) as minutesPerGoal,
+			coalesce(minutesPerCleanSheet, 0.0) as minutesPerCleanSheet,
+			coalesce(fantasyPointsPerApp, 0.0) as fantasyPointsPerApp,
+			coalesce(minutesPerApp, 0.0) as minutesPerApp,
+			coalesce(momPerApp, 0.0) as momPerApp,
+			coalesce(yellowCardsPerApp, 0.0) as yellowCardsPerApp,
+			coalesce(redCardsPerApp, 0.0) as redCardsPerApp,
+			coalesce(savesPerApp, 0.0) as savesPerApp,
+			coalesce(ownGoalsPerApp, 0.0) as ownGoalsPerApp,
+			coalesce(cleanSheetsPerApp, 0.0) as cleanSheetsPerApp,
+			coalesce(penaltiesScoredPerApp, 0.0) as penaltiesScoredPerApp,
+			coalesce(penaltiesMissedPerApp, 0.0) as penaltiesMissedPerApp,
+			coalesce(penaltiesConcededPerApp, 0.0) as penaltiesConcededPerApp,
+			coalesce(penaltiesSavedPerApp, 0.0) as penaltiesSavedPerApp,
+			coalesce(homeGames, 0) as homeGames,
+			coalesce(homeWins, 0) as homeWins,
+			coalesce(homeGamesPercentWon, 0.0) as homeGamesPercentWon,
+			coalesce(awayGames, 0) as awayGames,
+			coalesce(awayWins, 0) as awayWins,
+			coalesce(awayGamesPercentWon, 0.0) as awayGamesPercentWon,
+			coalesce(gamesPercentWon, 0.0) as gamesPercentWon,
+			coalesce(mostPlayedForTeam, "") as mostPlayedForTeam,
+			coalesce(numberTeamsPlayedFor, 0) as numberTeamsPlayedFor,
+			coalesce(mostScoredForTeam, "") as mostScoredForTeam,
+			coalesce(numberSeasonsPlayedFor, 0) as numberSeasonsPlayedFor
+	`;
+
+	return { query, params };
+}
+
 export async function GET(request: NextRequest) {
 	try {
 		const { searchParams } = new URL(request.url);
@@ -26,16 +288,8 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
-		// Fetch complete player data from TBL_Players
-		const query = `
-			MATCH (p:Player {graphLabel: $graphLabel})
-			WHERE p.playerName = $playerName
-			RETURN p
-		`;
-		const params = {
-			graphLabel: neo4jService.getGraphLabel(),
-			playerName: playerName,
-		};
+		// Build query with no filters
+		const { query, params } = buildPlayerStatsQuery(playerName, null);
 
 		const result = await neo4jService.runQuery(query, params);
 
@@ -43,63 +297,76 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
 		}
 
-		// Extract all player properties
-		const playerNode = result.records[0].get("p");
+		// Helper function to convert Neo4j Integer/Float to JavaScript number
+		const toNumber = (value: any): number => {
+			if (value === null || value === undefined) return 0;
+			if (typeof value === "number") {
+				if (isNaN(value)) return 0;
+				return value;
+			}
+			// Handle Neo4j Integer objects
+			if (typeof value === "object") {
+				if ("toNumber" in value && typeof value.toNumber === "function") {
+					return value.toNumber();
+				}
+				if ("low" in value && "high" in value) {
+					// Neo4j Integer format: low + high * 2^32
+					const low = value.low || 0;
+					const high = value.high || 0;
+					return low + high * 4294967296;
+				}
+				if ("toString" in value) {
+					const num = Number(value.toString());
+					return isNaN(num) ? 0 : num;
+				}
+			}
+			const num = Number(value);
+			return isNaN(num) ? 0 : num;
+		};
+
+		// Extract aggregated stats from result
+		const record = result.records[0];
 		const playerData = {
-			id: playerNode.properties.id,
-			playerName: playerNode.properties.playerName,
-			allowOnSite: playerNode.properties.allowOnSite,
-			appearances: playerNode.properties.appearances,
-			minutes: playerNode.properties.minutes,
-			mom: playerNode.properties.mom,
-			goals: playerNode.properties.goals,
-			assists: playerNode.properties.assists,
-			yellowCards: playerNode.properties.yellowCards,
-			redCards: playerNode.properties.redCards,
-			saves: playerNode.properties.saves,
-			ownGoals: playerNode.properties.ownGoals,
-			conceded: playerNode.properties.conceded,
-			cleanSheets: playerNode.properties.cleanSheets,
-			penaltiesScored: playerNode.properties.penaltiesScored,
-			penaltiesMissed: playerNode.properties.penaltiesMissed,
-			penaltiesConceded: playerNode.properties.penaltiesConceded,
-			penaltiesSaved: playerNode.properties.penaltiesSaved,
-			fantasyPoints: playerNode.properties.fantasyPoints,
-			allGoalsScored: playerNode.properties.allGoalsScored,
-			goalsPerApp: playerNode.properties.goalsPerApp,
-			concededPerApp: playerNode.properties.concededPerApp,
-			minutesPerGoal: playerNode.properties.minutesPerGoal,
-			minutesPerCleanSheet: playerNode.properties.minutesPerCleanSheet,
-			fantasyPointsPerApp: playerNode.properties.fantasyPointsPerApp,
-			distance: playerNode.properties.distance,
-			homeGames: playerNode.properties.homeGames,
-			homeWins: playerNode.properties.homeWins,
-			homeGamesPercentWon: playerNode.properties.homeGamesPercentWon,
-			awayGames: playerNode.properties.awayGames,
-			awayWins: playerNode.properties.awayWins,
-			awayGamesPercentWon: playerNode.properties.awayGamesPercentWon,
-			gamesPercentWon: playerNode.properties.gamesPercentWon,
-			apps1s: playerNode.properties.apps1s,
-			apps2s: playerNode.properties.apps2s,
-			apps3s: playerNode.properties.apps3s,
-			apps4s: playerNode.properties.apps4s,
-			apps5s: playerNode.properties.apps5s,
-			apps6s: playerNode.properties.apps6s,
-			apps7s: playerNode.properties.apps7s,
-			apps8s: playerNode.properties.apps8s,
-			mostPlayedForTeam: playerNode.properties.mostPlayedForTeam,
-			numberTeamsPlayedFor: playerNode.properties.numberTeamsPlayedFor,
-			goals1s: playerNode.properties.goals1s,
-			goals2s: playerNode.properties.goals2s,
-			goals3s: playerNode.properties.goals3s,
-			goals4s: playerNode.properties.goals4s,
-			goals5s: playerNode.properties.goals5s,
-			goals6s: playerNode.properties.goals6s,
-			goals7s: playerNode.properties.goals7s,
-			goals8s: playerNode.properties.goals8s,
-			mostScoredForTeam: playerNode.properties.mostScoredForTeam,
-			numberSeasonsPlayedFor: playerNode.properties.numberSeasonsPlayedFor,
-			graphLabel: playerNode.properties.graphLabel,
+			id: record.get("id"),
+			playerName: record.get("playerName"),
+			allowOnSite: record.get("allowOnSite"),
+			appearances: toNumber(record.get("appearances")),
+			minutes: toNumber(record.get("minutes")),
+			mom: toNumber(record.get("mom")),
+			goals: toNumber(record.get("goals")),
+			assists: toNumber(record.get("assists")),
+			yellowCards: toNumber(record.get("yellowCards")),
+			redCards: toNumber(record.get("redCards")),
+			saves: toNumber(record.get("saves")),
+			ownGoals: toNumber(record.get("ownGoals")),
+			conceded: toNumber(record.get("conceded")),
+			cleanSheets: toNumber(record.get("cleanSheets")),
+			penaltiesScored: toNumber(record.get("penaltiesScored")),
+			penaltiesMissed: toNumber(record.get("penaltiesMissed")),
+			penaltiesConceded: toNumber(record.get("penaltiesConceded")),
+			penaltiesSaved: toNumber(record.get("penaltiesSaved")),
+			fantasyPoints: Math.round(toNumber(record.get("fantasyPoints"))),
+			allGoalsScored: toNumber(record.get("allGoalsScored")),
+			openPlayGoalsScored: toNumber(record.get("openPlayGoalsScored")),
+			goalInvolvements: toNumber(record.get("goalInvolvements")),
+			goalsPerApp: toNumber(record.get("goalsPerApp")),
+			concededPerApp: toNumber(record.get("concededPerApp")),
+			minutesPerGoal: toNumber(record.get("minutesPerGoal")),
+			minutesPerCleanSheet: toNumber(record.get("minutesPerCleanSheet")),
+			fantasyPointsPerApp: toNumber(record.get("fantasyPointsPerApp")),
+			distance: toNumber(record.get("distance")),
+			homeGames: toNumber(record.get("homeGames")),
+			homeWins: toNumber(record.get("homeWins")),
+			homeGamesPercentWon: toNumber(record.get("homeGamesPercentWon")),
+			awayGames: toNumber(record.get("awayGames")),
+			awayWins: toNumber(record.get("awayWins")),
+			awayGamesPercentWon: toNumber(record.get("awayGamesPercentWon")),
+			gamesPercentWon: toNumber(record.get("gamesPercentWon")),
+			mostPlayedForTeam: record.get("mostPlayedForTeam") || "",
+			numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
+			mostScoredForTeam: record.get("mostScoredForTeam") || "",
+			numberSeasonsPlayedFor: toNumber(record.get("numberSeasonsPlayedFor")),
+			graphLabel: record.get("graphLabel"),
 		};
 
 		return NextResponse.json({ playerData }, { headers: corsHeaders });

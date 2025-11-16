@@ -78,13 +78,27 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		setAccordionSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, isOpen: !section.isOpen } : section)));
 	};
 
-	const handleTimeRangeTypeChange = (type: "season" | "beforeDate" | "afterDate" | "betweenDates") => {
-		updatePlayerFilters({
-			timeRange: {
-				...playerFilters.timeRange,
-				type,
-			},
-		});
+	const handleTimeRangeTypeChange = (type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates") => {
+		if (type === "allTime") {
+			// Clear all time range filters when "All Time" is selected
+			updatePlayerFilters({
+				timeRange: {
+					type: "allTime",
+					seasons: [],
+					beforeDate: "",
+					afterDate: "",
+					startDate: "",
+					endDate: "",
+				},
+			});
+		} else {
+			updatePlayerFilters({
+				timeRange: {
+					...playerFilters.timeRange,
+					type,
+				},
+			});
+		}
 	};
 
 	const handleSeasonToggle = (season: string) => {
@@ -98,6 +112,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			},
 		});
 	};
+
+	// When date inputs change, ensure "All Time" is unchecked (handled by isAllTimeSelected)
 
 	const handleTeamToggle = (team: string) => {
 		const currentTeams = playerFilters.teams;
@@ -253,6 +269,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<label className='block text-sm font-medium text-white/90'>Time Range Type</label>
 												<div className='space-y-2'>
 													{[
+														{ value: "allTime", label: "All Time" },
 														{ value: "season", label: "Season" },
 														{ value: "beforeDate", label: "Before Date" },
 														{ value: "afterDate", label: "After Date" },

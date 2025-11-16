@@ -127,7 +127,7 @@ export interface CachedPOMMonthData {
 // Filter interfaces
 export interface PlayerFilters {
 	timeRange: {
-		type: "season" | "beforeDate" | "afterDate" | "betweenDates";
+		type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates";
 		seasons: string[];
 		beforeDate: string;
 		afterDate: string;
@@ -246,7 +246,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Filter initial state
 	playerFilters: {
 		timeRange: {
-			type: "season",
+			type: "allTime",
 			seasons: [],
 			beforeDate: "",
 			afterDate: "",
