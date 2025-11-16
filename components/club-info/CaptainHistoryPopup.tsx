@@ -48,34 +48,32 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 			onClick={onClose}
 		>
 			<div
-				className='rounded-lg pt-16 pb-8 px-6 max-w-2xl w-full h-[95vh] flex flex-col'
+				className='rounded-lg pt-6 pb-4 px-6 max-w-2xl w-full h-[95vh] flex flex-col overflow-hidden'
 				style={{ backgroundColor: "#0f0f0f" }}
 				onClick={(e) => e.stopPropagation()}
 			>
+				{/* Header - Fixed at top */}
+				<div className='flex-shrink-0 flex justify-between items-center mb-3'>
+					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
+					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
+						<XMarkIcon className='h-6 w-6' />
+					</button>
+				</div>
+
+				{/* Summary Count - Fixed */}
+				<div className='flex-shrink-0 text-center mb-4'>
+					<p className='text-white text-lg md:text-xl font-bold'>
+						Total Captaincies: <span className='text-dorkinians-yellow'>{totalCaptaincies}</span>
+					</p>
+				</div>
+
 				{/* Scrollable content */}
 				<div
 					className='flex-1 overflow-y-auto min-h-0'
 					style={{
 						WebkitOverflowScrolling: "touch",
-						paddingTop: "1rem",
-						paddingBottom: "1rem",
 					}}
 				>
-					{/* Player Name with Close button */}
-					<div className='flex justify-between items-center mb-4'>
-						<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
-						<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
-							<XMarkIcon className='h-6 w-6' />
-						</button>
-					</div>
-
-					{/* Summary Count */}
-					<div className='text-center mb-6'>
-						<p className='text-white text-lg md:text-xl font-bold'>
-							Total Captaincies: <span className='text-dorkinians-yellow'>{totalCaptaincies}</span>
-						</p>
-					</div>
-
 					{/* Loading State */}
 					{loading && (
 						<div className='text-center'>

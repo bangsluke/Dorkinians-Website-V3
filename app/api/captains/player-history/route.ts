@@ -28,18 +28,18 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// Captain items from "Club Captain" to "Vets Captain"
+		// Captain items - these match the actual itemName values in the database
 		const captainItems = [
 			"Club Captain",
-			"First XI Captain",
-			"Second XI Captain",
-			"Third XI Captain",
-			"Fourth XI Captain",
-			"Fifth XI Captain",
-			"Sixth XI Captain",
-			"Seventh XI Captain",
-			"Eighth XI Captain",
-			"Vets Captain",
+			"1st XI Captain(s)",
+			"2nd XI Captain(s)",
+			"3rd XI Captain(s)",
+			"4th XI Captain(s)",
+			"5th XI Captain(s)",
+			"6th XI Captain(s)",
+			"7th XI Captain(s)",
+			"8th XI Captain(s)",
+			"Vets Captain(s)",
 		];
 
 		// Fetch all CaptainsAndAwards nodes for captain items
@@ -54,23 +54,19 @@ export async function GET(request: NextRequest) {
 			captainItems,
 		});
 
-		// Map team names to display names
-		const teamNameMap: Record<string, string> = {
-			"Club Captain": "Club Captain",
-			"First XI Captain": "First XI",
-			"Second XI Captain": "Second XI",
-			"Third XI Captain": "Third XI",
-			"Fourth XI Captain": "Fourth XI",
-			"Fifth XI Captain": "Fifth XI",
-			"Sixth XI Captain": "Sixth XI",
-			"Seventh XI Captain": "Seventh XI",
-			"Eighth XI Captain": "Eighth XI",
-			"Vets Captain": "Vets",
+		// Map team names to display names (remove "(s)" suffix and handle pluralization)
+		const getTeamDisplayName = (itemName: string): string => {
+			if (itemName === "Club Captain") {
+				return "Club Captain";
+			}
+			// Remove "(s)" suffix and return the base name
+			return itemName.replace(/\s*\(s\)$/, "");
 		};
 
 		// Extract all captaincies for this player
 		const captaincies: Array<{ season: string; team: string }> = [];
 		const seasonPattern = /^season(\d{4})(\d{2})$/;
+		const playerNameLower = playerName.trim().toLowerCase();
 
 		result.records.forEach((record) => {
 			const node = record.get("ca");
@@ -86,11 +82,25 @@ export async function GET(request: NextRequest) {
 					const season = `${year1}/${year2}`;
 					const captainValue = properties[key];
 
-					if (captainValue && String(captainValue).trim().toLowerCase() === playerName.trim().toLowerCase()) {
-						captaincies.push({
-							season,
-							team: teamNameMap[itemName] || itemName,
-						});
+					if (captainValue) {
+						const captainStr = String(captainValue).trim();
+						// Split by comma and ampersand to check if player is in the list
+						const captainNames = captainStr
+							.split(/[,&]/)
+							.map((name) => name.trim())
+							.filter((name) => name.length > 0);
+
+						// Check if player name matches any of the captains
+						const isCaptain = captainNames.some(
+							(name) => name.trim().toLowerCase() === playerNameLower
+						);
+
+						if (isCaptain) {
+							captaincies.push({
+								season,
+								team: getTeamDisplayName(itemName),
+							});
+						}
 					}
 				}
 			});
