@@ -5,6 +5,10 @@ import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { killJob as killJobUtil } from "../lib/jobUtils";
 
+interface SiteDetails {
+	lastSeededStats: string | null;
+}
+
 interface SeedingResult {
 	success: boolean;
 	message: string;
@@ -97,6 +101,9 @@ export default function AdminPanel() {
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
 	const [chatbotTestError, setChatbotTestError] = useState<string | null>(null);
+
+	// Site details state
+	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
 
 	// Unanswered questions state
 	const [unansweredQuestionsLoading, setUnansweredQuestionsLoading] = useState(false);
@@ -1021,9 +1028,41 @@ export default function AdminPanel() {
 
 	const statusInfo = getStatusDisplay();
 
+	// Fetch site details on mount
+	useEffect(() => {
+		const fetchSiteDetails = async () => {
+			try {
+				const response = await fetch("/api/site-details");
+				if (response.ok) {
+					const data = await response.json();
+					setSiteDetails(data);
+				}
+			} catch (error) {
+				console.error("Failed to fetch site details:", error);
+			}
+		};
+		fetchSiteDetails();
+	}, []);
+
+	const formatDate = (dateString: string | null) => {
+		if (!dateString) return "Never";
+		try {
+			return new Date(dateString).toLocaleString();
+		} catch {
+			return dateString;
+		}
+	};
+
 	return (
 		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg'>
 			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Dorkinians Database Seeding Admin Panel</h2>
+			{siteDetails && (
+				<div className='mb-4 text-center'>
+					<p className='text-sm text-gray-600'>
+						Database last updated: <span className='font-semibold'>{formatDate(siteDetails.lastSeededStats || null)}</span>
+					</p>
+				</div>
+			)}
 
 					{/* How the Database Seeding Process Works - Collapsible */}
 					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
@@ -1048,9 +1087,14 @@ export default function AdminPanel() {
 							<li>
 								• <strong>Step 4:</strong> Data clearing occurs based on your configuration:
 								<ul className='ml-4 mt-1 space-y-1'>
-									<li>• <strong>Selective Mode (default):</strong> Only current season MatchDetails/Fixtures are cleared and reseeded. Historical data is preserved.</li>
+									<li>• <strong>Selective Mode (default):</strong> 
+										<ul className='ml-4 mt-1 space-y-1'>
+											<li>- <strong>SiteDetail & TestData:</strong> Cleared and rebuilt</li>
+											<li>- <strong>Fixture & MatchDetail:</strong> Only current season cleared (historical preserved)</li>
+											<li>- <strong>Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, UnansweredQuestions:</strong> Preserved (only new items added)</li>
+										</ul>
+									</li>
 									<li>• <strong>Full Rebuild:</strong> ALL data is cleared and reseeded from scratch</li>
-									<li>• <strong>Other node types:</strong> Players, SiteDetails, etc. are always cleared and reseeded</li>
 								</ul>
 							</li>
 							<li>
@@ -1201,10 +1245,14 @@ export default function AdminPanel() {
 					
 					
 					<div className='p-3 bg-yellow-50 rounded-md border border-yellow-200'>
-						<p className='text-xs text-yellow-800'>
-							<strong>Selective Clear:</strong> By default, only current season MatchDetails/Fixtures are cleared and reseeded. 
-							Historical data is preserved. Other node types (Players, etc.) are always cleared and reseeded.
+						<p className='text-xs text-yellow-800 mb-2'>
+							<strong>Selective Clear (Default Mode):</strong>
 						</p>
+						<ul className='text-xs text-yellow-800 space-y-1 ml-4'>
+							<li>• <strong>Cleared & Rebuilt:</strong> SiteDetail, TestData</li>
+							<li>• <strong>Current Season Only:</strong> Fixture, MatchDetail (historical preserved)</li>
+							<li>• <strong>Preserved (New Items Added):</strong> Player, WeeklyTOTW, SeasonTOTW, PlayersOfTheMonth, CaptainsAndAwards, OppositionDetails, UnansweredQuestions</li>
+						</ul>
 					</div>
 				</div>
 			</div>
@@ -1834,7 +1882,7 @@ export default function AdminPanel() {
 					<div>
 						<h3 className='text-lg font-semibold text-blue-800 mb-1'>Unanswered Questions</h3>
 						<p className='text-blue-700 text-sm'>
-							Questions the chatbot couldn't answer. Total: <strong>{unansweredQuestions.length}</strong>
+							Questions the chatbot couldn&apos;t answer. Total: <strong>{unansweredQuestions.length}</strong>
 						</p>
 					</div>
 					<div className='flex gap-2'>
