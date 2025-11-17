@@ -7,6 +7,8 @@ import PlayerDetailModal from "./PlayerDetailModal";
 import Image from "next/image";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -49,6 +51,7 @@ export default function TeamOfTheWeek() {
 	const [totwAppearances, setTotwAppearances] = useState<number | undefined>(undefined);
 	const [showModal, setShowModal] = useState(false);
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
@@ -231,17 +234,22 @@ export default function TeamOfTheWeek() {
 		const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
 		console.log("[TOTW] Player details query:", queryUrl);
 
+		setLoadingPlayerDetails(true);
+		setSelectedPlayer(playerName);
+
 		try {
 			const response = await fetch(queryUrl);
 			const data = await response.json();
 			if (data.matchDetails) {
 				setPlayerDetails(data.matchDetails);
 				setTotwAppearances(data.totwAppearances);
-				setSelectedPlayer(playerName);
 				setShowModal(true);
 			}
 		} catch (error) {
 			console.error("Error fetching player details:", error);
+			setSelectedPlayer(null);
+		} finally {
+			setLoadingPlayerDetails(false);
 		}
 	};
 
@@ -454,11 +462,12 @@ export default function TeamOfTheWeek() {
 				>
 					Team of the Week
 				</h1>
-				<div 
-					className='relative'
+				<button
+					className='relative min-w-[40px] min-h-[40px] flex items-center justify-center'
 					onMouseEnter={() => setShowInfoTooltip(true)}
 					onMouseLeave={() => setShowInfoTooltip(false)}
 					onTouchStart={() => setShowInfoTooltip(!showInfoTooltip)}
+					aria-label='Information about Team of the Week'
 				>
 					<svg 
 						xmlns='http://www.w3.org/2000/svg' 
@@ -471,56 +480,81 @@ export default function TeamOfTheWeek() {
 						<path strokeLinecap='round' strokeLinejoin='round' d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z' />
 					</svg>
 					{showInfoTooltip && (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none'>
+						<div className='absolute bottom-full left-0 mb-2 px-3 py-2 text-xs text-white rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
 							Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.
-							<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800'></div>
+							<div className='absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent' style={{ borderTopColor: '#0f0f0f' }}></div>
 						</div>
 					)}
-				</div>
+				</button>
 			</div>
 
 			{/* Filters */}
 			<div className='flex flex-row gap-4 mb-6'>
 				<div className='w-1/3 md:w-1/2'>
-					<select
-						value={selectedSeason}
-						onChange={(e) => setSelectedSeason(e.target.value)}
-						className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
-						style={{
-							background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-							border: 'none',
-						}}
-					>
-						{seasons.map((season) => (
-							<option key={season} value={season} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
-								{season}
-							</option>
-						))}
-					</select>
+					<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+						<div className='relative'>
+							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
+									{selectedSeason || "Select season..."}
+								</span>
+								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+								</span>
+							</Listbox.Button>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+								{seasons.map((season) => (
+									<Listbox.Option
+										key={season}
+										className={({ active }) =>
+											`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+										}
+										value={season}>
+										{({ selected }) => (
+											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+												{season}
+											</span>
+										)}
+									</Listbox.Option>
+								))}
+							</Listbox.Options>
+						</div>
+					</Listbox>
 				</div>
 				<div className='flex-1 md:w-1/2'>
-					<select
-						value={selectedWeek || ''}
-						onChange={(e) => {
-							const weekValue = e.target.value ? Number(e.target.value) : 0;
-							setSelectedWeek(weekValue);
-						}}
-						className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
-						style={{
-							background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-							border: 'none',
-						}}
-					>
-						{weeks.length === 0 ? (
-							<option value=''>Loading...</option>
-						) : (
-							weeks.map((week) => (
-								<option key={week.week} value={week.week} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
-									Week {week.week} ({week.dateLookup || ''})
-								</option>
-							))
-						)}
-					</select>
+					<Listbox value={selectedWeek || 0} onChange={setSelectedWeek}>
+						<div className='relative'>
+							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
+									{weeks.length === 0 ? "Loading..." : selectedWeek ? `Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}` : "Select week..."}
+								</span>
+								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+								</span>
+							</Listbox.Button>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+								{weeks.length === 0 ? (
+									<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
+										Loading...
+									</Listbox.Option>
+								) : (
+									weeks.map((week) => (
+										<Listbox.Option
+											key={week.week}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={week.week}>
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													Week {week.week} ({week.dateLookup || ''})
+												</span>
+											)}
+										</Listbox.Option>
+									))
+								)}
+							</Listbox.Options>
+						</div>
+					</Listbox>
 				</div>
 			</div>
 
@@ -625,6 +659,16 @@ export default function TeamOfTheWeek() {
 					</>
 				)}
 			</div>
+
+			{/* Loading Overlay */}
+			{loadingPlayerDetails && (
+				<div className='fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50'>
+					<div className='flex flex-col items-center'>
+						<div className='animate-spin rounded-full h-16 w-16 border-b-2 border-yellow-300 mb-4'></div>
+						<p className='text-white text-lg'>Loading player details...</p>
+					</div>
+				</div>
+			)}
 
 			{/* Player Detail Modal */}
 			{showModal && selectedPlayer && playerDetails && (

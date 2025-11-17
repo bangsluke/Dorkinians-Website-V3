@@ -3,7 +3,7 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
@@ -15,14 +15,56 @@ interface Team {
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
+
+	const handleMouseEnter = () => {
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 1000);
+	};
+
+	const handleMouseLeave = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
+
+	const handleTouchStart = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 1000);
+	};
+
+	const handleTouchEnd = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
 
 	return (
 		<>
 			<tr
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
-				onMouseEnter={() => setShowTooltip(true)}
-				onMouseLeave={() => setShowTooltip(false)}
-				onTouchStart={() => setShowTooltip(!showTooltip)}>
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}>
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
@@ -44,9 +86,9 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				</td>
 			</tr>
 			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white bg-gray-800 rounded-lg shadow-lg w-64 text-center pointer-events-none'>
+				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
+					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					{stat.description}
-					<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800'></div>
 				</div>
 			)}
 		</>
@@ -145,7 +187,7 @@ export default function ClubTeamStats() {
 		
 		return [
 			{ name: "Wins", value: wins, color: "#22c55e" },
-			{ name: "Draws", value: draws, color: "#6b7280" },
+			{ name: "Draws", value: draws, color: "#60a5fa" },
 			{ name: "Losses", value: losses, color: "#ef4444" },
 		].filter(item => item.value > 0);
 	}, [teamData]);
@@ -254,7 +296,7 @@ export default function ClubTeamStats() {
 				<div className='mb-4'>
 					<Listbox value={selectedTeam} onChange={handleTeamSelect}>
 						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
+							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${selectedTeam ? "text-white" : "text-yellow-300"}`}>
 									{selectedTeam || "Select a team..."}
 								</span>
@@ -262,7 +304,7 @@ export default function ClubTeamStats() {
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 								<Listbox.Option
 									key="whole-club"
 									className={({ active }) =>
@@ -270,16 +312,9 @@ export default function ClubTeamStats() {
 									}
 									value="Whole Club">
 									{({ selected }) => (
-										<>
-											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-												Whole Club
-											</span>
-											{selected ? (
-												<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
-													<CheckIcon className='h-5 w-5' aria-hidden='true' />
-												</span>
-											) : null}
-										</>
+										<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+											Whole Club
+										</span>
 									)}
 								</Listbox.Option>
 								{teams.map((team, teamIdx) => (
@@ -290,16 +325,9 @@ export default function ClubTeamStats() {
 										}
 										value={team.name}>
 										{({ selected }) => (
-											<>
-												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-													{team.name}
-												</span>
-												{selected ? (
-													<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
-														<CheckIcon className='h-5 w-5' aria-hidden='true' />
-													</span>
-												) : null}
-											</>
+											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+												{team.name}
+											</span>
 										)}
 									</Listbox.Option>
 								))}
@@ -328,16 +356,35 @@ export default function ClubTeamStats() {
 			) : (
 				<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
 					{pieChartData.length > 0 && (
-						<div className='mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-4'>
-							<ResponsiveContainer width='100%' height={300}>
+						<div className='mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<ResponsiveContainer width='100%' height={350}>
 								<PieChart>
 									<Pie
 										data={pieChartData}
 										cx='50%'
 										cy='50%'
 										labelLine={false}
-										label={({ name, value }) => `${name}: ${value}`}
-										outerRadius={80}
+										label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
+											const RADIAN = Math.PI / 180;
+											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+											const x = cx + radius * Math.cos(-midAngle * RADIAN);
+											const y = cy + radius * Math.sin(-midAngle * RADIAN);
+											
+											return (
+												<text
+													x={x}
+													y={y}
+													fill="#ffffff"
+													textAnchor={x > cx ? 'start' : 'end'}
+													dominantBaseline="central"
+													fontSize={14}
+													fontWeight='bold'
+												>
+													{`${name}: ${value}`}
+												</text>
+											);
+										}}
+										outerRadius={100}
 										fill='#8884d8'
 										dataKey='value'
 									>

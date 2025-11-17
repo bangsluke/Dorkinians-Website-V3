@@ -105,7 +105,13 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 		// Competition filter
 		if (availableFilters.includes("competition")) {
-			if (playerFilters.competition.types.length > 0 && playerFilters.competition.types.length < 3) {
+			// Only show competition type pills if they differ from default (League + Cup)
+			const isDefaultCompetitionTypes = 
+				playerFilters.competition.types.length === 2 &&
+				playerFilters.competition.types.includes("League") &&
+				playerFilters.competition.types.includes("Cup");
+			
+			if (playerFilters.competition.types.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
 				playerFilters.competition.types.forEach((type) => {
 					expandedPills.push({
 						key: `competition-type-${type}`,
@@ -146,28 +152,73 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		return expandedPills;
 	}, [playerFilters, filterData, availableFilters, removeTimeRangeFilter, removeTeamFilter, removeLocationFilter, removeOppositionFilter, removeCompetitionTypeFilter, removeCompetitionSearchFilter, removeResultFilter, removePositionFilter]);
 
-	if (filterPills.length === 0) {
+	// Group pills by label (category) and combine same-category pills
+	const groupedPills = useMemo(() => {
+		const grouped: Record<string, Array<ActiveFilter & { onRemove: () => void }>> = {};
+		
+		filterPills.forEach((pill) => {
+			if (!grouped[pill.label]) {
+				grouped[pill.label] = [];
+			}
+			grouped[pill.label].push(pill);
+		});
+
+		return grouped;
+	}, [filterPills]);
+
+	if (Object.keys(groupedPills).length === 0) {
 		return null;
 	}
+
+	// Determine pill height based on page (half height for player-stats and club-stats)
+	const isHalfHeight = currentStatsSubPage === "player-stats" || currentStatsSubPage === "club-stats";
 
 	return (
 		<div className='mb-2 md:mb-4 overflow-x-auto'>
 			<div className='flex gap-2 min-w-max'>
-				{filterPills.map((pill) => (
-					<div
-						key={pill.key}
-						className='flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-full text-sm flex-shrink-0'>
-						<span className='text-white whitespace-nowrap'>
-							{pill.label}: {pill.value}
-						</span>
-						<button
-							onClick={pill.onRemove}
-							className='flex items-center justify-center w-4 h-4 text-gray-400 hover:text-white transition-colors flex-shrink-0'
-							aria-label={`Remove ${pill.label} filter`}>
-							<XMarkIcon className='w-4 h-4' />
-						</button>
-					</div>
-				))}
+				{Object.entries(groupedPills).map(([label, pills]) => {
+					// If only one pill in category, render normally
+					if (pills.length === 1) {
+						const pill = pills[0];
+						return (
+							<div
+								key={pill.key}
+								className={`flex items-center gap-2 px-3 ${isHalfHeight ? "" : "py-1.5"} bg-white rounded-full text-sm flex-shrink-0`}
+								style={isHalfHeight ? { paddingTop: "1.5px", paddingBottom: "1.5px" } : undefined}>
+								<span className='text-gray-900 whitespace-nowrap'>
+									{pill.label}: {pill.value}
+								</span>
+								<button
+									onClick={pill.onRemove}
+									className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0`}
+									aria-label={`Remove ${pill.label} filter`}>
+									<XMarkIcon className='w-4 h-4' />
+								</button>
+							</div>
+						);
+					}
+
+					// Multiple pills in same category - combine them
+					return (
+						<div
+							key={`grouped-${label}`}
+							className={`flex items-center gap-2 px-3 ${isHalfHeight ? "" : "py-1.5"} bg-white rounded-full text-sm flex-shrink-0`}
+							style={isHalfHeight ? { paddingTop: "1.5px", paddingBottom: "1.5px" } : undefined}>
+							<span className='text-gray-900 whitespace-nowrap'>{label}:</span>
+							{pills.map((pill) => (
+								<span key={pill.key} className='flex items-center gap-1'>
+									<span className='text-gray-900 whitespace-nowrap'>{pill.value}</span>
+									<button
+										onClick={pill.onRemove}
+										className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0`}
+										aria-label={`Remove ${pill.label} ${pill.value} filter`}>
+										<XMarkIcon className='w-4 h-4' />
+									</button>
+								</span>
+							))}
+						</div>
+					);
+				})}
 			</div>
 		</div>
 	);

@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 
 interface Player {
 	rank: number;
@@ -629,42 +632,70 @@ export default function PlayersOfMonth() {
 			{!isInitialLoading && (
 				<div className='flex flex-row gap-4 mb-6'>
 					<div className='w-1/3 md:w-1/2'>
-						<select
-							value={selectedSeason}
-							onChange={(e) => setSelectedSeason(e.target.value)}
-							className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
-							style={{
-								background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-								border: 'none',
-							}}
-						>
-							{seasons.map((season) => (
-								<option key={season} value={season} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
-									{season}
-								</option>
-							))}
-						</select>
+						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
+										{selectedSeason || "Select season..."}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+									{seasons.map((season) => (
+										<Listbox.Option
+											key={season}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={season}>
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													{season}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
 					</div>
 					<div className='flex-1 md:w-1/2'>
-						<select
-							value={selectedMonth}
-							onChange={(e) => setSelectedMonth(e.target.value)}
-							className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
-							style={{
-								background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
-								border: 'none',
-							}}
-						>
-							{months.length === 0 ? (
-								<option value=''>Loading...</option>
-							) : (
-								months.map((month) => (
-									<option key={month} value={month} style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
-										{month}
-									</option>
-								))
-							)}
-						</select>
+						<Listbox value={selectedMonth} onChange={setSelectedMonth}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+									<span className={`block truncate ${selectedMonth ? "text-white" : "text-yellow-300"}`}>
+										{months.length === 0 ? "Loading..." : selectedMonth || "Select month..."}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+									{months.length === 0 ? (
+										<Listbox.Option value="" className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
+											Loading...
+										</Listbox.Option>
+									) : (
+										months.map((month) => (
+											<Listbox.Option
+												key={month}
+												className={({ active }) =>
+													`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												}
+												value={month}>
+												{({ selected }) => (
+													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+														{month}
+													</span>
+												)}
+											</Listbox.Option>
+										))
+									)}
+								</Listbox.Options>
+							</div>
+						</Listbox>
 					</div>
 				</div>
 			)}
@@ -696,7 +727,7 @@ export default function PlayersOfMonth() {
 											}}
 											onClick={() => handleRowExpand(player.playerName)}
 										>
-											<td colSpan={3} className='p-0'>
+											<td colSpan={3} className='p-0 relative'>
 												<div className='flex flex-col'>
 													<div className='flex items-center py-2 px-2'>
 														<div className='w-1/12 text-xs md:text-sm'>{player.rank}</div>
@@ -717,12 +748,20 @@ export default function PlayersOfMonth() {
 															</div>
 														</div>
 													)}
+													{!isExpanded && (
+														<div className='absolute bottom-1 left-2'>
+															<ChevronDownIcon className='h-4 w-4 text-yellow-300' />
+														</div>
+													)}
 												</div>
 											</td>
 										</tr>
 										{isExpanded && (
 											<tr>
-												<td colSpan={3} className='py-4 px-2 bg-gray-900'>
+												<td colSpan={3} className='py-4 px-2 relative' style={{ backgroundColor: '#0f0f0f' }}>
+													<div className='absolute top-2 left-2'>
+														<ChevronUpIcon className='h-4 w-4 text-yellow-300' />
+													</div>
 													{isLoadingStats ? (
 														<div className='flex justify-center py-4'>
 															<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
@@ -775,6 +814,17 @@ export default function PlayersOfMonth() {
 																				visibleStats: visibleStats.map(s => `${s.stat}: ${s.points}pts`),
 																			});
 
+																			// Get match summary
+																			const team = match.team || "";
+																			const opposition = match.opposition || "";
+																			const result = match.result || "";
+																			let score = match.matchSummary || "";
+																			
+																			// Remove duplicate result prefix from score if present
+																			if (result && score && score.trim().toUpperCase().startsWith(result.trim().toUpperCase())) {
+																				score = score.trim().substring(result.trim().length).trim();
+																			}
+
 																			return (
 																				<React.Fragment key={`match-${matchIndex}`}>
 																					{matchIndex > 0 && (
@@ -782,6 +832,21 @@ export default function PlayersOfMonth() {
 																							<td colSpan={3} className='py-2 border-t border-gray-600'></td>
 																						</tr>
 																					)}
+																					{/* Match Details Header */}
+																					<tr>
+																						<td colSpan={3} className='py-2 px-2'>
+																							<div className='text-center mb-2'>
+																								{team && opposition ? (
+																									<p className='text-white text-xs md:text-sm font-normal'>{team} vs {opposition}</p>
+																								) : (
+																									<p className='text-white text-xs md:text-sm font-normal'>Fixture details TBC</p>
+																								)}
+																								{result && score && (
+																									<p className='text-white text-sm md:text-base font-semibold mt-1'>{result} {score}</p>
+																								)}
+																							</div>
+																						</td>
+																					</tr>
 																					{visibleStats.map((stat, statIndex) => (
 																						<tr key={`${matchIndex}-${statIndex}`} className='border-b border-green-500'>
 																							<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>

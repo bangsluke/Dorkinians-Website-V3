@@ -128,13 +128,12 @@ export default function ChatbotInterface() {
 		return () => clearInterval(interval);
 	}, [isLoading]);
 
-	// Handle the chatbot question submission
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault(); // Prevent the default form submission behavior
-		if (!question.trim() || isLoading) return; // If the question is empty or the chatbot is loading, return
+	// Submit question to chatbot (extracted logic)
+	const submitQuestion = async (questionToSubmit: string) => {
+		if (!questionToSubmit.trim() || isLoading) return; // If the question is empty or the chatbot is loading, return
 
 		// Client-side logging for debugging
-		console.log(`🤖 Frontend: Sending question: ${question.trim()}. Player context: ${selectedPlayer || "None"}`);
+		console.log(`🤖 Frontend: Sending question: ${questionToSubmit.trim()}. Player context: ${selectedPlayer || "None"}`);
 
 		setIsLoading(true);
 		setError(null);
@@ -157,7 +156,7 @@ export default function ChatbotInterface() {
 					"Content-Type": "application/json",
 				},
 				body: JSON.stringify({
-					question: question.trim(),
+					question: questionToSubmit.trim(),
 					userContext: selectedPlayer || undefined,
 					sessionId: sessionId,
 					conversationHistory: historyForContext,
@@ -266,7 +265,7 @@ export default function ChatbotInterface() {
 
 			// Save to conversation history with player context
 			const newConversation: SavedConversation = {
-				question: question.trim(),
+				question: questionToSubmit.trim(),
 				response: data,
 				timestamp: Date.now(),
 				playerContext: selectedPlayer || undefined,
@@ -277,6 +276,7 @@ export default function ChatbotInterface() {
 				return updated.slice(-3);
 			});
 			setShowExampleQuestions(false);
+			setQuestion(""); // Clear the question input
 		} catch (err) {
 			// If an error occurs, set the error state and log the error
 			console.error(`🤖 Frontend: Error occurred:`, err);
@@ -284,6 +284,12 @@ export default function ChatbotInterface() {
 		} finally {
 			setIsLoading(false); // Finally, set the loading state to false
 		}
+	};
+
+	// Handle the chatbot question submission
+	const handleSubmit = async (e: React.FormEvent) => {
+		e.preventDefault(); // Prevent the default form submission behavior
+		await submitQuestion(question);
 	};
 
 
@@ -400,15 +406,7 @@ export default function ChatbotInterface() {
 									transition={{ delay: index * 0.1 }}
 									className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
 									onClick={() => {
-										setQuestion(q.question);
-										// Focus the input after setting the question
-										setTimeout(() => {
-											const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-											if (input) {
-												input.focus();
-												input.setSelectionRange(0, input.value.length);
-											}
-										}, 0);
+										submitQuestion(q.question);
 									}}>
 									<div className='mb-2'>
 										<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
@@ -474,15 +472,7 @@ export default function ChatbotInterface() {
 										transition={{ delay: index * 0.1 }}
 										className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
 										onClick={() => {
-											setQuestion(q.question);
-											// Focus the input after setting the question
-											setTimeout(() => {
-												const input = document.querySelector('input[type="text"]') as HTMLInputElement;
-												if (input) {
-													input.focus();
-													input.setSelectionRange(0, input.value.length);
-												}
-											}, 0);
+											submitQuestion(q.question);
 										}}>
 										<div className='mb-2'>
 											<p className='font-medium text-white text-xs md:text-sm'>{q.question}</p>
