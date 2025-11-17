@@ -186,6 +186,65 @@ function extractPositionFromResponse(response) {
 	return null;
 }
 
+function normalizeTeamName(value) {
+	if (!value) return "";
+	const cleaned = value.trim().toLowerCase().replace(/\s+/g, " ").replace(/\s*\(.*$/, "");
+	const mapping = {
+		"1s": "1s",
+		"1st": "1s",
+		"1st xi": "1s",
+		"first xi": "1s",
+		"first team": "1s",
+		"2s": "2s",
+		"2nd": "2s",
+		"2nd xi": "2s",
+		"second xi": "2s",
+		"second team": "2s",
+		"3s": "3s",
+		"3rd": "3s",
+		"3rd xi": "3s",
+		"third xi": "3s",
+		"third team": "3s",
+		"4s": "4s",
+		"4th": "4s",
+		"4th xi": "4s",
+		"fourth xi": "4s",
+		"fourth team": "4s",
+		"5s": "5s",
+		"5th": "5s",
+		"5th xi": "5s",
+		"fifth xi": "5s",
+		"fifth team": "5s",
+		"6s": "6s",
+		"6th": "6s",
+		"6th xi": "6s",
+		"sixth xi": "6s",
+		"sixth team": "6s",
+		"7s": "7s",
+		"7th": "7s",
+		"7th xi": "7s",
+		"seventh xi": "7s",
+		"seventh team": "7s",
+		"8s": "8s",
+		"8th": "8s",
+		"8th xi": "8s",
+		"eighth xi": "8s",
+		"eighth team": "8s",
+	};
+	if (mapping[cleaned]) {
+		return mapping[cleaned];
+	}
+	const ordinalMatch = cleaned.match(/^(\d)(?:st|nd|rd|th)\s+xi$/);
+	if (ordinalMatch) {
+		return `${ordinalMatch[1]}s`;
+	}
+	const shortMatch = cleaned.match(/^(\d)s$/);
+	if (shortMatch) {
+		return `${shortMatch[1]}s`;
+	}
+	return cleaned;
+}
+
 // Alternative approach: Create comprehensive test data for all players
 async function runTestsProgrammatically() {
 	console.log("🧪 Running tests programmatically to capture detailed results...");
@@ -306,6 +365,13 @@ async function runTestsProgrammatically() {
 							const match = chatbotAnswer.match(statConfig.responsePattern);
 							if (match) {
 								chatbotExtractedValue = match[1];
+							} else if (statKey === "MostScoredForTeam") {
+								const fallbackMatch =
+									chatbotAnswer.match(/for the ([A-Za-z0-9\s]+?)(?:\s*\(|\.|$)/i) ||
+									chatbotAnswer.match(/for ([A-Za-z0-9\s]+?)(?:\s*\(|\.|$)/i);
+								if (fallbackMatch) {
+									chatbotExtractedValue = fallbackMatch[1].trim();
+								}
 							}
 						}
 					}
@@ -352,27 +418,78 @@ async function runTestsProgrammatically() {
 						expectedValue !== "N/A";
 
 					// Check if the extracted value matches expected
+					// STEP 1: Enhanced logging to understand value types and exact values
 					let valuesMatch = true;
+					let comparisonDetails = {
+						step: "initialization",
+						expectedType: typeof expectedValue,
+						extractedType: chatbotExtractedValue !== null ? typeof chatbotExtractedValue : "null",
+						expectedRaw: expectedValue,
+						extractedRaw: chatbotExtractedValue,
+						comparisonMethod: "none",
+						difference: null,
+						percentageDifference: null,
+					};
+
 					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
+						// STEP 2: Calculate and log the difference between values
+						let expectedNumeric = null;
+						let chatbotNumeric = null;
+						
+						// Try to parse as numbers for difference calculation
+						if (!isNaN(parseFloat(expectedValue)) && isFinite(parseFloat(expectedValue))) {
+							expectedNumeric = parseFloat(expectedValue);
+						}
+						if (chatbotExtractedValue !== null && !isNaN(parseFloat(chatbotExtractedValue)) && isFinite(parseFloat(chatbotExtractedValue))) {
+							chatbotNumeric = parseFloat(chatbotExtractedValue);
+						}
+
+						// Calculate difference if both are numeric
+						if (expectedNumeric !== null && chatbotNumeric !== null) {
+							comparisonDetails.difference = Math.abs(chatbotNumeric - expectedNumeric);
+							if (expectedNumeric !== 0) {
+								comparisonDetails.percentageDifference = ((comparisonDetails.difference / Math.abs(expectedNumeric)) * 100).toFixed(4);
+							} else {
+								comparisonDetails.percentageDifference = chatbotNumeric === 0 ? "0.0000" : "infinity";
+							}
+						}
+
 						// Special handling for zero results with valid zero-value messages
 						if (isZeroResult && isValidZeroResponse) {
 							// Zero result with correct zero-value message is a match
 							valuesMatch = true;
+							comparisonDetails.comparisonMethod = "zero_result_validation";
 						} else if (statKey === "MostCommonPosition") {
-							// For MostCommonPosition, compare extracted position codes
+							// STEP 3: Log the comparison method being used
+							comparisonDetails.comparisonMethod = "position_code_case_insensitive";
 							valuesMatch = chatbotExtractedValue.toUpperCase() === expectedValue.toUpperCase();
 						} else if (statConfig.responsePattern.source.includes("\\d")) {
 							// For numeric values, compare as numbers
-							const expectedNumeric = parseFloat(expectedValue);
-							const chatbotNumeric = parseFloat(chatbotExtractedValue);
-							valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
+							comparisonDetails.comparisonMethod = "numeric_with_tolerance_0.01";
+							if (expectedNumeric !== null && chatbotNumeric !== null) {
+								valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
+							} else {
+								// Fallback to string comparison if parsing failed
+								comparisonDetails.comparisonMethod = "numeric_fallback_string";
+								valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
+							}
 						} else {
-							// For text values, compare as strings (case insensitive)
-							valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
+							if (statKey === "MostScoredForTeam") {
+								comparisonDetails.comparisonMethod = "team_name_normalized";
+								valuesMatch = normalizeTeamName(chatbotExtractedValue) === normalizeTeamName(expectedValue);
+							} else {
+								// For text values, compare as strings (case insensitive)
+								comparisonDetails.comparisonMethod = "string_case_insensitive";
+								valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
+							}
 						}
 					} else if (expectedValue !== "N/A" && isZeroResult && isValidZeroResponse) {
 						// Handle case where extraction failed but we have a valid zero result message
+						comparisonDetails.comparisonMethod = "zero_result_extraction_failed";
 						valuesMatch = true;
+					} else {
+						comparisonDetails.comparisonMethod = "validation_failed";
+						valuesMatch = false;
 					}
 
 					const passed = hasValidResponse && valuesMatch;
@@ -391,6 +508,33 @@ async function runTestsProgrammatically() {
 						console.log(`   Has Valid Response: ${hasValidResponse}`);
 						console.log(`   Cypher Query: ${cypherQuery}`);
 						console.log(`   Passed: ${passed}`);
+						
+						// STEP 1-3: Enhanced logging for value comparison analysis
+						console.log(`\n   📊 VALUE COMPARISON ANALYSIS:`);
+						console.log(`      Expected Type: ${comparisonDetails.expectedType}`);
+						console.log(`      Extracted Type: ${comparisonDetails.extractedType}`);
+						console.log(`      Expected Raw: "${comparisonDetails.expectedRaw}"`);
+						console.log(`      Extracted Raw: "${comparisonDetails.extractedRaw}"`);
+						console.log(`      Comparison Method: ${comparisonDetails.comparisonMethod}`);
+						if (comparisonDetails.difference !== null) {
+							console.log(`      Absolute Difference: ${comparisonDetails.difference}`);
+						}
+						if (comparisonDetails.percentageDifference !== null) {
+							console.log(`      Percentage Difference: ${comparisonDetails.percentageDifference}%`);
+						}
+						
+						// Additional debugging for numeric comparisons
+						if (comparisonDetails.comparisonMethod.includes("numeric")) {
+							const expectedNum = parseFloat(expectedValue);
+							const extractedNum = chatbotExtractedValue !== null ? parseFloat(chatbotExtractedValue) : null;
+							if (!isNaN(expectedNum) && !isNaN(extractedNum)) {
+								console.log(`      Expected Numeric: ${expectedNum}`);
+								console.log(`      Extracted Numeric: ${extractedNum}`);
+								console.log(`      Difference: ${Math.abs(extractedNum - expectedNum)}`);
+								console.log(`      Tolerance Used: 0.01`);
+								console.log(`      Within Tolerance: ${Math.abs(extractedNum - expectedNum) < 0.01}`);
+							}
+						}
 					}
 
 					if (passed) {

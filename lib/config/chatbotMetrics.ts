@@ -286,7 +286,7 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "away wins",
 		singular: "away win",
 		plural: "away wins",
-		aliases: ["away victories", "away success"],
+		aliases: ["away victories", "away success", "away games won", "games won away", "wins away", "away matches won", "away wins total"],
 		description: "Away games won",
 	},
 	{
@@ -383,7 +383,16 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "number of teams played for",
 		singular: "number of teams played for",
 		plural: "number of teams played for",
-		aliases: ["teams count", "team count"],
+		aliases: [
+			"teams count",
+			"team count",
+			"club teams",
+			"clubs teams",
+			"club's teams",
+			"how many of the clubs teams",
+			"how many of the club's teams",
+			"club team count",
+		],
 		description: "Number of different teams played for",
 	},
 	// Team-specific goals

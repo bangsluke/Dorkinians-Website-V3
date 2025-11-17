@@ -277,6 +277,46 @@ describe("Individual Question Verification Tests", () => {
 	});
 
 	// ============================================================================
+	// Minutes Per Clean Sheet Test
+	// ============================================================================
+
+	test("On average, how many minutes does Luke Bangs need to get a clean sheet?", async () => {
+		const response = await runTestCase({
+			question: "On average, how many minutes does Luke Bangs need to get a clean sheet?",
+			userContext: "Luke Bangs",
+			expectedAnswerContains: ["Luke Bangs", "minutes", "clean sheet"],
+			expectedAnswerNotContains: ["Database error"],
+			expectedCypherPattern: /sum\(coalesce\(md\.cleanSheets/i,
+			description: "Should return 458 (15,126 minutes / 33 clean sheets)",
+		});
+		// Verify the query uses MatchDetail cleanSheets, not Fixture conceded
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/md\.cleanSheets/i);
+			expect(response.cypherQuery).not.toMatch(/f\.conceded.*=.*0/i);
+		}
+	});
+
+	// ============================================================================
+	// Fantasy Points Per Appearance Test
+	// ============================================================================
+
+	test("How many fantasy points does Luke Bangs score per appearance?", async () => {
+		const response = await runTestCase({
+			question: "How many fantasy points does Luke Bangs score per appearance?",
+			userContext: "Luke Bangs",
+			expectedAnswerContains: ["Luke Bangs", "fantasy points", "appearance"],
+			expectedAnswerNotContains: ["Database error", "appearances"],
+			expectedCypherPattern: /sum\(coalesce\(md\.fantasyPoints/i,
+			description: "Should return 3.5 (624.12 fantasy points / 179 appearances)",
+		});
+		// Verify the query calculates fantasy points per appearance
+		if (response.cypherQuery) {
+			expect(response.cypherQuery).toMatch(/md\.fantasyPoints/i);
+			expect(response.cypherQuery).toMatch(/count\(md\)/i);
+		}
+	});
+
+	// ============================================================================
 	// Add more test cases below as needed
 	// ============================================================================
 });
