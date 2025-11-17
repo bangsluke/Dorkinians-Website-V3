@@ -205,7 +205,7 @@ export default function ClubAwards() {
 
 				{/* Season Dropdown */}
 				{seasons.length > 0 && (
-					<div className='mb-6'>
+					<div className='mb-2'>
 						<Listbox
 							value={selectedSeason}
 							onChange={(newSeason) => {
@@ -216,7 +216,7 @@ export default function ClubAwards() {
 								}
 							}}>
 							<div className='relative'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
 									</span>
@@ -224,7 +224,7 @@ export default function ClubAwards() {
 										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'>
+								<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 									{seasons.map((season) => (
 										<Listbox.Option
 											key={season}
@@ -233,16 +233,9 @@ export default function ClubAwards() {
 											}
 											value={season}>
 											{({ selected }) => (
-												<>
-													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-														{season}
-													</span>
-													{selected ? (
-														<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
-															<CheckIcon className='h-5 w-5' aria-hidden='true' />
-														</span>
-													) : null}
-												</>
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													{season}
+												</span>
 											)}
 										</Listbox.Option>
 									))}
@@ -297,7 +290,7 @@ export default function ClubAwards() {
 																{playerName}
 															</button>
 															{playerIndex < players.length - 1 && (
-																<span className='text-white/70 text-xs md:text-sm mx-1'>
+																<span className='text-white/70 text-xs md:text-sm'>
 																	{playerIndex === players.length - 2 ? " & " : ", "}
 																</span>
 															)}
