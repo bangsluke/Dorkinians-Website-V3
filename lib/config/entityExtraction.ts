@@ -132,6 +132,8 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"scored",
 		"get",
 		"got",
+		"goal stats",
+		"goal count",
 	],
 	"Open Play Goals": [
 		"open play goals",

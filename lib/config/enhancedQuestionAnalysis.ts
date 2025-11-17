@@ -512,6 +512,8 @@ export class EnhancedQuestionAnalyzer {
 				
 				// Continue with filtered stats
 				const priorityOrder = [
+					"Number Teams Played For",
+					"Number Seasons Played For",
 					"Season Count With Total",
 					"Season Count Simple",
 					"Own Goals",
@@ -607,6 +609,8 @@ export class EnhancedQuestionAnalyzer {
 
 		// Priority order: more specific stat types should take precedence
 		const priorityOrder = [
+			"Number Teams Played For", // Team count queries
+			"Number Seasons Played For", // Season count queries
 			"Season Count With Total", // Most specific season counting
 			"Season Count Simple", // Simple season counting
 			"Own Goals", // Most specific - own goals - helps stop the chatbot returning goals
@@ -868,7 +872,8 @@ export class EnhancedQuestionAnalyzer {
 				test: (q) =>
 					q.includes("how many of the club's teams") ||
 					q.includes("how many of the clubs teams") ||
-					(q.includes("how many teams") && q.includes("played for the club")),
+					q.includes("how many of the club teams") ||
+					(q.includes("how many teams") && (q.includes("played for") || q.includes("played in"))),
 				apply: (q, _stats) => {
 					const position = q.indexOf("club") !== -1 ? q.indexOf("club") : q.indexOf("teams");
 					return [
@@ -884,8 +889,8 @@ export class EnhancedQuestionAnalyzer {
 			{
 				priority: 0,
 				test: (q) =>
-					(q.includes("how many seasons") || q.includes("seasons has")) &&
-					(q.includes("played in") || q.includes("played for") || q.includes("played with")),
+					(q.includes("how many seasons") || q.includes("seasons has") || q.includes("seasons did")) &&
+					(q.includes("played in") || q.includes("played for") || q.includes("played with") || q.includes("played")),
 				apply: (q, _stats) => {
 					const position = q.indexOf("seasons");
 					return [
@@ -968,6 +973,7 @@ export class EnhancedQuestionAnalyzer {
 						/(appearances?|apps?|games?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
 						/(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i,
 						/(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+						/(?:what\s+is\s+the\s+)?(appearance\s+count|count).*?(?:playing|played)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
 					];
 					return patterns.some(p => p.test(q));
 				},
@@ -1195,7 +1201,7 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern1 = /(appearances?|apps?|games?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?/i;
 		// Pattern 2: "Xs appearances/apps/games" (team first)
 		const teamAppearancePattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i;
-		// Pattern 3: "appearance count for Xs" or "Xs appearance count"
+		// Pattern 3: "appearance count for Xs" or "Xs appearance count" or "appearance count for X playing for Ys"
 		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+.*?\s+)?(?:playing\s+for\s+(?:the\s+)?|for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 4: "how many times...played for Xs"
 		const teamAppearancePattern4 = /(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
