@@ -836,8 +836,10 @@ export default function PlayersOfMonth() {
 																					<tr>
 																						<td colSpan={3} className='py-2 px-2'>
 																							<div className='text-center mb-2'>
-																								{team && opposition && (
+																								{team && opposition ? (
 																									<p className='text-white text-xs md:text-sm font-normal'>{team} vs {opposition}</p>
+																								) : (
+																									<p className='text-white text-xs md:text-sm font-normal'>Fixture details TBC</p>
 																								)}
 																								{result && score && (
 																									<p className='text-white text-sm md:text-base font-semibold mt-1'>{result} {score}</p>

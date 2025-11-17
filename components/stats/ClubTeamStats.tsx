@@ -28,7 +28,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 	const handleMouseEnter = () => {
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 2000);
+		}, 1000);
 	};
 
 	const handleMouseLeave = () => {
@@ -46,7 +46,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 		}
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 2000);
+		}, 1000);
 	};
 
 	const handleTouchEnd = () => {
