@@ -242,6 +242,26 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Penalty record": ["penalty conversion rate", "penalty record", "spot kick record", "pen conversion"],
 	Home: ["home games", "home matches", "at home"],
 	Away: ["away games", "away matches", "away from home", "on the road", "away"],
+	"Home Wins": [
+		"home wins",
+		"home victories",
+		"home games won",
+		"wins at home",
+		"home matches won",
+		"home games has.*won",
+		"home games have.*won",
+		"home games ha(?:s|ve).*won",
+	],
+	"Away Wins": [
+		"away wins",
+		"away victories",
+		"away games won",
+		"wins away",
+		"away matches won",
+		"away games has.*won",
+		"away games have.*won",
+		"away games ha(?:s|ve).*won",
+	],
 	"Home Games % Won": [
 		"home games percentage won",
 		"home games percent won",
@@ -272,6 +292,17 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"win rate",
 		"success rate",
 		"overall win rate",
+	],
+	"Number Teams Played For": [
+		"teams count",
+		"team count",
+		"club teams",
+		"clubs teams",
+		"club's teams",
+		"club team count",
+		"how many of the clubs teams",
+		"how many of the club's teams",
+		"how many of the club teams",
 	],
 	"Most Prolific Season": [
 		"most prolific season",
@@ -1249,7 +1280,11 @@ export class EntityExtractor {
 
 	private async addFuzzyStatTypeMatches(existingStatTypes: StatTypeInfo[]): Promise<void> {
 		// Get all potential stat type words from the question
-		const words = this.question.toLowerCase().split(/\s+/);
+		const words = this.question
+			.toLowerCase()
+			.split(/\s+/)
+			.map((word) => word.replace(/^[^\w]+|[^\w]+$/g, "").replace(/[^\w]/g, ""))
+			.filter((word) => word.length > 0);
 
 		// Check each word for potential stat type matches
 		for (const word of words) {

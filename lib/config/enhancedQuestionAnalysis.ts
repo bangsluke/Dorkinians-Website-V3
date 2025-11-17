@@ -483,8 +483,11 @@ export class EnhancedQuestionAnalyzer {
 	// CRITICAL FIX: Detect "most scored for team" queries
 	const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
+	// Apply additional metric correction patterns with caching
+	const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
+
 	// Convert extracted stat types to legacy format with priority handling
-	const statTypes = mostScoredForTeamCorrectedStats.map((stat) => stat.value);
+	const statTypes = fullyCorrectedStats.map((stat) => stat.value);
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -527,6 +530,11 @@ export class EnhancedQuestionAnalyzer {
 					"Penalties Conceded Per Appearance",
 					"Penalties Saved Per Appearance",
 					"Distance Travelled",
+					"Home Games % Won",
+					"Away Games % Won",
+					"Games % Won",
+					"Home Wins",
+					"Away Wins",
 					"Goals Conceded",
 					"Open Play Goals",
 					"Penalties Scored",
@@ -566,6 +574,9 @@ export class EnhancedQuestionAnalyzer {
 					"Midfielder Appearances",
 					"Forward Appearances",
 					"Most Common Position",
+					"Most Scored For Team",
+					"Most Played For Team",
+					"Number Teams Played For",
 					"Goals",
 					"Assists",
 					"Apps",
@@ -615,6 +626,11 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
+			"Home Games % Won",
+			"Away Games % Won",
+			"Games % Won",
+			"Home Wins",
+			"Away Wins",
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -656,6 +672,7 @@ export class EnhancedQuestionAnalyzer {
 			"Most Common Position",
 			"Most Scored For Team", // Higher priority than "Most Played For Team"
 			"Most Played For Team", // Lower priority than "Most Scored For Team"
+			"Number Teams Played For",
 			"Goals", // General goals (lower priority)
 			"Assists",
 			"Apps",
@@ -841,6 +858,104 @@ export class EnhancedQuestionAnalyzer {
 			test: (question: string, stats: StatTypeInfo[]) => boolean;
 			apply: (question: string, stats: StatTypeInfo[]) => StatTypeInfo[];
 		}> = [
+			// Priority 0: Club team count questions ("How many of the club's teams...")
+			{
+				priority: 0,
+				test: (q) =>
+					q.includes("how many of the club's teams") ||
+					q.includes("how many of the clubs teams") ||
+					(q.includes("how many teams") && q.includes("played for the club")),
+				apply: (q, _stats) => {
+					const position = q.indexOf("club") !== -1 ? q.indexOf("club") : q.indexOf("teams");
+					return [
+						{
+							value: "Number Teams Played For",
+							originalText: "club teams played for",
+							position: position >= 0 ? position : 0,
+						},
+					];
+				},
+			},
+			// Priority 0: Season count questions ("How many seasons has ... played in?")
+			{
+				priority: 0,
+				test: (q) =>
+					(q.includes("how many seasons") || q.includes("seasons has")) &&
+					(q.includes("played in") || q.includes("played for") || q.includes("played with")),
+				apply: (q, _stats) => {
+					const position = q.indexOf("seasons");
+					return [
+						{
+							value: "Number Seasons Played For",
+							originalText: "number seasons played for",
+							position: position >= 0 ? position : 0,
+						},
+					];
+				},
+			},
+			// Priority 1: Goalkeeper/Defender/Midfielder/Forward position queries
+			{
+				priority: 1,
+				test: (q) => q.includes("goalkeeper"),
+				apply: (q, stats) => {
+					const filtered = stats.filter(
+						(stat) => !["Goals", "All Goals Scored", "Apps", "Appearances"].includes(stat.value),
+					);
+					filtered.push({
+						value: "Goalkeeper Appearances",
+						originalText: "goalkeeper",
+						position: q.indexOf("goalkeeper"),
+					});
+					return filtered;
+				},
+			},
+			{
+				priority: 1,
+				test: (q) => q.includes("defender"),
+				apply: (q, stats) => {
+					const filtered = stats.filter(
+						(stat) => !["Goals", "All Goals Scored", "Apps", "Appearances"].includes(stat.value),
+					);
+					filtered.push({
+						value: "Defender Appearances",
+						originalText: "defender",
+						position: q.indexOf("defender"),
+					});
+					return filtered;
+				},
+			},
+			{
+				priority: 1,
+				test: (q) => q.includes("midfielder") || q.includes("midfield"),
+				apply: (q, stats) => {
+					const filtered = stats.filter(
+						(stat) => !["Goals", "All Goals Scored", "Apps", "Appearances"].includes(stat.value),
+					);
+					const position = q.indexOf("midfielder") !== -1 ? q.indexOf("midfielder") : q.indexOf("midfield");
+					filtered.push({
+						value: "Midfielder Appearances",
+						originalText: "midfielder",
+						position: position >= 0 ? position : 0,
+					});
+					return filtered;
+				},
+			},
+			{
+				priority: 1,
+				test: (q) => q.includes("forward") || q.includes("striker"),
+				apply: (q, stats) => {
+					const filtered = stats.filter(
+						(stat) => !["Goals", "All Goals Scored", "Apps", "Appearances"].includes(stat.value),
+					);
+					const position = q.indexOf("forward") !== -1 ? q.indexOf("forward") : q.indexOf("striker");
+					filtered.push({
+						value: "Forward Appearances",
+						originalText: "forward",
+						position: position >= 0 ? position : 0,
+					});
+					return filtered;
+				},
+			},
 			// Priority 1: Team-specific appearances (highest priority)
 			{
 				priority: 1,
@@ -952,26 +1067,41 @@ export class EnhancedQuestionAnalyzer {
 	private extractSeasonFromQuestion(): string | null {
 		const question = this.question;
 
-		// Pattern 1: Full year format with slash (2018/19, 2019/20, etc.)
+		// Pattern 1: Full year format with full end year (2018/2019, 2019/2020, etc.)
+		const fullYearFullMatch = question.match(/(\d{4})\/(\d{4})/);
+		if (fullYearFullMatch) {
+			const startYear = fullYearFullMatch[1];
+			const endYear = fullYearFullMatch[2];
+			const shortEndYear = endYear.substring(2);
+			return `${startYear}/${shortEndYear}`;
+		}
+
+		// Pattern 2: Full year format with full end year hyphenated (2018-2019, 2019-2020, etc.)
+		const fullYearFullHyphenMatch = question.match(/(\d{4})-(\d{4})/);
+		if (fullYearFullHyphenMatch) {
+			const startYear = fullYearFullHyphenMatch[1];
+			const endYear = fullYearFullHyphenMatch[2];
+			const shortEndYear = endYear.substring(2);
+			return `${startYear}/${shortEndYear}`;
+		}
+
+		// Pattern 3: Full year format with slash (2018/19, 2019/20, etc.)
 		const fullYearSlashMatch = question.match(/(\d{4})\/(\d{2})/);
 		if (fullYearSlashMatch) {
 			const startYear = fullYearSlashMatch[1];
 			const endYear = fullYearSlashMatch[2];
-			// Convert 2-digit end year to 4-digit if needed
-			const fullEndYear = endYear.startsWith("20") ? endYear : `20${endYear}`;
 			return `${startYear}/${endYear}`;
 		}
 
-		// Pattern 2: Full year format with hyphen (2018-19, 2019-20, etc.)
+		// Pattern 4: Full year format with hyphen (2018-19, 2019-20, etc.)
 		const fullYearHyphenMatch = question.match(/(\d{4})-(\d{2})/);
 		if (fullYearHyphenMatch) {
 			const startYear = fullYearHyphenMatch[1];
 			const endYear = fullYearHyphenMatch[2];
-			const fullEndYear = endYear.startsWith("20") ? endYear : `20${endYear}`;
 			return `${startYear}/${endYear}`;
 		}
 
-		// Pattern 3: Full year range format (2021 to 2022, 2018 to 2019, etc.)
+		// Pattern 5: Full year range format (2021 to 2022, 2018 to 2019, etc.)
 		const fullYearRangeMatch = question.match(/(\d{4})\s+to\s+(\d{4})/);
 		if (fullYearRangeMatch) {
 			const startYear = fullYearRangeMatch[1];
@@ -981,7 +1111,7 @@ export class EnhancedQuestionAnalyzer {
 			return `${startYear}/${shortEndYear}`;
 		}
 
-		// Pattern 4: Short year format with slash (18/19, 19/20, 20/21, 21/22, etc.)
+		// Pattern 6: Short year format with slash (18/19, 19/20, 20/21, 21/22, etc.)
 		const shortYearSlashMatch = question.match(/(\d{2})\/(\d{2})/);
 		if (shortYearSlashMatch) {
 			const startYear = shortYearSlashMatch[1];
@@ -990,16 +1120,6 @@ export class EnhancedQuestionAnalyzer {
 			const fullStartYear = startYear.length === 4 ? startYear : `20${startYear}`;
 			// Keep end year as 2-digit format for season notation (YYYY/YY)
 			return `${fullStartYear}/${endYear}`;
-		}
-
-		// Pattern 5: Full year format with full end year (2018/2019, 2019/2020, etc.)
-		const fullYearFullMatch = question.match(/(\d{4})\/(\d{4})/);
-		if (fullYearFullMatch) {
-			const startYear = fullYearFullMatch[1];
-			const endYear = fullYearFullMatch[2];
-			// Convert to short format for consistency
-			const shortEndYear = endYear.substring(2);
-			return `${startYear}/${shortEndYear}`;
 		}
 
 		return null;
@@ -1176,10 +1296,12 @@ export class EnhancedQuestionAnalyzer {
 					  "Penalties Conceded Per Appearance", "Penalties Saved Per Appearance", "Fantasy Points Per Appearance",
 					  "Man of the Match Per Appearance"].includes(stat.value)
 				);
-				const newMetric = `${mappedTeam} Apps`;
+				const teamNumberForKeyMatch = mappedTeam.match(/^(\d+)/);
+				const teamNumberForKey = teamNumberForKeyMatch ? teamNumberForKeyMatch[1] : undefined;
+				const canonicalMetric = teamNumberForKey ? `${teamNumberForKey}sApps` : `${mappedTeam} Apps`;
 				// Add the new metric to the filtered stats
 				filteredStats.push({
-					value: newMetric,
+					value: canonicalMetric,
 					originalText: `${appearanceTerm} for ${teamReference}`,
 					position: lowerQuestion.indexOf(appearanceTerm || "appearances"),
 				});
@@ -1297,28 +1419,60 @@ export class EnhancedQuestionAnalyzer {
 	private correctFantasyPointsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
+		const hasFantasyKeyword =
+			lowerQuestion.includes("fantasy points") ||
+			lowerQuestion.includes("fantasy point") ||
+			lowerQuestion.includes("ftp") ||
+			(lowerQuestion.includes("points") && lowerQuestion.includes("fantasy"));
+		const perAppearanceIndicators = [
+			"per appearance",
+			"per app",
+			"per game",
+			"per match",
+			"per outing",
+			"per performance",
+			"per fixture",
+			"average",
+			"on average",
+		];
+		const hasPerAppearancePhrase = perAppearanceIndicators.some((phrase) => lowerQuestion.includes(phrase));
+
 		// Check for fantasy points phrases - must run before open play goals correction
-		if (lowerQuestion.includes("fantasy points") || lowerQuestion.includes("fantasy point") || lowerQuestion.includes("ftp") || (lowerQuestion.includes("points") && lowerQuestion.includes("fantasy"))) {
+		if (hasFantasyKeyword) {
 			// Remove incorrect "Goals", "G", "AllGSC", "Open Play Goals", "Saves", "Saves Per Appearance" mappings
 			const filteredStats = statTypes.filter((stat) => !["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves", "Saves Per Appearance"].includes(stat.value));
 
 			// Check if "Fantasy Points" is already in the stats
 			const hasFantasyPointsStat = filteredStats.some((stat) => stat.value === "Fantasy Points");
 
-			if (!hasFantasyPointsStat) {
-				// Add correct "Fantasy Points" mapping
-				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1 
-					? lowerQuestion.indexOf("fantasy points") 
-					: lowerQuestion.indexOf("fantasy point") !== -1 
+			let fantasyPosition = lowerQuestion.indexOf("fantasy points");
+			if (fantasyPosition === -1) {
+				fantasyPosition =
+					lowerQuestion.indexOf("fantasy point") !== -1
 						? lowerQuestion.indexOf("fantasy point")
 						: lowerQuestion.indexOf("ftp") !== -1
 							? lowerQuestion.indexOf("ftp")
 							: lowerQuestion.indexOf("points");
-				
+			}
+			if (!hasFantasyPointsStat) {
+				// Add correct "Fantasy Points" mapping
 				filteredStats.push({
 					value: "Fantasy Points",
 					originalText: "fantasy points",
-					position: fantasyPosition,
+					position: fantasyPosition !== -1 ? fantasyPosition : 0,
+				});
+			}
+
+			const hasFantasyPointsPerApp = filteredStats.some((stat) => stat.value === "Fantasy Points Per Appearance");
+			if (hasPerAppearancePhrase && !hasFantasyPointsPerApp) {
+				const perAppearancePosition =
+					lowerQuestion.indexOf("per appearance") !== -1
+						? lowerQuestion.indexOf("per appearance")
+						: fantasyPosition;
+				filteredStats.push({
+					value: "Fantasy Points Per Appearance",
+					originalText: "fantasy points per appearance",
+					position: perAppearancePosition !== -1 ? perAppearancePosition : 0,
 				});
 			}
 
