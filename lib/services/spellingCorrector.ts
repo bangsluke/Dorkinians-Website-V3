@@ -116,6 +116,26 @@ export class SpellingCorrector {
 			"least",
 			"highest",
 			"lowest",
+			// Common verbs and nouns that appear in questions
+			"played",
+			"play",
+			"playing",
+			"times",
+			"time",
+			"games",
+			"game",
+			"appearance",
+			"made",
+			"make",
+			"has",
+			"have",
+			"got",
+			"get",
+			"for",
+			"the",
+			"count",
+			"total",
+			"number",
 		];
 
 		commonTerms.forEach((term) => this.dictionary.add(term.toLowerCase()));
@@ -166,6 +186,15 @@ export class SpellingCorrector {
 	 * Find best match for a word in the dictionary
 	 */
 	private findBestMatch(word: string, minSimilarity: number = 0.7): string | null {
+		// Question words and common verbs should require higher similarity to avoid false corrections
+		const questionWords = ["how", "what", "which", "who", "where", "when", "why"];
+		const commonVerbs = ["played", "play", "playing", "has", "have", "got", "get", "made", "make"];
+		
+		// Increase minimum similarity for question words and common verbs to prevent false matches
+		if (questionWords.includes(word.toLowerCase()) || commonVerbs.includes(word.toLowerCase())) {
+			minSimilarity = 0.95; // Require very high similarity for these words
+		}
+
 		let bestMatch: string | null = null;
 		let bestScore = 0;
 

@@ -132,6 +132,8 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"scored",
 		"get",
 		"got",
+		"goal stats",
+		"goal count",
 	],
 	"Open Play Goals": [
 		"open play goals",
@@ -216,7 +218,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Co Players": ["co players", "teammates", "played with", "team mates"],
 	Opponents: ["opponents", "played against", "faced", "versus"],
 	"Fantasy Points": ["fantasy points", "fantasy score", "fantasy point", "points", "ftp", "fp"],
-	"Goals Per Appearance": ["goals per game", "goals per match", "goals on average scored", "average goals scored"],
+	"Goals Per Appearance": ["goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
 	"Conceded Per Appearance": [
 		"goals on average does.*concede per match",
 		"goals on average does.*concede per game",
@@ -242,6 +244,26 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Penalty record": ["penalty conversion rate", "penalty record", "spot kick record", "pen conversion"],
 	Home: ["home games", "home matches", "at home"],
 	Away: ["away games", "away matches", "away from home", "on the road", "away"],
+	"Home Wins": [
+		"home wins",
+		"home victories",
+		"home games won",
+		"wins at home",
+		"home matches won",
+		"home games has.*won",
+		"home games have.*won",
+		"home games ha(?:s|ve).*won",
+	],
+	"Away Wins": [
+		"away wins",
+		"away victories",
+		"away games won",
+		"wins away",
+		"away matches won",
+		"away games has.*won",
+		"away games have.*won",
+		"away games ha(?:s|ve).*won",
+	],
 	"Home Games % Won": [
 		"home games percentage won",
 		"home games percent won",
@@ -272,6 +294,17 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"win rate",
 		"success rate",
 		"overall win rate",
+	],
+	"Number Teams Played For": [
+		"teams count",
+		"team count",
+		"club teams",
+		"clubs teams",
+		"club's teams",
+		"club team count",
+		"how many of the clubs teams",
+		"how many of the club's teams",
+		"how many of the club teams",
 	],
 	"Most Prolific Season": [
 		"most prolific season",
@@ -1249,7 +1282,11 @@ export class EntityExtractor {
 
 	private async addFuzzyStatTypeMatches(existingStatTypes: StatTypeInfo[]): Promise<void> {
 		// Get all potential stat type words from the question
-		const words = this.question.toLowerCase().split(/\s+/);
+		const words = this.question
+			.toLowerCase()
+			.split(/\s+/)
+			.map((word) => word.replace(/^[^\w]+|[^\w]+$/g, "").replace(/[^\w]/g, ""))
+			.filter((word) => word.length > 0);
 
 		// Check each word for potential stat type matches
 		for (const word of words) {
@@ -1275,6 +1312,12 @@ export class EntityExtractor {
 	}
 
 	private async findBestStatTypeMatchWithContext(word: string, existingStatTypes: StatTypeInfo[]): Promise<string | null> {
+		// Skip question words - they should never match to stat types
+		const questionWords = ["how", "what", "which", "who", "where", "when", "why", "has", "have", "did", "does", "was", "were", "is", "are"];
+		if (questionWords.includes(word.toLowerCase())) {
+			return null;
+		}
+
 		// Get all stat type pseudonyms
 		const allPseudonyms: string[] = [];
 		Object.values(STAT_TYPE_PSEUDONYMS).forEach((pseudonyms) => {
@@ -1283,6 +1326,27 @@ export class EntityExtractor {
 
 		// Find the best match using the entity resolver
 		const bestMatch = await this.entityResolver.getBestMatch(word, "stat_type");
+
+		// Special handling: If bestMatch is "Home" or "Away", verify there's actual location context
+		if (bestMatch === "Home" || bestMatch === "Away") {
+			// Check if question explicitly mentions home/away with location keywords
+			const explicitLocationPatterns = [
+				/\bhome\s+games?\b/i,
+				/\baway\s+games?\b/i,
+				/\bat\s+home\b/i,
+				/\baway\s+from\s+home\b/i,
+				/\bon\s+the\s+road\b/i,
+				/\bhome\s+ground\b/i,
+				/\baway\s+ground\b/i,
+			];
+			const hasExplicitLocation = explicitLocationPatterns.some(pattern => pattern.test(this.lowerQuestion));
+			
+			// Only allow Home/Away stat type if there's explicit location context
+			// Don't match if it's just the word "home" or "away" without context
+			if (!hasExplicitLocation) {
+				return null;
+			}
+		}
 
 		// If no match found, try manual fuzzy matching with context awareness
 		if (!bestMatch) {

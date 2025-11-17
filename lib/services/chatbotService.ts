@@ -546,6 +546,40 @@ export class ChatbotService {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
 
+			// Log unanswered question when error occurs (fire-and-forget, non-blocking)
+			unansweredQuestionLogger.log({
+				originalQuestion,
+				correctedQuestion,
+				analysis: this.lastQuestionAnalysis || {
+					type: "general",
+					entities: [],
+					metrics: [],
+					extractionResult: {
+						entities: [],
+						statTypes: [],
+						statIndicators: [],
+						questionTypes: [],
+						negativeClauses: [],
+						locations: [],
+						timeFrames: [],
+						competitionTypes: [],
+						competitions: [],
+						results: [],
+						opponentOwnGoals: false,
+						goalInvolvements: false,
+					},
+					complexity: "simple",
+					requiresClarification: false,
+					question: context.question,
+					confidence: 0,
+					message: error instanceof Error ? error.message : String(error),
+				},
+				confidence: this.lastQuestionAnalysis?.confidence || 0,
+				userContext: context.userContext,
+			}).catch((err) => {
+				console.error("❌ Failed to log unanswered question:", err);
+			});
+
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
 			const errorMessage = await errorHandler.generateErrorResponse(errorObj, {
@@ -810,7 +844,15 @@ export class ChatbotService {
 				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: originalMetric, cypherQuery: query };
 			} catch (error) {
 				this.logToBoth(`❌ Error in player query:`, error, "error");
-				return { type: "error", data: [], error: "Error querying player data" };
+				let errorMessage = "Error querying player data";
+				if (error instanceof Error) {
+					if (error.message.includes("Unknown function")) {
+						errorMessage = "Generated query used an unsupported Neo4j function";
+					} else {
+						errorMessage = error.message;
+					}
+				}
+				return { type: "error", data: [], error: errorMessage };
 			}
 		}
 
@@ -914,7 +956,34 @@ export class ChatbotService {
 	 */
 	private metricNeedsMatchDetail(metric: string): boolean {
 		// Metrics that need MatchDetail join (including complex calculations)
-		const matchDetailMetrics = ["ALLGSC", "GI", "HOME", "AWAY", "MPERG", "MPERCLS", "FTPPERAPP", "CPERAPP", "GPERAPP", "GK", "DEF", "MID", "FWD", "DIST", "MOSTSCOREDFORTEAM", "MOSTPLAYEDFORTEAM", "FTP", "POINTS", "FANTASYPOINTS"];
+		const matchDetailMetrics = [
+			"ALLGSC",
+			"GI",
+			"HOME",
+			"AWAY",
+			"HOMEGAMES",
+			"AWAYGAMES",
+			"HOMEWINS",
+			"AWAYWINS",
+			"HOMEGAMES%WON",
+			"AWAYGAMES%WON",
+			"GAMES%WON",
+			"MPERG",
+			"MPERCLS",
+			"FTPPERAPP",
+			"CPERAPP",
+			"GPERAPP",
+			"GK",
+			"DEF",
+			"MID",
+			"FWD",
+			"DIST",
+			"MOSTSCOREDFORTEAM",
+			"MOSTPLAYEDFORTEAM",
+			"FTP",
+			"POINTS",
+			"FANTASYPOINTS",
+		];
 
 		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
 		if (metric.match(/^\d+sApps$/i)) {
@@ -1031,14 +1100,22 @@ export class ChatbotService {
 				return "count(DISTINCT md) as value";
 			case "AWAY":
 				return "count(DISTINCT md) as value";
+			case "HOMEGAMES":
+				return "count(DISTINCT md) as value";
+			case "AWAYGAMES":
+				return "count(DISTINCT md) as value";
+			case "HOMEWINS":
+				return "count(DISTINCT md) as value";
+			case "AWAYWINS":
+				return "count(DISTINCT md) as value";
 			case "GK":
-				return "count(md) as value";
+				return "coalesce(count(md), 0) as value";
 			case "DEF":
-				return "count(md) as value";
+				return "coalesce(count(md), 0) as value";
 			case "MID":
-				return "count(md) as value";
+				return "coalesce(count(md), 0) as value";
 			case "FWD":
-				return "count(md) as value";
+				return "coalesce(count(md), 0) as value";
 			case "DIST":
 				return "coalesce(sum(md.distance), 0) as value";
 			case "FTP":
@@ -1184,17 +1261,36 @@ export class ChatbotService {
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
 			metric.match(/^\d+sGoals$/i) ||
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
-		const needsFixture =
-			(!isTeamSpecificMetric && teamEntities.length > 0) ||
-			locations.length > 0 ||
+		const metricUpper = metric.toUpperCase();
+		const isPositionMetric = ["GK", "DEF", "MID", "FWD"].includes(metricUpper);
+		const fixtureDependentMetrics = new Set([
+			"HOME",
+			"AWAY",
+			"HOMEGAMES",
+			"AWAYGAMES",
+			"HOMEWINS",
+			"AWAYWINS",
+			"HOMEGAMES%WON",
+			"AWAYGAMES%WON",
+			"GAMES%WON",
+		]);
+		const isSeasonalMetric = metric.match(/\d{4}\/\d{2}(GOALS|APPS|ASSISTS|CLEANSHEETS|SAVES|YELLOWCARDS|REDCARDS|MOM|PENALTIESSCORED|PENALTIESMISSED|PENALTIESSAVED|PENALTIESTAKEN|PENALTIESCONCEDED|OWNGOALS|CONCEDED|FANTASYPOINTS|DISTANCE)/i) !== null;
+
+		// For team-specific metrics (appearances/goals for specific teams), we don't need fixtures
+		// Team filtering is done on md.team property, not f.team
+		let needsFixture = isTeamSpecificMetric ? false :
+			(teamEntities.length > 0) ||
+			(locations.length > 0 && !fixtureDependentMetrics.has(metricUpper)) ||
 			timeRange ||
 			oppositionEntities.length > 0 ||
-			metric === "HOME" ||
-			metric === "AWAY" ||
+			fixtureDependentMetrics.has(metricUpper) ||
 			(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
 			(analysis.competitions && analysis.competitions.length > 0) ||
 			(analysis.results && analysis.results.length > 0) ||
 			analysis.opponentOwnGoals === true;
+		if (!needsFixture && isSeasonalMetric) {
+			needsFixture = true;
+		}
 
 		// Build base query structure
 		let query: string;
@@ -1215,8 +1311,8 @@ export class ChatbotService {
 				`;
 			} else {
 				// Use simple MatchDetail query for queries that don't need fixture data
-				// For team-specific metrics, use OPTIONAL MATCH to ensure we always return a row
-				if (isTeamSpecificMetric) {
+				// For team-specific or position metrics, use OPTIONAL MATCH to ensure we always return a row
+				if (isTeamSpecificMetric || isPositionMetric) {
 					query = `
 						MATCH (p:Player {playerName: $playerName})
 						OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
@@ -1229,7 +1325,30 @@ export class ChatbotService {
 			}
 
 			// Build WHERE conditions using helper method (pre-computed and optimized)
-			const whereConditions = this.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+			let whereConditions = this.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+
+			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
+			// (we'll filter in WITH clause instead to ensure we always return a row)
+			let teamNameForWithClause = "";
+			if ((isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				if (metric.match(/^\d+sApps$/i)) {
+					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
+					if (teamNumber) {
+						teamNameForWithClause = this.mapTeamName(`${teamNumber}s`);
+					}
+				} else if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
+					if (teamMatch) {
+						teamNameForWithClause = teamMatch[1] + " XI";
+					}
+				}
+				
+				if (teamNameForWithClause) {
+					// Remove team filter from WHERE conditions
+					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+				}
+			}
 
 			// Add WHERE clause if we have conditions
 			// Optimize condition order: put most selective conditions first
@@ -1238,7 +1357,7 @@ export class ChatbotService {
 				query += ` WHERE ${optimizedConditions.join(" AND ")}`;
 			}
 
-			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WITH clause
+			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WHERE clause or WITH clause
 			if (isTeamSpecificMetric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
 				let teamName = "";
@@ -1262,6 +1381,17 @@ export class ChatbotService {
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamName}')] END as filteredDetails`;
 					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END + CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) END as totalGoals`;
 					query += ` RETURN p.playerName as playerName, totalGoals as value`;
+				} else {
+					query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
+				}
+			} else if (isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				if (teamNameForWithClause) {
+					// Use WITH clause to aggregate and filter by team
+					// Ensure we always return a row even when there are no MatchDetail records
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
 				} else {
 					query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
 				}
@@ -1303,13 +1433,26 @@ export class ChatbotService {
 		} else if (metric.toUpperCase() === "MPERCLS" || metric === "MperCLS") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WITH p, 
+				OPTIONAL MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md)
+				WITH p,
 					sum(coalesce(md.minutes, 0)) as totalMinutes,
-					sum(CASE WHEN coalesce(f.conceded, 0) = 0 THEN 1 ELSE 0 END) as totalCleanSheets
+					sum(
+						CASE 
+							WHEN md.cleanSheets IS NOT NULL AND md.cleanSheets <> "" THEN coalesce(md.cleanSheets, 0)
+							WHEN f IS NOT NULL AND coalesce(f.conceded, 0) = 0 THEN 1
+							ELSE 0
+						END
+					) as matchDerivedCleanSheets,
+					coalesce(p.cleanSheets, 0) as playerCleanSheets
+				WITH p, totalMinutes,
+					CASE 
+						WHEN matchDerivedCleanSheets > 0 THEN matchDerivedCleanSheets
+						WHEN playerCleanSheets > 0 THEN playerCleanSheets
+						ELSE 0
+					END as totalCleanSheets
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN totalCleanSheets > 0 THEN toInteger(round(totalMinutes / totalCleanSheets))
+						WHEN totalCleanSheets > 0 THEN toInteger(round(toFloat(totalMinutes) / toFloat(totalCleanSheets)))
 						ELSE 0 
 					END as value
 			`;
@@ -1572,6 +1715,25 @@ export class ChatbotService {
 					RETURN p.playerName as playerName, team as value
 				`;
 			}
+		} else if (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
+				WITH p, collect(DISTINCT md.team) as teams
+				RETURN p.playerName as playerName, size(teams) as value
+			`;
+		} else if (metric === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				WHERE md.season IS NOT NULL AND md.season <> ""
+				WITH p, collect(DISTINCT md.season) as playerSeasons
+				MATCH (allFixtures:Fixture {graphLabel: $graphLabel})
+				WHERE allFixtures.season IS NOT NULL AND allFixtures.season <> ""
+				WITH p, size(playerSeasons) as playerSeasonCount, collect(DISTINCT allFixtures.season) as allSeasons
+				RETURN p.playerName as playerName,
+				       playerSeasonCount,
+				       size(allSeasons) as totalSeasonCount
+			`;
 		} else if (metric === "SEASON_ANALYSIS") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
@@ -1620,6 +1782,7 @@ export class ChatbotService {
 			const statMetrics = analysis.metrics || [];
 			let statField = "goals"; // Default to goals
 			let statDisplayName = "goals";
+			const questionLower = analysis.question?.toLowerCase() || "";
 			
 			// Map metric keys to MatchDetail property names
 			const statFieldMap: Record<string, { field: string; displayName: string }> = {
@@ -1660,14 +1823,26 @@ export class ChatbotService {
 				}
 			}
 			
+			const mentionsGoals = questionLower.includes("goal") || questionLower.includes("scor");
+			const mentionsAssists = questionLower.includes("assist");
+			if (mentionsGoals && !mentionsAssists) {
+				statField = "goals";
+				statDisplayName = "goals";
+			}
+
 			// Store the stat field and display name in analysis for response generation
 			(analysis as any).mostScoredForTeamStatField = statField;
 			(analysis as any).mostScoredForTeamStatDisplayName = statDisplayName;
+
+			const statAggregationExpression =
+				statField === "goals"
+					? `sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END)`
+					: `sum(CASE WHEN md.${statField} IS NULL OR md.${statField} = "" THEN 0 ELSE md.${statField} END)`;
 			
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
-				WITH p, md.team as team, sum(CASE WHEN md.${statField} IS NULL OR md.${statField} = "" THEN 0 ELSE md.${statField} END) as statValue
+				WITH p, md.team as team, ${statAggregationExpression} as statValue
 				WITH p, team, statValue,
 					CASE 
 						WHEN team = "1st XI" THEN 1
@@ -1702,6 +1877,23 @@ export class ChatbotService {
 		locations: Array<{ type: string; value: string }>,
 	): string[] {
 		const whereConditions: string[] = [];
+		const metricUpper = metric.toUpperCase();
+		const questionLower = (analysis.question || "").toLowerCase();
+		const explicitLocationKeywords = [
+			"home",
+			"at home",
+			"home game",
+			"home match",
+			"away",
+			"away game",
+			"away match",
+			"away from home",
+			"on the road",
+			"their ground",
+			"our ground",
+			"pixham",
+		];
+		const hasExplicitLocation = explicitLocationKeywords.some((keyword) => questionLower.includes(keyword));
 
 		// Add team filter if specified (but skip if we have a team-specific metric - those use md.team instead)
 		if (teamEntities.length > 0 && !isTeamSpecificMetric) {
@@ -1750,18 +1942,42 @@ export class ChatbotService {
 			}
 		}
 
-		// Add location filter if specified (only if not already handled by metric, and not for team-specific metrics)
-		if (locations.length > 0 && metric !== "HOME" && metric !== "AWAY" && !isTeamSpecificMetric) {
-			const locationFilters = locations
-				.map((loc) => {
-					if (loc.type === "home") return `f.homeOrAway = 'Home'`;
-					if (loc.type === "away") return `f.homeOrAway = 'Away'`;
-					return null;
-				})
-				.filter(Boolean);
-			if (locationFilters.length > 0) {
-				whereConditions.push(`(${locationFilters.join(" OR ")})`);
+		const metricHandlesLocation = ["HOME", "AWAY", "HOMEGAMES", "AWAYGAMES", "HOMEWINS", "AWAYWINS"].includes(metricUpper);
+		
+		// Check if metric is team-specific appearance or goals metric (used in multiple places)
+		const isTeamSpecificAppearanceOrGoals = !!(metric.match(/^\d+sApps$/i) || 
+			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
+			metric.match(/^\d+sGoals$/i) ||
+			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
+
+		// CRITICAL: Never add location filters for team-specific metrics, even if Home/Away was incorrectly detected
+		// This prevents issues where "how" was incorrectly matched to "Home" stat type
+		if (!isTeamSpecificMetric && !isTeamSpecificAppearanceOrGoals) {
+			// Add location filter if specified (only if not already handled by metric)
+			if (locations.length > 0 && hasExplicitLocation && !metricHandlesLocation) {
+				const locationFilters = locations
+					.map((loc) => {
+						if (loc.type === "home") return `f.homeOrAway = 'Home'`;
+						if (loc.type === "away") return `f.homeOrAway = 'Away'`;
+						return null;
+					})
+					.filter(Boolean);
+				if (locationFilters.length > 0) {
+					whereConditions.push(`(${locationFilters.join(" OR ")})`);
+				}
 			}
+		}
+
+		if (metricUpper === "HOMEWINS") {
+			whereConditions.push(`f.homeOrAway = 'Home'`);
+		} else if (metricUpper === "AWAYWINS") {
+			whereConditions.push(`f.homeOrAway = 'Away'`);
+		}
+
+		if (metricUpper === "HOMEWINS" || metricUpper === "AWAYWINS") {
+			whereConditions.push(
+				`(toUpper(coalesce(f.result, "")) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W'))`,
+			);
 		}
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -1841,20 +2057,20 @@ export class ChatbotService {
 		}
 
 		// Add special metric filters
-		if (metric === "HOME") {
+		if (metricUpper === "HOME" || metricUpper === "HOMEGAMES") {
 			whereConditions.push(`f.homeOrAway = 'Home'`);
-		} else if (metric === "AWAY") {
+		} else if (metricUpper === "AWAY" || metricUpper === "AWAYGAMES") {
 			whereConditions.push(`f.homeOrAway = 'Away'`);
 		}
 
 		// Add position filters for position-specific metrics
-		if (metric === "GK") {
+		if (metricUpper === "GK") {
 			whereConditions.push(`md.class = 'GK'`);
-		} else if (metric === "DEF") {
+		} else if (metricUpper === "DEF") {
 			whereConditions.push(`md.class = 'DEF'`);
-		} else if (metric === "MID") {
+		} else if (metricUpper === "MID") {
 			whereConditions.push(`md.class = 'MID'`);
-		} else if (metric === "FWD") {
+		} else if (metricUpper === "FWD") {
 			whereConditions.push(`md.class = 'FWD'`);
 		}
 
@@ -1865,6 +2081,14 @@ export class ChatbotService {
 				const season = seasonMatch[1];
 				whereConditions.push(`f.season = "${season}"`);
 			}
+		}
+
+		const hasDirectionalLocation = locations.some((loc) => loc.type === "home" || loc.type === "away");
+		const shouldKeepLocationFilters = metricHandlesLocation || (hasExplicitLocation && hasDirectionalLocation);
+		
+		// For team-specific metrics, never keep location filters (isTeamSpecificAppearanceOrGoals already declared above)
+		if (!shouldKeepLocationFilters || isTeamSpecificMetric || isTeamSpecificAppearanceOrGoals) {
+			return whereConditions.filter((condition) => !condition.includes("f.homeOrAway"));
 		}
 
 		return whereConditions;
@@ -2124,6 +2348,17 @@ export class ChatbotService {
 					answer = `${playerName} has scored 0 goals.`;
 				}
 			}
+			// Handle position metrics with zero results
+			else if (metric && typeof metric === 'string' && ["GK", "DEF", "MID", "FWD"].includes(metric.toUpperCase())) {
+				const positionDisplayNames: Record<string, string> = {
+					"GK": "goalkeeper",
+					"DEF": "defender",
+					"MID": "midfielder",
+					"FWD": "forward",
+				};
+				const positionDisplayName = positionDisplayNames[metric.toUpperCase()] || metric.toLowerCase();
+				answer = `${playerName} has never played as a ${positionDisplayName}.`;
+			}
 			// Check if this is a "MostScoredForTeam" query that returned empty results
 			else if (metric === "MostScoredForTeam") {
 				// If player hasn't scored for any team
@@ -2286,30 +2521,34 @@ export class ChatbotService {
 							(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
 							(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
 						) {
-						// For team counting questions
-						const teamsPlayedFor = value || 0;
-						if (teamsPlayedFor === 0) {
-							answer = `${playerName} has not played for any of the club's teams yet.`;
-						} else if (teamsPlayedFor === 1) {
-							answer = `${playerName} has played for 1 of the club's 9 teams.`;
-						} else {
-							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 9 teams.`;
+							// For team counting questions
+							const teamsPlayedFor = value || 0;
+							if (teamsPlayedFor === 0) {
+								answer = `${playerName} has not played for any of the club's teams yet.`;
+							} else if (teamsPlayedFor === 1) {
+								answer = `${playerName} has played for 1 of the club's 9 teams.`;
+							} else {
+								answer = `${playerName} has played for ${teamsPlayedFor} of the club's 9 teams.`;
+							}
+						} else if (questionLower.includes("what team has") || questionLower.includes("which team has")) {
+							// Use the actual query results from Cypher
+							const teamName = String(value || ""); // e.g., "3rd XI"
+							if (teamName && teamName !== "0" && teamName !== "") {
+								// Convert team name to expected format (e.g., "3rd XI" -> "3s")
+								const teamDisplayName = teamName
+									.replace("1st XI", "1s")
+									.replace("2nd XI", "2s") 
+									.replace("3rd XI", "3s")
+									.replace("4th XI", "4s")
+									.replace("5th XI", "5s")
+									.replace("6th XI", "6s")
+									.replace("7th XI", "7s")
+									.replace("8th XI", "8s");
+								answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
+							} else {
+								answer = `${playerName} has not made any appearances yet.`;
+							}
 						}
-					} else if (questionLower.includes("what team has") && questionLower.includes("made the most appearances for")) {
-						// Use the actual query results from Cypher
-						const teamName = String(value); // e.g., "3rd XI"
-						// Convert team name to expected format (e.g., "3rd XI" -> "3s")
-						const teamDisplayName = teamName
-							.replace("1st XI", "1s")
-							.replace("2nd XI", "2s") 
-							.replace("3rd XI", "3s")
-							.replace("4th XI", "4s")
-							.replace("5th XI", "5s")
-							.replace("6th XI", "6s")
-							.replace("7th XI", "7s")
-							.replace("8th XI", "8s");
-						answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
-					}
 				} else if (metric === "MostScoredForTeam") {
 					// For "What team has player scored the most X for?" questions (goals, assists, yellow cards, etc.)
 					const questionLower = question.toLowerCase();
@@ -2354,24 +2593,28 @@ export class ChatbotService {
 					// For "How many seasons has player played?" questions
 					const playerData = data.data[0] as { value: number; firstSeason: string };
 					answer = `${playerName} has played for ${playerData.value} seasons, starting in ${playerData.firstSeason}`;
+				} else if (metric === "NumberSeasonsPlayedFor") {
+					// For "How many seasons has player played in?" questions
+					const playerData = data.data[0] as { playerSeasonCount?: number; totalSeasonCount?: number };
+					const playerSeasonCount = playerData?.playerSeasonCount ?? Number(value) ?? 0;
+					const totalSeasonCount = playerData?.totalSeasonCount ?? 0;
+					if (totalSeasonCount > 0) {
+						answer = `${playerName} has played for ${playerSeasonCount}/${totalSeasonCount} of the club's stat recorded seasons.`;
+					} else {
+						// Fallback: try to get total seasons from all fixtures
+						answer = `${playerName} has played for ${playerSeasonCount} seasons.`;
+					}
 				} else if (metric === "NumberTeamsPlayedFor") {
 					// For "How many of the clubs teams has player played for?" questions
-					const questionLower = question.toLowerCase();
-					if (
-						(questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) ||
-						(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
-						(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
-					) {
-						// Use the actual query result from Cypher
-						const teamsPlayedFor = value || 0;
+					// Use the actual query result from Cypher
+					const teamsPlayedFor = Number(value) || 0;
+					const ratioText = `${teamsPlayedFor}/9`;
 
-						if (teamsPlayedFor === 0) {
-							answer = `${playerName} has not played for any of the club's teams yet.`;
-						} else if (teamsPlayedFor === 1) {
-							answer = `${playerName} has played for 1 of the club's 9 teams.`;
-						} else {
-							answer = `${playerName} has played for ${teamsPlayedFor} of the club's 9 teams.`;
-						}
+					if (teamsPlayedFor === 0) {
+						answer = `${playerName} has played for ${ratioText} of the club's teams so far.`;
+					} else {
+						const plural = teamsPlayedFor === 1 ? "team" : "teams";
+						answer = `${playerName} has played for ${ratioText} of the club's ${plural}.`;
 					}
 				} else if (metric === "GK" || metric === "DEF" || metric === "MID" || metric === "FWD") {
 					// For position queries (goalkeeper, defender, midfielder, forward)
@@ -2484,10 +2727,8 @@ export class ChatbotService {
 					// For team-specific appearance queries (e.g., "1sApps", "2sApps", etc.)
 					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
 					const teamName = this.mapTeamName(`${teamNumber}s`);
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
-						answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
-					}
+					// Always set answer since metric already confirms it's an appearance query
+					answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
 				} else if (metric && typeof metric === 'string' && metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
 					// For team-specific appearance queries (e.g., "1st XI Apps", "2nd XI Apps", etc.)
 					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
