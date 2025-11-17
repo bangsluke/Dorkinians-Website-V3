@@ -225,7 +225,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 					{/* Sidebar */}
 					<motion.div
-						className='fixed right-0 top-0 h-full w-full max-w-md bg-white/10 backdrop-blur-sm z-50 shadow-xl'
+						className='fixed right-0 top-0 h-full w-full max-w-md z-50 shadow-xl'
+						style={{ backgroundColor: '#0f0f0f' }}
 						initial={{ x: "100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "100%" }}
