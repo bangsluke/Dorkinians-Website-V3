@@ -447,8 +447,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
 		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
 
+		// CRITICAL FIX: Detect home/away games queries and convert Home/Away to Home Games/Away Games
+		const homeAwayGamesCorrectedStats = this.correctHomeAwayGamesQueries(gamesCorrectedStats);
+
 		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
-		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(gamesCorrectedStats);
+		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(homeAwayGamesCorrectedStats);
 
 		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
 		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
@@ -541,6 +544,8 @@ export class EnhancedQuestionAnalyzer {
 					"Games % Won",
 					"Home Wins",
 					"Away Wins",
+					"Home Games", // Location-specific games (higher priority than general Apps/Games)
+					"Away Games", // Location-specific games (higher priority than general Apps/Games)
 					"Goals Conceded",
 					"Open Play Goals",
 					"Penalties Scored",
@@ -639,6 +644,8 @@ export class EnhancedQuestionAnalyzer {
 			"Games % Won",
 			"Home Wins",
 			"Away Wins",
+			"Home Games", // Location-specific games (higher priority than general Apps/Games)
+			"Away Games", // Location-specific games (higher priority than general Apps/Games)
 			"Goals Conceded", // More specific than general goals
 			"Open Play Goals", // More specific than general goals
 			"Penalties Scored", // More specific than general goals
@@ -846,6 +853,19 @@ export class EnhancedQuestionAnalyzer {
 			return statType.replace(" Saves", "Saves");
 		}
 
+		// Handle team-specific appearance metrics in "3rd XI Apps" format
+		const teamAppsPattern = /^(\d+)(?:st|nd|rd|th)\s+XI\s+Apps$/i;
+		const teamAppsMatch = statType.match(teamAppsPattern);
+		if (teamAppsMatch) {
+			const teamNum = teamAppsMatch[1];
+			return `${teamNum}sApps`; // Convert "3rd XI Apps" -> "3sApps"
+		}
+
+		// Handle team-specific appearance metrics (3sApps, 4sApps, etc.)
+		if (/^\d+sApps$/i.test(statType)) {
+			return statType; // Return as-is (e.g., "3sApps" -> "3sApps")
+		}
+
 		return mapping[statType] || statType;
 	}
 
@@ -973,7 +993,8 @@ export class EnhancedQuestionAnalyzer {
 						/(appearances?|apps?|games?)\s+.*?\s+(?:for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
 						/(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i,
 						/(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
-						/(?:what\s+is\s+the\s+)?(appearance\s+count|count).*?(?:playing|played)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
+						/(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+[^f]+?\s+)?(?:playing\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)|for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth))/i,
+						/(?:provide|give).*?(?:appearance\s+count|apps?|appearances?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i,
 					];
 					return patterns.some(p => p.test(q));
 				},
@@ -1191,6 +1212,58 @@ export class EnhancedQuestionAnalyzer {
 	}
 
 	/**
+	 * Corrects home/away games queries - converts "Home" to "Home Games" and "Away" to "Away Games"
+	 */
+	private correctHomeAwayGamesQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect home games queries
+		const homeGamesPatterns = [
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/home\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/games?\s+at\s+home/i,
+			/games?\s+played\s+at\s+home/i,
+		];
+
+		// Patterns to detect away games queries
+		const awayGamesPatterns = [
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/away\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/games?\s+away/i,
+			/games?\s+played\s+away/i,
+		];
+
+		const isHomeGamesQuery = homeGamesPatterns.some(pattern => pattern.test(lowerQuestion));
+		const isAwayGamesQuery = awayGamesPatterns.some(pattern => pattern.test(lowerQuestion));
+
+		if (isHomeGamesQuery || isAwayGamesQuery) {
+			// Filter out "Home", "Away", "Apps", "Games", "Appearances" if present
+			const filteredStats = statTypes.filter((stat) => 
+				!["Home", "Away", "Apps", "Games", "Appearances"].includes(stat.value)
+			);
+
+			// Add the correct metric
+			if (isHomeGamesQuery) {
+				filteredStats.push({
+					value: "Home Games",
+					originalText: "home games",
+					position: lowerQuestion.indexOf("home games") !== -1 ? lowerQuestion.indexOf("home games") : lowerQuestion.indexOf("home"),
+				});
+			} else if (isAwayGamesQuery) {
+				filteredStats.push({
+					value: "Away Games",
+					originalText: "away games",
+					position: lowerQuestion.indexOf("away games") !== -1 ? lowerQuestion.indexOf("away games") : lowerQuestion.indexOf("away"),
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
 	 * Corrects team-specific appearance queries
 	 */
 	private correctTeamSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
@@ -1202,14 +1275,14 @@ export class EnhancedQuestionAnalyzer {
 		// Pattern 2: "Xs appearances/apps/games" (team first)
 		const teamAppearancePattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i;
 		// Pattern 3: "appearance count for Xs" or "Xs appearance count" or "appearance count for X playing for Ys"
-		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+.*?\s+)?(?:playing\s+for\s+(?:the\s+)?|for\s+(?:the\s+)?)(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+[^f]+?\s+)?(?:playing\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)|for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth))/i;
 		// Pattern 4: "how many times...played for Xs"
 		const teamAppearancePattern4 = /(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 5: "games for Xs has...played"
 		const teamAppearancePattern5 = /(?:games?|appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:played|made|achieved)/i;
 		// Pattern 6: "appearances for Xs...made/achieved"
 		const teamAppearancePattern6 = /(appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:made|achieved|has)/i;
-		// Pattern 7: "provide...appearance count for Xs"
+		// Pattern 7: "provide...appearance count for Xs" or "provide me with [player] appearance count for Xs"
 		const teamAppearancePattern7 = /(?:provide|give).*?(?:appearance\s+count|apps?|appearances?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 8: "how many times has X played for Ys"
 		const teamAppearancePattern8 = /(?:how\s+many\s+times|times)\s+has\s+.*?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
@@ -1231,7 +1304,8 @@ export class EnhancedQuestionAnalyzer {
 			} else {
 				match = lowerQuestion.match(teamAppearancePattern3);
 				if (match) {
-					teamReference = match[2].toLowerCase();
+					// Pattern 3 has team reference in match[2] (playing for) or match[3] (for)
+					teamReference = (match[2] || match[3]).toLowerCase();
 					appearanceTerm = "appearances";
 				} else {
 					match = lowerQuestion.match(teamAppearancePattern4);
@@ -1276,12 +1350,17 @@ export class EnhancedQuestionAnalyzer {
 		if (match && teamReference) {
 			const teamInfo = this.mapTeamReference(teamReference);
 			if (teamInfo) {
-				// Filter out ALL appearance-related metrics and per-appearance metrics
+				// Filter out ALL appearance-related metrics, per-appearance metrics, and Home/Away metrics
+				// Home/Away should never be included in team-specific appearance queries
 				const filteredStats = statTypes.filter((stat) =>
 					![
 						"Appearances",
 						"Apps",
 						"Games",
+						"Home",
+						"Away",
+						"Home Games",
+						"Away Games",
 						"Goals Per Appearance",
 						"GperAPP",
 						"Assists Per Appearance",
@@ -1302,7 +1381,7 @@ export class EnhancedQuestionAnalyzer {
 					].includes(stat.value),
 				);
 
-				const canonicalMetric = `${teamInfo.shortCode}Apps`;
+				const canonicalMetric = `${teamInfo.xiName} Apps`;
 				const appearanceKeyword = appearanceTerm ? appearanceTerm.split(/\s+/)[0] : "played";
 				const appearancePosition = lowerQuestion.indexOf(appearanceKeyword);
 				const metricPosition =

@@ -1312,6 +1312,12 @@ export class EntityExtractor {
 	}
 
 	private async findBestStatTypeMatchWithContext(word: string, existingStatTypes: StatTypeInfo[]): Promise<string | null> {
+		// Skip question words - they should never match to stat types
+		const questionWords = ["how", "what", "which", "who", "where", "when", "why", "has", "have", "did", "does", "was", "were", "is", "are"];
+		if (questionWords.includes(word.toLowerCase())) {
+			return null;
+		}
+
 		// Get all stat type pseudonyms
 		const allPseudonyms: string[] = [];
 		Object.values(STAT_TYPE_PSEUDONYMS).forEach((pseudonyms) => {
@@ -1320,6 +1326,27 @@ export class EntityExtractor {
 
 		// Find the best match using the entity resolver
 		const bestMatch = await this.entityResolver.getBestMatch(word, "stat_type");
+
+		// Special handling: If bestMatch is "Home" or "Away", verify there's actual location context
+		if (bestMatch === "Home" || bestMatch === "Away") {
+			// Check if question explicitly mentions home/away with location keywords
+			const explicitLocationPatterns = [
+				/\bhome\s+games?\b/i,
+				/\baway\s+games?\b/i,
+				/\bat\s+home\b/i,
+				/\baway\s+from\s+home\b/i,
+				/\bon\s+the\s+road\b/i,
+				/\bhome\s+ground\b/i,
+				/\baway\s+ground\b/i,
+			];
+			const hasExplicitLocation = explicitLocationPatterns.some(pattern => pattern.test(this.lowerQuestion));
+			
+			// Only allow Home/Away stat type if there's explicit location context
+			// Don't match if it's just the word "home" or "away" without context
+			if (!hasExplicitLocation) {
+				return null;
+			}
+		}
 
 		// If no match found, try manual fuzzy matching with context awareness
 		if (!bestMatch) {

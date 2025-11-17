@@ -546,6 +546,40 @@ export class ChatbotService {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
 
+			// Log unanswered question when error occurs (fire-and-forget, non-blocking)
+			unansweredQuestionLogger.log({
+				originalQuestion,
+				correctedQuestion,
+				analysis: this.lastQuestionAnalysis || {
+					type: "general",
+					entities: [],
+					metrics: [],
+					extractionResult: {
+						entities: [],
+						statTypes: [],
+						statIndicators: [],
+						questionTypes: [],
+						negativeClauses: [],
+						locations: [],
+						timeFrames: [],
+						competitionTypes: [],
+						competitions: [],
+						results: [],
+						opponentOwnGoals: false,
+						goalInvolvements: false,
+					},
+					complexity: "simple",
+					requiresClarification: false,
+					question: context.question,
+					confidence: 0,
+					message: error instanceof Error ? error.message : String(error),
+				},
+				confidence: this.lastQuestionAnalysis?.confidence || 0,
+				userContext: context.userContext,
+			}).catch((err) => {
+				console.error("❌ Failed to log unanswered question:", err);
+			});
+
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
 			const errorMessage = await errorHandler.generateErrorResponse(errorObj, {
@@ -1291,7 +1325,30 @@ export class ChatbotService {
 			}
 
 			// Build WHERE conditions using helper method (pre-computed and optimized)
-			const whereConditions = this.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+			let whereConditions = this.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+
+			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
+			// (we'll filter in WITH clause instead to ensure we always return a row)
+			let teamNameForWithClause = "";
+			if ((isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				if (metric.match(/^\d+sApps$/i)) {
+					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
+					if (teamNumber) {
+						teamNameForWithClause = this.mapTeamName(`${teamNumber}s`);
+					}
+				} else if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
+					if (teamMatch) {
+						teamNameForWithClause = teamMatch[1] + " XI";
+					}
+				}
+				
+				if (teamNameForWithClause) {
+					// Remove team filter from WHERE conditions
+					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+				}
+			}
 
 			// Add WHERE clause if we have conditions
 			// Optimize condition order: put most selective conditions first
@@ -1300,7 +1357,7 @@ export class ChatbotService {
 				query += ` WHERE ${optimizedConditions.join(" AND ")}`;
 			}
 
-			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WITH clause
+			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WHERE clause or WITH clause
 			if (isTeamSpecificMetric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
 				let teamName = "";
@@ -1324,6 +1381,17 @@ export class ChatbotService {
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamName}')] END as filteredDetails`;
 					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END + CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) END as totalGoals`;
 					query += ` RETURN p.playerName as playerName, totalGoals as value`;
+				} else {
+					query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
+				}
+			} else if (isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				if (teamNameForWithClause) {
+					// Use WITH clause to aggregate and filter by team
+					// Ensure we always return a row even when there are no MatchDetail records
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
 				} else {
 					query += ` RETURN p.playerName as playerName, ${this.getMatchDetailReturnClause(metric)}`;
 				}
@@ -1882,18 +1950,21 @@ export class ChatbotService {
 			metric.match(/^\d+sGoals$/i) ||
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
 
-		// Add location filter if specified (only if not already handled by metric, and not for team-specific metrics)
-		// Also exclude if this is a team-specific appearance/goals query - these should not have location filters
-		if (locations.length > 0 && hasExplicitLocation && !metricHandlesLocation && !isTeamSpecificMetric && !isTeamSpecificAppearanceOrGoals) {
-			const locationFilters = locations
-				.map((loc) => {
-					if (loc.type === "home") return `f.homeOrAway = 'Home'`;
-					if (loc.type === "away") return `f.homeOrAway = 'Away'`;
-					return null;
-				})
-				.filter(Boolean);
-			if (locationFilters.length > 0) {
-				whereConditions.push(`(${locationFilters.join(" OR ")})`);
+		// CRITICAL: Never add location filters for team-specific metrics, even if Home/Away was incorrectly detected
+		// This prevents issues where "how" was incorrectly matched to "Home" stat type
+		if (!isTeamSpecificMetric && !isTeamSpecificAppearanceOrGoals) {
+			// Add location filter if specified (only if not already handled by metric)
+			if (locations.length > 0 && hasExplicitLocation && !metricHandlesLocation) {
+				const locationFilters = locations
+					.map((loc) => {
+						if (loc.type === "home") return `f.homeOrAway = 'Home'`;
+						if (loc.type === "away") return `f.homeOrAway = 'Away'`;
+						return null;
+					})
+					.filter(Boolean);
+				if (locationFilters.length > 0) {
+					whereConditions.push(`(${locationFilters.join(" OR ")})`);
+				}
 			}
 		}
 
@@ -2656,10 +2727,8 @@ export class ChatbotService {
 					// For team-specific appearance queries (e.g., "1sApps", "2sApps", etc.)
 					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
 					const teamName = this.mapTeamName(`${teamNumber}s`);
-					const questionLower = question.toLowerCase();
-					if (questionLower.includes("appearances") || questionLower.includes("apps") || questionLower.includes("games")) {
-						answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
-					}
+					// Always set answer since metric already confirms it's an appearance query
+					answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"} for the ${teamName}.`;
 				} else if (metric && typeof metric === 'string' && metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
 					// For team-specific appearance queries (e.g., "1st XI Apps", "2nd XI Apps", etc.)
 					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
