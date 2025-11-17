@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, Fragment } from "react";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { getCachedAwardsData } from "@/lib/services/awardsPreloadService";
@@ -204,28 +206,49 @@ export default function ClubAwards() {
 				{/* Season Dropdown */}
 				{seasons.length > 0 && (
 					<div className='mb-6'>
-						<select
+						<Listbox
 							value={selectedSeason}
-							onChange={(e) => {
-								const newSeason = e.target.value;
+							onChange={(newSeason) => {
 								setSelectedSeason(newSeason);
 								// Cache selected season to localStorage
 								if (typeof window !== "undefined") {
 									localStorage.setItem(AWARDS_SELECTED_SEASON_KEY, newSeason);
 								}
-							}}
-							className='w-full text-white px-2 py-2 rounded focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow text-[0.65rem] md:text-sm'
-							style={{
-								background: "linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))",
-								border: "none",
-							}}
-						>
-							{seasons.map((season) => (
-								<option key={season} value={season} style={{ backgroundColor: "#0f0f0f", color: "white" }}>
-									{season}
-								</option>
-							))}
-						</select>
+							}}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
+									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
+										{selectedSeason || "Select season..."}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'>
+									{seasons.map((season) => (
+										<Listbox.Option
+											key={season}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={season}>
+											{({ selected }) => (
+												<>
+													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+														{season}
+													</span>
+													{selected ? (
+														<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
+															<CheckIcon className='h-5 w-5' aria-hidden='true' />
+														</span>
+													) : null}
+												</>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
 					</div>
 				)}
 			</div>

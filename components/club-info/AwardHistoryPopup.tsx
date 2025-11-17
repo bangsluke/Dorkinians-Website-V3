@@ -43,17 +43,17 @@ export default function AwardHistoryPopup({ playerName, onClose }: AwardHistoryP
 
 	return (
 		<div
-			className='fixed inset-0 flex items-center justify-center z-50 p-2'
-			style={{ backgroundColor: "rgba(15, 15, 15, 0.5)", height: "90vh", maxHeight: "100vh" }}
+			className='fixed inset-0 z-50'
+			style={{ backgroundColor: "rgba(15, 15, 15, 0.5)" }}
 			onClick={onClose}
 		>
 			<div
-				className='rounded-lg pt-6 pb-4 px-6 max-w-2xl w-full h-[95vh] flex flex-col overflow-hidden'
+				className='fixed inset-0 flex flex-col'
 				style={{ backgroundColor: "#0f0f0f" }}
 				onClick={(e) => e.stopPropagation()}
 			>
 				{/* Header - Fixed at top */}
-				<div className='flex-shrink-0 flex justify-between items-center mb-3'>
+				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
 					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
 					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
 						<XMarkIcon className='h-6 w-6' />
@@ -69,7 +69,7 @@ export default function AwardHistoryPopup({ playerName, onClose }: AwardHistoryP
 
 				{/* Scrollable content */}
 				<div
-					className='flex-1 overflow-y-auto min-h-0'
+					className='flex-1 overflow-y-auto min-h-0 px-6'
 					style={{
 						WebkitOverflowScrolling: "touch",
 					}}
@@ -110,6 +110,15 @@ export default function AwardHistoryPopup({ playerName, onClose }: AwardHistoryP
 							<p className='text-white text-sm md:text-base'>No award history found for this player.</p>
 						</div>
 					)}
+				</div>
+
+				{/* Close Button at Bottom */}
+				<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
+					<button
+						onClick={onClose}
+						className='px-8 py-3 bg-dorkinians-yellow text-black font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
+						Close
+					</button>
 				</div>
 			</div>
 		</div>

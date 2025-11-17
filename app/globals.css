@@ -265,16 +265,17 @@
 	}
 
 	.dark-dropdown {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
 		color: #f3f3f3;
 		border-radius: 14px;
 		box-shadow:
 			0 10px 25px rgba(0, 0, 0, 0.45),
 			0 2px 6px rgba(0, 0, 0, 0.35);
+		backdrop-filter: none;
 	}
 
 	.dark-dropdown-option {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.15));
 		color: #f3f3f3;
 		padding: 12px 16px;
 		transition: all 0.2s ease;
