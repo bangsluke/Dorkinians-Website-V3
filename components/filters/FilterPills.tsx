@@ -162,7 +162,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 						</span>
 						<button
 							onClick={pill.onRemove}
-							className='flex items-center justify-center w-4 h-4 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0'
+							className='flex items-center justify-center min-w-[40px] min-h-[40px] text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0'
 							aria-label={`Remove ${pill.label} filter`}>
 							<XMarkIcon className='w-4 h-4' />
 						</button>

@@ -77,6 +77,7 @@ export default function SettingsPage() {
 	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
 	const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
+		isSiteNavigationExpanded: false,
 		versionReleaseDetails: false,
 		updatesToCome: false,
 		statLimitations: false,
@@ -175,15 +176,34 @@ export default function SettingsPage() {
 			{/* Settings Content */}
 			<div className='h-full flex flex-col md:px-[15%]'>
 				{/* Header */}
-				<div className='flex items-center pt-2 pb-2'>
+				<div className='flex items-center pt-2 pb-2 px-6'>
 					<h1 className='text-2xl font-bold text-white'>Settings</h1>
 				</div>
 
 				{/* Navigation List */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 					<div className='space-y-4'>
-						<h2 className='text-lg font-semibold text-white pt-2 pb-2'>Available Screens</h2>
-						{navigationItems.map((item) => {
+						{/* Site Navigation - Collapsible */}
+						<motion.div
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
+							onClick={() => toggleCard("isSiteNavigationExpanded")}
+							whileHover={{ scale: 1.02 }}
+							whileTap={{ scale: 0.98 }}>
+							<div className='flex items-center justify-between'>
+								<h2 className='text-lg font-semibold text-white'>Site Navigation</h2>
+								<div className='text-dorkinians-yellow'>
+									<svg
+										className={`w-5 h-5 transition-transform ${expandedCards.isSiteNavigationExpanded ? "rotate-180" : ""}`}
+										fill='none'
+										stroke='currentColor'
+										viewBox='0 0 24 24'>
+										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+									</svg>
+								</div>
+							</div>
+							{expandedCards.isSiteNavigationExpanded && (
+								<div className='mt-4 space-y-2'>
+									{navigationItems.map((item) => {
 							const Icon = item.icon;
 							return (
 								<div key={item.id} className='space-y-2'>
@@ -236,6 +256,9 @@ export default function SettingsPage() {
 								</div>
 							);
 						})}
+						</div>
+					)}
+					</motion.div>
 					</div>
 
 					{/* Additional Settings Section */}

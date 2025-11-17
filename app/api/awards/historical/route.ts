@@ -114,12 +114,12 @@ export async function GET(request: NextRequest) {
 			entry.isPlayer = playerNames.has(receiverLower);
 		});
 
-		// Sort by season (oldest first), then by award name
+		// Sort by season (newest first), then by award name
 		allEntries.sort((a, b) => {
 			const aYear = parseInt(a.season.split("/")[0]);
 			const bYear = parseInt(b.season.split("/")[0]);
 			if (aYear !== bYear) {
-				return aYear - bYear;
+				return bYear - aYear;
 			}
 			return a.awardName.localeCompare(b.awardName);
 		});
