@@ -1474,7 +1474,7 @@ export const STAT_TEST_CONFIGS: TestConfig[] = [
 		key: "NumberTeamsPlayedFor",
 		metric: "numberTeamsPlayedFor",
 		questionTemplate: "How many of the clubs teams has {playerName} played for?",
-		responsePattern: /(\d+)/,
+		responsePattern: /(\d+\/\d+)/,
 		description: "Number of Teams Played For",
 	},
 	// Team-Specific Goals
@@ -1538,7 +1538,7 @@ export const STAT_TEST_CONFIGS: TestConfig[] = [
 		key: "MostScoredForTeam",
 		metric: "mostScoredForTeam",
 		questionTemplate: "Which team has {playerName} scored the most goals for?",
-		responsePattern: /([A-Za-z0-9\s]+)/,
+		responsePattern: /has scored the most goals for the (\d+s)/,
 		description: "Most Scored For Team",
 	},
 	// Seasonal Appearances
