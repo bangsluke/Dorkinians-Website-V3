@@ -156,13 +156,13 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 				{filterPills.map((pill) => (
 					<div
 						key={pill.key}
-						className='flex items-center gap-2 px-3 py-1.5 bg-gray-700/50 rounded-full text-sm flex-shrink-0'>
-						<span className='text-white whitespace-nowrap'>
+						className='flex items-center gap-2 px-3 py-1.5 bg-white rounded-full text-sm flex-shrink-0'>
+						<span className='text-gray-900 whitespace-nowrap'>
 							{pill.label}: {pill.value}
 						</span>
 						<button
 							onClick={pill.onRemove}
-							className='flex items-center justify-center w-4 h-4 text-gray-400 hover:text-white transition-colors flex-shrink-0'
+							className='flex items-center justify-center w-4 h-4 text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0'
 							aria-label={`Remove ${pill.label} filter`}>
 							<XMarkIcon className='w-4 h-4' />
 						</button>

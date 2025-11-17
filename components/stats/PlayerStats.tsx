@@ -38,9 +38,9 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				</td>
 			</tr>
 			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white bg-gray-800 rounded-lg shadow-lg w-64 text-center pointer-events-none'>
+				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
 					{stat.description}
-					<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800'></div>
+					<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent' style={{ borderTopColor: '#0f0f0f' }}></div>
 				</div>
 			)}
 		</>

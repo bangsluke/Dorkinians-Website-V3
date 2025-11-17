@@ -92,8 +92,8 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 				</div>
 
 				{/* Information */}
-				<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md'>
-					<p className='text-sm text-blue-800'>
+				<div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md'>
+					<p className='text-sm text-gray-800'>
 						If you would like your data to be removed from the Dorkinians FC website, please provide your name below and we will process your
 						request.
 					</p>
