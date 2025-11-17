@@ -491,7 +491,11 @@ export class EnhancedQuestionAnalyzer {
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
-		const hasGamesOrAppearances = lowerQuestion.includes("games") || lowerQuestion.includes("appearances") || lowerQuestion.includes("apps");
+		const hasGamesOrAppearances =
+			lowerQuestion.includes("games") ||
+			lowerQuestion.includes("appearances") ||
+			lowerQuestion.includes("apps") ||
+			lowerQuestion.includes("played");
 		const hasExplicitHome = lowerQuestion.includes("home games") || lowerQuestion.includes("home matches") || lowerQuestion.includes("at home");
 		const hasExplicitAway = lowerQuestion.includes("away games") || lowerQuestion.includes("away matches") || lowerQuestion.includes("away from home") || lowerQuestion.includes("on the road");
 		
@@ -1185,7 +1189,6 @@ export class EnhancedQuestionAnalyzer {
 	 */
 	private correctTeamSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
-		
 
 		// Enhanced team-specific appearance patterns to handle all variations
 		// Pattern 1: "appearances/apps/games for Xs" or "Xs appearances/apps/games"
@@ -1202,13 +1205,15 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern6 = /(appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:made|achieved|has)/i;
 		// Pattern 7: "provide...appearance count for Xs"
 		const teamAppearancePattern7 = /(?:provide|give).*?(?:appearance\s+count|apps?|appearances?).*?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
-		// Pattern 8: "how many times has X played for Ys" (missing pattern)
+		// Pattern 8: "how many times has X played for Ys"
 		const teamAppearancePattern8 = /(?:how\s+many\s+times|times)\s+has\s+.*?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
-		
+		// Pattern 9: direct "played/playing/appeared for Xs"
+		const teamAppearancePattern9 = /(played|playing|appeared|appearing)\s+(?:.*?\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+
 		let match = lowerQuestion.match(teamAppearancePattern1);
 		let teamReference: string | undefined;
 		let appearanceTerm: string | undefined;
-		
+
 		if (match) {
 			teamReference = match[2].toLowerCase();
 			appearanceTerm = match[1];
@@ -1247,6 +1252,12 @@ export class EnhancedQuestionAnalyzer {
 									if (match) {
 										teamReference = match[1].toLowerCase();
 										appearanceTerm = "times played";
+									} else {
+										match = lowerQuestion.match(teamAppearancePattern9);
+										if (match) {
+											teamReference = match[2].toLowerCase();
+											appearanceTerm = match[1];
+										}
 									}
 								}
 							}
@@ -1255,61 +1266,94 @@ export class EnhancedQuestionAnalyzer {
 				}
 			}
 		}
-		
-		if (match && teamReference && appearanceTerm) {
-			// Map team reference to database format
-			const teamMapping: { [key: string]: string } = {
-				"1s": "1st XI",
-				"2s": "2nd XI", 
-				"3s": "3rd XI",
-				"4s": "4th XI",
-				"5s": "5th XI",
-				"6s": "6th XI",
-				"7s": "7th XI",
-				"8s": "8th XI",
-				"1st": "1st XI",
-				"2nd": "2nd XI",
-				"3rd": "3rd XI", 
-				"4th": "4th XI",
-				"5th": "5th XI",
-				"6th": "6th XI",
-				"7th": "7th XI",
-				"8th": "8th XI",
-				"first": "1st XI",
-				"second": "2nd XI",
-				"third": "3rd XI",
-				"fourth": "4th XI",
-				"fifth": "5th XI",
-				"sixth": "6th XI",
-				"seventh": "7th XI",
-				"eighth": "8th XI"
-			};
-			
-			const mappedTeam = teamMapping[teamReference];
-			if (mappedTeam) {
+
+		if (match && teamReference) {
+			const teamInfo = this.mapTeamReference(teamReference);
+			if (teamInfo) {
 				// Filter out ALL appearance-related metrics and per-appearance metrics
-				const filteredStats = statTypes.filter((stat) => 
-					!["Appearances", "Apps", "Games", "Goals Per Appearance", "GperAPP", "Assists Per Appearance", 
-					  "APperAPP", "Minutes Per Appearance", "Saves Per Appearance", "Clean Sheets Per Appearance",
-					  "Yellow Cards Per Appearance", "Red Cards Per Appearance", "Own Goals Per Appearance",
-					  "Conceded Per Appearance", "Penalties Scored Per Appearance", "Penalties Missed Per Appearance",
-					  "Penalties Conceded Per Appearance", "Penalties Saved Per Appearance", "Fantasy Points Per Appearance",
-					  "Man of the Match Per Appearance"].includes(stat.value)
+				const filteredStats = statTypes.filter((stat) =>
+					![
+						"Appearances",
+						"Apps",
+						"Games",
+						"Goals Per Appearance",
+						"GperAPP",
+						"Assists Per Appearance",
+						"APperAPP",
+						"Minutes Per Appearance",
+						"Saves Per Appearance",
+						"Clean Sheets Per Appearance",
+						"Yellow Cards Per Appearance",
+						"Red Cards Per Appearance",
+						"Own Goals Per Appearance",
+						"Conceded Per Appearance",
+						"Penalties Scored Per Appearance",
+						"Penalties Missed Per Appearance",
+						"Penalties Conceded Per Appearance",
+						"Penalties Saved Per Appearance",
+						"Fantasy Points Per Appearance",
+						"Man of the Match Per Appearance",
+					].includes(stat.value),
 				);
-				const teamNumberForKeyMatch = mappedTeam.match(/^(\d+)/);
-				const teamNumberForKey = teamNumberForKeyMatch ? teamNumberForKeyMatch[1] : undefined;
-				const canonicalMetric = teamNumberForKey ? `${teamNumberForKey}sApps` : `${mappedTeam} Apps`;
-				// Add the new metric to the filtered stats
+
+				const canonicalMetric = `${teamInfo.shortCode}Apps`;
+				const appearanceKeyword = appearanceTerm ? appearanceTerm.split(/\s+/)[0] : "played";
+				const appearancePosition = lowerQuestion.indexOf(appearanceKeyword);
+				const metricPosition =
+					appearancePosition >= 0 ? appearancePosition : lowerQuestion.indexOf("appearances") >= 0 ? lowerQuestion.indexOf("appearances") : 0;
+
 				filteredStats.push({
 					value: canonicalMetric,
-					originalText: `${appearanceTerm} for ${teamReference}`,
-					position: lowerQuestion.indexOf(appearanceTerm || "appearances"),
+					originalText: match[0] || `${appearanceTerm || "appearances"} for ${teamInfo.xiName}`,
+					position: metricPosition,
 				});
 				return filteredStats;
 			}
 		}
 
 		return statTypes;
+	}
+
+	private mapTeamReference(teamReference: string): { xiName: string; shortCode: string } | null {
+		const normalizedReference = teamReference.trim().toLowerCase();
+		const wordToNumber: Record<string, string> = {
+			first: "1",
+			second: "2",
+			third: "3",
+			fourth: "4",
+			fifth: "5",
+			sixth: "6",
+			seventh: "7",
+			eighth: "8",
+		};
+		const ordinalMap: Record<string, string> = {
+			"1": "1st",
+			"2": "2nd",
+			"3": "3rd",
+			"4": "4th",
+			"5": "5th",
+			"6": "6th",
+			"7": "7th",
+			"8": "8th",
+		};
+
+		let teamNumber = normalizedReference.match(/\d+/)?.[0];
+		if (!teamNumber) {
+			const wordMatch = normalizedReference.match(/(first|second|third|fourth|fifth|sixth|seventh|eighth)/);
+			if (wordMatch) {
+				teamNumber = wordToNumber[wordMatch[1]];
+			}
+		}
+
+		if (!teamNumber || !ordinalMap[teamNumber]) {
+			return null;
+		}
+
+		const ordinalName = ordinalMap[teamNumber];
+		return {
+			xiName: `${ordinalName} XI`,
+			shortCode: `${teamNumber}s`,
+		};
 	}
 
 	private correctSeasonSpecificAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {

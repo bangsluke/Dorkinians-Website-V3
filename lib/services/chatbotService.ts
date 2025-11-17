@@ -1998,6 +1998,13 @@ export class ChatbotService {
 			}
 		}
 
+		const hasDirectionalLocation = locations.some((loc) => loc.type === "home" || loc.type === "away");
+		const shouldKeepLocationFilters = metricHandlesLocation || hasExplicitLocation || hasDirectionalLocation;
+
+		if (!shouldKeepLocationFilters) {
+			return whereConditions.filter((condition) => !condition.includes("f.homeOrAway"));
+		}
+
 		return whereConditions;
 	}
 
