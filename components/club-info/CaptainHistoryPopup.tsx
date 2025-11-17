@@ -61,7 +61,7 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 				</div>
 
 				{/* Summary Count - Fixed */}
-				<div className='flex-shrink-0 text-center mb-4'>
+				<div className='flex-shrink-0 text-center mb-4 pt-4'>
 					<p className='text-white text-lg md:text-xl font-bold'>
 						Total Captaincies: <span className='text-dorkinians-yellow'>{totalCaptaincies}</span>
 					</p>

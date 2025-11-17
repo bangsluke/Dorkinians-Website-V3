@@ -20,8 +20,8 @@ interface PlayerSelectionProps {
 }
 
 export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPlayer, selectedPlayer, isEditMode }: PlayerSelectionProps) {
-	const [localSelectedPlayer, setLocalSelectedPlayer] = useState("");
-	const [isSubmitted, setIsSubmitted] = useState(false);
+	const [localSelectedPlayer, setLocalSelectedPlayer] = useState(selectedPlayer || "");
+	const [isSubmitted, setIsSubmitted] = useState(!!selectedPlayer && !isEditMode);
 	const [query, setQuery] = useState("");
 	const [allPlayers, setAllPlayers] = useState<Player[]>([]);
 	const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
@@ -147,7 +147,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									</span>
 								</Listbox.Button>
 								<Listbox.Options
-									className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
+									className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
 									onKeyDown={(e) => {
 										// Prevent Listbox from handling text input keys
 										if (e.key === " " || e.key.length === 1) {
@@ -256,7 +256,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 								</span>
 							</Listbox.Button>
 							<Listbox.Options
-								className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
+								className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
 								onKeyDown={(e) => {
 									// Prevent Listbox from handling text input keys
 									if (e.key === " " || e.key.length === 1) {

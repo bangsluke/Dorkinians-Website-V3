@@ -123,6 +123,16 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 							<p className='text-xs text-gray-400 mt-1'>This will be included in the removal request email</p>
 						</div>
 
+						{/* Send Button */}
+						<div className='flex justify-center pt-2'>
+							<button
+								type='submit'
+								disabled={isSubmitting || !name.trim()}
+								className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+								Send
+							</button>
+						</div>
+
 						{/* Submit Status */}
 						{submitStatus === "success" && (
 							<div className='p-3 bg-green-500/20 border border-green-500/50 rounded-md'>

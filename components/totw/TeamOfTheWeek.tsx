@@ -501,7 +501,7 @@ export default function TeamOfTheWeek() {
 									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 								{seasons.map((season) => (
 									<Listbox.Option
 										key={season}
@@ -531,7 +531,7 @@ export default function TeamOfTheWeek() {
 									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 								{weeks.length === 0 ? (
 									<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
 										Loading...
