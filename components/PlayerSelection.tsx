@@ -20,8 +20,8 @@ interface PlayerSelectionProps {
 }
 
 export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPlayer, selectedPlayer, isEditMode }: PlayerSelectionProps) {
-	const [localSelectedPlayer, setLocalSelectedPlayer] = useState("");
-	const [isSubmitted, setIsSubmitted] = useState(false);
+	const [localSelectedPlayer, setLocalSelectedPlayer] = useState(selectedPlayer || "");
+	const [isSubmitted, setIsSubmitted] = useState(!!selectedPlayer && !isEditMode);
 	const [query, setQuery] = useState("");
 	const [allPlayers, setAllPlayers] = useState<Player[]>([]);
 	const [isLoadingPlayers, setIsLoadingPlayers] = useState(false);
@@ -138,7 +138,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							<div className='relative'>
 								<Listbox.Button
 									onClick={handleDropdownOpen}
-									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
+									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
 										{localSelectedPlayer || "Choose a player..."}
 									</span>
@@ -147,7 +147,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									</span>
 								</Listbox.Button>
 								<Listbox.Options
-									className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
+									className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
 									onKeyDown={(e) => {
 										// Prevent Listbox from handling text input keys
 										if (e.key === " " || e.key.length === 1) {
@@ -192,16 +192,9 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 											}
 											value={player.playerName}>
 											{({ selected }) => (
-												<>
-													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-														{player.playerName} ({player.mostPlayedForTeam || "Unknown"})
-													</span>
-													{selected ? (
-														<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
-															<CheckIcon className='h-5 w-5' aria-hidden='true' />
-														</span>
-													) : null}
-												</>
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													{player.playerName} ({player.mostPlayedForTeam || "Unknown"})
+												</span>
 											)}
 										</Listbox.Option>
 									))}
@@ -254,7 +247,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							if (player) handlePlayerSelect(player);
 						}}>
 						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 sm:text-sm'>
+							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
 									{localSelectedPlayer || "Choose a player..."}
 								</span>
@@ -263,7 +256,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 								</span>
 							</Listbox.Button>
 							<Listbox.Options
-								className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none sm:text-sm'
+								className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'
 								onKeyDown={(e) => {
 									// Prevent Listbox from handling text input keys
 									if (e.key === " " || e.key.length === 1) {
@@ -308,16 +301,9 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										}
 										value={player.playerName}>
 										{({ selected }) => (
-											<>
-												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-													{player.playerName} ({player.mostPlayedForTeam})
-												</span>
-												{selected ? (
-													<span className='absolute inset-y-0 left-0 flex items-center pl-3 text-green-400'>
-														<CheckIcon className='h-5 w-5' aria-hidden='true' />
-													</span>
-												) : null}
-											</>
+											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+												{player.playerName} ({player.mostPlayedForTeam})
+											</span>
 										)}
 									</Listbox.Option>
 								))}

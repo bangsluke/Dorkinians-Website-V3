@@ -220,28 +220,29 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 	const playerAppearances = matchDetails.length;
 
 	return (
-		<div className='fixed inset-0 flex items-center justify-center z-50 p-2' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)', height: '90vh', maxHeight: '100vh' }} onClick={onClose}>
+		<div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }} onClick={onClose}>
 			<div
-				className='rounded-lg pt-16 pb-8 px-6 max-w-2xl w-full h-[95vh] flex flex-col'
-				style={{ backgroundColor: '#0f0f0f' }}
+				className='fixed inset-0 flex flex-col'
+				style={{ backgroundColor: 'rgb(14, 17, 15)' }}
 				onClick={(e) => e.stopPropagation()}
 			>
+				{/* Header with Close button */}
+				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
+					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
+					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
+						<XMarkIcon className='h-6 w-6' />
+					</button>
+				</div>
+
 				{/* Scrollable content */}
 				<div 
-					className='flex-1 overflow-y-auto min-h-0 player-detail-scrollable' 
+					className='flex-1 overflow-y-auto min-h-0 player-detail-scrollable px-6 pt-4' 
 					style={{ 
 						WebkitOverflowScrolling: 'touch',
 						paddingTop: '1rem',
 						paddingBottom: '1rem'
 					}}
 				>
-					{/* Player Name with Close button */}
-					<div className='flex justify-between items-center mb-4'>
-						<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
-						<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
-							<XMarkIcon className='h-6 w-6' />
-						</button>
-					</div>
 
 					{/* TOTW Appearances */}
 					{totwAppearances !== undefined && (
@@ -329,6 +330,15 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 							</tbody>
 						</table>
 					</div>
+				</div>
+
+				{/* Close Button at Bottom */}
+				<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
+					<button
+						onClick={onClose}
+						className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
+						Close
+					</button>
 				</div>
 			</div>
 		</div>
