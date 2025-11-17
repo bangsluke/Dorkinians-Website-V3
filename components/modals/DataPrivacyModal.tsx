@@ -69,93 +69,85 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 	if (!isOpen) return null;
 
 	return (
-		<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
+		<div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }} onClick={handleClose}>
 			<motion.div
 				initial={{ opacity: 0, scale: 0.95 }}
 				animate={{ opacity: 1, scale: 1 }}
 				exit={{ opacity: 0, scale: 0.95 }}
-				className='bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto'>
+				className='fixed inset-0 flex flex-col'
+				style={{ backgroundColor: 'rgb(14, 17, 15)' }}
+				onClick={(e) => e.stopPropagation()}>
 				{/* Header */}
-				<div className='flex items-center justify-between mb-6'>
-					<div className='flex items-center space-x-3'>
+				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
+					<div className='flex items-center space-x-3 flex-1 justify-center'>
 						<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
 							<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
 						</div>
-						<h2 className='text-xl font-bold text-gray-900'>Data Removal Request</h2>
+						<h2 className='text-xl font-bold text-white'>Data Removal Request</h2>
 					</div>
 					<button
 						onClick={handleClose}
 						disabled={isSubmitting}
-						className='p-1 rounded-full hover:bg-gray-100 transition-colors disabled:opacity-50'>
-						<XMarkIcon className='w-5 h-5 text-gray-500' />
+						className='text-white hover:text-gray-200 ml-4 flex-shrink-0 disabled:opacity-50'>
+						<XMarkIcon className='w-6 h-6' />
 					</button>
 				</div>
 
-				{/* Information */}
-				<div className='mb-6 p-4 bg-gray-50 border border-gray-200 rounded-md'>
-					<p className='text-sm text-gray-800'>
-						If you would like your data to be removed from the Dorkinians FC website, please provide your name below and we will process your
-						request.
-					</p>
+				{/* Scrollable content */}
+				<div className='flex-1 overflow-y-auto min-h-0 px-6 pt-4' style={{ WebkitOverflowScrolling: 'touch' }}>
+					{/* Information */}
+					<div className='mb-6 p-4 bg-white/10 border border-white/20 rounded-md'>
+						<p className='text-sm text-white'>
+							If you would like your data to be removed from the Dorkinians FC website, please provide your name below and we will process your
+							request.
+						</p>
+					</div>
+
+					{/* Form */}
+					<form onSubmit={handleSubmit} className='space-y-4'>
+						{/* Name Field */}
+						<div>
+							<label htmlFor='name' className='block text-sm font-medium text-white mb-2'>
+								Your Name *
+							</label>
+							<input
+								type='text'
+								id='name'
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								required
+								disabled={isSubmitting}
+								className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-dorkinians-yellow focus:border-transparent disabled:opacity-50'
+								placeholder='Enter your name to be removed'
+							/>
+							<p className='text-xs text-gray-400 mt-1'>This will be included in the removal request email</p>
+						</div>
+
+						{/* Submit Status */}
+						{submitStatus === "success" && (
+							<div className='p-3 bg-green-500/20 border border-green-500/50 rounded-md'>
+								<p className='text-sm text-green-400'>Thank you! Your data removal request has been sent.</p>
+							</div>
+						)}
+
+						{submitStatus === "error" && (
+							<div className='p-3 bg-red-500/20 border border-red-500/50 rounded-md'>
+								<p className='text-sm text-red-400'>Sorry, there was an error sending your request. Please try again.</p>
+							</div>
+						)}
+					</form>
 				</div>
 
-				{/* Form */}
-				<form onSubmit={handleSubmit} className='space-y-4'>
-					{/* Name Field */}
-					<div>
-						<label htmlFor='name' className='block text-sm font-medium text-gray-700 mb-2'>
-							Your Name *
-						</label>
-						<input
-							type='text'
-							id='name'
-							value={name}
-							onChange={(e) => setName(e.target.value)}
-							required
-							disabled={isSubmitting}
-							className='w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent disabled:opacity-50 disabled:bg-gray-100'
-							placeholder='Enter your name to be removed'
-						/>
-						<p className='text-xs text-gray-500 mt-1'>This will be included in the removal request email</p>
-					</div>
-
-					{/* Submit Status */}
-					{submitStatus === "success" && (
-						<div className='p-3 bg-green-50 border border-green-200 rounded-md'>
-							<p className='text-sm text-green-800'>Thank you! Your data removal request has been sent.</p>
-						</div>
-					)}
-
-					{submitStatus === "error" && (
-						<div className='p-3 bg-red-50 border border-red-200 rounded-md'>
-							<p className='text-sm text-red-800'>Sorry, there was an error sending your request. Please try again.</p>
-						</div>
-					)}
-
-					{/* Submit Button */}
-					<div className='flex space-x-3 pt-4'>
-						<button
-							type='button'
-							onClick={handleClose}
-							disabled={isSubmitting}
-							className='flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50'>
-							Cancel
-						</button>
-						<button
-							type='submit'
-							disabled={isSubmitting || !name.trim()}
-							className='flex-1 px-4 py-2 text-sm font-medium text-white bg-dorkinians-blue rounded-md hover:bg-dorkinians-blue/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
-							{isSubmitting ? (
-								<div className='flex items-center justify-center space-x-2'>
-									<div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
-									<span>Sending...</span>
-								</div>
-							) : (
-								"Send Removal Request"
-							)}
-						</button>
-					</div>
-				</form>
+				{/* Close Button at Bottom */}
+				<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
+					<button
+						type='button'
+						onClick={handleClose}
+						disabled={isSubmitting}
+						className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors disabled:opacity-50'>
+						Close
+					</button>
+				</div>
 			</motion.div>
 		</div>
 	);

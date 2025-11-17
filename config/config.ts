@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.15",
+	version: "1.1.16",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -31,15 +31,9 @@ export const homepageQuestions: HomepageQuestion[] = [
 		category: "player",
 	},
 	{
-		id: "team-performance",
-		question: "How did my team perform this season?",
-		description: "View team standings, results, and key statistics",
-		category: "team",
-	},
-	{
-		id: "totw-appearances",
-		question: "How many times have I been in Team of the Week?",
-		description: "Check your Team of the Week appearances and recognition",
+		id: "fantasy-points",
+		question: "What is my total Fantasy Points count?",
+		description: "Check your total Fantasy Points count",
 		category: "player",
 	},
 ];

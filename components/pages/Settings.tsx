@@ -15,6 +15,7 @@ import {
 	CheckCircleIcon,
 	XCircleIcon,
 } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 
 const navigationItems = [
 	{
@@ -59,6 +60,7 @@ const navigationItems = [
 export default function Settings() {
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
 	const [seedingStatus, setSeedingStatus] = useState(seedingStatusService.getSeedingStatus());
+	const [isAvailableScreensExpanded, setIsAvailableScreensExpanded] = useState(true);
 
 	// Update seeding status on component mount
 	useEffect(() => {
@@ -93,7 +95,7 @@ export default function Settings() {
 	return (
 		<div className='h-full flex flex-col'>
 			{/* Header */}
-			<div className='flex items-center mb-4 p-4 pb-0'>
+			<div className='flex items-center mb-4 p-4 pb-0 pl-6'>
 				<motion.button
 					onClick={handleBackClick}
 					className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
@@ -107,8 +109,19 @@ export default function Settings() {
 			{/* Navigation List */}
 			<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 				<div className='space-y-4'>
-					<h2 className='text-xl font-semibold text-white mb-6'>Available Screens</h2>
-					{navigationItems.map((item) => {
+					<button
+						onClick={() => setIsAvailableScreensExpanded(!isAvailableScreensExpanded)}
+						className='flex items-center justify-between w-full text-left mb-6'>
+						<h2 className='text-xl font-semibold text-white'>Available Screens</h2>
+						{isAvailableScreensExpanded ? (
+							<ChevronUpIcon className='w-5 h-5 text-white' />
+						) : (
+							<ChevronDownIcon className='w-5 h-5 text-white' />
+						)}
+					</button>
+					{isAvailableScreensExpanded && (
+						<div className='space-y-4 mb-6'>
+							{navigationItems.map((item) => {
 						const Icon = item.icon;
 						return (
 							<div key={item.id} className='space-y-2'>
@@ -159,6 +172,8 @@ export default function Settings() {
 							</div>
 						);
 					})}
+						</div>
+					)}
 				</div>
 
 				{/* Database Status Section */}

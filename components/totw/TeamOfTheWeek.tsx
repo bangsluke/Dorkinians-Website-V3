@@ -462,11 +462,12 @@ export default function TeamOfTheWeek() {
 				>
 					Team of the Week
 				</h1>
-				<div 
-					className='relative'
+				<button
+					className='relative min-w-[40px] min-h-[40px] flex items-center justify-center'
 					onMouseEnter={() => setShowInfoTooltip(true)}
 					onMouseLeave={() => setShowInfoTooltip(false)}
 					onTouchStart={() => setShowInfoTooltip(!showInfoTooltip)}
+					aria-label='Information about Team of the Week'
 				>
 					<svg 
 						xmlns='http://www.w3.org/2000/svg' 
@@ -484,7 +485,7 @@ export default function TeamOfTheWeek() {
 							<div className='absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent' style={{ borderTopColor: '#0f0f0f' }}></div>
 						</div>
 					)}
-				</div>
+				</button>
 			</div>
 
 			{/* Filters */}
@@ -509,16 +510,9 @@ export default function TeamOfTheWeek() {
 										}
 										value={season}>
 										{({ selected }) => (
-											<>
-												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-													{season}
-												</span>
-												{selected ? (
-													<span className='absolute inset-y-0 left-0 flex items-center pl-2 text-green-400'>
-														<CheckIcon className='h-4 w-4' aria-hidden='true' />
-													</span>
-												) : null}
-											</>
+											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+												{season}
+											</span>
 										)}
 									</Listbox.Option>
 								))}
@@ -551,16 +545,9 @@ export default function TeamOfTheWeek() {
 											}
 											value={week.week}>
 											{({ selected }) => (
-												<>
-													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-														Week {week.week} ({week.dateLookup || ''})
-													</span>
-													{selected ? (
-														<span className='absolute inset-y-0 left-0 flex items-center pl-2 text-green-400'>
-															<CheckIcon className='h-4 w-4' aria-hidden='true' />
-														</span>
-													) : null}
-												</>
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													Week {week.week} ({week.dateLookup || ''})
+												</span>
 											)}
 										</Listbox.Option>
 									))

@@ -651,16 +651,9 @@ export default function PlayersOfMonth() {
 											}
 											value={season}>
 											{({ selected }) => (
-												<>
-													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-														{season}
-													</span>
-													{selected ? (
-														<span className='absolute inset-y-0 left-0 flex items-center pl-2 text-green-400'>
-															<CheckIcon className='h-4 w-4' aria-hidden='true' />
-														</span>
-													) : null}
-												</>
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													{season}
+												</span>
 											)}
 										</Listbox.Option>
 									))}
@@ -693,16 +686,9 @@ export default function PlayersOfMonth() {
 												}
 												value={month}>
 												{({ selected }) => (
-													<>
-														<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-															{month}
-														</span>
-														{selected ? (
-															<span className='absolute inset-y-0 left-0 flex items-center pl-2 text-green-400'>
-																<CheckIcon className='h-4 w-4' aria-hidden='true' />
-															</span>
-														) : null}
-													</>
+													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+														{month}
+													</span>
 												)}
 											</Listbox.Option>
 										))
@@ -832,7 +818,12 @@ export default function PlayersOfMonth() {
 																			const team = match.team || "";
 																			const opposition = match.opposition || "";
 																			const result = match.result || "";
-																			const score = match.matchSummary || "";
+																			let score = match.matchSummary || "";
+																			
+																			// Remove duplicate result prefix from score if present
+																			if (result && score && score.trim().toUpperCase().startsWith(result.trim().toUpperCase())) {
+																				score = score.trim().substring(result.trim().length).trim();
+																			}
 
 																			return (
 																				<React.Fragment key={`match-${matchIndex}`}>
