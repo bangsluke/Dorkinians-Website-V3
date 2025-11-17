@@ -3,7 +3,7 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
@@ -15,14 +15,56 @@ interface Team {
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
+
+	const handleMouseEnter = () => {
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 2000);
+	};
+
+	const handleMouseLeave = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
+
+	const handleTouchStart = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 2000);
+	};
+
+	const handleTouchEnd = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
 
 	return (
 		<>
 			<tr
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
-				onMouseEnter={() => setShowTooltip(true)}
-				onMouseLeave={() => setShowTooltip(false)}
-				onTouchStart={() => setShowTooltip(!showTooltip)}>
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}>
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
@@ -144,9 +186,9 @@ export default function ClubTeamStats() {
 		const losses = teamData.losses || 0;
 		
 		return [
-			{ name: "Wins", value: wins, color: "#22c55e", labelColor: "#86efac" },
-			{ name: "Draws", value: draws, color: "#60a5fa", labelColor: "#93c5fd" },
-			{ name: "Losses", value: losses, color: "#ef4444", labelColor: "#fca5a5" },
+			{ name: "Wins", value: wins, color: "#22c55e" },
+			{ name: "Draws", value: draws, color: "#60a5fa" },
+			{ name: "Losses", value: losses, color: "#ef4444" },
 		].filter(item => item.value > 0);
 	}, [teamData]);
 
@@ -262,7 +304,7 @@ export default function ClubTeamStats() {
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
-							<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 								<Listbox.Option
 									key="whole-club"
 									className={({ active }) =>
@@ -322,7 +364,7 @@ export default function ClubTeamStats() {
 										cx='50%'
 										cy='50%'
 										labelLine={false}
-										label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value, labelColor }) => {
+										label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
 											const RADIAN = Math.PI / 180;
 											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
 											const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -332,7 +374,7 @@ export default function ClubTeamStats() {
 												<text
 													x={x}
 													y={y}
-													fill={labelColor}
+													fill="#ffffff"
 													textAnchor={x > cx ? 'start' : 'end'}
 													dominantBaseline="central"
 													fontSize={14}

@@ -3,20 +3,62 @@
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import FilterPills from "@/components/filters/FilterPills";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
+
+	const handleMouseEnter = () => {
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 2000);
+	};
+
+	const handleMouseLeave = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
+
+	const handleTouchStart = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 2000);
+	};
+
+	const handleTouchEnd = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
 
 	return (
 		<>
 			<tr
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
-				onMouseEnter={() => setShowTooltip(true)}
-				onMouseLeave={() => setShowTooltip(false)}
-				onTouchStart={() => setShowTooltip(!showTooltip)}>
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}>
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image

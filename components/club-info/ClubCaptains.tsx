@@ -166,7 +166,7 @@ export default function ClubCaptains() {
 										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-10 mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 									{seasons.map((season) => (
 										<Listbox.Option
 											key={season}
@@ -227,7 +227,7 @@ export default function ClubCaptains() {
 																{playerName}
 															</button>
 															{playerIndex < players.length - 1 && (
-																<span className='text-white/70 text-xs md:text-sm'>
+																<span className='text-white/70 text-xs md:text-sm pl-1'>
 																	{playerIndex === players.length - 2 ? " & " : ", "}
 																</span>
 															)}
