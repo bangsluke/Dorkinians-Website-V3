@@ -7,7 +7,8 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import Tabs from "@/components/ui/Tabs";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface Team {
 	name: string;
@@ -147,6 +148,27 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 	return statUnit ? `${formattedValue} ${statUnit}` : formattedValue;
 }
 
+// Helper to convert TeamData values to numbers
+function toNumber(val: any): number {
+	if (val === null || val === undefined) return 0;
+	if (typeof val === "number") {
+		if (isNaN(val)) return 0;
+		return val;
+	}
+	if (typeof val === "object") {
+		if ("toNumber" in val && typeof val.toNumber === "function") {
+			return val.toNumber();
+		}
+		if ("low" in val && "high" in val) {
+			const low = val.low || 0;
+			const high = val.high || 0;
+			return low + high * 4294967296;
+		}
+	}
+	const num = Number(val);
+	return isNaN(num) ? 0 : num;
+}
+
 export default function ClubTeamStats() {
 	const {
 		selectedPlayer,
@@ -270,6 +292,43 @@ export default function ClubTeamStats() {
 		setSelectedTeam(teamName);
 	};
 
+	// Prepare chart data (must be at top level for hooks)
+	const goalsData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Goals Scored", value: toNumber(teamData.goalsScored) },
+			{ name: "Goals Conceded", value: toNumber(teamData.goalsConceded) },
+		];
+	}, [teamData]);
+
+	const homeAwayData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Home Games", value: toNumber(teamData.homeGames) },
+			{ name: "Home Wins", value: toNumber(teamData.homeWins) },
+			{ name: "Home Win %", value: Math.round(toNumber(teamData.homeWinPercentage)) },
+			{ name: "Away Games", value: toNumber(teamData.awayGames) },
+			{ name: "Away Wins", value: toNumber(teamData.awayWins) },
+			{ name: "Away Win %", value: Math.round(toNumber(teamData.awayWinPercentage)) },
+		];
+	}, [teamData]);
+
+	const keyTeamStatsData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Games", value: toNumber(teamData.gamesPlayed) },
+			{ name: "Clean Sheets", value: toNumber(teamData.cleanSheets) },
+			{ name: "Points/Game", value: Number(toNumber(teamData.pointsPerGame).toFixed(2)) },
+		];
+	}, [teamData]);
+
+	const tooltipStyle = {
+		backgroundColor: '#1f2937',
+		border: '1px solid rgba(249, 237, 50, 0.3)',
+		borderRadius: '8px',
+		color: '#fff',
+	};
+
 	if (isLoadingTeams) {
 		return (
 			<div className='h-full flex flex-col'>
@@ -354,78 +413,137 @@ export default function ClubTeamStats() {
 					</div>
 				</div>
 			) : (
-				<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
-					{pieChartData.length > 0 && (
-						<div className='mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<ResponsiveContainer width='100%' height={350}>
-								<PieChart>
-									<Pie
-										data={pieChartData}
-										cx='50%'
-										cy='50%'
-										labelLine={false}
-										label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
-											const RADIAN = Math.PI / 180;
-											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-											const x = cx + radius * Math.cos(-midAngle * RADIAN);
-											const y = cy + radius * Math.sin(-midAngle * RADIAN);
-											
-											return (
-												<text
-													x={x}
-													y={y}
-													fill="#ffffff"
-													textAnchor={x > cx ? 'start' : 'end'}
-													dominantBaseline="central"
-													fontSize={14}
-													fontWeight='bold'
+				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0'>
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4'>
+								{/* Win/Draw/Loss Pie Chart */}
+								{pieChartData.length > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+										<ResponsiveContainer width='100%' height={350}>
+											<PieChart>
+												<Pie
+													data={pieChartData}
+													cx='50%'
+													cy='50%'
+													labelLine={false}
+													label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+														const RADIAN = Math.PI / 180;
+														const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+														const x = cx + radius * Math.cos(-midAngle * RADIAN);
+														const y = cy + radius * Math.sin(-midAngle * RADIAN);
+														
+														return (
+															<text
+																x={x}
+																y={y}
+																fill="#ffffff"
+																textAnchor={x > cx ? 'start' : 'end'}
+																dominantBaseline="central"
+																fontSize={14}
+																fontWeight='bold'
+															>
+																{`${name}: ${value}`}
+															</text>
+														);
+													}}
+													outerRadius={100}
+													fill='#8884d8'
+													dataKey='value'
 												>
-													{`${name}: ${value}`}
-												</text>
-											);
-										}}
-										outerRadius={100}
-										fill='#8884d8'
-										dataKey='value'
-									>
-										{pieChartData.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={entry.color} />
-										))}
-									</Pie>
-									<Tooltip
-										contentStyle={{
-											backgroundColor: '#1f2937',
-											border: '1px solid rgba(249, 237, 50, 0.3)',
-											borderRadius: '8px',
-											color: '#fff',
-										}}
-										itemStyle={{ color: '#fff' }}
-									/>
-									<Legend
-										wrapperStyle={{ color: '#fff' }}
-										iconType='circle'
-									/>
-								</PieChart>
-							</ResponsiveContainer>
-						</div>
-					)}
-					<div className='overflow-x-auto'>
-						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-							<thead className='sticky top-0 z-10'>
-								<tr className='bg-white/20'>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredStatEntries.map(([key, stat]) => {
-									const value = teamData[stat.statName as keyof TeamData];
-									return <StatRow key={key} stat={stat} value={value} teamData={teamData} />;
-								})}
-							</tbody>
-						</table>
-					</div>
+													{pieChartData.map((entry, index) => (
+														<Cell key={`cell-${index}`} fill={entry.color} />
+													))}
+												</Pie>
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
+											</PieChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Goals Scored vs Conceded Bar Chart */}
+								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Home vs Away Performance Bar Chart */}
+								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Key Team Stats Bar Chart */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+							</div>
+						);
+
+						const dataTableContent = (
+							<div className='overflow-x-auto overflow-y-auto h-full'>
+								<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+									<thead className='sticky top-0 z-10'>
+										<tr className='bg-white/20'>
+											<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
+											<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
+											<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
+										</tr>
+									</thead>
+									<tbody>
+										{filteredStatEntries.map(([key, stat]) => {
+											const value = teamData[stat.statName as keyof TeamData];
+											return <StatRow key={key} stat={stat} value={value} teamData={teamData} />;
+										})}
+									</tbody>
+								</table>
+							</div>
+						);
+
+						return (
+							<Tabs
+								tabs={[
+									{ id: "visualisations", label: "Visualisations", content: chartContent },
+									{ id: "data", label: "Data", content: dataTableContent },
+								]}
+								defaultTab='visualisations'
+								storageKey='club-stats-active-tab'
+							/>
+						);
+					})()}
 				</div>
 			)}
 		</div>
