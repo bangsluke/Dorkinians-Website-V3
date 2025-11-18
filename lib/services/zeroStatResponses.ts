@@ -25,6 +25,16 @@ export const ZERO_STAT_RESPONSE_RULES: ZeroStatResponseRule[] = [
 		phrase: "has not scored a goal",
 	},
 	{
+		id: "SEASON_GOALS_ZERO",
+		matcher: /\d{4}\/\d{2}GOALS/i,
+		phrase: "did not score a goal in",
+	},
+	{
+		id: "MOST_PROLIFIC_SEASON_ZERO",
+		matcher: /(MOSTPROLIFICSEASON|PROLIFICSEASON)/i,
+		phrase: "has not scored in a season",
+	},
+	{
 		id: "ASSISTS_ZERO",
 		matcher: /ASSIST/i,
 		phrase: "has not recorded an assist",
@@ -33,6 +43,21 @@ export const ZERO_STAT_RESPONSE_RULES: ZeroStatResponseRule[] = [
 		id: "MOM_ZERO",
 		matcher: /(MOM|MANOFTHEMATCH|PLAYEROFMATCH)/i,
 		phrase: "has not received a Player of the Match award",
+	},
+	{
+		id: "AWAY_GAMES_WON_ZERO",
+		matcher: /(AWAYGAMES%WON|AWAY.*WON)/i,
+		phrase: "has not won an away game",
+	},
+	{
+		id: "HOME_WINS_ZERO",
+		matcher: /(HOMEWINS|HOME.*WINS)/i,
+		phrase: "has not played a home game",
+	},
+	{
+		id: "AWAY_WINS_ZERO",
+		matcher: /(AWAYWINS|AWAY.*WINS)/i,
+		phrase: "has not played an away game",
 	},
 	{
 		id: "YELLOW_CARDS_ZERO",

@@ -2205,6 +2205,37 @@ export class ChatbotService {
 		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		const verb = getAppropriateVerb(metric, value as number);
 
+		// Special handling for GPERAPP - always include numeric value for test extraction
+		if (metric === "GperAPP" || metric.toUpperCase() === "GPERAPP") {
+			return `${playerName} averages ${formattedValue} goals per appearance.`;
+		}
+
+		// Special handling for AwayGames%Won - always include numeric value for test extraction
+		if (metric === "AwayGames%Won" || metric.toUpperCase() === "AWAYGAMES%WON") {
+			return `${playerName} has won ${formattedValue} of away games.`;
+		}
+
+		// Special handling for HomeWins and AwayWins - check for zero and return appropriate zero stat response
+		if (metric === "HomeWins" || metric.toUpperCase() === "HOMEWINS") {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
+				if (zeroResponse) {
+					return zeroResponse;
+				}
+			}
+		}
+
+		if (metric === "AwayWins" || metric.toUpperCase() === "AWAYWINS") {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
+				if (zeroResponse) {
+					return zeroResponse;
+				}
+			}
+		}
+
 		const numericValue = typeof value === "number" ? value : Number(value);
 		if (!Number.isNaN(numericValue) && numericValue === 0) {
 			const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
@@ -2365,6 +2396,20 @@ export class ChatbotService {
 					});
 				}
 			}
+			// Check if this is a season-specific goals query (e.g., "2016/17GOALS") - explicitly state player did not score
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				/(\d{4}\/\d{2})GOALS/i.test(metric)
+			) {
+				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
+				if (seasonMatch) {
+					const season = seasonMatch[1];
+					answer = `${String(playerName)} did not score a goal in the ${season} season.`;
+				} else {
+					answer = `${String(playerName)} did not score any goals.`;
+				}
+			}
 			// Check if this is a team-specific goals query - return 0 instead of "No data found"
 			// Also check for variations like "2nd team" or "6s" which might map to "2nd XI Goals" or "6th XI Goals"
 			else if (metric && typeof metric === 'string' && (
@@ -2425,9 +2470,29 @@ export class ChatbotService {
 				const statDisplayName = (analysis as any).mostScoredForTeamStatDisplayName || "goals";
 				const verb = statDisplayName === "goals" ? "scored" : statDisplayName === "assists" ? "got" : "got";
 				if (statDisplayName === "goals") {
-					answer = `${playerName} has not scored for a team`;
+					answer = `${playerName} has not scored any goals for a team`;
 				} else {
 					answer = `${playerName} has not ${verb} any ${statDisplayName} for a team`;
+				}
+			}
+			// Check if this is a HomeWins or AwayWins query that returned empty results
+			else if (metric && typeof metric === "string") {
+				const metricStr = metric as string;
+				const playerNameStr = String(playerName);
+				if (metricStr.toUpperCase() === "HOMEWINS" || metricStr === "HomeWins") {
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played a home game`;
+					}
+				} else if (metricStr.toUpperCase() === "AWAYWINS" || metricStr === "AwayWins") {
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played an away game`;
+					}
 				}
 			}
 			// Check if this is a MatchDetail query that failed - try Player node fallback
@@ -2517,26 +2582,34 @@ export class ChatbotService {
 							.filter((item) => item.season && item.value !== undefined);
 						
 						if (transformedData.length > 0) {
-							// Find the most prolific season
-							const mostProlific = transformedData.reduce((max, current) => 
-								current.value > max.value ? current : max
-							);
+							// Check if all seasons have 0 goals
+							const allGoalsZero = transformedData.every((item) => item.value === 0);
 							
-							answer = `${mostProlific.season} was ${playerName}'s most prolific season with ${mostProlific.value} goals.`;
-							
-							// Create Record visualization with all seasons
-							visualization = {
-								type: "Record",
-								data: transformedData.map((item) => ({
-									name: item.season,
-									value: item.value,
-									isHighest: item.season === mostProlific.season,
-								})),
-								config: {
-									title: `${playerName} - Goals per Season`,
-									type: "bar",
-								},
-							};
+							if (allGoalsZero) {
+								// Player has not scored in any season
+								answer = `${playerName} has not scored in a season`;
+							} else {
+								// Find the most prolific season
+								const mostProlific = transformedData.reduce((max, current) => 
+									current.value > max.value ? current : max
+								);
+								
+								answer = `${mostProlific.season} was ${playerName}'s most prolific season with ${mostProlific.value} goals.`;
+								
+								// Create Record visualization with all seasons
+								visualization = {
+									type: "Record",
+									data: transformedData.map((item) => ({
+										name: item.season,
+										value: item.value,
+										isHighest: item.season === mostProlific.season,
+									})),
+									config: {
+										title: `${playerName} - Goals per Season`,
+										type: "bar",
+									},
+								};
+							}
 						} else {
 							// Fallback if data structure is different
 							answer = `Unable to determine ${playerName}'s most prolific season.`;
@@ -2649,7 +2722,7 @@ export class ChatbotService {
 						} else {
 							// If player hasn't scored for any team
 							if (statDisplayName === "goals") {
-								answer = `${playerName} has not scored for a team`;
+								answer = `${playerName} has not scored any goals for a team`;
 							} else {
 								answer = `${playerName} has not ${verb} any ${statDisplayName} for a team`;
 							}
@@ -2753,7 +2826,11 @@ export class ChatbotService {
 						const season = seasonMatch[1];
 						const questionLower = question.toLowerCase();
 						if (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("get")) {
-							answer = `${playerName} scored ${value} ${value === 1 ? "goal" : "goals"} in the ${season} season.`;
+							if (value === 0) {
+								answer = `${playerName} did not score a goal in the ${season} season.`;
+							} else {
+								answer = `${playerName} scored ${value} ${value === 1 ? "goal" : "goals"} in the ${season} season.`;
+							}
 						}
 					}
 				} else if (metric.includes("ASSISTS") && metric.match(/\d{4}\/\d{2}/)) {
@@ -2906,6 +2983,11 @@ export class ChatbotService {
 							answer = `${playerName} has made ${value} ${value === 1 ? "appearance" : "appearances"}.`;
 						}
 					}
+					} else if (metric && (metric.toUpperCase() === "GPERAPP" || metric === "GperAPP")) {
+						// Special handling for goals per appearance
+						// Use buildContextualResponse which includes the formatted value for test extraction
+						// The buildContextualResponse method now has special handling for GPERAPP
+						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);
 					} else {
 						// Standard metric handling with contextual response
 						answer = this.buildContextualResponse(playerName, metric, value as number, analysis);

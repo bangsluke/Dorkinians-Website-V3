@@ -404,7 +404,9 @@ async function runTestsProgrammatically() {
 					const hasNotScoredMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals");
 					const hasNotScoredForTeamMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals for");
 					const hasSeasonDidNotPlayMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not play in");
+					const hasSeasonDidNotScoreMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not score a goal in");
 					const isSeasonAppsQuery = /\d{4}\/\d{2}apps/i.test(statKey);
+					const isSeasonGoalsQuery = /\d{4}\/\d{2}goals/i.test(statKey);
 					const matchesZeroStatPhrase = chatbotAnswer && messageMatchesZeroStatPhrase(chatbotAnswer);
 					
 					// Check for appearance-based average stats (e.g., GperAPP, CperAPP, FTPperAPP, etc.)
@@ -426,6 +428,7 @@ async function runTestsProgrammatically() {
 						(isPositionQuery && hasNeverPlayedMessage) ||
 						(hasNotScoredMessage || hasNotScoredForTeamMessage) ||
 						(isSeasonAppsQuery && hasSeasonDidNotPlayMessage) ||
+						(isSeasonGoalsQuery && hasSeasonDidNotScoreMessage) ||
 						matchesZeroStatPhrase
 					);
 					
