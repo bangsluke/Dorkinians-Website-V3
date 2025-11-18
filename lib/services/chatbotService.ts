@@ -427,6 +427,25 @@ export class ChatbotService {
 		return result;
 	}
 
+	private isTeamCountQuestion(question?: string): boolean {
+		if (!question) return false;
+		const q = question.toLowerCase();
+		const mentionsClubTeams =
+			q.includes("how many of the club's teams") ||
+			q.includes("how many of the clubs teams") ||
+			q.includes("how many of the club teams") ||
+			q.includes("how many of the club's team") ||
+			q.includes("how many of the clubs team") ||
+			q.includes("how many of the club team") ||
+			q.includes("how many of the teams has") ||
+			q.includes("how many of the teams have");
+
+		const genericHowManyTeams = q.includes("how many teams") || q.includes("how many team");
+		const mentionsPlayed = q.includes("played for") || q.includes("played in");
+
+		return (mentionsClubTeams && mentionsPlayed) || (genericHowManyTeams && mentionsPlayed);
+	}
+
 
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
 		// Clear debug tracking for new question
@@ -1010,6 +1029,12 @@ export class ChatbotService {
 			return true; // Seasonal metrics use MatchDetail joins for accurate data
 		}
 
+		// Special case metrics that need MatchDetail joins
+		const metricUpper = metric.toUpperCase();
+		if (metricUpper === "NUMBERSEASONSPLAYEDFOR" || metricUpper === "NUMBERTEAMSPLAYEDFOR") {
+			return true; // These need MatchDetail to count distinct seasons/teams
+		}
+
 		return matchDetailMetrics.includes(metric.toUpperCase());
 	}
 
@@ -1088,6 +1113,13 @@ export class ChatbotService {
 		switch (metric.toUpperCase()) {
 			case "APP":
 				return "count(md) as value";
+			case "G":
+				return `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as value`;
+			case "OPENPLAYGOALS":
+				return `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) as value`;
 			case "ALLGSC":
 				return `
 				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
@@ -1154,7 +1186,8 @@ export class ChatbotService {
 					const seasonMatch = metric.match(/(\d{4}\/\d{2})GOALS/i);
 					if (seasonMatch) {
 						const season = seasonMatch[1];
-						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) as value`;
+						return `coalesce(sum(CASE WHEN f.season = "${season}" AND (md.goals IS NOT NULL AND md.goals <> "") THEN md.goals ELSE 0 END), 0) + 
+						coalesce(sum(CASE WHEN f.season = "${season}" AND (md.penaltiesScored IS NOT NULL AND md.penaltiesScored <> "") THEN md.penaltiesScored ELSE 0 END), 0) as value`;
 					}
 				}
 
@@ -1673,19 +1706,14 @@ export class ChatbotService {
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WHERE f.season IS NOT NULL AND f.season <> ""
-				WITH p, f.season as season, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+				WITH p, f.season as season, 
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals
 				ORDER BY season ASC
 				RETURN p.playerName as playerName, season, goals as value
 			`;
-		} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
-			// Check if this is a team counting question
-			const questionLower = analysis.question?.toLowerCase() || "";
-			if (
-				(questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) ||
-				(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
-				(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
-			) {
-				// Query for counting teams played for
+		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
+			if (this.isTeamCountQuestion(analysis.question)) {
 				return `
 					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 					WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
@@ -1697,7 +1725,9 @@ export class ChatbotService {
 				return `
 					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 					WHERE md.team IS NOT NULL
-					WITH p, md.team as team, count(md) as appearances, sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals
+					WITH p, md.team as team, count(md) as appearances, 
+						sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
+						sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals
 					WITH p, team, appearances, goals,
 						CASE 
 							WHEN team = "1st XI" THEN 1
@@ -1722,7 +1752,7 @@ export class ChatbotService {
 				WITH p, collect(DISTINCT md.team) as teams
 				RETURN p.playerName as playerName, size(teams) as value
 			`;
-		} else if (metric === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor") {
+		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR")) {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.season IS NOT NULL AND md.season <> ""
@@ -2513,15 +2543,8 @@ export class ChatbotService {
 							const formattedValue = this.formatValueByMetric("DIST", value as number);
 							answer = `${playerName} has travelled ${formattedValue} miles to games.`;
 						}
-					} else if (metric === "MostPlayedForTeam" || metric === "TEAM_ANALYSIS") {
-						// For "What team has player made the most appearances for?" questions
-						const questionLower = question.toLowerCase();
-						if (
-							(questionLower.includes("how many of the clubs teams has") && questionLower.includes("played for")) ||
-							(questionLower.includes("how many of the teams has") && questionLower.includes("played for")) ||
-							(questionLower.includes("how many of the teams has") && questionLower.includes("played in"))
-						) {
-							// For team counting questions
+					} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
+						if (this.isTeamCountQuestion(question)) {
 							const teamsPlayedFor = value || 0;
 							if (teamsPlayedFor === 0) {
 								answer = `${playerName} has not played for any of the club's teams yet.`;
@@ -2530,23 +2553,24 @@ export class ChatbotService {
 							} else {
 								answer = `${playerName} has played for ${teamsPlayedFor} of the club's 9 teams.`;
 							}
-						} else if (questionLower.includes("what team has") || questionLower.includes("which team has")) {
-							// Use the actual query results from Cypher
-							const teamName = String(value || ""); // e.g., "3rd XI"
-							if (teamName && teamName !== "0" && teamName !== "") {
-								// Convert team name to expected format (e.g., "3rd XI" -> "3s")
-								const teamDisplayName = teamName
-									.replace("1st XI", "1s")
-									.replace("2nd XI", "2s") 
-									.replace("3rd XI", "3s")
-									.replace("4th XI", "4s")
-									.replace("5th XI", "5s")
-									.replace("6th XI", "6s")
-									.replace("7th XI", "7s")
-									.replace("8th XI", "8s");
-								answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
-							} else {
-								answer = `${playerName} has not made any appearances yet.`;
+						} else {
+							const questionLower = question.toLowerCase();
+							if (questionLower.includes("what team has") || questionLower.includes("which team has")) {
+								const teamName = String(value || "");
+								if (teamName && teamName !== "0" && teamName !== "") {
+									const teamDisplayName = teamName
+										.replace("1st XI", "1s")
+										.replace("2nd XI", "2s") 
+										.replace("3rd XI", "3s")
+										.replace("4th XI", "4s")
+										.replace("5th XI", "5s")
+										.replace("6th XI", "6s")
+										.replace("7th XI", "7s")
+										.replace("8th XI", "8s");
+									answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
+								} else {
+									answer = `${playerName} has not made any appearances yet.`;
+								}
 							}
 						}
 				} else if (metric === "MostScoredForTeam") {
@@ -2593,7 +2617,7 @@ export class ChatbotService {
 					// For "How many seasons has player played?" questions
 					const playerData = data.data[0] as { value: number; firstSeason: string };
 					answer = `${playerName} has played for ${playerData.value} seasons, starting in ${playerData.firstSeason}`;
-				} else if (metric === "NumberSeasonsPlayedFor") {
+				} else if (metric === "NumberSeasonsPlayedFor" || metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR") {
 					// For "How many seasons has player played in?" questions
 					const playerData = data.data[0] as { playerSeasonCount?: number; totalSeasonCount?: number };
 					const playerSeasonCount = playerData?.playerSeasonCount ?? Number(value) ?? 0;
