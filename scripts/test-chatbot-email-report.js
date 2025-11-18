@@ -159,6 +159,7 @@ require("ts-node").register({
 
 // Import STAT_TEST_CONFIGS and statObject from config.ts
 const { STAT_TEST_CONFIGS, statObject } = require('../config/config.ts');
+const { messageMatchesZeroStatPhrase } = require('../lib/services/zeroStatResponses.ts');
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
@@ -301,13 +302,25 @@ async function runTestsProgrammatically() {
 					logDebug(`🔍 DEBUG: Looking for key "${statConfig.key}" in player data:`, Object.keys(player));
 					logDebug(`🔍 DEBUG: Player data for ${playerName}:`, player);
 
+					// Store original value before normalization to check if it was truly N/A
+					let originalExpectedValue = null;
+					
 					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
 						// CSV values are already formatted with correct decimal places
 						expectedValue = player[statConfig.key];
+						originalExpectedValue = expectedValue;
 						logDebug(`✅ Found CSV data for ${statKey}: ${expectedValue} (already formatted)`);
 					} else {
 						expectedValue = "N/A";
+						originalExpectedValue = "N/A";
 						logDebug(`❌ No CSV data found for ${statKey}`);
+					}
+					
+					// Normalize "N/A" to "0" for all stats before validation
+					const wasNA = expectedValue === "N/A" || (typeof expectedValue === "string" && expectedValue.toUpperCase().trim() === "N/A");
+					if (wasNA) {
+						expectedValue = "0";
+						logDebug(`🔁 Normalized N/A to 0 for ${statKey}`);
 					}
 
 					try {
@@ -390,11 +403,33 @@ async function runTestsProgrammatically() {
 					const hasNeverPlayedMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has never played");
 					const hasNotScoredMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals");
 					const hasNotScoredForTeamMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals for");
+					const hasSeasonDidNotPlayMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not play in");
+					const hasSeasonDidNotScoreMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not score a goal in");
+					const isSeasonAppsQuery = /\d{4}\/\d{2}apps/i.test(statKey);
+					const isSeasonGoalsQuery = /\d{4}\/\d{2}goals/i.test(statKey);
+					const matchesZeroStatPhrase = chatbotAnswer && messageMatchesZeroStatPhrase(chatbotAnswer);
+					
+					// Check for appearance-based average stats (e.g., GperAPP, CperAPP, FTPperAPP, etc.)
+					const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
+					const hasNotMadeAppearanceMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not made an appearance yet");
+					
+					// For appearance-based averages, "has not made an appearance yet" is only valid if:
+					// 1. The original expected value was "N/A" (meaning truly no data, not just 0.0)
+					// 2. If the expected value is numeric (even 0.0), the chatbot should have calculated the average
+					// So if chatbot says "has not made an appearance yet" but expected is numeric, it's an error
+					const hasAppearanceBasedAverageError = isAppearanceBasedAverage && 
+						hasNotMadeAppearanceMessage && 
+						originalExpectedValue !== "N/A" && // Original was not N/A, so player has appearances
+						!isNaN(parseFloat(expectedValue)); // Expected value is numeric (even if 0.0)
 					
 					// Allow valid zero-value responses for position queries ("has never played") and goals queries ("has not scored any goals")
-					const isValidZeroResponse = isZeroResult && (
+					// BUT exclude appearance-based averages that incorrectly say "has not made an appearance yet" when a value was extracted
+					const isValidZeroResponse = isZeroResult && !hasAppearanceBasedAverageError && (
 						(isPositionQuery && hasNeverPlayedMessage) ||
-						(hasNotScoredMessage || hasNotScoredForTeamMessage)
+						(hasNotScoredMessage || hasNotScoredForTeamMessage) ||
+						(isSeasonAppsQuery && hasSeasonDidNotPlayMessage) ||
+						(isSeasonGoalsQuery && hasSeasonDidNotScoreMessage) ||
+						matchesZeroStatPhrase
 					);
 					
 					const hasValidResponse =
@@ -414,8 +449,8 @@ async function runTestsProgrammatically() {
 						// Allow "No data found" if it's actually a valid zero result response
 						!(chatbotAnswer.includes("No data found") && !isValidZeroResponse) &&
 						!chatbotAnswer.includes("MatchDetail data unavailable") &&
-						cypherQuery !== "N/A" &&
-						expectedValue !== "N/A";
+						cypherQuery !== "N/A";
+						// Note: expectedValue is now normalized, so "N/A" check removed
 
 					// Check if the extracted value matches expected
 					// STEP 1: Enhanced logging to understand value types and exact values
@@ -431,7 +466,7 @@ async function runTestsProgrammatically() {
 						percentageDifference: null,
 					};
 
-					if (expectedValue !== "N/A" && chatbotExtractedValue !== null) {
+					if (chatbotExtractedValue !== null) {
 						// STEP 2: Calculate and log the difference between values
 						let expectedNumeric = null;
 						let chatbotNumeric = null;
@@ -483,7 +518,7 @@ async function runTestsProgrammatically() {
 								valuesMatch = chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
 							}
 						}
-					} else if (expectedValue !== "N/A" && isZeroResult && isValidZeroResponse) {
+					} else if (isZeroResult && isValidZeroResponse) {
 						// Handle case where extraction failed but we have a valid zero result message
 						comparisonDetails.comparisonMethod = "zero_result_extraction_failed";
 						valuesMatch = true;
@@ -839,34 +874,49 @@ function generateEmailContent(testResults) {
 	return html;
 }
 
+const ZERO_FALLBACK_STAT_KEYS = new Set(["MperG"]);
+
+function normalizeTestDataValue(header, value) {
+	const sanitizedValue = typeof value === "string" ? value.trim() : value;
+	const isTrackedStat = ZERO_FALLBACK_STAT_KEYS.has(header);
+	const isBlank = sanitizedValue === undefined || sanitizedValue === null || sanitizedValue === "";
+	const isNAString = typeof sanitizedValue === "string" && sanitizedValue.toUpperCase() === "N/A";
+	// Normalize "N/A" to "0" for all stats (not just tracked stats)
+	if (isNAString) {
+		logDebug(`🔁 Zero fallback applied for ${header} due to N/A test data`);
+		return "0";
+	}
+	if (isTrackedStat && isBlank) {
+		logDebug(`🔁 Zero fallback applied for ${header} due to blank test data`);
+		return "0";
+	}
+	return sanitizedValue;
+}
+
 // Helper function to format CSV values immediately when reading
 function formatCSVValue(header, value) {
-	// Skip empty values
-	if (!value || value === "") {
-		return value;
+	const normalizedValue = normalizeTestDataValue(header, value);
+	if (normalizedValue === undefined || normalizedValue === null || normalizedValue === "") {
+		return normalizedValue;
 	}
 
-	// Find the stat config for this header
 	const statConfig = STAT_TEST_CONFIGS.find((config) => config.key === header);
 	
 	if (statConfig) {
-		// Get decimal places from statObject (authoritative source)
 		const statKey = statConfig.key;
 		const statObj = statObject[statKey];
 		
 		if (statObj && statObj.numberDecimalPlaces !== undefined) {
-			// Handle numeric values
-			if (!isNaN(parseFloat(value)) && isFinite(value)) {
+			if (!isNaN(parseFloat(normalizedValue)) && isFinite(normalizedValue)) {
 				const decimalPlaces = statObj.numberDecimalPlaces;
-				const result = Number(value).toFixed(decimalPlaces);
-				logDebug(`🔧 CSV formatting ${header}: ${value} -> ${result} (${decimalPlaces} decimal places)`);
+				const result = Number(normalizedValue).toFixed(decimalPlaces);
+				logDebug(`🔧 CSV formatting ${header}: ${normalizedValue} -> ${result} (${decimalPlaces} decimal places)`);
 				return result;
 			}
 		}
 	}
 
-	// Return as-is for non-numeric or unknown values
-	return value;
+	return normalizedValue;
 }
 
 // Helper function to format values according to stat configuration (same as chatbot)

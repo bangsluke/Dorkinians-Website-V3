@@ -1297,7 +1297,7 @@ export const STAT_TEST_CONFIGS: TestConfig[] = [
 		key: "FTP",
 		metric: "fantasyPoints",
 		questionTemplate: "How many fantasy points does {playerName} have?",
-		responsePattern: /(\d+)/,
+		responsePattern: /(-?\d+)/,
 		description: "Fantasy Points",
 	},
 	// Advanced Statistics
@@ -1340,7 +1340,7 @@ export const STAT_TEST_CONFIGS: TestConfig[] = [
 		key: "FTPperAPP",
 		metric: "fantasyPointsPerAppearance",
 		questionTemplate: "How many fantasy points does {playerName} score per appearance?",
-		responsePattern: /(\d+(?:\.\d+)?)/,
+		responsePattern: /(-?\d+(?:\.\d+)?)/,
 		description: "Fantasy Points per Appearance",
 	},
 	{

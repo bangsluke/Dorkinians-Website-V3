@@ -468,8 +468,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
 		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
 
+		// CRITICAL FIX: Detect minutes per goal queries (must run before open play goals correction to filter out "score" matches)
+		const minutesPerGoalCorrectedStats = this.correctMinutesPerGoalQueries(fantasyPointsCorrectedStats);
+
 		// CRITICAL FIX: Detect open play goals queries
-		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(fantasyPointsCorrectedStats);
+		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(minutesPerGoalCorrectedStats);
 
 		// CRITICAL FIX: Detect team-specific goals queries
 		const teamGoalsCorrectedStats = this.correctTeamSpecificGoalsQueries(openPlayCorrectedStats);
@@ -889,13 +892,23 @@ export class EnhancedQuestionAnalyzer {
 			// Priority 0: Club team count questions ("How many of the club's teams...")
 			{
 				priority: 0,
-				test: (q) =>
-					q.includes("how many of the club's teams") ||
-					q.includes("how many of the clubs teams") ||
-					q.includes("how many of the club teams") ||
-					(q.includes("how many teams") && (q.includes("played for") || q.includes("played in"))),
+				test: (q) => {
+					const lowerQ = q.toLowerCase();
+					return (
+						lowerQ.includes("how many of the club's teams") ||
+						lowerQ.includes("how many of the clubs teams") ||
+						lowerQ.includes("how many of the club teams") ||
+						lowerQ.includes("how many of the club's team") ||
+						lowerQ.includes("how many of the clubs team") ||
+						lowerQ.includes("how many of the club team") ||
+						(lowerQ.includes("how many team") && (lowerQ.includes("played for") || lowerQ.includes("played in")))
+					);
+				},
 				apply: (q, _stats) => {
-					const position = q.indexOf("club") !== -1 ? q.indexOf("club") : q.indexOf("teams");
+					const lowerQ = q.toLowerCase();
+					const clubIndex = lowerQ.indexOf("club");
+					const teamIndex = lowerQ.indexOf("team");
+					const position = clubIndex !== -1 ? clubIndex : teamIndex;
 					return [
 						{
 							value: "Number Teams Played For",
@@ -908,15 +921,31 @@ export class EnhancedQuestionAnalyzer {
 			// Priority 0: Season count questions ("How many seasons has ... played in?")
 			{
 				priority: 0,
-				test: (q) =>
-					(q.includes("how many seasons") || q.includes("seasons has") || q.includes("seasons did")) &&
-					(q.includes("played in") || q.includes("played for") || q.includes("played with") || q.includes("played")),
+				test: (q) => {
+					const normalized = q.toLowerCase();
+					const seasonPhrase =
+						normalized.includes("how many seasons") ||
+						normalized.includes("how many season") ||
+						normalized.includes("seasons has") ||
+						normalized.includes("season has") ||
+						normalized.includes("seasons did") ||
+						normalized.includes("season did");
+					const playedPhrase =
+						normalized.includes("played in") ||
+						normalized.includes("played for") ||
+						normalized.includes("played with") ||
+						normalized.includes("played");
+					return seasonPhrase && playedPhrase;
+				},
 				apply: (q, _stats) => {
-					const position = q.indexOf("seasons");
+					let position = q.indexOf("seasons");
+					if (position === -1) {
+						position = q.indexOf("season");
+					}
 					return [
 						{
-							value: "Number Seasons Played For",
-							originalText: "number seasons played for",
+							value: "Season Count Simple",
+							originalText: "season count simple",
 							position: position >= 0 ? position : 0,
 						},
 					];
@@ -1602,6 +1631,46 @@ export class EnhancedQuestionAnalyzer {
 					value: "Fantasy Points Per Appearance",
 					originalText: "fantasy points per appearance",
 					position: perAppearancePosition !== -1 ? perAppearancePosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects minutes per goal queries by filtering out incorrect "Goals" or "Score" matches
+	 * when the question is clearly asking about minutes per goal
+	 */
+	private correctMinutesPerGoalQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for minutes per goal phrases
+		const hasMinutesPerGoalPhrase =
+			(lowerQuestion.includes("minutes") && lowerQuestion.includes("take") && (lowerQuestion.includes("average") || lowerQuestion.includes("score"))) ||
+			lowerQuestion.includes("minutes per goal") ||
+			lowerQuestion.includes("mins per goal") ||
+			lowerQuestion.includes("time per goal") ||
+			(lowerQuestion.includes("minutes") && lowerQuestion.includes("average") && lowerQuestion.includes("score"));
+
+		if (hasMinutesPerGoalPhrase) {
+			// Check if "Minutes Per Goal" is already in the stats
+			const hasMinutesPerGoalStat = statTypes.some((stat) => stat.value === "Minutes Per Goal");
+
+			// Remove incorrect "Goals", "G", "AllGSC", "Score", "Open Play Goals" mappings
+			const filteredStats = statTypes.filter(
+				(stat) => !["Goals", "G", "AllGSC", "All Goals Scored", "Score", "Open Play Goals"].includes(stat.value),
+			);
+
+			// Add correct "Minutes Per Goal" mapping if not already present
+			if (!hasMinutesPerGoalStat) {
+				const minutesPosition = lowerQuestion.indexOf("minutes");
+				filteredStats.push({
+					value: "Minutes Per Goal",
+					originalText: "minutes per goal",
+					position: minutesPosition !== -1 ? minutesPosition : 0,
 				});
 			}
 

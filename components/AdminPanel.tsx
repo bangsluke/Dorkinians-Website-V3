@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
 import { killJob as killJobUtil } from "../lib/jobUtils";
@@ -69,6 +70,7 @@ interface SeedingResult {
 }
 
 export default function AdminPanel() {
+	const router = useRouter();
 	const [isLoading, setIsLoading] = useState(false);
 	const [result, setResult] = useState<SeedingResult | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -1011,16 +1013,14 @@ export default function AdminPanel() {
 
 			if (data.success) {
 				setUnansweredQuestions([]);
-				setToastMessage("All unanswered questions cleared successfully");
-				setToastType("success");
+				showToast("All unanswered questions cleared successfully", "success");
 			} else {
 				throw new Error(data.error || "Failed to clear unanswered questions");
 			}
 		} catch (err) {
 			console.error("Error clearing unanswered questions:", err);
 			setUnansweredQuestionsError(err instanceof Error ? err.message : "Network error");
-			setToastMessage("Failed to clear unanswered questions");
-			setToastType("error");
+			showToast("Failed to clear unanswered questions", "error");
 		} finally {
 			setClearingQuestions(false);
 		}
@@ -1893,6 +1893,11 @@ export default function AdminPanel() {
 								unansweredQuestionsLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 							}`}>
 							{unansweredQuestionsLoading ? "🔄 Loading..." : "🔄 Refresh"}
+						</button>
+						<button
+							onClick={() => router.push("/admin/unanswered-questions")}
+							className='px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors bg-purple-600 hover:bg-purple-700'>
+							👁️ View All
 						</button>
 						<button
 							onClick={clearUnansweredQuestions}
