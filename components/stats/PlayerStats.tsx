@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import FilterPills from "@/components/filters/FilterPills";
+import Tabs from "@/components/ui/Tabs";
+import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -141,6 +143,281 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 	return statUnit ? `${formattedValue} ${statUnit}` : formattedValue;
 }
 
+// Helper to convert PlayerData values to numbers
+function toNumber(val: any): number {
+	if (val === null || val === undefined) return 0;
+	if (typeof val === "number") {
+		if (isNaN(val)) return 0;
+		return val;
+	}
+	if (typeof val === "object") {
+		if ("toNumber" in val && typeof val.toNumber === "function") {
+			return val.toNumber();
+		}
+		if ("low" in val && "high" in val) {
+			const low = val.low || 0;
+			const high = val.high || 0;
+			return low + high * 4294967296;
+		}
+	}
+	const num = Number(val);
+	return isNaN(num) ? 0 : num;
+}
+
+// Penalty Stats Visualization Component
+function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored: number; missed: number; saved: number; conceded: number }) {
+	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
+	const maxValue = Math.max(scored, missed, saved, conceded, 1);
+	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
+	const missedSize = Math.max(30, Math.min(120, (missed / maxValue) * 120));
+	const savedSize = Math.max(30, Math.min(120, (saved / maxValue) * 120)); // Same scaling as scored
+	const concededWidth = Math.max(30, Math.min(150, (conceded / maxValue) * 150));
+	const concededHeight = Math.max(22.5, Math.min(60, (conceded / maxValue) * 60));
+	
+	// Goal dimensions
+	const goalWidth = 200;
+	const goalHeight = 120;
+	const goalX = 150;
+	const goalY = 50;
+	
+	// Center positions
+	const goalCenterX = goalX + goalWidth / 2;
+	const goalCenterY = goalY + goalHeight / 2;
+	
+	// Penalty box dimensions (semi-circle in front of goal)
+	const penaltyBoxRadius = 60;
+	const penaltyBoxCenterY = goalY + goalHeight;
+	
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Penalty Stats</h3>
+			<div className='w-full relative' style={{ height: '250px', overflow: 'hidden' }}>
+				{/* Background SVG from TOTW - zoomed 3.5x, showing top center with less vertical height, trimmed more from bottom */}
+				<div className='absolute inset-0 w-full' style={{ top: '30px', bottom: '40px' }}>
+					<Image
+						src='/totw-images/TOTWBackground.svg'
+						alt='Football Pitch'
+						fill
+						className='object-cover w-full h-full'
+						style={{ 
+							objectPosition: 'center top',
+							transform: 'scale(4)',
+							transformOrigin: 'center top'
+						}}
+						priority
+					/>
+				</div>
+				
+				<svg width='100%' height='300' viewBox='0 0 500 300' preserveAspectRatio='xMidYMid meet' className='relative z-10'>
+					
+					{/* Green circle - Scored (left side of center line, moved up more and separated further) */}
+					{scored > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX - 70}
+								cy={goalCenterY - 100}
+								r={scoredSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX - 70}
+								cy={goalCenterY - 100}
+								r={scoredSize / 2}
+								fill='#22c55e'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX - 70}
+								y={goalCenterY - 100}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{scored}
+							</text>
+						</g>
+					)}
+					
+					{/* Blue circle - Saved (right side of center line, moved up more and separated further) */}
+					{saved > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX + 70}
+								cy={goalCenterY - 100}
+								r={savedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX + 70}
+								cy={goalCenterY - 100}
+								r={savedSize / 2}
+								fill='#60a5fa'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX + 70}
+								y={goalCenterY - 100}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='20'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{saved}
+							</text>
+						</g>
+					)}
+					
+					{/* Red circle - Missed (wide of goal, to the right, moved up more) */}
+					{missed > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
+								cy={goalCenterY - 200}
+								r={missedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
+								cy={goalCenterY - 200}
+								r={missedSize / 2}
+								fill='#ef4444'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
+								y={goalCenterY - 200}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{missed}
+							</text>
+						</g>
+					)}
+					
+					{/* Orange ellipse - Conceded (in front of goal, below, moved left and up more) */}
+					{conceded > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<ellipse
+								cx={goalCenterX - 120}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								rx={concededWidth / 2 + 20}
+								ry={concededHeight / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<ellipse
+								cx={goalCenterX - 120}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								rx={concededWidth / 2}
+								ry={concededHeight / 2}
+								fill='#f97316'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX - 120}
+								y={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='20'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{conceded}
+							</text>
+						</g>
+					)}
+				</svg>
+			</div>
+			{/* Stats Table */}
+			<div className='mt-4'>
+				<table className='w-full text-white text-sm'>
+					<thead>
+						<tr className='border-b border-white/20'>
+							<th className='text-left py-2 px-2'>Stat</th>
+							<th className='text-right py-2 px-2'>Value</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
+								Penalties Scored
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{scored}</td>
+						</tr>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
+								Penalties Missed
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{missed}</td>
+						</tr>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
+								Penalties Saved
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{saved}</td>
+						</tr>
+						<tr>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-orange-500 mr-2'></span>
+								Penalties Conceded
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{conceded}</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	);
+}
+
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
 
@@ -154,8 +431,46 @@ export default function PlayerStats() {
 		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
 	}, [statsToDisplay]);
 
-	// Component state
+	const playerData: PlayerData | null = cachedPlayerData?.playerData || null;
 
+	// Prepare chart data (hooks must be called before early returns)
+	const keyPerformanceData = useMemo(() => {
+		if (!playerData) return [];
+		return [
+			{ name: "Apps", value: toNumber(playerData.appearances) },
+			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
+			{ name: "Assists", value: toNumber(playerData.assists) },
+			{ name: "MoM", value: toNumber(playerData.mom) },
+		];
+	}, [playerData]);
+
+	const cardData = useMemo(() => {
+		if (!playerData) return [];
+		return [
+			{ name: "Yellow Cards", value: toNumber(playerData.yellowCards), color: "#f9ed32" },
+			{ name: "Red Cards", value: toNumber(playerData.redCards), color: "#ef4444" },
+		];
+	}, [playerData]);
+
+	const defensiveData = useMemo(() => {
+		if (!playerData) return [];
+		return [
+			{ name: "Clean Sheets", value: toNumber(playerData.cleanSheets) },
+			{ name: "Goals Conceded", value: toNumber(playerData.conceded) },
+		];
+	}, [playerData]);
+
+	const penaltyData = useMemo(() => {
+		if (!playerData) return [];
+		return [
+			{ name: "Scored", value: toNumber(playerData.penaltiesScored) },
+			{ name: "Missed", value: toNumber(playerData.penaltiesMissed) },
+			{ name: "Saved", value: toNumber(playerData.penaltiesSaved) },
+			{ name: "Conceded", value: toNumber(playerData.penaltiesConceded) },
+		];
+	}, [playerData]);
+
+	// Component state
 	const handleEditClick = () => {
 		enterEditMode();
 		setMainPage("home");
@@ -201,7 +516,7 @@ export default function PlayerStats() {
 		);
 	}
 
-	if (!cachedPlayerData) {
+	if (!cachedPlayerData || !playerData) {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
@@ -212,7 +527,101 @@ export default function PlayerStats() {
 		);
 	}
 
-	const playerData: PlayerData = cachedPlayerData.playerData;
+	// At this point, playerData is guaranteed to be non-null
+	const validPlayerData: PlayerData = playerData;
+
+	const tooltipStyle = {
+		backgroundColor: '#1f2937',
+		border: '1px solid rgba(249, 237, 50, 0.3)',
+		borderRadius: '8px',
+		color: '#fff',
+	};
+
+	const chartContent = (
+		<div className='space-y-4 pb-4'>
+			{/* Key Performance Stats Bar Chart */}
+			{keyPerformanceData.some(item => item.value > 0) && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
+					<ResponsiveContainer width='100%' height={300}>
+						<BarChart data={keyPerformanceData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+							<YAxis stroke='#fff' fontSize={12} />
+							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+							<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} />
+						</BarChart>
+					</ResponsiveContainer>
+				</div>
+			)}
+
+			{/* Card Stats Bar Chart */}
+			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Card Stats</h3>
+					<ResponsiveContainer width='100%' height={300}>
+						<BarChart data={cardData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+							<YAxis stroke='#fff' fontSize={12} />
+							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+							<Bar dataKey='value' radius={[4, 4, 0, 0]}>
+								{cardData.map((entry, index) => (
+									<Cell key={`cell-${index}`} fill={entry.color} />
+								))}
+							</Bar>
+						</BarChart>
+					</ResponsiveContainer>
+				</div>
+			)}
+
+			{/* Defensive Stats Bar Chart */}
+			{(toNumber(validPlayerData.cleanSheets) > 0 || toNumber(validPlayerData.conceded) > 0) && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Stats</h3>
+					<ResponsiveContainer width='100%' height={300}>
+						<BarChart data={defensiveData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+							<YAxis stroke='#fff' fontSize={12} />
+							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} />
+						</BarChart>
+					</ResponsiveContainer>
+				</div>
+			)}
+
+			{/* Penalty Stats Custom Visualization */}
+			{penaltyData.some(item => item.value > 0) && (
+				<PenaltyStatsVisualization
+					scored={toNumber(validPlayerData.penaltiesScored)}
+					missed={toNumber(validPlayerData.penaltiesMissed)}
+					saved={toNumber(validPlayerData.penaltiesSaved)}
+					conceded={toNumber(validPlayerData.penaltiesConceded)}
+				/>
+			)}
+		</div>
+	);
+
+	const dataTableContent = (
+		<div className='overflow-x-auto overflow-y-auto h-full'>
+			<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+				<thead className='sticky top-0 z-10'>
+					<tr className='bg-white/20'>
+						<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
+						<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
+						<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
+					</tr>
+				</thead>
+				<tbody>
+					{filteredStatEntries.map(([key, stat]) => {
+						const value = validPlayerData[stat.statName as keyof PlayerData];
+						return <StatRow key={key} stat={stat} value={value} playerData={validPlayerData} />;
+					})}
+				</tbody>
+			</table>
+		</div>
+	);
 
 	return (
 		<div className='h-full flex flex-col'>
@@ -229,24 +638,15 @@ export default function PlayerStats() {
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
-			<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
-				<div className='overflow-x-auto'>
-					<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-						<thead className='sticky top-0 z-10'>
-							<tr className='bg-white/20'>
-								<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
-								<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
-								<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
-							</tr>
-						</thead>
-						<tbody>
-							{filteredStatEntries.map(([key, stat]) => {
-								const value = playerData[stat.statName as keyof PlayerData];
-								return <StatRow key={key} stat={stat} value={value} playerData={playerData} />;
-							})}
-						</tbody>
-					</table>
-				</div>
+			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0'>
+				<Tabs
+					tabs={[
+						{ id: "visualisations", label: "Visualisations", content: chartContent },
+						{ id: "data", label: "Data", content: dataTableContent },
+					]}
+					defaultTab='visualisations'
+					storageKey='player-stats-active-tab'
+				/>
 			</div>
 		</div>
 	);
