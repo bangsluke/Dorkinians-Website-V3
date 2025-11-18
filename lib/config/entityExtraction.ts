@@ -134,6 +134,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"got",
 		"goal stats",
 		"goal count",
+		"score",
 	],
 	"Open Play Goals": [
 		"open play goals",
@@ -230,11 +231,15 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"average conceded",
 	],
 	"Minutes Per Goal": [
+		"minutes does it take on average.*to score",
+		"minutes does it take.*to score",
 		"minutes does it take on average",
 		"minutes does it take",
 		"minutes per goal",
 		"mins per goal",
 		"time per goal",
+		"minutes on average.*to score",
+		"average minutes.*to score",
 		"minutes on average",
 		"average minutes",
 	],
@@ -305,6 +310,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"how many of the clubs teams",
 		"how many of the club's teams",
 		"how many of the club teams",
+		"how many of the clubs team",
+		"how many of the club's team",
+		"how many of the club team",
 	],
 	"Most Prolific Season": [
 		"most prolific season",
