@@ -418,6 +418,196 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 	);
 }
 
+// Positional Stats Visualization Component
+function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: number; def: number; mid: number; fwd: number; appearances: number }) {
+	// SVG dimensions: 127x87 (width x height)
+	const svgWidth = 127;
+	const svgHeight = 87;
+	const thirdWidth = svgWidth / 3;
+	
+	// Calculate percentages
+	const totalPositionAppearances = gk + def + mid + fwd;
+	const gkPercent = totalPositionAppearances > 0 ? (gk / totalPositionAppearances * 100) : 0;
+	const defPercent = totalPositionAppearances > 0 ? (def / totalPositionAppearances * 100) : 0;
+	const midPercent = totalPositionAppearances > 0 ? (mid / totalPositionAppearances * 100) : 0;
+	const fwdPercent = totalPositionAppearances > 0 ? (fwd / totalPositionAppearances * 100) : 0;
+	
+	// Calculate percentage of total appearances
+	const gkPercentOfTotal = appearances > 0 ? (gk / appearances * 100) : 0;
+	const defPercentOfTotal = appearances > 0 ? (def / appearances * 100) : 0;
+	const midPercentOfTotal = appearances > 0 ? (mid / appearances * 100) : 0;
+	const fwdPercentOfTotal = appearances > 0 ? (fwd / appearances * 100) : 0;
+	
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Positional Stats</h3>
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
+				{/* Background SVG - horizontal pitch */}
+				<div className='absolute inset-0 w-full h-full'>
+					<Image
+						src='/stat-images/horizontal-pitch.svg'
+						alt='Football Pitch'
+						fill
+						className='object-contain w-full h-full'
+						priority
+					/>
+				</div>
+				
+				{/* Overlay boxes for each third */}
+				<svg width='100%' height='100%' viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio='xMidYMid meet' className='relative z-10'>
+					{/* DEF - Left third */}
+					<rect
+						x='0'
+						y='0'
+						width={thirdWidth}
+						height={svgHeight}
+						fill='rgba(139, 69, 19, 0.3)'
+						stroke='rgba(255, 255, 255, 0.5)'
+						strokeWidth='1'
+					/>
+					<text
+						x={thirdWidth / 2}
+						y={svgHeight / 2 - 8}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='20'
+						fontWeight='bold'
+						pointerEvents='none'
+					>
+						{def}
+					</text>
+					<text
+						x={thirdWidth / 2}
+						y={svgHeight / 2 + 12}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='12'
+						pointerEvents='none'
+					>
+						{defPercentOfTotal.toFixed(1)}%
+					</text>
+					
+					{/* MID - Middle third */}
+					<rect
+						x={thirdWidth}
+						y='0'
+						width={thirdWidth}
+						height={svgHeight}
+						fill='rgba(144, 238, 144, 0.3)'
+						stroke='rgba(255, 255, 255, 0.5)'
+						strokeWidth='1'
+					/>
+					<text
+						x={thirdWidth + thirdWidth / 2}
+						y={svgHeight / 2 - 8}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='20'
+						fontWeight='bold'
+						pointerEvents='none'
+					>
+						{mid}
+					</text>
+					<text
+						x={thirdWidth + thirdWidth / 2}
+						y={svgHeight / 2 + 12}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='12'
+						pointerEvents='none'
+					>
+						{midPercentOfTotal.toFixed(1)}%
+					</text>
+					
+					{/* FWD - Right third */}
+					<rect
+						x={thirdWidth * 2}
+						y='0'
+						width={thirdWidth}
+						height={svgHeight}
+						fill='rgba(64, 224, 208, 0.3)'
+						stroke='rgba(255, 255, 255, 0.5)'
+						strokeWidth='1'
+					/>
+					<text
+						x={thirdWidth * 2 + thirdWidth / 2}
+						y={svgHeight / 2 - 8}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='20'
+						fontWeight='bold'
+						pointerEvents='none'
+					>
+						{fwd}
+					</text>
+					<text
+						x={thirdWidth * 2 + thirdWidth / 2}
+						y={svgHeight / 2 + 12}
+						textAnchor='middle'
+						dominantBaseline='middle'
+						fill='#ffffff'
+						fontSize='12'
+						pointerEvents='none'
+					>
+						{fwdPercentOfTotal.toFixed(1)}%
+					</text>
+				</svg>
+			</div>
+			{/* Stats Table */}
+			<div className='mt-4'>
+				<table className='w-full text-white text-sm'>
+					<thead>
+						<tr className='border-b border-white/20'>
+							<th className='text-left py-2 px-2'>Position</th>
+							<th className='text-right py-2 px-2'>Appearances</th>
+							<th className='text-right py-2 px-2'>Percentage</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-purple-500 mr-2'></span>
+								GK
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{gk}</td>
+							<td className='text-right py-2 px-2 font-mono'>{gkPercentOfTotal.toFixed(1)}%</td>
+						</tr>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-amber-700 mr-2'></span>
+								DEF
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{def}</td>
+							<td className='text-right py-2 px-2 font-mono'>{defPercentOfTotal.toFixed(1)}%</td>
+						</tr>
+						<tr className='border-b border-white/10'>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-green-400 mr-2'></span>
+								MID
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{mid}</td>
+							<td className='text-right py-2 px-2 font-mono'>{midPercentOfTotal.toFixed(1)}%</td>
+						</tr>
+						<tr>
+							<td className='py-2 px-2'>
+								<span className='inline-block w-3 h-3 rounded-full bg-teal-400 mr-2'></span>
+								FWD
+							</td>
+							<td className='text-right py-2 px-2 font-mono'>{fwd}</td>
+							<td className='text-right py-2 px-2 font-mono'>{fwdPercentOfTotal.toFixed(1)}%</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	);
+}
+
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
 
@@ -432,6 +622,29 @@ export default function PlayerStats() {
 	}, [statsToDisplay]);
 
 	const playerData: PlayerData | null = cachedPlayerData?.playerData || null;
+
+	// Debug log for position counts (must be before early returns)
+	useEffect(() => {
+		if (playerData && selectedPlayer) {
+			const gk = toNumber(playerData.gk || 0);
+			const def = toNumber(playerData.def || 0);
+			const mid = toNumber(playerData.mid || 0);
+			const fwd = toNumber(playerData.fwd || 0);
+			console.log(`[Position Counts] ${selectedPlayer}:`, {
+				GK: gk,
+				DEF: def,
+				MID: mid,
+				FWD: fwd,
+				Total: gk + def + mid + fwd,
+				RawData: {
+					gk: playerData.gk,
+					def: playerData.def,
+					mid: playerData.mid,
+					fwd: playerData.fwd
+				}
+			});
+		}
+	}, [playerData, selectedPlayer]);
 
 	// Prepare chart data (hooks must be called before early returns)
 	const keyPerformanceData = useMemo(() => {
@@ -555,11 +768,22 @@ export default function PlayerStats() {
 				</div>
 			)}
 
+			{/* Positional Stats Visualization */}
+			{(toNumber(validPlayerData.gk) > 0 || toNumber(validPlayerData.def) > 0 || toNumber(validPlayerData.mid) > 0 || toNumber(validPlayerData.fwd) > 0) && (
+				<PositionalStatsVisualization
+					gk={toNumber(validPlayerData.gk)}
+					def={toNumber(validPlayerData.def)}
+					mid={toNumber(validPlayerData.mid)}
+					fwd={toNumber(validPlayerData.fwd)}
+					appearances={toNumber(validPlayerData.appearances)}
+				/>
+			)}
+
 			{/* Card Stats Bar Chart */}
 			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Card Stats</h3>
-					<ResponsiveContainer width='100%' height={300}>
+					<ResponsiveContainer width='100%' height={180}>
 						<BarChart data={cardData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
 							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 							<XAxis dataKey='name' stroke='#fff' fontSize={12} />

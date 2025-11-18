@@ -106,10 +106,26 @@ export async function POST(request: NextRequest) {
 		const appearancesConverted = toNumber(appearancesRaw);
 		console.log("[DEBUG] appearances - raw:", appearancesRaw, "type:", typeof appearancesRaw, "converted:", appearancesConverted);
 		
+		// Debug: Log position counts
+		const gkRaw = record.get("gk");
+		const defRaw = record.get("def");
+		const midRaw = record.get("mid");
+		const fwdRaw = record.get("fwd");
+		console.log("[DEBUG Filtered Position Counts] Raw values:", {
+			gk: gkRaw,
+			def: defRaw,
+			mid: midRaw,
+			fwd: fwdRaw
+		});
+		
 		const playerData = {
 			id: record.get("id"),
 			playerName: record.get("playerName"),
 			allowOnSite: record.get("allowOnSite"),
+			gk: toNumber(gkRaw),
+			def: toNumber(defRaw),
+			mid: toNumber(midRaw),
+			fwd: toNumber(fwdRaw),
 			appearances: appearancesConverted,
 			minutes: toNumber(record.get("minutes")),
 			mom: toNumber(record.get("mom")),
