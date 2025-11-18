@@ -1297,7 +1297,7 @@ export const STAT_TEST_CONFIGS: TestConfig[] = [
 		key: "FTP",
 		metric: "fantasyPoints",
 		questionTemplate: "How many fantasy points does {playerName} have?",
-		responsePattern: /(\d+)/,
+		responsePattern: /(-?\d+)/,
 		description: "Fantasy Points",
 	},
 	// Advanced Statistics

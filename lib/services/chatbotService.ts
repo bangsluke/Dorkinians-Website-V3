@@ -1,5 +1,6 @@
 import { neo4jService } from "../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias, getMetricDisplayName } from "../config/chatbotMetrics";
+import { getZeroStatResponse } from "./zeroStatResponses";
 import { statObject, VisualizationType } from "../../config/config";
 import { getAppropriateVerb, getResponseTemplate, formatNaturalResponse } from "../config/naturalLanguageResponses";
 import { EnhancedQuestionAnalyzer, EnhancedQuestionAnalysis } from "../config/enhancedQuestionAnalysis";
@@ -2204,6 +2205,14 @@ export class ChatbotService {
 		const formattedValue = this.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		const verb = getAppropriateVerb(metric, value as number);
 
+		const numericValue = typeof value === "number" ? value : Number(value);
+		if (!Number.isNaN(numericValue) && numericValue === 0) {
+			const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
+			if (zeroResponse) {
+				return zeroResponse;
+			}
+		}
+
 		// Debug logging for percentage issues
 		if (metric.includes("HomeGames%Won") || value === 51.764705) {
 			this.logToBoth(
@@ -2335,6 +2344,27 @@ export class ChatbotService {
 					answer = responseTemplateManager.formatResponse("player_metric", { playerName: String(playerName), value: String(0), metric: "appearances" });
 				}
 			}
+			// Check if this is a season-specific appearance query (e.g., "2017/18 Apps") - explicitly state player did not play
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				/(\d{4}\/\d{2})\s*APPS?/i.test(metric)
+			) {
+				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
+				if (seasonMatch) {
+					const season = seasonMatch[1];
+					answer = responseTemplateManager.formatResponse("season_zero_appearances", {
+						playerName: String(playerName),
+						season,
+					});
+				} else {
+					answer = responseTemplateManager.formatResponse("player_metric", {
+						playerName: String(playerName),
+						value: String(0),
+						metric: "appearances",
+					});
+				}
+			}
 			// Check if this is a team-specific goals query - return 0 instead of "No data found"
 			// Also check for variations like "2nd team" or "6s" which might map to "2nd XI Goals" or "6th XI Goals"
 			else if (metric && typeof metric === 'string' && (
@@ -2404,7 +2434,23 @@ export class ChatbotService {
 			else if (metric && ["CPERAPP", "FTPPERAPP", "GPERAPP", "MPERG", "MPERCLS"].includes((metric as string).toUpperCase())) {
 				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
 			} else {
-				answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
+				const resolvedMetricKey =
+					typeof metric === "string" ? findMetricByAlias(metric)?.key || (metric as string) : "";
+				const metricDisplayName =
+					resolvedMetricKey && typeof resolvedMetricKey === "string"
+						? getMetricDisplayName(resolvedMetricKey, 0)
+						: metric && typeof metric === "string"
+							? getMetricDisplayName(metric, 0)
+							: "this stat";
+				const zeroResponse =
+					resolvedMetricKey && typeof resolvedMetricKey === "string"
+						? getZeroStatResponse(resolvedMetricKey, String(playerName), { metricDisplayName })
+						: null;
+				if (zeroResponse) {
+					answer = zeroResponse;
+				} else {
+					answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
+				}
 			}
 		} else if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 			if (data.type === "specific_player") {

@@ -60,6 +60,7 @@ export class ResponseTemplateManager {
 			"no_data": "No data found: I couldn't find any {{metric}} information for {{playerName}}.",
 			"zero_appearances": "{{playerName}} has made 0 appearances for the {{teamName}}.",
 			"zero_goals": "{{playerName}} has not scored any goals for the {{teamName}}.",
+			"season_zero_appearances": "{{playerName}} did not play in {{season}}.",
 			"database_error": "Database connection error: Unable to connect to the club's database. Please try again later.",
 			"query_error": "Database error: {{error}}",
 			"clarification_needed": "Please clarify your question with more specific details.",
