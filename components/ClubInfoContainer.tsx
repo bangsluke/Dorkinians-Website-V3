@@ -39,23 +39,7 @@ export default function ClubInfoContainer() {
 
 	return (
 		<div className='h-full overflow-hidden'>
-			{/* Club Info Sub-Page Dot Indicators */}
-			<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
-				{clubInfoSubPages.map((page, index) => (
-					<button
-						key={page.id}
-						onClick={() => setClubInfoSubPage(page.id)}
-						className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
-							currentClubInfoSubPage === page.id
-								? "bg-dorkinians-yellow scale-125"
-								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
-						}`}
-						aria-label={`Go to ${page.label}`}
-					/>
-				))}
-			</div>
-
-			{/* Swipeable Content */}
+			{/* Swipeable Content - Scrollable area */}
 			<AnimatePresence mode='wait'>
 				<motion.div
 					key={currentClubInfoSubPage}
@@ -67,7 +51,22 @@ export default function ClubInfoContainer() {
 					dragConstraints={{ left: 0, right: 0 }}
 					onDragEnd={handleDragEnd}
 					style={{ position: 'relative' }}
-					className='h-full'>
+					className='h-full overflow-y-auto'>
+					{/* Club Info Sub-Page Dot Indicators - Scrolls with content */}
+					<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
+						{clubInfoSubPages.map((page, index) => (
+							<button
+								key={page.id}
+								onClick={() => setClubInfoSubPage(page.id)}
+								className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
+									currentClubInfoSubPage === page.id
+										? "bg-dorkinians-yellow scale-125"
+										: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
+								}`}
+								aria-label={`Go to ${page.label}`}
+							/>
+						))}
+					</div>
 					{clubInfoSubPages[currentIndex] ? React.createElement(clubInfoSubPages[currentIndex].component) : null}
 				</motion.div>
 			</AnimatePresence>
