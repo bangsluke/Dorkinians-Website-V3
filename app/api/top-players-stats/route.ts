@@ -69,6 +69,9 @@ export async function POST(request: NextRequest) {
 
 		// Aggregate stats per player
 		// cleanSheets is stored as integer on MatchDetail, sum it directly like goals/assists
+		// For goals stat type, we need to use total goals (goals + penaltiesScored) for sorting
+		const goalsField = statType === "goals" ? "totalGoals" : statField;
+		
 		query += `
 			WITH p, md, f
 			WITH p,
@@ -82,8 +85,9 @@ export async function POST(request: NextRequest) {
 				sum(coalesce(md.yellowCards, 0)) as yellowCards,
 				sum(coalesce(md.redCards, 0)) as redCards,
 				sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
-				sum(coalesce(md.goals, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements
-			WHERE ${statField} > 0
+				sum(coalesce(md.goals, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements,
+				sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals
+			WHERE ${goalsField} > 0
 			RETURN p.playerName as playerName,
 				coalesce(appearances, 0) as appearances,
 				coalesce(goals, 0) as goals,
@@ -96,7 +100,7 @@ export async function POST(request: NextRequest) {
 				coalesce(redCards, 0) as redCards,
 				coalesce(fantasyPoints, 0) as fantasyPoints,
 				coalesce(goalInvolvements, 0) as goalInvolvements
-			ORDER BY ${statField} DESC, appearances DESC
+			ORDER BY ${goalsField} DESC, appearances DESC
 			LIMIT 5
 		`;
 
