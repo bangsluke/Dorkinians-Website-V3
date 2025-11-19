@@ -137,6 +137,10 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(coalesce(md.penaltiesSaved, 0)) as penaltiesSaved,
 			sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
 			sum(coalesce(md.distance, 0)) as distance,
+			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "GK" THEN 1 ELSE 0 END) as gk,
+			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "DEF" THEN 1 ELSE 0 END) as def,
+			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "MID" THEN 1 ELSE 0 END) as mid,
+			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "FWD" THEN 1 ELSE 0 END) as fwd,
 			collect(DISTINCT md.team) as teams,
 			collect(DISTINCT md.season) as seasons,
 			sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
@@ -149,6 +153,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		// Calculate team aggregations separately - re-match with filters
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
 		MATCH (p)-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f2:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md2)
@@ -163,26 +168,31 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			md2.team as team,
 			md2.goals as teamGoal
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			team,
 			count(*) as teamAppearances,
 			sum(coalesce(teamGoal, 0)) as teamGoals
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
 		// Handle team stats - find most played and most scored teams
 		// Use reduce to find max, handling empty teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
 			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.appearances > maxTeam.appearances THEN ts ELSE maxTeam END)
@@ -193,6 +203,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		// Calculate derived stats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd,
 			coalesce(mostPlayedTeam.team, "") as mostPlayedForTeam,
 			coalesce(mostScoredTeam.team, "") as mostScoredForTeam,
 			size(teams) as numberTeamsPlayedFor,
@@ -225,6 +236,10 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			p.playerName as playerName,
 			p.allowOnSite as allowOnSite,
 			p.graphLabel as graphLabel,
+			coalesce(gk, 0) as gk,
+			coalesce(def, 0) as def,
+			coalesce(mid, 0) as mid,
+			coalesce(fwd, 0) as fwd,
 			coalesce(appearances, 0) as appearances,
 			coalesce(minutes, 0) as minutes,
 			coalesce(mom, 0) as mom,
@@ -293,6 +308,8 @@ export async function GET(request: NextRequest) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
+		const graphLabel = neo4jService.getGraphLabel();
+
 		// Build query with no filters
 		const { query, params } = buildPlayerStatsQuery(playerName, null);
 
@@ -331,10 +348,67 @@ export async function GET(request: NextRequest) {
 
 		// Extract aggregated stats from result
 		const record = result.records[0];
+		
+		// Debug: Log position counts and sample class values
+		const gkRaw = record.get("gk");
+		const defRaw = record.get("def");
+		const midRaw = record.get("mid");
+		const fwdRaw = record.get("fwd");
+		console.log("[DEBUG Position Counts] Raw values from query:", {
+			gk: gkRaw,
+			def: defRaw,
+			mid: midRaw,
+			fwd: fwdRaw,
+			gkType: typeof gkRaw,
+			defType: typeof defRaw
+		});
+		
+		// Debug: Query sample MatchDetail class values
+		const debugQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			RETURN md.class as class, count(*) as count, collect(md.class)[0..5] as sampleValues
+			ORDER BY count DESC
+			LIMIT 10
+		`;
+		try {
+			const debugResult = await neo4jService.runQuery(debugQuery, { graphLabel, playerName });
+			const classDistribution = debugResult.records.map(r => ({
+				class: r.get("class"),
+				classType: typeof r.get("class"),
+				classUpper: r.get("class") ? r.get("class").toUpperCase() : null,
+				count: r.get("count").toNumber ? r.get("count").toNumber() : r.get("count"),
+				sampleValues: r.get("sampleValues")
+			}));
+			console.log("[DEBUG] MatchDetail class distribution for player:", playerName, classDistribution);
+			
+			// Also check if class values match our expectations
+			const testQuery = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WITH md.class as class, count(*) as count
+				WHERE class IS NOT NULL
+				RETURN class, count
+				ORDER BY count DESC
+			`;
+			const testResult = await neo4jService.runQuery(testQuery, { graphLabel, playerName });
+			const nonNullClasses = testResult.records.map(r => ({
+				class: r.get("class"),
+				count: r.get("count").toNumber ? r.get("count").toNumber() : r.get("count")
+			}));
+			console.log("[DEBUG] Non-null class values:", nonNullClasses);
+		} catch (debugError) {
+			console.error("[DEBUG] Error fetching class distribution:", debugError);
+		}
+		
 		const playerData = {
 			id: record.get("id"),
 			playerName: record.get("playerName"),
 			allowOnSite: record.get("allowOnSite"),
+			gk: toNumber(gkRaw),
+			def: toNumber(defRaw),
+			mid: toNumber(midRaw),
+			fwd: toNumber(fwdRaw),
 			appearances: toNumber(record.get("appearances")),
 			minutes: toNumber(record.get("minutes")),
 			mom: toNumber(record.get("mom")),

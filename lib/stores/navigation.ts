@@ -50,6 +50,11 @@ export interface PlayerData {
 	penaltiesSavedPerApp: number;
 	pointsPerGame: number;
 
+	// Position tracking
+	gk: number;
+	def: number;
+	mid: number;
+	fwd: number;
 	// Team and season tracking
 	mostPlayedForTeam: string;
 	numberTeamsPlayedFor: number;

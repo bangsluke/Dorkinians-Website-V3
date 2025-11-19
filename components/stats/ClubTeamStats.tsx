@@ -7,11 +7,29 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import Tabs from "@/components/ui/Tabs";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface Team {
 	name: string;
 }
+
+interface TopPlayer {
+	playerName: string;
+	appearances: number;
+	goals: number;
+	assists: number;
+	cleanSheets: number;
+	mom: number;
+	penaltiesScored: number;
+	saves: number;
+	yellowCards: number;
+	redCards: number;
+	fantasyPoints: number;
+	goalInvolvements: number;
+}
+
+type StatType = "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements";
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -147,6 +165,27 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 	return statUnit ? `${formattedValue} ${statUnit}` : formattedValue;
 }
 
+// Helper to convert TeamData values to numbers
+function toNumber(val: any): number {
+	if (val === null || val === undefined) return 0;
+	if (typeof val === "number") {
+		if (isNaN(val)) return 0;
+		return val;
+	}
+	if (typeof val === "object") {
+		if ("toNumber" in val && typeof val.toNumber === "function") {
+			return val.toNumber();
+		}
+		if ("low" in val && "high" in val) {
+			const low = val.low || 0;
+			const high = val.high || 0;
+			return low + high * 4294967296;
+		}
+	}
+	const num = Number(val);
+	return isNaN(num) ? 0 : num;
+}
+
 export default function ClubTeamStats() {
 	const {
 		selectedPlayer,
@@ -161,6 +200,20 @@ export default function ClubTeamStats() {
 	const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
+	
+	// Top players table state
+	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("club-stats-top-players-stat-type");
+			const validStatTypes: StatType[] = ["goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements"];
+			if (saved && validStatTypes.includes(saved as StatType)) {
+				return saved as StatType;
+			}
+		}
+		return "goals";
+	});
+	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
+	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
 	// Determine page heading based on selected team
 	const pageHeading = useMemo(() => {
@@ -223,6 +276,13 @@ export default function ClubTeamStats() {
 		}
 	}, [teams, selectedTeam]);
 
+	// Save selectedStatType to localStorage when it changes
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			localStorage.setItem("club-stats-top-players-stat-type", selectedStatType);
+		}
+	}, [selectedStatType]);
+
 	// Fetch team data when team changes or filters are applied
 	// Use JSON.stringify to detect filter changes even if object reference doesn't change
 	const filtersKey = JSON.stringify(playerFilters);
@@ -265,9 +325,201 @@ export default function ClubTeamStats() {
 		fetchTeamData();
 	}, [selectedTeam, filtersKey, playerFilters]);
 
+	// Fetch top players when filters or stat type changes
+	useEffect(() => {
+		const fetchTopPlayers = async () => {
+			setIsLoadingTopPlayers(true);
+			console.log(`[ClubTeamStats] Fetching top players for statType: ${selectedStatType}`, {
+				filters: playerFilters,
+				filtersKey,
+			});
+			
+			try {
+				const response = await fetch("/api/top-players-stats", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+						statType: selectedStatType,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					console.log(`[ClubTeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					setTopPlayers(data.players || []);
+				} else {
+					const errorText = await response.text();
+					console.error(`[ClubTeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					setTopPlayers([]);
+				}
+			} catch (error) {
+				console.error("[ClubTeamStats] Error fetching top players:", error);
+				setTopPlayers([]);
+			} finally {
+				setIsLoadingTopPlayers(false);
+			}
+		};
+
+		fetchTopPlayers();
+	}, [filtersKey, selectedStatType, playerFilters]);
+
 	// Handle team selection
 	const handleTeamSelect = (teamName: string) => {
 		setSelectedTeam(teamName);
+	};
+
+	// Handle stat type selection
+	const handleStatTypeSelect = (statType: StatType) => {
+		setSelectedStatType(statType);
+	};
+
+	// Get stat value for a player based on stat type
+	const getStatValue = (player: TopPlayer, statType: StatType): number => {
+		switch (statType) {
+			case "goals":
+				return player.goals + player.penaltiesScored;
+			case "assists":
+				return player.assists;
+			case "cleanSheets":
+				return player.cleanSheets;
+			case "mom":
+				return player.mom;
+			case "saves":
+				return player.saves;
+			case "yellowCards":
+				return player.yellowCards;
+			case "redCards":
+				return player.redCards;
+			case "penaltiesScored":
+				return player.penaltiesScored;
+			case "fantasyPoints":
+				return Math.round(player.fantasyPoints);
+			case "goalInvolvements":
+				return player.goalInvolvements;
+			default:
+				return 0;
+		}
+	};
+
+	// Format player summary text based on stat type
+	const formatPlayerSummary = (player: TopPlayer, statType: StatType): string => {
+		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
+		
+		switch (statType) {
+			case "goals":
+				const totalGoals = player.goals + player.penaltiesScored;
+				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
+				return `${totalGoals} ${totalGoals === 1 ? "Goal" : "Goals"}${penaltyText} in ${apps}`;
+			case "assists":
+				return `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"} in ${apps}`;
+			case "cleanSheets":
+				return `${player.cleanSheets} ${player.cleanSheets === 1 ? "Clean Sheet" : "Clean Sheets"} in ${apps}`;
+			case "mom":
+				return `${player.mom} ${player.mom === 1 ? "Man of the Match" : "Man of the Matches"} in ${apps}`;
+			case "saves":
+				return `${player.saves} ${player.saves === 1 ? "Save" : "Saves"} in ${apps}`;
+			case "yellowCards":
+				return `${player.yellowCards} ${player.yellowCards === 1 ? "Yellow Card" : "Yellow Cards"} in ${apps}`;
+			case "redCards":
+				return `${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"} in ${apps}`;
+			case "penaltiesScored":
+				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty" : "Penalties"} in ${apps}`;
+			case "fantasyPoints":
+				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
+			case "goalInvolvements":
+				return `${player.goalInvolvements} ${player.goalInvolvements === 1 ? "Goal Involvement" : "Goal Involvements"} in ${apps}`;
+			default:
+				return apps;
+		}
+	};
+
+	// Get stat type display label
+	const getStatTypeLabel = (statType: StatType): string => {
+		switch (statType) {
+			case "goals":
+				return "Goals";
+			case "assists":
+				return "Assists";
+			case "cleanSheets":
+				return "Clean Sheets";
+			case "mom":
+				return "Man of the Matches";
+			case "saves":
+				return "Saves";
+			case "yellowCards":
+				return "Yellow Cards";
+			case "redCards":
+				return "Red Cards";
+			case "penaltiesScored":
+				return "Penalties Scored";
+			case "fantasyPoints":
+				return "Fantasy Points";
+			case "goalInvolvements":
+				return "Goal Involvements";
+			default:
+				return "Goals";
+		}
+	};
+
+	// Format rank as ordinal (1st, 2nd, 3rd, etc.)
+	const formatRank = (rank: number): string => {
+		const lastDigit = rank % 10;
+		const lastTwoDigits = rank % 100;
+		
+		if (lastTwoDigits >= 11 && lastTwoDigits <= 13) {
+			return `${rank}th`;
+		}
+		
+		switch (lastDigit) {
+			case 1:
+				return `${rank}st`;
+			case 2:
+				return `${rank}nd`;
+			case 3:
+				return `${rank}rd`;
+			default:
+				return `${rank}th`;
+		}
+	};
+
+	// Prepare chart data (must be at top level for hooks)
+	const goalsData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Goals Scored", value: toNumber(teamData.goalsScored) },
+			{ name: "Goals Conceded", value: toNumber(teamData.goalsConceded) },
+		];
+	}, [teamData]);
+
+	const homeAwayData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Home Games", value: toNumber(teamData.homeGames) },
+			{ name: "Home Wins", value: toNumber(teamData.homeWins) },
+			{ name: "Home Win %", value: Math.round(toNumber(teamData.homeWinPercentage)) },
+			{ name: "Away Games", value: toNumber(teamData.awayGames) },
+			{ name: "Away Wins", value: toNumber(teamData.awayWins) },
+			{ name: "Away Win %", value: Math.round(toNumber(teamData.awayWinPercentage)) },
+		];
+	}, [teamData]);
+
+	const keyTeamStatsData = useMemo(() => {
+		if (!teamData) return [];
+		return [
+			{ name: "Games", value: toNumber(teamData.gamesPlayed) },
+			{ name: "Clean Sheets", value: toNumber(teamData.cleanSheets) },
+			{ name: "Points/Game", value: Number(toNumber(teamData.pointsPerGame).toFixed(2)) },
+		];
+	}, [teamData]);
+
+	const tooltipStyle = {
+		backgroundColor: '#1f2937',
+		border: '1px solid rgba(249, 237, 50, 0.3)',
+		borderRadius: '8px',
+		color: '#fff',
 	};
 
 	if (isLoadingTeams) {
@@ -354,78 +606,241 @@ export default function ClubTeamStats() {
 					</div>
 				</div>
 			) : (
-				<div className='flex-1 overflow-y-auto px-2 md:px-4 pb-4'>
-					{pieChartData.length > 0 && (
-						<div className='mb-4 bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<ResponsiveContainer width='100%' height={350}>
-								<PieChart>
-									<Pie
-										data={pieChartData}
-										cx='50%'
-										cy='50%'
-										labelLine={false}
-										label={({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
-											const RADIAN = Math.PI / 180;
-											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-											const x = cx + radius * Math.cos(-midAngle * RADIAN);
-											const y = cy + radius * Math.sin(-midAngle * RADIAN);
-											
-											return (
-												<text
-													x={x}
-													y={y}
-													fill="#ffffff"
-													textAnchor={x > cx ? 'start' : 'end'}
-													dominantBaseline="central"
-													fontSize={14}
-													fontWeight='bold'
+				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0'>
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4'>
+								{/* Win/Draw/Loss Pie Chart */}
+								{pieChartData.length > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+										<ResponsiveContainer width='100%' height={350}>
+											<PieChart>
+												<Pie
+													data={pieChartData}
+													cx='50%'
+													cy='50%'
+													labelLine={false}
+													label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+														const RADIAN = Math.PI / 180;
+														const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+														const x = cx + radius * Math.cos(-midAngle * RADIAN);
+														const y = cy + radius * Math.sin(-midAngle * RADIAN);
+														
+														return (
+															<text
+																x={x}
+																y={y}
+																fill="#ffffff"
+																textAnchor={x > cx ? 'start' : 'end'}
+																dominantBaseline="central"
+																fontSize={14}
+																fontWeight='bold'
+															>
+																{`${name}: ${value}`}
+															</text>
+														);
+													}}
+													outerRadius={100}
+													fill='#8884d8'
+													dataKey='value'
 												>
-													{`${name}: ${value}`}
-												</text>
-											);
-										}}
-										outerRadius={100}
-										fill='#8884d8'
-										dataKey='value'
-									>
-										{pieChartData.map((entry, index) => (
-											<Cell key={`cell-${index}`} fill={entry.color} />
-										))}
-									</Pie>
-									<Tooltip
-										contentStyle={{
-											backgroundColor: '#1f2937',
-											border: '1px solid rgba(249, 237, 50, 0.3)',
-											borderRadius: '8px',
-											color: '#fff',
-										}}
-										itemStyle={{ color: '#fff' }}
-									/>
-									<Legend
-										wrapperStyle={{ color: '#fff' }}
-										iconType='circle'
-									/>
-								</PieChart>
-							</ResponsiveContainer>
-						</div>
-					)}
-					<div className='overflow-x-auto'>
-						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-							<thead className='sticky top-0 z-10'>
-								<tr className='bg-white/20'>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
-									<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredStatEntries.map(([key, stat]) => {
-									const value = teamData[stat.statName as keyof TeamData];
-									return <StatRow key={key} stat={stat} value={value} teamData={teamData} />;
-								})}
-							</tbody>
-						</table>
-					</div>
+													{pieChartData.map((entry, index) => (
+														<Cell key={`cell-${index}`} fill={entry.color} />
+													))}
+												</Pie>
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
+											</PieChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Goals Scored vs Conceded Bar Chart */}
+								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Home vs Away Performance Bar Chart */}
+								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+
+								{/* Key Team Stats Bar Chart */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
+										<ResponsiveContainer width='100%' height={300}>
+											<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} />
+											</BarChart>
+										</ResponsiveContainer>
+									</div>
+								)}
+							</div>
+						);
+
+						const dataTableContent = (
+							<div className='overflow-x-auto overflow-y-auto h-full flex flex-col'>
+								{/* Top Players Table - at the top of Data tab */}
+								<div className='mb-4 flex-shrink-0'>
+									<div className='mb-2'>
+										<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+											<div className='relative'>
+												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+													<span className='block truncate text-white'>
+														Top 5 {getStatTypeLabel(selectedStatType)}
+													</span>
+													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+													</span>
+												</Listbox.Button>
+												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+													{([
+														"goals",
+														"assists",
+														"goalInvolvements",
+														"cleanSheets",
+														"mom",
+														"saves",
+														"penaltiesScored",
+														"fantasyPoints",
+														"yellowCards",
+														"redCards",
+													] as StatType[]).map((statType) => (
+														<Listbox.Option
+															key={statType}
+															className={({ active }) =>
+																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+															}
+															value={statType}>
+															{({ selected }) => (
+																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																	{getStatTypeLabel(statType)}
+																</span>
+															)}
+														</Listbox.Option>
+													))}
+												</Listbox.Options>
+											</div>
+										</Listbox>
+									</div>
+									{isLoadingTopPlayers ? (
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
+											<p className='text-white text-xs md:text-sm text-center'>Loading top players...</p>
+										</div>
+									) : topPlayers.length > 0 ? (
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white'>
+												<thead>
+													<tr className='border-b-2 border-dorkinians-yellow'>
+														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
+															<div className='flex items-center gap-2'>
+																<div className='w-10 md:w-12'></div>
+																<div>Player Name</div>
+															</div>
+														</th>
+														<th className='text-center py-2 px-2 text-xs md:text-sm w-20 md:w-24'>{getStatTypeLabel(selectedStatType)}</th>
+													</tr>
+												</thead>
+												<tbody>
+													{topPlayers.map((player, index) => {
+														const isLastPlayer = index === topPlayers.length - 1;
+														const statValue = getStatValue(player, selectedStatType);
+														const summary = formatPlayerSummary(player, selectedStatType);
+														
+														return (
+															<tr
+																key={player.playerName}
+																className={`${isLastPlayer ? '' : 'border-b border-green-500'}`}
+																style={{
+																	background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																}}>
+																<td className='py-2 px-2 align-top' colSpan={2}>
+																	<div className='flex flex-col'>
+																		<div className='flex items-center gap-2'>
+																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
+																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
+																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{statValue}</div>
+																		</div>
+																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
+																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
+																				{summary}
+																			</div>
+																		</div>
+																	</div>
+																</td>
+															</tr>
+														);
+													})}
+												</tbody>
+											</table>
+										</div>
+									) : (
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
+											<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+										</div>
+									)}
+								</div>
+
+								{/* Team Stats Table */}
+								<div className='flex-1 min-h-0'>
+									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+										<thead className='sticky top-0 z-10'>
+											<tr className='bg-white/20'>
+												<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
+												<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Stat</th>
+												<th className='px-2 md:px-4 py-2 md:py-3 text-right text-white font-semibold text-xs md:text-sm'>Value</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredStatEntries.map(([key, stat]) => {
+												const value = teamData[stat.statName as keyof TeamData];
+												return <StatRow key={key} stat={stat} value={value} teamData={teamData} />;
+											})}
+										</tbody>
+									</table>
+								</div>
+							</div>
+						);
+
+						return (
+							<Tabs
+								tabs={[
+									{ id: "visualisations", label: "Visualisations", content: chartContent },
+									{ id: "data", label: "Data", content: dataTableContent },
+								]}
+								defaultTab='visualisations'
+								storageKey='club-stats-active-tab'
+							/>
+						);
+					})()}
 				</div>
 			)}
 		</div>
