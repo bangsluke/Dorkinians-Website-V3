@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 		const { filters, statType } = body;
 
-		const validStatTypes = ["goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements"];
+		const validStatTypes = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
 		if (!statType || !validStatTypes.includes(statType)) {
 			return NextResponse.json({ error: `Valid statType is required. Options: ${validStatTypes.join(", ")}` }, { status: 400, headers: corsHeaders });
 		}
@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
 
 		// Determine which stat to aggregate and sort by
 		const statFieldMap: { [key: string]: string } = {
+			appearances: "appearances",
 			goals: "goals",
 			assists: "assists",
 			cleanSheets: "cleanSheets",
@@ -63,6 +64,13 @@ export async function POST(request: NextRequest) {
 			penaltiesScored: "penaltiesScored",
 			fantasyPoints: "fantasyPoints",
 			goalInvolvements: "goalInvolvements",
+			minutes: "minutes",
+			ownGoals: "ownGoals",
+			conceded: "conceded",
+			penaltiesMissed: "penaltiesMissed",
+			penaltiesConceded: "penaltiesConceded",
+			penaltiesSaved: "penaltiesSaved",
+			distance: "distance",
 		};
 
 		const statField = statFieldMap[statType];
@@ -86,8 +94,31 @@ export async function POST(request: NextRequest) {
 				sum(coalesce(md.redCards, 0)) as redCards,
 				sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
 				sum(coalesce(md.goals, 0)) + sum(coalesce(md.assists, 0)) as goalInvolvements,
-				sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals
-			WHERE ${goalsField} > 0
+				sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
+				sum(coalesce(md.minutes, 0)) as minutes,
+				sum(coalesce(md.ownGoals, 0)) as ownGoals,
+				sum(coalesce(md.conceded, 0)) as conceded,
+				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
+				sum(coalesce(md.penaltiesConceded, 0)) as penaltiesConceded,
+				sum(coalesce(md.penaltiesSaved, 0)) as penaltiesSaved,
+				sum(coalesce(md.distance, 0)) as distance,
+				sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
+				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
+		`;
+		
+		// Handle WHERE clause based on stat type
+		// For appearances, filter by appearances > 0
+		// For other stats, filter by the stat value > 0 (except cleanSheets which should show players with 0 too if they have appearances)
+		if (statType === "appearances") {
+			query += ` WHERE appearances > 0`;
+		} else if (statType === "cleanSheets") {
+			// For clean sheets, show players with appearances even if they have 0 clean sheets
+			query += ` WHERE appearances > 0`;
+		} else {
+			query += ` WHERE ${goalsField} > 0`;
+		}
+		
+		query += `
 			RETURN p.playerName as playerName,
 				coalesce(appearances, 0) as appearances,
 				coalesce(goals, 0) as goals,
@@ -99,8 +130,17 @@ export async function POST(request: NextRequest) {
 				coalesce(yellowCards, 0) as yellowCards,
 				coalesce(redCards, 0) as redCards,
 				coalesce(fantasyPoints, 0) as fantasyPoints,
-				coalesce(goalInvolvements, 0) as goalInvolvements
-			ORDER BY ${goalsField} DESC, appearances DESC
+				coalesce(goalInvolvements, 0) as goalInvolvements,
+				coalesce(minutes, 0) as minutes,
+				coalesce(ownGoals, 0) as ownGoals,
+				coalesce(conceded, 0) as conceded,
+				coalesce(penaltiesMissed, 0) as penaltiesMissed,
+				coalesce(penaltiesConceded, 0) as penaltiesConceded,
+				coalesce(penaltiesSaved, 0) as penaltiesSaved,
+				coalesce(distance, 0) as distance,
+				coalesce(homeGames, 0) as homeGames,
+				coalesce(awayGames, 0) as awayGames
+			ORDER BY ${goalsField} DESC, appearances ASC
 			LIMIT 5
 		`;
 
@@ -162,6 +202,15 @@ export async function POST(request: NextRequest) {
 				redCards: toNumber(record.get("redCards")),
 				fantasyPoints: toNumber(record.get("fantasyPoints")),
 				goalInvolvements: toNumber(record.get("goalInvolvements")),
+				homeGames: toNumber(record.get("homeGames")),
+				awayGames: toNumber(record.get("awayGames")),
+				minutes: toNumber(record.get("minutes")),
+				ownGoals: toNumber(record.get("ownGoals")),
+				conceded: toNumber(record.get("conceded")),
+				penaltiesMissed: toNumber(record.get("penaltiesMissed")),
+				penaltiesConceded: toNumber(record.get("penaltiesConceded")),
+				penaltiesSaved: toNumber(record.get("penaltiesSaved")),
+				distance: toNumber(record.get("distance")),
 			};
 			console.log(`[TopPlayersStats] Player: ${player.playerName}, ${statType}: ${player[statField as keyof typeof player]}, statType: ${statType}`);
 			return player;
