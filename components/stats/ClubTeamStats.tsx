@@ -14,6 +14,23 @@ interface Team {
 	name: string;
 }
 
+interface TopPlayer {
+	playerName: string;
+	appearances: number;
+	goals: number;
+	assists: number;
+	cleanSheets: number;
+	mom: number;
+	penaltiesScored: number;
+	saves: number;
+	yellowCards: number;
+	redCards: number;
+	fantasyPoints: number;
+	goalInvolvements: number;
+}
+
+type StatType = "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements";
+
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -183,6 +200,20 @@ export default function ClubTeamStats() {
 	const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
+	
+	// Top players table state
+	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
+		if (typeof window !== "undefined") {
+			const saved = localStorage.getItem("club-stats-top-players-stat-type");
+			const validStatTypes: StatType[] = ["goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements"];
+			if (saved && validStatTypes.includes(saved as StatType)) {
+				return saved as StatType;
+			}
+		}
+		return "goals";
+	});
+	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
+	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
 	// Determine page heading based on selected team
 	const pageHeading = useMemo(() => {
@@ -245,6 +276,13 @@ export default function ClubTeamStats() {
 		}
 	}, [teams, selectedTeam]);
 
+	// Save selectedStatType to localStorage when it changes
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			localStorage.setItem("club-stats-top-players-stat-type", selectedStatType);
+		}
+	}, [selectedStatType]);
+
 	// Fetch team data when team changes or filters are applied
 	// Use JSON.stringify to detect filter changes even if object reference doesn't change
 	const filtersKey = JSON.stringify(playerFilters);
@@ -287,9 +325,114 @@ export default function ClubTeamStats() {
 		fetchTeamData();
 	}, [selectedTeam, filtersKey, playerFilters]);
 
+	// Fetch top players when filters or stat type changes
+	useEffect(() => {
+		const fetchTopPlayers = async () => {
+			setIsLoadingTopPlayers(true);
+			console.log(`[ClubTeamStats] Fetching top players for statType: ${selectedStatType}`, {
+				filters: playerFilters,
+				filtersKey,
+			});
+			
+			try {
+				const response = await fetch("/api/top-players-stats", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+						statType: selectedStatType,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					console.log(`[ClubTeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					setTopPlayers(data.players || []);
+				} else {
+					const errorText = await response.text();
+					console.error(`[ClubTeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					setTopPlayers([]);
+				}
+			} catch (error) {
+				console.error("[ClubTeamStats] Error fetching top players:", error);
+				setTopPlayers([]);
+			} finally {
+				setIsLoadingTopPlayers(false);
+			}
+		};
+
+		fetchTopPlayers();
+	}, [filtersKey, selectedStatType, playerFilters]);
+
 	// Handle team selection
 	const handleTeamSelect = (teamName: string) => {
 		setSelectedTeam(teamName);
+	};
+
+	// Handle stat type selection
+	const handleStatTypeSelect = (statType: StatType) => {
+		setSelectedStatType(statType);
+	};
+
+	// Format player row text based on stat type
+	const formatPlayerRow = (player: TopPlayer, statType: StatType): string => {
+		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
+		
+		switch (statType) {
+			case "goals":
+				const penaltyText = player.penaltiesScored > 0 ? ` (${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty" : "Penalties"})` : "";
+				return `${player.playerName} - ${apps}, ${player.goals} ${player.goals === 1 ? "Goal" : "Goals"}${penaltyText}`;
+			case "assists":
+				return `${player.playerName} - ${apps}, ${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
+			case "cleanSheets":
+				return `${player.playerName} - ${apps}, ${player.cleanSheets} ${player.cleanSheets === 1 ? "Clean Sheet" : "Clean Sheets"}`;
+			case "mom":
+				return `${player.playerName} - ${apps}, ${player.mom} ${player.mom === 1 ? "Man of the Match" : "Man of the Matches"}`;
+			case "saves":
+				return `${player.playerName} - ${apps}, ${player.saves} ${player.saves === 1 ? "Save" : "Saves"}`;
+			case "yellowCards":
+				return `${player.playerName} - ${apps}, ${player.yellowCards} ${player.yellowCards === 1 ? "Yellow Card" : "Yellow Cards"}`;
+			case "redCards":
+				return `${player.playerName} - ${apps}, ${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"}`;
+			case "penaltiesScored":
+				return `${player.playerName} - ${apps}, ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty" : "Penalties"}`;
+			case "fantasyPoints":
+				return `${player.playerName} - ${apps}, ${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"}`;
+			case "goalInvolvements":
+				return `${player.playerName} - ${apps}, ${player.goalInvolvements} ${player.goalInvolvements === 1 ? "Goal Involvement" : "Goal Involvements"}`;
+			default:
+				return `${player.playerName} - ${apps}`;
+		}
+	};
+
+	// Get stat type display label
+	const getStatTypeLabel = (statType: StatType): string => {
+		switch (statType) {
+			case "goals":
+				return "Goals";
+			case "assists":
+				return "Assists";
+			case "cleanSheets":
+				return "Clean Sheets";
+			case "mom":
+				return "Man of the Matches";
+			case "saves":
+				return "Saves";
+			case "yellowCards":
+				return "Yellow Cards";
+			case "redCards":
+				return "Red Cards";
+			case "penaltiesScored":
+				return "Penalties Scored";
+			case "fantasyPoints":
+				return "Fantasy Points";
+			case "goalInvolvements":
+				return "Goal Involvements";
+			default:
+				return "Goals";
+		}
 	};
 
 	// Prepare chart data (must be at top level for hooks)
@@ -393,6 +536,84 @@ export default function ClubTeamStats() {
 							</Listbox.Options>
 						</div>
 					</Listbox>
+				</div>
+
+				{/* Top Players Table */}
+				<div className='mb-4'>
+					<div className='mb-2'>
+						<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+									<span className='block truncate text-white'>
+										Top 5 {getStatTypeLabel(selectedStatType)}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+									{([
+										"goals",
+										"assists",
+										"goalInvolvements",
+										"cleanSheets",
+										"mom",
+										"saves",
+										"penaltiesScored",
+										"fantasyPoints",
+										"yellowCards",
+										"redCards",
+									] as StatType[]).map((statType) => (
+										<Listbox.Option
+											key={statType}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={statType}>
+											{({ selected }) => (
+												<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+													{getStatTypeLabel(statType)}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
+					{isLoadingTopPlayers ? (
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
+							<p className='text-white text-xs md:text-sm text-center'>Loading top players...</p>
+						</div>
+					) : topPlayers.length > 0 ? (
+						<div className='overflow-x-auto'>
+							<table className='w-full text-white'>
+								<thead>
+									<tr className='border-b-2 border-dorkinians-yellow'>
+										<th className='text-left py-2 px-2 text-xs md:text-sm'>Rank</th>
+										<th className='text-left py-2 px-2 text-xs md:text-sm'>Player</th>
+									</tr>
+								</thead>
+								<tbody>
+									{topPlayers.map((player, index) => (
+										<tr
+											key={player.playerName}
+											className={`${index === topPlayers.length - 1 ? '' : 'border-b border-green-500'}`}
+											style={{
+												background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+											}}>
+											<td className='py-2 px-2 text-xs md:text-sm'>{index + 1}</td>
+											<td className='py-2 px-2 text-xs md:text-sm'>{formatPlayerRow(player, selectedStatType)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					) : (
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
+							<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+						</div>
+					)}
 				</div>
 			</div>
 
