@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { WeeklyTOTW, MatchDetail } from "@/types";
 import { formationCoordinateObject } from "@/lib/formations/formationCoordinates";
 import PlayerDetailModal from "./PlayerDetailModal";
@@ -52,6 +52,7 @@ export default function TeamOfTheWeek() {
 	const [showModal, setShowModal] = useState(false);
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
+	const [containerWidth, setContainerWidth] = useState(800);
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
@@ -226,6 +227,29 @@ export default function TeamOfTheWeek() {
 		};
 		fetchWeekData();
 	}, [selectedSeason, selectedWeek, getCachedTOTWWeekData, cacheTOTWWeekData]);
+
+	// Update container width on resize and when data loads
+	useEffect(() => {
+		const updateWidth = () => {
+			if (pitchContainerRef.current) {
+				setContainerWidth(pitchContainerRef.current.offsetWidth);
+			}
+		};
+
+		// Initial update
+		updateWidth();
+		
+		// Update on window resize
+		window.addEventListener('resize', updateWidth);
+		
+		// Update when data loads (container might not be sized initially)
+		const timeoutId = setTimeout(updateWidth, 100);
+		
+		return () => {
+			window.removeEventListener('resize', updateWidth);
+			clearTimeout(timeoutId);
+		};
+	}, [totwData, loading]);
 
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
@@ -451,9 +475,116 @@ export default function TeamOfTheWeek() {
 
 	const playersInFormation = getPlayersInFormation();
 	const formation = totwData?.bestFormation || "";
+	const pitchContainerRef = useRef<HTMLDivElement>(null);
+
+	// Calculate dynamic box dimensions for each row based on player positions and container width
+	const rowDimensions = useMemo(() => {
+		if (!formation || playersInFormation.length === 0) return new Map<number, { width: number; height: number }>();
+
+		// Use container width state (updates on resize)
+		const width = containerWidth;
+		const edgeMargin = 4; // Minimum gap in pixels from pitch edge
+		const baseHeight = 44; // Consistent height for all boxes in a row
+
+		// Group players by their y-coordinate and track x positions
+		const rowData = new Map<number, { playerCount: number; minX: number; maxX: number }>();
+		
+		playersInFormation.forEach((player) => {
+			const position = getPlayerPosition(formation, player.posKey);
+			if (position) {
+				const rowY = Math.round(position.y);
+				const existing = rowData.get(rowY);
+				if (existing) {
+					existing.playerCount++;
+					existing.minX = Math.min(existing.minX, position.x);
+					existing.maxX = Math.max(existing.maxX, position.x);
+				} else {
+					rowData.set(rowY, {
+						playerCount: 1,
+						minX: position.x,
+						maxX: position.x,
+					});
+				}
+			}
+		});
+
+		// Calculate dimensions for each row
+		const dimensions = new Map<number, { width: number; height: number }>();
+		const minWidth = 55; // Minimum width in pixels
+
+		rowData.forEach((data, rowY) => {
+			const gapBetweenBoxes = 4; // Always maintain gap between boxes
+			
+			// Get players in this row with their positions
+			const rowPlayersWithPositions = playersInFormation
+				.map((player) => {
+					const position = getPlayerPosition(formation, player.posKey);
+					return position && Math.round(position.y) === rowY 
+						? { player, position } 
+						: null;
+				})
+				.filter((item): item is { player: typeof playersInFormation[0]; position: { x: number; y: number } } => item !== null)
+				.sort((a, b) => a.position.x - b.position.x);
+			
+			// For rows with 1-3 players, size boxes to fit names (not maximize)
+			if (data.playerCount <= 3) {
+				// Estimate width needed for names (rough calculation: ~8px per character + padding)
+				const padding = 16; // px-2 on both sides = 8px * 2
+				const maxNameLength = Math.max(...rowPlayersWithPositions.map(({ player }) => formatPlayerName(player.name).length));
+				const estimatedNameWidth = (maxNameLength * 8) + padding; // ~8px per character
+				
+				// Calculate minimum spacing between adjacent players to ensure gaps
+				let minSpacing = Infinity;
+				if (rowPlayersWithPositions.length > 1) {
+					for (let i = 0; i < rowPlayersWithPositions.length - 1; i++) {
+						const spacing = (rowPlayersWithPositions[i + 1].position.x - rowPlayersWithPositions[i].position.x) / 100 * width;
+						minSpacing = Math.min(minSpacing, spacing);
+					}
+				}
+				
+				// Box width should be less than minimum spacing to ensure gaps (if multiple players)
+				let boxWidth = Math.max(minWidth, estimatedNameWidth);
+				if (rowPlayersWithPositions.length > 1 && minSpacing < Infinity) {
+					// Ensure box width leaves at least gapBetweenBoxes space between boxes
+					const maxBoxWidth = minSpacing - gapBetweenBoxes;
+					boxWidth = Math.min(boxWidth, maxBoxWidth);
+				}
+				
+				dimensions.set(rowY, {
+					width: boxWidth,
+					height: baseHeight,
+				});
+			} else {
+				// For rows with 4+ players, calculate based on spacing between players
+				// Find minimum spacing between adjacent players to ensure gaps
+				let minSpacing = Infinity;
+				for (let i = 0; i < rowPlayersWithPositions.length - 1; i++) {
+					const spacing = (rowPlayersWithPositions[i + 1].position.x - rowPlayersWithPositions[i].position.x) / 100 * width;
+					minSpacing = Math.min(minSpacing, spacing);
+				}
+				
+				// Box width should be less than minimum spacing to ensure gaps
+				// Also account for edge margins
+				const usableWidth = width - (edgeMargin * 2);
+				const totalGapWidth = gapBetweenBoxes * (data.playerCount - 1);
+				const maxBoxWidthFromSpacing = minSpacing - gapBetweenBoxes;
+				const maxBoxWidthFromFullWidth = (usableWidth - totalGapWidth) / data.playerCount;
+				
+				// Use the smaller of the two to ensure gaps are maintained
+				const boxWidth = Math.max(minWidth, Math.min(maxBoxWidthFromSpacing, maxBoxWidthFromFullWidth));
+				
+				dimensions.set(rowY, {
+					width: boxWidth,
+					height: baseHeight,
+				});
+			}
+		});
+
+		return dimensions;
+	}, [formation, playersInFormation, containerWidth]);
 
 	return (
-		<div className='flex flex-col p-4 md:p-6 relative'>
+		<div className='flex flex-col px-[11.2px] md:px-[16.8px] py-4 md:py-6 relative'>
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
@@ -604,7 +735,7 @@ export default function TeamOfTheWeek() {
 			</div>
 
 			{/* Pitch Visualization */}
-			<div className='relative w-full mb-6' style={{ minHeight: '500px', aspectRatio: '16/9' }}>
+			<div ref={pitchContainerRef} className='relative w-full mb-6' style={{ minHeight: '500px', aspectRatio: '16/9' }}>
 				{!loading && (
 					<>
 						{/* Pitch Background */}
@@ -625,6 +756,8 @@ export default function TeamOfTheWeek() {
 							if (!position) return null;
 
 							const isGoalkeeper = player.position === "GK";
+							const rowY = Math.round(position.y);
+							const dimensions = rowDimensions.get(rowY) || { width: 60, height: 50 };
 
 							return (
 								<div
@@ -646,8 +779,17 @@ export default function TeamOfTheWeek() {
 												className='object-contain'
 											/>
 										</div>
-										<div className='bg-green-600 text-white px-2 py-1.5 rounded text-xs md:text-sm text-center min-w-[60px]' style={{ backgroundColor: 'rgba(28, 136, 65, 0.95)' }}>
-											<div>{formatPlayerName(player.name)}</div>
+										<div 
+											className='bg-green-600 text-white px-2 py-1.5 rounded text-xs md:text-sm text-center overflow-hidden' 
+											style={{ 
+												backgroundColor: 'rgba(28, 136, 65, 0.95)',
+												width: `${dimensions.width}px`,
+												minWidth: `${dimensions.width}px`,
+												maxWidth: `${dimensions.width}px`,
+												height: `${dimensions.height}px`,
+											}}
+										>
+											<div className='truncate'>{formatPlayerName(player.name)}</div>
 											<div className='font-bold mt-0.5'>
 												{!loading && totwData && Math.round(player.ftp)}
 											</div>
