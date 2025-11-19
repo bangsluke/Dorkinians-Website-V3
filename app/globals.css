@@ -335,7 +335,7 @@
 
 	/* Responsive frosted glass container */
 	.frosted-container {
-		@apply frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden;
+		@apply frosted-glass rounded-2xl mx-1.5 my-2 h-full overflow-hidden;
 	}
 
 	/* Desktop frosted glass container */
@@ -350,14 +350,14 @@
 
 /* Style the main content container with the frosted glass */
 .main-content-container {
-	padding: 64px 16px 100px 16px;
+	padding: 64px 11px 100px 11px;
 	height: 100vh;
 }
 
 /* Desktop main content container */
 @media (min-width: 768px) {
 	.main-content-container {
-		padding: 64px 16px 76px 16px;
+		padding: 64px 11px 76px 11px;
 	}
 }
 
