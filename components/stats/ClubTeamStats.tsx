@@ -27,9 +27,18 @@ interface TopPlayer {
 	redCards: number;
 	fantasyPoints: number;
 	goalInvolvements: number;
+	homeGames: number;
+	awayGames: number;
+	minutes: number;
+	ownGoals: number;
+	conceded: number;
+	penaltiesMissed: number;
+	penaltiesConceded: number;
+	penaltiesSaved: number;
+	distance: number;
 }
 
-type StatType = "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements";
+type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "saves" | "yellowCards" | "redCards" | "penaltiesScored" | "fantasyPoints" | "goalInvolvements" | "minutes" | "ownGoals" | "conceded" | "penaltiesMissed" | "penaltiesConceded" | "penaltiesSaved" | "distance";
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -205,12 +214,12 @@ export default function ClubTeamStats() {
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem("club-stats-top-players-stat-type");
-			const validStatTypes: StatType[] = ["goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements"];
+			const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
 			if (saved && validStatTypes.includes(saved as StatType)) {
 				return saved as StatType;
 			}
 		}
-		return "goals";
+		return "appearances";
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
@@ -379,6 +388,8 @@ export default function ClubTeamStats() {
 	// Get stat value for a player based on stat type
 	const getStatValue = (player: TopPlayer, statType: StatType): number => {
 		switch (statType) {
+			case "appearances":
+				return player.appearances;
 			case "goals":
 				return player.goals + player.penaltiesScored;
 			case "assists":
@@ -399,6 +410,20 @@ export default function ClubTeamStats() {
 				return Math.round(player.fantasyPoints);
 			case "goalInvolvements":
 				return player.goalInvolvements;
+			case "minutes":
+				return player.minutes;
+			case "ownGoals":
+				return player.ownGoals;
+			case "conceded":
+				return player.conceded;
+			case "penaltiesMissed":
+				return player.penaltiesMissed;
+			case "penaltiesConceded":
+				return player.penaltiesConceded;
+			case "penaltiesSaved":
+				return player.penaltiesSaved;
+			case "distance":
+				return player.distance;
 			default:
 				return 0;
 		}
@@ -409,6 +434,10 @@ export default function ClubTeamStats() {
 		const apps = `${player.appearances} ${player.appearances === 1 ? "App" : "Apps"}`;
 		
 		switch (statType) {
+			case "appearances":
+				const homeGamesText = `${player.homeGames} ${player.homeGames === 1 ? "Home Game" : "Home Games"}`;
+				const awayGamesText = `${player.awayGames} ${player.awayGames === 1 ? "Away Game" : "Away Games"}`;
+				return `${homeGamesText} and ${awayGamesText}`;
 			case "goals":
 				const totalGoals = player.goals + player.penaltiesScored;
 				const penaltyText = player.penaltiesScored > 0 ? ` (incl. ${player.penaltiesScored} ${player.penaltiesScored === 1 ? "penalty" : "penalties"})` : "";
@@ -426,11 +455,30 @@ export default function ClubTeamStats() {
 			case "redCards":
 				return `${player.redCards} ${player.redCards === 1 ? "Red Card" : "Red Cards"} in ${apps}`;
 			case "penaltiesScored":
-				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty" : "Penalties"} in ${apps}`;
+				return `${player.penaltiesScored} ${player.penaltiesScored === 1 ? "Penalty Scored" : "Penalties Scored"} in ${apps}`;
 			case "fantasyPoints":
 				return `${Math.round(player.fantasyPoints)} ${Math.round(player.fantasyPoints) === 1 ? "Fantasy Point" : "Fantasy Points"} in ${apps}`;
 			case "goalInvolvements":
-				return `${player.goalInvolvements} ${player.goalInvolvements === 1 ? "Goal Involvement" : "Goal Involvements"} in ${apps}`;
+				const totalGoalsForInvolvements = player.goals + player.penaltiesScored;
+				const goalsText = `${totalGoalsForInvolvements} ${totalGoalsForInvolvements === 1 ? "Goal" : "Goals"}`;
+				const assistsText = `${player.assists} ${player.assists === 1 ? "Assist" : "Assists"}`;
+				return `${goalsText} and ${assistsText} in ${apps}`;
+			case "minutes":
+				const formattedMinutes = player.minutes.toLocaleString();
+				return `${formattedMinutes} ${player.minutes === 1 ? "Minute" : "Minutes"} in ${apps}`;
+			case "ownGoals":
+				return `${player.ownGoals} ${player.ownGoals === 1 ? "Own Goal" : "Own Goals"} in ${apps}`;
+			case "conceded":
+				return `${player.conceded} ${player.conceded === 1 ? "Goal Conceded" : "Goals Conceded"} in ${apps}`;
+			case "penaltiesMissed":
+				return `${player.penaltiesMissed} ${player.penaltiesMissed === 1 ? "Penalty Missed" : "Penalties Missed"} in ${apps}`;
+			case "penaltiesConceded":
+				return `${player.penaltiesConceded} ${player.penaltiesConceded === 1 ? "Penalty Conceded" : "Penalties Conceded"} in ${apps}`;
+			case "penaltiesSaved":
+				return `${player.penaltiesSaved} ${player.penaltiesSaved === 1 ? "Penalty Saved" : "Penalties Saved"} in ${apps}`;
+			case "distance":
+				const roundedDistance = Math.round(player.distance * 10) / 10;
+				return `${roundedDistance} miles travelled to games in ${apps}`;
 			default:
 				return apps;
 		}
@@ -439,6 +487,8 @@ export default function ClubTeamStats() {
 	// Get stat type display label
 	const getStatTypeLabel = (statType: StatType): string => {
 		switch (statType) {
+			case "appearances":
+				return "Appearances";
 			case "goals":
 				return "Goals";
 			case "assists":
@@ -459,8 +509,22 @@ export default function ClubTeamStats() {
 				return "Fantasy Points";
 			case "goalInvolvements":
 				return "Goal Involvements";
+			case "minutes":
+				return "Minutes Played";
+			case "ownGoals":
+				return "Own Goals";
+			case "conceded":
+				return "Goals Conceded";
+			case "penaltiesMissed":
+				return "Penalties Missed";
+			case "penaltiesConceded":
+				return "Penalties Conceded";
+			case "penaltiesSaved":
+				return "Penalties Saved";
+			case "distance":
+				return "Distance Travelled";
 			default:
-				return "Goals";
+				return "Appearances";
 		}
 	};
 
@@ -710,29 +774,39 @@ export default function ClubTeamStats() {
 							<div className='overflow-x-auto overflow-y-auto h-full flex flex-col'>
 								{/* Top Players Table - at the top of Data tab */}
 								<div className='mb-4 flex-shrink-0'>
-									<div className='mb-2'>
-										<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
-											<div className='relative'>
-												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-													<span className='block truncate text-white'>
-														Top 5 {getStatTypeLabel(selectedStatType)}
-													</span>
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<div className='mb-2'>
+											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
+												<div className='relative'>
+													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+														<span className='block truncate text-white'>
+															{getStatTypeLabel(selectedStatType)}
+														</span>
 													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 													</span>
 												</Listbox.Button>
 												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
 													{([
+														"appearances",
+														"minutes",
+														"mom",
 														"goals",
 														"assists",
 														"goalInvolvements",
-														"cleanSheets",
-														"mom",
-														"saves",
-														"penaltiesScored",
 														"fantasyPoints",
+														"cleanSheets",
+														"saves",
 														"yellowCards",
 														"redCards",
+														"penaltiesScored",
+														"penaltiesSaved",
+														"penaltiesConceded",
+														"penaltiesMissed",
+														"conceded",
+														"ownGoals",
+														"distance",
 													] as StatType[]).map((statType) => (
 														<Listbox.Option
 															key={statType}
@@ -749,15 +823,15 @@ export default function ClubTeamStats() {
 													))}
 												</Listbox.Options>
 											</div>
-										</Listbox>
-									</div>
-									{isLoadingTopPlayers ? (
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
-											<p className='text-white text-xs md:text-sm text-center'>Loading top players...</p>
+												</Listbox>
 										</div>
-									) : topPlayers.length > 0 ? (
-										<div className='overflow-x-auto'>
-											<table className='w-full text-white'>
+										{isLoadingTopPlayers ? (
+											<div className='p-4'>
+												<p className='text-white text-xs md:text-sm text-center'>Loading top players...</p>
+											</div>
+										) : topPlayers.length > 0 ? (
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white'>
 												<thead>
 													<tr className='border-b-2 border-dorkinians-yellow'>
 														<th className='text-left py-2 px-2 text-xs md:text-sm w-auto'>
@@ -773,6 +847,14 @@ export default function ClubTeamStats() {
 													{topPlayers.map((player, index) => {
 														const isLastPlayer = index === topPlayers.length - 1;
 														const statValue = getStatValue(player, selectedStatType);
+														let formattedStatValue: string | number;
+														if (selectedStatType === "minutes") {
+															formattedStatValue = statValue.toLocaleString();
+														} else if (selectedStatType === "distance") {
+															formattedStatValue = (Math.round(statValue * 10) / 10).toFixed(1);
+														} else {
+															formattedStatValue = statValue;
+														}
 														const summary = formatPlayerSummary(player, selectedStatType);
 														
 														return (
@@ -787,7 +869,7 @@ export default function ClubTeamStats() {
 																		<div className='flex items-center gap-2'>
 																			<div className='text-base md:text-lg font-semibold whitespace-nowrap w-10 md:w-12'>{formatRank(index + 1)}</div>
 																			<div className='text-base md:text-lg font-semibold flex-1'>{player.playerName}</div>
-																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{statValue}</div>
+																			<div className='text-base md:text-lg font-bold w-20 md:w-24 text-center'>{formattedStatValue}</div>
 																		</div>
 																		<div className='pt-1 pl-[3rem] md:pl-[3.5rem]'>
 																			<div className='text-[0.7rem] md:text-[0.8rem] text-gray-300 text-left'>
@@ -800,13 +882,14 @@ export default function ClubTeamStats() {
 														);
 													})}
 												</tbody>
-											</table>
-										</div>
-									) : (
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4'>
-											<p className='text-white text-xs md:text-sm text-center'>No players found</p>
-										</div>
-									)}
+												</table>
+											</div>
+										) : (
+											<div className='p-4'>
+												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+											</div>
+										)}
+									</div>
 								</div>
 
 								{/* Team Stats Table */}
