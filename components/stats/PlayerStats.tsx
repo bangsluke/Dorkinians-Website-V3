@@ -5,6 +5,8 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
+import { Listbox } from "@headlessui/react";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import Tabs from "@/components/ui/Tabs";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -610,6 +612,14 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+	
+	// State for seasonal and team performance charts
+	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
+	const [teamSelectedStat, setTeamSelectedStat] = useState<string>("Apps");
+	const [seasonalStats, setSeasonalStats] = useState<any[]>([]);
+	const [teamStats, setTeamStats] = useState<any[]>([]);
+	const [isLoadingSeasonalStats, setIsLoadingSeasonalStats] = useState(false);
+	const [isLoadingTeamStats, setIsLoadingTeamStats] = useState(false);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -651,9 +661,9 @@ export default function PlayerStats() {
 		if (!playerData) return [];
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
+			{ name: "MoM", value: toNumber(playerData.mom) },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
-			{ name: "MoM", value: toNumber(playerData.mom) },
 		];
 	}, [playerData]);
 
@@ -689,12 +699,139 @@ export default function PlayerStats() {
 		setMainPage("home");
 	};
 
+	// Check if all seasons are selected (must be before early returns)
+	const allSeasonsSelected = useMemo(() => {
+		if (playerFilters.timeRange.type === "allTime") return true;
+		if (playerFilters.timeRange.type === "season" && filterData?.seasons) {
+			const selectedSeasons = playerFilters.timeRange.seasons;
+			const allSeasons = filterData.seasons.map((s: any) => s.season || s);
+			return selectedSeasons.length === allSeasons.length && 
+				allSeasons.every((season: string) => selectedSeasons.includes(season));
+		}
+		return false;
+	}, [playerFilters.timeRange, filterData]);
+
+	// Check if all teams are selected (must be before early returns)
+	const allTeamsSelected = useMemo(() => {
+		return playerFilters.teams.length === 0;
+	}, [playerFilters.teams]);
+
+	// Stat options for dropdowns (must be before early returns)
+	const statOptions = useMemo(() => [
+		{ value: "Apps", label: "Apps", statKey: "appearances" },
+		{ value: "Minutes", label: "Minutes", statKey: "minutes" },
+		{ value: "MoM", label: "MoM", statKey: "mom" },
+		{ value: "Goals", label: "Goals", statKey: "goals" },
+		{ value: "Assists", label: "Assists", statKey: "assists" },
+		{ value: "Fantasy Points", label: "Fantasy Points", statKey: "fantasyPoints" },
+		{ value: "Yellow Cards", label: "Yellow Cards", statKey: "yellowCards" },
+		{ value: "Red Cards", label: "Red Cards", statKey: "redCards" },
+		{ value: "Saves", label: "Saves", statKey: "saves" },
+		{ value: "Clean Sheets", label: "Clean Sheets", statKey: "cleanSheets" },
+		{ value: "Conceded", label: "Conceded", statKey: "conceded" },
+		{ value: "Own Goals", label: "Own Goals", statKey: "ownGoals" },
+		{ value: "Penalties Scored", label: "Penalties Scored", statKey: "penaltiesScored" },
+		{ value: "Penalties Missed", label: "Penalties Missed", statKey: "penaltiesMissed" },
+		{ value: "Penalties Conceded", label: "Penalties Conceded", statKey: "penaltiesConceded" },
+		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
+		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
+	], []);
+
+	// Fetch seasonal stats when all seasons are selected (must be before early returns)
+	useEffect(() => {
+		if (!selectedPlayer || !allSeasonsSelected) {
+			setSeasonalStats([]);
+			return;
+		}
+
+		const fetchSeasonalStats = async () => {
+			setIsLoadingSeasonalStats(true);
+			try {
+				const response = await fetch("/api/player-seasonal-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonalStats(data.seasonalStats || []);
+				}
+			} catch (error) {
+				console.error("Error fetching seasonal stats:", error);
+			} finally {
+				setIsLoadingSeasonalStats(false);
+			}
+		};
+
+		fetchSeasonalStats();
+	}, [selectedPlayer, allSeasonsSelected, playerFilters]);
+
+	// Fetch team stats when all teams are selected (must be before early returns)
+	useEffect(() => {
+		if (!selectedPlayer || !allTeamsSelected) {
+			setTeamStats([]);
+			return;
+		}
+
+		const fetchTeamStats = async () => {
+			setIsLoadingTeamStats(true);
+			try {
+				const response = await fetch("/api/player-team-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setTeamStats(data.teamStats || []);
+				}
+			} catch (error) {
+				console.error("Error fetching team stats:", error);
+			} finally {
+				setIsLoadingTeamStats(false);
+			}
+		};
+
+		fetchTeamStats();
+	}, [selectedPlayer, allTeamsSelected, playerFilters]);
+
+
+	// Prepare seasonal chart data (must be before early returns)
+	const seasonalChartData = useMemo(() => {
+		if (!seasonalStats.length) return [];
+		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+		if (!selectedOption) return [];
+		
+		return seasonalStats.map(stat => ({
+			name: stat.season,
+			value: toNumber(stat[selectedOption.statKey] || 0),
+		}));
+	}, [seasonalStats, seasonalSelectedStat, statOptions]);
+
+	// Prepare team chart data (must be before early returns)
+	const teamChartData = useMemo(() => {
+		if (!teamStats.length) return [];
+		const selectedOption = statOptions.find(opt => opt.value === teamSelectedStat);
+		if (!selectedOption) return [];
+		
+		return teamStats.map(stat => ({
+			name: stat.team,
+			value: toNumber(stat[selectedOption.statKey] || 0),
+		}));
+	}, [teamStats, teamSelectedStat, statOptions]);
+
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
 					<button
 						onClick={handleEditClick}
@@ -712,7 +849,7 @@ export default function PlayerStats() {
 			<div className='h-full flex flex-col'>
 				<div className='flex-shrink-0 p-2 md:p-4'>
 					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Player Stats - {selectedPlayer}</h2>
+						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
 						<button
 							onClick={handleEditClick}
 							className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
@@ -733,7 +870,7 @@ export default function PlayerStats() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Player Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
 					<p className='text-white text-sm md:text-base'>No player data available. Please try selecting the player again.</p>
 				</div>
 			</div>
@@ -744,29 +881,214 @@ export default function PlayerStats() {
 	const validPlayerData: PlayerData = playerData;
 
 	const tooltipStyle = {
-		backgroundColor: '#1f2937',
+		backgroundColor: 'rgb(14, 17, 15)',
 		border: '1px solid rgba(249, 237, 50, 0.3)',
 		borderRadius: '8px',
 		color: '#fff',
 	};
 
+	// Custom tooltip formatter to capitalize "value"
+	const customTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			const displayValue = payload[0].value || 0;
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
 	const chartContent = (
 		<div className='space-y-4 pb-4'>
-			{/* Key Performance Stats Bar Chart */}
+			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => item.value > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
-					<ResponsiveContainer width='100%' height={300}>
-						<BarChart data={keyPerformanceData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-							<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} />
-						</BarChart>
-					</ResponsiveContainer>
+					<div className='grid grid-cols-2 gap-3 md:gap-4'>
+						{keyPerformanceData.map((item) => {
+							const statKey = item.name === "Apps" ? "APP" : item.name === "MoM" ? "MOM" : item.name === "Goals" ? "AllGSC" : "A";
+							const stat = statObject[statKey as keyof typeof statObject];
+							return (
+								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.webp`}
+											alt={stat?.displayText || item.name}
+											width={40}
+											height={40}
+											className='w-10 h-10 md:w-12 md:h-12 object-contain brightness-0 invert'
+										/>
+									</div>
+									<div className='flex flex-col flex-1'>
+										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
+											{formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit)}
+										</div>
+										<div className='text-white/70 text-xs md:text-sm mt-1'>
+											{item.name}
+										</div>
+									</div>
+								</div>
+							);
+						})}
+					</div>
 				</div>
 			)}
+
+			{/* Seasonal Performance Section */}
+			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				{allSeasonsSelected && (
+					<div className='flex items-center justify-between mb-2 gap-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
+						<div className='flex-1 max-w-[45%]'>
+							<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+								<div className='relative'>
+									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+										<span className='block truncate text-white'>
+											{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
+										</span>
+										<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+											<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+										</span>
+									</Listbox.Button>
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+										{statOptions.map((option) => (
+											<Listbox.Option
+												key={option.value}
+												className={({ active }) =>
+													`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												}
+												value={option.value}>
+												{({ selected }) => (
+													<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+														{option.label}
+													</span>
+												)}
+											</Listbox.Option>
+										))}
+									</Listbox.Options>
+								</div>
+							</Listbox>
+						</div>
+					</div>
+				)}
+				{allSeasonsSelected ? (
+					<>
+						{isLoadingSeasonalStats ? (
+							<div className='flex items-center justify-center h-64'>
+								<p className='text-white text-sm'>Loading seasonal stats...</p>
+							</div>
+						) : seasonalChartData.length > 0 ? (
+							<ResponsiveContainer width='100%' height={240}>
+								<BarChart 
+									data={seasonalChartData} 
+									margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+								>
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+									<YAxis stroke='#fff' fontSize={12} />
+									<Tooltip content={customTooltip} />
+									<Bar 
+										dataKey='value' 
+										fill='#f9ed32' 
+										radius={[4, 4, 0, 0]} 
+										opacity={0.9} 
+										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+									/>
+								</BarChart>
+							</ResponsiveContainer>
+						) : (
+							<div className='flex items-center justify-center h-64'>
+								<p className='text-white text-sm'>No seasonal data available</p>
+							</div>
+						)}
+					</>
+				) : (
+					<div className='flex items-center justify-center py-2'>
+						<p className='text-white text-xs'>Unfilter time frame to see Seasonal Performance</p>
+					</div>
+				)}
+			</div>
+
+			{/* Team Performance Section */}
+			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				{allTeamsSelected && (
+					<div className='flex items-center justify-between mb-2 gap-2'>
+						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Team Performance</h3>
+						<div className='flex-1 max-w-[45%]'>
+							<Listbox value={teamSelectedStat} onChange={setTeamSelectedStat}>
+								<div className='relative'>
+									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+										<span className='block truncate text-white'>
+											{statOptions.find(opt => opt.value === teamSelectedStat)?.label || teamSelectedStat}
+										</span>
+										<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+											<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+										</span>
+									</Listbox.Button>
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+										{statOptions.map((option) => (
+											<Listbox.Option
+												key={option.value}
+												className={({ active }) =>
+													`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												}
+												value={option.value}>
+												{({ selected }) => (
+													<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+														{option.label}
+													</span>
+												)}
+											</Listbox.Option>
+										))}
+									</Listbox.Options>
+								</div>
+							</Listbox>
+						</div>
+					</div>
+				)}
+				{allTeamsSelected ? (
+					<>
+						{isLoadingTeamStats ? (
+							<div className='flex items-center justify-center h-64'>
+								<p className='text-white text-sm'>Loading team stats...</p>
+							</div>
+						) : teamChartData.length > 0 ? (
+							<ResponsiveContainer width='100%' height={240}>
+								<BarChart 
+									data={teamChartData} 
+									margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+								>
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+									<YAxis stroke='#fff' fontSize={12} />
+									<Tooltip content={customTooltip} />
+									<Bar 
+										dataKey='value' 
+										fill='#f9ed32' 
+										radius={[4, 4, 0, 0]} 
+										opacity={0.9} 
+										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+									/>
+								</BarChart>
+							</ResponsiveContainer>
+						) : (
+							<div className='flex items-center justify-center h-64'>
+								<p className='text-white text-sm'>No team data available</p>
+							</div>
+						)}
+					</>
+				) : (
+					<div className='flex items-center justify-center py-2'>
+						<p className='text-white text-xs'>Unfilter teams to see Team Performance</p>
+					</div>
+				)}
+			</div>
 
 			{/* Positional Stats Visualization */}
 			{(toNumber(validPlayerData.gk) > 0 || toNumber(validPlayerData.def) > 0 || toNumber(validPlayerData.mid) > 0 || toNumber(validPlayerData.fwd) > 0) && (
@@ -788,8 +1110,8 @@ export default function PlayerStats() {
 							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-							<Bar dataKey='value' radius={[4, 4, 0, 0]}>
+							<Tooltip content={customTooltip} />
+							<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }}>
 								{cardData.map((entry, index) => (
 									<Cell key={`cell-${index}`} fill={entry.color} />
 								))}
@@ -808,8 +1130,8 @@ export default function PlayerStats() {
 							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} />
+							<Tooltip content={customTooltip} />
+							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }} />
 						</BarChart>
 					</ResponsiveContainer>
 				</div>
@@ -851,7 +1173,7 @@ export default function PlayerStats() {
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Player Stats - {selectedPlayer}</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
 					<button
 						onClick={handleEditClick}
 						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
