@@ -580,10 +580,27 @@ export default function ClubTeamStats() {
 	}, [teamData]);
 
 	const tooltipStyle = {
-		backgroundColor: '#1f2937',
+		backgroundColor: 'rgb(14, 17, 15)',
 		border: '1px solid rgba(249, 237, 50, 0.3)',
 		borderRadius: '8px',
 		color: '#fff',
+	};
+
+	// Custom tooltip formatter to capitalize "value"
+	const customTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			const displayValue = payload[0].value || 0;
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
 	};
 
 	if (isLoadingTeams) {
@@ -713,7 +730,7 @@ export default function ClubTeamStats() {
 														<Cell key={`cell-${index}`} fill={entry.color} />
 													))}
 												</Pie>
-												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
+												<Tooltip content={customTooltip} />
 												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
 											</PieChart>
 										</ResponsiveContainer>
@@ -729,8 +746,8 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} />
+												<Tooltip content={customTooltip} />
+												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>
 									</div>
@@ -745,8 +762,8 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} />
+												<Tooltip content={customTooltip} />
+												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>
 									</div>
@@ -761,8 +778,8 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip contentStyle={tooltipStyle} itemStyle={{ color: '#fff' }} />
-												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} />
+												<Tooltip content={customTooltip} />
+												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>
 									</div>

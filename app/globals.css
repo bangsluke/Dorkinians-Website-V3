@@ -429,6 +429,14 @@
 	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
+/* Make Recharts active bar background highlight more transparent */
+/* Target the tooltip cursor (background highlight) behind active bars */
+.recharts-tooltip-cursor {
+	fill-opacity: 0.5 !important;
+	opacity: 0.5 !important;
+}
+
+
 /* Player Detail Modal - Reduced scrollbar width (50% of default) */
 .player-detail-scrollable::-webkit-scrollbar {
 	width: 6px;
