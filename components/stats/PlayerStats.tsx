@@ -620,10 +620,6 @@ export default function PlayerStats() {
 	const [teamStats, setTeamStats] = useState<any[]>([]);
 	const [isLoadingSeasonalStats, setIsLoadingSeasonalStats] = useState(false);
 	const [isLoadingTeamStats, setIsLoadingTeamStats] = useState(false);
-	const [seasonalChartKey, setSeasonalChartKey] = useState(0);
-	const [teamChartKey, setTeamChartKey] = useState(0);
-	const seasonalChartRef = useRef<HTMLDivElement>(null);
-	const teamChartRef = useRef<HTMLDivElement>(null);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -805,22 +801,6 @@ export default function PlayerStats() {
 		fetchTeamStats();
 	}, [selectedPlayer, allTeamsSelected, playerFilters]);
 
-	// Handle clicks outside charts to reset active state by forcing re-render (must be before early returns)
-	useEffect(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (seasonalChartRef.current && !seasonalChartRef.current.contains(event.target as Node)) {
-				setSeasonalChartKey(prev => prev + 1);
-			}
-			if (teamChartRef.current && !teamChartRef.current.contains(event.target as Node)) {
-				setTeamChartKey(prev => prev + 1);
-			}
-		};
-
-		document.addEventListener('mousedown', handleClickOutside);
-		return () => {
-			document.removeEventListener('mousedown', handleClickOutside);
-		};
-	}, []);
 
 	// Prepare seasonal chart data (must be before early returns)
 	const seasonalChartData = useMemo(() => {
@@ -1004,27 +984,24 @@ export default function PlayerStats() {
 								<p className='text-white text-sm'>Loading seasonal stats...</p>
 							</div>
 						) : seasonalChartData.length > 0 ? (
-							<div ref={seasonalChartRef} key={seasonalChartKey} onClick={(e) => e.stopPropagation()}>
-								<ResponsiveContainer width='100%' height={240}>
-									<BarChart 
-										data={seasonalChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-										onMouseLeave={() => setSeasonalChartKey(prev => prev + 1)}
-									>
-										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
-										<Bar 
-											dataKey='value' 
-											fill='#f9ed32' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.8} 
-											activeBar={{ opacity: 0.8 }}
-										/>
-									</BarChart>
-								</ResponsiveContainer>
-							</div>
+							<ResponsiveContainer width='100%' height={240}>
+								<BarChart 
+									data={seasonalChartData} 
+									margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+								>
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+									<YAxis stroke='#fff' fontSize={12} />
+									<Tooltip content={customTooltip} />
+									<Bar 
+										dataKey='value' 
+										fill='#f9ed32' 
+										radius={[4, 4, 0, 0]} 
+										opacity={0.9} 
+										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+									/>
+								</BarChart>
+							</ResponsiveContainer>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No seasonal data available</p>
@@ -1082,27 +1059,24 @@ export default function PlayerStats() {
 								<p className='text-white text-sm'>Loading team stats...</p>
 							</div>
 						) : teamChartData.length > 0 ? (
-							<div ref={teamChartRef} key={teamChartKey} onClick={(e) => e.stopPropagation()}>
-								<ResponsiveContainer width='100%' height={240}>
-									<BarChart 
-										data={teamChartData} 
-										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-										onMouseLeave={() => setTeamChartKey(prev => prev + 1)}
-									>
-										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
-										<Bar 
-											dataKey='value' 
-											fill='#f9ed32' 
-											radius={[4, 4, 0, 0]} 
-											opacity={0.8} 
-											activeBar={{ opacity: 0.8 }}
-										/>
-									</BarChart>
-								</ResponsiveContainer>
-							</div>
+							<ResponsiveContainer width='100%' height={240}>
+								<BarChart 
+									data={teamChartData} 
+									margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+								>
+									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+									<YAxis stroke='#fff' fontSize={12} />
+									<Tooltip content={customTooltip} />
+									<Bar 
+										dataKey='value' 
+										fill='#f9ed32' 
+										radius={[4, 4, 0, 0]} 
+										opacity={0.9} 
+										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+									/>
+								</BarChart>
+							</ResponsiveContainer>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No team data available</p>
