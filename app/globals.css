@@ -335,7 +335,7 @@
 
 	/* Responsive frosted glass container */
 	.frosted-container {
-		@apply frosted-glass rounded-2xl mx-2 my-2 h-full overflow-hidden;
+		@apply frosted-glass rounded-2xl mx-1.5 my-2 h-full overflow-hidden;
 	}
 
 	/* Desktop frosted glass container */
@@ -350,14 +350,14 @@
 
 /* Style the main content container with the frosted glass */
 .main-content-container {
-	padding: 64px 16px 100px 16px;
+	padding: 64px 11px 100px 11px;
 	height: 100vh;
 }
 
 /* Desktop main content container */
 @media (min-width: 768px) {
 	.main-content-container {
-		padding: 64px 16px 76px 16px;
+		padding: 64px 11px 76px 11px;
 	}
 }
 
@@ -428,6 +428,14 @@
 	scrollbar-width: thin;
 	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+/* Make Recharts active bar background highlight more transparent */
+/* Target the tooltip cursor (background highlight) behind active bars */
+.recharts-tooltip-cursor {
+	fill-opacity: 0.5 !important;
+	opacity: 0.5 !important;
+}
+
 
 /* Player Detail Modal - Reduced scrollbar width (50% of default) */
 .player-detail-scrollable::-webkit-scrollbar {
