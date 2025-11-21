@@ -8,7 +8,6 @@ import { PencilIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import Tabs from "@/components/ui/Tabs";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
@@ -1150,7 +1149,7 @@ export default function PlayerStats() {
 	);
 
 	const dataTableContent = (
-		<div className='overflow-x-auto overflow-y-auto h-full'>
+		<div className='overflow-x-auto mt-4'>
 			<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
 					<tr className='bg-white/20'>
@@ -1184,15 +1183,10 @@ export default function PlayerStats() {
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
-			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0'>
-				<Tabs
-					tabs={[
-						{ id: "visualisations", label: "Visualisations", content: chartContent },
-						{ id: "data", label: "Data", content: dataTableContent },
-					]}
-					defaultTab='visualisations'
-					storageKey='player-stats-active-tab'
-				/>
+			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'>
+				{chartContent}
+				{dataTableContent}
+				<div className='h-4'></div>
 			</div>
 		</div>
 	);

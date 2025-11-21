@@ -7,7 +7,6 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import Tabs from "@/components/ui/Tabs";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface Team {
@@ -687,7 +686,7 @@ export default function ClubTeamStats() {
 					</div>
 				</div>
 			) : (
-				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0'>
+				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'>
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
@@ -788,7 +787,7 @@ export default function ClubTeamStats() {
 						);
 
 						const dataTableContent = (
-							<div className='overflow-x-auto overflow-y-auto h-full flex flex-col'>
+							<div className='overflow-x-auto mt-4 flex flex-col'>
 								{/* Top Players Table - at the top of Data tab */}
 								<div className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -931,14 +930,11 @@ export default function ClubTeamStats() {
 						);
 
 						return (
-							<Tabs
-								tabs={[
-									{ id: "visualisations", label: "Visualisations", content: chartContent },
-									{ id: "data", label: "Data", content: dataTableContent },
-								]}
-								defaultTab='visualisations'
-								storageKey='club-stats-active-tab'
-							/>
+							<>
+								{chartContent}
+								{dataTableContent}
+								<div className='h-4'></div>
+							</>
 						);
 					})()}
 				</div>
