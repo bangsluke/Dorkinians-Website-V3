@@ -19,8 +19,8 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		graphLabel,
 	};
 
-	// Check if "Whole Club" is selected - aggregate across all teams
-	const isWholeClub = teamName === "Whole Club";
+	// Check if team filter is provided via filters.teams
+	const hasTeamFilter = filters?.teams && Array.isArray(filters.teams) && filters.teams.length > 0;
 	
 	// Base query - match fixtures
 	let query = `
@@ -30,17 +30,22 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	// Build filter conditions
 	const filterConditions = buildFilterConditions(filters, params);
 	
-	// If not Whole Club, add team filter
-	if (!isWholeClub) {
+	// If teamName is provided and not "Whole Club", use it (backward compatibility)
+	// Otherwise, rely on filters.teams for team filtering
+	if (teamName && teamName !== "Whole Club" && !hasTeamFilter) {
 		params.teamName = teamName;
 		query += ` WHERE f.team = $teamName`;
 	}
 	
-	// Remove team filter from filterConditions if present (since we handle it above or it's Whole Club)
-	const conditions = filterConditions.filter((cond) => !cond.includes("f.team IN $teams"));
+	// Keep team filter from filterConditions if present (filters.teams)
+	// Remove it only if we're using teamName parameter instead
+	const conditions = hasTeamFilter || teamName === "Whole Club" || !teamName
+		? filterConditions // Keep all conditions including team filter if using filters.teams
+		: filterConditions.filter((cond) => !cond.includes("f.team IN $teams")); // Remove if using teamName
 	
 	if (conditions.length > 0) {
-		query += isWholeClub ? ` WHERE ${conditions.join(" AND ")}` : ` AND ${conditions.join(" AND ")}`;
+		const hasWhereClause = query.includes("WHERE");
+		query += hasWhereClause ? ` AND ${conditions.join(" AND ")}` : ` WHERE ${conditions.join(" AND ")}`;
 	}
 
 	// Aggregate team-level stats from Fixture and player-level stats from MatchDetail
@@ -49,7 +54,8 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
 		WITH f, md
 		// Aggregate team-level stats from fixtures (use collect DISTINCT to avoid counting fixtures multiple times)
-		WITH ${isWholeClub ? '"Whole Club" as team' : 'f.team as team'},
+		// Always use "Whole Club" as team label when aggregating (either all teams or filtered teams)
+		WITH "Whole Club" as team,
 			collect(DISTINCT f) as fixtures,
 			// Aggregate player-level stats from match details
 			count(md) as totalAppearances,
@@ -330,9 +336,9 @@ export async function POST(request: NextRequest) {
 
 		// Extract aggregated stats from result
 		const record = result.records[0];
-		const isWholeClub = teamName === "Whole Club";
+		// Always use "Whole Club" as team name since we're aggregating stats
 		const teamData = {
-			team: isWholeClub ? "Whole Club" : (record.get("team") || teamName),
+			team: "Whole Club",
 			gamesPlayed: toNumber(record.get("gamesPlayed")),
 			wins: toNumber(record.get("wins")),
 			draws: toNumber(record.get("draws")),
