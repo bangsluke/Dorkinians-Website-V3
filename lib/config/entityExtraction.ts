@@ -1234,6 +1234,16 @@ export class EntityExtractor {
 		// console.log('🔍 Stat Type Debug - Question:', this.question);
 		// console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
 
+		// CRITICAL FIX: Get player entities to filter out matches that are part of player names
+		const playerEntities = this.extractEntityInfo().filter(e => e.type === "player");
+		const playerNameWords = new Set<string>();
+		playerEntities.forEach(entity => {
+			// Split player names into individual words for checking
+			entity.value.toLowerCase().split(/\s+/).forEach(word => {
+				playerNameWords.add(word);
+			});
+		});
+
 		// Check for goal involvements first
 		if (this.lowerQuestion.includes("goal involvements") || this.lowerQuestion.includes("goal involvement")) {
 			statTypes.push({
@@ -1272,6 +1282,12 @@ export class EntityExtractor {
 				// 	console.log(`🔍 Stat Type Debug - Regex:`, regex);
 				// }
 				matches.forEach((match) => {
+					// CRITICAL FIX: Skip matches that are part of player names
+					const matchTextLower = match.text.toLowerCase();
+					if (playerNameWords.has(matchTextLower)) {
+						return; // Skip this match
+					}
+					
 					statTypes.push({
 						value: key,
 						originalText: match.text,
@@ -1296,12 +1312,27 @@ export class EntityExtractor {
 			.map((word) => word.replace(/^[^\w]+|[^\w]+$/g, "").replace(/[^\w]/g, ""))
 			.filter((word) => word.length > 0);
 
+		// Get extracted player entities to check against
+		const playerEntities = this.extractEntityInfo().filter(e => e.type === "player");
+		const playerNameWords = new Set<string>();
+		playerEntities.forEach(entity => {
+			// Split player names into individual words for checking
+			entity.value.toLowerCase().split(/\s+/).forEach(word => {
+				playerNameWords.add(word);
+			});
+		});
+
 		// Check each word for potential stat type matches
 		for (const word of words) {
 			// Skip if it's already been matched exactly
 			const alreadyMatched = existingStatTypes.some((stat) => stat.originalText.toLowerCase() === word);
 
 			if (alreadyMatched || word.length < 3) continue;
+
+			// CRITICAL FIX: Skip words that are part of player names
+			if (playerNameWords.has(word)) {
+				continue;
+			}
 
 			// Try to find fuzzy matches for this word with context awareness
 			const bestMatch = await this.findBestStatTypeMatchWithContext(word, existingStatTypes);
