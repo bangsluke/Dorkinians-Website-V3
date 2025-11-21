@@ -5,13 +5,10 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Listbox } from "@headlessui/react";
-import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
-interface Team {
-	name: string;
-}
 
 interface TopPlayer {
 	playerName: string;
@@ -203,9 +200,6 @@ export default function ClubTeamStats() {
 		filterData,
 	} = useNavigationStore();
 
-	const [selectedTeam, setSelectedTeam] = useState<string>("Whole Club");
-	const [teams, setTeams] = useState<Team[]>([]);
-	const [isLoadingTeams, setIsLoadingTeams] = useState(false);
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
 	
@@ -223,10 +217,16 @@ export default function ClubTeamStats() {
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
-	// Determine page heading based on selected team
+	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
-		return selectedTeam === "Whole Club" ? "Club Stats" : "Team Stats";
-	}, [selectedTeam]);
+		if (!playerFilters.teams || playerFilters.teams.length === 0) {
+			return "Club Stats";
+		} else if (playerFilters.teams.length === 1) {
+			return "Team Stats";
+		} else {
+			return "Club Stats";
+		}
+	}, [playerFilters.teams]);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -253,37 +253,6 @@ export default function ClubTeamStats() {
 		].filter(item => item.value > 0);
 	}, [teamData]);
 
-	// Load teams on mount
-	useEffect(() => {
-		const fetchTeams = async () => {
-			setIsLoadingTeams(true);
-			try {
-				const response = await fetch("/api/teams");
-				if (response.ok) {
-					const data = await response.json();
-					setTeams(data.teams || []);
-				} else {
-					console.error("Failed to fetch teams:", response.statusText);
-					setTeams([]);
-				}
-			} catch (error) {
-				console.error("Error fetching teams:", error);
-				setTeams([]);
-			} finally {
-				setIsLoadingTeams(false);
-			}
-		};
-
-		fetchTeams();
-	}, []);
-
-	// Set "Whole Club" as default when teams are loaded (if not already set)
-	useEffect(() => {
-		if (teams.length > 0 && !selectedTeam) {
-			setSelectedTeam("Whole Club");
-		}
-	}, [teams, selectedTeam]);
-
 	// Save selectedStatType to localStorage when it changes
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -291,16 +260,11 @@ export default function ClubTeamStats() {
 		}
 	}, [selectedStatType]);
 
-	// Fetch team data when team changes or filters are applied
+	// Fetch team data when filters are applied
 	// Use JSON.stringify to detect filter changes even if object reference doesn't change
 	const filtersKey = JSON.stringify(playerFilters);
 	
 	useEffect(() => {
-		if (!selectedTeam) {
-			setTeamData(null);
-			return;
-		}
-
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
 			try {
@@ -310,7 +274,7 @@ export default function ClubTeamStats() {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
-						teamName: selectedTeam,
+						teamName: "Whole Club",
 						filters: playerFilters,
 					}),
 				});
@@ -331,7 +295,7 @@ export default function ClubTeamStats() {
 		};
 
 		fetchTeamData();
-	}, [selectedTeam, filtersKey, playerFilters]);
+	}, [filtersKey, playerFilters]);
 
 	// Fetch top players when filters or stat type changes
 	useEffect(() => {
@@ -373,11 +337,6 @@ export default function ClubTeamStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters]);
-
-	// Handle team selection
-	const handleTeamSelect = (teamName: string) => {
-		setSelectedTeam(teamName);
-	};
 
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
@@ -602,22 +561,6 @@ export default function ClubTeamStats() {
 		return null;
 	};
 
-	if (isLoadingTeams) {
-		return (
-			<div className='h-full flex flex-col'>
-				<div className='flex-shrink-0 p-2 md:p-4'>
-					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Club Stats</h2>
-					</div>
-					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
-				</div>
-				<div className='flex-1 flex items-center justify-center p-4'>
-					<p className='text-white text-sm md:text-base'>Loading teams...</p>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
@@ -625,59 +568,11 @@ export default function ClubTeamStats() {
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
-				<div className='mb-4'>
-					<Listbox value={selectedTeam} onChange={handleTeamSelect}>
-						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
-								<span className={`block truncate ${selectedTeam ? "text-white" : "text-yellow-300"}`}>
-									{selectedTeam || "Select a team..."}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-								<Listbox.Option
-									key="whole-club"
-									className={({ active }) =>
-										`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-									}
-									value="Whole Club">
-									{({ selected }) => (
-										<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-											Whole Club
-										</span>
-									)}
-								</Listbox.Option>
-								{teams.map((team, teamIdx) => (
-									<Listbox.Option
-										key={teamIdx}
-										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-										}
-										value={team.name}>
-										{({ selected }) => (
-											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-												{team.name}
-											</span>
-										)}
-									</Listbox.Option>
-								))}
-							</Listbox.Options>
-						</div>
-					</Listbox>
-				</div>
 			</div>
 
 			{isLoadingTeamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
 					<p className='text-white text-sm md:text-base'>Loading team data...</p>
-				</div>
-			) : !selectedTeam ? (
-				<div className='flex-1 flex items-center justify-center p-4'>
-					<div className='text-center'>
-						<p className='text-white text-sm md:text-base'>Select a team to display stats</p>
-					</div>
 				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
