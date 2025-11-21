@@ -1590,7 +1590,7 @@ export default function AdminPanel() {
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
 										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
-											fullRebuild ? "~40 minutes" : "~20 minutes"}
+											fullRebuild ? "~40 minutes" : "~40 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
