@@ -9,6 +9,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1011,6 +1012,10 @@ export default function PlayerStats() {
 	const [fantasyBreakdown, setFantasyBreakdown] = useState<any>(null);
 	const [isLoadingFantasyBreakdown, setIsLoadingFantasyBreakdown] = useState(false);
 
+	// State for opposition map data
+	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
+	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -1222,6 +1227,32 @@ export default function PlayerStats() {
 
 		fetchFantasyBreakdown();
 	}, [selectedPlayer, playerFilters]);
+
+	// Fetch opposition map data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionMapData([]);
+			return;
+		}
+
+		const fetchOppositionMapData = async () => {
+			setIsLoadingOppositionMap(true);
+			try {
+				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionMapData(data.oppositions || []);
+				}
+			} catch (error) {
+				console.error("Error fetching opposition map data:", error);
+				setOppositionMapData([]);
+			} finally {
+				setIsLoadingOppositionMap(false);
+			}
+		};
+
+		fetchOppositionMapData();
+	}, [selectedPlayer]);
 
 
 	// Prepare seasonal chart data (must be before early returns)
@@ -1576,6 +1607,11 @@ export default function PlayerStats() {
 					/>
 				);
 			})()}
+
+			{/* Opposition Map */}
+			{oppositionMapData.length > 0 && (
+				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+			)}
 
 			{/* Card Stats SVG Visualization */}
 			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (

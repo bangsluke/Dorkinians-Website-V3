@@ -340,7 +340,7 @@ const schema = {
       'R': 'redCards',
       'SAVES': 'saves',
       'OG': 'ownGoals',
-      'C': 'conceded',
+      'CONCEDED': 'conceded',
       'CLS': 'cleanSheets',
       'PSC': 'penaltiesScored',
       'PM': 'penaltiesMissed',
@@ -615,6 +615,8 @@ const schema = {
       'SHORT TEAM NAME': 'shortTeamName',
       'ADDRESS': 'address',
       'DISTANCE (MILES)': 'distanceMiles',
+      'LATITUDE': 'latitude',
+      'LONGITUDE': 'longitude',
       'NODE_CREATION_LOGIC': 'nodeCreationLogic', // Used for filtering - not stored as node property
     },
     requiredColumns: ['ID', 'OPPOSITION'],
@@ -624,7 +626,9 @@ const schema = {
       opposition: { type: 'string', required: true },
       shortTeamName: { type: 'string', required: false },
       address: { type: 'string', required: false },
-      distanceMiles: { type: 'number', required: false }
+      distanceMiles: { type: 'number', required: false },
+      latitude: { type: 'number', required: false },
+      longitude: { type: 'number', required: false }
     },
     idPattern: 'opposition_{opposition}',
     constraints: ['CREATE CONSTRAINT OppositionDetails_id IF NOT EXISTS FOR (od:OppositionDetails) REQUIRE od.id IS UNIQUE']
