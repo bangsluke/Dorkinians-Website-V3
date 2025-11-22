@@ -9,6 +9,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -444,6 +445,20 @@ function FantasyPointsSection({
 		return null;
 	}
 
+	// Helper to truncate long team names
+	const truncateTeamName = (text: string, maxLength: number = 35): string => {
+		if (text.length <= maxLength) return text;
+		// Find the last space before maxLength to avoid cutting words
+		const truncated = text.substring(0, maxLength);
+		const lastSpace = truncated.lastIndexOf(' ');
+		// If we find a space reasonably close to the end, cut there
+		if (lastSpace > 20) {
+			return truncated.substring(0, lastSpace).trim();
+		}
+		// Otherwise just truncate at maxLength
+		return truncated.trim();
+	};
+
 	// Get match summary helper
 	const getMatchSummary = (match: any): { teamOpposition: string; resultScore: string } => {
 		const team = match.team || "";
@@ -459,20 +474,22 @@ function FantasyPointsSection({
 			} else {
 				resultScoreText = `${result} ${scoreTrimmed}`;
 			}
+			const teamOppositionFull = `${team} vs ${opposition}`;
 			return {
-				teamOpposition: `${team} vs ${opposition}`,
+				teamOpposition: truncateTeamName(teamOppositionFull, 35),
 				resultScore: resultScoreText,
 			};
 		}
 
 		if (match.matchSummary) {
 			return {
-				teamOpposition: match.matchSummary,
+				teamOpposition: truncateTeamName(match.matchSummary, 35),
 				resultScore: "",
 			};
 		}
+		const teamOppositionFull = `${match.team} - ${match.date || ""}`;
 		return {
-			teamOpposition: `${match.team} - ${match.date || ""}`,
+			teamOpposition: truncateTeamName(teamOppositionFull, 35),
 			resultScore: "",
 		};
 	};
@@ -669,6 +686,209 @@ function FantasyPointsSection({
 					</div>
 				</div>
 			)}
+		</div>
+	);
+}
+
+// Distance Travelled Section Component
+function DistanceTravelledSection({
+	distance,
+	awayGames
+}: {
+	distance: number;
+	awayGames: number;
+}) {
+	// Distance thresholds
+	const UK_LENGTH = 600; // miles
+	const EUROPE_LENGTH = 3411; // miles
+	const EARTH_CIRCUMFERENCE = 24901; // miles
+	
+	// Determine which map and comparison to show
+	let mapImage: string;
+	let comparisonText: string;
+	
+	if (distance < 1200) {
+		// UK comparison - show percentage
+		const percentage = (distance / UK_LENGTH) * 100;
+		mapImage = '/stat-images/uk-map.svg';
+		comparisonText = `${percentage.toFixed(1)}% of the length of the UK`;
+	} else if (distance < 6400) {
+		// Europe comparison - show times
+		const times = distance / EUROPE_LENGTH;
+		mapImage = '/stat-images/europe-map.svg';
+		comparisonText = `${times.toFixed(2)} times the length of Europe`;
+	} else {
+		// Earth comparison - show times
+		const times = distance / EARTH_CIRCUMFERENCE;
+		mapImage = '/stat-images/world-map.svg';
+		comparisonText = `${times.toFixed(2)} times around the Earth`;
+	}
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Distance Travelled</h3>
+			<div className='w-full relative' style={{ height: '210px', overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Map Image */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src={mapImage}
+						alt={distance < 1200 ? 'UK Map' : distance < 6400 ? 'Europe Map' : 'World Map'}
+						fill
+						className='object-contain w-full h-full brightness-0 invert'
+						style={{
+							objectPosition: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Away Games</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{awayGames}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Distance Travelled</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toFixed(1)} miles</td>
+								</tr>
+								<tr>
+									<td colSpan={2} className='py-2 px-2 text-xs md:text-sm text-center text-white/90'>
+										{comparisonText}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// Defensive Record Section Component
+function DefensiveRecordSection({
+	conceded,
+	cleanSheets,
+	ownGoals,
+	appearances,
+	gk,
+	saves,
+	concededPerApp
+}: {
+	conceded: number;
+	cleanSheets: number;
+	ownGoals: number;
+	appearances: number;
+	gk: number;
+	saves: number;
+	concededPerApp: number;
+}) {
+	// Debug logging
+	console.log('[DefensiveRecordSection] Props received:', {
+		conceded,
+		cleanSheets,
+		ownGoals,
+		appearances,
+		gk,
+		saves,
+		concededPerApp
+	});
+
+	// Calculate derived statistics
+	const avgGoalsConcededPerGame = appearances > 0 ? (conceded / appearances) : 0;
+	const gamesPerCleanSheet = cleanSheets > 0 ? (appearances / cleanSheets) : 0;
+	
+	// Dynamic height: increase when GK stats are shown
+	const sectionHeight = gk > 0 ? '340px' : '260px';
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Record</h3>
+			<div className='w-full relative' style={{ height: sectionHeight, overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Brick Wall */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src='/stat-images/brick-wall.jpg'
+						alt='Brick Wall'
+						fill
+						className='object-cover w-full h-full'
+						style={{
+							objectPosition: 'center',
+							transform: 'scale(1.5)',
+							transformOrigin: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Goals Conceded</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{conceded}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Clean Sheets</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded/Game</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : '0.00'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Games per Clean Sheet</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{gamesPerCleanSheet > 0 ? gamesPerCleanSheet.toFixed(1) : 'N/A'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Own Goals</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{ownGoals}</td>
+								</tr>
+								{gk > 0 && (
+									<>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Appearances</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{gk}</td>
+										</tr>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Clean Sheets</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+										</tr>
+										<tr>
+											<td className='py-2 px-2 text-xs md:text-sm'>Saves</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{saves}</td>
+										</tr>
+									</>
+								)}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -877,6 +1097,10 @@ export default function PlayerStats() {
 	// State for fantasy points breakdown
 	const [fantasyBreakdown, setFantasyBreakdown] = useState<any>(null);
 	const [isLoadingFantasyBreakdown, setIsLoadingFantasyBreakdown] = useState(false);
+
+	// State for opposition map data
+	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
+	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -1089,6 +1313,32 @@ export default function PlayerStats() {
 
 		fetchFantasyBreakdown();
 	}, [selectedPlayer, playerFilters]);
+
+	// Fetch opposition map data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionMapData([]);
+			return;
+		}
+
+		const fetchOppositionMapData = async () => {
+			setIsLoadingOppositionMap(true);
+			try {
+				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionMapData(data.oppositions || []);
+				}
+			} catch (error) {
+				console.error("Error fetching opposition map data:", error);
+				setOppositionMapData([]);
+			} finally {
+				setIsLoadingOppositionMap(false);
+			}
+		};
+
+		fetchOppositionMapData();
+	}, [selectedPlayer]);
 
 
 	// Prepare seasonal chart data (must be before early returns)
@@ -1399,6 +1649,56 @@ export default function PlayerStats() {
 				/>
 			)}
 
+			{/* Defensive Record Section */}
+			{(() => {
+				const concededVal = toNumber(validPlayerData.conceded);
+				const cleanSheetsVal = toNumber(validPlayerData.cleanSheets);
+				const ownGoalsVal = toNumber(validPlayerData.ownGoals);
+				const appearancesVal = toNumber(validPlayerData.appearances);
+				const gkVal = toNumber(validPlayerData.gk);
+				const savesVal = toNumber(validPlayerData.saves);
+				const concededPerAppVal = toNumber(validPlayerData.concededPerApp);
+				
+				// Debug logging
+				console.log('[PlayerStats] Defensive Record Data:', {
+					raw: {
+						conceded: validPlayerData.conceded,
+						cleanSheets: validPlayerData.cleanSheets,
+						ownGoals: validPlayerData.ownGoals,
+						appearances: validPlayerData.appearances,
+						gk: validPlayerData.gk,
+						saves: validPlayerData.saves,
+						concededPerApp: validPlayerData.concededPerApp
+					},
+					converted: {
+						conceded: concededVal,
+						cleanSheets: cleanSheetsVal,
+						ownGoals: ownGoalsVal,
+						appearances: appearancesVal,
+						gk: gkVal,
+						saves: savesVal,
+						concededPerApp: concededPerAppVal
+					}
+				});
+
+				return (
+					<DefensiveRecordSection
+						conceded={concededVal}
+						cleanSheets={cleanSheetsVal}
+						ownGoals={ownGoalsVal}
+						appearances={appearancesVal}
+						gk={gkVal}
+						saves={savesVal}
+						concededPerApp={concededPerAppVal}
+					/>
+				);
+			})()}
+
+			{/* Opposition Map */}
+			{oppositionMapData.length > 0 && (
+				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+			)}
+
 			{/* Card Stats SVG Visualization */}
 			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1500,22 +1800,6 @@ export default function PlayerStats() {
 				</div>
 			)}
 
-			{/* Defensive Stats Bar Chart */}
-			{(toNumber(validPlayerData.cleanSheets) > 0 || toNumber(validPlayerData.conceded) > 0) && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Stats</h3>
-					<ResponsiveContainer width='100%' height={300}>
-						<BarChart data={defensiveData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip content={customTooltip} />
-							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }} />
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
-			)}
-
 			{/* Penalty Stats Custom Visualization */}
 			{penaltyData.some(item => item.value > 0) && (
 				<PenaltyStatsVisualization
@@ -1523,6 +1807,14 @@ export default function PlayerStats() {
 					missed={toNumber(validPlayerData.penaltiesMissed)}
 					saved={toNumber(validPlayerData.penaltiesSaved)}
 					conceded={toNumber(validPlayerData.penaltiesConceded)}
+				/>
+			)}
+
+			{/* Distance Travelled Section */}
+			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
+				<DistanceTravelledSection
+					distance={toNumber(validPlayerData.distance)}
+					awayGames={toNumber(validPlayerData.awayGames)}
 				/>
 			)}
 		</div>
