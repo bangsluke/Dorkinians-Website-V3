@@ -690,6 +690,92 @@ function FantasyPointsSection({
 	);
 }
 
+// Distance Travelled Section Component
+function DistanceTravelledSection({
+	distance,
+	awayGames
+}: {
+	distance: number;
+	awayGames: number;
+}) {
+	// Distance thresholds
+	const UK_LENGTH = 600; // miles
+	const EUROPE_LENGTH = 3411; // miles
+	const EARTH_CIRCUMFERENCE = 24901; // miles
+	
+	// Determine which map and comparison to show
+	let mapImage: string;
+	let comparisonText: string;
+	
+	if (distance < 1200) {
+		// UK comparison - show percentage
+		const percentage = (distance / UK_LENGTH) * 100;
+		mapImage = '/stat-images/uk-map.svg';
+		comparisonText = `${percentage.toFixed(1)}% of the length of the UK`;
+	} else if (distance < 6400) {
+		// Europe comparison - show times
+		const times = distance / EUROPE_LENGTH;
+		mapImage = '/stat-images/europe-map.svg';
+		comparisonText = `${times.toFixed(2)} times the length of Europe`;
+	} else {
+		// Earth comparison - show times
+		const times = distance / EARTH_CIRCUMFERENCE;
+		mapImage = '/stat-images/world-map.svg';
+		comparisonText = `${times.toFixed(2)} times around the Earth`;
+	}
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Distance Travelled</h3>
+			<div className='w-full relative' style={{ height: '210px', overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Map Image */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src={mapImage}
+						alt={distance < 1200 ? 'UK Map' : distance < 6400 ? 'Europe Map' : 'World Map'}
+						fill
+						className='object-contain w-full h-full brightness-0 invert'
+						style={{
+							objectPosition: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Away Games</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{awayGames}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Distance Travelled</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toFixed(1)} miles</td>
+								</tr>
+								<tr>
+									<td colSpan={2} className='py-2 px-2 text-xs md:text-sm text-center text-white/90'>
+										{comparisonText}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 // Defensive Record Section Component
 function DefensiveRecordSection({
 	conceded,
@@ -1714,22 +1800,6 @@ export default function PlayerStats() {
 				</div>
 			)}
 
-			{/* Defensive Stats Bar Chart */}
-			{(toNumber(validPlayerData.cleanSheets) > 0 || toNumber(validPlayerData.conceded) > 0) && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Stats</h3>
-					<ResponsiveContainer width='100%' height={300}>
-						<BarChart data={defensiveData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip content={customTooltip} />
-							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }} />
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
-			)}
-
 			{/* Penalty Stats Custom Visualization */}
 			{penaltyData.some(item => item.value > 0) && (
 				<PenaltyStatsVisualization
@@ -1737,6 +1807,14 @@ export default function PlayerStats() {
 					missed={toNumber(validPlayerData.penaltiesMissed)}
 					saved={toNumber(validPlayerData.penaltiesSaved)}
 					conceded={toNumber(validPlayerData.penaltiesConceded)}
+				/>
+			)}
+
+			{/* Distance Travelled Section */}
+			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
+				<DistanceTravelledSection
+					distance={toNumber(validPlayerData.distance)}
+					awayGames={toNumber(validPlayerData.awayGames)}
 				/>
 			)}
 		</div>
