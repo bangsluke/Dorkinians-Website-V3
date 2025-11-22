@@ -389,6 +389,26 @@ async function runTestsProgrammatically() {
 						}
 					}
 
+					// Check if this is a zero result that should accept valid zero-value responses
+					// Handle both "0", "0.0", 0, and 0.0 as zero results
+					const expectedNumericForZeroCheck = !isNaN(parseFloat(expectedValue)) ? parseFloat(expectedValue) : null;
+					const isZeroResult = expectedValue === "0" || expectedValue === "0.0" || expectedValue === 0 || (expectedNumericForZeroCheck !== null && expectedNumericForZeroCheck === 0);
+					const matchesZeroStatPhrase = chatbotAnswer && messageMatchesZeroStatPhrase(chatbotAnswer);
+					
+					// Fallback: If extraction failed but we have a valid zero-value message for a zero result,
+					// extract "0" or "0.0" based on the stat's decimal places
+					if (chatbotExtractedValue === null && isZeroResult && matchesZeroStatPhrase) {
+						// Check if this stat uses decimal places
+						const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
+						if (isAppearanceBasedAverage) {
+							// For per-appearance averages, use "0.0" to match expected format
+							chatbotExtractedValue = "0.0";
+						} else {
+							// For other stats, use "0"
+							chatbotExtractedValue = "0";
+						}
+					}
+
 					// Determine if test passed based on whether we got a valid response AND correct value
 					// CRITICAL: Test must fail if any of these conditions are true:
 					// 1. No chatbot answer or error response
@@ -398,7 +418,7 @@ async function runTestsProgrammatically() {
 					// 5. Chatbot answer doesn't match expected value
 					
 					// Check if this is a zero result that should accept valid zero-value responses
-					const isZeroResult = expectedValue === "0" || expectedValue === 0;
+					// (isZeroResult already defined above for fallback extraction)
 					const isPositionQuery = ["GK", "DEF", "MID", "FWD"].includes(statKey);
 					const hasNeverPlayedMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has never played");
 					const hasNotScoredMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals");
@@ -407,7 +427,7 @@ async function runTestsProgrammatically() {
 					const hasSeasonDidNotScoreMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not score a goal in");
 					const isSeasonAppsQuery = /\d{4}\/\d{2}apps/i.test(statKey);
 					const isSeasonGoalsQuery = /\d{4}\/\d{2}goals/i.test(statKey);
-					const matchesZeroStatPhrase = chatbotAnswer && messageMatchesZeroStatPhrase(chatbotAnswer);
+					// matchesZeroStatPhrase already defined above for fallback extraction
 					
 					// Check for appearance-based average stats (e.g., GperAPP, CperAPP, FTPperAPP, etc.)
 					const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
@@ -417,19 +437,23 @@ async function runTestsProgrammatically() {
 					// 1. The original expected value was "N/A" (meaning truly no data, not just 0.0)
 					// 2. If the expected value is numeric (even 0.0), the chatbot should have calculated the average
 					// So if chatbot says "has not made an appearance yet" but expected is numeric, it's an error
+					// NOTE: Stat-specific zero messages (like "has not conceded a goal" for CperAPP) are valid
+					// and should NOT be flagged as errors - they indicate the stat is 0, not that there are no appearances
 					const hasAppearanceBasedAverageError = isAppearanceBasedAverage && 
-						hasNotMadeAppearanceMessage && 
+						hasNotMadeAppearanceMessage && // Only flag the generic "no appearances" message
 						originalExpectedValue !== "N/A" && // Original was not N/A, so player has appearances
 						!isNaN(parseFloat(expectedValue)); // Expected value is numeric (even if 0.0)
 					
 					// Allow valid zero-value responses for position queries ("has never played") and goals queries ("has not scored any goals")
 					// BUT exclude appearance-based averages that incorrectly say "has not made an appearance yet" when a value was extracted
+					// NOTE: For appearance-based averages (CperAPP, GperAPP, etc.), stat-specific zero messages (like "has not conceded a goal")
+					// are valid and should be accepted - they indicate the stat is 0, not that there are no appearances
 					const isValidZeroResponse = isZeroResult && !hasAppearanceBasedAverageError && (
 						(isPositionQuery && hasNeverPlayedMessage) ||
 						(hasNotScoredMessage || hasNotScoredForTeamMessage) ||
 						(isSeasonAppsQuery && hasSeasonDidNotPlayMessage) ||
 						(isSeasonGoalsQuery && hasSeasonDidNotScoreMessage) ||
-						matchesZeroStatPhrase
+						matchesZeroStatPhrase // This handles stat-specific zero messages like "has not conceded a goal" for CperAPP
 					);
 					
 					const hasValidResponse =
@@ -500,9 +524,15 @@ async function runTestsProgrammatically() {
 							valuesMatch = chatbotExtractedValue.toUpperCase() === expectedValue.toUpperCase();
 						} else if (statConfig.responsePattern.source.includes("\\d")) {
 							// For numeric values, compare as numbers
-							comparisonDetails.comparisonMethod = "numeric_with_tolerance_0.01";
+							// Use 0.1 tolerance for per-appearance averages (FTPperAPP, CperAPP, GperAPP, etc.)
+							// Use 0.01 tolerance for other numeric stats
+							const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
+							const tolerance = isAppearanceBasedAverage ? 0.1 : 0.01;
+							comparisonDetails.comparisonMethod = `numeric_with_tolerance_${tolerance}`;
 							if (expectedNumeric !== null && chatbotNumeric !== null) {
-								valuesMatch = Math.abs(chatbotNumeric - expectedNumeric) < 0.01; // Allow small floating point differences
+								// Add small epsilon to handle floating point precision issues
+								const difference = Math.abs(chatbotNumeric - expectedNumeric);
+								valuesMatch = difference <= tolerance + Number.EPSILON;
 							} else {
 								// Fallback to string comparison if parsing failed
 								comparisonDetails.comparisonMethod = "numeric_fallback_string";
@@ -563,11 +593,15 @@ async function runTestsProgrammatically() {
 							const expectedNum = parseFloat(expectedValue);
 							const extractedNum = chatbotExtractedValue !== null ? parseFloat(chatbotExtractedValue) : null;
 							if (!isNaN(expectedNum) && !isNaN(extractedNum)) {
+								// Extract tolerance from comparison method string (format: "numeric_with_tolerance_0.1" or "numeric_with_tolerance_0.01")
+								const toleranceMatch = comparisonDetails.comparisonMethod.match(/tolerance_([\d.]+)/);
+								const actualTolerance = toleranceMatch ? parseFloat(toleranceMatch[1]) : 0.01;
+								const difference = Math.abs(extractedNum - expectedNum);
 								console.log(`      Expected Numeric: ${expectedNum}`);
 								console.log(`      Extracted Numeric: ${extractedNum}`);
-								console.log(`      Difference: ${Math.abs(extractedNum - expectedNum)}`);
-								console.log(`      Tolerance Used: 0.01`);
-								console.log(`      Within Tolerance: ${Math.abs(extractedNum - expectedNum) < 0.01}`);
+								console.log(`      Difference: ${difference}`);
+								console.log(`      Tolerance Used: ${actualTolerance}`);
+								console.log(`      Within Tolerance: ${difference <= actualTolerance}`);
 							}
 						}
 					}

@@ -1138,9 +1138,9 @@ export class ChatbotService {
 			case "AWAYGAMES":
 				return "count(DISTINCT md) as value";
 			case "HOMEWINS":
-				return "count(DISTINCT md) as value";
+				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
 			case "AWAYWINS":
-				return "count(DISTINCT md) as value";
+				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
 			case "GK":
 				return "coalesce(count(md), 0) as value";
 			case "DEF":
@@ -1448,7 +1448,15 @@ export class ChatbotService {
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.class IS NOT NULL AND md.class <> ""
 				WITH p, md.class as position, count(md) as positionCount
-				ORDER BY positionCount DESC
+				WITH p, position, positionCount,
+					CASE 
+						WHEN position = 'GK' THEN 1
+						WHEN position = 'DEF' THEN 2
+						WHEN position = 'MID' THEN 3
+						WHEN position = 'FWD' THEN 4
+						ELSE 5
+					END as priority
+				ORDER BY positionCount DESC, priority ASC
 				LIMIT 1
 				RETURN p.playerName as playerName, position as value
 			`;
@@ -2005,11 +2013,10 @@ export class ChatbotService {
 			whereConditions.push(`f.homeOrAway = 'Away'`);
 		}
 
-		if (metricUpper === "HOMEWINS" || metricUpper === "AWAYWINS") {
-			whereConditions.push(
-				`(toUpper(coalesce(f.result, "")) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W'))`,
-			);
-		}
+		// Note: We don't filter for wins in WHERE clause for HomeWins/AwayWins queries
+		// Instead, we count wins in the aggregation to distinguish between:
+		// - Player has no games (query returns empty)
+		// - Player has games but 0 wins (query returns value=0)
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
 		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
@@ -2215,6 +2222,20 @@ export class ChatbotService {
 			return `${playerName} has won ${formattedValue} of away games.`;
 		}
 
+		// Special handling for CperAPP - check for zero and return appropriate zero stat response (must be before general zero check)
+		if (metric === "CperAPP" || metric.toUpperCase() === "CPERAPP") {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && (numericValue === 0 || Math.abs(numericValue) < 0.001)) {
+				const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
+				if (zeroResponse) {
+					return zeroResponse;
+				}
+				// Fallback: if getZeroStatResponse returns null, return the zero message directly
+				return `${playerName} has not conceded a goal.`;
+			}
+			return `${playerName} has averaged ${formattedValue} goals conceded per appearance.`;
+		}
+
 		// Special handling for HomeWins and AwayWins - check for zero and return appropriate zero stat response
 		if (metric === "HomeWins" || metric.toUpperCase() === "HOMEWINS") {
 			const numericValue = typeof value === "number" ? value : Number(value);
@@ -2251,11 +2272,6 @@ export class ChatbotService {
 				null,
 				"log",
 			);
-		}
-
-		// Special handling for specific metrics with custom formatting
-		if (metric === "CperAPP") {
-			return `${playerName} has averaged ${formattedValue} goals conceded per appearance.`;
 		}
 
 		if (metric === "MperG") {
@@ -2486,7 +2502,29 @@ export class ChatbotService {
 					} else {
 						answer = `${playerNameStr} has not played a home game`;
 					}
+				} else if (metricStr.toUpperCase() === "HOME" || metricStr === "HomeGames" || metricStr === "Home Games") {
+					// For home games count queries
+					answer = `${playerNameStr} has played 0 home games.`;
+				} else if (metricStr.toUpperCase() === "HOMEGAMES%WON" || metricStr === "HomeGames%Won" || metricStr === "Home Games % Won") {
+					// For home games percentage won queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played a home game`;
+					}
 				} else if (metricStr.toUpperCase() === "AWAYWINS" || metricStr === "AwayWins") {
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played an away game`;
+					}
+				} else if (metricStr.toUpperCase() === "AWAY" || metricStr === "AwayGames" || metricStr === "Away Games") {
+					// For away games count queries
+					answer = `${playerNameStr} has played 0 away games.`;
+				} else if (metricStr.toUpperCase() === "AWAYGAMES%WON" || metricStr === "AwayGames%Won" || metricStr === "Away Games % Won") {
+					// For away games percentage won queries
 					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
 					if (zeroResponse) {
 						answer = zeroResponse;
