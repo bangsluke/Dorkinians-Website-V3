@@ -60,6 +60,7 @@
 		"@netlify/functions": "^2.0.0",
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/react": "^16.3.0",
+		"@types/google.maps": "^3.58.1",
 		"@types/jest": "^30.0.0",
 		"@types/natural": "^5.1.5",
 		"@types/node": "^24.7.0",
