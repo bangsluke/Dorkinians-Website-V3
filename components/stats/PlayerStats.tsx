@@ -9,6 +9,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -297,14 +298,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 200}
+								cy={goalCenterY - 170}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 200}
+								cy={goalCenterY - 170}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -318,7 +319,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 200}
+								y={goalCenterY - 170}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -414,6 +415,479 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 						</tr>
 					</tbody>
 				</table>
+			</div>
+		</div>
+	);
+}
+
+// Fantasy Points Section Component
+function FantasyPointsSection({ 
+	playerName, 
+	fantasyBreakdown, 
+	isLoading 
+}: { 
+	playerName: string; 
+	fantasyBreakdown: any; 
+	isLoading: boolean;
+}) {
+	if (isLoading) {
+		return (
+			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Fantasy Points</h3>
+				<div className='flex items-center justify-center h-64'>
+					<p className='text-white text-sm'>Loading fantasy points breakdown...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!fantasyBreakdown || fantasyBreakdown.totalFantasyPoints === 0) {
+		return null;
+	}
+
+	// Helper to truncate long team names
+	const truncateTeamName = (text: string, maxLength: number = 35): string => {
+		if (text.length <= maxLength) return text;
+		// Find the last space before maxLength to avoid cutting words
+		const truncated = text.substring(0, maxLength);
+		const lastSpace = truncated.lastIndexOf(' ');
+		// If we find a space reasonably close to the end, cut there
+		if (lastSpace > 20) {
+			return truncated.substring(0, lastSpace).trim();
+		}
+		// Otherwise just truncate at maxLength
+		return truncated.trim();
+	};
+
+	// Get match summary helper
+	const getMatchSummary = (match: any): { teamOpposition: string; resultScore: string } => {
+		const team = match.team || "";
+		const opposition = match.opposition || "";
+		const result = match.result || "";
+		const score = match.matchSummary || "";
+
+		if (team && opposition && result && score) {
+			const scoreTrimmed = score.trim();
+			let resultScoreText = "";
+			if (scoreTrimmed.match(/^(W|D|L)\s/)) {
+				resultScoreText = scoreTrimmed;
+			} else {
+				resultScoreText = `${result} ${scoreTrimmed}`;
+			}
+			const teamOppositionFull = `${team} vs ${opposition}`;
+			return {
+				teamOpposition: truncateTeamName(teamOppositionFull, 35),
+				resultScore: resultScoreText,
+			};
+		}
+
+		if (match.matchSummary) {
+			return {
+				teamOpposition: truncateTeamName(match.matchSummary, 35),
+				resultScore: "",
+			};
+		}
+		const teamOppositionFull = `${match.team} - ${match.date || ""}`;
+		return {
+			teamOpposition: truncateTeamName(teamOppositionFull, 35),
+			resultScore: "",
+		};
+	};
+
+	// Get match stats summary
+	const getMatchStatsSummary = (match: any): string => {
+		const parts: string[] = [];
+		
+		// Always show minutes if available (player appeared in match)
+		const minutes = match.min !== undefined && match.min !== null ? Math.round(match.min) : 0;
+		parts.push(`${minutes} Mins`);
+		
+		if (match.goals && match.goals > 0) {
+			parts.push(`${match.goals} ${match.goals === 1 ? "Goal" : "Goals"}`);
+		}
+		if (match.assists && match.assists > 0) {
+			parts.push(`${match.assists} ${match.assists === 1 ? "Assist" : "Assists"}`);
+		}
+		
+		return parts.join(", ");
+	};
+
+	// Convert breakdown object to sorted array with values
+	const breakdownEntries = Object.entries(fantasyBreakdown.breakdown || {})
+		.map(([stat, points]) => ({ 
+			stat, 
+			points: points as number,
+			value: fantasyBreakdown.breakdownValues?.[stat] || 0
+		}))
+		.filter((entry) => entry.points !== 0)
+		.sort((a, b) => Math.abs(b.points) - Math.abs(a.points));
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Fantasy Points</h3>
+			
+			{/* Player Name and Total Score Display - Kit first, then dark box */}
+			<div className='flex flex-col items-center mb-4'>
+				{/* Kit Image */}
+				<div className='relative w-12 h-16 md:w-14 md:h-18 mb-2'>
+					<Image
+						src='/totw-images/Kit.svg'
+						alt='Player Kit'
+						fill
+						className='object-contain'
+					/>
+				</div>
+				{/* Dark grey box with player name and score */}
+				<div className='bg-gray-800 rounded-lg px-3 py-2 md:px-4 md:py-3 text-center min-w-[100px] md:min-w-[120px]'>
+					<p className='text-white text-xs md:text-sm font-medium mb-1'>{playerName}</p>
+					<p className='text-2xl md:text-3xl font-bold text-white leading-none'>
+						{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
+					</p>
+				</div>
+			</div>
+
+			{/* Breakdown Table */}
+			{breakdownEntries.length > 0 && (
+				<div className='mb-6'>
+					<h4 className='text-white font-semibold text-xs md:text-sm mb-2'>Total Points Breakdown</h4>
+					<div className='overflow-x-auto'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Points</th>
+								</tr>
+							</thead>
+							<tbody>
+								{breakdownEntries.map((entry, index) => (
+									<tr key={index} className='border-b border-white/10'>
+										<td className='py-2 px-2 text-xs md:text-sm'>{entry.stat}</td>
+										<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'>
+											{Math.round(entry.value)}
+										</td>
+										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+											{entry.points > 0 ? "+" : ""}{entry.points}
+										</td>
+									</tr>
+								))}
+								<tr className='border-t-2 border-dorkinians-yellow font-bold'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Total</td>
+									<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'></td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			)}
+
+			{/* Highest Scoring Week */}
+			{fantasyBreakdown.highestScoringWeek && (
+				<div className='mb-6'>
+					<h4 className='text-white font-semibold text-xs md:text-sm mb-2'>
+						Highest Scoring Week
+					</h4>
+					<div className='bg-white/5 rounded-lg p-3 md:p-4'>
+						<div className='mb-2 flex justify-between items-center'>
+							<p className='text-white text-xs md:text-sm'>
+								{fantasyBreakdown.highestScoringWeek.weekAdjusted || fantasyBreakdown.highestScoringWeek.week ? (
+									<span className='font-semibold'>
+										Week {fantasyBreakdown.highestScoringWeek.weekAdjusted || fantasyBreakdown.highestScoringWeek.week}
+										{fantasyBreakdown.highestScoringWeek.dateLookup && (
+											<span className='text-white/70 ml-2'>
+												- {fantasyBreakdown.highestScoringWeek.dateLookup}
+											</span>
+										)}
+									</span>
+								) : null}
+							</p>
+							<p className='text-dorkinians-yellow text-lg md:text-xl font-bold'>
+								{Math.round(fantasyBreakdown.highestScoringWeek.totalPoints)} points
+							</p>
+						</div>
+						<div className='mt-3 space-y-1'>
+							{fantasyBreakdown.highestScoringWeek.matches.map((match: any, index: number) => {
+								const summary = getMatchSummary(match);
+								const statsSummary = getMatchStatsSummary(match);
+								return (
+									<div key={index} className='text-white text-xs md:text-sm border-b border-white/10 pb-1 last:border-0 last:pb-0'>
+										<div className='flex justify-between items-center'>
+											<p className='font-medium'>{summary.teamOpposition}</p>
+											{summary.resultScore && (
+												<p className='text-white/70 ml-2'>{summary.resultScore}</p>
+											)}
+										</div>
+										{statsSummary && (
+											<p className='text-white/70 text-xs mt-1'>{statsSummary}</p>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Highest Scoring Month */}
+			{fantasyBreakdown.highestScoringMonth && (
+				<div>
+					<h4 className='text-white font-semibold text-xs md:text-sm mb-2'>
+						Highest Scoring Month
+					</h4>
+					<div className='bg-white/5 rounded-lg p-3 md:p-4'>
+						<div className='mb-2 flex justify-between items-center'>
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									{(fantasyBreakdown.highestScoringMonth.month || fantasyBreakdown.highestScoringMonth.year) && (
+										<span className='font-semibold'>
+											{fantasyBreakdown.highestScoringMonth.month || ""}
+											{fantasyBreakdown.highestScoringMonth.month && fantasyBreakdown.highestScoringMonth.year ? " " : ""}
+											{fantasyBreakdown.highestScoringMonth.year || ""}
+										</span>
+									)}
+								</p>
+								<p className='text-white/70 text-xs mt-1'>
+									{fantasyBreakdown.highestScoringMonth.matches.length} match
+									{fantasyBreakdown.highestScoringMonth.matches.length !== 1 ? "es" : ""}
+								</p>
+							</div>
+							<p className='text-dorkinians-yellow text-lg md:text-xl font-bold'>
+								{Math.round(fantasyBreakdown.highestScoringMonth.totalPoints)} points
+							</p>
+						</div>
+						<div className='mt-3 space-y-1'>
+							{fantasyBreakdown.highestScoringMonth.matches.slice(0, 5).map((match: any, index: number) => {
+								const summary = getMatchSummary(match);
+								const statsSummary = getMatchStatsSummary(match);
+								return (
+									<div key={index} className='text-white text-xs md:text-sm border-b border-white/10 pb-1 last:border-0 last:pb-0'>
+										<div className='flex justify-between items-center'>
+											<p className='font-medium'>{summary.teamOpposition}</p>
+											{summary.resultScore && (
+												<p className='text-white/70 ml-2'>{summary.resultScore}</p>
+											)}
+										</div>
+										{statsSummary && (
+											<p className='text-white/70 text-xs mt-1'>{statsSummary}</p>
+										)}
+									</div>
+								);
+							})}
+							{fantasyBreakdown.highestScoringMonth.matches.length > 5 && (
+								<p className='text-white/70 text-xs mt-2'>
+									+ {fantasyBreakdown.highestScoringMonth.matches.length - 5} more match
+									{fantasyBreakdown.highestScoringMonth.matches.length - 5 !== 1 ? "es" : ""}
+								</p>
+							)}
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
+// Distance Travelled Section Component
+function DistanceTravelledSection({
+	distance,
+	awayGames
+}: {
+	distance: number;
+	awayGames: number;
+}) {
+	// Distance thresholds
+	const UK_LENGTH = 600; // miles
+	const EUROPE_LENGTH = 3411; // miles
+	const EARTH_CIRCUMFERENCE = 24901; // miles
+	
+	// Determine which map and comparison to show
+	let mapImage: string;
+	let comparisonText: string;
+	
+	if (distance < 1200) {
+		// UK comparison - show percentage
+		const percentage = (distance / UK_LENGTH) * 100;
+		mapImage = '/stat-images/uk-map.svg';
+		comparisonText = `${percentage.toFixed(1)}% of the length of the UK`;
+	} else if (distance < 6400) {
+		// Europe comparison - show times
+		const times = distance / EUROPE_LENGTH;
+		mapImage = '/stat-images/europe-map.svg';
+		comparisonText = `${times.toFixed(2)} times the length of Europe`;
+	} else {
+		// Earth comparison - show times
+		const times = distance / EARTH_CIRCUMFERENCE;
+		mapImage = '/stat-images/world-map.svg';
+		comparisonText = `${times.toFixed(2)} times around the Earth`;
+	}
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Distance Travelled</h3>
+			<div className='w-full relative' style={{ height: '210px', overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Map Image */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src={mapImage}
+						alt={distance < 1200 ? 'UK Map' : distance < 6400 ? 'Europe Map' : 'World Map'}
+						fill
+						className='object-contain w-full h-full brightness-0 invert'
+						style={{
+							objectPosition: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Away Games</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{awayGames}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Distance Travelled</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toFixed(1)} miles</td>
+								</tr>
+								<tr>
+									<td colSpan={2} className='py-2 px-2 text-xs md:text-sm text-center text-white/90'>
+										{comparisonText}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// Defensive Record Section Component
+function DefensiveRecordSection({
+	conceded,
+	cleanSheets,
+	ownGoals,
+	appearances,
+	gk,
+	saves,
+	concededPerApp
+}: {
+	conceded: number;
+	cleanSheets: number;
+	ownGoals: number;
+	appearances: number;
+	gk: number;
+	saves: number;
+	concededPerApp: number;
+}) {
+	// Debug logging
+	console.log('[DefensiveRecordSection] Props received:', {
+		conceded,
+		cleanSheets,
+		ownGoals,
+		appearances,
+		gk,
+		saves,
+		concededPerApp
+	});
+
+	// Calculate derived statistics
+	const avgGoalsConcededPerGame = appearances > 0 ? (conceded / appearances) : 0;
+	const gamesPerCleanSheet = cleanSheets > 0 ? (appearances / cleanSheets) : 0;
+	
+	// Dynamic height: increase when GK stats are shown
+	const sectionHeight = gk > 0 ? '340px' : '260px';
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Record</h3>
+			<div className='w-full relative' style={{ height: sectionHeight, overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Brick Wall */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src='/stat-images/brick-wall.jpg'
+						alt='Brick Wall'
+						fill
+						className='object-cover w-full h-full'
+						style={{
+							objectPosition: 'center',
+							transform: 'scale(1.5)',
+							transformOrigin: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Goals Conceded</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{conceded}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Clean Sheets</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded/Game</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : '0.00'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Games per Clean Sheet</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{gamesPerCleanSheet > 0 ? gamesPerCleanSheet.toFixed(1) : 'N/A'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Own Goals</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{ownGoals}</td>
+								</tr>
+								{gk > 0 && (
+									<>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Appearances</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{gk}</td>
+										</tr>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Clean Sheets</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+										</tr>
+										<tr>
+											<td className='py-2 px-2 text-xs md:text-sm'>Saves</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{saves}</td>
+										</tr>
+									</>
+								)}
+							</tbody>
+						</table>
+					</div>
+				</div>
 			</div>
 		</div>
 	);
@@ -620,6 +1094,14 @@ export default function PlayerStats() {
 	const [isLoadingSeasonalStats, setIsLoadingSeasonalStats] = useState(false);
 	const [isLoadingTeamStats, setIsLoadingTeamStats] = useState(false);
 
+	// State for fantasy points breakdown
+	const [fantasyBreakdown, setFantasyBreakdown] = useState<any>(null);
+	const [isLoadingFantasyBreakdown, setIsLoadingFantasyBreakdown] = useState(false);
+
+	// State for opposition map data
+	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
+	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -799,6 +1281,64 @@ export default function PlayerStats() {
 
 		fetchTeamStats();
 	}, [selectedPlayer, allTeamsSelected, playerFilters]);
+
+	// Fetch fantasy breakdown when player or filters change
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setFantasyBreakdown(null);
+			return;
+		}
+
+		const fetchFantasyBreakdown = async () => {
+			setIsLoadingFantasyBreakdown(true);
+			try {
+				const response = await fetch("/api/player-fantasy-breakdown", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setFantasyBreakdown(data);
+				}
+			} catch (error) {
+				console.error("Error fetching fantasy breakdown:", error);
+			} finally {
+				setIsLoadingFantasyBreakdown(false);
+			}
+		};
+
+		fetchFantasyBreakdown();
+	}, [selectedPlayer, playerFilters]);
+
+	// Fetch opposition map data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionMapData([]);
+			return;
+		}
+
+		const fetchOppositionMapData = async () => {
+			setIsLoadingOppositionMap(true);
+			try {
+				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionMapData(data.oppositions || []);
+				}
+			} catch (error) {
+				console.error("Error fetching opposition map data:", error);
+				setOppositionMapData([]);
+			} finally {
+				setIsLoadingOppositionMap(false);
+			}
+		};
+
+		fetchOppositionMapData();
+	}, [selectedPlayer]);
 
 
 	// Prepare seasonal chart data (must be before early returns)
@@ -1100,39 +1640,163 @@ export default function PlayerStats() {
 				/>
 			)}
 
-			{/* Card Stats Bar Chart */}
+			{/* Fantasy Points Section */}
+			{toNumber(validPlayerData.fantasyPoints) > 0 && (
+				<FantasyPointsSection
+					playerName={selectedPlayer || ""}
+					fantasyBreakdown={fantasyBreakdown}
+					isLoading={isLoadingFantasyBreakdown}
+				/>
+			)}
+
+			{/* Defensive Record Section */}
+			{(() => {
+				const concededVal = toNumber(validPlayerData.conceded);
+				const cleanSheetsVal = toNumber(validPlayerData.cleanSheets);
+				const ownGoalsVal = toNumber(validPlayerData.ownGoals);
+				const appearancesVal = toNumber(validPlayerData.appearances);
+				const gkVal = toNumber(validPlayerData.gk);
+				const savesVal = toNumber(validPlayerData.saves);
+				const concededPerAppVal = toNumber(validPlayerData.concededPerApp);
+				
+				// Debug logging
+				console.log('[PlayerStats] Defensive Record Data:', {
+					raw: {
+						conceded: validPlayerData.conceded,
+						cleanSheets: validPlayerData.cleanSheets,
+						ownGoals: validPlayerData.ownGoals,
+						appearances: validPlayerData.appearances,
+						gk: validPlayerData.gk,
+						saves: validPlayerData.saves,
+						concededPerApp: validPlayerData.concededPerApp
+					},
+					converted: {
+						conceded: concededVal,
+						cleanSheets: cleanSheetsVal,
+						ownGoals: ownGoalsVal,
+						appearances: appearancesVal,
+						gk: gkVal,
+						saves: savesVal,
+						concededPerApp: concededPerAppVal
+					}
+				});
+
+				return (
+					<DefensiveRecordSection
+						conceded={concededVal}
+						cleanSheets={cleanSheetsVal}
+						ownGoals={ownGoalsVal}
+						appearances={appearancesVal}
+						gk={gkVal}
+						saves={savesVal}
+						concededPerApp={concededPerAppVal}
+					/>
+				);
+			})()}
+
+			{/* Opposition Map */}
+			{oppositionMapData.length > 0 && (
+				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+			)}
+
+			{/* Card Stats SVG Visualization */}
 			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Card Stats</h3>
-					<ResponsiveContainer width='100%' height={180}>
-						<BarChart data={cardData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip content={customTooltip} />
-							<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }}>
-								{cardData.map((entry, index) => (
-									<Cell key={`cell-${index}`} fill={entry.color} />
-								))}
-							</Bar>
-						</BarChart>
-					</ResponsiveContainer>
-				</div>
-			)}
-
-			{/* Defensive Stats Bar Chart */}
-			{(toNumber(validPlayerData.cleanSheets) > 0 || toNumber(validPlayerData.conceded) > 0) && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Stats</h3>
-					<ResponsiveContainer width='100%' height={300}>
-						<BarChart data={defensiveData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-							<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-							<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-							<YAxis stroke='#fff' fontSize={12} />
-							<Tooltip content={customTooltip} />
-							<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.8 }} />
-						</BarChart>
-					</ResponsiveContainer>
+					<div className='w-full' style={{ height: '108px' }}>
+						<svg width='100%' height='100%' viewBox='0 0 400 108' preserveAspectRatio='xMidYMid meet' className='relative z-10'>
+							{(() => {
+								const yellowCount = toNumber(validPlayerData.yellowCards);
+								const redCount = toNumber(validPlayerData.redCards);
+								const maxValue = Math.max(yellowCount, redCount, 1);
+								const maxHeight = 70;
+								const minHeight = 10;
+								const cardWidth = 80;
+								const spacing = 40;
+								const textOffset = 50;
+								const centerX = 200;
+								const yellowRectX = centerX - cardWidth - spacing / 2;
+								const redRectX = centerX + spacing / 2;
+								const containerCenterY = 54;
+								const baseY = 98;
+								
+								const yellowHeight = yellowCount === 0 ? minHeight : Math.max(minHeight, (yellowCount / maxValue) * maxHeight);
+								const redHeight = redCount === 0 ? minHeight : Math.max(minHeight, (redCount / maxValue) * maxHeight);
+								
+								return (
+									<>
+										{/* Yellow Card Text - Left of rectangle, vertically centered */}
+										<text
+											x={yellowRectX - textOffset}
+											y={containerCenterY - 6}
+											textAnchor='end'
+											dominantBaseline='middle'
+											fill='#ffffff'
+											fontSize='24'
+											fontWeight='bold'
+										>
+											{yellowCount}
+										</text>
+										<text
+											x={yellowRectX - textOffset}
+											y={containerCenterY + 16}
+											textAnchor='end'
+											dominantBaseline='middle'
+											fill='#ffffff'
+											fontSize='14'
+										>
+											Yellows
+										</text>
+										
+										{/* Yellow Card Rectangle */}
+										<rect
+											x={yellowRectX}
+											y={baseY - yellowHeight}
+											width={cardWidth}
+											height={yellowHeight}
+											fill='#f9ed32'
+											rx='4'
+											opacity={0.8}
+										/>
+										
+										{/* Red Card Rectangle */}
+										<rect
+											x={redRectX}
+											y={baseY - redHeight}
+											width={cardWidth}
+											height={redHeight}
+											fill='#ef4444'
+											rx='4'
+											opacity={0.8}
+										/>
+										
+										{/* Red Card Text - Right of rectangle, vertically centered */}
+										<text
+											x={redRectX + cardWidth + textOffset}
+											y={containerCenterY - 6}
+											textAnchor='start'
+											dominantBaseline='middle'
+											fill='#ffffff'
+											fontSize='24'
+											fontWeight='bold'
+										>
+											{redCount}
+										</text>
+										<text
+											x={redRectX + cardWidth + textOffset}
+											y={containerCenterY + 16}
+											textAnchor='start'
+											dominantBaseline='middle'
+											fill='#ffffff'
+											fontSize='14'
+										>
+											Reds
+										</text>
+									</>
+								);
+							})()}
+						</svg>
+					</div>
 				</div>
 			)}
 
@@ -1145,12 +1809,22 @@ export default function PlayerStats() {
 					conceded={toNumber(validPlayerData.penaltiesConceded)}
 				/>
 			)}
+
+			{/* Distance Travelled Section */}
+			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
+				<DistanceTravelledSection
+					distance={toNumber(validPlayerData.distance)}
+					awayGames={toNumber(validPlayerData.awayGames)}
+				/>
+			)}
 		</div>
 	);
 
 	const dataTableContent = (
-		<div className='overflow-x-auto mt-4'>
-			<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+		<div className='mt-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>All Stats</h3>
+			<div className='overflow-x-auto'>
+				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
 					<tr className='bg-white/20'>
 						<th className='px-2 md:px-4 py-2 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Icon</th>
@@ -1165,6 +1839,7 @@ export default function PlayerStats() {
 					})}
 				</tbody>
 			</table>
+			</div>
 		</div>
 	);
 
