@@ -538,7 +538,7 @@ function FantasyPointsSection({
 					/>
 				</div>
 				{/* Dark grey box with player name and score */}
-				<div className='bg-gray-800 rounded-lg px-3 py-2 md:px-4 md:py-3 text-center min-w-[100px] md:min-w-[120px]'>
+				<div className='bg-black rounded-lg px-3 py-2 md:px-4 md:py-3 text-center min-w-[100px] md:min-w-[120px]'>
 					<p className='text-white text-xs md:text-sm font-medium mb-1'>{playerName}</p>
 					<p className='text-2xl md:text-3xl font-bold text-white leading-none'>
 						{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
@@ -884,6 +884,106 @@ function DefensiveRecordSection({
 										</tr>
 									</>
 								)}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// Minutes per Stats Section Component
+function MinutesPerStatsSection({
+	minutes,
+	allGoalsScored,
+	assists,
+	mom,
+	conceded,
+	cleanSheets
+}: {
+	minutes: number;
+	allGoalsScored: number;
+	assists: number;
+	mom: number;
+	conceded: number;
+	cleanSheets: number;
+}) {
+	// Calculate minutes per stat
+	const minutesPerGoal = allGoalsScored > 0 ? (minutes / allGoalsScored) : 0;
+	const minutesPerAssist = assists > 0 ? (minutes / assists) : 0;
+	const minutesPerMoM = mom > 0 ? (minutes / mom) : 0;
+	const minutesPerConceded = conceded > 0 ? (minutes / conceded) : 0;
+	const minutesPerCleanSheet = cleanSheets > 0 ? (minutes / cleanSheets) : 0;
+
+	// Format number with commas for thousands and 1 decimal place
+	const formatMinutesPerStat = (value: number): string => {
+		if (value <= 0) return 'N/A';
+		return value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+	};
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Minutes per Stats</h3>
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Stopwatch */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src='/stat-images/stopwatch.svg'
+						alt='Stopwatch'
+						fill
+						className='object-contain w-full h-full brightness-0 invert'
+						style={{
+							objectPosition: 'center',
+							transform: 'scale(0.8, 0.8)',
+							transformOrigin: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4 py-2'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Goal</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{formatMinutesPerStat(minutesPerGoal)}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Assist</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{formatMinutesPerStat(minutesPerAssist)}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per MoM</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{formatMinutesPerStat(minutesPerMoM)}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Conceded</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{formatMinutesPerStat(minutesPerConceded)}
+									</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Clean Sheet</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{formatMinutesPerStat(minutesPerCleanSheet)}
+									</td>
+								</tr>
 							</tbody>
 						</table>
 					</div>
@@ -1697,6 +1797,18 @@ export default function PlayerStats() {
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
 				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+			)}
+
+			{/* Minutes per Stats Section */}
+			{toNumber(validPlayerData.minutes) > 0 && (
+				<MinutesPerStatsSection
+					minutes={toNumber(validPlayerData.minutes)}
+					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
+					assists={toNumber(validPlayerData.assists)}
+					mom={toNumber(validPlayerData.mom)}
+					conceded={toNumber(validPlayerData.conceded)}
+					cleanSheets={toNumber(validPlayerData.cleanSheets)}
+				/>
 			)}
 
 			{/* Card Stats SVG Visualization */}
