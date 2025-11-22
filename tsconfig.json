@@ -20,7 +20,6 @@
 			}
 		],
 		"baseUrl": ".",
-		"types": ["node", "google.maps"],
 		"paths": {
 			"@/*": ["./*"],
 			"@/components/*": ["./components/*"],
@@ -29,6 +28,6 @@
 			"@/utils/*": ["./utils/*"]
 		}
 	},
-	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "global.d.ts", ".next/types/**/*.ts"],
+	"include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "global.d.ts", "types/**/*.d.ts", ".next/types/**/*.ts"],
 	"exclude": ["node_modules"]
 }
