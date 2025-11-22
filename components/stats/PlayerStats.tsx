@@ -70,7 +70,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 							alt={stat.displayText}
 							width={24}
 							height={24}
-							className='w-6 h-6 md:w-8 md:h-8 object-contain brightness-0 invert'
+							className={`w-6 h-6 md:w-8 md:h-8 object-contain ${stat.iconName?.includes('YellowCard') || stat.iconName?.includes('RedCard') ? '' : 'brightness-0 invert'}`}
 						/>
 					</div>
 				</td>
