@@ -444,6 +444,20 @@ function FantasyPointsSection({
 		return null;
 	}
 
+	// Helper to truncate long team names
+	const truncateTeamName = (text: string, maxLength: number = 35): string => {
+		if (text.length <= maxLength) return text;
+		// Find the last space before maxLength to avoid cutting words
+		const truncated = text.substring(0, maxLength);
+		const lastSpace = truncated.lastIndexOf(' ');
+		// If we find a space reasonably close to the end, cut there
+		if (lastSpace > 20) {
+			return truncated.substring(0, lastSpace).trim();
+		}
+		// Otherwise just truncate at maxLength
+		return truncated.trim();
+	};
+
 	// Get match summary helper
 	const getMatchSummary = (match: any): { teamOpposition: string; resultScore: string } => {
 		const team = match.team || "";
@@ -459,20 +473,22 @@ function FantasyPointsSection({
 			} else {
 				resultScoreText = `${result} ${scoreTrimmed}`;
 			}
+			const teamOppositionFull = `${team} vs ${opposition}`;
 			return {
-				teamOpposition: `${team} vs ${opposition}`,
+				teamOpposition: truncateTeamName(teamOppositionFull, 35),
 				resultScore: resultScoreText,
 			};
 		}
 
 		if (match.matchSummary) {
 			return {
-				teamOpposition: match.matchSummary,
+				teamOpposition: truncateTeamName(match.matchSummary, 35),
 				resultScore: "",
 			};
 		}
+		const teamOppositionFull = `${match.team} - ${match.date || ""}`;
 		return {
-			teamOpposition: `${match.team} - ${match.date || ""}`,
+			teamOpposition: truncateTeamName(teamOppositionFull, 35),
 			resultScore: "",
 		};
 	};
@@ -669,6 +685,123 @@ function FantasyPointsSection({
 					</div>
 				</div>
 			)}
+		</div>
+	);
+}
+
+// Defensive Record Section Component
+function DefensiveRecordSection({
+	conceded,
+	cleanSheets,
+	ownGoals,
+	appearances,
+	gk,
+	saves,
+	concededPerApp
+}: {
+	conceded: number;
+	cleanSheets: number;
+	ownGoals: number;
+	appearances: number;
+	gk: number;
+	saves: number;
+	concededPerApp: number;
+}) {
+	// Debug logging
+	console.log('[DefensiveRecordSection] Props received:', {
+		conceded,
+		cleanSheets,
+		ownGoals,
+		appearances,
+		gk,
+		saves,
+		concededPerApp
+	});
+
+	// Calculate derived statistics
+	const avgGoalsConcededPerGame = appearances > 0 ? (conceded / appearances) : 0;
+	const gamesPerCleanSheet = cleanSheets > 0 ? (appearances / cleanSheets) : 0;
+	
+	// Dynamic height: increase when GK stats are shown
+	const sectionHeight = gk > 0 ? '340px' : '260px';
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Defensive Record</h3>
+			<div className='w-full relative' style={{ height: sectionHeight, overflow: 'hidden', borderRadius: '0.5rem' }}>
+				{/* Background Brick Wall */}
+				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
+					<Image
+						src='/stat-images/brick-wall.jpg'
+						alt='Brick Wall'
+						fill
+						className='object-cover w-full h-full'
+						style={{
+							objectPosition: 'center',
+							transform: 'scale(1.5)',
+							transformOrigin: 'center',
+							borderRadius: '0.5rem'
+						}}
+						priority
+					/>
+				</div>
+				
+				{/* Content Overlay */}
+				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4'>
+					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2 text-xs md:text-sm'>Stat</th>
+									<th className='text-right py-2 px-2 text-xs md:text-sm'>Value</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Goals Conceded</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{conceded}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Clean Sheets</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Avg Goals Conceded/Game</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{avgGoalsConcededPerGame > 0 ? avgGoalsConcededPerGame.toFixed(2) : '0.00'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Games per Clean Sheet</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+										{gamesPerCleanSheet > 0 ? gamesPerCleanSheet.toFixed(1) : 'N/A'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2 text-xs md:text-sm'>Own Goals</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{ownGoals}</td>
+								</tr>
+								{gk > 0 && (
+									<>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Appearances</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{gk}</td>
+										</tr>
+										<tr className='border-b border-white/10'>
+											<td className='py-2 px-2 text-xs md:text-sm'>GK Clean Sheets</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+										</tr>
+										<tr>
+											<td className='py-2 px-2 text-xs md:text-sm'>Saves</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{saves}</td>
+										</tr>
+									</>
+								)}
+							</tbody>
+						</table>
+					</div>
+				</div>
+			</div>
 		</div>
 	);
 }
@@ -1398,6 +1531,51 @@ export default function PlayerStats() {
 					isLoading={isLoadingFantasyBreakdown}
 				/>
 			)}
+
+			{/* Defensive Record Section */}
+			{(() => {
+				const concededVal = toNumber(validPlayerData.conceded);
+				const cleanSheetsVal = toNumber(validPlayerData.cleanSheets);
+				const ownGoalsVal = toNumber(validPlayerData.ownGoals);
+				const appearancesVal = toNumber(validPlayerData.appearances);
+				const gkVal = toNumber(validPlayerData.gk);
+				const savesVal = toNumber(validPlayerData.saves);
+				const concededPerAppVal = toNumber(validPlayerData.concededPerApp);
+				
+				// Debug logging
+				console.log('[PlayerStats] Defensive Record Data:', {
+					raw: {
+						conceded: validPlayerData.conceded,
+						cleanSheets: validPlayerData.cleanSheets,
+						ownGoals: validPlayerData.ownGoals,
+						appearances: validPlayerData.appearances,
+						gk: validPlayerData.gk,
+						saves: validPlayerData.saves,
+						concededPerApp: validPlayerData.concededPerApp
+					},
+					converted: {
+						conceded: concededVal,
+						cleanSheets: cleanSheetsVal,
+						ownGoals: ownGoalsVal,
+						appearances: appearancesVal,
+						gk: gkVal,
+						saves: savesVal,
+						concededPerApp: concededPerAppVal
+					}
+				});
+
+				return (
+					<DefensiveRecordSection
+						conceded={concededVal}
+						cleanSheets={cleanSheetsVal}
+						ownGoals={ownGoalsVal}
+						appearances={appearancesVal}
+						gk={gkVal}
+						saves={savesVal}
+						concededPerApp={concededPerAppVal}
+					/>
+				);
+			})()}
 
 			{/* Card Stats SVG Visualization */}
 			{(toNumber(validPlayerData.yellowCards) > 0 || toNumber(validPlayerData.redCards) > 0) && (
