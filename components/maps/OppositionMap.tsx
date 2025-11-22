@@ -24,12 +24,17 @@ const defaultCenter = {
 
 const defaultZoom = 8;
 
+// Map ID is required for Advanced Markers
+// You need to create one in Google Cloud Console: https://console.cloud.google.com/google/maps-apis/studio/maps
+const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID";
+
 function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) {
 	const [selectedOpposition, setSelectedOpposition] = useState<OppositionLocation | null>(null);
 	const [map, setMap] = useState<google.maps.Map | null>(null);
 	const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
+	const [markerLibrary, setMarkerLibrary] = useState<typeof google.maps.marker | null>(null);
 	const mapRef = useRef<HTMLDivElement>(null);
-	const markersRef = useRef<google.maps.Marker[]>([]);
+	const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 	const clustererRef = useRef<MarkerClusterer | null>(null);
 	const loaderRef = useRef<Loader | null>(null);
 
@@ -46,13 +51,18 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 			});
 		}
 
-		// Load map
-		loaderRef.current.load().then(() => {
+		// Load map and marker library
+		loaderRef.current.load().then(async () => {
 			if (!mapRef.current) return;
+
+			// Import marker library for AdvancedMarkerElement
+			const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+			setMarkerLibrary(google.maps.marker);
 
 			const newMap = new google.maps.Map(mapRef.current, {
 				center: defaultCenter,
 				zoom: defaultZoom,
+				mapId: MAP_ID,
 				styles: [
 					{
 						featureType: "all",
@@ -87,19 +97,21 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 	}, []);
 
 	useEffect(() => {
-		if (!map || oppositions.length === 0) return;
+		if (!map || oppositions.length === 0 || !markerLibrary) return;
 
 		// Clear existing markers
-		markersRef.current.forEach((marker) => marker.setMap(null));
+		markersRef.current.forEach((marker) => {
+			marker.map = null;
+		});
 		markersRef.current = [];
 
 		if (clustererRef.current) {
 			clustererRef.current.clearMarkers();
 		}
 
-		// Create markers for each opposition
+		// Create Advanced Markers for each opposition
 		const markers = oppositions.map((opposition) => {
-			const marker = new google.maps.Marker({
+			const marker = new markerLibrary.AdvancedMarkerElement({
 				position: { lat: opposition.lat, lng: opposition.lng },
 				map: map,
 				title: opposition.name,
@@ -125,7 +137,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 
 		markersRef.current = markers;
 
-		// Create clusterer
+		// Create clusterer with Advanced Markers
 		if (markers.length > 0) {
 			clustererRef.current = new MarkerClusterer({
 				map,
@@ -137,13 +149,14 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 		if (markers.length > 0) {
 			const bounds = new google.maps.LatLngBounds();
 			markers.forEach((marker) => {
-				if (marker.getPosition()) {
-					bounds.extend(marker.getPosition()!);
+				if (marker.position) {
+					const pos = marker.position as google.maps.LatLng;
+					bounds.extend(pos);
 				}
 			});
 			map.fitBounds(bounds);
 		}
-	}, [map, oppositions, infoWindow]);
+	}, [map, oppositions, infoWindow, markerLibrary]);
 
 	if (isLoading) {
 		return (
@@ -176,7 +189,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 	return (
 		<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
 			<h3 className="text-white font-semibold text-sm md:text-base mb-4">Opposition Locations</h3>
-			<div ref={mapRef} style={{ width: "100%", height: "400px" }} className="rounded-lg overflow-hidden" />
+			<div ref={mapRef} style={{ width: "100%", height: "320px" }} className="rounded-lg overflow-hidden" />
 		</div>
 	);
 }
