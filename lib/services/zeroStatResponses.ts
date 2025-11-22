@@ -15,6 +15,11 @@ export interface ZeroStatResponseRule {
 
 export const ZERO_STAT_RESPONSE_RULES: ZeroStatResponseRule[] = [
 	{
+		id: "CONCEDED_ZERO",
+		matcher: /^(CPERAPP|CperAPP|CONCEDED|C)$/i,
+		phrase: "has not conceded a goal",
+	},
+	{
 		id: "APPS_ZERO",
 		matcher: /(APP|APPS|APPEARANCES)/i,
 		phrase: "has not made an appearance yet",
@@ -103,11 +108,6 @@ export const ZERO_STAT_RESPONSE_RULES: ZeroStatResponseRule[] = [
 		id: "PENALTIES_CONCEDED_ZERO",
 		matcher: /(PCO|PENALTIESCONCEDED|PENALTIES_CONCEDED)/i,
 		phrase: "has not conceded a penalty",
-	},
-	{
-		id: "CONCEDED_ZERO",
-		matcher: /(C|CONCEDED|CperAPP)/i,
-		phrase: "has not conceded a goal",
 	},
 	{
 		id: "MINUTES_ZERO",

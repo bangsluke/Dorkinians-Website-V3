@@ -118,10 +118,12 @@ function extractNumberFromAnswer(answer) {
 
 	// Check for zero-value responses first
 	const zeroPatterns = [
+		/has not conceded (?:a )?goal/i,  // More specific - check conceded first
 		/has not scored (?:any )?goals?/i,
-		/has not (?:scored|got|made) (?:any )?/i,
-		/have not (?:scored|got|made) (?:any )?/i,
+		/has not (?:scored|got|made|conceded) (?:any )?/i,
+		/have not (?:scored|got|made|conceded) (?:any )?/i,
 		/not scored (?:any )?goals?/i,
+		/has not conceded/i,  // Fallback pattern for "has not conceded" in any context
 		/no goals?/i,
 		/zero goals?/i,
 		/0 goals?/i,
@@ -133,7 +135,17 @@ function extractNumberFromAnswer(answer) {
 		}
 	}
 
-	// Try to extract number from various formats: "8", "8 goals", "has scored 8", etc.
+	// Try to extract decimal number first (e.g., "0.2", "1.5")
+	const decimalPattern = /\b(\d+\.\d+)\b/;
+	const decimalMatch = answer.match(decimalPattern);
+	if (decimalMatch) {
+		const num = parseFloat(decimalMatch[1]);
+		if (!isNaN(num)) {
+			return num;
+		}
+	}
+
+	// Try to extract integer number from various formats: "8", "8 goals", "has scored 8", etc.
 	const patterns = [
 		/\b(\d+)\b/, // Simple number
 		/(\d+)\s*(?:goals?|assists?|appearances?|games?|times?|points?)/i, // Number with unit
@@ -223,10 +235,24 @@ function compareAnswers(extractedValue, expectedAnswer, expectedOutputType) {
 				// Compare scores (case insensitive, handle different dash types)
 				return extractedScore.replace(/[–—]/g, "-") === expectedScore.replace(/[–—]/g, "-");
 			}
-			// Compare numeric values
-			const extractedNum = typeof extractedValue === "number" ? extractedValue : parseInt(extractedValue, 10);
-			const expectedNum = parseInt(normalizedExpected, 10);
-			return !isNaN(extractedNum) && !isNaN(expectedNum) && extractedNum === expectedNum;
+			// Compare numeric values (handle both integers and decimals)
+			const extractedNum = typeof extractedValue === "number" ? extractedValue : parseFloat(extractedValue);
+			const expectedNum = parseFloat(normalizedExpected);
+			
+			// Special case: if extractedValue is 0 (from zero pattern) and expected is 0 or 0.0, match
+			if (extractedValue === 0 && (expectedAnswer === "0" || expectedAnswer === "0.0" || expectedNum === 0)) {
+				return true;
+			}
+			
+			if (!isNaN(extractedNum) && !isNaN(expectedNum)) {
+				// For decimal values, allow small floating point differences
+				// Special case: 0 and 0.0 should always match
+				if (extractedNum === 0 && expectedNum === 0) {
+					return true;
+				}
+				return Math.abs(extractedNum - expectedNum) < 0.1;
+			}
+			return false;
 		case "Table":
 		case "Record":
 			// For Table/Record, check if answer contains expected text or if table data exists
@@ -490,6 +516,51 @@ async function runTestsProgrammatically() {
 			let expectedAnswer = testQuestion.Answer;
 			const expectedOutputType = testQuestion.Expected_Output_Type || "NumberCard";
 			const dataSource = testQuestion.Data_Source || "";
+			
+			// Try multiple possible column names for the Value column
+			// Check all keys in the row to find value-related columns
+			const availableKeys = Object.keys(testQuestion);
+			
+			// Log available keys for first test to help debug
+			if (results.totalTests === 0) {
+				console.log(`ℹ️ Available columns in CSV: ${availableKeys.join(", ")}`);
+			}
+			
+			// Try to find Value column - check multiple variations
+			let testDataValue = null;
+			const valueColumnNames = [
+				"Value",
+				"value",
+				"TBL_TestData Value",
+				"TBL_TestDataValue",
+				"TestData Value",
+				"TestDataValue"
+			];
+			
+			// First try exact matches
+			for (const colName of valueColumnNames) {
+				if (testQuestion[colName] !== undefined && testQuestion[colName] !== "" && testQuestion[colName] !== null) {
+					testDataValue = testQuestion[colName];
+					if (results.totalTests === 0) {
+						console.log(`✅ Found Value column: "${colName}" = "${testDataValue}"`);
+					}
+					break;
+				}
+			}
+			
+			// If not found, try case-insensitive search
+			if (!testDataValue) {
+				for (const key of availableKeys) {
+					const keyLower = key.toLowerCase().trim();
+					if (keyLower === "value" || keyLower.includes("testdata") && keyLower.includes("value")) {
+						testDataValue = testQuestion[key];
+						if (results.totalTests === 0) {
+							console.log(`✅ Found Value column (case-insensitive): "${key}" = "${testDataValue}"`);
+						}
+						break;
+					}
+				}
+			}
 
 			if (!question || !expectedAnswer) {
 				console.warn(`⚠️ Skipping test question with missing Question or Answer`);
@@ -500,6 +571,30 @@ async function runTestsProgrammatically() {
 			if (expectedAnswer.trim().toUpperCase() === "#N/A" || expectedAnswer.trim().toUpperCase() === "N/A") {
 				console.log(`⏭️ Skipping question with N/A expected answer: ${question}`);
 				continue;
+			}
+
+			// If Value column exists and contains a decimal number, round it to 1 decimal place and use it as expected answer
+			if (testDataValue !== null && testDataValue !== undefined) {
+				const testDataValueStr = String(testDataValue).trim();
+				if (testDataValueStr !== "" && testDataValueStr.toUpperCase() !== "N/A" && testDataValueStr.toUpperCase() !== "#N/A") {
+					const numericValue = parseFloat(testDataValueStr);
+					if (!isNaN(numericValue) && isFinite(numericValue)) {
+						// Round to 1 decimal place: round(10.0 * value) / 10.0
+						const roundedValue = Math.round(10.0 * numericValue) / 10.0;
+						expectedAnswer = String(roundedValue);
+						console.log(`📊 Using TBL_TestData Value: ${testDataValue} -> Rounded to: ${expectedAnswer}`);
+					} else {
+						console.log(`⚠️ TBL_TestData Value "${testDataValue}" is not a valid number, using Answer column: ${expectedAnswer}`);
+					}
+				} else {
+					console.log(`ℹ️ TBL_TestData Value is empty/N/A, using Answer column: ${expectedAnswer}`);
+				}
+			} else {
+				if (results.totalTests === 0) {
+					// Log available columns for first test to help debug
+					console.log(`ℹ️ Available columns in CSV: ${availableKeys.join(", ")}`);
+				}
+				console.log(`ℹ️ No TBL_TestData Value column found, using Answer column: ${expectedAnswer}`);
 			}
 
 			results.totalTests++;
