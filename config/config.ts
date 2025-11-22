@@ -523,7 +523,7 @@ export const statObject = {
 	},
 	MINperAPP: {
 		statName: "minutesPerApp",
-		displayText: "Minutes Per Appearance", // The text displayed at all times on the page.
+		displayText: "Average Minutes Per Appearance", // The text displayed at all times on the page.
 		shortText: "MINperApp", // Used for short displays such as on the Comparison tab.
 		wordedText: "minutes per appearance", // Used for chatbot responses
 		statFormat: "Decimal2",
@@ -1074,16 +1074,6 @@ export const statsPageConfig = {
 			"MperCLS",
 			"FTPperAPP",
 			"MINperAPP",
-			"MOMperAPP",
-			"YperAPP",
-			"RperAPP",
-			"SAVESperAPP",
-			"OGperAPP",
-			"CLSperAPP",
-			"PSCperAPP",
-			"PMperAPP",
-			"PCOperAPP",
-			"PSVperAPP",
 			"DIST",
 			"Games%Won",
 			"PlayerPointsPerGame",
