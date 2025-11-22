@@ -27,6 +27,8 @@
 		"test:questions-report:hide": "node scripts/test-questions-email-report.js --hide-passed"
 	},
 	"dependencies": {
+		"@googlemaps/js-api-loader": "^1.16.6",
+		"@googlemaps/markerclusterer": "^2.6.2",
 		"@headlessui/react": "^1.7.17",
 		"@heroicons/react": "^2.2.0",
 		"@netlify/plugin-nextjs": "^5.14.3",
@@ -63,7 +65,7 @@
 		"@types/node": "^24.7.0",
 		"cross-env": "^10.0.0",
 		"eslint": "^8.57.1",
-		"eslint-config-next": "14.2.33",
+		"eslint-config-next": "^16.0.3",
 		"jest": "^30.1.1",
 		"prettier": "^3.6.2",
 		"ts-jest": "^29.4.1",

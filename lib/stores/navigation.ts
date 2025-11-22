@@ -34,6 +34,7 @@ export interface PlayerData {
 	minutesPerCleanSheet: number;
 	fantasyPointsPerApp: number;
 	distance: number;
+	awayGames: number;
 	// Derived stats from statObject
 	openPlayGoalsScored: number;
 	goalInvolvements: number;
