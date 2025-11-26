@@ -12,6 +12,7 @@ Each season is stored as a JSON file named `[season].json` (e.g., `2019-20.json`
 {
   "season": "2019/20",
   "division": "Division Name",
+  "url": "https://fulltime.thefa.com/table.html?...",
   "lastUpdated": "2024-01-15T10:30:00Z",
   "teams": {
     "1s": [
@@ -42,6 +43,7 @@ Each season is stored as a JSON file named `[season].json` (e.g., `2019-20.json`
 
 - **season**: Season identifier in format "YYYY/YY" (e.g., "2019/20")
 - **division**: Name of the division/league
+- **url**: URL to the original league table on The FA Full Time website
 - **lastUpdated**: ISO 8601 timestamp of when the data was last updated
 - **teams**: Object containing league tables for each team (1s through 7s)
   - Each team array contains entries for all teams in that league

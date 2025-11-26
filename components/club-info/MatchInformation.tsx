@@ -18,6 +18,7 @@ interface LeagueTableEntry {
 interface SeasonLeagueData {
 	season: string;
 	division?: string;
+	url?: string;
 	lastUpdated?: string;
 	teams: {
 		[key: string]: LeagueTableEntry[];
@@ -154,12 +155,27 @@ export default function MatchInformation() {
 			{!loading && !error && leagueData && (
 				<div className='space-y-8'>
 					{/* Season Info */}
-					{leagueData.division && (
+					{(leagueData.division || leagueData.lastUpdated || leagueData.url) && (
 						<div className='text-center text-sm text-gray-400 mb-4'>
-							<div className='font-semibold text-dorkinians-yellow'>{leagueData.division}</div>
+							{leagueData.division && (
+								<div className='font-semibold text-dorkinians-yellow'>{leagueData.division}</div>
+							)}
 							{leagueData.lastUpdated && (
 								<div className='mt-1'>
 									Last updated: {new Date(leagueData.lastUpdated).toLocaleDateString()}
+								</div>
+							)}
+							{/* League Table Link - shown once at season level */}
+							{leagueData.url && (
+								<div className='mt-2'>
+									<a
+										href={leagueData.url}
+										target='_blank'
+										rel='noopener noreferrer'
+										className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm transition-colors'
+									>
+										League Table Link
+									</a>
 								</div>
 							)}
 						</div>

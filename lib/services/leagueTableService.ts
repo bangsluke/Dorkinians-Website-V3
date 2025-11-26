@@ -23,6 +23,7 @@ export interface LeagueTableEntry {
 export interface SeasonLeagueData {
 	season: string;
 	division?: string;
+	url?: string;
 	lastUpdated?: string;
 	teams: {
 		[key: string]: LeagueTableEntry[];
@@ -119,7 +120,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 		}
 
 		query += `
-			WITH lt.teamName as teamName, lt.division as division, lt.lastUpdated as lastUpdated,
+			WITH lt.teamName as teamName, lt.division as division, lt.lastUpdated as lastUpdated, lt.url as url,
 				collect({
 					position: lt.position,
 					team: lt.team,
@@ -136,6 +137,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 				$season as season,
 				teamName,
 				division,
+				url,
 				lastUpdated,
 				entries
 			ORDER BY teamName
@@ -151,6 +153,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 		const teams: { [key: string]: LeagueTableEntry[] } = {};
 		let division = '';
 		let lastUpdated = '';
+		let url = '';
 
 		for (const record of result.records) {
 			const teamName = record.get('teamName');
@@ -161,6 +164,9 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 			}
 			if (!lastUpdated && record.get('lastUpdated')) {
 				lastUpdated = record.get('lastUpdated');
+			}
+			if (!url && record.get('url')) {
+				url = record.get('url');
 			}
 
 			if (teamName && entries.length > 0) {
@@ -182,6 +188,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 		return {
 			season: currentSeason,
 			division: division || undefined,
+			url: url || undefined,
 			lastUpdated: lastUpdated || undefined,
 			teams,
 		};
