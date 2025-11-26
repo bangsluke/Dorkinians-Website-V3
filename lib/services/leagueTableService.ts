@@ -20,13 +20,17 @@ export interface LeagueTableEntry {
 	points: number;
 }
 
+export interface TeamLeagueData {
+	division: string;
+	url: string;
+	table: LeagueTableEntry[];
+}
+
 export interface SeasonLeagueData {
 	season: string;
-	division?: string;
-	url?: string;
 	lastUpdated?: string;
 	teams: {
-		[key: string]: LeagueTableEntry[];
+		[key: string]: TeamLeagueData;
 	};
 }
 
@@ -150,46 +154,37 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 		}
 
 		// Group by teamName
-		const teams: { [key: string]: LeagueTableEntry[] } = {};
-		let division = '';
-		let lastUpdated = '';
-		let url = '';
+		const teams: { [key: string]: TeamLeagueData } = {};
 
 		for (const record of result.records) {
 			const teamName = record.get('teamName');
 			const entries = record.get('entries') || [];
-
-			if (!division && record.get('division')) {
-				division = record.get('division');
-			}
-			if (!lastUpdated && record.get('lastUpdated')) {
-				lastUpdated = record.get('lastUpdated');
-			}
-			if (!url && record.get('url')) {
-				url = record.get('url');
-			}
+			const division = record.get('division') || '';
+			const url = record.get('url') || '';
+			const lastUpdated = record.get('lastUpdated') || '';
 
 			if (teamName && entries.length > 0) {
-				teams[teamName] = entries.map((entry: any) => ({
-					position: entry.position?.toNumber?.() ?? entry.position ?? 0,
-					team: entry.team ?? '',
-					played: entry.played?.toNumber?.() ?? entry.played ?? 0,
-					won: entry.won?.toNumber?.() ?? entry.won ?? 0,
-					drawn: entry.drawn?.toNumber?.() ?? entry.drawn ?? 0,
-					lost: entry.lost?.toNumber?.() ?? entry.lost ?? 0,
-					goalsFor: entry.goalsFor?.toNumber?.() ?? entry.goalsFor ?? 0,
-					goalsAgainst: entry.goalsAgainst?.toNumber?.() ?? entry.goalsAgainst ?? 0,
-					goalDifference: entry.goalDifference?.toNumber?.() ?? entry.goalDifference ?? 0,
-					points: entry.points?.toNumber?.() ?? entry.points ?? 0,
-				}));
+				teams[teamName] = {
+					division: division || '',
+					url: url || '',
+					table: entries.map((entry: any) => ({
+						position: entry.position?.toNumber?.() ?? entry.position ?? 0,
+						team: entry.team ?? '',
+						played: entry.played?.toNumber?.() ?? entry.played ?? 0,
+						won: entry.won?.toNumber?.() ?? entry.won ?? 0,
+						drawn: entry.drawn?.toNumber?.() ?? entry.drawn ?? 0,
+						lost: entry.lost?.toNumber?.() ?? entry.lost ?? 0,
+						goalsFor: entry.goalsFor?.toNumber?.() ?? entry.goalsFor ?? 0,
+						goalsAgainst: entry.goalsAgainst?.toNumber?.() ?? entry.goalsAgainst ?? 0,
+						goalDifference: entry.goalDifference?.toNumber?.() ?? entry.goalDifference ?? 0,
+						points: entry.points?.toNumber?.() ?? entry.points ?? 0,
+					})),
+				};
 			}
 		}
 
 		return {
 			season: currentSeason,
-			division: division || undefined,
-			url: url || undefined,
-			lastUpdated: lastUpdated || undefined,
 			teams,
 		};
 	} catch (error) {
@@ -210,9 +205,9 @@ export async function getTeamSeasonData(
 		const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
 		if (currentSeasonData && currentSeasonData.season === season) {
 			const teamData = currentSeasonData.teams[teamName];
-			if (teamData && teamData.length > 0) {
+			if (teamData && teamData.table && teamData.table.length > 0) {
 				// Find Dorkinians team entry
-				const dorkiniansEntry = teamData.find((entry) =>
+				const dorkiniansEntry = teamData.table.find((entry) =>
 					entry.team.toLowerCase().includes('dorkinians'),
 				);
 				return dorkiniansEntry || null;
@@ -223,9 +218,9 @@ export async function getTeamSeasonData(
 		const seasonData = await getSeasonDataFromJSON(season);
 		if (seasonData) {
 			const teamData = seasonData.teams[teamName];
-			if (teamData && teamData.length > 0) {
+			if (teamData && teamData.table && teamData.table.length > 0) {
 				// Find Dorkinians team entry
-				const dorkiniansEntry = teamData.find((entry) =>
+				const dorkiniansEntry = teamData.table.find((entry) =>
 					entry.team.toLowerCase().includes('dorkinians'),
 				);
 				return dorkiniansEntry || null;
