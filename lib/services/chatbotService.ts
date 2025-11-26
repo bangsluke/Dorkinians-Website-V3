@@ -1060,8 +1060,16 @@ export class ChatbotService {
 				};
 			}
 
-			const teamEntries = currentSeasonData.teams[teamName];
-			const dorkiniansEntry = teamEntries.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+			const teamData = currentSeasonData.teams[teamName];
+			if (!teamData || !teamData.table) {
+				return {
+					type: "not_found",
+					data: [],
+					message: `I couldn't find current season league table data for the ${teamName}.`,
+				};
+			}
+
+			const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
 			
 			if (!dorkiniansEntry) {
 				return {

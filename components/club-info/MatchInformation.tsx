@@ -15,12 +15,17 @@ interface LeagueTableEntry {
 	points: number;
 }
 
+interface TeamLeagueData {
+	division: string;
+	url: string;
+	table: LeagueTableEntry[];
+}
+
 interface SeasonLeagueData {
 	season: string;
-	division?: string;
 	lastUpdated?: string;
 	teams: {
-		[key: string]: LeagueTableEntry[];
+		[key: string]: TeamLeagueData;
 	};
 }
 
@@ -99,6 +104,7 @@ export default function MatchInformation() {
 			"5s": "5th XI",
 			"6s": "6th XI",
 			"7s": "7th XI",
+			"8s": "8th XI",
 		};
 		return teamMap[teamKey] || teamKey;
 	};
@@ -154,29 +160,26 @@ export default function MatchInformation() {
 			{!loading && !error && leagueData && (
 				<div className='space-y-8'>
 					{/* Season Info */}
-					{leagueData.division && (
+					{leagueData.lastUpdated && (
 						<div className='text-center text-sm text-gray-400 mb-4'>
-							<div className='font-semibold text-dorkinians-yellow'>{leagueData.division}</div>
-							{leagueData.lastUpdated && (
-								<div className='mt-1'>
-									Last updated: {new Date(leagueData.lastUpdated).toLocaleDateString()}
-								</div>
-							)}
+							<div className='mt-1'>
+								Last updated: {new Date(leagueData.lastUpdated).toLocaleDateString()}
+							</div>
 						</div>
 					)}
 
 					{/* Display tables for each team */}
-					{Object.entries(leagueData.teams).map(([teamKey, entries]) => {
-						if (!entries || entries.length === 0) return null;
+					{Object.entries(leagueData.teams).map(([teamKey, teamData]) => {
+						if (!teamData || !teamData.table || teamData.table.length === 0) return null;
 
 						// Find Dorkinians position
-						const dorkiniansEntry = entries.find((entry) =>
+						const dorkiniansEntry = teamData.table.find((entry) =>
 							entry.team.toLowerCase().includes("dorkinians"),
 						);
 
 						return (
 							<div key={teamKey} className='bg-gray-800/50 rounded-lg p-4 md:p-6'>
-								<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4 text-center'>
+								<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
 									{getTeamDisplayName(teamKey)} - {formatSeason(leagueData.season)}
 									{dorkiniansEntry && (
 										<span className='ml-2 text-base text-gray-300'>
@@ -191,6 +194,11 @@ export default function MatchInformation() {
 										</span>
 									)}
 								</h3>
+								{teamData.division && (
+									<div className='text-center text-sm text-gray-400 mb-2'>
+										{teamData.division}
+									</div>
+								)}
 
 								<div className='overflow-x-auto'>
 									<table className='w-full text-sm md:text-base'>
@@ -209,7 +217,7 @@ export default function MatchInformation() {
 											</tr>
 										</thead>
 										<tbody>
-											{entries.map((entry, index) => {
+											{teamData.table.map((entry, index) => {
 												const isDorkinians = entry.team.toLowerCase().includes("dorkinians");
 												return (
 													<tr
@@ -240,6 +248,19 @@ export default function MatchInformation() {
 										</tbody>
 									</table>
 								</div>
+								{/* League Table Link - shown per team */}
+								{teamData.url && (
+									<div className='mt-4 text-center'>
+										<a
+											href={teamData.url}
+											target='_blank'
+											rel='noopener noreferrer'
+											className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors'
+										>
+											League Table Link
+										</a>
+									</div>
+								)}
 							</div>
 						);
 					})}
