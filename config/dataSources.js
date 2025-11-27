@@ -61,7 +61,7 @@ const dataSources = [
 		name: "TBL_TestData",
 		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=14183891&single=true&output=csv",
 		type: "StatsData",
-	}
+	},
 	// TBL_TestQuestions - SKIPPED (no schema defined, not used for seeding)
 	// {
 	// 	name: "TBL_TestQuestions",
@@ -74,6 +74,46 @@ const dataSources = [
 	// 	url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1415487809&single=true&output=csv",
 	// 	type: "StatsData",
 	// },
+	{
+		name: "TBL_1stXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=443390703&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_2ndXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1656985095&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_3rdXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1005826701&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_4thXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=416045207&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_5thXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1046199249&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_6thXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1780820842&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_7thXILeague",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=647273768&single=true&output=csv",
+		type: "TableData",
+	},
+	{
+		name: "TBL_LeagueSources",
+		url: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTuGFCG-p_UAnaoatD7rVjSBLPEEXGYawgsAcDZCJgCSPyNvqEgSG-8wRX7bnqZm4YtI0TGiUjdL9a/pub?gid=1495269899&single=true&output=csv",
+		type: "Metadata",
+	},
 ];
 
 const getDataSourcesByType = (type) => {

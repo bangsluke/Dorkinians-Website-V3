@@ -186,9 +186,17 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 		);
 	}
 
+	const topOpponent = oppositions.length > 0 ? oppositions[0] : null;
+
 	return (
 		<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
 			<h3 className="text-white font-semibold text-sm md:text-base mb-4">Opposition Locations</h3>
+			{topOpponent && (
+				<div className="mb-4">
+					<p className="text-white text-sm mb-2">Most played against Oppo</p>
+					<p className="text-white/80 text-sm">{topOpponent.name} - {topOpponent.timesPlayed} matches played</p>
+				</div>
+			)}
 			<div ref={mapRef} style={{ width: "100%", height: "320px" }} className="rounded-lg overflow-hidden" />
 		</div>
 	);

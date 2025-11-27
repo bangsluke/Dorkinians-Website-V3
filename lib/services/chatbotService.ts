@@ -654,6 +654,8 @@ export class ChatbotService {
 					return await this.queryDoubleGameData(entities, metrics);
 				case "ranking":
 					return await this.queryRankingData(entities, metrics, analysis);
+				case "league_table":
+					return await this.queryLeagueTableData(entities, metrics, analysis);
 				case "general":
 					return await this.queryGeneralData();
 				default:
@@ -969,6 +971,164 @@ export class ChatbotService {
 
 		const result = await neo4jService.executeQuery(query);
 		return result as unknown as Record<string, unknown>;
+	}
+
+	private async queryLeagueTableData(
+		entities: string[],
+		_metrics: string[],
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryLeagueTableData called with entities: ${entities}`, null, "log");
+
+		try {
+			// Extract team name and season from entities and question
+			const question = analysis.question?.toLowerCase() || "";
+			const teamEntities = analysis.teamEntities || [];
+			
+			// Check for "highest league finish" queries (no team name required)
+			const isHighestFinishQuery = 
+				question.includes("highest league finish") ||
+				question.includes("best league position") ||
+				question.includes("best league finish") ||
+				(question.includes("highest") && question.includes("league") && question.includes("finish")) ||
+				(question.includes("my") && question.includes("highest") && (question.includes("finish") || question.includes("position")));
+			
+			if (isHighestFinishQuery) {
+				// Import league table service
+				const { getHighestLeagueFinish } = await import("../services/leagueTableService");
+				const bestFinish = await getHighestLeagueFinish();
+				
+				if (!bestFinish) {
+					return {
+						type: "not_found",
+						data: [],
+						message: "I couldn't find any historical league position data.",
+					};
+				}
+				
+				const positionSuffix = bestFinish.position === 1 ? "st" : bestFinish.position === 2 ? "nd" : bestFinish.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [bestFinish],
+					answer: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`,
+				};
+			}
+			
+			// Find team entity (1s, 2s, 3s, etc.)
+			let teamName = "";
+			if (teamEntities.length > 0) {
+				teamName = teamEntities[0];
+			} else {
+				// Try to extract from question
+				const teamMatch = question.match(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/);
+				if (teamMatch) {
+					const teamStr = teamMatch[1];
+					// Convert to standard format
+					if (teamStr.includes("st") || teamStr.includes("nd") || teamStr.includes("rd") || teamStr.includes("th")) {
+						const num = teamStr.match(/\d+/)?.[0];
+						if (num) {
+							teamName = `${num}s`;
+						}
+					} else {
+						teamName = teamStr;
+					}
+				}
+			}
+
+			// Check for "currently" or "current season" keywords
+			const isCurrentSeasonQuery = 
+				question.includes("currently") ||
+				question.includes("current season") ||
+				question.includes("current") && (question.includes("position") || question.includes("table"));
+
+			// Extract season from question or timeRange
+			let season = analysis.timeRange || "";
+			if (!season && !isCurrentSeasonQuery) {
+				// Try to extract season from question (e.g., "2019/20", "2019-20", "2019/2020")
+				const seasonMatch = question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2})\b/);
+				if (seasonMatch) {
+					season = seasonMatch[1].replace("-", "/");
+				}
+			}
+
+			if (!teamName && !isHighestFinishQuery) {
+				return {
+					type: "no_team",
+					data: [],
+					message: "I need to know which team you're asking about. Please specify (e.g., 1s, 2s, 3s, etc.)",
+				};
+			}
+
+			// Import league table service
+			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j } = await import("../services/leagueTableService");
+
+			// If season specified and not current season query, get that season's data
+			if (season && !isCurrentSeasonQuery) {
+				// getTeamSeasonData handles season format conversion internally
+				const teamData = await getTeamSeasonData(teamName, season);
+				
+				if (!teamData) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find league table data for the ${teamName} in ${season}.`,
+					};
+				}
+
+				const positionSuffix = teamData.position === 1 ? "st" : teamData.position === 2 ? "nd" : teamData.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [teamData],
+					answer: `The ${teamName} finished in ${teamData.position}${positionSuffix} position in the league in ${season}, with ${teamData.points} points from ${teamData.played} games (${teamData.won} wins, ${teamData.drawn} draws, ${teamData.lost} losses).`,
+				};
+			}
+
+			// No season specified or current season query - get current season
+			const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
+			if (!currentSeasonData || !currentSeasonData.teams[teamName]) {
+				return {
+					type: "not_found",
+					data: [],
+					message: `I couldn't find current season league table data for the ${teamName}.`,
+				};
+			}
+
+			const teamData = currentSeasonData.teams[teamName];
+			if (!teamData || !teamData.table) {
+				return {
+					type: "not_found",
+					data: [],
+					message: `I couldn't find current season league table data for the ${teamName}.`,
+				};
+			}
+
+			const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+			
+			if (!dorkiniansEntry) {
+				return {
+					type: "not_found",
+					data: [],
+					message: `I couldn't find Dorkinians' position in the ${teamName} league table for the current season.`,
+				};
+			}
+
+			const positionSuffix = dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th";
+			
+			return {
+				type: "league_table",
+				data: [dorkiniansEntry],
+				answer: `The ${teamName} are currently in ${dorkiniansEntry.position}${positionSuffix} position in the league for ${currentSeasonData.season}, with ${dorkiniansEntry.points} points from ${dorkiniansEntry.played} games (${dorkiniansEntry.won} wins, ${dorkiniansEntry.drawn} draws, ${dorkiniansEntry.lost} losses).`,
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryLeagueTableData:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: "Error querying league table data",
+			};
+		}
 	}
 
 	/**
