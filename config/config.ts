@@ -103,6 +103,7 @@ export type QuestionType =
 	| "temporal"
 	| "general"
 	| "ranking"
+	| "league_table"
 	| "clarification_needed";
 
 export const questionTypes: Record<
@@ -167,6 +168,12 @@ export const questionTypes: Record<
 		description: "Questions about who has the highest/lowest statistics",
 		hasVisualization: true,
 		visualizationType: "Record",
+	},
+	league_table: {
+		displayName: "League Table",
+		description: "Questions about league positions and standings",
+		hasVisualization: true,
+		visualizationType: "Table",
 	},
 	clarification_needed: {
 		displayName: "Clarification Required",
@@ -523,7 +530,7 @@ export const statObject = {
 	},
 	MINperAPP: {
 		statName: "minutesPerApp",
-		displayText: "Minutes Per Appearance", // The text displayed at all times on the page.
+		displayText: "Average Minutes Per Appearance", // The text displayed at all times on the page.
 		shortText: "MINperApp", // Used for short displays such as on the Comparison tab.
 		wordedText: "minutes per appearance", // Used for chatbot responses
 		statFormat: "Decimal2",
@@ -1074,16 +1081,6 @@ export const statsPageConfig = {
 			"MperCLS",
 			"FTPperAPP",
 			"MINperAPP",
-			"MOMperAPP",
-			"YperAPP",
-			"RperAPP",
-			"SAVESperAPP",
-			"OGperAPP",
-			"CLSperAPP",
-			"PSCperAPP",
-			"PMperAPP",
-			"PCOperAPP",
-			"PSVperAPP",
 			"DIST",
 			"Games%Won",
 			"PlayerPointsPerGame",

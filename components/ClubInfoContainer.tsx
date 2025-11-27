@@ -4,14 +4,14 @@ import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
 import ClubInformation from "./club-info/ClubInformation";
-import MatchInformation from "./club-info/MatchInformation";
+import LeagueInformation from "./club-info/LeagueInformation";
 import ClubCaptains from "./club-info/ClubCaptains";
 import ClubAwards from "./club-info/ClubAwards";
 import UsefulLinks from "./club-info/UsefulLinks";
 
 const clubInfoSubPages = [
 	{ id: "club-information" as ClubInfoSubPage, component: ClubInformation, label: "Club Information" },
-	{ id: "match-information" as ClubInfoSubPage, component: MatchInformation, label: "Match Information" },
+	{ id: "league-information" as ClubInfoSubPage, component: LeagueInformation, label: "League Information" },
 	{ id: "club-captains" as ClubInfoSubPage, component: ClubCaptains, label: "Club Captains" },
 	{ id: "club-awards" as ClubInfoSubPage, component: ClubAwards, label: "Club Awards" },
 	{ id: "useful-links" as ClubInfoSubPage, component: UsefulLinks, label: "Useful Links" },
