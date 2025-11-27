@@ -647,7 +647,7 @@ exports.handler = async (event, context) => {
 
 		// Start monitoring the job (this runs in background)
 		console.log("🔍 MONITORING: Starting background job monitoring...");
-		monitorHerokuJob(jobId, cleanHerokuUrl, 40 * 60 * 1000) // Monitor for up to 40 minutes
+		monitorHerokuJob(jobId, cleanHerokuUrl, 52 * 60 * 1000) // Monitor for up to 52 minutes
 			.then(async (monitoringResult) => {
 				console.log("🔍 MONITORING: Job monitoring completed:", monitoringResult);
 				
@@ -724,7 +724,7 @@ exports.handler = async (event, context) => {
 				herokuUrl: cleanHerokuUrl,
 				monitoring: {
 					enabled: true,
-					maxWaitTime: "40 minutes",
+					maxWaitTime: "52 minutes",
 					checkInterval: "30 seconds"
 				}
 			}),
