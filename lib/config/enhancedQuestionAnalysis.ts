@@ -323,6 +323,18 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
+		// Check for highest league finish queries (highest priority for league position queries)
+		if (
+			(lowerQuestion.includes("highest league finish") ||
+				lowerQuestion.includes("best league position") ||
+				lowerQuestion.includes("best league finish") ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("league") && lowerQuestion.includes("finish")) ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("position") && lowerQuestion.includes("league")) ||
+				(lowerQuestion.includes("my") && lowerQuestion.includes("highest") && (lowerQuestion.includes("finish") || lowerQuestion.includes("position"))))
+		) {
+			return "league_table";
+		}
+
 		// Check for ranking queries (which player/team has the highest/most...)
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
@@ -347,10 +359,21 @@ export class EnhancedQuestionAnalyzer {
 			return "comparison";
 		}
 
+		// Check for league table/position queries (higher priority than general team queries)
+		if (
+			(lowerQuestion.includes("league position") ||
+				lowerQuestion.includes("league table") ||
+				lowerQuestion.includes("finished") ||
+				lowerQuestion.includes("finish") ||
+				(lowerQuestion.includes("position") && (hasTeamEntities || lowerQuestion.includes("league")))) &&
+			(hasTeamEntities || lowerQuestion.includes("2s") || lowerQuestion.includes("1s") || lowerQuestion.includes("3s") || lowerQuestion.includes("4s") || lowerQuestion.includes("5s") || lowerQuestion.includes("6s") || lowerQuestion.includes("7s"))
+		) {
+			return "league_table";
+		}
+
 		if (
 			hasTeamEntities &&
 			(lowerQuestion.includes("finish") ||
-				lowerQuestion.includes("league position") ||
 				lowerQuestion.includes("position") ||
 				lowerQuestion.includes("table"))
 		) {

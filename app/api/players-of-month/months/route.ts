@@ -75,10 +75,22 @@ export async function GET(request: NextRequest) {
 			}
 		});
 
-		// Convert to array and sort chronologically
-		const months = Array.from(monthMap.values())
-			.sort((a, b) => a.date.localeCompare(b.date))
-			.map((item) => item.monthName);
+		// Convert to array and sort chronologically, then deduplicate month names
+		const monthEntries = Array.from(monthMap.values())
+			.sort((a, b) => a.date.localeCompare(b.date));
+		
+		// Deduplicate month names, keeping the most recent occurrence
+		const seenMonths = new Set<string>();
+		const months: string[] = [];
+		
+		// Iterate in reverse to keep the most recent year for each month
+		for (let i = monthEntries.length - 1; i >= 0; i--) {
+			const monthName = monthEntries[i].monthName;
+			if (!seenMonths.has(monthName)) {
+				seenMonths.add(monthName);
+				months.unshift(monthName); // Add to beginning to maintain chronological order
+			}
+		}
 
 		return NextResponse.json({ months }, { headers: corsHeaders });
 	} catch (error) {
