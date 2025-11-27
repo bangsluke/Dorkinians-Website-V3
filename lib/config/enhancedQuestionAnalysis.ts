@@ -323,6 +323,18 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
+		// Check for highest league finish queries (highest priority for league position queries)
+		if (
+			(lowerQuestion.includes("highest league finish") ||
+				lowerQuestion.includes("best league position") ||
+				lowerQuestion.includes("best league finish") ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("league") && lowerQuestion.includes("finish")) ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("position") && lowerQuestion.includes("league")) ||
+				(lowerQuestion.includes("my") && lowerQuestion.includes("highest") && (lowerQuestion.includes("finish") || lowerQuestion.includes("position"))))
+		) {
+			return "league_table";
+		}
+
 		// Check for ranking queries (which player/team has the highest/most...)
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&

@@ -4,7 +4,7 @@ import { WeeklyTOTW } from "@/types";
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
-export type ClubInfoSubPage = "club-information" | "match-information" | "club-captains" | "club-awards" | "useful-links";
+export type ClubInfoSubPage = "club-information" | "league-information" | "club-captains" | "club-awards" | "useful-links";
 
 // Player data interface matching TBL_Players schema
 export interface PlayerData {
@@ -741,7 +741,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Swipe navigation within Club Info
 	nextClubInfoSubPage: () => {
 		const { currentClubInfoSubPage } = get();
-		const subPages: ClubInfoSubPage[] = ["club-information", "match-information", "club-captains", "club-awards", "useful-links"];
+		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
 		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
 		const nextIndex = (currentIndex + 1) % subPages.length;
 		set({ currentClubInfoSubPage: subPages[nextIndex] });
@@ -749,7 +749,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	previousClubInfoSubPage: () => {
 		const { currentClubInfoSubPage } = get();
-		const subPages: ClubInfoSubPage[] = ["club-information", "match-information", "club-captains", "club-awards", "useful-links"];
+		const subPages: ClubInfoSubPage[] = ["club-information", "league-information", "club-captains", "club-awards", "useful-links"];
 		const currentIndex = subPages.indexOf(currentClubInfoSubPage);
 		const prevIndex = currentIndex === 0 ? subPages.length - 1 : currentIndex - 1;
 		set({ currentClubInfoSubPage: subPages[prevIndex] });

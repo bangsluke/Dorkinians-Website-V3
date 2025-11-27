@@ -1,12 +1,10 @@
 "use client";
 
-import { usefulLinks, generateLeagueLinks } from "@/config/config";
+import { usefulLinks } from "@/config/config";
 import { motion } from "framer-motion";
 
 export default function UsefulLinks() {
-	// Generate dynamic league links and combine with static links
-	const leagueLinks = generateLeagueLinks();
-	const allLinks = [...usefulLinks, ...leagueLinks];
+	const allLinks = usefulLinks;
 
 	// Group links by category
 	const groupedLinks = allLinks.reduce(
@@ -22,13 +20,12 @@ export default function UsefulLinks() {
 
 	const categoryLabels = {
 		official: "Official Club Links",
-		league: "League Websites",
 		social: "Social Media",
 		other: "Other Resources",
 	};
 
 	// Define category order
-	const categoryOrder = ["official", "league", "social", "other"];
+	const categoryOrder = ["official", "social", "other"];
 
 	return (
 		<div className='p-4 md:p-6 h-full flex flex-col'>

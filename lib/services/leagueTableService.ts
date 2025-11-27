@@ -60,11 +60,14 @@ export async function getAvailableSeasons(): Promise<string[]> {
 
 /**
  * Get league table data for a specific season from JSON file
+ * Handles both "2017/18" and "2017-18" formats (files are named with hyphens)
  */
 export async function getSeasonDataFromJSON(season: string): Promise<SeasonLeagueData | null> {
 	try {
 		const dataDir = path.join(process.cwd(), 'data', 'league-tables');
-		const filePath = path.join(dataDir, `${season}.json`);
+		// Normalize season format to match filename (use hyphen)
+		const normalizedSeason = season.replace('/', '-');
+		const filePath = path.join(dataDir, `${normalizedSeason}.json`);
 
 		if (!fs.existsSync(filePath)) {
 			return null;
@@ -124,7 +127,10 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 		}
 
 		query += `
-			WITH lt.teamName as teamName, lt.division as division, lt.lastUpdated as lastUpdated, lt.url as url,
+			WITH lt.teamName as teamName, 
+				lt.division as division, 
+				lt.lastUpdated as lastUpdated, 
+				lt.url as url,
 				collect({
 					position: lt.position,
 					team: lt.team,
@@ -137,10 +143,15 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 					goalDifference: lt.goalDifference,
 					points: lt.points
 				}) as entries
+			WITH teamName, 
+				COALESCE(division, '') as division,
+				lastUpdated,
+				url,
+				entries
 			RETURN 
 				$season as season,
 				teamName,
-				division,
+				CASE WHEN division IS NULL OR division = '' THEN '' ELSE division END as division,
 				url,
 				lastUpdated,
 				entries
@@ -153,19 +164,45 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 			return null;
 		}
 
-		// Group by teamName
+		// Helper function to convert team display name to team key (1st XI -> 1s)
+		const teamNameToKey = (teamName: string): string => {
+			const teamNameLower = teamName.toLowerCase().trim();
+			const mapping: { [key: string]: string } = {
+				'1st xi': '1s',
+				'2nd xi': '2s',
+				'3rd xi': '3s',
+				'4th xi': '4s',
+				'5th xi': '5s',
+				'6th xi': '6s',
+				'7th xi': '7s',
+				'8th xi': '8s',
+			};
+			return mapping[teamNameLower] || teamName;
+		};
+
+		// Group by teamName and normalize keys
 		const teams: { [key: string]: TeamLeagueData } = {};
+		let seasonLastUpdated: string | undefined = undefined;
 
 		for (const record of result.records) {
 			const teamName = record.get('teamName');
 			const entries = record.get('entries') || [];
-			const division = record.get('division') || '';
+			const divisionRaw = record.get('division');
 			const url = record.get('url') || '';
-			const lastUpdated = record.get('lastUpdated') || '';
+			const lastUpdated = record.get('lastUpdated');
+
+			// Convert division to string, handling null/undefined/empty
+			const division = divisionRaw ? String(divisionRaw).trim() : '';
+
+			// Get lastUpdated at season level (use first non-null value)
+			if (!seasonLastUpdated && lastUpdated) {
+				seasonLastUpdated = lastUpdated.toString();
+			}
 
 			if (teamName && entries.length > 0) {
-				teams[teamName] = {
-					division: division || '',
+				const teamKey = teamNameToKey(teamName);
+				teams[teamKey] = {
+					division: division,
 					url: url || '',
 					table: entries.map((entry: any) => ({
 						position: entry.position?.toNumber?.() ?? entry.position ?? 0,
@@ -185,6 +222,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 
 		return {
 			season: currentSeason,
+			lastUpdated: seasonLastUpdated,
 			teams,
 		};
 	} catch (error) {
@@ -216,6 +254,7 @@ export async function getTeamSeasonData(
 
 		// Try JSON files for past seasons
 		const seasonData = await getSeasonDataFromJSON(season);
+		
 		if (seasonData) {
 			const teamData = seasonData.teams[teamName];
 			if (teamData && teamData.table && teamData.table.length > 0) {
@@ -232,5 +271,114 @@ export async function getTeamSeasonData(
 		console.error(`Error fetching team season data for ${teamName} in ${season}:`, error);
 		return null;
 	}
+}
+
+export interface HistoricalPositionEntry {
+	team: string;
+	season: string;
+	position: number;
+	played: number;
+	won: number;
+	drawn: number;
+	lost: number;
+	goalsFor: number;
+	goalsAgainst: number;
+	goalDifference: number;
+	points: number;
+	division: string;
+}
+
+/**
+ * Get all historical league positions for Dorkinians across all teams and seasons
+ */
+export async function getAllHistoricalPositions(): Promise<HistoricalPositionEntry[]> {
+	const positions: HistoricalPositionEntry[] = [];
+	
+	try {
+		const seasons = await getAvailableSeasons();
+		
+		for (const season of seasons) {
+			const seasonData = await getSeasonDataFromJSON(season);
+			if (!seasonData) continue;
+			
+			// Iterate through all teams in this season
+			for (const [teamKey, teamData] of Object.entries(seasonData.teams)) {
+				if (!teamData || !teamData.table || teamData.table.length === 0) continue;
+				
+				// Find Dorkinians entry in this team's table
+				const dorkiniansEntry = teamData.table.find((entry) =>
+					entry.team.toLowerCase().includes('dorkinians'),
+				);
+				
+				if (dorkiniansEntry) {
+					positions.push({
+						team: teamKey,
+						season: seasonData.season,
+						position: dorkiniansEntry.position,
+						played: dorkiniansEntry.played,
+						won: dorkiniansEntry.won,
+						drawn: dorkiniansEntry.drawn,
+						lost: dorkiniansEntry.lost,
+						goalsFor: dorkiniansEntry.goalsFor,
+						goalsAgainst: dorkiniansEntry.goalsAgainst,
+						goalDifference: dorkiniansEntry.goalDifference,
+						points: dorkiniansEntry.points,
+						division: teamData.division || '',
+					});
+				}
+			}
+		}
+		
+		// Also check current season from Neo4j
+		const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+		if (currentSeasonData) {
+			for (const [teamKey, teamData] of Object.entries(currentSeasonData.teams)) {
+				if (!teamData || !teamData.table || teamData.table.length === 0) continue;
+				
+				const dorkiniansEntry = teamData.table.find((entry) =>
+					entry.team.toLowerCase().includes('dorkinians'),
+				);
+				
+				if (dorkiniansEntry) {
+					positions.push({
+						team: teamKey,
+						season: currentSeasonData.season,
+						position: dorkiniansEntry.position,
+						played: dorkiniansEntry.played,
+						won: dorkiniansEntry.won,
+						drawn: dorkiniansEntry.drawn,
+						lost: dorkiniansEntry.lost,
+						goalsFor: dorkiniansEntry.goalsFor,
+						goalsAgainst: dorkiniansEntry.goalsAgainst,
+						goalDifference: dorkiniansEntry.goalDifference,
+						points: dorkiniansEntry.points,
+						division: teamData.division || '',
+					});
+				}
+			}
+		}
+	} catch (error) {
+		console.error('Error fetching all historical positions:', error);
+	}
+	
+	return positions;
+}
+
+/**
+ * Get the highest (best) league finish across all teams and seasons
+ */
+export async function getHighestLeagueFinish(): Promise<HistoricalPositionEntry | null> {
+	const allPositions = await getAllHistoricalPositions();
+	
+	if (allPositions.length === 0) {
+		return null;
+	}
+	
+	// Find the best position (lowest number = highest finish)
+	const bestPosition = allPositions.reduce((best, current) => {
+		return current.position < best.position ? current : best;
+	});
+	
+	return bestPosition;
 }
 
