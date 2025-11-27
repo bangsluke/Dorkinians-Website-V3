@@ -985,6 +985,36 @@ export class ChatbotService {
 			const question = analysis.question?.toLowerCase() || "";
 			const teamEntities = analysis.teamEntities || [];
 			
+			// Check for "highest league finish" queries (no team name required)
+			const isHighestFinishQuery = 
+				question.includes("highest league finish") ||
+				question.includes("best league position") ||
+				question.includes("best league finish") ||
+				(question.includes("highest") && question.includes("league") && question.includes("finish")) ||
+				(question.includes("my") && question.includes("highest") && (question.includes("finish") || question.includes("position")));
+			
+			if (isHighestFinishQuery) {
+				// Import league table service
+				const { getHighestLeagueFinish } = await import("../services/leagueTableService");
+				const bestFinish = await getHighestLeagueFinish();
+				
+				if (!bestFinish) {
+					return {
+						type: "not_found",
+						data: [],
+						message: "I couldn't find any historical league position data.",
+					};
+				}
+				
+				const positionSuffix = bestFinish.position === 1 ? "st" : bestFinish.position === 2 ? "nd" : bestFinish.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [bestFinish],
+					answer: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`,
+				};
+			}
+			
 			// Find team entity (1s, 2s, 3s, etc.)
 			let teamName = "";
 			if (teamEntities.length > 0) {
@@ -1006,9 +1036,15 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "currently" or "current season" keywords
+			const isCurrentSeasonQuery = 
+				question.includes("currently") ||
+				question.includes("current season") ||
+				question.includes("current") && (question.includes("position") || question.includes("table"));
+
 			// Extract season from question or timeRange
 			let season = analysis.timeRange || "";
-			if (!season) {
+			if (!season && !isCurrentSeasonQuery) {
 				// Try to extract season from question (e.g., "2019/20", "2019-20", "2019/2020")
 				const seasonMatch = question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2})\b/);
 				if (seasonMatch) {
@@ -1016,7 +1052,7 @@ export class ChatbotService {
 				}
 			}
 
-			if (!teamName) {
+			if (!teamName && !isHighestFinishQuery) {
 				return {
 					type: "no_team",
 					data: [],
@@ -1027,11 +1063,10 @@ export class ChatbotService {
 			// Import league table service
 			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j } = await import("../services/leagueTableService");
 
-			// If season specified, get that season's data
-			if (season) {
-				// Normalize season format
-				const seasonNormalized = season.replace("/", "-");
-				const teamData = await getTeamSeasonData(teamName, seasonNormalized);
+			// If season specified and not current season query, get that season's data
+			if (season && !isCurrentSeasonQuery) {
+				// getTeamSeasonData handles season format conversion internally
+				const teamData = await getTeamSeasonData(teamName, season);
 				
 				if (!teamData) {
 					return {
@@ -1050,7 +1085,7 @@ export class ChatbotService {
 				};
 			}
 
-			// No season specified - get current season
+			// No season specified or current season query - get current season
 			const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
 			if (!currentSeasonData || !currentSeasonData.teams[teamName]) {
 				return {
