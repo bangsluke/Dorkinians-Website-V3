@@ -514,16 +514,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			set({ currentClubInfoSubPage: "club-information" });
 		}
 
-		// Only clear player selection when leaving home page to non-stats pages
-		if (currentPage === "home" && page !== "home" && page !== "stats") {
-			console.log("🔄 [Navigation] Leaving home page for non-stats page, clearing player selection");
-			set({ selectedPlayer: null, isPlayerSelected: false });
-		} else if (page === "home") {
-			console.log("🏠 [Navigation] Returning to home page, preserving player selection");
-		} else if (page === "stats") {
-			console.log("📊 [Navigation] Navigating to stats page, preserving player selection");
-		}
-
 		console.log("📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
