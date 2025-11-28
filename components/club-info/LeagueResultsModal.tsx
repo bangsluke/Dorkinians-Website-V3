@@ -28,7 +28,9 @@ interface Fixture {
 	dorkiniansGoals: number;
 	conceded: number;
 	compType: string;
+	oppoOwnGoals: number;
 	goalscorers: Goalscorer[];
+	momPlayerName: string | null;
 }
 
 export default function LeagueResultsModal({
@@ -88,24 +90,37 @@ export default function LeagueResultsModal({
 	};
 
 	// Format goalscorers for display
-	const formatGoalscorers = (goalscorers: Goalscorer[] | undefined): string => {
-		if (!goalscorers || !Array.isArray(goalscorers) || goalscorers.length === 0) {
-			return "No goalscorers recorded";
-		}
-		const validGoalscorers = goalscorers.filter((g) => g && g.playerName);
-		if (validGoalscorers.length === 0) {
-			return "No goalscorers recorded";
-		}
-		return validGoalscorers
-			.map((g) => {
-				if (!g.playerName) return "";
-				if (g.goals === 1) {
-					return g.playerName;
+	const formatGoalscorers = (goalscorers: Goalscorer[] | undefined, oppoOwnGoals: number = 0): string => {
+		const parts: string[] = [];
+		
+		// Add regular goalscorers
+		if (goalscorers && Array.isArray(goalscorers) && goalscorers.length > 0) {
+			const validGoalscorers = goalscorers.filter((g) => g && g.playerName);
+			validGoalscorers.forEach((g) => {
+				if (g.playerName) {
+					if (g.goals === 1) {
+						parts.push(g.playerName);
+					} else {
+						parts.push(`${g.playerName} (${g.goals})`);
+					}
 				}
-				return `${g.playerName} (${g.goals})`;
-			})
-			.filter((str) => str !== "")
-			.join(", ");
+			});
+		}
+		
+		// Add opponent own goal if it exists
+		if (oppoOwnGoals > 0) {
+			if (oppoOwnGoals === 1) {
+				parts.push("Opponent Own Goal");
+			} else {
+				parts.push(`Opponent Own Goal (${oppoOwnGoals})`);
+			}
+		}
+		
+		if (parts.length === 0) {
+			return "No goalscorers recorded";
+		}
+		
+		return parts.join(", ");
 	};
 
 	// Format result for display
@@ -226,10 +241,18 @@ export default function LeagueResultsModal({
 												</div>
 												
 												{/* Goalscorers */}
-												{fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0 && (
+												{(fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0) || (fixture.oppoOwnGoals && fixture.oppoOwnGoals > 0) ? (
 													<div className='text-sm text-gray-300 mt-2'>
 														<span className='text-gray-400'>Goalscorers: </span>
-														{formatGoalscorers(fixture.goalscorers)}
+														{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
+													</div>
+												) : null}
+												
+												{/* MoM */}
+												{fixture.momPlayerName && (
+													<div className='text-sm text-gray-300 mt-2'>
+														<span className='text-gray-400'>MoM: </span>
+														{fixture.momPlayerName}
 													</div>
 												)}
 											</div>
