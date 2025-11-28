@@ -251,15 +251,14 @@ export default function LeagueInformation() {
 
 				{/* Display tables for each team */}
 				{(() => {
-					const validTeams = Object.entries(leagueData.teams).filter(
-						([, data]) => data && data.table && data.table.length > 0
-					);
-					return validTeams.map(([teamKey, teamData], teamIndex) => {
-
-						// Find Dorkinians position
-						const dorkiniansEntry = teamData.table.find((entry) =>
+					const allTeams = Object.entries(leagueData.teams);
+					return allTeams.map(([teamKey, teamData], teamIndex) => {
+						const hasTableData = teamData && teamData.table && teamData.table.length > 0;
+						
+						// Find Dorkinians position (only if table data exists)
+						const dorkiniansEntry = hasTableData ? teamData.table.find((entry) =>
 							entry.team.toLowerCase().includes("dorkinians"),
-						);
+						) : null;
 						const currentSeason = isCurrentSeason(selectedSeason);
 
 						// Get the team display name for matching
@@ -317,59 +316,65 @@ export default function LeagueInformation() {
 									</div>
 								)}
 
-								<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-										<thead className='sticky top-0 z-10'>
-											<tr className='bg-white/20'>
-												<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-												<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-												<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
-											</tr>
-										</thead>
-										<tbody>
-											{teamData.table.map((entry, index) => {
-												// Only highlight the Dorkinians team that matches this teamKey
-												const isThisDorkiniansTeam = matchesThisTeam(entry.team);
-												return (
-													<tr
-														key={index}
-														className={`border-b border-white/10 transition-colors ${
-															isThisDorkiniansTeam
-																? "bg-dorkinians-yellow/20 font-semibold"
-																: index % 2 === 0
-																	? "bg-gray-800/30"
-																	: ""
-														} hover:bg-white/5`}
-													>
-														<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-														<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-														<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-														<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
-															{entry.points}
-														</td>
-													</tr>
-												);
-											})}
-										</tbody>
-									</table>
-								</div>
+								{hasTableData ? (
+									<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+										<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+											<thead className='sticky top-0 z-10'>
+												<tr className='bg-white/20'>
+													<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
+													<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+													<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+												</tr>
+											</thead>
+											<tbody>
+												{teamData.table.map((entry, index) => {
+													// Only highlight the Dorkinians team that matches this teamKey
+													const isThisDorkiniansTeam = matchesThisTeam(entry.team);
+													return (
+														<tr
+															key={index}
+															className={`border-b border-white/10 transition-colors ${
+																isThisDorkiniansTeam
+																	? "bg-dorkinians-yellow/20 font-semibold"
+																	: index % 2 === 0
+																		? "bg-gray-800/30"
+																		: ""
+															} hover:bg-white/5`}
+														>
+															<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
+															<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+															<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+															<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
+																{entry.points}
+															</td>
+														</tr>
+													);
+												})}
+											</tbody>
+										</table>
+									</div>
+								) : (
+									<div className='text-center text-gray-300 py-4 mb-4'>
+										No table data available. Team was removed from the league.
+									</div>
+								)}
 								{/* League Table Link and Show Results - shown per team */}
-								{(teamData.url || (dorkiniansEntry && selectedSeason)) && (
+								{(teamData.url && teamData.url.trim() !== '' || selectedSeason) && (
 									<div className='mt-4 text-center'>
-										{teamData.url && (
+										{teamData.url && teamData.url.trim() !== '' && (
 											<>
 												<a
 													href={teamData.url}
@@ -379,10 +384,10 @@ export default function LeagueInformation() {
 												>
 													League Table Link
 												</a>
-												{dorkiniansEntry && selectedSeason && <span className='text-dorkinians-yellow mx-2'>|</span>}
+												{selectedSeason && <span className='text-dorkinians-yellow mx-2'>|</span>}
 											</>
 										)}
-										{dorkiniansEntry && selectedSeason && (
+										{selectedSeason && (
 											<button
 												onClick={() => handleShowResults(teamKey)}
 												className='text-dorkinians-yellow hover:text-yellow-400 underline text-sm md:text-base transition-colors bg-transparent border-none cursor-pointer'>
@@ -392,7 +397,7 @@ export default function LeagueInformation() {
 									</div>
 								)}
 							</div>
-							{teamIndex < validTeams.length - 1 && (
+							{teamIndex < allTeams.length - 1 && (
 								<hr className='border-t border-white/20 my-8' />
 							)}
 						</Fragment>
@@ -409,14 +414,16 @@ export default function LeagueInformation() {
 				</div>
 			)}
 
-			{/* Back to Top Button */}
-			<div className='mt-8 flex justify-center'>
-				<button
-					onClick={scrollToTop}
-					className='px-4 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
-					Back to Top
-				</button>
-			</div>
+			{/* Back to Top Button - Only show when content is loaded */}
+			{!loading && !error && (leagueData || selectedSeason === "2019-20") && (
+				<div className='mt-8 flex justify-center'>
+					<button
+						onClick={scrollToTop}
+						className='px-4 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
+						Back to Top
+					</button>
+				</div>
+			)}
 
 			{/* League Results Modal */}
 			{selectedTeamKey && selectedTeamDisplayName && selectedSeason && (

@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
 		// Query fixtures with goalscorers
 		const query = `
-			MATCH (f:Fixture {graphLabel: $graphLabel, team: $team, compType: 'League'})
+			MATCH (f:Fixture {graphLabel: $graphLabel, team: $team})
 			WHERE f.season = $season OR f.season = $normalizedSeason
 			OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
 			WITH f, collect(CASE WHEN md IS NOT NULL AND md.goals > 0 THEN {playerName: md.playerName, goals: md.goals} ELSE null END) as goalscorersRaw
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 			RETURN f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
-			       goalscorers
+			       f.compType as compType, goalscorers
 			ORDER BY f.date ASC
 		`;
 
@@ -89,6 +89,7 @@ export async function GET(request: NextRequest) {
 			const awayScore = record.get("awayScore");
 			const dorkiniansGoals = record.get("dorkiniansGoals");
 			const conceded = record.get("conceded");
+			const compType = record.get("compType");
 			const goalscorersRaw = record.get("goalscorers") || [];
 
 			// Process goalscorers - aggregate by player
@@ -116,6 +117,7 @@ export async function GET(request: NextRequest) {
 				awayScore: typeof awayScore === "number" ? awayScore : Number(awayScore) || 0,
 				dorkiniansGoals: typeof dorkiniansGoals === "number" ? dorkiniansGoals : Number(dorkiniansGoals) || 0,
 				conceded: typeof conceded === "number" ? conceded : Number(conceded) || 0,
+				compType: compType ? String(compType) : "",
 				goalscorers,
 			};
 		});
