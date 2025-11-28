@@ -815,42 +815,9 @@ const schema = {
   },
 
   // ============================================================================
-  // TBL_LeagueTables - SKIPPED for memory optimization (web scraping disabled)
+  // League Table Base Schema - Shared configuration for all XI League tables
   // ============================================================================
-  // TBL_LeagueTables: {
-  //   csvColumns: {
-  //     'Team': 'team',
-  //     'Season': 'season',
-  //     'URL_Type': 'urlType',
-  //     'League_Name': 'leagueName',
-  //     'HTML_Table_Number': 'htmlTableNumber',
-  //     'URL': 'url'
-  //   },
-  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-  //   nodeType: 'LeagueTable',
-  //   properties: {
-  //     id: { type: 'string', required: true },
-  //     team: { type: 'string', required: true },
-  //     season: { type: 'string', required: true },
-  //     urlType: { type: 'string', required: true },
-  //     leagueName: { type: 'string', required: true },
-  //     htmlTableNumber: { type: 'integer', required: true },
-  //     url: { type: 'string', required: true },
-  //     lastUpdated: { type: 'datetime', required: false },
-  //     standings: { type: 'string', required: false },
-  //     totalTeams: { type: 'integer', required: false },
-  //     htmlContent: { type: 'string', required: false },
-  //     dataSource: { type: 'string', required: false },
-  //     dataSourceUrl: { type: 'string', required: false }
-  //   },
-  //   idPattern: 'leaguetable_{season}_{team}',
-  //   constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  // },
-
-  // ============================================================================
-  // TBL_1stXILeague - 1st XI League Table (Current Season)
-  // ============================================================================
-  TBL_1stXILeague: {
+  _LeagueTableBase: {
     csvColumns: {
       'POS': 'position',
       'Team': 'team',
@@ -888,312 +855,32 @@ const schema = {
   },
 
   // ============================================================================
-  // TBL_2ndXILeague - 2nd XI League Table (Current Season)
+  // League Table Definitions - Generated from base schema
   // ============================================================================
-  TBL_2ndXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_3rdXILeague - 3rd XI League Table (Current Season)
-  // ============================================================================
-  TBL_3rdXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_4thXILeague - 4th XI League Table (Current Season)
-  // ============================================================================
-  TBL_4thXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_5thXILeague - 5th XI League Table (Current Season)
-  // ============================================================================
-  TBL_5thXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_6thXILeague - 6th XI League Table (Current Season)
-  // ============================================================================
-  TBL_6thXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_7thXILeague - 7th XI League Table (Current Season)
-  // ============================================================================
-  TBL_7thXILeague: {
-    csvColumns: {
-      'POS': 'position',
-      'Team': 'team',
-      'P': 'played',
-      'W': 'won',
-      'D': 'drawn',
-      'L': 'lost',
-      'F': 'goalsFor',
-      'A': 'goalsAgainst',
-      'GD': 'goalDifference',
-      'PTS': 'points'
-    },
-    requiredColumns: ['POS', 'Team', 'P', 'W', 'D', 'L', 'F', 'A', 'GD', 'PTS'],
-    nodeType: 'LeagueTable',
-    properties: {
-      id: { type: 'string', required: true },
-      position: { type: 'integer', required: true },
-      team: { type: 'string', required: true },
-      played: { type: 'integer', required: false },
-      won: { type: 'integer', required: false },
-      drawn: { type: 'integer', required: false },
-      lost: { type: 'integer', required: false },
-      goalsFor: { type: 'integer', required: false },
-      goalsAgainst: { type: 'integer', required: false },
-      goalDifference: { type: 'integer', required: false },
-      points: { type: 'integer', required: false },
-      season: { type: 'string', required: true },
-      teamName: { type: 'string', required: true },
-      division: { type: 'string', required: false },
-      url: { type: 'string', required: false },
-      lastUpdated: { type: 'datetime', required: false }
-    },
-    idPattern: 'leaguetable_{season}_{teamName}_{team}',
-    constraints: ['CREATE CONSTRAINT leaguetable_id IF NOT EXISTS FOR (lt:LeagueTable) REQUIRE lt.id IS UNIQUE']
-  },
-
-  // ============================================================================
-  // TBL_ExternalFixtures - SKIPPED for memory optimization (web scraping disabled)
-  // ============================================================================
-  // TBL_ExternalFixtures: {
-  //   csvColumns: {
-  //     'Team': 'team',
-  //     'Season': 'season',
-  //     'URL_Type': 'urlType',
-  //     'League_Name': 'leagueName',
-  //     'HTML_Table_Number': 'htmlTableNumber',
-  //     'URL': 'url'
-  //   },
-  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-  //   nodeType: 'ExternalFixture',
-  //   properties: {
-  //     id: { type: 'string', required: true },
-  //     team: { type: 'string', required: true },
-  //     season: { type: 'string', required: true },
-  //     urlType: { type: 'string', required: true },
-  //     leagueName: { type: 'string', required: true },
-  //     htmlTableNumber: { type: 'integer', required: true },
-  //     url: { type: 'string', required: true },
-  //     lastUpdated: { type: 'datetime', required: false },
-  //     fixtures: { type: 'string', required: false },
-  //     totalTeams: { type: 'integer', required: false },
-  //     htmlContent: { type: 'string', required: false },
-  //     dataSource: { type: 'string', required: false },
-  //     dataSourceUrl: { type: 'string', required: false }
-  //   },
-  //   idPattern: 'externalfixture_{season}_{team}',
-  //   constraints: ['CREATE CONSTRAINT externalfixture_id IF NOT EXISTS FOR (ef:ExternalFixture) REQUIRE ef.id IS UNIQUE']
-  // },
-
-  // ============================================================================
-  // TBL_ExternalResults - SKIPPED for memory optimization (web scraping disabled)
-  // ============================================================================
-  // TBL_ExternalResults: {
-  //   csvColumns: {
-  //     'Team': 'team',
-  //     'Season': 'season',
-  //     'URL_Type': 'urlType',
-  //     'League_Name': 'leagueName',
-  //     'HTML_Table_Number': 'htmlTableNumber',
-  //     'URL': 'url'
-  //   },
-  //   requiredColumns: ['Team', 'Season', 'URL_Type', 'League_Name', 'HTML_Table_Number', 'URL'],
-  //   nodeType: 'ExternalResult',
-  //   properties: {
-  //     id: { type: 'string', required: true },
-  //     team: { type: 'string', required: true },
-  //     season: { type: 'string', required: true },
-  //     urlType: { type: 'string', required: true },
-  //     leagueName: { type: 'string', required: true },
-  //     htmlTableNumber: { type: 'integer', required: true },
-  //     url: { type: 'string', required: true },
-  //     lastUpdated: { type: 'datetime', required: false },
-  //     results: { type: 'string', required: false },
-  //     totalTeams: { type: 'integer', required: false },
-  //     htmlContent: { type: 'string', required: false },
-  //     dataSource: { type: 'string', required: false },
-  //     dataSourceUrl: { type: 'string', required: false }
-  //   },
-  //   idPattern: 'externalresult_{season}_{team}',
-  //   constraints: ['CREATE CONSTRAINT externalresult_id IF NOT EXISTS FOR (er:ExternalResult) REQUIRE er.id IS UNIQUE']
-  // },
+  TBL_1stXILeague: null, // Will be populated below
+  TBL_2ndXILeague: null, // Will be populated below
+  TBL_3rdXILeague: null, // Will be populated below
+  TBL_4thXILeague: null, // Will be populated below
+  TBL_5thXILeague: null, // Will be populated below
+  TBL_6thXILeague: null, // Will be populated below
+  TBL_7thXILeague: null, // Will be populated below
 
 };
+
+// ============================================================================
+// Generate League Table schemas from base
+// ============================================================================
+// Deep clone function to create independent copies of the base schema
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+// Generate TBL_1stXILeague through TBL_7thXILeague from base schema
+const leagueTableNames = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+leagueTableNames.forEach(ordinal => {
+  const tableKey = `TBL_${ordinal}XILeague`;
+  schema[tableKey] = deepClone(schema._LeagueTableBase);
+});
 
 // ============================================================================
 // Relationship Definitions
@@ -1276,7 +963,7 @@ const relationships = {
       goalsScored: { type: 'integer', default: 0 },
       assists: { type: 'integer', default: 0 }
     },
-    conditions: 'EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture) WHERE toLower(trim(f.opposition)) = toLower(trim(od.opposition)) }'
+    conditions: 'p.graphLabel = \'dorkiniansWebsite\' AND od.graphLabel = \'dorkiniansWebsite\' AND EXISTS { MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)<-[:HAS_MATCH_DETAILS]-(f:Fixture) WHERE md.graphLabel = \'dorkiniansWebsite\' AND f.graphLabel = \'dorkiniansWebsite\' AND toLower(trim(f.opposition)) = toLower(trim(od.opposition)) }'
   },
   // TOTW to MatchDetail relationship for frontend data loading
   TOTW_HAS_DETAILS: {

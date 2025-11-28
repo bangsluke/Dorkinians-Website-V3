@@ -56,17 +56,21 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// Query fixtures with goalscorers
+		// Query fixtures with goalscorers and MoM
 		const query = `
-			MATCH (f:Fixture {graphLabel: $graphLabel, team: $team, compType: 'League'})
+			MATCH (f:Fixture {graphLabel: $graphLabel, team: $team})
 			WHERE f.season = $season OR f.season = $normalizedSeason
 			OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
-			WITH f, collect(CASE WHEN md IS NOT NULL AND md.goals > 0 THEN {playerName: md.playerName, goals: md.goals} ELSE null END) as goalscorersRaw
-			WITH f, [g IN goalscorersRaw WHERE g IS NOT NULL AND g.playerName IS NOT NULL | g] as goalscorers
+			WITH f, 
+			     collect(CASE WHEN md IS NOT NULL AND md.goals > 0 THEN {playerName: md.playerName, goals: md.goals} ELSE null END) as goalscorersRaw,
+			     collect(CASE WHEN md IS NOT NULL AND md.mom > 0 THEN md.playerName ELSE null END) as momPlayersRaw
+			WITH f, 
+			     [g IN goalscorersRaw WHERE g IS NOT NULL AND g.playerName IS NOT NULL | g] as goalscorers,
+			     [m IN momPlayersRaw WHERE m IS NOT NULL] as momPlayers
 			RETURN f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
-			       goalscorers
+			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, goalscorers, momPlayers
 			ORDER BY f.date ASC
 		`;
 
@@ -89,7 +93,10 @@ export async function GET(request: NextRequest) {
 			const awayScore = record.get("awayScore");
 			const dorkiniansGoals = record.get("dorkiniansGoals");
 			const conceded = record.get("conceded");
+			const compType = record.get("compType");
+			const oppoOwnGoals = record.get("oppoOwnGoals");
 			const goalscorersRaw = record.get("goalscorers") || [];
+			const momPlayersRaw = record.get("momPlayers") || [];
 
 			// Process goalscorers - aggregate by player
 			const goalscorerMap = new Map<string, number>();
@@ -107,6 +114,9 @@ export async function GET(request: NextRequest) {
 				goals,
 			}));
 
+			// Get MoM player (first one if multiple)
+			const momPlayerName = momPlayersRaw.length > 0 ? String(momPlayersRaw[0]) : null;
+
 			return {
 				date: date ? String(date) : "",
 				opposition: opposition ? String(opposition) : "",
@@ -116,7 +126,10 @@ export async function GET(request: NextRequest) {
 				awayScore: typeof awayScore === "number" ? awayScore : Number(awayScore) || 0,
 				dorkiniansGoals: typeof dorkiniansGoals === "number" ? dorkiniansGoals : Number(dorkiniansGoals) || 0,
 				conceded: typeof conceded === "number" ? conceded : Number(conceded) || 0,
+				compType: compType ? String(compType) : "",
+				oppoOwnGoals: typeof oppoOwnGoals === "number" ? oppoOwnGoals : Number(oppoOwnGoals) || 0,
 				goalscorers,
+				momPlayerName,
 			};
 		});
 
