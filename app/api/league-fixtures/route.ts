@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 			RETURN f.date as date, f.opposition as opposition, f.homeOrAway as homeOrAway,
 			       f.result as result, f.homeScore as homeScore, f.awayScore as awayScore,
 			       f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded,
-			       f.compType as compType, goalscorers
+			       f.compType as compType, f.oppoOwnGoals as oppoOwnGoals, goalscorers
 			ORDER BY f.date ASC
 		`;
 
@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
 			const dorkiniansGoals = record.get("dorkiniansGoals");
 			const conceded = record.get("conceded");
 			const compType = record.get("compType");
+			const oppoOwnGoals = record.get("oppoOwnGoals");
 			const goalscorersRaw = record.get("goalscorers") || [];
 
 			// Process goalscorers - aggregate by player
@@ -118,6 +119,7 @@ export async function GET(request: NextRequest) {
 				dorkiniansGoals: typeof dorkiniansGoals === "number" ? dorkiniansGoals : Number(dorkiniansGoals) || 0,
 				conceded: typeof conceded === "number" ? conceded : Number(conceded) || 0,
 				compType: compType ? String(compType) : "",
+				oppoOwnGoals: typeof oppoOwnGoals === "number" ? oppoOwnGoals : Number(oppoOwnGoals) || 0,
 				goalscorers,
 			};
 		});

@@ -297,7 +297,7 @@ export default function LeagueInformation() {
 							<div className='w-full'>
 								<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
 									{teamDisplayName}
-									{currentSeason && teamData.division && teamData.division.trim() !== '' && (
+									{teamData.division && teamData.division.trim() !== '' && (
 										<span className='ml-2 text-base text-gray-300 font-normal'>
 											{teamData.division}
 										</span>
