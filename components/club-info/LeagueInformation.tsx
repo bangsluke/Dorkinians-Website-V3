@@ -7,6 +7,8 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import LeagueResultsModal from "./LeagueResultsModal";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
+import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
 
 interface LeagueTableEntry {
 	position: number;
@@ -56,6 +58,10 @@ export default function LeagueInformation() {
 	const [isMySeasonsMode, setIsMySeasonsMode] = useState(false);
 	const [mySeasonsLeagueData, setMySeasonsLeagueData] = useState<Map<string, SeasonLeagueData>>(new Map());
 	const [loadingMySeasons, setLoadingMySeasons] = useState(false);
+	const [isSeasonProgressMode, setIsSeasonProgressMode] = useState(false);
+	const [seasonProgressData, setSeasonProgressData] = useState<Map<string, SeasonLeagueData>>(new Map());
+	const [loadingSeasonProgress, setLoadingSeasonProgress] = useState(false);
+	const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
 
 	// Fetch available seasons on mount
 	useEffect(() => {
@@ -75,12 +81,16 @@ export default function LeagueInformation() {
 					// Load selected season from localStorage if available
 					if (typeof window !== "undefined") {
 						const savedSeason = localStorage.getItem("dorkinians-league-info-selected-season");
-						if (savedSeason && (seasonsList.includes(savedSeason) || savedSeason === "my-seasons")) {
+						if (savedSeason && (seasonsList.includes(savedSeason) || savedSeason === "my-seasons" || savedSeason === "season-progress")) {
 							if (savedSeason === "my-seasons") {
 								setIsMySeasonsMode(true);
 								setSelectedSeason("my-seasons");
+							} else if (savedSeason === "season-progress") {
+								setIsSeasonProgressMode(true);
+								setSelectedSeason("season-progress");
 							} else {
 								setIsMySeasonsMode(false);
+								setIsSeasonProgressMode(false);
 								setSelectedSeason(savedSeason);
 							}
 						} else if (seasonsList.length > 0) {
@@ -159,7 +169,7 @@ export default function LeagueInformation() {
 
 	// Fetch league data when season changes (normal mode)
 	useEffect(() => {
-		if (!selectedSeason || isMySeasonsMode) return;
+		if (!selectedSeason || isMySeasonsMode || isSeasonProgressMode) return;
 
 		// Don't fetch data for 2019-20 season (abandoned due to Covid-19)
 		if (selectedSeason === "2019-20") {
@@ -262,6 +272,53 @@ export default function LeagueInformation() {
 		fetchAllMySeasonsData();
 	}, [isMySeasonsMode, playerSeasonsData]);
 
+	// Fetch league data for all seasons when "Season Progress" mode is active
+	useEffect(() => {
+		if (!isSeasonProgressMode || seasons.length === 0) {
+			return;
+		}
+
+		const fetchAllSeasonsData = async () => {
+			setLoadingSeasonProgress(true);
+			setError(null);
+			const newDataMap = new Map<string, SeasonLeagueData>();
+
+			try {
+				// Fetch league data for each season
+				const fetchPromises = seasons.map(async (season) => {
+					if (season === "2019-20") {
+						// Skip 2019-20 season
+						return;
+					}
+
+					try {
+						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
+						if (response.ok) {
+							const data = await response.json();
+							if (data.data) {
+								// Normalize season format for consistent map key (ensure hyphen format)
+								const normalizedSeason = season.replace("/", "-");
+								newDataMap.set(normalizedSeason, data.data);
+							}
+						}
+					} catch (err) {
+						console.error(`Error fetching league data for season ${season}:`, err);
+					}
+				});
+
+				await Promise.all(fetchPromises);
+				setSeasonProgressData(newDataMap);
+			} catch (err) {
+				console.error("Error fetching season progress data:", err);
+				setError("Error loading season progress data");
+			} finally {
+				setLoadingSeasonProgress(false);
+			}
+		};
+
+		fetchAllSeasonsData();
+	}, [isSeasonProgressMode, seasons]);
+
 	// Format season for display (2019-20 -> 2019/20)
 	const formatSeason = (season: string) => {
 		return season.replace("-", "/");
@@ -308,6 +365,108 @@ export default function LeagueInformation() {
 		return reverseMap[teamNameLower] || teamDisplayName;
 	};
 
+	// Map division names to numeric values for chart Y-axis
+	// Uses the configurable mapping file first, then falls back to default logic
+	// Note: 1 = top division, higher numbers = lower divisions
+	const getDivisionValue = (division: string): number => {
+		if (!division || division.trim() === "") return 0;
+		
+		// First try the configurable mapping
+		const mappedValue = getDivisionValueFromMapping(division);
+		if (mappedValue !== null) {
+			return mappedValue;
+		}
+		
+		// Fallback: try to extract number from division name
+		// For numbered divisions, use the number directly (higher number = lower division)
+		const divisionLower = division.toLowerCase().trim();
+		const numberMatch = divisionLower.match(/(\d+)/);
+		if (numberMatch) {
+			const num = parseInt(numberMatch[1], 10);
+			// Use number directly, but ensure it's at least 1
+			// Higher numbers = lower divisions, so we'll use the number as-is
+			return Math.max(1, num);
+		}
+		
+		return 0;
+	};
+
+	// Get division name from numeric value (for Y-axis labels)
+	// Uses standardized names from mapping config
+	const getDivisionName = (value: number): string => {
+		return getStandardizedDivisionName(value);
+	};
+
+	// Find Dorkinians position in a team's table
+	const findDorkiniansPosition = (teamData: TeamLeagueData, teamKey: string): number | null => {
+		if (!teamData || !teamData.table || teamData.table.length === 0) {
+			return null;
+		}
+
+		const matchesThisTeam = (entryTeam: string): boolean => {
+			const entryTeamLower = entryTeam.toLowerCase().trim();
+			if (!entryTeamLower.includes("dorkinians")) return false;
+			
+			if (teamKey === "1s") {
+				return entryTeamLower === "dorkinians" || entryTeamLower.startsWith("dorkinians ");
+			}
+			
+			const matchPatterns: { [key: string]: string[] } = {
+				"2s": ["2nd", "ii"],
+				"3s": ["3rd", "iii"],
+				"4s": ["4th", "iv"],
+				"5s": ["5th", "v"],
+				"6s": ["6th", "vi"],
+				"7s": ["7th", "vii"],
+				"8s": ["8th", "viii"],
+			};
+			const patterns = matchPatterns[teamKey];
+			if (patterns) {
+				return patterns.some(pattern => entryTeamLower.includes(pattern));
+			}
+			
+			return false;
+		};
+
+		const dorkiniansEntry = teamData.table.find(entry => matchesThisTeam(entry.team));
+		return dorkiniansEntry ? dorkiniansEntry.position : null;
+	};
+
+	// Transform season data into chart format
+	const transformDataForChart = () => {
+		const teamKeys = ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"];
+		const validSeasons = Array.from(seasonProgressData.keys())
+			.filter(season => season !== "2019-20")
+			.sort(); // Sort seasons chronologically
+
+		// Create data points for each season
+		const chartData = validSeasons.map(season => {
+			const seasonData = seasonProgressData.get(season);
+			const dataPoint: any = {
+				season: formatSeason(season),
+			};
+
+			// For each team, add division value and position
+			teamKeys.forEach(teamKey => {
+				if (seasonData && seasonData.teams[teamKey]) {
+					const teamData = seasonData.teams[teamKey];
+					const divisionValue = getDivisionValue(teamData.division);
+					const position = findDorkiniansPosition(teamData, teamKey);
+					
+					dataPoint[`${teamKey}_division`] = divisionValue;
+					dataPoint[`${teamKey}_position`] = position;
+				} else {
+					dataPoint[`${teamKey}_division`] = null;
+					dataPoint[`${teamKey}_position`] = null;
+				}
+			});
+
+			return dataPoint;
+		});
+
+		return chartData;
+	};
+
 	// Scroll to top function
 	const scrollToTop = () => {
 		// Find the scrollable parent container (parent motion.div with overflow-y-auto)
@@ -343,9 +502,15 @@ export default function LeagueInformation() {
 	const handleSeasonChange = (newSeason: string) => {
 		if (newSeason === "my-seasons") {
 			setIsMySeasonsMode(true);
+			setIsSeasonProgressMode(false);
 			setSelectedSeason("my-seasons");
+		} else if (newSeason === "season-progress") {
+			setIsSeasonProgressMode(true);
+			setIsMySeasonsMode(false);
+			setSelectedSeason("season-progress");
 		} else {
 			setIsMySeasonsMode(false);
+			setIsSeasonProgressMode(false);
 			setSelectedSeason(newSeason);
 		}
 		
@@ -373,15 +538,30 @@ export default function LeagueInformation() {
 								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 									{selectedSeason === "my-seasons" 
 										? "My Seasons" 
-										: selectedSeason 
-											? formatSeason(selectedSeason) 
-											: "Select season..."}
+										: selectedSeason === "season-progress"
+											? "Season Progress"
+											: selectedSeason 
+												? formatSeason(selectedSeason) 
+												: "Select season..."}
 								</span>
 								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
 								</span>
 							</Listbox.Button>
 							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+								{/* Season Progress option - always visible */}
+								<Listbox.Option
+									key="season-progress"
+									className={({ active }) =>
+										`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+									}
+									value="season-progress">
+									{({ selected }) => (
+										<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+											Season Progress
+										</span>
+									)}
+								</Listbox.Option>
 								{/* My Seasons option - only show if player is selected and has seasons */}
 								{selectedPlayer && playerSeasonsData && playerSeasonsData.length > 0 && (
 									<Listbox.Option
@@ -414,6 +594,12 @@ export default function LeagueInformation() {
 							</Listbox.Options>
 						</div>
 					</Listbox>
+				)}
+				{/* Description for My Seasons mode */}
+				{isMySeasonsMode && (
+					<p className='text-white text-sm md:text-base mt-2 pt-2 text-center'>
+						Displays the position the team that you played for most that season finished in
+					</p>
 				)}
 			</div>
 
@@ -646,8 +832,290 @@ export default function LeagueInformation() {
 				</div>
 			)}
 
+			{/* Loading state for Season Progress */}
+			{isSeasonProgressMode && loadingSeasonProgress && (
+				<div className='flex justify-center py-8'>
+					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-dorkinians-yellow'></div>
+				</div>
+			)}
+
+			{/* Season Progress Chart */}
+			{isSeasonProgressMode && !loadingSeasonProgress && !error && seasonProgressData.size > 0 && (() => {
+				const chartData = transformDataForChart();
+				const teamKeys = ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"];
+				const teamColors = [
+					"#f9ed32", // 1s - yellow
+					"#3b82f6", // 2s - blue
+					"#10b981", // 3s - green
+					"#f59e0b", // 4s - orange
+					"#ef4444", // 5s - red
+					"#8b5cf6", // 6s - purple
+					"#ec4899", // 7s - pink
+					"#06b6d4", // 8s - cyan
+				];
+
+				// Build a mapping of division values to actual division names from the data
+				const divisionValueToName = new Map<number, string>();
+				Array.from(seasonProgressData.entries()).forEach(([season, seasonData]) => {
+					teamKeys.forEach(teamKey => {
+						if (seasonData.teams[teamKey]) {
+							const teamData = seasonData.teams[teamKey];
+							const divValue = getDivisionValue(teamData.division);
+							if (divValue > 0 && teamData.division && teamData.division.trim() !== "") {
+								// Use actual division name from data, or fall back to mapped name
+								divisionValueToName.set(divValue, teamData.division);
+							}
+						}
+					});
+				});
+
+				// Custom tooltip
+				const CustomTooltip = ({ active, payload }: any) => {
+					if (active && payload && payload.length) {
+						const data = payload[0].payload;
+						return (
+							<div className='bg-gray-800 border border-yellow-400/30 rounded-lg p-3 shadow-lg'>
+								<p className='text-yellow-300 font-semibold mb-2'>{data.season}</p>
+								{payload.map((entry: any, index: number) => {
+									const teamKey = teamKeys[index];
+									const divisionValue = data[`${teamKey}_division`];
+									const position = data[`${teamKey}_position`];
+									if (divisionValue === null || divisionValue === undefined) return null;
+									const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
+									return (
+										<p key={teamKey} className='text-white text-sm'>
+											<span style={{ color: entry.color }} className='font-semibold'>
+												{getTeamDisplayName(teamKey)}:
+											</span>{" "}
+											{divisionName}
+											{position !== null && position !== undefined && (
+												<span className='text-gray-300'> (Position: {position})</span>
+											)}
+										</p>
+									);
+								})}
+							</div>
+						);
+					}
+					return null;
+				};
+
+				// Custom label for position - receives the data point
+				const CustomLabel = (props: any) => {
+					const { x, y, payload } = props;
+					if (!payload) return null;
+					
+					// Find which team this label is for by checking which division value exists
+					for (const teamKey of teamKeys) {
+						const divisionValue = payload[`${teamKey}_division`];
+						const position = payload[`${teamKey}_position`];
+						if (divisionValue !== null && divisionValue !== undefined && position !== null && position !== undefined) {
+							// Check if this is the right point (compare y position)
+							const expectedY = y; // This will be calculated by Recharts
+							return (
+								<text
+									x={x}
+									y={y - 8}
+									fill="#fff"
+									fontSize={10}
+									textAnchor="middle"
+									className="font-semibold"
+									style={{ pointerEvents: 'none' }}
+								>
+									{position}
+								</text>
+							);
+						}
+					}
+					return null;
+				};
+
+				// Y-axis formatter - standardized format: "Prem" for value 1, "Div X" for others
+				const formatYAxis = (value: number) => {
+					if (value === 1) {
+						return "Prem";
+					}
+					return `Div ${value}`;
+				};
+
+				// Get all unique division values for Y-axis domain
+				// Note: 1 = top division, higher numbers = lower divisions
+				const allDivisionValues = new Set<number>();
+				chartData.forEach(data => {
+					teamKeys.forEach(teamKey => {
+						const value = data[`${teamKey}_division`];
+						if (value !== null && value !== undefined && value > 0) {
+							allDivisionValues.add(value);
+						}
+					});
+				});
+				// Sort ascending (1 = top division, higher numbers = lower divisions)
+				const divisionValues = Array.from(allDivisionValues).sort((a, b) => a - b);
+				// Y-axis domain: normal range (will be reversed so 1 appears at top)
+				const minValue = divisionValues.length > 0 ? Math.min(...divisionValues) : 1;
+				const maxValue = divisionValues.length > 0 ? Math.max(...divisionValues) : 10;
+				const yAxisDomain = [minValue - 0.5, maxValue + 0.5];
+				
+				// Create explicit ticks for Y-axis (sorted ascending: 1, 2, 3...)
+				// The reversed prop will display them with 1 at top
+				const yAxisTicks = divisionValues.length > 0 ? divisionValues : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+				return (
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 mb-4'>
+						<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4 text-center'>
+							Season Progress
+						</h3>
+						{/* Team Filter Dropdown */}
+						<div className='mb-4 flex justify-center'>
+							<Listbox value={selectedTeamFilter} onChange={setSelectedTeamFilter}>
+								<div className='relative w-full max-w-xs'>
+									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+										<span className='block truncate text-white'>
+											{selectedTeamFilter === "all" ? "All Teams" : getTeamDisplayName(selectedTeamFilter)}
+										</span>
+										<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+											<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
+										</span>
+									</Listbox.Button>
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+										<Listbox.Option
+											key="all"
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value="all">
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													All Teams
+												</span>
+											)}
+										</Listbox.Option>
+										{teamKeys.map((teamKey) => (
+											<Listbox.Option
+												key={teamKey}
+												className={({ active }) =>
+													`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												}
+												value={teamKey}>
+												{({ selected }) => (
+													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+														{getTeamDisplayName(teamKey)}
+													</span>
+												)}
+											</Listbox.Option>
+										))}
+									</Listbox.Options>
+								</div>
+							</Listbox>
+						</div>
+						<div className='-mx-4 md:-mx-6 pl-2 pb-0'>
+							<ResponsiveContainer width="100%" height={500}>
+							<LineChart data={chartData} margin={{ top: 20, right: 30, left: -60, bottom: 10 }}>
+								<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+								<XAxis 
+									dataKey="season" 
+									stroke="#fff" 
+									fontSize={12}
+									angle={-45}
+									textAnchor="end"
+									height={80}
+									tick={{ fill: '#fff' }}
+								/>
+								<YAxis 
+									stroke="#fff" 
+									fontSize={12}
+									domain={yAxisDomain}
+									tickFormatter={formatYAxis}
+									width={100}
+									ticks={yAxisTicks}
+									tick={{ fill: '#fff', fontSize: 11 }}
+									allowDecimals={false}
+									reversed={true}
+									axisLine={false}
+									tickLine={false}
+								/>
+								<Tooltip content={<CustomTooltip />} />
+								<Legend 
+									wrapperStyle={{ 
+										paddingTop: "10px",
+										paddingBottom: "5px",
+										backgroundColor: "rgba(255, 255, 255, 0.15)",
+										borderRadius: "4px",
+										textAlign: "center",
+										paddingLeft: "10px",
+										paddingRight: "10px"
+									}}
+									iconType="line"
+									formatter={(value) => getTeamDisplayName(value.replace("_division", ""))}
+									align="center"
+								/>
+								{teamKeys
+									.filter(teamKey => selectedTeamFilter === "all" || selectedTeamFilter === teamKey)
+									.map((teamKey, index) => {
+										// Create a custom label component for this specific team
+										const TeamLabel = (props: any) => {
+											const { x, y, value } = props;
+											// value is the position from dataKey
+											if (value === null || value === undefined) return null;
+											return (
+												<text
+													x={x}
+													y={y - 8}
+													fill="#fff"
+													fontSize={10}
+													textAnchor="middle"
+													className="font-semibold"
+													style={{ pointerEvents: 'none' }}
+												>
+													{value}
+												</text>
+											);
+										};
+
+										// Get the actual index for color (not filtered index)
+										const actualIndex = teamKeys.indexOf(teamKey);
+
+										return (
+											<Line
+												key={teamKey}
+												type="monotone"
+												dataKey={`${teamKey}_division`}
+												stroke={teamColors[actualIndex]}
+												strokeWidth={2}
+											dot={(props: any) => {
+												// Only show dot if value is not null/undefined
+												if (props.payload[`${teamKey}_division`] === null || props.payload[`${teamKey}_division`] === undefined) {
+													return <g />;
+												}
+												return <circle cx={props.cx} cy={props.cy} r={4} fill={teamColors[actualIndex]} />;
+											}}
+												activeDot={{ r: 6 }}
+												connectNulls={true}
+												name={teamKey}
+											>
+												<LabelList 
+													dataKey={`${teamKey}_position`}
+													content={<TeamLabel />}
+												/>
+											</Line>
+										);
+									})}
+							</LineChart>
+						</ResponsiveContainer>
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* No data message for Season Progress */}
+			{isSeasonProgressMode && !loadingSeasonProgress && !error && seasonProgressData.size === 0 && (
+				<div className='text-center text-gray-300 py-8'>
+					No season progress data available
+				</div>
+			)}
+
 			{/* League Tables (Normal Mode) */}
-			{!isMySeasonsMode && !loading && !error && leagueData && selectedSeason !== "2019-20" && (
+			{!isMySeasonsMode && !isSeasonProgressMode && !loading && !error && leagueData && selectedSeason !== "2019-20" && (
 				<div className='space-y-8'>
 				{/* Display tables for each team */}
 				{(() => {
@@ -820,8 +1288,8 @@ export default function LeagueInformation() {
 				</div>
 			)}
 
-			{/* Back to Top Button - Only show when content is loaded */}
-			{!loading && !loadingMySeasons && !error && (leagueData || selectedSeason === "2019-20" || (isMySeasonsMode && playerSeasonsData && playerSeasonsData.length > 0)) && (
+			{/* Back to Top Button - Only show when content is loaded, but not in Season Progress mode */}
+			{!loading && !loadingMySeasons && !loadingSeasonProgress && !error && !isSeasonProgressMode && (leagueData || selectedSeason === "2019-20" || (isMySeasonsMode && playerSeasonsData && playerSeasonsData.length > 0)) && (
 				<div className='mt-8 flex justify-center'>
 					<button
 						onClick={scrollToTop}
