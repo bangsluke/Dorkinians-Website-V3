@@ -146,6 +146,12 @@ export async function GET(request: NextRequest) {
 				}
 			}
 
+			// Sort players by FTP score (descending) and reassign ranks
+			players.sort((a, b) => b.ftpScore - a.ftpScore);
+			players.forEach((player, index) => {
+				player.rank = index + 1;
+			});
+
 			return NextResponse.json({ players }, { headers: corsHeaders });
 		}
 
@@ -164,6 +170,12 @@ export async function GET(request: NextRequest) {
 				});
 			}
 		}
+
+		// Sort players by FTP score (descending) and reassign ranks
+		players.sort((a, b) => b.ftpScore - a.ftpScore);
+		players.forEach((player, index) => {
+			player.rank = index + 1;
+		});
 
 		return NextResponse.json({ players }, { headers: corsHeaders });
 	} catch (error) {
