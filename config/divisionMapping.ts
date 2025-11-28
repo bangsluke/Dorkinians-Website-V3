@@ -27,6 +27,7 @@ export interface DivisionMapping {
 export const divisionMapping: DivisionMapping = {
 	// Premier / Top Division
 	"premier": 1,
+	"senior division 1": 1,
 	
 	// Senior Divisions
 	"senior 1 south": 2,
@@ -43,6 +44,7 @@ export const divisionMapping: DivisionMapping = {
 	"division 4 south": 9,
 	"division 5 south": 10,
 	"division 6 south": 11,
+	"south division 10": 11,
 	"division 7 south": 12,
 	"division 8 south": 13,
 };

@@ -965,6 +965,9 @@ export default function LeagueInformation() {
 						<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4 text-center'>
 							Season Progress
 						</h3>
+						<p className='text-white text-sm md:text-base mb-4 text-center'>
+							Numbers above the dots indicate league position
+						</p>
 						{/* Team Filter Dropdown */}
 						<div className='mb-4 flex justify-center'>
 							<Listbox value={selectedTeamFilter} onChange={setSelectedTeamFilter}>
@@ -1039,11 +1042,13 @@ export default function LeagueInformation() {
 									wrapperStyle={{ 
 										paddingTop: "10px",
 										paddingBottom: "5px",
-										backgroundColor: "rgba(255, 255, 255, 0.15)",
+										backgroundColor: "rgba(255, 255, 255, 0.35)",
 										borderRadius: "4px",
 										textAlign: "center",
 										paddingLeft: "10px",
-										paddingRight: "10px"
+										paddingRight: "10px",
+										marginLeft: "70px",
+										width: "90%"
 									}}
 									iconType="line"
 									formatter={(value) => getTeamDisplayName(value.replace("_division", ""))}
