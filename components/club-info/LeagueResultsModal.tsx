@@ -30,6 +30,7 @@ interface Fixture {
 	compType: string;
 	oppoOwnGoals: number;
 	goalscorers: Goalscorer[];
+	momPlayerName: string | null;
 }
 
 export default function LeagueResultsModal({
@@ -246,6 +247,14 @@ export default function LeagueResultsModal({
 														{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
 													</div>
 												) : null}
+												
+												{/* MoM */}
+												{fixture.momPlayerName && (
+													<div className='text-sm text-gray-300 mt-2'>
+														<span className='text-gray-400'>MoM: </span>
+														{fixture.momPlayerName}
+													</div>
+												)}
 											</div>
 										))}
 									</div>
