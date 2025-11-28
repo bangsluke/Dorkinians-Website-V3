@@ -297,15 +297,20 @@ export default function PlayersOfMonth() {
 
 		console.log(`[PlayersOfMonth] Displaying data for season: ${selectedSeason}, month: ${monthToUse}`);
 
-		// Clear player stats when month/season changes to force refresh
+		// Clear player stats and players when month/season changes to force refresh
+		// Clear players first to prevent stats fetch from using stale data
+		setPlayers([]);
 		setPlayerStats({});
 		setExpandedPlayers(new Set()); // Also collapse any expanded players
 
 		const cachedMonthData = getCachedPOMMonthData(selectedSeason, monthToUse);
 		if (cachedMonthData) {
 			console.log(`[PlayersOfMonth] Using cached data for ${monthToUse} ${selectedSeason}`);
+			// Set players after clearing to ensure stats fetch uses correct data
 			setPlayers(cachedMonthData.players);
-			setLoading(false);
+			// Ensure fetching flag is cleared so stats can load
+			setIsFetchingMonthData(false);
+			// Don't set loading to false here - let the stats fetching effect handle it
 			return;
 		}
 
@@ -321,17 +326,21 @@ export default function PlayersOfMonth() {
 				const data = await response.json();
 				
 				if (data.players) {
-					console.log(`[PlayersOfMonth] Received ${data.players.length} players for ${monthToUse} ${selectedSeason}`);
+					console.log(`[PlayersOfMonth] Received ${data.players.length} players for ${monthToUse} ${selectedSeason}: [${data.players.map((p: Player) => p.playerName).join(", ")}]`);
+					// Clear old stats before setting new players
+					setPlayerStats({});
 					setPlayers(data.players);
 					cachePOMMonthData(selectedSeason, monthToUse, data.players);
 				} else {
 					console.log(`[PlayersOfMonth] No players found for ${monthToUse} ${selectedSeason}`);
 					setPlayers([]);
+					setPlayerStats({});
 				}
 				setIsFetchingMonthData(false);
 			} catch (error) {
 				console.error(`[PlayersOfMonth] Error fetching month data for ${monthToUse} ${selectedSeason}:`, error);
 				setPlayers([]);
+				setPlayerStats({});
 				setIsFetchingMonthData(false);
 				setLoading(false);
 				setLoadingStats(false);
@@ -343,6 +352,9 @@ export default function PlayersOfMonth() {
 
 	// Fetch stats for all players when players list changes - check cache first
 	useEffect(() => {
+		const playerNames = players.map(p => p.playerName).join(", ");
+		console.log(`[PlayersOfMonth] Stats fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", players: ${players.length} [${playerNames}], isFetchingMonthData: ${isFetchingMonthData}`);
+		
 		if (!selectedSeason || !selectedMonth || players.length === 0) {
 			setLoadingStats(false);
 			if (players.length === 0 && !isFetchingMonthData) {
@@ -351,7 +363,19 @@ export default function PlayersOfMonth() {
 			return;
 		}
 
+		// Verify players match current season/month to prevent using stale data
+		const cachedMonthData = getCachedPOMMonthData(selectedSeason, selectedMonth);
+		if (cachedMonthData && cachedMonthData.players.length > 0) {
+			const cachedPlayerNames = cachedMonthData.players.map((p: Player) => p.playerName).sort().join(", ");
+			const currentPlayerNames = players.map(p => p.playerName).sort().join(", ");
+			if (cachedPlayerNames !== currentPlayerNames) {
+				console.log(`[PlayersOfMonth] Player mismatch detected! Cached: [${cachedPlayerNames}], Current: [${currentPlayerNames}]. Waiting for correct players...`);
+				return;
+			}
+		}
+
 		const fetchAllPlayerStats = async () => {
+			console.log(`[PlayersOfMonth] Fetching stats for ${players.length} players: [${playerNames}]`);
 			setLoadingStats(true);
 			setLoading(true);
 			
@@ -359,14 +383,9 @@ export default function PlayersOfMonth() {
 			const newStats: Record<string, PlayerStats> = {};
 			
 			const statsPromises = players.map(async (player) => {
-				// Check cache first (cache is keyed by season, month, and playerName)
-				const cachedStats = getCachedPOMPlayerStats(selectedSeason, selectedMonth, player.playerName);
-				if (cachedStats) {
-					newStats[player.playerName] = cachedStats;
-					return;
-				}
-
+				// Always fetch fresh stats from API (no caching)
 				const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(player.playerName)}`;
+				console.log(`[PlayersOfMonth] Fetching stats from API for ${player.playerName}: ${apiUrl}`);
 				
 				try {
 					const response = await fetch(apiUrl);
@@ -376,6 +395,7 @@ export default function PlayersOfMonth() {
 					}
 
 					const data = await response.json();
+					console.log(`[PlayersOfMonth] Received stats for ${player.playerName}: goals=${data.goals}, assists=${data.assists}, appearances=${data.appearances}`);
 					if (data.matchDetails) {
 						const stats: PlayerStats = {
 							appearances: data.appearances || 0,
@@ -395,7 +415,7 @@ export default function PlayersOfMonth() {
 						};
 
 						newStats[player.playerName] = stats;
-						cachePOMPlayerStats(selectedSeason, selectedMonth, player.playerName, stats);
+						// No caching - always fetch fresh stats
 					}
 				} catch (error) {
 					console.error(`[PlayersOfMonth] Error fetching stats for ${player.playerName}:`, error);
@@ -405,6 +425,7 @@ export default function PlayersOfMonth() {
 			await Promise.all(statsPromises);
 			
 			// Batch update all stats at once
+			console.log(`[PlayersOfMonth] Stats fetch complete. Loaded stats for ${Object.keys(newStats).length} players`);
 			setPlayerStats(newStats);
 		};
 
@@ -464,15 +485,7 @@ export default function PlayersOfMonth() {
 			return;
 		}
 
-		// Check cache
-		const cachedStats = getCachedPOMPlayerStats(selectedSeason, selectedMonth, playerName);
-		if (cachedStats) {
-			setPlayerStats((prev) => ({
-				...prev,
-				[playerName]: cachedStats,
-			}));
-			return;
-		}
+		// Always fetch fresh stats from API (no caching)
 
 		const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(playerName)}`;
 
@@ -509,7 +522,7 @@ export default function PlayersOfMonth() {
 					...prev,
 					[playerName]: stats,
 				}));
-				cachePOMPlayerStats(selectedSeason, selectedMonth, playerName, stats);
+				// No caching - always fetch fresh stats
 			}
 		} catch (error) {
 			console.error(`[PlayersOfMonth] Error fetching player stats for ${playerName}:`, error);
