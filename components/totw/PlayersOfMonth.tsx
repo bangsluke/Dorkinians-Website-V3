@@ -833,7 +833,7 @@ export default function PlayersOfMonth() {
 			{/* Filters - Hide during initial load */}
 			{!isInitialLoading && (
 				<div className='flex flex-row gap-4 mb-6'>
-					<div className='w-1/3 md:w-1/2'>
+					<div className='flex-1'>
 						<Listbox value={selectedSeason} onChange={(newSeason) => {
 							console.log(`[PlayersOfMonth] User selected season: "${newSeason}"`);
 							// Set loading state immediately when season changes
@@ -869,7 +869,7 @@ export default function PlayersOfMonth() {
 							</div>
 						</Listbox>
 					</div>
-					<div className='flex-1 md:w-1/2'>
+					<div className='flex-1'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							console.log(`[PlayersOfMonth] User selected month: "${newMonth}"`);
 							// Set loading state immediately when month changes
