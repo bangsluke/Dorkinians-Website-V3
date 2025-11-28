@@ -62,6 +62,7 @@ export default function LeagueInformation() {
 	const [seasonProgressData, setSeasonProgressData] = useState<Map<string, SeasonLeagueData>>(new Map());
 	const [loadingSeasonProgress, setLoadingSeasonProgress] = useState(false);
 	const [selectedTeamFilter, setSelectedTeamFilter] = useState<string>("all");
+	const [selectedLeagueStructure, setSelectedLeagueStructure] = useState<string>("all");
 
 	// Fetch available seasons on mount
 	useEffect(() => {
@@ -365,6 +366,31 @@ export default function LeagueInformation() {
 		return reverseMap[teamNameLower] || teamDisplayName;
 	};
 
+	// Filter seasons by league structure
+	const filterSeasonsByLeagueStructure = (season: string, leagueStructure: string): boolean => {
+		if (leagueStructure === "all") {
+			return true;
+		}
+		
+		// Extract the first year from season string (format: "YYYY-YY")
+		const yearMatch = season.match(/^(\d{4})-/);
+		if (!yearMatch) {
+			return false;
+		}
+		
+		const year = parseInt(yearMatch[1], 10);
+		
+		if (leagueStructure === "afc") {
+			// AFC League: seasons 2016/17 to 2024/25
+			return year >= 2016 && year <= 2024;
+		} else if (leagueStructure === "sal") {
+			// SAL League: seasons 2025/26 and onwards
+			return year >= 2025;
+		}
+		
+		return true;
+	};
+
 	// Map division names to numeric values for chart Y-axis
 	// Uses the configurable mapping file first, then falls back to default logic
 	// Note: 1 = top division, higher numbers = lower divisions
@@ -437,6 +463,7 @@ export default function LeagueInformation() {
 		const teamKeys = ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"];
 		const validSeasons = Array.from(seasonProgressData.keys())
 			.filter(season => season !== "2019-20")
+			.filter(season => filterSeasonsByLeagueStructure(season, selectedLeagueStructure))
 			.sort(); // Sort seasons chronologically
 
 		// Create data points for each season
@@ -446,7 +473,7 @@ export default function LeagueInformation() {
 				season: formatSeason(season),
 			};
 
-			// For each team, add division value and position
+			// For each team, add division value, position, and composite value
 			teamKeys.forEach(teamKey => {
 				if (seasonData && seasonData.teams[teamKey]) {
 					const teamData = seasonData.teams[teamKey];
@@ -455,9 +482,17 @@ export default function LeagueInformation() {
 					
 					dataPoint[`${teamKey}_division`] = divisionValue;
 					dataPoint[`${teamKey}_position`] = position;
+					// Composite value: division * 10 + position (assumes 10 teams per division)
+					// Example: Div 1 Pos 1 = 11, Div 1 Pos 2 = 12, Div 6 Pos 2 = 62
+					if (divisionValue !== null && divisionValue !== undefined && position !== null && position !== undefined) {
+						dataPoint[`${teamKey}_composite`] = divisionValue * 10 + position;
+					} else {
+						dataPoint[`${teamKey}_composite`] = null;
+					}
 				} else {
 					dataPoint[`${teamKey}_division`] = null;
 					dataPoint[`${teamKey}_position`] = null;
+					dataPoint[`${teamKey}_composite`] = null;
 				}
 			});
 
@@ -854,6 +889,23 @@ export default function LeagueInformation() {
 					"#06b6d4", // 8s - cyan
 				];
 
+				// Detect if a single team is selected
+				const isSingleTeamSelected = selectedTeamFilter !== "all";
+				
+				// Check if selected team has multiple divisions (for single team selection)
+				let hasMultipleDivisions = false;
+				if (isSingleTeamSelected) {
+					const selectedTeamKey = selectedTeamFilter;
+					const uniqueDivisions = new Set<number>();
+					chartData.forEach(data => {
+						const division = data[`${selectedTeamKey}_division`];
+						if (division !== null && division !== undefined && division > 0) {
+							uniqueDivisions.add(division);
+						}
+					});
+					hasMultipleDivisions = uniqueDivisions.size > 1;
+				}
+
 				// Build a mapping of division values to actual division names from the data
 				const divisionValueToName = new Map<number, string>();
 				Array.from(seasonProgressData.entries()).forEach(([season, seasonData]) => {
@@ -877,22 +929,38 @@ export default function LeagueInformation() {
 							<div className='bg-gray-800 border border-yellow-400/30 rounded-lg p-3 shadow-lg'>
 								<p className='text-yellow-300 font-semibold mb-2'>{data.season}</p>
 								{payload.map((entry: any, index: number) => {
-									const teamKey = teamKeys[index];
+									// When single team selected, use selectedTeamFilter; otherwise use teamKeys[index]
+									const teamKey = isSingleTeamSelected ? selectedTeamFilter : teamKeys[index];
 									const divisionValue = data[`${teamKey}_division`];
 									const position = data[`${teamKey}_position`];
-									if (divisionValue === null || divisionValue === undefined) return null;
-									const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
-									return (
-										<p key={teamKey} className='text-white text-sm'>
-											<span style={{ color: entry.color }} className='font-semibold'>
-												{getTeamDisplayName(teamKey)}:
-											</span>{" "}
-											{divisionName}
-											{position !== null && position !== undefined && (
-												<span className='text-gray-300'> (Position: {position})</span>
-											)}
-										</p>
-									);
+									if (isSingleTeamSelected) {
+										// When single team selected, position is on Y-axis, so show division in tooltip
+										if (position === null || position === undefined) return null;
+										const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
+										return (
+											<p key={teamKey} className='text-white text-sm'>
+												<span style={{ color: entry.color }} className='font-semibold'>
+													{getTeamDisplayName(teamKey)}:
+												</span>{" "}
+												{divisionName}
+											</p>
+										);
+									} else {
+										// When multiple teams, show division and position
+										if (divisionValue === null || divisionValue === undefined) return null;
+										const divisionName = divisionValueToName.get(divisionValue) || getDivisionName(divisionValue) || `Division ${divisionValue}`;
+										return (
+											<p key={teamKey} className='text-white text-sm'>
+												<span style={{ color: entry.color }} className='font-semibold'>
+													{getTeamDisplayName(teamKey)}:
+												</span>{" "}
+												{divisionName}
+												{position !== null && position !== undefined && (
+													<span className='text-gray-300'> (Position: {position})</span>
+												)}
+											</p>
+										);
+									}
 								})}
 							</div>
 						);
@@ -930,35 +998,184 @@ export default function LeagueInformation() {
 					return null;
 				};
 
-				// Y-axis formatter - standardized format: "Prem" for value 1, "Div X" for others
-				const formatYAxis = (value: number) => {
-					if (value === 1) {
-						return "Prem";
-					}
-					return `Div ${value}`;
-				};
+				// Y-axis configuration based on single team vs multiple teams
+				let formatYAxis: (value: number) => string;
+				let yAxisDomain: [number, number];
+				let yAxisTicks: number[];
 
-				// Get all unique division values for Y-axis domain
-				// Note: 1 = top division, higher numbers = lower divisions
-				const allDivisionValues = new Set<number>();
-				chartData.forEach(data => {
-					teamKeys.forEach(teamKey => {
-						const value = data[`${teamKey}_division`];
-						if (value !== null && value !== undefined && value > 0) {
-							allDivisionValues.add(value);
+				if (isSingleTeamSelected) {
+					// When single team selected, check if team has played in multiple divisions
+					const selectedTeamKey = selectedTeamFilter;
+					const allCompositeValues = new Set<number>();
+					const compositeToDivisionPosition = new Map<number, { division: number; position: number }>();
+					const allPositionValues = new Set<number>();
+					const positionToDivision = new Map<number, number>();
+					
+					chartData.forEach(data => {
+						const composite = data[`${selectedTeamKey}_composite`];
+						const division = data[`${selectedTeamKey}_division`];
+						const position = data[`${selectedTeamKey}_position`];
+						
+						if (composite !== null && composite !== undefined && composite > 0) {
+							allCompositeValues.add(composite);
+							compositeToDivisionPosition.set(composite, { division: division as number, position: position as number });
+						}
+						
+						if (position !== null && position !== undefined && position > 0) {
+							allPositionValues.add(position);
+							if (division !== null && division !== undefined) {
+								positionToDivision.set(position, division as number);
+							}
 						}
 					});
-				});
-				// Sort ascending (1 = top division, higher numbers = lower divisions)
-				const divisionValues = Array.from(allDivisionValues).sort((a, b) => a - b);
-				// Y-axis domain: normal range (will be reversed so 1 appears at top)
-				const minValue = divisionValues.length > 0 ? Math.min(...divisionValues) : 1;
-				const maxValue = divisionValues.length > 0 ? Math.max(...divisionValues) : 10;
-				const yAxisDomain = [minValue - 0.5, maxValue + 0.5];
-				
-				// Create explicit ticks for Y-axis (sorted ascending: 1, 2, 3...)
-				// The reversed prop will display them with 1 at top
-				const yAxisTicks = divisionValues.length > 0 ? divisionValues : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+					
+					if (hasMultipleDivisions) {
+						// Multiple divisions: generate linear scale with all positions for each division
+						// First, collect all unique divisions and their position ranges
+						const divisionRanges = new Map<number, { min: number; max: number }>();
+						
+						chartData.forEach(data => {
+							const division = data[`${selectedTeamKey}_division`];
+							const position = data[`${selectedTeamKey}_position`];
+							
+							if (division !== null && division !== undefined && position !== null && position !== undefined) {
+								const div = division as number;
+								const pos = position as number;
+								
+								if (!divisionRanges.has(div)) {
+									divisionRanges.set(div, { min: pos, max: pos });
+								} else {
+									const range = divisionRanges.get(div)!;
+									range.min = Math.min(range.min, pos);
+									range.max = Math.max(range.max, pos);
+								}
+							}
+						});
+						
+						// Find the overall min and max divisions the team played in
+						const playedDivisions = Array.from(divisionRanges.keys());
+						if (playedDivisions.length === 0) {
+							// Fallback if no data
+							yAxisDomain = [11, 120];
+							yAxisTicks = [];
+							formatYAxis = (value: number) => {
+								const division = Math.floor(value / 10);
+								const position = value % 10;
+								return `Div ${division} - ${position}`;
+							};
+						} else {
+							const minDivision = Math.min(...playedDivisions);
+							const maxDivision = Math.max(...playedDivisions);
+							
+							// Find the team's actual min and max composite values (for Y-axis domain)
+							let teamMinComposite = Infinity;
+							let teamMaxComposite = -Infinity;
+							
+							chartData.forEach(data => {
+								const composite = data[`${selectedTeamKey}_composite`];
+								if (composite !== null && composite !== undefined && composite > 0) {
+									teamMinComposite = Math.min(teamMinComposite, composite);
+									teamMaxComposite = Math.max(teamMaxComposite, composite);
+								}
+							});
+							
+							// Generate composite values for linear scale
+							const allLinearCompositeValues: number[] = [];
+							
+							// For each division from minDivision to maxDivision (inclusive)
+							for (let division = minDivision; division <= maxDivision; division++) {
+								if (divisionRanges.has(division)) {
+									// Team played in this division: only show positions from min to max
+									const range = divisionRanges.get(division)!;
+									for (let position = range.min; position <= range.max; position++) {
+										const composite = division * 10 + position;
+										allLinearCompositeValues.push(composite);
+									}
+								} else {
+									// Filler division: show all positions 1-10
+									for (let position = 1; position <= 10; position++) {
+										const composite = division * 10 + position;
+										allLinearCompositeValues.push(composite);
+									}
+								}
+							}
+							
+							// Sort ascending (will be reversed so higher divisions appear at top)
+							allLinearCompositeValues.sort((a, b) => a - b);
+							
+							// Y-axis domain: use team's actual min and max composite values
+							// Add small padding for visual clarity
+							const range = teamMaxComposite - teamMinComposite;
+							const padding = range > 0 ? Math.max(1, range * 0.05) : 1; // 5% padding or minimum 1
+							yAxisDomain = [teamMinComposite - padding, teamMaxComposite + padding];
+							
+							// Use all linear composite values as Y-axis ticks
+							yAxisTicks = allLinearCompositeValues;
+							
+							// Formatter to display "Div X - Y" format (e.g., "Div 5 - 3" for division 5, position 3)
+							formatYAxis = (value: number) => {
+								// Extract division and position from composite value
+								// Composite = division * 10 + position
+								const division = Math.floor(value / 10);
+								const position = value % 10;
+								return `Div ${division} - ${position}`;
+							};
+						}
+					} else {
+						// Single division: use position-only Y-axis
+						const positionValues = Array.from(allPositionValues).sort((a, b) => a - b);
+						
+						// Y-axis domain: range around position values
+						const minPosition = positionValues.length > 0 ? Math.min(...positionValues) : 1;
+						const maxPosition = positionValues.length > 0 ? Math.max(...positionValues) : 20;
+						const range = maxPosition - minPosition;
+						const padding = range > 0 ? Math.max(1, range * 0.1) : 1; // 10% padding or minimum 1
+						yAxisDomain = [minPosition - padding, maxPosition + padding];
+						
+						// Create explicit ticks for Y-axis - include all positions from min to max (fill gaps)
+						// This ensures positions 6, 7, etc. appear even if they don't exist in the data
+						const allPositionsInRange: number[] = [];
+						for (let pos = minPosition; pos <= maxPosition; pos++) {
+							allPositionsInRange.push(pos);
+						}
+						yAxisTicks = allPositionsInRange;
+						
+						// Formatter to display just position number
+						formatYAxis = (value: number) => {
+							return `${value}`;
+						};
+					}
+				} else {
+					// When multiple teams, use division values for Y-axis
+					formatYAxis = (value: number) => {
+						if (value === 1) {
+							return "Prem";
+						}
+						return `Div ${value}`;
+					};
+
+					// Get all unique division values for Y-axis domain
+					// Note: 1 = top division, higher numbers = lower divisions
+					const allDivisionValues = new Set<number>();
+					chartData.forEach(data => {
+						teamKeys.forEach(teamKey => {
+							const value = data[`${teamKey}_division`];
+							if (value !== null && value !== undefined && value > 0) {
+								allDivisionValues.add(value);
+							}
+						});
+					});
+					// Sort ascending (1 = top division, higher numbers = lower divisions)
+					const divisionValues = Array.from(allDivisionValues).sort((a, b) => a - b);
+					// Y-axis domain: normal range (will be reversed so 1 appears at top)
+					const minValue = divisionValues.length > 0 ? Math.min(...divisionValues) : 1;
+					const maxValue = divisionValues.length > 0 ? Math.max(...divisionValues) : 10;
+					yAxisDomain = [minValue - 0.5, maxValue + 0.5];
+					
+					// Create explicit ticks for Y-axis (sorted ascending: 1, 2, 3...)
+					// The reversed prop will display them with 1 at top
+					yAxisTicks = divisionValues.length > 0 ? divisionValues : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+				}
 
 				return (
 					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6 mb-4'>
@@ -966,8 +1183,67 @@ export default function LeagueInformation() {
 							Season Progress
 						</h3>
 						<p className='text-white text-sm md:text-base mb-4 text-center'>
-							Numbers above the dots indicate league position
+							{isSingleTeamSelected 
+								? "Y-axis shows division and position (higher divisions appear higher). The numbers above dots show league position."
+								: "The numbers above the dots indicate league position"}
 						</p>
+						{/* League Structure Filter Dropdown */}
+						<div className='mb-4 flex justify-center'>
+							<Listbox value={selectedLeagueStructure} onChange={setSelectedLeagueStructure}>
+								<div className='relative w-full max-w-xs'>
+									<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+										<span className='block truncate text-white'>
+											{selectedLeagueStructure === "all" 
+												? "All League Structures" 
+												: selectedLeagueStructure === "afc"
+													? "AFC League (pre 2025/26)"
+													: "SAL League (post 2025/26)"}
+										</span>
+										<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+											<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
+										</span>
+									</Listbox.Button>
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+										<Listbox.Option
+											key="all"
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value="all">
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													All League Structures
+												</span>
+											)}
+										</Listbox.Option>
+										<Listbox.Option
+											key="afc"
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value="afc">
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													AFC League (pre 2025/26)
+												</span>
+											)}
+										</Listbox.Option>
+										<Listbox.Option
+											key="sal"
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value="sal">
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													SAL League (post 2025/26)
+												</span>
+											)}
+										</Listbox.Option>
+									</Listbox.Options>
+								</div>
+							</Listbox>
+						</div>
 						{/* Team Filter Dropdown */}
 						<div className='mb-4 flex justify-center'>
 							<Listbox value={selectedTeamFilter} onChange={setSelectedTeamFilter}>
@@ -1013,7 +1289,7 @@ export default function LeagueInformation() {
 						</div>
 						<div className='-mx-4 md:-mx-6 pl-2 pb-0'>
 							<ResponsiveContainer width="100%" height={500}>
-							<LineChart data={chartData} margin={{ top: 20, right: 30, left: -60, bottom: 10 }}>
+							<LineChart data={chartData} margin={{ top: 20, right: 30, left: isSingleTeamSelected ? -40 : -60, bottom: 10 }}>
 								<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
 								<XAxis 
 									dataKey="season" 
@@ -1029,13 +1305,14 @@ export default function LeagueInformation() {
 									fontSize={12}
 									domain={yAxisDomain}
 									tickFormatter={formatYAxis}
-									width={100}
+									width={isSingleTeamSelected ? 100 : 100}
 									ticks={yAxisTicks}
-									tick={{ fill: '#fff', fontSize: 11 }}
+									tick={{ fill: '#fff', fontSize: 10 }}
 									allowDecimals={false}
 									reversed={true}
 									axisLine={false}
 									tickLine={false}
+									interval={0}
 								/>
 								<Tooltip content={<CustomTooltip />} />
 								<Legend 
@@ -1051,7 +1328,7 @@ export default function LeagueInformation() {
 										width: "90%"
 									}}
 									iconType="line"
-									formatter={(value) => getTeamDisplayName(value.replace("_division", ""))}
+									formatter={(value) => getTeamDisplayName(value.replace("_division", "").replace("_position", "").replace("_composite", ""))}
 									align="center"
 								/>
 								{teamKeys
@@ -1060,7 +1337,7 @@ export default function LeagueInformation() {
 										// Create a custom label component for this specific team
 										const TeamLabel = (props: any) => {
 											const { x, y, value } = props;
-											// value is the position from dataKey
+											// Always show position labels above dots (value is position number)
 											if (value === null || value === undefined) return null;
 											return (
 												<text
@@ -1080,19 +1357,31 @@ export default function LeagueInformation() {
 										// Get the actual index for color (not filtered index)
 										const actualIndex = teamKeys.indexOf(teamKey);
 
+										// Use composite dataKey when single team selected with multiple divisions,
+										// position dataKey when single team selected with single division,
+										// division dataKey when multiple teams
+										const dataKey = isSingleTeamSelected 
+											? (hasMultipleDivisions ? `${teamKey}_composite` : `${teamKey}_position`)
+											: `${teamKey}_division`;
+										const checkKey = isSingleTeamSelected 
+											? (hasMultipleDivisions ? `${teamKey}_composite` : `${teamKey}_position`)
+											: `${teamKey}_division`;
+
 										return (
 											<Line
 												key={teamKey}
 												type="monotone"
-												dataKey={`${teamKey}_division`}
+												dataKey={dataKey}
 												stroke={teamColors[actualIndex]}
 												strokeWidth={2}
 											dot={(props: any) => {
 												// Only show dot if value is not null/undefined
-												if (props.payload[`${teamKey}_division`] === null || props.payload[`${teamKey}_division`] === undefined) {
-													return <g />;
+												if (props.payload[checkKey] === null || props.payload[checkKey] === undefined) {
+													return <g key={`empty-${teamKey}-${props.payload.season || props.index || ''}`} />;
 												}
-												return <circle cx={props.cx} cy={props.cy} r={4} fill={teamColors[actualIndex]} />;
+												// Create unique key from teamKey and season
+												const uniqueKey = `dot-${teamKey}-${props.payload.season || props.index || ''}`;
+												return <circle key={uniqueKey} cx={props.cx} cy={props.cy} r={4} fill={teamColors[actualIndex]} />;
 											}}
 												activeDot={{ r: 6 }}
 												connectNulls={true}
