@@ -730,21 +730,18 @@ export default function PlayersOfMonth() {
 											<td colSpan={3} className='p-0 relative'>
 												<div className='flex flex-col'>
 													<div className='flex items-center py-2 px-2'>
-														<div className='w-1/12 text-xs md:text-sm'>{player.rank}</div>
-														<div className='flex-1 text-xs md:text-sm'>{player.playerName}</div>
-														<div className='w-1/12 text-center text-xs md:text-sm font-bold'>{Math.round(player.ftpScore)}</div>
+														<div className='w-1/12 text-base md:text-lg'>{player.rank}</div>
+														<div className='flex-1 text-base md:text-lg'>{player.playerName}</div>
+														<div className='w-1/12 text-center text-base md:text-lg font-bold'>{Math.round(player.ftpScore)}</div>
 													</div>
 													{stats && (
 														<div className='py-1 px-2 pl-6 md:pl-8 pb-4'>
-															<div className='flex flex-wrap gap-x-4 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
-																{stats.appearances > 0 && <span>Apps: <span className='text-white font-semibold'>{stats.appearances}</span></span>}
-																{stats.goals > 0 && <span>Goals: <span className='text-white font-semibold'>{stats.goals}</span></span>}
-																{stats.assists > 0 && <span>Assists: <span className='text-white font-semibold'>{stats.assists}</span></span>}
-																{stats.cleanSheets > 0 && <span>Clean Sheets: <span className='text-white font-semibold'>{stats.cleanSheets}</span></span>}
-																{stats.mom > 0 && <span>MoM: <span className='text-white font-semibold'>{stats.mom}</span></span>}
-																{stats.saves > 0 && <span>Saves: <span className='text-white font-semibold'>{stats.saves}</span></span>}
-																{stats.penaltiesScored > 0 && <span>Pen Scored: <span className='text-white font-semibold'>{stats.penaltiesScored}</span></span>}
-																{stats.penaltiesSaved > 0 && <span>Pen Saved: <span className='text-white font-semibold'>{stats.penaltiesSaved}</span></span>}
+															<div className='flex flex-nowrap gap-x-2 md:gap-x-3 gap-y-1 text-[0.6rem] md:text-[0.7rem] text-gray-300 justify-end pl-3 md:pl-4'>
+																<span>Apps: <span className='text-white font-semibold'>{stats.appearances}</span></span>
+																<span>MoM: <span className='text-white font-semibold'>{stats.mom}</span></span>
+																<span>Goals: <span className='text-white font-semibold'>{stats.goals}</span></span>
+																<span>Assists: <span className='text-white font-semibold'>{stats.assists}</span></span>
+																<span>Clean Sheets: <span className='text-white font-semibold'>{stats.cleanSheets}</span></span>
 															</div>
 														</div>
 													)}
