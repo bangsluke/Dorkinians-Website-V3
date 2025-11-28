@@ -232,8 +232,11 @@ export default function PlayersOfMonth() {
 		console.log(`[PlayersOfMonth] Month data fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", isMonthValidating: ${isMonthValidating}, isMonthValidatingRef: ${isMonthValidatingRef.current}`);
 		
 		if (!selectedSeason) {
+			// Ensure loading state is maintained when clearing data
 			setPlayers([]);
 			setPlayerStats({});
+			setLoading(true);
+			setLoadingStats(true);
 			console.log(`[PlayersOfMonth] Skipping data fetch - no season selected`);
 			return;
 		}
@@ -241,8 +244,11 @@ export default function PlayersOfMonth() {
 		// Wait for month validation to complete before proceeding (check both state and ref)
 		if (isMonthValidating || isMonthValidatingRef.current) {
 			console.log(`[PlayersOfMonth] Month validation in progress (state: ${isMonthValidating}, ref: ${isMonthValidatingRef.current}). Waiting...`);
+			// Maintain loading state while validating
 			setPlayers([]);
 			setPlayerStats({});
+			setLoading(true);
+			setLoadingStats(true);
 			return;
 		}
 
@@ -257,8 +263,11 @@ export default function PlayersOfMonth() {
 		// If months aren't loaded yet, wait
 		if (!availableMonths || availableMonths.length === 0) {
 			console.log(`[PlayersOfMonth] Months not yet loaded for season ${selectedSeason}. Waiting...`);
+			// Maintain loading state while waiting for months
 			setPlayers([]);
 			setPlayerStats({});
+			setLoading(true);
+			setLoadingStats(true);
 			return;
 		}
 
@@ -274,6 +283,9 @@ export default function PlayersOfMonth() {
 			// Update the state to the correct month
 			if (selectedMonth !== monthToUse) {
 				console.log(`[PlayersOfMonth] Updating selectedMonth from "${selectedMonth}" to "${monthToUse}" and returning early`);
+				// Maintain loading state during month correction
+				setLoading(true);
+				setLoadingStats(true);
 				setSelectedMonth(monthToUse);
 				// Return early - this effect will run again with the updated month
 				return;
@@ -281,8 +293,11 @@ export default function PlayersOfMonth() {
 		}
 
 		if (!monthToUse) {
+			// No valid month - clear data but maintain loading state
 			setPlayers([]);
 			setPlayerStats({});
+			setLoading(true);
+			setLoadingStats(true);
 			console.log(`[PlayersOfMonth] Skipping data fetch - no valid month for season ${selectedSeason}`);
 			return;
 		}
@@ -290,15 +305,24 @@ export default function PlayersOfMonth() {
 		// Double-check that the month is still valid (in case validation just completed)
 		if (!availableMonths.includes(monthToUse)) {
 			console.log(`[PlayersOfMonth] Month "${monthToUse}" is not in available months. This should not happen. Waiting for correction...`);
+			// Maintain loading state while waiting for correction
 			setPlayers([]);
 			setPlayerStats({});
+			setLoading(true);
+			setLoadingStats(true);
 			return;
 		}
 
 		console.log(`[PlayersOfMonth] Displaying data for season: ${selectedSeason}, month: ${monthToUse}`);
 
+		// Set loading state immediately when fetching new data
+		// This must happen BEFORE clearing players to prevent flashing
+		setLoading(true);
+		setLoadingStats(true);
+
 		// Clear player stats and players when month/season changes to force refresh
 		// Clear players first to prevent stats fetch from using stale data
+		// React will batch these updates, but loading=true ensures spinner shows
 		setPlayers([]);
 		setPlayerStats({});
 		setExpandedPlayers(new Set()); // Also collapse any expanded players
@@ -306,16 +330,18 @@ export default function PlayersOfMonth() {
 		const cachedMonthData = getCachedPOMMonthData(selectedSeason, monthToUse);
 		if (cachedMonthData) {
 			console.log(`[PlayersOfMonth] Using cached data for ${monthToUse} ${selectedSeason}`);
+			// Ensure loading state is maintained - stats still need to be fetched
+			setLoading(true);
+			setLoadingStats(true);
 			// Set players after clearing to ensure stats fetch uses correct data
 			setPlayers(cachedMonthData.players);
 			// Ensure fetching flag is cleared so stats can load
 			setIsFetchingMonthData(false);
-			// Don't set loading to false here - let the stats fetching effect handle it
+			// Loading state will be cleared by the loading check effect when stats are ready
 			return;
 		}
 
-		// Set loading state immediately when month changes
-		setLoading(true);
+		// Loading state already set above, just set fetching flag
 		setIsFetchingMonthData(true);
 
 		const fetchMonthData = async () => {
@@ -355,11 +381,25 @@ export default function PlayersOfMonth() {
 		const playerNames = players.map(p => p.playerName).join(", ");
 		console.log(`[PlayersOfMonth] Stats fetch effect triggered. Season: "${selectedSeason}", Month: "${selectedMonth}", players: ${players.length} [${playerNames}], isFetchingMonthData: ${isFetchingMonthData}`);
 		
-		if (!selectedSeason || !selectedMonth || players.length === 0) {
-			setLoadingStats(false);
-			if (players.length === 0 && !isFetchingMonthData) {
-				setLoading(false);
-			}
+		// If we're still fetching month data, maintain loading state and wait
+		if (isFetchingMonthData) {
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+		
+		if (!selectedSeason || !selectedMonth) {
+			// No season/month selected - maintain loading state
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+		
+		if (players.length === 0) {
+			// No players yet - maintain loading state until we know if there are any
+			// The loading check effect will clear it if month data fetch is complete
+			setLoading(true);
+			setLoadingStats(true);
 			return;
 		}
 
@@ -433,32 +473,70 @@ export default function PlayersOfMonth() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [players, selectedSeason, selectedMonth, isFetchingMonthData]);
 
-	// Check if all stats are loaded
+	// Check if all stats are loaded - this is the ONLY place that clears loading state
 	useEffect(() => {
 		// Only check if we have a season and month selected (meaning we've attempted a fetch)
 		if (!selectedSeason || !selectedMonth) {
+			// No selection - keep loading
+			setLoading(true);
+			setLoadingStats(true);
 			return;
 		}
 
-		if (players.length === 0 && !isFetchingMonthData) {
-			// Only set loading to false if we've actually attempted to fetch and it's complete
-			// Use a small delay to ensure the fetch has completed
-			const timer = setTimeout(() => {
-				setLoadingStats(false);
-				setLoading(false);
-			}, 100);
-			return () => clearTimeout(timer);
+		// If we're still fetching month data, keep loading state true
+		if (isFetchingMonthData) {
+			setLoading(true);
+			setLoadingStats(true);
+			return;
 		}
 
-		const allStatsLoaded = players.length === 5 && players.every((player) => {
+		// If we're still validating month, keep loading state true
+		if (isMonthValidating || isMonthValidatingRef.current) {
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+
+		// Check if months are loaded for this season
+		const cachedMonths = getCachedPOMMonths(selectedSeason);
+		if (!cachedMonths || cachedMonths.length === 0) {
+			// Months not loaded yet - keep loading
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+
+		// Verify month is valid
+		if (!selectedMonth || !cachedMonths.includes(selectedMonth)) {
+			// Invalid month - keep loading until corrected
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+
+		if (players.length === 0) {
+			// No players found - only clear loading if month data fetch is complete
+			// This means we've tried to fetch and got no results
+			setLoadingStats(false);
+			setLoading(false);
+			return;
+		}
+
+		// Check if all stats are loaded for all players
+		const allStatsLoaded = players.length > 0 && players.every((player) => {
 			return playerStats[player.playerName] !== undefined;
 		});
 
 		if (allStatsLoaded) {
+			// All data is ready - clear loading state
 			setLoadingStats(false);
 			setLoading(false);
+		} else {
+			// Stats still loading - maintain loading state
+			setLoading(true);
+			setLoadingStats(true);
 		}
-	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData]);
+	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
 
 	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
@@ -756,7 +834,13 @@ export default function PlayersOfMonth() {
 			{!isInitialLoading && (
 				<div className='flex flex-row gap-4 mb-6'>
 					<div className='w-1/3 md:w-1/2'>
-						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+						<Listbox value={selectedSeason} onChange={(newSeason) => {
+							console.log(`[PlayersOfMonth] User selected season: "${newSeason}"`);
+							// Set loading state immediately when season changes
+							setLoading(true);
+							setLoadingStats(true);
+							setSelectedSeason(newSeason);
+						}}>
 							<div className='relative'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
@@ -788,6 +872,9 @@ export default function PlayersOfMonth() {
 					<div className='flex-1 md:w-1/2'>
 						<Listbox value={selectedMonth} onChange={(newMonth) => {
 							console.log(`[PlayersOfMonth] User selected month: "${newMonth}"`);
+							// Set loading state immediately when month changes
+							setLoading(true);
+							setLoadingStats(true);
 							// Clear validation state when user manually changes month
 							validatedMonthRef.current = null;
 							isMonthValidatingRef.current = false;
@@ -1015,8 +1102,8 @@ export default function PlayersOfMonth() {
 				</div>
 			)}
 
-			{/* Empty State */}
-			{!loading && !loadingStats && players.length === 0 && selectedSeason && selectedMonth && !isFetchingMonthData && (
+			{/* Empty State - Only show when loading is complete and no players found */}
+			{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
 				<div className='text-center py-8 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
 				</div>
