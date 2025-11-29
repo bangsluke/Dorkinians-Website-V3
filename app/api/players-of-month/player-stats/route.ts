@@ -8,6 +8,10 @@ const corsHeaders = {
 	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+const monthNames = [
+	"January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December"
+];
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -35,12 +39,18 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// Combine season and month into format "season-month" (e.g., "2025/26-October")
-		const seasonMonth = `${season}-${month}`;
+		// Find month index
+		const monthIndex = monthNames.findIndex((m) => m.toLowerCase() === month.toLowerCase());
+		if (monthIndex === -1) {
+			return NextResponse.json({ error: "Invalid month name" }, { status: 400, headers: corsHeaders });
+		}
 
-		// Fetch all MatchDetail nodes for the player matching the seasonMonth value
+		// Fetch all matches for the player in the season, then filter by month
+		// Use seasonMonth property as primary filter (format: "2023/24-January")
+		const seasonMonthPattern = `${season}-${month}`;
 		const query = `
-			MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonMonth: $seasonMonth})
+			MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, season: $season})
+			WHERE md.date IS NOT NULL
 			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[r:HAS_MATCH_DETAILS]->(md)
 			RETURN md, f.fullResult as matchSummary, f.opposition as opposition, f.result as result
 			ORDER BY md.date ASC
@@ -49,10 +59,11 @@ export async function GET(request: NextRequest) {
 		const queryResult = await neo4jService.runQuery(query, {
 			graphLabel,
 			playerName,
-			seasonMonth,
+			season,
 		});
 
-		const matchDetails = queryResult.records.map((record) => {
+		// Map records
+		const allMatchDetails = queryResult.records.map((record) => {
 			const mdNode = record.get("md");
 			const properties = mdNode.properties;
 			const matchSummary = record.get("matchSummary");
@@ -63,6 +74,7 @@ export async function GET(request: NextRequest) {
 				team: String(properties.team || ""),
 				playerName: String(properties.playerName || ""),
 				date: String(properties.date || ""),
+				seasonMonth: String(properties.seasonMonth || ""),
 				min: Number(properties.min || properties.minutes || 0),
 				class: String(properties.class || ""),
 				mom: Boolean(properties.mom || false),
@@ -82,6 +94,58 @@ export async function GET(request: NextRequest) {
 				opposition: opposition ? String(opposition) : null,
 				result: result ? String(result) : null,
 			};
+		});
+
+		// Filter by month - use seasonMonth if available, otherwise parse date as fallback
+		const matchDetails = allMatchDetails.filter((md: any) => {
+			// Primary: use seasonMonth property if available and it matches
+			if (md.seasonMonth && md.seasonMonth === seasonMonthPattern) {
+				return true;
+			}
+			
+			// Fallback: parse date if seasonMonth doesn't match or is not set
+			if (!md.date) return false;
+			
+			const dateStr = String(md.date);
+			let date: Date | null = null;
+			
+			// Try to parse the date string
+			if (dateStr.includes("T")) {
+				date = new Date(dateStr);
+			} else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+				// YYYY-MM-DD format
+				date = new Date(dateStr + "T00:00:00");
+			} else if (dateStr.includes("/")) {
+				// Handle DD/MM/YY or DD/MM/YYYY format
+				const parts = dateStr.split("/");
+				if (parts.length === 3) {
+					const first = parseInt(parts[0], 10);
+					const second = parseInt(parts[1], 10);
+					let year = parseInt(parts[2], 10);
+					// Handle 2-digit years
+					if (year < 100) {
+						year = year + 2000; // Assume 2000s
+					}
+					// Determine format: if first part > 12, it's definitely DD/MM
+					// Otherwise, assume DD/MM format (as per user's data)
+					if (first > 12) {
+						// DD/MM format: first is day, second is month
+						date = new Date(year, second - 1, first);
+					} else {
+						// Assume DD/MM format (first could be day or month, but data suggests DD/MM)
+						date = new Date(year, second - 1, first);
+					}
+				}
+			} else {
+				date = new Date(dateStr);
+			}
+			
+			if (!date || isNaN(date.getTime())) {
+				return false;
+			}
+			
+			// Check if the month matches (JavaScript months are 0-indexed)
+			return date.getMonth() === monthIndex;
 		});
 
 		// Calculate aggregated stats

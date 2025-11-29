@@ -23,6 +23,7 @@ export interface LeagueTableEntry {
 export interface TeamLeagueData {
 	division: string;
 	url: string;
+	lastUpdated?: string;
 	table: LeagueTableEntry[];
 }
 
@@ -204,6 +205,7 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 				teams[teamKey] = {
 					division: division,
 					url: url || '',
+					lastUpdated: lastUpdated ? lastUpdated.toString() : undefined,
 					table: entries.map((entry: any) => ({
 						position: entry.position?.toNumber?.() ?? entry.position ?? 0,
 						team: entry.team ?? '',

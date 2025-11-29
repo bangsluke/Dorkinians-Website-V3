@@ -67,12 +67,15 @@ export async function GET(request: NextRequest) {
 		const mostRecentDateResult = await neo4jService.runQuery(mostRecentDateQuery, { graphLabel });
 		const mostRecentDateStr = mostRecentDateResult.records[0]?.get("mostRecentDate");
 		
-		// Calculate 5 weeks (35 days) back from the most recent match date
-		let cutoffDate: Date | null = null;
+		// Calculate cutoffs: 5 weeks for Apps, 1 year for Goals/Assists/MoMs
+		let cutoffDate5Weeks: Date | null = null;
+		let cutoffDate1Year: Date | null = null;
 		if (mostRecentDateStr) {
 			const mostRecentDate = new Date(String(mostRecentDateStr));
-			cutoffDate = new Date(mostRecentDate);
-			cutoffDate.setDate(cutoffDate.getDate() - 35); // 5 weeks = 35 days
+			cutoffDate5Weeks = new Date(mostRecentDate);
+			cutoffDate5Weeks.setDate(cutoffDate5Weeks.getDate() - 35); // 5 weeks = 35 days
+			cutoffDate1Year = new Date(mostRecentDate);
+			cutoffDate1Year.setFullYear(cutoffDate1Year.getFullYear() - 1); // 1 year
 		}
 
 		// Query all players with their stats and match details ordered by date
@@ -158,8 +161,14 @@ export async function GET(request: NextRequest) {
 			});
 		}
 
-		// Define milestones and stat types
-		const milestones = [50, 100, 150, 200, 250, 300];
+		// Define milestones per stat type
+		const milestonesByStatType: { [key: string]: number[] } = {
+			appearances: [50, 100, 150, 200, 250, 300], // Apps: only standard milestones
+			goals: [10, 25, 50, 100, 150, 200, 250, 300], // Goals: includes 10 and 25
+			assists: [10, 25, 50, 100, 150, 200, 250, 300], // Assists: includes 10 and 25
+			mom: [10, 25, 50, 100, 150, 200, 250, 300], // MoMs: includes 10 and 25
+		};
+
 		const statTypes = [
 			{ key: "appearances", label: "Apps" },
 			{ key: "goals", label: "Goals" },
@@ -169,6 +178,9 @@ export async function GET(request: NextRequest) {
 
 		const achieved: MilestoneEntry[] = [];
 		const nearing: MilestoneEntry[] = [];
+		
+		// Track closest players to each milestone (even outside window) - key: "statType-milestone"
+		const closestToMilestone: { [key: string]: MilestoneEntry | null } = {};
 
 		// Process each player
 		for (const player of players) {
@@ -178,25 +190,73 @@ export async function GET(request: NextRequest) {
 					? player.matchDetails[player.matchDetails.length - 1]?.date
 					: undefined;
 
-			// Filter: Only include players who have played in the past 5 weeks
-			if (!mostRecentMatchDate || !cutoffDate) {
-				continue; // Skip players with no match date or if we couldn't determine cutoff
-			}
-
-			const playerMostRecentDate = new Date(mostRecentMatchDate);
-			if (playerMostRecentDate < cutoffDate) {
-				continue; // Skip players who haven't played in the past 5 weeks
-			}
-
-			// Check each stat type
+			// Check each stat type for closest player tracking (all players, not just recent)
 			for (const statType of statTypes) {
 				const currentValue = player[statType.key as keyof typeof player] as number;
 				const statKey = statType.key;
 
-				// Check each milestone
+				// Get milestones for this specific stat type
+				const milestones = milestonesByStatType[statKey] || [];
+
+				// Check each milestone to track closest player (even outside window)
 				for (const milestone of milestones) {
+					// Only track players who haven't reached the milestone yet
+					if (currentValue < milestone) {
+						const distance = milestone - currentValue;
+						const key = `${statType.label}-${milestone}`;
+						
+						// Track closest player to this milestone
+						if (!closestToMilestone[key] || distance < closestToMilestone[key]!.distanceFromMilestone) {
+							closestToMilestone[key] = {
+								playerName: player.playerName,
+								statType: statType.label,
+								milestone,
+								currentValue,
+								distanceFromMilestone: distance,
+								mostRecentMatchDate: mostRecentMatchDate || undefined,
+							};
+						}
+					}
+				}
+			}
+
+			// Check each stat type for achieved/nearing with appropriate activity window
+			for (const statType of statTypes) {
+				const currentValue = player[statType.key as keyof typeof player] as number;
+				const statKey = statType.key;
+
+				// Determine activity cutoff based on stat type
+				// Apps: 5 weeks, Goals/Assists/MoMs: 1 year
+				const isSingleStat = statKey === "goals" || statKey === "assists" || statKey === "mom";
+				const cutoffDate = isSingleStat ? cutoffDate1Year : cutoffDate5Weeks;
+
+				// Filter: Only include players who have played within the appropriate window
+				if (!mostRecentMatchDate || !cutoffDate) {
+					continue; // Skip players with no match date or if we couldn't determine cutoff
+				}
+
+				const playerMostRecentDate = new Date(mostRecentMatchDate);
+				if (playerMostRecentDate < cutoffDate) {
+					continue; // Skip players who haven't played within the appropriate window
+				}
+
+				// Get milestones for this specific stat type (process in descending order to prioritize higher milestones)
+				const milestones = milestonesByStatType[statKey] || [];
+				const milestonesDescending = [...milestones].sort((a, b) => b - a);
+
+				// Track if player has been added for this stat type (separate flags for achieved and nearing)
+				let playerAddedToAchieved = false;
+				let playerAddedToNearing = false;
+
+				// Check each milestone (highest first)
+				for (const milestone of milestonesDescending) {
+					// Skip achieved check if player already added to achieved for this stat type
+					// Skip nearing check if player already added to nearing for this stat type
+					// But allow player to appear in both lists
+
 					// Check if achieved (milestone to milestone + 4)
-					if (currentValue >= milestone && currentValue <= milestone + 4) {
+					// Only check if player hasn't been added to achieved yet
+					if (!playerAddedToAchieved && currentValue >= milestone && currentValue <= milestone + 4) {
 						achieved.push({
 							playerName: player.playerName,
 							statType: statType.label,
@@ -205,10 +265,14 @@ export async function GET(request: NextRequest) {
 							distanceFromMilestone: currentValue - milestone,
 							mostRecentMatchDate: mostRecentMatchDate || undefined,
 						});
+						playerAddedToAchieved = true;
 					}
 
-					// Check if nearing (milestone - 5 to milestone - 1)
-					if (currentValue >= milestone - 5 && currentValue < milestone) {
+					// Check if nearing - use wider window (15) for Goals, Assists, and MoMs; 5 for Apps
+					// Only check if player hasn't been added to nearing yet
+					const nearingWindow = statKey === "appearances" ? 5 : 15;
+					const qualifiesForNearing = !playerAddedToNearing && currentValue >= milestone - nearingWindow && currentValue < milestone;
+					if (qualifiesForNearing) {
 						nearing.push({
 							playerName: player.playerName,
 							statType: statType.label,
@@ -217,6 +281,7 @@ export async function GET(request: NextRequest) {
 							distanceFromMilestone: milestone - currentValue,
 							mostRecentMatchDate: mostRecentMatchDate || undefined,
 						});
+						playerAddedToNearing = true;
 					}
 				}
 			}
@@ -238,50 +303,102 @@ export async function GET(request: NextRequest) {
 			}
 		};
 
-		// Sort achieved by: highest milestone first, then stat type priority, then proximity to milestone
+		// Sort achieved by: highest milestone first, then proximity to milestone
 		achieved.sort((a, b) => {
 			// First sort by milestone (highest first - descending: 300, 250, 200, 150, 100, 50)
 			if (a.milestone !== b.milestone) {
 				return b.milestone - a.milestone; // Highest milestone first
 			}
 
-			// Then by stat type priority (MoM > Goals > Assists > Apps)
-			const statPriorityA = getStatTypePriority(a.statType);
-			const statPriorityB = getStatTypePriority(b.statType);
-			if (statPriorityA !== statPriorityB) {
-				return statPriorityB - statPriorityA; // Higher priority first
-			}
-
-			// Finally by proximity to milestone (nearest first - ascending distance)
+			// Then by proximity to milestone (nearest first - ascending distance)
 			return a.distanceFromMilestone - b.distanceFromMilestone;
 		});
 
-		// Sort nearing by: highest milestone first, then stat type priority, then proximity to milestone
+		// Sort nearing by: highest milestone first, then proximity to milestone
 		nearing.sort((a, b) => {
 			// First sort by milestone (highest first - descending: 300, 250, 200, 150, 100, 50)
 			if (a.milestone !== b.milestone) {
 				return b.milestone - a.milestone; // Highest milestone first (descending)
 			}
 
-			// Then by stat type priority (MoM > Goals > Assists > Apps)
-			const statPriorityA = getStatTypePriority(a.statType);
-			const statPriorityB = getStatTypePriority(b.statType);
-			if (statPriorityA !== statPriorityB) {
-				return statPriorityB - statPriorityA; // Higher priority first
-			}
-
-			// Finally by proximity to milestone (nearest first - ascending distance)
+			// Then by proximity to milestone (nearest first - ascending distance)
 			return a.distanceFromMilestone - b.distanceFromMilestone;
 		});
 
-		// Limit to top 5 per category
-		const topAchieved = achieved.slice(0, 5);
-		const topNearing = nearing.slice(0, 5);
+		// Limit to top 5 per stat type (not globally)
+		// For single stats (Goals, Assists, MoMs): separate lists for achieved and nearing, each with top 5
+		// For Apps: keep existing logic
+		const achievedByStatType: { [key: string]: MilestoneEntry[] } = {};
+		const nearingByStatType: { [key: string]: MilestoneEntry[] } = {};
+
+		// Group by stat type
+		for (const entry of achieved) {
+			if (!achievedByStatType[entry.statType]) {
+				achievedByStatType[entry.statType] = [];
+			}
+			achievedByStatType[entry.statType].push(entry);
+		}
+
+		for (const entry of nearing) {
+			if (!nearingByStatType[entry.statType]) {
+				nearingByStatType[entry.statType] = [];
+			}
+			nearingByStatType[entry.statType].push(entry);
+		}
+
+		// Sort each stat type's lists and take top 5
+		// For achieved: prioritize by milestone (highest first), then proximity
+		// This ensures we show the highest milestones achieved, but if there are players at the 10 milestone,
+		// they'll appear if they're in the top 5 for that stat type
+		for (const statType in achievedByStatType) {
+			achievedByStatType[statType].sort((a, b) => {
+				// Sort by milestone (highest first), then proximity
+				if (a.milestone !== b.milestone) {
+					return b.milestone - a.milestone;
+				}
+				return a.distanceFromMilestone - b.distanceFromMilestone;
+			});
+			achievedByStatType[statType] = achievedByStatType[statType].slice(0, 5);
+		}
+
+		for (const statType in nearingByStatType) {
+			nearingByStatType[statType].sort((a, b) => {
+				// Sort by milestone (highest first), then proximity
+				if (a.milestone !== b.milestone) {
+					return b.milestone - a.milestone;
+				}
+				return a.distanceFromMilestone - b.distanceFromMilestone;
+			});
+			nearingByStatType[statType] = nearingByStatType[statType].slice(0, 5);
+		}
+
+		// Flatten back to arrays (top 5 per stat type for each list)
+		const topAchieved = Object.values(achievedByStatType).flat();
+		const topNearing = Object.values(nearingByStatType).flat();
+
+		// Sort globally for "Show All" view (by milestone highest first, then proximity)
+		topAchieved.sort((a, b) => {
+			if (a.milestone !== b.milestone) {
+				return b.milestone - a.milestone;
+			}
+			return a.distanceFromMilestone - b.distanceFromMilestone;
+		});
+
+		topNearing.sort((a, b) => {
+			if (a.milestone !== b.milestone) {
+				return b.milestone - a.milestone;
+			}
+			return a.distanceFromMilestone - b.distanceFromMilestone;
+		});
+
+		// Convert closestToMilestone object to array
+		const closestPlayers = Object.values(closestToMilestone).filter((entry): entry is MilestoneEntry => entry !== null);
 
 		return NextResponse.json(
 			{
 				achieved: topAchieved,
 				nearing: topNearing,
+				closestToMilestone: closestPlayers,
 			},
 			{ headers: corsHeaders }
 		);
