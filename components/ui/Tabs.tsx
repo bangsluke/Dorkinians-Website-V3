@@ -50,7 +50,11 @@ export default function Tabs({ tabs, defaultTab, storageKey }: TabsProps) {
 			</div>
 
 			{/* Tab Content */}
-			<div className='flex-1 overflow-y-auto min-h-0'>{activeTabContent}</div>
+			<div 
+				className='flex-1 overflow-y-auto min-h-0'
+				style={{ WebkitOverflowScrolling: 'touch' }}>
+				{activeTabContent}
+			</div>
 		</div>
 	);
 }
