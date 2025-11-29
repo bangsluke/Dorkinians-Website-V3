@@ -432,7 +432,9 @@ export default function ChatbotInterface() {
 
 						{/* Show past conversations or example questions based on toggle */}
 						{!showExampleQuestions ? (
-							<div className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2 flex flex-col items-center'>
+							<div 
+								className='space-y-2 md:space-y-3 overflow-y-auto max-h-48 md:max-h-60 pr-2 flex flex-col items-center'
+								style={{ WebkitOverflowScrolling: 'touch' }}>
 								{conversationHistory
 									.slice(-3)
 									.reverse()
