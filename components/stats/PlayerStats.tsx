@@ -1970,7 +1970,9 @@ export default function PlayerStats() {
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
-			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'>
+			<div 
+				className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
+				style={{ WebkitOverflowScrolling: 'touch' }}>
 				{chartContent}
 				{dataTableContent}
 				<div className='h-4'></div>
