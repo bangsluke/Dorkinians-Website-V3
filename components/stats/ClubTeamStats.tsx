@@ -8,7 +8,6 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
-import TouchDelayedTooltip from "@/components/charts/TouchDelayedTooltip";
 
 
 interface TopPlayer {
@@ -627,7 +626,7 @@ export default function ClubTeamStats() {
 													<Cell key={`cell-${index}`} fill={entry.color} />
 												))}
 											</Pie>
-											<TouchDelayedTooltip content={customTooltip} />
+											<Tooltip content={customTooltip} />
 											<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
 											</PieChart>
 										</ResponsiveContainer>
@@ -643,7 +642,7 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<TouchDelayedTooltip content={customTooltip} />
+												<Tooltip content={customTooltip} />
 												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>
@@ -659,7 +658,7 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<TouchDelayedTooltip content={customTooltip} />
+												<Tooltip content={customTooltip} />
 												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>
@@ -675,7 +674,7 @@ export default function ClubTeamStats() {
 												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 												<YAxis stroke='#fff' fontSize={12} />
-												<TouchDelayedTooltip content={customTooltip} />
+												<Tooltip content={customTooltip} />
 												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 											</BarChart>
 										</ResponsiveContainer>

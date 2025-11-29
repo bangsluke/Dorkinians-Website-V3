@@ -10,7 +10,6 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
-import TouchDelayedTooltip from "@/components/charts/TouchDelayedTooltip";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1632,7 +1631,7 @@ export default function PlayerStats() {
 									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 									<YAxis stroke='#fff' fontSize={12} />
-									<TouchDelayedTooltip content={customTooltip} />
+									<Tooltip content={customTooltip} />
 									<Bar 
 										dataKey='value' 
 										fill='#f9ed32' 
@@ -1707,7 +1706,7 @@ export default function PlayerStats() {
 								<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 								<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 								<YAxis stroke='#fff' fontSize={12} />
-								<TouchDelayedTooltip content={customTooltip} />
+								<Tooltip content={customTooltip} />
 								<Bar
 										dataKey='value' 
 										fill='#f9ed32' 

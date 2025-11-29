@@ -9,7 +9,6 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import LeagueResultsModal from "./LeagueResultsModal";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
-import TouchDelayedTooltip from "@/components/charts/TouchDelayedTooltip";
 
 interface LeagueTableEntry {
 	position: number;
@@ -1318,7 +1317,7 @@ export default function LeagueInformation() {
 									tickLine={false}
 									interval={0}
 								/>
-								<TouchDelayedTooltip content={<CustomTooltip />} />
+								<Tooltip content={<CustomTooltip />} />
 								<Legend 
 									wrapperStyle={{ 
 										paddingTop: "10px",

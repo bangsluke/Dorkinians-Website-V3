@@ -2,7 +2,6 @@
 
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import TouchDelayedTooltip from "@/components/charts/TouchDelayedTooltip";
 
 interface RecordProps {
 	visualization: ChatbotResponse["visualization"];
@@ -65,7 +64,7 @@ export default function Record({ visualization }: RecordProps) {
 						height={60}
 					/>
 					<YAxis stroke='#f3f3f3' fontSize={12} width={30} />
-					<TouchDelayedTooltip content={<CustomTooltip />} />
+					<Tooltip content={<CustomTooltip />} />
 					<Bar
 						dataKey='value'
 						radius={[4, 4, 0, 0]}
