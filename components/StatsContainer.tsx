@@ -36,7 +36,9 @@ export default function StatsContainer() {
 		const swipeThreshold = 50;
 		const { offset } = info;
 
-		if (Math.abs(offset.x) > swipeThreshold) {
+		// Only trigger if horizontal movement is significantly greater than vertical
+		// and exceeds threshold
+		if (Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(offset.x) > swipeThreshold) {
 			if (offset.x > 0) {
 				// Swiped right - go to previous page
 				previousStatsSubPage();
@@ -75,8 +77,12 @@ export default function StatsContainer() {
 					transition={{ duration: 0.2 }}
 					drag='x'
 					dragConstraints={{ left: 0, right: 0 }}
+					dragElastic={0.1}
 					onDragEnd={handleDragEnd}
-					style={{ position: 'relative' }}
+					style={{ 
+						position: 'relative',
+						touchAction: 'pan-y pinch-zoom'
+					}}
 					className='h-full'>
 					{currentPage ? React.createElement(currentPage.component) : null}
 				</motion.div>

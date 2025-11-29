@@ -581,7 +581,9 @@ export default function ClubTeamStats() {
 					</div>
 				</div>
 			) : (
-				<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'>
+				<div 
+					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
+					style={{ WebkitOverflowScrolling: 'touch' }}>
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>

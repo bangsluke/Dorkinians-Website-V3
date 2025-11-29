@@ -275,7 +275,12 @@ export default function HomePage() {
 				{/* Main Content */}
 				<main className='main-content-container'>
 					<div className='frosted-container'>
-						<div className='h-full overflow-y-auto'>
+						<div 
+							className='h-full overflow-y-auto'
+							style={{ 
+								WebkitOverflowScrolling: 'touch',
+								touchAction: 'pan-y'
+							}}>
 							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
 						</div>
 					</div>
