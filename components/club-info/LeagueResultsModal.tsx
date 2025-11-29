@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 interface LeagueResultsModalProps {
@@ -26,7 +27,10 @@ interface Fixture {
 	awayScore: number;
 	dorkiniansGoals: number;
 	conceded: number;
+	compType: string;
+	oppoOwnGoals: number;
 	goalscorers: Goalscorer[];
+	momPlayerName: string | null;
 }
 
 export default function LeagueResultsModal({
@@ -86,16 +90,37 @@ export default function LeagueResultsModal({
 	};
 
 	// Format goalscorers for display
-	const formatGoalscorers = (goalscorers: Goalscorer[]): string => {
-		if (!goalscorers || goalscorers.length === 0) return "No goalscorers recorded";
-		return goalscorers
-			.map((g) => {
-				if (g.goals === 1) {
-					return g.playerName;
+	const formatGoalscorers = (goalscorers: Goalscorer[] | undefined, oppoOwnGoals: number = 0): string => {
+		const parts: string[] = [];
+		
+		// Add regular goalscorers
+		if (goalscorers && Array.isArray(goalscorers) && goalscorers.length > 0) {
+			const validGoalscorers = goalscorers.filter((g) => g && g.playerName);
+			validGoalscorers.forEach((g) => {
+				if (g.playerName) {
+					if (g.goals === 1) {
+						parts.push(g.playerName);
+					} else {
+						parts.push(`${g.playerName} (${g.goals})`);
+					}
 				}
-				return `${g.playerName} (${g.goals})`;
-			})
-			.join(", ");
+			});
+		}
+		
+		// Add opponent own goal if it exists
+		if (oppoOwnGoals > 0) {
+			if (oppoOwnGoals === 1) {
+				parts.push("Opponent Own Goal");
+			} else {
+				parts.push(`Opponent Own Goal (${oppoOwnGoals})`);
+			}
+		}
+		
+		if (parts.length === 0) {
+			return "No goalscorers recorded";
+		}
+		
+		return parts.join(", ");
 	};
 
 	// Format result for display
@@ -117,13 +142,17 @@ export default function LeagueResultsModal({
 		onClose();
 	};
 
-	return (
+	if (typeof window === 'undefined') {
+		return null;
+	}
+
+	const modalContent = (
 		<AnimatePresence>
 			{isOpen && (
 				<>
 					{/* Backdrop */}
 					<motion.div
-						className='fixed inset-0 bg-black/50 z-40'
+						className='fixed inset-0 bg-black/50 z-[9999]'
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
@@ -132,7 +161,7 @@ export default function LeagueResultsModal({
 
 					{/* Full-screen modal */}
 					<motion.div
-						className='fixed inset-0 h-full w-full z-50 shadow-xl'
+						className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
 						style={{ backgroundColor: '#0f0f0f' }}
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -176,30 +205,54 @@ export default function LeagueResultsModal({
 										{fixtures.map((fixture, index) => (
 											<div
 												key={index}
-												className='bg-gray-800/50 rounded-lg p-4 border border-white/10'>
-												<div className='flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2'>
-													<div className='flex items-center gap-3'>
-														<span className='text-sm text-gray-400'>{formatDate(fixture.date)}</span>
+												className='bg-gray-800/50 rounded-lg p-4 border border-white/10 relative'>
+												{/* Labels in top right */}
+												<div className='absolute top-4 right-4 flex gap-2 items-center'>
+													{fixture.compType && (
 														<span
 															className={`px-2 py-1 rounded text-xs font-medium ${
-																fixture.homeOrAway?.toLowerCase() === "home"
-																	? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
-																	: "bg-gray-700 text-gray-300"
+																fixture.compType?.toLowerCase() === "league"
+																	? "bg-blue-600/30 text-blue-300"
+																	: fixture.compType?.toLowerCase() === "cup"
+																	? "bg-purple-600/30 text-purple-300"
+																	: "bg-green-600/30 text-green-300"
 															}`}>
-															{fixture.homeOrAway || "N/A"}
+															{fixture.compType}
 														</span>
-													</div>
-													<div className='text-lg font-semibold text-white'>
-														{formatResult(fixture)}
-													</div>
+													)}
+													<span
+														className={`px-2 py-1 rounded text-xs font-medium ${
+															fixture.homeOrAway?.toLowerCase() === "home"
+																? "bg-dorkinians-yellow/20 text-dorkinians-yellow"
+																: "bg-gray-700 text-gray-300"
+														}`}>
+														{fixture.homeOrAway || "N/A"}
+													</span>
 												</div>
-												<div className='text-base text-white mb-2'>
-													vs <span className='font-medium'>{fixture.opposition || "Unknown"}</span>
+												
+												{/* Date */}
+												<div className='mb-2'>
+													<span className='text-sm text-gray-400'>{formatDate(fixture.date)}</span>
 												</div>
-												{fixture.goalscorers && fixture.goalscorers.length > 0 && (
+												
+												{/* Result and opponent on same line */}
+												<div className='text-lg font-semibold text-white mb-2'>
+													{formatResult(fixture)} <span className='text-base font-normal'>vs <span className='font-medium'>{fixture.opposition || "Unknown"}</span></span>
+												</div>
+												
+												{/* Goalscorers */}
+												{(fixture.goalscorers && Array.isArray(fixture.goalscorers) && fixture.goalscorers.length > 0) || (fixture.oppoOwnGoals && fixture.oppoOwnGoals > 0) ? (
 													<div className='text-sm text-gray-300 mt-2'>
 														<span className='text-gray-400'>Goalscorers: </span>
-														{formatGoalscorers(fixture.goalscorers)}
+														{formatGoalscorers(fixture.goalscorers, fixture.oppoOwnGoals || 0)}
+													</div>
+												) : null}
+												
+												{/* MoM */}
+												{fixture.momPlayerName && (
+													<div className='text-sm text-gray-300 mt-2'>
+														<span className='text-gray-400'>MoM: </span>
+														{fixture.momPlayerName}
 													</div>
 												)}
 											</div>
@@ -223,5 +276,7 @@ export default function LeagueResultsModal({
 			)}
 		</AnimatePresence>
 	);
+
+	return createPortal(modalContent, document.body);
 }
 
