@@ -107,7 +107,9 @@ export default function Settings() {
 			</div>
 
 			{/* Navigation List */}
-			<div className='flex-1 px-6 pb-6 overflow-y-auto'>
+			<div 
+				className='flex-1 px-6 pb-6 overflow-y-auto'
+				style={{ WebkitOverflowScrolling: 'touch' }}>
 				<div className='space-y-4'>
 					<button
 						onClick={() => setIsAvailableScreensExpanded(!isAvailableScreensExpanded)}

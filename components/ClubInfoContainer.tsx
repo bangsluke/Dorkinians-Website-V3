@@ -26,7 +26,9 @@ export default function ClubInfoContainer() {
 		const swipeThreshold = 50;
 		const { offset } = info;
 
-		if (Math.abs(offset.x) > swipeThreshold) {
+		// Only trigger if horizontal movement is significantly greater than vertical
+		// and exceeds threshold
+		if (Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(offset.x) > swipeThreshold) {
 			if (offset.x > 0) {
 				// Swiped right - go to previous page
 				previousClubInfoSubPage();
@@ -49,8 +51,13 @@ export default function ClubInfoContainer() {
 					transition={{ duration: 0.2 }}
 					drag='x'
 					dragConstraints={{ left: 0, right: 0 }}
+					dragElastic={0.1}
 					onDragEnd={handleDragEnd}
-					style={{ position: 'relative' }}
+					style={{ 
+						position: 'relative',
+						touchAction: 'pan-y pinch-zoom',
+						WebkitOverflowScrolling: 'touch'
+					}}
 					className='h-full overflow-y-auto'>
 					{/* Club Info Sub-Page Dot Indicators - Scrolls with content */}
 					<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
