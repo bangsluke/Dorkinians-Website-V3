@@ -446,6 +446,38 @@
 	opacity: 0.5 !important;
 }
 
+/* Chart container utility class for mobile scrolling */
+.chart-container {
+	touch-action: pan-y;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Allow scrolling through Recharts SVG elements on mobile */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper svg {
+	touch-action: pan-y;
+	pointer-events: auto;
+}
+
+/* Ensure Recharts chart elements don't block scroll events */
+.recharts-cartesian-grid,
+.recharts-bar,
+.recharts-bar-rectangle,
+.recharts-pie,
+.recharts-pie-sector,
+.recharts-line,
+.recharts-line-dot,
+.recharts-area {
+	pointer-events: none;
+}
+
+/* Allow tooltip interactions but not scroll blocking */
+.recharts-tooltip-wrapper {
+	touch-action: pan-y;
+	pointer-events: auto;
+}
+
 
 /* Player Detail Modal - Reduced scrollbar width (50% of default) */
 .player-detail-scrollable::-webkit-scrollbar {
