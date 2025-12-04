@@ -34,11 +34,22 @@ export default function StatsContainer() {
 
 	const handleDragEnd = (event: any, info: PanInfo) => {
 		const swipeThreshold = 50;
-		const { offset } = info;
+		const velocityThreshold = 500;
+		const { offset, velocity } = info;
 
-		// Only trigger if horizontal movement is significantly greater than vertical
-		// and exceeds threshold
-		if (Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(offset.x) > swipeThreshold) {
+		// Calculate movement ratio to ensure horizontal movement is clearly dominant
+		const horizontalRatio = Math.abs(offset.x) / (Math.abs(offset.y) + 1);
+		const velocityRatio = Math.abs(velocity.x) / (Math.abs(velocity.y) + 1);
+
+		// Only trigger if:
+		// 1. Horizontal movement is at least 2x greater than vertical (prevents scroll interference)
+		// 2. Horizontal movement exceeds threshold
+		// 3. Horizontal velocity is significantly greater than vertical (for quick swipes)
+		if (
+			horizontalRatio >= 2 &&
+			Math.abs(offset.x) > swipeThreshold &&
+			(velocityRatio >= 1.5 || Math.abs(velocity.x) > velocityThreshold)
+		) {
 			if (offset.x > 0) {
 				// Swiped right - go to previous page
 				previousStatsSubPage();
@@ -77,7 +88,8 @@ export default function StatsContainer() {
 					transition={{ duration: 0.2 }}
 					drag='x'
 					dragConstraints={{ left: 0, right: 0 }}
-					dragElastic={0.1}
+					dragElastic={0.05}
+					dragDirectionLock={true}
 					onDragEnd={handleDragEnd}
 					style={{ 
 						position: 'relative',
