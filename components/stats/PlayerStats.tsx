@@ -1623,24 +1623,26 @@ export default function PlayerStats() {
 								<p className='text-white text-sm'>Loading seasonal stats...</p>
 							</div>
 						) : seasonalChartData.length > 0 ? (
-							<ResponsiveContainer width='100%' height={240}>
-								<BarChart 
-									data={seasonalChartData} 
-									margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-								>
-									<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-									<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-									<YAxis stroke='#fff' fontSize={12} />
-									<Tooltip content={customTooltip} />
-									<Bar 
-										dataKey='value' 
-										fill='#f9ed32' 
-										radius={[4, 4, 0, 0]} 
-										opacity={0.9} 
-										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-									/>
-								</BarChart>
-							</ResponsiveContainer>
+							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+								<ResponsiveContainer width='100%' height={240}>
+									<BarChart 
+										data={seasonalChartData} 
+										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+									>
+										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+										<YAxis stroke='#fff' fontSize={12} />
+										<Tooltip content={customTooltip} />
+										<Bar 
+											dataKey='value' 
+											fill='#f9ed32' 
+											radius={[4, 4, 0, 0]} 
+											opacity={0.9} 
+											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+										/>
+									</BarChart>
+								</ResponsiveContainer>
+							</div>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No seasonal data available</p>
@@ -1698,24 +1700,26 @@ export default function PlayerStats() {
 								<p className='text-white text-sm'>Loading team stats...</p>
 							</div>
 						) : teamChartData.length > 0 ? (
-							<ResponsiveContainer width='100%' height={240}>
-							<BarChart 
-								data={teamChartData} 
-								margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-							>
-								<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-								<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-								<YAxis stroke='#fff' fontSize={12} />
-								<Tooltip content={customTooltip} />
-								<Bar
-										dataKey='value' 
-										fill='#f9ed32' 
-										radius={[4, 4, 0, 0]} 
-										opacity={0.9} 
-										activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-									/>
-								</BarChart>
-							</ResponsiveContainer>
+							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+								<ResponsiveContainer width='100%' height={240}>
+									<BarChart 
+										data={teamChartData} 
+										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+									>
+										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+										<YAxis stroke='#fff' fontSize={12} />
+										<Tooltip content={customTooltip} />
+										<Bar
+											dataKey='value' 
+											fill='#f9ed32' 
+											radius={[4, 4, 0, 0]} 
+											opacity={0.9} 
+											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+										/>
+									</BarChart>
+								</ResponsiveContainer>
+							</div>
 						) : (
 							<div className='flex items-center justify-center h-64'>
 								<p className='text-white text-sm'>No team data available</p>
@@ -1972,7 +1976,7 @@ export default function PlayerStats() {
 
 			<div 
 				className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
-				style={{ WebkitOverflowScrolling: 'touch' }}>
+				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 				{chartContent}
 				{dataTableContent}
 				<div className='h-4'></div>
