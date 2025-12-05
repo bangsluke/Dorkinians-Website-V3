@@ -563,6 +563,7 @@ export class ChatbotService {
 
 			// Log unanswered questions (fire-and-forget, non-blocking)
 			const shouldLog = 
+				response.answer === "I couldn't find relevant information for your question." ||
 				(analysis.confidence !== undefined && analysis.confidence < 0.5) ||
 				analysis.requiresClarification ||
 				analysis.entities.length === 0 ||
