@@ -379,9 +379,12 @@ export default function TeamOfTheWeek() {
 		// Apply centering offsets to better center the formation on the pitch
 		// Fine-tuned offsets to align formation with background image center
 		// Shift right by ~10% and down by ~15% to center the formation horizontally and align with background image
+		// Compress vertical spacing by 10% (reduce gaps by 10%)
+		const baseY = formationData[posKey].y;
+		const compressedY = 1 + (baseY - 1) * 0.95;
 		return {
 			x: formationData[posKey].x + 10,
-			y: formationData[posKey].y + 15,
+			y: compressedY + 15,
 		};
 	};
 
@@ -806,11 +809,11 @@ export default function TeamOfTheWeek() {
 			</div>
 
 			{/* Pitch Visualization */}
-			<div ref={pitchContainerRef} className='relative w-full mb-6' style={{ minHeight: '500px', aspectRatio: '16/9' }}>
+			<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
 				{!loading && (
 					<>
 						{/* Pitch Background */}
-						<div className='absolute inset-0 w-full h-full'>
+						<div className='absolute inset-0 w-full h-[110%]'>
 							<Image
 								src='/totw-images/TOTWBackground.svg'
 								alt='Football Pitch'
