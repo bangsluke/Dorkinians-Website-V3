@@ -335,15 +335,24 @@
 
 	/* Responsive frosted glass container */
 	.frosted-container {
-		@apply frosted-glass rounded-2xl mx-1.5 my-2 h-full overflow-hidden;
+		@apply frosted-glass rounded-2xl;
+		position: fixed;
+		top: 64px;          /* Account for fixed header */
+		bottom: 100px;      /* Account for fixed footer */
+		left: 11px;
+		right: 11px;
+		overflow-x: hidden;
+		overflow-y: hidden;
+		z-index: 40;        /* Below header/footer (z-50) but above content */
 	}
 
 	/* Desktop frosted glass container */
 	@media (min-width: 768px) {
 		.frosted-container {
 			width: 70%;
-			margin-left: auto;
-			margin-right: auto;
+			left: 50%;
+			right: auto;
+			transform: translateX(-50%);
 		}
 	}
 }
@@ -434,6 +443,38 @@
 .recharts-tooltip-cursor {
 	fill-opacity: 0.5 !important;
 	opacity: 0.5 !important;
+}
+
+/* Chart container utility class for mobile scrolling */
+.chart-container {
+	touch-action: pan-y;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Allow scrolling through Recharts SVG elements on mobile */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper svg {
+	touch-action: pan-y;
+	pointer-events: auto;
+}
+
+/* Ensure Recharts chart elements don't block scroll events */
+.recharts-cartesian-grid,
+.recharts-bar,
+.recharts-bar-rectangle,
+.recharts-pie,
+.recharts-pie-sector,
+.recharts-line,
+.recharts-line-dot,
+.recharts-area {
+	pointer-events: none;
+}
+
+/* Allow tooltip interactions but not scroll blocking */
+.recharts-tooltip-wrapper {
+	touch-action: pan-y;
+	pointer-events: auto;
 }
 
 
