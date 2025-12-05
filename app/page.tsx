@@ -104,6 +104,10 @@ export default function HomePage() {
 	};
 
 	const handleSettingsClick = () => {
+		// Store current main page as previous before navigating to settings
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-previous-main-page", currentMainPage);
+		}
 		window.location.href = "/settings";
 	};
 
@@ -275,7 +279,12 @@ export default function HomePage() {
 				{/* Main Content */}
 				<main className='main-content-container'>
 					<div className='frosted-container'>
-						<div className='h-full overflow-y-auto'>
+						<div 
+							className='h-full overflow-y-auto'
+							style={{ 
+								WebkitOverflowScrolling: 'touch',
+								touchAction: 'pan-y'
+							}}>
 							<AnimatePresence mode='wait'>{renderCurrentPage()}</AnimatePresence>
 						</div>
 					</div>

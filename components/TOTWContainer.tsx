@@ -20,7 +20,9 @@ export default function TOTWContainer() {
 		const swipeThreshold = 50;
 		const { offset } = info;
 
-		if (Math.abs(offset.x) > swipeThreshold) {
+		// Only trigger if horizontal movement is significantly greater than vertical
+		// and exceeds threshold
+		if (Math.abs(offset.x) > Math.abs(offset.y) && Math.abs(offset.x) > swipeThreshold) {
 			if (offset.x > 0) {
 				// Swiped right - go to previous page
 				previousTOTWSubPage();
@@ -59,8 +61,12 @@ export default function TOTWContainer() {
 					transition={{ duration: 0.2 }}
 					drag='x'
 					dragConstraints={{ left: 0, right: 0 }}
+					dragElastic={0.1}
 					onDragEnd={handleDragEnd}
-					style={{ position: 'relative' }}
+					style={{ 
+						position: 'relative',
+						touchAction: 'pan-y pinch-zoom'
+					}}
 					className='w-full'>
 					{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}
 				</motion.div>

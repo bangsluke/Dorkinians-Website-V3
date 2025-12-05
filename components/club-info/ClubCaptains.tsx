@@ -189,7 +189,9 @@ export default function ClubCaptains() {
 			</div>
 
 			{/* Scrollable Content Area */}
-			<div className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'>
+			<div 
+				className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'
+				style={{ WebkitOverflowScrolling: 'touch' }}>
 				{/* Loading State */}
 				{loading && (
 					<div className='text-center'>
