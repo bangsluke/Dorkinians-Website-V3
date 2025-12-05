@@ -381,7 +381,7 @@ export default function TeamOfTheWeek() {
 		// Shift right by ~10% and down by ~15% to center the formation horizontally and align with background image
 		// Compress vertical spacing by 10% (reduce gaps by 10%)
 		const baseY = formationData[posKey].y;
-		const compressedY = 1 + (baseY - 1) * 0.95;
+		const compressedY = 1 + (baseY - 1) * 0.97;
 		return {
 			x: formationData[posKey].x + 10,
 			y: compressedY + 15,
