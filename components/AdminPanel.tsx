@@ -109,7 +109,7 @@ export default function AdminPanel() {
 
 	// Unanswered questions state
 	const [unansweredQuestionsLoading, setUnansweredQuestionsLoading] = useState(false);
-	const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{ timestamp: string; question: string }>>([]);
+	const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{ timestamp: string; question: string; playerName: string }>>([]);
 	const [unansweredQuestionsError, setUnansweredQuestionsError] = useState<string | null>(null);
 	const [clearingQuestions, setClearingQuestions] = useState(false);
 
@@ -1054,8 +1054,8 @@ export default function AdminPanel() {
 	};
 
 	return (
-		<div className='max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg overflow-x-hidden'>
-			<h2 className='text-2xl font-bold text-gray-900 mb-6 text-center'>Dorkinians Database Seeding Admin Panel</h2>
+		<div className='w-full min-h-screen p-2 sm:p-6 bg-white overflow-x-hidden py-4 px-4'>
+			<h2 className='text-xl sm:text-2xl font-bold text-gray-900 mb-6 text-center'>Dorkinians Database Seeding Admin Panel</h2>
 			{siteDetails && (
 				<div className='mb-4 text-center'>
 					<p className='text-sm text-gray-600'>
@@ -1258,11 +1258,11 @@ export default function AdminPanel() {
 			</div>
 
 			{/* Action Buttons */}
-			<div className='mb-6 flex justify-center gap-4 flex-wrap lg:flex-nowrap'>
+			<div className='mb-6 flex flex-col sm:flex-row justify-center gap-4'>
 				<button
 					onClick={triggerSeeding}
 					disabled={isLoading}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 						isLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 					}`}>
 					{isLoading ? "🔄 Triggering..." : "🚀 Trigger Production Seeding"}
@@ -1270,7 +1270,7 @@ export default function AdminPanel() {
 				<button
 					onClick={checkStatus}
 					disabled={statusCheckLoading || !jobId}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 						statusCheckLoading || !jobId ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"
 					}`}>
 					{statusCheckLoading ? "🔄 Checking Status..." : "🔍 Check Production Status"}
@@ -1287,7 +1287,7 @@ export default function AdminPanel() {
 						window.open(`${herokuUrl}/logs/${jobId}/view`, '_blank');
 					}}
 					disabled={!jobId}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 						!jobId ? "bg-gray-400 cursor-not-allowed" : "bg-orange-600 hover:bg-orange-700"
 					}`}>
 					📋 View Job Logs Online
@@ -1344,7 +1344,7 @@ export default function AdminPanel() {
 						}
 					}}
 					disabled={!jobId}
-					className={`w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors ${
+					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 						!jobId ? "bg-gray-400 cursor-not-allowed" : "bg-yellow-600 hover:bg-yellow-700"
 					}`}>
 					⚠️ View Warnings Log
@@ -1407,7 +1407,7 @@ export default function AdminPanel() {
 							setJobsLoading(false);
 						}
 					}}
-					className='w-64 px-6 py-3 rounded-lg text-xs font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
+					className='w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors bg-gray-600 hover:bg-gray-700'>
 					{jobsLoading ? "⏳ Loading..." : "🔍 Debug: List All Jobs"}
 				</button>
 			</div>
@@ -1590,7 +1590,7 @@ export default function AdminPanel() {
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
 										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
-											fullRebuild ? "~52 minutes" : "~52 minutes"}
+											fullRebuild ? "~71 minutes" : "~71 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
@@ -1878,31 +1878,31 @@ export default function AdminPanel() {
 
 			{/* Unanswered Questions Section */}
 			<div className='mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
-				<div className='flex justify-between items-center mb-4'>
+				<div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3'>
 					<div>
-						<h3 className='text-lg font-semibold text-blue-800 mb-1'>Unanswered Questions</h3>
-						<p className='text-blue-700 text-sm'>
+						<h3 className='text-base sm:text-lg font-semibold text-blue-800 mb-1'>Unanswered Questions</h3>
+						<p className='text-blue-700 text-xs sm:text-sm'>
 							Questions the chatbot couldn&apos;t answer. Total: <strong>{unansweredQuestions.length}</strong>
 						</p>
 					</div>
-					<div className='flex gap-2'>
+					<div className='flex flex-col sm:flex-row gap-2 w-full sm:w-auto'>
 						<button
 							onClick={fetchUnansweredQuestions}
 							disabled={unansweredQuestionsLoading}
-							className={`px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+							className={`px-2 py-1 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 								unansweredQuestionsLoading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 							}`}>
 							{unansweredQuestionsLoading ? "🔄 Loading..." : "🔄 Refresh"}
 						</button>
 						<button
 							onClick={() => router.push("/admin/unanswered-questions")}
-							className='px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors bg-purple-600 hover:bg-purple-700'>
+							className='px-2 py-1 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors bg-purple-600 hover:bg-purple-700'>
 							👁️ View All
 						</button>
 						<button
 							onClick={clearUnansweredQuestions}
 							disabled={clearingQuestions || unansweredQuestions.length === 0}
-							className={`px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+							className={`px-2 py-1 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
 								clearingQuestions || unansweredQuestions.length === 0
 									? "bg-gray-400 cursor-not-allowed"
 									: "bg-red-600 hover:bg-red-700"
@@ -1927,17 +1927,22 @@ export default function AdminPanel() {
 				) : unansweredQuestions.length === 0 ? (
 					<div className='text-center py-8 text-gray-500'>No unanswered questions found.</div>
 				) : (
-					<div className='space-y-3 max-h-96 overflow-y-auto'>
+					<div className='space-y-3 max-h-64 sm:max-h-96 overflow-y-auto'>
 						{unansweredQuestions.map((item, index) => (
 							<div
 								key={index}
 								className='p-3 bg-white border border-blue-200 rounded-lg hover:shadow-md transition-shadow'>
 								<div className='flex justify-between items-start gap-4'>
 									<div className='flex-1'>
-										<p className='text-gray-800 font-medium'>{item.question}</p>
-										<p className='text-xs text-gray-500 mt-1'>
-											{new Date(item.timestamp).toLocaleString()}
-										</p>
+										<p className='text-gray-800 font-medium text-sm sm:text-base'>{item.question}</p>
+										<div className='flex flex-col sm:flex-row sm:gap-2 mt-1'>
+											<p className='text-xs text-gray-500'>
+												{new Date(item.timestamp).toLocaleString()}
+											</p>
+											<p className='text-xs text-gray-500'>
+												Player: <span className='font-medium'>{item.playerName}</span>
+											</p>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -1948,11 +1953,11 @@ export default function AdminPanel() {
 
 			{/* Jobs Modal */}
 			{showJobsModal && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-					<div className='bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto'>
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4' onClick={() => setShowJobsModal(false)}>
+					<div className='bg-white rounded-lg p-4 sm:p-6 max-w-[95vw] sm:max-w-2xl w-full max-h-[90vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
 						<div className='flex justify-between items-center mb-4'>
-							<h3 className='text-lg font-semibold text-gray-800'>All Jobs on Heroku</h3>
-							<button onClick={() => setShowJobsModal(false)} className='text-gray-500 hover:text-gray-700 text-xl font-bold'>
+							<h3 className='text-base sm:text-lg font-semibold text-gray-800'>All Jobs on Heroku</h3>
+							<button onClick={() => setShowJobsModal(false)} className='text-gray-500 hover:text-gray-700 text-2xl sm:text-xl font-bold w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center'>
 								×
 							</button>
 						</div>

@@ -1064,6 +1064,24 @@ const typeConverters = {
       return new Date(value).toISOString();
     }
     
+    // Handle DD/MM/YYYY format strings explicitly
+    if (typeof value === 'string') {
+      const dateMatch = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const month = parseInt(dateMatch[2], 10);
+        const year = parseInt(dateMatch[3], 10);
+        // Validate: day must be 1-31, month must be 1-12
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+          // Interpret as DD/MM/YYYY format
+          const date = new Date(Date.UTC(year, month - 1, day));
+          if (!isNaN(date.getTime())) {
+            return date.toISOString();
+          }
+        }
+      }
+    }
+    
     // Try to parse other formats
     const date = new Date(value);
     if (!isNaN(date.getTime())) {

@@ -328,17 +328,17 @@ const JobMonitoringDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Job Monitoring Dashboard</h2>
-        <div className="flex items-center space-x-4">
-          <label className="flex items-center">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900">Job Monitoring Dashboard</h2>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <label className="flex items-center text-sm sm:text-base">
             <input
               type="checkbox"
               checked={autoRefresh}
               onChange={(e) => setAutoRefresh(e.target.checked)}
-              className="mr-2"
+              className="mr-2 w-4 h-4 sm:w-auto sm:h-auto"
             />
-            <span className="text-black">Auto-refresh</span>
+            <span className="text-black text-xs sm:text-sm">Auto-refresh</span>
           </label>
           <button
             onClick={() => {
@@ -346,14 +346,14 @@ const JobMonitoringDashboard: React.FC = () => {
               fetchStorageStats();
               fetchCurrentJobs();
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-semibold"
+            className="px-3 py-2 sm:px-4 sm:py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs sm:text-sm font-semibold"
           >
             Refresh
           </button>
           <button
             onClick={clearAllJobs}
             disabled={clearingDashboard}
-            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs font-semibold"
+            className="px-3 py-2 sm:px-4 sm:py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-xs sm:text-sm font-semibold"
           >
             {clearingDashboard ? 'Clearing...' : 'Clear Dashboard'}
           </button>
@@ -381,21 +381,21 @@ const JobMonitoringDashboard: React.FC = () => {
 
       {/* Storage Statistics */}
       {storageStats && (
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Storage Statistics</h3>
-            <div className="flex items-center gap-6 text-sm">
+        <div className="bg-white shadow rounded-lg p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">Storage Statistics</h3>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-6 text-sm w-full sm:w-auto">
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-blue-600">{storageStats.memoryJobs}</span>
-                <span className="text-gray-600">Jobs in Memory</span>
+                <span className="text-xl sm:text-2xl font-bold text-blue-600">{storageStats.memoryJobs}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Jobs in Memory</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-green-600">{storageStats.totalJobs}</span>
-                <span className="text-gray-600">Total Jobs</span>
+                <span className="text-xl sm:text-2xl font-bold text-green-600">{storageStats.totalJobs}</span>
+                <span className="text-xs sm:text-sm text-gray-600">Total Jobs</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono text-gray-600">{storageStats.storageDir}</span>
-                <span className="text-gray-600">Storage Directory</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs sm:text-sm font-mono text-gray-600 break-all">{storageStats.storageDir}</span>
+                <span className="text-xs sm:text-sm text-gray-600 hidden sm:inline">Storage Directory</span>
               </div>
             </div>
           </div>
@@ -405,8 +405,8 @@ const JobMonitoringDashboard: React.FC = () => {
       {/* Current Jobs */}
       {currentJobs.length > 0 && (
         <div className="bg-white shadow rounded-lg">
-          <div className="px-4 py-3 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">Current Jobs ({currentJobs.length})</h3>
+          <div className="px-3 sm:px-4 py-3 border-b border-gray-200">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900">Current Jobs ({currentJobs.length})</h3>
           </div>
           
           {/* Desktop Table View */}
@@ -600,19 +600,19 @@ const JobMonitoringDashboard: React.FC = () => {
 
       {/* Job Lookup / Diagnostics */}
       <div className="bg-white shadow rounded-lg mb-4">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Lookup Job by ID</h3>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900">Lookup Job by ID</h3>
           <p className="text-xs text-gray-500 mt-1">Use this to fetch a job even if it&apos;s not shown in Current Jobs.</p>
         </div>
-        <div className="p-4 flex flex-col md:flex-row gap-2 items-start md:items-center">
+        <div className="p-3 sm:p-4 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
           <input
-            className="w-full md:w-96 border border-gray-300 rounded px-3 py-2 text-sm"
+            className="w-full sm:w-96 border border-gray-300 rounded px-3 py-2 text-sm"
             placeholder="Enter job ID (e.g. seed_123456789_abcdef)"
             value={lookupJobId}
             onChange={(e) => setLookupJobId(e.target.value)}
           />
           <button
-            className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white text-xs sm:text-sm font-semibold rounded disabled:opacity-50"
             onClick={() => lookupJobById(lookupJobId)}
             disabled={!lookupJobId}
           >
@@ -620,15 +620,15 @@ const JobMonitoringDashboard: React.FC = () => {
           </button>
         </div>
         {lookupResult && (
-          <div className="px-6 pb-4 text-sm">
+          <div className="px-4 sm:px-6 pb-4 text-xs sm:text-sm">
             {lookupResult.error ? (
               <div className="text-red-600">❌ {lookupResult.error}</div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div><span className="text-gray-500">Job ID:</span> <span className="font-mono">{lookupResult.jobId}</span></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                <div className="break-words"><span className="text-gray-500">Job ID:</span> <span className="font-mono text-xs">{lookupResult.jobId}</span></div>
                 <div><span className="text-gray-500">Status:</span> {lookupResult.status || 'unknown'}</div>
                 <div><span className="text-gray-500">Progress:</span> {typeof lookupResult.progress === 'number' ? `${lookupResult.progress}%` : 'n/a'}</div>
-                <div className="md:col-span-3"><span className="text-gray-500">Current Step:</span> {lookupResult.currentStep || 'n/a'}</div>
+                <div className="sm:col-span-2 lg:col-span-3 break-words"><span className="text-gray-500">Current Step:</span> {lookupResult.currentStep || 'n/a'}</div>
                 <div><span className="text-gray-500">Started:</span> {lookupResult.startTime ? new Date(lookupResult.startTime).toLocaleString() : 'n/a'}</div>
                 <div><span className="text-gray-500">Last Update:</span> {lookupResult.lastUpdate ? new Date(lookupResult.lastUpdate).toLocaleString() : 'n/a'}</div>
               </div>
@@ -639,8 +639,8 @@ const JobMonitoringDashboard: React.FC = () => {
 
       {/* Job Analyses List */}
       <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Job Analyses ({analyses.length})</h3>
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+          <h3 className="text-base sm:text-lg font-medium text-gray-900">Job Analyses ({analyses.length})</h3>
         </div>
         {analyses.length > 0 ? (
           <div className="overflow-x-auto">
@@ -735,14 +735,14 @@ const JobMonitoringDashboard: React.FC = () => {
       {/* Selected Job Details */}
       {selectedJob && (
         <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
-                Job Analysis: {selectedJob.jobId}
+          <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 break-words">
+                Job Analysis: <span className="font-mono text-xs sm:text-sm">{selectedJob.jobId}</span>
               </h3>
               <button
                 onClick={() => setSelectedJob(null)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-600 flex-shrink-0 w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -751,11 +751,11 @@ const JobMonitoringDashboard: React.FC = () => {
             </div>
           </div>
           
-          <div className="p-6 space-y-6">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
             {/* Summary */}
             <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Summary</h4>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <h4 className="text-sm sm:text-md font-medium text-gray-900 mb-3">Summary</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <div className="bg-gray-50 p-3 rounded">
                   <div className="text-sm text-gray-600">Status</div>
                   <div className={`text-lg font-medium ${getStatusColor(selectedJob.summary.status)}`}>
@@ -785,8 +785,8 @@ const JobMonitoringDashboard: React.FC = () => {
 
             {/* Performance Metrics */}
             <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Performance Metrics</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <h4 className="text-sm sm:text-md font-medium text-gray-900 mb-3">Performance Metrics</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                 <div className="bg-blue-50 p-3 rounded">
                   <div className="text-sm text-blue-600">Average Memory</div>
                   <div className="text-lg font-medium text-blue-900">
@@ -811,7 +811,7 @@ const JobMonitoringDashboard: React.FC = () => {
             {/* Issues */}
             {selectedJob.issues.warnings.length > 0 && (
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Warnings</h4>
+                <h4 className="text-sm sm:text-md font-medium text-gray-900 mb-3">Warnings</h4>
                 <div className="space-y-2">
                   {selectedJob.issues.warnings.map((warning, index) => (
                     <div key={index} className="bg-yellow-50 border border-yellow-200 rounded p-3">
@@ -833,7 +833,7 @@ const JobMonitoringDashboard: React.FC = () => {
             {/* Recommendations */}
             {selectedJob.recommendations.length > 0 && (
               <div>
-                <h4 className="text-md font-medium text-gray-900 mb-3">Recommendations</h4>
+                <h4 className="text-sm sm:text-md font-medium text-gray-900 mb-3">Recommendations</h4>
                 <ul className="space-y-2">
                   {selectedJob.recommendations.map((recommendation, index) => (
                     <li key={index} className="flex items-start">
@@ -849,8 +849,8 @@ const JobMonitoringDashboard: React.FC = () => {
 
             {/* Debug Logs */}
             <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">Debug Logs (Last 20)</h4>
-              <div className="bg-gray-50 rounded p-4 max-h-64 overflow-y-auto">
+              <h4 className="text-sm sm:text-md font-medium text-gray-900 mb-3">Debug Logs (Last 20)</h4>
+              <div className="bg-gray-50 rounded p-3 sm:p-4 max-h-64 overflow-y-auto">
                 <div className="space-y-1">
                   {selectedJob.debugLogs.slice(-20).map((log, index) => (
                     <div key={index} className="text-sm font-mono">
@@ -876,7 +876,7 @@ const JobMonitoringDashboard: React.FC = () => {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
+        <div className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg transition-all duration-300 max-w-[calc(100vw-1rem)] sm:max-w-md ${
           toastType === 'success' ? 'bg-green-500 text-white' :
           toastType === 'error' ? 'bg-red-500 text-white' :
           'bg-blue-500 text-white'
@@ -886,7 +886,7 @@ const JobMonitoringDashboard: React.FC = () => {
               {toastType === 'success' ? '✅' : 
                toastType === 'error' ? '❌' : 'ℹ️'}
             </span>
-            <span className="font-medium">{toastMessage}</span>
+            <span className="font-medium text-sm sm:text-base break-words">{toastMessage}</span>
           </div>
         </div>
       )}
