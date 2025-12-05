@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { DevicePhoneMobileIcon, ArrowDownTrayIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { DevicePhoneMobileIcon, CheckIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 // Define BeforeInstallPromptEvent type
 interface BeforeInstallPromptEvent extends Event {
@@ -16,7 +16,7 @@ export default function PWAInstallButton() {
 	const [showIOSInstructions, setShowIOSInstructions] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
 	const [isStandalone, setIsStandalone] = useState(false);
-	const [isDesktop, setIsDesktop] = useState(false);
+	const [isMobile, setIsMobile] = useState(false);
 
 	useEffect(() => {
 		// Check if app is already installed (standalone mode)
@@ -32,15 +32,15 @@ export default function PWAInstallButton() {
 			setIsIOS(isIOSDevice);
 		};
 
-		// Check if device is desktop
-		const checkDesktop = () => {
-			const isDesktopDevice = !/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-			setIsDesktop(isDesktopDevice);
+		// Check if device is mobile
+		const checkMobile = () => {
+			const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			setIsMobile(isMobileDevice);
 		};
 
 		checkStandalone();
 		checkIOS();
-		checkDesktop();
+		checkMobile();
 
 		// Listen for the beforeinstallprompt event
 		const handleBeforeInstallPrompt = (e: Event) => {
@@ -79,9 +79,6 @@ export default function PWAInstallButton() {
 		} else if (isIOS) {
 			// Show iOS instructions
 			setShowIOSInstructions(true);
-		} else if (isDesktop) {
-			// For desktop browsers, show instructions
-			setShowIOSInstructions(true);
 		}
 	};
 
@@ -109,8 +106,8 @@ export default function PWAInstallButton() {
 		);
 	}
 
-	// Don't show the button if neither install prompt, iOS, nor desktop
-	if (!deferredPrompt && !isIOS && !isDesktop) {
+	// Don't show the button if not mobile or if neither install prompt nor iOS
+	if (!isMobile || (!deferredPrompt && !isIOS)) {
 		return null;
 	}
 
@@ -125,20 +122,14 @@ export default function PWAInstallButton() {
 				animate={{ opacity: 1, y: 0 }}>
 				<div className='flex items-center space-x-4'>
 					<div className='p-2 rounded-full bg-dorkinians-yellow/30'>
-						{isIOS ? (
-							<DevicePhoneMobileIcon className='w-5 h-5 text-dorkinians-yellow' />
-						) : (
-							<ArrowDownTrayIcon className='w-5 h-5 text-dorkinians-yellow' />
-						)}
+						<DevicePhoneMobileIcon className='w-5 h-5 text-dorkinians-yellow' />
 					</div>
 					<div className='flex-1'>
-						<h3 className='text-lg font-semibold text-white'>{isIOS ? "Add to Home Screen" : isDesktop ? "Install App" : "Install App"}</h3>
+						<h3 className='text-lg font-semibold text-white'>Add App to Home Screen</h3>
 						<p className='text-sm text-gray-300'>
 							{isIOS
 								? "Add Dorkinians FC Stats to your home screen for quick access"
-								: isDesktop
-									? "Install Dorkinians FC Stats as a desktop app for better experience"
-									: "Install Dorkinians FC Stats as a native app on your device"}
+								: "Install Dorkinians FC Stats as a native app on your device"}
 						</p>
 					</div>
 					<div className='text-dorkinians-yellow'>
@@ -164,83 +155,47 @@ export default function PWAInstallButton() {
 						className='bg-gray-900 rounded-lg p-6 max-w-md w-full border border-gray-700'
 						onClick={(e) => e.stopPropagation()}>
 						<div className='flex items-center justify-between mb-4'>
-							<h3 className='text-xl font-bold text-white'>{isIOS ? "Add to Home Screen" : "Install Desktop App"}</h3>
+							<h3 className='text-xl font-bold text-white'>Add to Home Screen</h3>
 							<button onClick={closeIOSInstructions} className='p-2 rounded-full hover:bg-gray-700 transition-colors'>
 								<XMarkIcon className='w-5 h-5 text-gray-400' />
 							</button>
 						</div>
 
 						<div className='space-y-4 text-gray-300'>
-							<p className='text-sm'>
-								{isIOS ? "To add Dorkinians FC Stats to your home screen:" : "To install Dorkinians FC Stats as a desktop app:"}
-							</p>
+							<p className='text-sm'>To add Dorkinians FC Stats to your home screen:</p>
 
 							<div className='space-y-3'>
-								{isIOS ? (
-									<>
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												1
-											</div>
-											<p className='text-sm'>
-												Tap the <strong>Share</strong> button at the bottom of your Safari browser
-											</p>
-										</div>
+								<div className='flex items-start space-x-3'>
+									<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+										1
+									</div>
+									<p className='text-sm'>
+										Tap the <strong>Share</strong> button at the bottom of your Safari browser
+									</p>
+								</div>
 
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												2
-											</div>
-											<p className='text-sm'>
-												Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong>
-											</p>
-										</div>
+								<div className='flex items-start space-x-3'>
+									<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+										2
+									</div>
+									<p className='text-sm'>
+										Scroll down and tap <strong>&quot;Add to Home Screen&quot;</strong>
+									</p>
+								</div>
 
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												3
-											</div>
-											<p className='text-sm'>
-												Tap <strong>&quot;Add&quot;</strong> to confirm
-											</p>
-										</div>
-									</>
-								) : (
-									<>
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												1
-											</div>
-											<p className='text-sm'>
-												Look for the <strong>install icon</strong> in your browser&apos;s address bar (Chrome: ⊕, Edge: ⊕, Firefox: ⊕)
-											</p>
-										</div>
-
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												2
-											</div>
-											<p className='text-sm'>
-												Click the install icon and select <strong>&quot;Install&quot;</strong> when prompted
-											</p>
-										</div>
-
-										<div className='flex items-start space-x-3'>
-											<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
-												3
-											</div>
-											<p className='text-sm'>The app will be added to your desktop and can be launched like any other application</p>
-										</div>
-									</>
-								)}
+								<div className='flex items-start space-x-3'>
+									<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+										3
+									</div>
+									<p className='text-sm'>
+										Tap <strong>&quot;Add&quot;</strong> to confirm
+									</p>
+								</div>
 							</div>
 
 							<div className='mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg'>
 								<p className='text-xs text-blue-300'>
-									💡 <strong>Tip:</strong>{" "}
-									{isIOS
-										? "The app will appear on your home screen like any other app and work offline!"
-										: "The app will be added to your desktop and can be launched like any other application with offline support!"}
+									💡 <strong>Tip:</strong> The app will appear on your home screen like any other app and work offline!
 								</p>
 							</div>
 						</div>
