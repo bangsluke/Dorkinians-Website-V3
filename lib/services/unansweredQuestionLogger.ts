@@ -37,6 +37,8 @@ export class UnansweredQuestionLogger {
 			const timestamp = data.timestamp || new Date();
 			const timestampKey = timestamp.toISOString();
 			const questionText = data.originalQuestion;
+			// Extract player name from userContext, use "Blank" if undefined/empty
+			const playerName = data.userContext && data.userContext.trim() ? data.userContext.trim() : "Blank";
 
 			// First, get the current node to merge the new question
 			const getQuery = `
@@ -49,7 +51,9 @@ export class UnansweredQuestionLogger {
 				graphLabel: "dorkiniansWebsite",
 			});
 
-			let questionsMap: Record<string, string> = {};
+			// Support both old format (string) and new format (object)
+			type QuestionEntry = string | { question: string; playerName: string; timestamp: string };
+			let questionsMap: Record<string, QuestionEntry> = {};
 			if (existingResult && existingResult.length > 0 && existingResult[0]?.questions) {
 				// Parse existing questions (stored as JSON string in Neo4j)
 				const questionsData = existingResult[0].questions;
@@ -60,18 +64,24 @@ export class UnansweredQuestionLogger {
 				}
 			}
 
-			// Add new question with timestamp as key
-			questionsMap[timestampKey] = questionText;
+			// Add new question with timestamp as key in new format
+			questionsMap[timestampKey] = {
+				question: questionText,
+				playerName: playerName,
+				timestamp: timestampKey,
+			};
 
-			// Update or create the node
+			// Update or create the node with noDelete label to prevent deletion during seeding
 			const updateQuery = `
 				MERGE (uq:UnansweredQuestions {id: $id, graphLabel: $graphLabel})
 				ON CREATE SET 
 					uq.id = $id,
 					uq.graphLabel = $graphLabel,
-					uq.questions = $questions
+					uq.questions = $questions,
+					uq:noDelete
 				ON MATCH SET
-					uq.questions = $questions
+					uq.questions = $questions,
+					uq:noDelete
 				RETURN uq
 			`;
 
@@ -87,9 +97,10 @@ export class UnansweredQuestionLogger {
 
 	/**
 	 * Get all unanswered questions from the single node
-	 * Returns array of { timestamp, question } objects sorted by timestamp (newest first)
+	 * Returns array of { timestamp, question, playerName } objects sorted by timestamp (newest first)
+	 * Handles backward compatibility with old format (string) and new format (object)
 	 */
-	public async getUnansweredQuestions(): Promise<Array<{ timestamp: string; question: string }>> {
+	public async getUnansweredQuestions(): Promise<Array<{ timestamp: string; question: string; playerName: string }>> {
 		try {
 			const query = `
 				MATCH (uq:UnansweredQuestions {id: $id, graphLabel: $graphLabel})
@@ -106,7 +117,9 @@ export class UnansweredQuestionLogger {
 			}
 
 			const questionsData = results[0].questions;
-			let questionsMap: Record<string, string> = {};
+			// Support both old format (string) and new format (object)
+			type QuestionEntry = string | { question: string; playerName: string; timestamp: string };
+			let questionsMap: Record<string, QuestionEntry> = {};
 
 			if (typeof questionsData === "string") {
 				questionsMap = JSON.parse(questionsData);
@@ -114,12 +127,24 @@ export class UnansweredQuestionLogger {
 				questionsMap = questionsData;
 			}
 
-			// Convert map to array and sort by timestamp (newest first)
+			// Convert map to array and handle both old and new formats
 			const questionsArray = Object.entries(questionsMap)
-				.map(([timestamp, question]) => ({
-					timestamp,
-					question: question as string,
-				}))
+				.map(([timestamp, entry]) => {
+					// Handle old format (string) - backward compatibility
+					if (typeof entry === "string") {
+						return {
+							timestamp,
+							question: entry,
+							playerName: "Blank", // Default for old format entries
+						};
+					}
+					// Handle new format (object)
+					return {
+						timestamp: entry.timestamp || timestamp,
+						question: entry.question,
+						playerName: entry.playerName || "Blank",
+					};
+				})
 				.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
 			return questionsArray;
@@ -147,6 +172,34 @@ export class UnansweredQuestionLogger {
 			});
 		} catch (error) {
 			console.error("❌ Failed to clear unanswered questions:", error);
+			throw error;
+		}
+	}
+
+	/**
+	 * Ensure all existing UnansweredQuestions nodes have the noDelete label
+	 * This method migrates existing nodes to include the noDelete label for protection
+	 */
+	public async ensureNoDeleteLabel(): Promise<void> {
+		try {
+			const query = `
+				MATCH (uq:UnansweredQuestions {id: $id, graphLabel: $graphLabel})
+				WHERE NOT uq:noDelete
+				SET uq:noDelete
+				RETURN count(uq) as updatedCount
+			`;
+
+			const result = await neo4jService.executeQuery(query, {
+				id: "unanswered_questions",
+				graphLabel: "dorkiniansWebsite",
+			});
+
+			const updatedCount = result && result.length > 0 && result[0]?.updatedCount ? result[0].updatedCount : 0;
+			if (updatedCount > 0) {
+				console.log(`✅ Added noDelete label to ${updatedCount} existing UnansweredQuestions node(s)`);
+			}
+		} catch (error) {
+			console.error("❌ Failed to ensure noDelete label:", error);
 			throw error;
 		}
 	}
