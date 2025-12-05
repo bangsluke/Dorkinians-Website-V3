@@ -583,7 +583,7 @@ export default function ClubTeamStats() {
 			) : (
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
-					style={{ WebkitOverflowScrolling: 'touch' }}>
+					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
@@ -591,45 +591,47 @@ export default function ClubTeamStats() {
 								{pieChartData.length > 0 && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
-										<ResponsiveContainer width='100%' height={350}>
-											<PieChart>
-												<Pie
-													data={pieChartData}
-													cx='50%'
-													cy='50%'
-													labelLine={false}
-													label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
-														const RADIAN = Math.PI / 180;
-														const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-														const x = cx + radius * Math.cos(-midAngle * RADIAN);
-														const y = cy + radius * Math.sin(-midAngle * RADIAN);
-														
-														return (
-															<text
-																x={x}
-																y={y}
-																fill="#ffffff"
-																textAnchor={x > cx ? 'start' : 'end'}
-																dominantBaseline="central"
-																fontSize={14}
-																fontWeight='bold'
-															>
-																{`${name}: ${value}`}
-															</text>
-														);
-													}}
-													outerRadius={100}
-													fill='#8884d8'
-													dataKey='value'
-												>
-												{pieChartData.map((entry, index) => (
-													<Cell key={`cell-${index}`} fill={entry.color} />
-												))}
-											</Pie>
-											<Tooltip content={customTooltip} />
-											<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
-											</PieChart>
-										</ResponsiveContainer>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={350}>
+												<PieChart>
+													<Pie
+														data={pieChartData}
+														cx='50%'
+														cy='50%'
+														labelLine={false}
+														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+															const RADIAN = Math.PI / 180;
+															const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+															const x = cx + radius * Math.cos(-midAngle * RADIAN);
+															const y = cy + radius * Math.sin(-midAngle * RADIAN);
+															
+															return (
+																<text
+																	x={x}
+																	y={y}
+																	fill="#ffffff"
+																	textAnchor={x > cx ? 'start' : 'end'}
+																	dominantBaseline="central"
+																	fontSize={14}
+																	fontWeight='bold'
+																>
+																	{`${name}: ${value}`}
+																</text>
+															);
+														}}
+														outerRadius={100}
+														fill='#8884d8'
+														dataKey='value'
+													>
+													{pieChartData.map((entry, index) => (
+														<Cell key={`cell-${index}`} fill={entry.color} />
+													))}
+												</Pie>
+												<Tooltip content={customTooltip} />
+												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
+												</PieChart>
+											</ResponsiveContainer>
+										</div>
 									</div>
 								)}
 
@@ -637,15 +639,17 @@ export default function ClubTeamStats() {
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
-										<ResponsiveContainer width='100%' height={300}>
-											<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip content={customTooltip} />
-												<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-											</BarChart>
-										</ResponsiveContainer>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
 									</div>
 								)}
 
@@ -653,15 +657,17 @@ export default function ClubTeamStats() {
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
-										<ResponsiveContainer width='100%' height={300}>
-											<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-												<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
-												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip content={customTooltip} />
-												<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-											</BarChart>
-										</ResponsiveContainer>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
 									</div>
 								)}
 
@@ -669,15 +675,17 @@ export default function ClubTeamStats() {
 								{toNumber(teamData.gamesPlayed) > 0 && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
-										<ResponsiveContainer width='100%' height={300}>
-											<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip content={customTooltip} />
-												<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-											</BarChart>
-										</ResponsiveContainer>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
 									</div>
 								)}
 							</div>

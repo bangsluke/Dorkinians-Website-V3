@@ -350,10 +350,9 @@
 	@media (min-width: 768px) {
 		.frosted-container {
 			width: 70%;
-			left: auto;
+			left: 50%;
 			right: auto;
-			margin-left: auto;
-			margin-right: auto;
+			transform: translateX(-50%);
 		}
 	}
 }
@@ -444,6 +443,38 @@
 .recharts-tooltip-cursor {
 	fill-opacity: 0.5 !important;
 	opacity: 0.5 !important;
+}
+
+/* Chart container utility class for mobile scrolling */
+.chart-container {
+	touch-action: pan-y;
+	-webkit-overflow-scrolling: touch;
+}
+
+/* Allow scrolling through Recharts SVG elements on mobile */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-wrapper svg {
+	touch-action: pan-y;
+	pointer-events: auto;
+}
+
+/* Ensure Recharts chart elements don't block scroll events */
+.recharts-cartesian-grid,
+.recharts-bar,
+.recharts-bar-rectangle,
+.recharts-pie,
+.recharts-pie-sector,
+.recharts-line,
+.recharts-line-dot,
+.recharts-area {
+	pointer-events: none;
+}
+
+/* Allow tooltip interactions but not scroll blocking */
+.recharts-tooltip-wrapper {
+	touch-action: pan-y;
+	pointer-events: auto;
 }
 
 
