@@ -34,14 +34,8 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 	const handleUpdate = async () => {
 		setIsUpdating(true);
 		try {
-			const success = await pwaUpdateService.performUpdate();
-			if (success) {
-				// Update successful, close toast
-				onClose();
-			} else {
-				// Update failed or cancelled
-				setIsUpdating(false);
-			}
+			await pwaUpdateService.activateUpdate();
+			// Page will reload, so this won't execute
 		} catch (error) {
 			console.error("Update failed:", error);
 			setIsUpdating(false);
