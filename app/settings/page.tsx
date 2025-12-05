@@ -265,35 +265,6 @@ export default function SettingsPage() {
 					<div className='mt-12 space-y-4'>
 						<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
 						<div className='space-y-3'>
-							{/* Check for Updates */}
-							<div className='p-4 rounded-lg bg-white/10'>
-								<div className='flex flex-col md:flex-row md:items-center md:justify-between space-y-3 md:space-y-0'>
-									<div>
-										<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
-										<p className='text-sm text-gray-300'>Check if a new version is available</p>
-										{updateStatus && <p className='text-xs text-dorkinians-yellow mt-1'>{updateStatus}</p>}
-									</div>
-									<motion.button
-										onClick={handleCheckForUpdate}
-										disabled={isCheckingUpdate}
-										className='CTA self-center md:self-auto w-fit md:w-auto'
-										whileHover={{ scale: 1.05 }}
-										whileTap={{ scale: 0.95 }}>
-										{isCheckingUpdate ? (
-											<div className='flex items-center space-x-2'>
-												<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
-												<span>Checking...</span>
-											</div>
-										) : (
-											<div className='flex items-center space-x-2'>
-												<ArrowPathIcon className='w-4 h-4' />
-												<span>Check</span>
-											</div>
-										)}
-									</motion.button>
-								</div>
-							</div>
-
 							{/* Version Release Details */}
 							{siteDetails?.versionReleaseDetails && (
 								<motion.div
@@ -434,6 +405,40 @@ export default function SettingsPage() {
 									</div>
 								</div>
 							</motion.button>
+						</div>
+					</div>
+
+					{/* Check for Updates */}
+					<div className='mt-8 p-4 rounded-lg bg-white/10'>
+						<div className='flex flex-col items-center space-y-3'>
+							<div className='text-center'>
+								<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
+								<p className='text-sm text-gray-300'>Check if a new version is available</p>
+							</div>
+							<motion.button
+								onClick={handleCheckForUpdate}
+								disabled={isCheckingUpdate}
+								className='CTA w-fit'
+								whileHover={{ scale: 1.05 }}
+								whileTap={{ scale: 0.95 }}>
+								{isCheckingUpdate ? (
+									<div className='flex items-center space-x-2'>
+										<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
+										<span>Checking...</span>
+									</div>
+								) : (
+									<div className='flex items-center space-x-2'>
+										<ArrowPathIcon className='w-4 h-4' />
+										<span>Check</span>
+									</div>
+								)}
+							</motion.button>
+							{updateStatus === "No updates available" && (
+								<p className='text-sm text-gray-300'>{updateStatus}</p>
+							)}
+							{updateStatus && updateStatus !== "No updates available" && (
+								<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
+							)}
 						</div>
 					</div>
 
