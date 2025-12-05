@@ -420,6 +420,27 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
 		if (typeof window !== "undefined") {
+			// Load navigation state from localStorage
+			const savedMainPage = localStorage.getItem("dorkinians-current-main-page");
+			if (savedMainPage && (savedMainPage === "home" || savedMainPage === "stats" || savedMainPage === "totw" || savedMainPage === "club-info" || savedMainPage === "settings")) {
+				set({ currentMainPage: savedMainPage as MainPage });
+			}
+
+			const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
+			if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
+				set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
+			}
+
+			const savedTOTWSubPage = localStorage.getItem("dorkinians-current-totw-sub-page");
+			if (savedTOTWSubPage && (savedTOTWSubPage === "totw" || savedTOTWSubPage === "players-of-month")) {
+				set({ currentTOTWSubPage: savedTOTWSubPage as TOTWSubPage });
+			}
+
+			const savedClubInfoSubPage = localStorage.getItem("dorkinians-current-club-info-sub-page");
+			if (savedClubInfoSubPage && (savedClubInfoSubPage === "club-information" || savedClubInfoSubPage === "league-information" || savedClubInfoSubPage === "club-captains" || savedClubInfoSubPage === "club-awards" || savedClubInfoSubPage === "useful-links")) {
+				set({ currentClubInfoSubPage: savedClubInfoSubPage as ClubInfoSubPage });
+			}
+
 			const saved = localStorage.getItem("dorkinians-selected-player");
 			const cachedData = localStorage.getItem("dorkinians-cached-player-data");
 
@@ -514,6 +535,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			set({ currentClubInfoSubPage: "club-information" });
 		}
 
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-current-main-page", page);
+		}
+
 		console.log("📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
@@ -545,15 +571,26 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+			localStorage.setItem("dorkinians-current-stats-sub-page", page);
 		}
 	},
 
 	setTOTWSubPage: (page: TOTWSubPage) => {
 		set({ currentTOTWSubPage: page });
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-current-totw-sub-page", page);
+		}
 	},
 
 	setClubInfoSubPage: (page: ClubInfoSubPage) => {
 		set({ currentClubInfoSubPage: page });
+		
+		// Persist to localStorage
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-current-club-info-sub-page", page);
+		}
 	},
 
 	// Player selection actions
