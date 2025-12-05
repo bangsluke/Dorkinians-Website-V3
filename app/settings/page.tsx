@@ -114,6 +114,17 @@ export default function SettingsPage() {
 	};
 
 	const handleSettingsClick = () => {
+		// Restore previous main page from localStorage before navigating
+		if (typeof window !== "undefined") {
+			const previousMainPage = localStorage.getItem("dorkinians-previous-main-page");
+			if (previousMainPage && previousMainPage !== "settings") {
+				// Set the previous page in localStorage as current before navigating
+				localStorage.setItem("dorkinians-current-main-page", previousMainPage);
+			} else {
+				// Fallback to home if no previous page
+				localStorage.setItem("dorkinians-current-main-page", "home");
+			}
+		}
 		window.location.href = "/";
 	};
 
