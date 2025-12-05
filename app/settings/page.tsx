@@ -120,6 +120,8 @@ export default function SettingsPage() {
 			if (previousMainPage && previousMainPage !== "settings") {
 				// Set the previous page in localStorage as current before navigating
 				localStorage.setItem("dorkinians-current-main-page", previousMainPage);
+				// Sub-page state should already be in localStorage from when it was set
+				// The initializeFromStorage() function will restore it when the page loads
 			} else {
 				// Fallback to home if no previous page
 				localStorage.setItem("dorkinians-current-main-page", "home");
