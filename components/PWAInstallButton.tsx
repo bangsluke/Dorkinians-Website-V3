@@ -39,23 +39,28 @@ export default function PWAInstallButton() {
 		const checkMobile = () => {
 			const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 			setIsMobile(isMobileDevice);
+			return isMobileDevice;
 		};
 
 		// Check if browser supports PWA installation (Chrome, Edge, etc.)
-		const checkPWASupport = () => {
-			const isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
-			const isEdge = /Edg/.test(navigator.userAgent);
-			const supportsPWA = isChrome || isEdge || isMobile;
+		const checkPWASupport = (isMobileDevice: boolean) => {
+			// Improved Chrome detection - works for both desktop and mobile
+			const userAgent = navigator.userAgent;
+			const isChrome = /Chrome/.test(userAgent) && !/Edg|OPR|Opera/.test(userAgent);
+			const isEdge = /Edg/.test(userAgent);
+			const isMobileChrome = /Android/.test(userAgent) && /Chrome/.test(userAgent);
+			const supportsPWA = isChrome || isEdge || isMobileChrome || isMobileDevice;
 			return supportsPWA;
 		};
 
 		checkStandalone();
 		checkIOS();
-		checkMobile();
+		const isMobileDevice = checkMobile();
 
 		// Show button if mobile or if browser supports PWA installation
-		const supportsPWA = checkPWASupport();
-		setShowButton(supportsPWA);
+		const supportsPWA = checkPWASupport(isMobileDevice);
+		// Always show on mobile devices, or if PWA is supported
+		setShowButton(supportsPWA || isMobileDevice);
 
 		// Listen for the beforeinstallprompt event
 		const handleBeforeInstallPrompt = (e: Event) => {
