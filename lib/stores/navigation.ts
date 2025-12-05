@@ -204,6 +204,7 @@ export interface PlayerFilters {
 interface NavigationState {
 	// Main page navigation
 	currentMainPage: MainPage;
+	previousMainPage: MainPage | null; // Store previous page before navigating to settings
 	// Stats sub-page navigation (for swipe gestures)
 	currentStatsSubPage: StatsSubPage;
 	// TOTW sub-page navigation
@@ -297,6 +298,7 @@ interface NavigationState {
 export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Initial state
 	currentMainPage: "home",
+	previousMainPage: null,
 	currentStatsSubPage: "player-stats",
 	currentTOTWSubPage: "totw",
 	currentClubInfoSubPage: "club-information",
@@ -422,8 +424,26 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		if (typeof window !== "undefined") {
 			// Load navigation state from localStorage
 			const savedMainPage = localStorage.getItem("dorkinians-current-main-page");
-			if (savedMainPage && (savedMainPage === "home" || savedMainPage === "stats" || savedMainPage === "totw" || savedMainPage === "club-info" || savedMainPage === "settings")) {
+			// If saved page is "settings", restore the previous page instead
+			if (savedMainPage === "settings") {
+				const previousMainPage = localStorage.getItem("dorkinians-previous-main-page");
+				if (previousMainPage && (previousMainPage === "home" || previousMainPage === "stats" || previousMainPage === "totw" || previousMainPage === "club-info")) {
+					set({ currentMainPage: previousMainPage as MainPage, previousMainPage: null });
+					// Update localStorage with the restored page
+					localStorage.setItem("dorkinians-current-main-page", previousMainPage);
+				} else {
+					// Fallback to home if no previous page found
+					set({ currentMainPage: "home", previousMainPage: null });
+					localStorage.setItem("dorkinians-current-main-page", "home");
+				}
+			} else if (savedMainPage && (savedMainPage === "home" || savedMainPage === "stats" || savedMainPage === "totw" || savedMainPage === "club-info" || savedMainPage === "settings")) {
 				set({ currentMainPage: savedMainPage as MainPage });
+			}
+
+			// Load previous main page
+			const savedPreviousMainPage = localStorage.getItem("dorkinians-previous-main-page");
+			if (savedPreviousMainPage && (savedPreviousMainPage === "home" || savedPreviousMainPage === "stats" || savedPreviousMainPage === "totw" || savedPreviousMainPage === "club-info")) {
+				set({ previousMainPage: savedPreviousMainPage as MainPage });
 			}
 
 			const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
@@ -522,17 +542,31 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		const currentPage = get().currentMainPage;
 
+		// Store previous page before navigating to settings
+		if (page === "settings" && currentPage !== "settings") {
+			set({ previousMainPage: currentPage });
+			// Persist previous page to localStorage
+			if (typeof window !== "undefined") {
+				localStorage.setItem("dorkinians-previous-main-page", currentPage);
+			}
+		}
+
 		set({ currentMainPage: page });
 
 		// Reset sub-pages only when actually leaving those pages
-		if (currentPage === "stats" && page !== "stats") {
+		// Don't reset sub-pages when navigating to/from settings (settings is a special case)
+		if (currentPage === "stats" && page !== "stats" && page !== "settings") {
 			set({ currentStatsSubPage: "player-stats" });
 		}
-		if (currentPage === "totw" && page !== "totw") {
+		if (currentPage === "totw" && page !== "totw" && page !== "settings") {
 			set({ currentTOTWSubPage: "totw" });
 		}
-		if (currentPage === "club-info" && page !== "club-info") {
+		if (currentPage === "club-info" && page !== "club-info" && page !== "settings") {
 			set({ currentClubInfoSubPage: "club-information" });
+		}
+		// When navigating FROM settings back to a page, don't reset sub-pages (they should be preserved)
+		if (currentPage === "settings" && page !== "settings") {
+			// Don't reset sub-pages - they should be restored from localStorage via initializeFromStorage
 		}
 
 		// Persist to localStorage

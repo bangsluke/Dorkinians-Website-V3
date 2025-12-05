@@ -104,6 +104,10 @@ export default function HomePage() {
 	};
 
 	const handleSettingsClick = () => {
+		// Store current main page as previous before navigating to settings
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-previous-main-page", currentMainPage);
+		}
 		window.location.href = "/settings";
 	};
 

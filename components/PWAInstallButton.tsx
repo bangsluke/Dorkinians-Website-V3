@@ -14,7 +14,9 @@ export default function PWAInstallButton() {
 	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 	const [isInstalled, setIsInstalled] = useState(false);
 	const [showIOSInstructions, setShowIOSInstructions] = useState(false);
+	const [showAndroidInstructions, setShowAndroidInstructions] = useState(false);
 	const [isIOS, setIsIOS] = useState(false);
+	const [isAndroid, setIsAndroid] = useState(false);
 	const [isStandalone, setIsStandalone] = useState(false);
 	const [isMobile, setIsMobile] = useState(false);
 	const [isInstalling, setIsInstalling] = useState(false);
@@ -33,6 +35,12 @@ export default function PWAInstallButton() {
 		const checkIOS = () => {
 			const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 			setIsIOS(isIOSDevice);
+		};
+
+		// Check if device is Android
+		const checkAndroid = () => {
+			const isAndroidDevice = /Android/.test(navigator.userAgent);
+			setIsAndroid(isAndroidDevice);
 		};
 
 		// Check if device is mobile
@@ -55,6 +63,7 @@ export default function PWAInstallButton() {
 
 		checkStandalone();
 		checkIOS();
+		checkAndroid();
 		const isMobileDevice = checkMobile();
 
 		// Show button if mobile or if browser supports PWA installation
@@ -114,6 +123,9 @@ export default function PWAInstallButton() {
 		} else if (isIOS) {
 			// Show iOS instructions
 			setShowIOSInstructions(true);
+		} else if (isAndroid) {
+			// Show Android instructions
+			setShowAndroidInstructions(true);
 		} else {
 			// No prompt available - provide helpful message
 			setInstallError("Installation prompt not available. Please use your browser's menu (⋮ or ⋯) and select 'Install App' or 'Add to Home Screen'.");
@@ -124,24 +136,13 @@ export default function PWAInstallButton() {
 		setShowIOSInstructions(false);
 	};
 
+	const closeAndroidInstructions = () => {
+		setShowAndroidInstructions(false);
+	};
+
 	// Don't show the button if app is already installed
 	if (isInstalled || isStandalone) {
-		return (
-			<motion.div
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				className='p-4 rounded-lg bg-green-500/20 border border-green-500/30'>
-				<div className='flex items-center space-x-3'>
-					<div className='p-2 rounded-full bg-green-500/20'>
-						<CheckIcon className='w-5 h-5 text-green-400' />
-					</div>
-					<div>
-						<h3 className='text-lg font-semibold text-white'>App Installed</h3>
-						<p className='text-sm text-green-300'>Dorkinians FC Stats is installed on your device</p>
-					</div>
-				</div>
-			</motion.div>
-		);
+		return null;
 	}
 
 	// Don't show the button if app is already installed or button shouldn't be shown
@@ -197,6 +198,96 @@ export default function PWAInstallButton() {
 				)}
 			</div>
 
+			{/* Android Instructions Modal */}
+			{showAndroidInstructions && (
+				<AnimatePresence>
+					<>
+						{/* Backdrop */}
+						<motion.div
+							className='fixed inset-0 bg-black/50 z-[9999]'
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							onClick={closeAndroidInstructions}
+						/>
+
+						{/* Full-screen modal */}
+						<motion.div
+							className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
+							style={{ backgroundColor: '#0f0f0f' }}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+							<div className='h-full flex flex-col'>
+								{/* Header */}
+								<div className='flex items-center justify-between p-4 border-b border-white/20'>
+									<h2 className='text-lg font-semibold text-white'>Add to Home Screen</h2>
+									<button
+										onClick={closeAndroidInstructions}
+										className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+										<XMarkIcon className='w-5 h-5' />
+									</button>
+								</div>
+
+								{/* Scrollable content */}
+								<div 
+									className='flex-1 overflow-y-auto p-4 space-y-4'
+									style={{ WebkitOverflowScrolling: 'touch' }}>
+									<div className='space-y-4 text-gray-300'>
+										<p className='text-sm text-white'>To add Dorkinians FC Stats to your home screen on Android:</p>
+
+										<div className='space-y-3'>
+											<div className='flex items-start space-x-3'>
+												<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+													1
+												</div>
+												<p className='text-sm text-white/80'>
+													Tap the <strong>three-dot menu</strong> (⋮) in the top-right corner of Chrome
+												</p>
+											</div>
+
+											<div className='flex items-start space-x-3'>
+												<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+													2
+												</div>
+												<p className='text-sm text-white/80'>
+													Look for <strong>&quot;Install app&quot;</strong> or <strong>&quot;Add to Home screen&quot;</strong> in the menu
+												</p>
+											</div>
+
+											<div className='flex items-start space-x-3'>
+												<div className='w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-sm font-bold flex items-center justify-center flex-shrink-0 mt-0.5'>
+													3
+												</div>
+												<p className='text-sm text-white/80'>
+													Tap it and confirm the installation when prompted
+												</p>
+											</div>
+										</div>
+
+										<div className='mt-4 p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg'>
+											<p className='text-xs text-blue-300'>
+												💡 <strong>Tip:</strong> The app will appear on your home screen like any other app! Chrome on Android fully supports Progressive Web Apps.
+											</p>
+										</div>
+									</div>
+								</div>
+
+								{/* Footer with close button */}
+								<div className='p-4 border-t border-white/20'>
+									<button
+										onClick={closeAndroidInstructions}
+										className='w-full px-4 py-2 bg-dorkinians-yellow text-black rounded-lg font-semibold hover:bg-dorkinians-yellow/90 transition-colors'>
+										Got it!
+									</button>
+								</div>
+							</div>
+						</motion.div>
+					</>
+				</AnimatePresence>
+			)}
+
 			{/* iOS Instructions Modal */}
 			{showIOSInstructions && (
 				<AnimatePresence>
@@ -234,6 +325,12 @@ export default function PWAInstallButton() {
 									className='flex-1 overflow-y-auto p-4 space-y-4'
 									style={{ WebkitOverflowScrolling: 'touch' }}>
 									<div className='space-y-4 text-gray-300'>
+										<div className='p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg mb-4'>
+											<p className='text-xs text-yellow-300'>
+												💡 <strong>Best Browser:</strong> Safari is the best browser to use for adding apps to your home screen on iOS devices.
+											</p>
+										</div>
+
 										<p className='text-sm text-white'>To add Dorkinians FC Stats to your home screen:</p>
 
 										<div className='space-y-3'>
@@ -242,7 +339,7 @@ export default function PWAInstallButton() {
 													1
 												</div>
 												<p className='text-sm text-white/80'>
-													Tap the <strong>Share</strong> button at the bottom of your browser
+													Tap the <strong>Share</strong> button at the bottom of your Safari browser
 												</p>
 											</div>
 
