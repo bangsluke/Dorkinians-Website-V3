@@ -9,7 +9,6 @@ export interface UpdateInfo {
 class PWAUpdateService {
 	private updateAvailable = false;
 	private updateCallback?: (updateInfo: UpdateInfo) => void;
-	private deferredPrompt: any = null;
 
 	constructor() {
 		this.initializeUpdateListener();
@@ -18,14 +17,6 @@ class PWAUpdateService {
 	private initializeUpdateListener() {
 		// Only run on client side
 		if (typeof window === "undefined") return;
-
-		// Listen for the beforeinstallprompt event
-		window.addEventListener("beforeinstallprompt", (e) => {
-			e.preventDefault();
-			this.deferredPrompt = e;
-			this.updateAvailable = true;
-			this.notifyUpdateAvailable();
-		});
 
 		// Listen for service worker updates
 		if ("serviceWorker" in navigator) {
@@ -251,23 +242,6 @@ class PWAUpdateService {
 				releaseNotes: "Bug fixes and performance improvements",
 			});
 		}
-	}
-
-	public async performUpdate(): Promise<boolean> {
-		// Only run on client side
-		if (typeof window === "undefined") return false;
-
-		if (this.deferredPrompt) {
-			this.deferredPrompt.prompt();
-			const { outcome } = await this.deferredPrompt.userChoice;
-			this.deferredPrompt = null;
-
-			if (outcome === "accepted") {
-				this.updateAvailable = false;
-				return true;
-			}
-		}
-		return false;
 	}
 
 	public dismissUpdate() {
