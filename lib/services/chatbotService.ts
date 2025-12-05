@@ -702,6 +702,7 @@ export class ChatbotService {
 			questionLower.includes("who have i played") ||
 			questionLower.includes("who have you played") ||
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
+			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
 
 		this.logToBoth(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}`, null, "log");
@@ -3446,7 +3447,16 @@ export class ChatbotService {
 				if (teammates.length > 0) {
 					const topTeammate = teammates[0];
 					const gamesText = topTeammate.gamesTogether === 1 ? "game" : "games";
-					answer = `You have played the most games with ${topTeammate.teammateName}, appearing together in ${topTeammate.gamesTogether} ${gamesText}.`;
+					// Check if question is about "I/you" or a specific player
+					const questionLower = question.toLowerCase();
+					const isAboutUser = questionLower.includes(" i ") || questionLower.includes(" i've ") || questionLower.includes(" i'") || 
+						questionLower.startsWith("i ") || questionLower.includes(" who have i ") || questionLower.includes(" who have you ");
+					
+					if (isAboutUser) {
+						answer = `You have played the most games with ${topTeammate.teammateName}, appearing together in ${topTeammate.gamesTogether} ${gamesText}.`;
+					} else {
+						answer = `${playerName} has played the most games with ${topTeammate.teammateName}, appearing together in ${topTeammate.gamesTogether} ${gamesText}.`;
+					}
 
 					visualization = {
 						type: "Table",
@@ -3461,7 +3471,7 @@ export class ChatbotService {
 							columns: [
 								{ key: "rank", label: "Rank" },
 								{ key: "name", label: "Player Name" },
-								{ key: "value", label: "Games Together" },
+								{ key: "value", label: "Games" },
 							],
 						},
 					};
