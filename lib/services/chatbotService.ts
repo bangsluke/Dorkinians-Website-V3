@@ -492,6 +492,26 @@ export class ChatbotService {
 
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
+				// Log unanswered questions for clarification_needed cases (fire-and-forget, non-blocking)
+				// These represent unanswerable questions that should be tracked
+				const shouldLogClarification = 
+					(analysis.confidence !== undefined && analysis.confidence < 0.5) ||
+					analysis.requiresClarification ||
+					analysis.entities.length === 0 ||
+					analysis.metrics.length === 0;
+
+				if (shouldLogClarification) {
+					unansweredQuestionLogger.log({
+						originalQuestion,
+						correctedQuestion,
+						analysis,
+						confidence: analysis.confidence,
+						userContext: context.userContext,
+					}).catch((err) => {
+						console.error("❌ Failed to log unanswered question:", err);
+					});
+				}
+
 				// Try to provide a better fallback response
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
@@ -547,7 +567,7 @@ export class ChatbotService {
 				analysis.requiresClarification ||
 				analysis.entities.length === 0 ||
 				analysis.metrics.length === 0 ||
-				(data && (data as any).type === "error" || ((data as any).data && Array.isArray((data as any).data) && (data as any).data.length === 0));
+				(data && ((data as any).type === "error" || ((data as any).data && Array.isArray((data as any).data) && (data as any).data.length === 0)));
 
 			if (shouldLog) {
 				unansweredQuestionLogger.log({
