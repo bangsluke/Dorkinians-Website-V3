@@ -424,20 +424,25 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		if (typeof window !== "undefined") {
 			// Load navigation state from localStorage
 			const savedMainPage = localStorage.getItem("dorkinians-current-main-page");
+			let restoredMainPage: MainPage = "home";
+			
 			// If saved page is "settings", restore the previous page instead
 			if (savedMainPage === "settings") {
 				const previousMainPage = localStorage.getItem("dorkinians-previous-main-page");
 				if (previousMainPage && (previousMainPage === "home" || previousMainPage === "stats" || previousMainPage === "totw" || previousMainPage === "club-info")) {
-					set({ currentMainPage: previousMainPage as MainPage, previousMainPage: null });
+					restoredMainPage = previousMainPage as MainPage;
+					set({ currentMainPage: restoredMainPage, previousMainPage: null });
 					// Update localStorage with the restored page
-					localStorage.setItem("dorkinians-current-main-page", previousMainPage);
+					localStorage.setItem("dorkinians-current-main-page", restoredMainPage);
 				} else {
 					// Fallback to home if no previous page found
-					set({ currentMainPage: "home", previousMainPage: null });
-					localStorage.setItem("dorkinians-current-main-page", "home");
+					restoredMainPage = "home";
+					set({ currentMainPage: restoredMainPage, previousMainPage: null });
+					localStorage.setItem("dorkinians-current-main-page", restoredMainPage);
 				}
 			} else if (savedMainPage && (savedMainPage === "home" || savedMainPage === "stats" || savedMainPage === "totw" || savedMainPage === "club-info" || savedMainPage === "settings")) {
-				set({ currentMainPage: savedMainPage as MainPage });
+				restoredMainPage = savedMainPage as MainPage;
+				set({ currentMainPage: restoredMainPage });
 			}
 
 			// Load previous main page
@@ -446,19 +451,23 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				set({ previousMainPage: savedPreviousMainPage as MainPage });
 			}
 
-			const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
-			if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
-				set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
-			}
-
-			const savedTOTWSubPage = localStorage.getItem("dorkinians-current-totw-sub-page");
-			if (savedTOTWSubPage && (savedTOTWSubPage === "totw" || savedTOTWSubPage === "players-of-month")) {
-				set({ currentTOTWSubPage: savedTOTWSubPage as TOTWSubPage });
-			}
-
-			const savedClubInfoSubPage = localStorage.getItem("dorkinians-current-club-info-sub-page");
-			if (savedClubInfoSubPage && (savedClubInfoSubPage === "club-information" || savedClubInfoSubPage === "league-information" || savedClubInfoSubPage === "club-captains" || savedClubInfoSubPage === "club-awards" || savedClubInfoSubPage === "useful-links")) {
-				set({ currentClubInfoSubPage: savedClubInfoSubPage as ClubInfoSubPage });
+			// Restore sub-pages - explicitly restore the sub-page that corresponds to the restored main page
+			// This ensures proper ordering and that the correct sub-page is restored
+			if (restoredMainPage === "stats") {
+				const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
+				if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
+					set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
+				}
+			} else if (restoredMainPage === "totw") {
+				const savedTOTWSubPage = localStorage.getItem("dorkinians-current-totw-sub-page");
+				if (savedTOTWSubPage && (savedTOTWSubPage === "totw" || savedTOTWSubPage === "players-of-month")) {
+					set({ currentTOTWSubPage: savedTOTWSubPage as TOTWSubPage });
+				}
+			} else if (restoredMainPage === "club-info") {
+				const savedClubInfoSubPage = localStorage.getItem("dorkinians-current-club-info-sub-page");
+				if (savedClubInfoSubPage && (savedClubInfoSubPage === "club-information" || savedClubInfoSubPage === "league-information" || savedClubInfoSubPage === "club-captains" || savedClubInfoSubPage === "club-awards" || savedClubInfoSubPage === "useful-links")) {
+					set({ currentClubInfoSubPage: savedClubInfoSubPage as ClubInfoSubPage });
+				}
 			}
 
 			const saved = localStorage.getItem("dorkinians-selected-player");
