@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { pwaUpdateService } from "@/lib/services/pwaUpdateService";
 
 interface PWAUpdateNotificationProps {
 	onUpdate?: () => void;
@@ -17,13 +18,14 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 		if (isPWAInstalled) {
 			// Listen for service worker updates
 			if ("serviceWorker" in navigator) {
-				navigator.serviceWorker.addEventListener("controllerchange", () => {
-					setShowUpdateNotification(true);
-				});
-
 				// Check for updates on page load
 				navigator.serviceWorker.getRegistration().then((registration) => {
 					if (registration) {
+						// Check if there's already a waiting worker
+						if (registration.waiting) {
+							setShowUpdateNotification(true);
+						}
+
 						registration.addEventListener("updatefound", () => {
 							const newWorker = registration.installing;
 							if (newWorker) {
@@ -40,14 +42,17 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 		}
 	}, []);
 
-	const handleUpdate = () => {
+	const handleUpdate = async () => {
 		setIsUpdating(true);
-
-		// Reload the page to activate the new service worker
-		window.location.reload();
-
-		if (onUpdate) {
-			onUpdate();
+		try {
+			await pwaUpdateService.activateUpdate();
+			// Page will reload, so this won't execute
+			if (onUpdate) {
+				onUpdate();
+			}
+		} catch (error) {
+			console.error("Update failed:", error);
+			setIsUpdating(false);
 		}
 	};
 
