@@ -271,85 +271,91 @@ export default function SettingsPage() {
 						<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
 						<div className='space-y-3'>
 							{/* Version Release Details */}
-							{siteDetails?.versionReleaseDetails && (
-								<motion.div
-									className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
-									onClick={() => toggleCard("versionReleaseDetails")}
-									whileHover={{ scale: 1.02 }}
-									whileTap={{ scale: 0.98 }}>
-									<div className='flex items-center justify-between'>
-										<h3 className='text-lg font-semibold text-white'>Version Release Details</h3>
-										<div className='text-dorkinians-yellow'>
-											<svg
-												className={`w-5 h-5 transition-transform ${expandedCards.versionReleaseDetails ? "rotate-180" : ""}`}
-												fill='none'
-												stroke='currentColor'
-												viewBox='0 0 24 24'>
-												<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-											</svg>
-										</div>
+							<motion.div
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
+								onClick={() => toggleCard("versionReleaseDetails")}
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center justify-between'>
+									<h3 className='text-lg font-semibold text-white'>Version Release Details</h3>
+									<div className='text-dorkinians-yellow'>
+										<svg
+											className={`w-5 h-5 transition-transform ${expandedCards.versionReleaseDetails ? "rotate-180" : ""}`}
+											fill='none'
+											stroke='currentColor'
+											viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+										</svg>
 									</div>
-									{expandedCards.versionReleaseDetails && (
-										<div className='mt-3 pt-3 border-t border-white/20'>
+								</div>
+								{expandedCards.versionReleaseDetails && (
+									<div className='mt-3 pt-3 border-t border-white/20'>
+										{siteDetails?.versionReleaseDetails ? (
 											<p className='text-sm text-gray-300 whitespace-pre-wrap'>{siteDetails.versionReleaseDetails}</p>
-										</div>
-									)}
-								</motion.div>
-							)}
+										) : (
+											<p className='text-sm text-gray-400'>Loading...</p>
+										)}
+									</div>
+								)}
+							</motion.div>
 
 							{/* Updates To Come */}
-							{siteDetails?.updatesToCome && (
-								<motion.div
-									className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
-									onClick={() => toggleCard("updatesToCome")}
-									whileHover={{ scale: 1.02 }}
-									whileTap={{ scale: 0.98 }}>
-									<div className='flex items-center justify-between'>
-										<h3 className='text-lg font-semibold text-white'>Updates To Come</h3>
-										<div className='text-dorkinians-yellow'>
-											<svg
-												className={`w-5 h-5 transition-transform ${expandedCards.updatesToCome ? "rotate-180" : ""}`}
-												fill='none'
-												stroke='currentColor'
-												viewBox='0 0 24 24'>
-												<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-											</svg>
-										</div>
+							<motion.div
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
+								onClick={() => toggleCard("updatesToCome")}
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center justify-between'>
+									<h3 className='text-lg font-semibold text-white'>Updates To Come</h3>
+									<div className='text-dorkinians-yellow'>
+										<svg
+											className={`w-5 h-5 transition-transform ${expandedCards.updatesToCome ? "rotate-180" : ""}`}
+											fill='none'
+											stroke='currentColor'
+											viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+										</svg>
 									</div>
-									{expandedCards.updatesToCome && (
-										<div className='mt-3 pt-3 border-t border-white/20'>
+								</div>
+								{expandedCards.updatesToCome && (
+									<div className='mt-3 pt-3 border-t border-white/20'>
+										{siteDetails?.updatesToCome ? (
 											<p className='text-sm text-gray-300 whitespace-pre-wrap'>{siteDetails.updatesToCome}</p>
-										</div>
-									)}
-								</motion.div>
-							)}
+										) : (
+											<p className='text-sm text-gray-400'>Loading...</p>
+										)}
+									</div>
+								)}
+							</motion.div>
 
 							{/* Stat Limitations */}
-							{siteDetails?.statLimitations && (
-								<motion.div
-									className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
-									onClick={() => toggleCard("statLimitations")}
-									whileHover={{ scale: 1.02 }}
-									whileTap={{ scale: 0.98 }}>
-									<div className='flex items-center justify-between'>
-										<h3 className='text-lg font-semibold text-white'>Stat Limitations</h3>
-										<div className='text-dorkinians-yellow'>
-											<svg
-												className={`w-5 h-5 transition-transform ${expandedCards.statLimitations ? "rotate-180" : ""}`}
-												fill='none'
-												stroke='currentColor'
-												viewBox='0 0 24 24'>
-												<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-											</svg>
-										</div>
+							<motion.div
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
+								onClick={() => toggleCard("statLimitations")}
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center justify-between'>
+									<h3 className='text-lg font-semibold text-white'>Stat Limitations</h3>
+									<div className='text-dorkinians-yellow'>
+										<svg
+											className={`w-5 h-5 transition-transform ${expandedCards.statLimitations ? "rotate-180" : ""}`}
+											fill='none'
+											stroke='currentColor'
+											viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+										</svg>
 									</div>
-									{expandedCards.statLimitations && (
-										<div className='mt-3 pt-3 border-t border-white/20'>
+								</div>
+								{expandedCards.statLimitations && (
+									<div className='mt-3 pt-3 border-t border-white/20'>
+										{siteDetails?.statLimitations ? (
 											<p className='text-sm text-gray-300 whitespace-pre-wrap'>{siteDetails.statLimitations}</p>
-										</div>
-									)}
-								</motion.div>
-							)}
+										) : (
+											<p className='text-sm text-gray-400'>Loading...</p>
+										)}
+									</div>
+								)}
+							</motion.div>
 
 							{/* Report Bug/Feature Request */}
 							<motion.button
