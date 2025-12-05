@@ -6,6 +6,7 @@ import Link from "next/link";
 interface UnansweredQuestion {
 	timestamp: string;
 	question: string;
+	playerName: string;
 }
 
 export default function UnansweredQuestionsPage() {
@@ -47,19 +48,19 @@ export default function UnansweredQuestionsPage() {
 	};
 
 	return (
-		<div className='min-h-screen bg-gray-100 py-8'>
-			<div className='container mx-auto max-w-6xl px-4'>
-				<div className='bg-white rounded-lg shadow-lg p-6'>
-					<div className='flex justify-between items-center mb-6'>
+		<div className='min-h-screen bg-gray-100 py-4 sm:py-8'>
+			<div className='container mx-auto max-w-6xl px-2 sm:px-4'>
+				<div className='bg-white rounded-lg shadow-lg p-4 sm:p-6'>
+					<div className='flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4'>
 						<div>
-							<h1 className='text-3xl font-bold text-gray-900 mb-2'>All Unanswered Questions</h1>
-							<p className='text-gray-600'>
+							<h1 className='text-2xl sm:text-3xl font-bold text-gray-900 mb-2'>All Unanswered Questions</h1>
+							<p className='text-sm sm:text-base text-gray-600'>
 								Total: <strong>{questions.length}</strong> unanswered question{questions.length !== 1 ? "s" : ""}
 							</p>
 						</div>
 						<Link
 							href='/admin'
-							className='px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors'>
+							className='w-full sm:w-auto px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-center sm:text-left'>
 							← Back to Admin
 						</Link>
 					</div>
@@ -88,17 +89,22 @@ export default function UnansweredQuestionsPage() {
 					) : questions.length === 0 ? (
 						<div className='text-center py-8 text-gray-500'>No unanswered questions found.</div>
 					) : (
-						<div className='space-y-3 max-h-[calc(100vh-300px)] overflow-y-auto'>
+						<div className='space-y-3 max-h-[calc(100vh-200px)] sm:max-h-[calc(100vh-300px)] overflow-y-auto'>
 							{questions.map((item, index) => (
 								<div
 									key={index}
-									className='p-4 bg-white border border-blue-200 rounded-lg hover:shadow-md transition-shadow'>
+									className='p-3 sm:p-4 bg-white border border-blue-200 rounded-lg hover:shadow-md transition-shadow'>
 									<div className='flex justify-between items-start gap-4'>
 										<div className='flex-1'>
-											<p className='text-gray-800 font-medium'>{item.question}</p>
-											<p className='text-xs text-gray-500 mt-2'>
-												{formatDate(item.timestamp)}
-											</p>
+											<p className='text-gray-800 font-medium text-sm sm:text-base'>{item.question}</p>
+											<div className='flex flex-col sm:flex-row sm:gap-2 mt-2'>
+												<p className='text-xs text-gray-500'>
+													{formatDate(item.timestamp)}
+												</p>
+												<p className='text-xs text-gray-500'>
+													Player: <span className='font-medium'>{item.playerName}</span>
+												</p>
+											</div>
 										</div>
 									</div>
 								</div>
