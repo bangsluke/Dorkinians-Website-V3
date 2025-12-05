@@ -83,35 +83,157 @@ class PWAUpdateService {
 					return;
 				}
 
-				// Check for installing worker
+				// Track if we've already resolved to avoid multiple resolutions
+				let resolved = false;
+				const resolveOnce = (info: UpdateInfo) => {
+					if (!resolved) {
+						resolved = true;
+						resolve(info);
+					}
+				};
+
+				// Check for installing worker and wait for it to become waiting
 				if (registration.installing) {
-					registration.installing.addEventListener("statechange", () => {
-						if (registration.waiting) {
+					const installingWorker = registration.installing;
+					
+					const stateChangeHandler = () => {
+						if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+							// Worker is now waiting
 							this.updateAvailable = true;
-							resolve({
+							resolveOnce({
 								isUpdateAvailable: true,
 								version: appConfig.version,
 								releaseNotes: "Bug fixes and performance improvements",
 							});
+						} else if (installingWorker.state === "activated") {
+							// Worker activated immediately (no update needed)
+							if (!resolved) {
+								// Continue with update check
+							}
 						}
-					});
+					};
+
+					installingWorker.addEventListener("statechange", stateChangeHandler);
+					
+					// Also check current state in case it's already installed
+					if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+						this.updateAvailable = true;
+						resolveOnce({
+							isUpdateAvailable: true,
+							version: appConfig.version,
+							releaseNotes: "Bug fixes and performance improvements",
+						});
+						return;
+					}
 				}
 
 				// Force update check
 				registration.update().then(() => {
-					// After update check, see if we now have a waiting worker
-					setTimeout(() => {
-						if (registration.waiting) {
-							this.updateAvailable = true;
-							resolve({
-								isUpdateAvailable: true,
-								version: appConfig.version,
-								releaseNotes: "Bug fixes and performance improvements",
-							});
-						} else {
-							resolve({ isUpdateAvailable: false });
-						}
-					}, 1000);
+					// Check immediately after update
+					if (registration.waiting) {
+						this.updateAvailable = true;
+						resolveOnce({
+							isUpdateAvailable: true,
+							version: appConfig.version,
+							releaseNotes: "Bug fixes and performance improvements",
+						});
+						return;
+					}
+
+					// If there's an installing worker, wait for it
+					if (registration.installing) {
+						const installingWorker = registration.installing;
+						
+						const stateChangeHandler = () => {
+							if (installingWorker.state === "installed" && navigator.serviceWorker.controller) {
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+							} else if (installingWorker.state === "activated") {
+								// No update available
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
+							}
+						};
+
+						installingWorker.addEventListener("statechange", stateChangeHandler);
+						
+						// Set a timeout to check periodically (in case statechange doesn't fire)
+						let checkCount = 0;
+						const maxChecks = 10; // Check up to 10 times (5 seconds total)
+						const checkInterval = setInterval(() => {
+							checkCount++;
+							
+							if (registration.waiting) {
+								clearInterval(checkInterval);
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+							} else if (checkCount >= maxChecks || !registration.installing) {
+								clearInterval(checkInterval);
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
+							}
+						}, 500);
+						
+						// Also set a final timeout as fallback
+						setTimeout(() => {
+							clearInterval(checkInterval);
+							if (registration.waiting) {
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+							} else if (!resolved) {
+								resolveOnce({ isUpdateAvailable: false });
+							}
+						}, 5000);
+					} else {
+						// No installing worker, check periodically for a short time
+						let checkCount = 0;
+						const maxChecks = 6; // Check up to 6 times (3 seconds total)
+						const checkInterval = setInterval(() => {
+							checkCount++;
+							
+							if (registration.waiting) {
+								clearInterval(checkInterval);
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+							} else if (checkCount >= maxChecks) {
+								clearInterval(checkInterval);
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
+							}
+						}, 500);
+						
+						// Final timeout as fallback
+						setTimeout(() => {
+							clearInterval(checkInterval);
+							if (!resolved) {
+								resolveOnce({ isUpdateAvailable: false });
+							}
+						}, 3000);
+					}
+				}).catch(() => {
+					// If update check fails, resolve with no update
+					if (!resolved) {
+						resolveOnce({ isUpdateAvailable: false });
+					}
 				});
 			});
 		});
