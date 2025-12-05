@@ -83,11 +83,13 @@ export default function SettingsPage() {
 		statLimitations: false,
 	});
 
-	const handleNavigationClick = (pageId: string) => {
+	const handleNavigationClick = (e: React.MouseEvent, pageId: string) => {
+		e.stopPropagation();
 		setMainPage(pageId as any);
 	};
 
-	const handleSubPageClick = (mainPageId: string, subPageId: string) => {
+	const handleSubPageClick = (e: React.MouseEvent, mainPageId: string, subPageId: string) => {
+		e.stopPropagation();
 		setMainPage(mainPageId as any);
 
 		// Set the appropriate sub-page based on the main page
@@ -183,36 +185,37 @@ export default function SettingsPage() {
 				{/* Navigation List */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 					<div className='space-y-4'>
-						{/* Site Navigation - Collapsible */}
-						<motion.div
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
-							onClick={() => toggleCard("isSiteNavigationExpanded")}
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}>
-							<div className='flex items-center justify-between'>
-								<h2 className='text-lg font-semibold text-white'>Site Navigation</h2>
-								<div className='text-dorkinians-yellow'>
-									<svg
-										className={`w-5 h-5 transition-transform ${expandedCards.isSiteNavigationExpanded ? "rotate-180" : ""}`}
-										fill='none'
-										stroke='currentColor'
-										viewBox='0 0 24 24'>
-										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-									</svg>
-								</div>
+					{/* Site Navigation - Collapsible */}
+					<motion.div
+						className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
+						whileHover={{ scale: 1.02 }}
+						whileTap={{ scale: 0.98 }}>
+						<div 
+							className='flex items-center justify-between cursor-pointer'
+							onClick={() => toggleCard("isSiteNavigationExpanded")}>
+							<h2 className='text-lg font-semibold text-white'>Site Navigation</h2>
+							<div className='text-dorkinians-yellow'>
+								<svg
+									className={`w-5 h-5 transition-transform ${expandedCards.isSiteNavigationExpanded ? "rotate-180" : ""}`}
+									fill='none'
+									stroke='currentColor'
+									viewBox='0 0 24 24'>
+									<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+								</svg>
 							</div>
+						</div>
 							{expandedCards.isSiteNavigationExpanded && (
 								<div className='mt-4 space-y-2'>
 									{navigationItems.map((item) => {
 							const Icon = item.icon;
 							return (
 								<div key={item.id} className='space-y-2'>
-									{/* Main Navigation Item */}
-									<motion.button
-										onClick={() => handleNavigationClick(item.id)}
-										className='w-full p-3 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
-										whileHover={{ scale: 1.02 }}
-										whileTap={{ scale: 0.98 }}>
+								{/* Main Navigation Item */}
+								<motion.button
+									onClick={(e) => handleNavigationClick(e, item.id)}
+									className='w-full p-3 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+									whileHover={{ scale: 1.02 }}
+									whileTap={{ scale: 0.98 }}>
 										<div className='flex items-center space-x-3'>
 											<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
 												<Icon className='w-4 h-4 text-dorkinians-yellow' />
@@ -231,13 +234,13 @@ export default function SettingsPage() {
 									{/* Sub-pages */}
 									{item.subPages.length > 0 && (
 										<div className='space-y-2'>
-											{item.subPages.map((subPage) => (
-												<motion.button
-													key={subPage.id}
-													onClick={() => handleSubPageClick(item.id, subPage.id)}
-													className='w-full p-3 rounded-lg bg-white/5 hover:bg-white/15 transition-all duration-200 text-left'
-													whileHover={{ scale: 1.01 }}
-													whileTap={{ scale: 0.99 }}>
+										{item.subPages.map((subPage) => (
+											<motion.button
+												key={subPage.id}
+												onClick={(e) => handleSubPageClick(e, item.id, subPage.id)}
+												className='w-full p-3 rounded-lg bg-white/5 hover:bg-white/15 transition-all duration-200 text-left'
+												whileHover={{ scale: 1.01 }}
+												whileTap={{ scale: 0.99 }}>
 													<div className='flex items-center justify-between'>
 														<div className='flex items-center space-x-3'>
 															<div className='w-2 h-2 rounded-full bg-dorkinians-yellow/60'></div>
