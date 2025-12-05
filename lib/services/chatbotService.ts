@@ -693,6 +693,41 @@ export class ChatbotService {
 			return { type: "no_context", data: [], message: "No player context provided" };
 		}
 
+		// Check for "played with" or "most played with" questions
+		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
+		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+		const isPlayedWithQuestion = 
+			questionLower.includes("played with") ||
+			questionLower.includes("played most") ||
+			questionLower.includes("who have i played") ||
+			questionLower.includes("who have you played") ||
+			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
+			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
+
+		this.logToBoth(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}`, null, "log");
+		console.log(`[MOST_PLAYED_WITH] Checking detection. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, entities: ${entities.length}`);
+
+		// If this is a "played with" question, handle it specially (even if metrics were extracted)
+		if (isPlayedWithQuestion && entities.length > 0) {
+			console.log(`[MOST_PLAYED_WITH] ✅ DETECTED! Using most played with query for player: ${entities[0]}`);
+			this.logToBoth(`🔍 Detected "played with" question, using most played with query for player: ${entities[0]}`, null, "log");
+			const playerName = entities[0];
+			const resolvedPlayerName = await this.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				this.logToBoth(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			this.logToBoth(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedWith`, null, "log");
+			return await this.queryMostPlayedWith(resolvedPlayerName);
+		}
+
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
@@ -3386,6 +3421,53 @@ export class ChatbotService {
 						type: "table",
 					},
 				};
+			} else if (data && data.type === "most_played_with" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+				// Handle most played with data
+				const playerName = data.playerName as string;
+				// Convert Neo4j Integer types to JavaScript numbers
+				const teammates = (data.data as Array<{ teammateName: string; gamesTogether: number | any }>).map((teammate) => {
+					let gamesTogether = teammate.gamesTogether;
+					// Handle Neo4j Integer objects
+					if (gamesTogether && typeof gamesTogether === "object") {
+						if ("toNumber" in gamesTogether && typeof gamesTogether.toNumber === "function") {
+							gamesTogether = gamesTogether.toNumber();
+						} else if ("low" in gamesTogether && "high" in gamesTogether) {
+							gamesTogether = (gamesTogether.low || 0) + (gamesTogether.high || 0) * 4294967296;
+						} else {
+							gamesTogether = Number(gamesTogether);
+						}
+					}
+					return {
+						teammateName: teammate.teammateName,
+						gamesTogether: Number(gamesTogether) || 0,
+					};
+				});
+
+				if (teammates.length > 0) {
+					const topTeammate = teammates[0];
+					const gamesText = topTeammate.gamesTogether === 1 ? "game" : "games";
+					answer = `You have played the most games with ${topTeammate.teammateName}, appearing together in ${topTeammate.gamesTogether} ${gamesText}.`;
+
+					visualization = {
+						type: "Table",
+						data: teammates.map((teammate, index) => ({
+							rank: index + 1,
+							name: teammate.teammateName,
+							value: teammate.gamesTogether,
+						})),
+						config: {
+							title: `Top 3 Players - Games Played Together`,
+							type: "table",
+							columns: [
+								{ key: "rank", label: "Rank" },
+								{ key: "name", label: "Player Name" },
+								{ key: "value", label: "Games Together" },
+							],
+						},
+					};
+				} else {
+					answer = `${playerName} has not played any games with other players yet.`;
+				}
 			} else if (data && data.type === "opponents" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opponents data
 				const playerName = data.playerName as string;
@@ -3642,6 +3724,46 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth(`❌ Error in co-players query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying co-players data" };
+		}
+	}
+
+	private async queryMostPlayedWith(playerName: string): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 Querying most played with for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		// Find players who played together by matching MatchDetail nodes that share the same Fixture
+		// Each MatchDetail represents one player's performance in one match
+		// Multiple MatchDetails can belong to the same Fixture (same game, different players)
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (other:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE other.playerName <> p.playerName
+			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
+			ORDER BY gamesTogether DESC
+			LIMIT 3
+			RETURN teammateName, gamesTogether
+		`;
+
+		// Log copyable query for debugging
+		const readyToExecuteQuery = query
+			.replace(/\$playerName/g, `'${playerName}'`)
+			.replace(/\$graphLabel/g, `'${graphLabel}'`);
+		
+		console.log(`🔍 [MOST_PLAYED_WITH] COPY-PASTE QUERY FOR MANUAL TESTING:`);
+		console.log(readyToExecuteQuery);
+		this.lastExecutedQueries.push(`MOST_PLAYED_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, { 
+				playerName,
+				graphLabel 
+			});
+			console.log(`🔍 [MOST_PLAYED_WITH] Query result:`, result);
+			return { type: "most_played_with", data: result, playerName };
+		} catch (error) {
+			this.logToBoth(`❌ Error in most played with query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying most played with data" };
 		}
 	}
 

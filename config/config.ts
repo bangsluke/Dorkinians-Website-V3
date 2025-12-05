@@ -36,6 +36,12 @@ export const homepageQuestions: HomepageQuestion[] = [
 		description: "Check your total Fantasy Points count",
 		category: "player",
 	},
+	{
+		id: "most-played-with",
+		question: "Who have I played the most games with?",
+		description: "See which players you've appeared with most often",
+		category: "player",
+	},
 ];
 
 export const usefulLinks: UsefulLink[] = [
