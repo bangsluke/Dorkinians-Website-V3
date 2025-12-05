@@ -77,7 +77,7 @@ export default function SettingsPage() {
 	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
 	const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
-		isSiteNavigationExpanded: false,
+		isSiteNavigationExpanded: true,
 		versionReleaseDetails: false,
 		updatesToCome: false,
 		statLimitations: false,
@@ -86,6 +86,7 @@ export default function SettingsPage() {
 	const handleNavigationClick = (e: React.MouseEvent, pageId: string) => {
 		e.stopPropagation();
 		setMainPage(pageId as any);
+		window.location.href = "/";
 	};
 
 	const handleSubPageClick = (e: React.MouseEvent, mainPageId: string, subPageId: string) => {
@@ -104,6 +105,7 @@ export default function SettingsPage() {
 				setClubInfoSubPage(subPageId as any);
 				break;
 		}
+		window.location.href = "/";
 	};
 
 	const handleBackClick = () => {
