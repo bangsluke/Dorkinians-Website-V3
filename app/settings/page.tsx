@@ -21,6 +21,7 @@ import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 
 // Dynamically import PWA components to avoid SSR issues
 const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
+const PWAInstallButton = dynamic(() => import("@/components/PWAInstallButton"), { ssr: false });
 
 const navigationItems = [
 	{
@@ -186,6 +187,11 @@ export default function SettingsPage() {
 
 				{/* Navigation List */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
+					{/* Add App to Home Screen Button */}
+					<div className='mb-6'>
+						<PWAInstallButton />
+					</div>
+
 					<div className='space-y-4'>
 					{/* Site Navigation - Collapsible */}
 					<motion.div
