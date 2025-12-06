@@ -217,7 +217,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				transition={{ duration: 0.5 }}
 				className='text-center'>
 				<div className='flex items-center justify-center space-x-2 md:space-x-3'>
-					<h2 className='text-lg md:text-xl font-semibold text-white'>{selectedPlayer}</h2>
+					<h2 className='text-xl md:text-2xl font-semibold text-white'>{selectedPlayer}</h2>
 					<button
 						onClick={onEditClick}
 						className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
