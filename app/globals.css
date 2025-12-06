@@ -227,9 +227,8 @@
 	/* Dark input components with Dorkinians brand colors */
 	.dark-input {
 		background: var(--field-bg);
-		color: #f3f3f3;
-		border-radius: 14px;
-		padding: 12px 16px;
+		color: var(--text-light);
+		@apply rounded-2xl px-4 py-3;
 		transition: all 0.2s ease;
 	}
 
@@ -246,9 +245,7 @@
 	.dark-button {
 		background: linear-gradient(135deg, var(--dorkinians-green) 0%, var(--dorkinians-green-dark) 100%);
 		color: white;
-		border-radius: 14px;
-		padding: 12px 24px;
-		font-weight: 600;
+		@apply rounded-2xl px-6 py-3 font-semibold;
 		transition: all 0.2s ease;
 		cursor: pointer;
 	}
@@ -266,8 +263,8 @@
 
 	.dark-dropdown {
 		background: rgb(14, 17, 15);
-		color: #f3f3f3;
-		border-radius: 14px;
+		color: var(--text-light);
+		@apply rounded-2xl;
 		box-shadow:
 			0 10px 25px rgba(0, 0, 0, 0.45),
 			0 2px 6px rgba(0, 0, 0, 0.35);
@@ -276,8 +273,8 @@
 
 	.dark-dropdown-option {
 		background: rgb(14, 17, 15);
-		color: #f3f3f3;
-		padding: 12px 16px;
+		color: var(--text-light);
+		@apply px-4 py-3;
 		transition: all 0.2s ease;
 	}
 
@@ -295,9 +292,8 @@
 	/* Chat interface dark styling */
 	.dark-chat-input {
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
-		color: #f3f3f3;
-		border-radius: 14px;
-		padding: 16px;
+		color: var(--text-light);
+		@apply rounded-2xl p-4;
 		transition: all 0.2s ease;
 	}
 
@@ -310,9 +306,7 @@
 	.dark-chat-button {
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
 		color: white;
-		border-radius: 14px;
-		padding: 16px 24px;
-		font-weight: 600;
+		@apply rounded-2xl px-6 py-4 font-semibold;
 		transition: all 0.2s ease;
 		cursor: pointer;
 	}
@@ -325,7 +319,7 @@
 	}
 
 	.dark-chat-button:disabled {
-		bbackground: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
 		border-color: rgba(249, 237, 50, 0.1);
 		color: rgba(249, 237, 50, 0.5);
 		cursor: not-allowed;
@@ -373,9 +367,7 @@
 .CTA {
 	background: linear-gradient(135deg, var(--dorkinians-yellow) 0%, var(--dorkinians-yellow-dark) 100%);
 	color: var(--text-dark);
-	font-weight: 500;
-	padding: 8px 16px;
-	border-radius: 8px;
+	@apply font-medium px-4 py-2 rounded-lg;
 	transition: background-color 200ms ease;
 }
 
