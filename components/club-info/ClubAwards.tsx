@@ -200,7 +200,7 @@ export default function ClubAwards() {
 
 	return (
 		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-6 pb-4'>
+			<div className='flex-shrink-0 p-2 md:p-4'>
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Awards</h2>
 
 				{/* Season Dropdown */}

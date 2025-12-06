@@ -817,7 +817,7 @@ export default function PlayersOfMonth() {
 	const isInitialLoading = seasons.length === 0;
 
 	return (
-		<div className='flex flex-col p-4 md:p-6 relative'>
+		<div className='flex flex-col p-2 md:p-4 relative'>
 			{/* Header */}
 			<div className='text-center mb-3'>
 				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>

@@ -574,7 +574,7 @@ export default function LeagueInformation() {
 	return (
 		<div 
 			ref={containerRef} 
-			className='px-3 md:px-6 py-6 overflow-y-auto'
+			className='px-3 md:px-6 pt-2 md:pt-4 pb-6 overflow-y-auto'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 		<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>
 			League Information
