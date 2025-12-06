@@ -5,10 +5,35 @@ module.exports = {
 		extend: {
 			colors: {
 				"dorkinians-green": "#1C8841",
+				"dorkinians-green-dark": "#1a7a3a",
+				"dorkinians-green-darker": "#156b32",
 				"dorkinians-yellow": "#F9ED32",
+				"dorkinians-yellow-dark": "#e5d12e",
+				"dorkinians-yellow-darker": "#cfbf29",
 			},
 			fontFamily: {
 				sans: ["Inter", "system-ui", "sans-serif"],
+			},
+			fontSize: {
+				xs: ["0.75rem", { lineHeight: "1.5" }], // 12px
+				sm: ["0.875rem", { lineHeight: "1.5" }], // 14px
+				base: ["1rem", { lineHeight: "1.625" }], // 16px - WCAG compliant
+				lg: ["1.125rem", { lineHeight: "1.625" }], // 18px
+				xl: ["1.25rem", { lineHeight: "1.5" }], // 20px
+				"2xl": ["1.5rem", { lineHeight: "1.5" }], // 24px
+				"3xl": ["1.875rem", { lineHeight: "1.4" }], // 30px
+				"4xl": ["2.25rem", { lineHeight: "1.3" }], // 36px
+			},
+			fontWeight: {
+				normal: "400",
+				medium: "500",
+				semibold: "600",
+				bold: "700",
+			},
+			borderRadius: {
+				lg: "0.5rem", // 8px
+				xl: "0.75rem", // 12px
+				"2xl": "0.875rem", // 14px - matches existing design
 			},
 			screens: {
 				xs: "475px",

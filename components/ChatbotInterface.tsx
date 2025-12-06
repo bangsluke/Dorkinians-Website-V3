@@ -303,14 +303,14 @@ export default function ChatbotInterface() {
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player stats, team performance, or club information...'
-						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
+						className='dark-chat-input w-full text-base text-white placeholder-white'
 						disabled={isLoading}
 					/>
 					{/* Desktop button - hidden on mobile */}
 					<button
 						type='submit'
 						disabled={!question.trim() || isLoading}
-						className='CTA px-3 md:px-4 py-2 md:py-2 text-sm md:text-base w-full md:w-auto hidden md:block'>
+						className='CTA px-3 md:px-4 py-2 md:py-2 text-base w-full md:w-auto hidden md:block'>
 						{isLoading ? (
 							<svg className='animate-spin h-4 w-4 md:h-5 md:w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
 								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
@@ -369,8 +369,8 @@ export default function ChatbotInterface() {
 						exit={{ opacity: 0, y: -10 }}>
 						{/* Answer */}
 						<div className='mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white mb-2 text-sm md:text-base'>Answer:</h3>
-							<p className='text-yellow-100 text-sm md:text-base'>{response.answer}</p>
+							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>
+							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
 
 						{/* Visualization */}
@@ -396,7 +396,7 @@ export default function ChatbotInterface() {
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
-						<h3 className='font-semibold text-white mb-3 md:mb-4 text-sm md:text-base'>Try these questions:</h3>
+						<h3 className='font-semibold text-white mb-3 md:mb-4 text-base'>Try these questions:</h3>
 						<div className='space-y-2 md:space-y-3'>
 							{homepageQuestions.map((q, index) => (
 								<motion.div
@@ -422,7 +422,7 @@ export default function ChatbotInterface() {
 				{conversationHistory.length > 0 && (
 					<div>
 						<div className='flex items-center justify-between mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white text-sm md:text-base'>Previous Conversations</h3>
+							<h3 className='font-semibold text-white text-base'>Previous Conversations</h3>
 							<button
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
 								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
