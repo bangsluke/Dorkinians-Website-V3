@@ -139,8 +139,8 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4 md:mb-8'>
-										<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
-										<p className='text-sm md:text-base text-gray-300 max-w-md mx-auto'>
+										<h1 className='text-2xl md:text-3xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
+										<p className='text-base text-gray-300 max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
 									</motion.div>
@@ -179,7 +179,7 @@ export default function HomePage() {
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4'>
 										<div className='flex items-center justify-center space-x-2 md:space-x-3'>
-											<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow'>{selectedPlayer}</h2>
+											<h2 className='text-xl md:text-2xl font-semibold text-dorkinians-yellow'>{selectedPlayer}</h2>
 											<button
 												onClick={handleEditClick}
 												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
