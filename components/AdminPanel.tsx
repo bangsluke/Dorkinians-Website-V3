@@ -112,6 +112,7 @@ export default function AdminPanel() {
 	const [unansweredQuestions, setUnansweredQuestions] = useState<Array<{ timestamp: string; question: string; playerName: string }>>([]);
 	const [unansweredQuestionsError, setUnansweredQuestionsError] = useState<string | null>(null);
 	const [clearingQuestions, setClearingQuestions] = useState(false);
+	const [deletingQuestionTimestamp, setDeletingQuestionTimestamp] = useState<string | null>(null);
 
 	// Debug information state
 	const [showDebugInfo, setShowDebugInfo] = useState(false);
@@ -1023,6 +1024,36 @@ export default function AdminPanel() {
 			showToast("Failed to clear unanswered questions", "error");
 		} finally {
 			setClearingQuestions(false);
+		}
+	};
+
+	const clearSingleQuestion = async (timestamp: string) => {
+		if (!confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
+			return;
+		}
+
+		setDeletingQuestionTimestamp(timestamp);
+		setUnansweredQuestionsError(null);
+
+		try {
+			const response = await fetch(`/api/admin/unanswered-questions?timestamp=${encodeURIComponent(timestamp)}`, {
+				method: "DELETE",
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				setUnansweredQuestions((prev) => prev.filter((q) => q.timestamp !== timestamp));
+				showToast("Question deleted successfully", "success");
+			} else {
+				throw new Error(data.error || "Failed to delete question");
+			}
+		} catch (err) {
+			console.error("Error deleting question:", err);
+			setUnansweredQuestionsError(err instanceof Error ? err.message : "Network error");
+			showToast("Failed to delete question", "error");
+		} finally {
+			setDeletingQuestionTimestamp(null);
 		}
 	};
 
@@ -1955,6 +1986,17 @@ export default function AdminPanel() {
 											</p>
 										</div>
 									</div>
+									<button
+										onClick={() => clearSingleQuestion(item.timestamp)}
+										disabled={deletingQuestionTimestamp === item.timestamp}
+										className={`px-2 py-1 rounded text-xs font-semibold text-white transition-colors flex-shrink-0 ${
+											deletingQuestionTimestamp === item.timestamp
+												? "bg-gray-400 cursor-not-allowed"
+												: "bg-red-600 hover:bg-red-700"
+										}`}
+										title='Delete this question'>
+										{deletingQuestionTimestamp === item.timestamp ? "⏳" : "🗑️"}
+									</button>
 								</div>
 							</div>
 						))}
