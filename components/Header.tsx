@@ -36,7 +36,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					<div className='w-8 h-8 flex items-center justify-center'>
 						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
 					</div>
-					<span className='font-bold text-lg text-white'>Dorkinians FC</span>
+					<span className='font-bold text-xl text-white'>Dorkinians FC</span>
 				</motion.div>
 
 				{/* Right side icons */}

@@ -17,6 +17,7 @@ interface UnansweredQuestion {
 	confidence: number;
 	timestamp: string;
 	userContext?: string;
+	playerName?: string;
 	handled: boolean;
 	count?: number;
 }
@@ -110,12 +111,12 @@ export default function UnansweredQuestionsView() {
 	};
 
 	return (
-		<div className='p-6 bg-white rounded-lg shadow-lg'>
-			<h2 className='text-2xl font-bold mb-4'>Unanswered Questions</h2>
+		<div className='p-3 sm:p-6 bg-white rounded-lg shadow-lg'>
+			<h2 className='text-xl sm:text-2xl font-bold mb-4'>Unanswered Questions</h2>
 
 			{/* Filters */}
-			<div className='mb-4 p-4 bg-gray-50 rounded-lg'>
-				<div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
+			<div className='mb-4 p-3 sm:p-4 bg-gray-50 rounded-lg'>
+				<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
 					<div>
 						<label className='block text-sm font-medium mb-1'>Status</label>
 						<select
@@ -169,7 +170,7 @@ export default function UnansweredQuestionsView() {
 				</div>
 				<button
 					onClick={fetchQuestions}
-					className='mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'>
+					className='mt-4 w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'>
 					Apply Filters
 				</button>
 			</div>
@@ -190,75 +191,78 @@ export default function UnansweredQuestionsView() {
 					{questions.length === 0 ? (
 						<div className='text-center py-8 text-gray-500'>No unanswered questions found.</div>
 					) : (
-						questions.map((question) => (
-							<div
-								key={question.id}
-								className={`p-4 border rounded-lg ${
-									question.handled ? "bg-gray-50 opacity-75" : "bg-white"
-								}`}>
-								<div className='flex justify-between items-start mb-2'>
-									<div className='flex-1'>
-										<p className='font-semibold text-lg'>{question.originalQuestion}</p>
-										{question.correctedQuestion && (
-											<p className='text-sm text-gray-600 mt-1'>
-												Corrected: {question.correctedQuestion}
-											</p>
-										)}
-									</div>
-									<div className='flex gap-2'>
-										{!question.handled && (
+						questions.map((question) => {
+							const playerName = question.playerName || question.userContext || "Blank";
+							return (
+								<div
+									key={question.id}
+									className={`p-3 sm:p-4 border rounded-lg ${
+										question.handled ? "bg-gray-50 opacity-75" : "bg-white"
+									}`}>
+									<div className='flex flex-col sm:flex-row justify-between items-start mb-2 gap-2'>
+										<div className='flex-1'>
+											<p className='font-semibold text-base sm:text-lg'>{question.originalQuestion}</p>
+											{question.correctedQuestion && (
+												<p className='text-xs sm:text-sm text-gray-600 mt-1'>
+													Corrected: {question.correctedQuestion}
+												</p>
+											)}
+										</div>
+										<div className='flex flex-col sm:flex-row gap-2 w-full sm:w-auto'>
+											{!question.handled && (
+												<button
+													onClick={() => markAsHandled(question.questionHash)}
+													className='px-3 py-1 bg-green-600 text-white rounded text-xs sm:text-sm hover:bg-green-700'>
+													Mark Handled
+												</button>
+											)}
 											<button
-												onClick={() => markAsHandled(question.questionHash)}
-												className='px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700'>
-												Mark Handled
+												onClick={() => setSelectedQuestion(question)}
+												className='px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm hover:bg-blue-700'>
+												Details
 											</button>
-										)}
-										<button
-											onClick={() => setSelectedQuestion(question)}
-											className='px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700'>
-											Details
-										</button>
+										</div>
+									</div>
+									<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs sm:text-sm text-gray-600'>
+										<div>
+											<span className='font-medium'>Confidence: </span>
+											<span className={getConfidenceColor(question.confidence)}>
+												{(question.confidence * 100).toFixed(0)}%
+											</span>
+										</div>
+										<div>
+											<span className='font-medium'>Type: </span>
+											{question.analysis.type}
+										</div>
+										<div>
+											<span className='font-medium'>Complexity: </span>
+											{question.analysis.complexity}
+										</div>
+										<div>
+											<span className='font-medium'>Asked: </span>
+											{question.count || 1} time{question.count !== 1 ? "s" : ""}
+										</div>
+									</div>
+									<div className='mt-2 text-xs text-gray-500 flex flex-col sm:flex-row sm:gap-2'>
+										<span>{formatDate(question.timestamp)}</span>
+										<span>Player: <span className='font-medium'>{playerName}</span></span>
 									</div>
 								</div>
-								<div className='grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600'>
-									<div>
-										<span className='font-medium'>Confidence: </span>
-										<span className={getConfidenceColor(question.confidence)}>
-											{(question.confidence * 100).toFixed(0)}%
-										</span>
-									</div>
-									<div>
-										<span className='font-medium'>Type: </span>
-										{question.analysis.type}
-									</div>
-									<div>
-										<span className='font-medium'>Complexity: </span>
-										{question.analysis.complexity}
-									</div>
-									<div>
-										<span className='font-medium'>Asked: </span>
-										{question.count || 1} time{question.count !== 1 ? "s" : ""}
-									</div>
-								</div>
-								<div className='mt-2 text-xs text-gray-500'>
-									{formatDate(question.timestamp)}
-									{question.userContext && ` • Context: ${question.userContext}`}
-								</div>
-							</div>
-						))
+							);
+						})
 					)}
 				</div>
 			)}
 
 			{/* Details Modal */}
 			{selectedQuestion && (
-				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
-					<div className='bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto'>
+				<div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4' onClick={() => setSelectedQuestion(null)}>
+					<div className='bg-white rounded-lg p-4 sm:p-6 max-w-[95vw] sm:max-w-2xl w-full max-h-[90vh] overflow-y-auto' onClick={(e) => e.stopPropagation()}>
 						<div className='flex justify-between items-center mb-4'>
-							<h3 className='text-xl font-bold'>Question Details</h3>
+							<h3 className='text-lg sm:text-xl font-bold'>Question Details</h3>
 							<button
 								onClick={() => setSelectedQuestion(null)}
-								className='text-gray-500 hover:text-gray-700'>
+								className='text-gray-500 hover:text-gray-700 text-2xl sm:text-xl font-bold w-8 h-8 sm:w-auto sm:h-auto flex items-center justify-center'>
 								✕
 							</button>
 						</div>
@@ -285,7 +289,10 @@ export default function UnansweredQuestionsView() {
 							<div>
 								<strong>Timestamp:</strong> {formatDate(selectedQuestion.timestamp)}
 							</div>
-							{selectedQuestion.userContext && (
+							<div>
+								<strong>Player Name:</strong> {selectedQuestion.playerName || selectedQuestion.userContext || "Blank"}
+							</div>
+							{selectedQuestion.userContext && selectedQuestion.userContext !== (selectedQuestion.playerName || "Blank") && (
 								<div>
 									<strong>User Context:</strong> {selectedQuestion.userContext}
 								</div>

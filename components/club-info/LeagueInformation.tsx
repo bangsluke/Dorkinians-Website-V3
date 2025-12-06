@@ -325,6 +325,22 @@ export default function LeagueInformation() {
 		return season.replace("-", "/");
 	};
 
+	// Format date as dd/mm/yyyy
+	const formatDate = (dateString: string): string => {
+		if (!dateString) return '';
+		try {
+			const date = new Date(dateString);
+			if (isNaN(date.getTime())) return dateString;
+			// Use UTC methods to match the UTC dates stored in Neo4j
+			const day = String(date.getUTCDate()).padStart(2, '0');
+			const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+			const year = date.getUTCFullYear();
+			return `${day}/${month}/${year}`;
+		} catch (error) {
+			return dateString;
+		}
+	};
+
 	// Check if selected season is the current season
 	const isCurrentSeason = (selectedSeason: string | null): boolean => {
 		if (!selectedSeason) return false;
@@ -753,7 +769,7 @@ export default function LeagueInformation() {
 									</div>
 									{currentSeason && teamData.lastUpdated && (
 										<div className='text-center text-sm text-gray-400 mb-2'>
-											Last updated: {new Date(teamData.lastUpdated).toLocaleDateString()}
+											Last updated: {formatDate(teamData.lastUpdated)}
 										</div>
 									)}
 									{dorkiniansEntry && (
@@ -1471,7 +1487,7 @@ export default function LeagueInformation() {
 								</h3>
 								{currentSeason && teamData.lastUpdated && (
 									<div className='text-center text-sm text-gray-400 mb-2'>
-										Last updated: {new Date(teamData.lastUpdated).toLocaleDateString()}
+										Last updated: {formatDate(teamData.lastUpdated)}
 									</div>
 								)}
 								{dorkiniansEntry && (

@@ -43,48 +43,50 @@ export default function Table({ visualization }: TableProps) {
 	}
 
 	return (
-		<div className='mt-4 dark-dropdown rounded-lg overflow-hidden'>
-			<div className='overflow-x-auto max-h-96 overflow-y-auto'>
-				<table className='min-w-full text-sm'>
-					<thead className='sticky top-0 z-10'>
-						<tr className='bg-gradient-to-b from-white/[0.22] to-white/[0.05] border-b border-yellow-400/20'>
-							{dataColumns.map((col, index) => {
-								const { key, label } = getColumnInfo(col);
+		<div className='mt-4 overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+			<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+				<thead className='sticky top-0 z-10'>
+					<tr className='bg-white/20'>
+						{dataColumns.map((col, index) => {
+							const { key, label } = getColumnInfo(col);
+							// Center align numeric columns (rank, value), left align text columns (name)
+							const isNumeric = key === "rank" || key === "value";
+							return (
+								<th
+									key={index}
+									className={`${isNumeric ? "text-center" : "text-left"} px-2 py-2 text-white font-semibold text-xs md:text-sm`}>
+									{label}
+								</th>
+							);
+						})}
+					</tr>
+				</thead>
+				<tbody>
+					{data.map((row: any, rowIndex: number) => (
+						<tr
+							key={rowIndex}
+							className={`border-b border-white/10 transition-colors ${
+								rowIndex % 2 === 0 ? "bg-gray-800/30" : ""
+							} hover:bg-white/5`}
+							onMouseEnter={() => setHoveredRow(rowIndex)}
+							onMouseLeave={() => setHoveredRow(null)}
+							onTouchStart={() => setHoveredRow(rowIndex)}
+							onTouchEnd={() => setHoveredRow(null)}>
+							{dataColumns.map((col, colIndex) => {
+								const { key } = getColumnInfo(col);
+								const isNumeric = key === "rank" || key === "value";
 								return (
-									<th
-										key={index}
-										className='text-left py-2 px-3 font-medium text-yellow-300'>
-										{label}
-									</th>
+									<td 
+										key={colIndex} 
+										className={`${isNumeric ? "text-center" : "text-left"} px-2 py-2 text-white text-xs md:text-sm`}>
+										{row[key] ?? "-"}
+									</td>
 								);
 							})}
 						</tr>
-					</thead>
-					<tbody>
-						{data.map((row: any, rowIndex: number) => (
-							<tr
-								key={rowIndex}
-								className={`
-									border-b border-yellow-400/10 transition-colors
-									${hoveredRow === rowIndex ? "bg-yellow-400/20" : ""}
-								`}
-								onMouseEnter={() => setHoveredRow(rowIndex)}
-								onMouseLeave={() => setHoveredRow(null)}
-								onTouchStart={() => setHoveredRow(rowIndex)}
-								onTouchEnd={() => setHoveredRow(null)}>
-								{dataColumns.map((col, colIndex) => {
-									const { key } = getColumnInfo(col);
-									return (
-										<td key={colIndex} className='py-2 px-3 text-white'>
-											{row[key] ?? "-"}
-										</td>
-									);
-								})}
-							</tr>
-						))}
-					</tbody>
-				</table>
-			</div>
+					))}
+				</tbody>
+			</table>
 		</div>
 	);
 }
