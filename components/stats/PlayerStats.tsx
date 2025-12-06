@@ -1202,6 +1202,9 @@ export default function PlayerStats() {
 	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
 	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
 
+	// State for view mode toggle
+	const [isDataTableMode, setIsDataTableMode] = useState(false);
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -1971,14 +1974,21 @@ export default function PlayerStats() {
 						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
+				<div className='flex justify-center mb-2 md:mb-4'>
+					<button
+						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+					</button>
+				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
 			<div 
 				className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
 				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-				{chartContent}
-				{dataTableContent}
+				{!isDataTableMode && chartContent}
+				{isDataTableMode && dataTableContent}
 				<div className='h-4'></div>
 			</div>
 		</div>
