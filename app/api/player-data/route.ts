@@ -150,6 +150,8 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "FWD" THEN coalesce(md.minutes, 0) ELSE 0 END) as fwdMinutes,
 			collect(DISTINCT md.team) as teams,
 			collect(DISTINCT md.season) as seasons,
+			count(DISTINCT f.opposition) as oppositionPlayed,
+			count(DISTINCT f.competition) as competitionsCompeted,
 			sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
 			sum(CASE WHEN f.homeOrAway = "Home" AND f.result = "W" THEN 1 ELSE 0 END) as homeWins,
 			sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames,
@@ -161,7 +163,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
 		MATCH (p)-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
 		MATCH (f2:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md2)
 	`;
@@ -176,38 +178,49 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			md2.team as team,
 			md2.goals as teamGoal
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			team,
 			count(*) as teamAppearances,
 			sum(coalesce(teamGoal, 0)) as teamGoals
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
 		// Handle team stats - find most played and most scored teams
 		// Use reduce to find max, handling empty teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
-			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
 			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.appearances > maxTeam.appearances THEN ts ELSE maxTeam END)
 			END as mostPlayedTeam,
 			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
 			ELSE reduce(maxTeam = teamStats[0], ts in teamStats | CASE WHEN ts.goals > maxTeam.goals THEN ts ELSE maxTeam END)
 			END as mostScoredTeam
-		// Calculate derived stats
+		// Calculate teammates - need to query separately
+		MATCH (p)-[:PLAYED_IN]->(md3:MatchDetail {graphLabel: $graphLabel})
+		MATCH (f3:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md3)
+	`;
+	
+	// Re-apply same filter conditions for teammates query
+	if (conditions.length > 0) {
+		const teammateConditions = conditions.map((cond) => cond.replace(/\bf\./g, "f3.").replace(/\bmd\./g, "md3."));
+		query += ` WHERE ${teammateConditions.join(" AND ")}`;
+	}
+	
+	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
@@ -215,6 +228,25 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(mostScoredTeam.team, "") as mostScoredForTeam,
 			size(teams) as numberTeamsPlayedFor,
 			size(seasons) as numberSeasonsPlayedFor,
+			oppositionPlayed, competitionsCompeted,
+			homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			f3
+		MATCH (f3)-[:HAS_MATCH_DETAILS]->(md4:MatchDetail {graphLabel: $graphLabel})
+		MATCH (md4)<-[:PLAYED_IN]-(p2:Player {graphLabel: $graphLabel})
+		WHERE p2.playerName <> $playerName
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
+			mostPlayedForTeam, mostScoredForTeam, numberTeamsPlayedFor, numberSeasonsPlayedFor,
+			oppositionPlayed, competitionsCompeted,
+			homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
+			count(DISTINCT p2.playerName) as teammatesPlayedWith
+		// Calculate derived stats
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
+			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
+			mostPlayedForTeam, mostScoredForTeam, numberTeamsPlayedFor, numberSeasonsPlayedFor,
+			oppositionPlayed, competitionsCompeted, teammatesPlayedWith,
 			homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			goals as allGoalsScored,
 			goals - penaltiesScored as openPlayGoalsScored,
@@ -304,7 +336,10 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(mostPlayedForTeam, "") as mostPlayedForTeam,
 			coalesce(numberTeamsPlayedFor, 0) as numberTeamsPlayedFor,
 			coalesce(mostScoredForTeam, "") as mostScoredForTeam,
-			coalesce(numberSeasonsPlayedFor, 0) as numberSeasonsPlayedFor
+			coalesce(numberSeasonsPlayedFor, 0) as numberSeasonsPlayedFor,
+			coalesce(oppositionPlayed, 0) as oppositionPlayed,
+			coalesce(competitionsCompeted, 0) as competitionsCompeted,
+			coalesce(teammatesPlayedWith, 0) as teammatesPlayedWith
 	`;
 
 	return { query, params };
@@ -473,6 +508,9 @@ export async function GET(request: NextRequest) {
 			numberTeamsPlayedFor: toNumber(record.get("numberTeamsPlayedFor")),
 			mostScoredForTeam: record.get("mostScoredForTeam") || "",
 			numberSeasonsPlayedFor: toNumber(record.get("numberSeasonsPlayedFor")),
+			oppositionPlayed: toNumber(record.get("oppositionPlayed")),
+			competitionsCompeted: toNumber(record.get("competitionsCompeted")),
+			teammatesPlayedWith: toNumber(record.get("teammatesPlayedWith")),
 			graphLabel: record.get("graphLabel"),
 		};
 

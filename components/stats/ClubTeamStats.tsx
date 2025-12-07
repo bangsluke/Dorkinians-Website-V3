@@ -217,6 +217,9 @@ export default function ClubTeamStats() {
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
+	// State for view mode toggle
+	const [isDataTableMode, setIsDataTableMode] = useState(false);
+
 	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
 		if (!playerFilters.teams || playerFilters.teams.length === 0) {
@@ -567,6 +570,13 @@ export default function ClubTeamStats() {
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
+				<div className='flex justify-center mb-2 md:mb-4'>
+					<button
+						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+					</button>
+				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
@@ -588,9 +598,18 @@ export default function ClubTeamStats() {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
 								{/* Win/Draw/Loss Pie Chart */}
-								{pieChartData.length > 0 && (
+								{pieChartData.length > 0 && (() => {
+									const wins = toNumber(teamData.wins || 0);
+									const draws = toNumber(teamData.draws || 0);
+									const losses = toNumber(teamData.losses || 0);
+									const gamesPlayed = wins + draws + losses;
+									const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
+									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
+									
+									return (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+										<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={350}>
 												<PieChart>
@@ -628,12 +647,16 @@ export default function ClubTeamStats() {
 													))}
 												</Pie>
 												<Tooltip content={customTooltip} />
-												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
+												<Legend 
+													wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
+													iconType='circle' 
+												/>
 												</PieChart>
 											</ResponsiveContainer>
 										</div>
 									</div>
-								)}
+									);
+								})()}
 
 								{/* Goals Scored vs Conceded Bar Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
@@ -688,12 +711,8 @@ export default function ClubTeamStats() {
 										</div>
 									</div>
 								)}
-							</div>
-						);
 
-						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 flex flex-col'>
-								{/* Top Players Table - at the top of Data tab */}
+								{/* Top Players Table */}
 								<div className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
@@ -812,7 +831,11 @@ export default function ClubTeamStats() {
 										)}
 									</div>
 								</div>
+							</div>
+						);
 
+						const dataTableContent = (
+							<div className='overflow-x-auto mt-4 flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -836,8 +859,8 @@ export default function ClubTeamStats() {
 
 						return (
 							<>
-								{chartContent}
-								{dataTableContent}
+								{!isDataTableMode && chartContent}
+								{isDataTableMode && dataTableContent}
 								<div className='h-4'></div>
 							</>
 						);

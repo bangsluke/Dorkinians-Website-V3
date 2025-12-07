@@ -863,6 +863,42 @@ export const statObject = {
 		statCategory: "Appearance Stat",
 		iconName: "MostScoredForTeam-Icon",
 	},
+	OPP: {
+		statName: "oppositionPlayed",
+		displayText: "Opposition played", // The text displayed at all times on the page.
+		shortText: "Opp", // Used for short displays such as on the Comparison tab.
+		wordedText: "opposition played", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of distinct opposition teams the player has played against.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Opposition-Icon",
+	},
+	COMP: {
+		statName: "competitionsCompeted",
+		displayText: "Competitions competed", // The text displayed at all times on the page.
+		shortText: "Comp", // Used for short displays such as on the Comparison tab.
+		wordedText: "competitions competed", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of distinct competitions the player has competed in.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Competition-Icon",
+	},
+	TEAM: {
+		statName: "teammatesPlayedWith",
+		displayText: "Teammates played with", // The text displayed at all times on the page.
+		shortText: "Teammates", // Used for short displays such as on the Comparison tab.
+		wordedText: "teammates played with", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of distinct teammates the player has played with.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Teammates-Icon",
+	},
 	// Team Stats
 	TeamGamesPlayed: {
 		statName: "gamesPlayed",
@@ -1139,6 +1175,9 @@ export const statsPageConfig = {
 			"NumberTeamsPlayedFor",
 			"NumberSeasonsPlayedFor",
 			"MostScoredForTeam",
+			"OPP",
+			"COMP",
+			"TEAM",
 		],
 		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result", "position"],
 	},
