@@ -448,6 +448,42 @@ export const statObject = {
 		statCategory: "Penalty Stat",
 		iconName: "PenaltiesSaved-Icon",
 	},
+	'PS-PSC': {
+		statName: "penaltyShootoutPenaltiesScored",
+		displayText: "Penalties Scored in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PSC", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties scored in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties scored by the player in a penalty shootout.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltiesScored-Icon",
+	},
+	'PS-PM': {
+		statName: "penaltyShootoutPenaltiesMissed",
+		displayText: "Penalties Missed in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PM", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties missed in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties missed by the player in a penalty shootout.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltiesMissed-Icon",
+	},
+	'PS-PSV': {
+		statName: "penaltyShootoutPenaltiesSaved",
+		displayText: "Penalties Saved in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PSV", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties saved in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties saved by the player in a penalty shootout.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltiesSaved-Icon",
+	},
 	FTP: {
 		statName: "fantasyPoints",
 		displayText: "Fantasy Points Achieved", // The text displayed at all times on the page.
@@ -1079,6 +1115,9 @@ export const statsPageConfig = {
 			"PM",
 			"PCO",
 			"PSV",
+			"PS-PSC",
+			"PS-PM",
+			"PS-PSV",
 			"FTP",
 			"GI",
 			"GperAPP",
@@ -1145,6 +1184,9 @@ export const statsPageConfig = {
 			"PM",
 			"PCO",
 			"PSV",
+			"PS-PSC",
+			"PS-PM",
+			"PS-PSV",
 			"FTP",
 			"GI",
 			"GperAPP",
