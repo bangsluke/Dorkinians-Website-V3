@@ -92,7 +92,7 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 	const wordedText = stat?.wordedText || metricDisplayName || "statistic";
 
 	// Build icon path
-	const iconPath = iconName ? `/stat-icons/${iconName}.webp` : null;
+	const iconPath = iconName ? `/stat-icons/${iconName}.svg` : null;
 
 	return (
 		<div
@@ -109,9 +109,6 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 						width={40}
 						height={40}
 						className='object-contain'
-						style={{
-							filter: 'brightness(0) invert(1)',
-						}}
 					/>
 				</div>
 			)}

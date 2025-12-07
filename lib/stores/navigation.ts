@@ -71,6 +71,9 @@ export interface PlayerData {
 	numberTeamsPlayedFor: number;
 	mostScoredForTeam: string;
 	numberSeasonsPlayedFor: number;
+	oppositionPlayed: number;
+	competitionsCompeted: number;
+	teammatesPlayedWith: number;
 	graphLabel: string;
 }
 

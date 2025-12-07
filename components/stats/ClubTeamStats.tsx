@@ -91,11 +91,11 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
-							src={`/stat-icons/${stat.iconName}.webp`}
+							src={`/stat-icons/${stat.iconName}.svg`}
 							alt={stat.displayText}
 							width={24}
 							height={24}
-							className='w-6 h-6 md:w-8 md:h-8 object-contain brightness-0 invert'
+							className='w-6 h-6 md:w-8 md:h-8 object-contain'
 						/>
 					</div>
 				</td>
@@ -149,16 +149,16 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 	let formattedValue: string;
 	switch (statFormat) {
 		case "Integer":
-			formattedValue = Math.round(numValue).toString();
+			formattedValue = Math.round(numValue).toLocaleString();
 			break;
 		case "Decimal1":
-			formattedValue = numValue.toFixed(1);
+			formattedValue = numValue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 			break;
 		case "Decimal2":
-			formattedValue = numValue.toFixed(decimalPlaces);
+			formattedValue = numValue.toLocaleString('en-US', { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
 			break;
 		case "Percentage":
-			formattedValue = `${Math.round(numValue)}%`;
+			formattedValue = `${Math.round(numValue).toLocaleString()}%`;
 			break;
 		case "String":
 			formattedValue = String(value);
@@ -216,6 +216,9 @@ export default function ClubTeamStats() {
 	});
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
+
+	// State for view mode toggle
+	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
 	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
@@ -567,6 +570,13 @@ export default function ClubTeamStats() {
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
+				<div className='flex justify-center mb-2 md:mb-4'>
+					<button
+						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+					</button>
+				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
@@ -587,113 +597,7 @@ export default function ClubTeamStats() {
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
-								{/* Win/Draw/Loss Pie Chart */}
-								{pieChartData.length > 0 && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={350}>
-												<PieChart>
-													<Pie
-														data={pieChartData}
-														cx='50%'
-														cy='50%'
-														labelLine={false}
-														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
-															const RADIAN = Math.PI / 180;
-															const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-															const x = cx + radius * Math.cos(-midAngle * RADIAN);
-															const y = cy + radius * Math.sin(-midAngle * RADIAN);
-															
-															return (
-																<text
-																	x={x}
-																	y={y}
-																	fill="#ffffff"
-																	textAnchor={x > cx ? 'start' : 'end'}
-																	dominantBaseline="central"
-																	fontSize={14}
-																	fontWeight='bold'
-																>
-																	{`${name}: ${value}`}
-																</text>
-															);
-														}}
-														outerRadius={100}
-														fill='#8884d8'
-														dataKey='value'
-													>
-													{pieChartData.map((entry, index) => (
-														<Cell key={`cell-${index}`} fill={entry.color} />
-													))}
-												</Pie>
-												<Tooltip content={customTooltip} />
-												<Legend wrapperStyle={{ color: '#fff' }} iconType='circle' />
-												</PieChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-
-								{/* Goals Scored vs Conceded Bar Chart */}
-								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-
-								{/* Home vs Away Performance Bar Chart */}
-								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-
-								{/* Key Team Stats Bar Chart */}
-								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
-											</ResponsiveContainer>
-										</div>
-									</div>
-								)}
-							</div>
-						);
-
-						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 flex flex-col'>
-								{/* Top Players Table - at the top of Data tab */}
+								{/* Top Players Table */}
 								<div className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
@@ -813,6 +717,125 @@ export default function ClubTeamStats() {
 									</div>
 								</div>
 
+								{/* Win/Draw/Loss Pie Chart */}
+								{pieChartData.length > 0 && (() => {
+									const wins = toNumber(teamData.wins || 0);
+									const draws = toNumber(teamData.draws || 0);
+									const losses = toNumber(teamData.losses || 0);
+									const gamesPlayed = wins + draws + losses;
+									const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
+									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
+									
+									return (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+										<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={350}>
+												<PieChart>
+													<Pie
+														data={pieChartData}
+														cx='50%'
+														cy='50%'
+														labelLine={false}
+														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+															const RADIAN = Math.PI / 180;
+															const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+															const x = cx + radius * Math.cos(-midAngle * RADIAN);
+															const y = cy + radius * Math.sin(-midAngle * RADIAN);
+															
+															return (
+																<text
+																	x={x}
+																	y={y}
+																	fill="#ffffff"
+																	textAnchor={x > cx ? 'start' : 'end'}
+																	dominantBaseline="central"
+																	fontSize={14}
+																	fontWeight='bold'
+																>
+																	{`${name}: ${value}`}
+																</text>
+															);
+														}}
+														outerRadius={100}
+														fill='#8884d8'
+														dataKey='value'
+													>
+													{pieChartData.map((entry, index) => (
+														<Cell key={`cell-${index}`} fill={entry.color} />
+													))}
+												</Pie>
+												<Tooltip content={customTooltip} />
+												<Legend 
+													wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
+													iconType='circle' 
+												/>
+												</PieChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+									);
+								})()}
+
+								{/* Goals Scored vs Conceded Bar Chart */}
+								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+								)}
+
+								{/* Home vs Away Performance Bar Chart */}
+								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+								)}
+
+								{/* Key Team Stats Bar Chart */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
+										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+													<YAxis stroke='#fff' fontSize={12} />
+													<Tooltip content={customTooltip} />
+													<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+												</BarChart>
+											</ResponsiveContainer>
+										</div>
+									</div>
+								)}
+							</div>
+						);
+
+						const dataTableContent = (
+							<div className='overflow-x-auto mt-4 flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -836,8 +859,8 @@ export default function ClubTeamStats() {
 
 						return (
 							<>
-								{chartContent}
-								{dataTableContent}
+								{!isDataTableMode && chartContent}
+								{isDataTableMode && dataTableContent}
 								<div className='h-4'></div>
 							</>
 						);

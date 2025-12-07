@@ -66,11 +66,11 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
-							src={`/stat-icons/${stat.iconName}.webp`}
+							src={`/stat-icons/${stat.iconName}.svg`}
 							alt={stat.displayText}
 							width={24}
 							height={24}
-							className={`w-6 h-6 md:w-8 md:h-8 object-contain ${stat.iconName?.includes('YellowCard') || stat.iconName?.includes('RedCard') ? '' : 'brightness-0 invert'}`}
+							className='w-6 h-6 md:w-8 md:h-8 object-contain'
 						/>
 					</div>
 				</td>
@@ -1729,7 +1729,7 @@ export default function PlayerStats() {
 							let statKey = "APP";
 							if (item.name === "Apps") statKey = "APP";
 							else if (item.name === "Mins") statKey = "MIN";
-							else if (item.name === "Seasons") statKey = "APP"; // Use APP icon as placeholder
+							else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
 							else if (item.name === "MoM") statKey = "MOM";
 							else if (item.name === "Goals") statKey = "AllGSC";
 							else if (item.name === "Assists") statKey = "A";
@@ -1738,11 +1738,11 @@ export default function PlayerStats() {
 								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
-											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.webp`}
+											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.svg`}
 											alt={stat?.displayText || item.name}
 											width={40}
 											height={40}
-											className='w-10 h-10 md:w-12 md:h-12 object-contain brightness-0 invert'
+											className='w-10 h-10 md:w-12 md:h-12 object-contain'
 										/>
 									</div>
 									<div className='flex flex-col flex-1'>
@@ -2253,7 +2253,6 @@ export default function PlayerStats() {
 
 	const dataTableContent = (
 		<div className='mt-4'>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>All Stats</h3>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
