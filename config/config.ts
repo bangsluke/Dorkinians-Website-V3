@@ -869,7 +869,7 @@ export const statObject = {
 		shortText: "Opp", // Used for short displays such as on the Comparison tab.
 		wordedText: "opposition played", // Used for chatbot responses
 		statFormat: "Integer",
-		description: "The number of distinct opposition teams the player has played against.",
+		description: "The number of different opposition teams the player has played against.",
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Appearance Stat",
@@ -879,9 +879,9 @@ export const statObject = {
 		statName: "competitionsCompeted",
 		displayText: "Competitions competed", // The text displayed at all times on the page.
 		shortText: "Comp", // Used for short displays such as on the Comparison tab.
-		wordedText: "competitions competed", // Used for chatbot responses
+		wordedText: "competitions competed in", // Used for chatbot responses
 		statFormat: "Integer",
-		description: "The number of distinct competitions the player has competed in.",
+		description: "The number of different competitions the player has competed in.",
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Appearance Stat",
@@ -893,7 +893,7 @@ export const statObject = {
 		shortText: "Teammates", // Used for short displays such as on the Comparison tab.
 		wordedText: "teammates played with", // Used for chatbot responses
 		statFormat: "Integer",
-		description: "The number of distinct teammates the player has played with.",
+		description: "The number of different teammates the player has played with.",
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Appearance Stat",
@@ -910,7 +910,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "TeamAppearance-Icon",
 	},
 	TeamWins: {
 		statName: "wins",
@@ -922,7 +922,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "Win-Icon",
 	},
 	TeamDraws: {
 		statName: "draws",
@@ -934,7 +934,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Assists-Icon",
+		iconName: "Draws-Icon",
 	},
 	TeamLosses: {
 		statName: "losses",
@@ -946,7 +946,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Conceded-Icon",
+		iconName: "Loss-Icon",
 	},
 	TeamGoalsScored: {
 		statName: "goalsScored",
@@ -982,7 +982,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "GoalDifference-Icon",
 	},
 	TeamCleanSheets: {
 		statName: "cleanSheets",
@@ -1018,7 +1018,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PointsPerGame-Icon",
 	},
 	TeamGoalsPerGame: {
 		statName: "goalsPerGame",
@@ -1054,7 +1054,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "HomeGames-Icon",
 	},
 	TeamHomeWins: {
 		statName: "homeWins",
@@ -1066,7 +1066,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "HomeWins-Icon",
 	},
 	TeamHomeWinPercentage: {
 		statName: "homeWinPercentage",
@@ -1078,7 +1078,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageHomeGamesWon-Icon",
 	},
 	TeamAwayGames: {
 		statName: "awayGames",
@@ -1090,7 +1090,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "AwayGames-Icon",
 	},
 	TeamAwayWins: {
 		statName: "awayWins",
@@ -1102,7 +1102,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "AwayWins-Icon",
 	},
 	TeamAwayWinPercentage: {
 		statName: "awayWinPercentage",
@@ -1114,7 +1114,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageAwayGamesWon-Icon",
 	},
 	TeamNumberOfSeasons: {
 		statName: "numberOfSeasons",
