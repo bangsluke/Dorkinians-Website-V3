@@ -89,21 +89,7 @@ export default function ClubInformation() {
 			className='p-2 md:p-4 overflow-y-auto'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Information</h2>
-
-			{/* Info Section */}
-			<div className='mb-8'>
-				<p className='text-sm md:text-base text-white mb-4'>Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level</p>
-				<div className='text-center'>
-					<a 
-						href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
-						target='_blank'
-						rel='noopener noreferrer'
-						className='text-dorkinians-yellow hover:text-yellow-400 underline transition-colors text-sm md:text-base'
-					>
-						Navigate to Pixham
-					</a>
-				</div>
-			</div>
+			<p className='text-sm md:text-base text-gray-300 text-center mb-8'>General club details, history, and background information will be displayed here</p>
 
 			{/* Milestones Section */}
 			<div className='mb-8'>
