@@ -2253,7 +2253,6 @@ export default function PlayerStats() {
 
 	const dataTableContent = (
 		<div className='mt-4'>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>All Stats</h3>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>

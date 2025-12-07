@@ -1006,7 +1006,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageGamesWon-Icon",
 	},
 	TeamPointsPerGame: {
 		statName: "pointsPerGame",
@@ -1030,7 +1030,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "GoalsPerAppearance-Icon",
 	},
 	TeamGoalsConcededPerGame: {
 		statName: "goalsConcededPerGame",
@@ -1042,7 +1042,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Conceded-Icon",
+		iconName: "ConcededPerAppearance-Icon",
 	},
 	TeamHomeGames: {
 		statName: "homeGames",
@@ -1126,7 +1126,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "NumberSeasonsPlayedFor-Icon",
 	},
 };
 

@@ -149,16 +149,16 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 	let formattedValue: string;
 	switch (statFormat) {
 		case "Integer":
-			formattedValue = Math.round(numValue).toString();
+			formattedValue = Math.round(numValue).toLocaleString();
 			break;
 		case "Decimal1":
-			formattedValue = numValue.toFixed(1);
+			formattedValue = numValue.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 			break;
 		case "Decimal2":
-			formattedValue = numValue.toFixed(decimalPlaces);
+			formattedValue = numValue.toLocaleString('en-US', { minimumFractionDigits: decimalPlaces, maximumFractionDigits: decimalPlaces });
 			break;
 		case "Percentage":
-			formattedValue = `${Math.round(numValue)}%`;
+			formattedValue = `${Math.round(numValue).toLocaleString()}%`;
 			break;
 		case "String":
 			formattedValue = String(value);
