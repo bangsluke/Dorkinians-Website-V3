@@ -79,7 +79,20 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				</td>
 				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
 					<span className='text-white font-mono text-xs md:text-sm'>
-						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
+						{(() => {
+							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+							if (stat.statName === "minutes") {
+								// Extract number and unit, format number with commas
+								const match = formatted.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+								if (match) {
+									const num = parseFloat(match[1]);
+									const unit = match[2] || "";
+									const numWithCommas = Math.round(num).toLocaleString();
+									return unit ? `${numWithCommas} ${unit}` : numWithCommas;
+								}
+							}
+							return formatted;
+						})()}
 					</span>
 				</td>
 			</tr>
@@ -612,7 +625,7 @@ function FantasyPointsSection({
 		
 		// Always show minutes if available (player appeared in match)
 		const minutes = match.min !== undefined && match.min !== null ? Math.round(match.min) : 0;
-		parts.push(`${minutes} Mins`);
+		parts.push(`${minutes.toLocaleString()} Mins`);
 		
 		if (match.goals && match.goals > 0) {
 			parts.push(`${match.goals} ${match.goals === 1 ? "Goal" : "Goals"}`);
@@ -638,10 +651,10 @@ function FantasyPointsSection({
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Fantasy Points</h3>
 			
-			{/* Player Name and Total Score Display - Kit first, then dark box */}
-			<div className='flex flex-col items-center mb-4'>
+			{/* Player Name and Total Score Display - Kit and info side by side */}
+			<div className='flex items-center justify-center gap-3 md:gap-4 mb-4'>
 				{/* Kit Image */}
-				<div className='relative w-12 h-16 md:w-14 md:h-18 mb-2'>
+				<div className='relative w-12 h-16 md:w-14 md:h-18 flex-shrink-0'>
 					<Image
 						src='/totw-images/Kit.svg'
 						alt='Player Kit'
@@ -649,8 +662,8 @@ function FantasyPointsSection({
 						className='object-contain'
 					/>
 				</div>
-				{/* Dark grey box with player name and score */}
-				<div className='bg-black rounded-lg px-3 py-2 md:px-4 md:py-3 text-center min-w-[100px] md:min-w-[120px]'>
+				{/* Player name and score - no background */}
+				<div className='text-center'>
 					<p className='text-white text-xs md:text-sm font-medium mb-1'>{playerName}</p>
 					<p className='text-2xl md:text-3xl font-bold text-white leading-none'>
 						{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
@@ -676,10 +689,10 @@ function FantasyPointsSection({
 									<tr key={index} className='border-b border-white/10'>
 										<td className='py-2 px-2 text-xs md:text-sm'>{entry.stat}</td>
 										<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'>
-											{Math.round(entry.value)}
+											{Math.round(entry.value).toLocaleString()}
 										</td>
 										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
-											{entry.points > 0 ? "+" : ""}{entry.points}
+											{entry.points > 0 ? "+" : ""}{entry.points.toLocaleString()}
 										</td>
 									</tr>
 								))}
@@ -687,7 +700,7 @@ function FantasyPointsSection({
 									<td className='py-2 px-2 text-xs md:text-sm'>Total</td>
 									<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'></td>
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
-										{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
+										{Math.round(fantasyBreakdown.totalFantasyPoints || 0).toLocaleString()}
 									</td>
 								</tr>
 							</tbody>
@@ -872,7 +885,7 @@ function DistanceTravelledSection({
 								</tr>
 								<tr className='border-b border-white/10'>
 									<td className='py-2 px-2 text-xs md:text-sm'>Distance Travelled</td>
-									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toFixed(1)} miles</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} miles</td>
 								</tr>
 								<tr>
 									<td colSpan={2} className='py-2 px-2 text-xs md:text-sm text-center text-white/90'>
@@ -1106,7 +1119,7 @@ function MinutesPerStatsSection({
 }
 
 // Positional Stats Visualization Component
-function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: number; def: number; mid: number; fwd: number; appearances: number }) {
+function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinutes, defMinutes, midMinutes, fwdMinutes }: { gk: number; def: number; mid: number; fwd: number; appearances: number; gkMinutes: number; defMinutes: number; midMinutes: number; fwdMinutes: number }) {
 	// SVG dimensions: 127x87 (width x height)
 	const svgWidth = 127;
 	const svgHeight = 87;
@@ -1251,8 +1264,9 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 					<thead>
 						<tr className='border-b border-white/20'>
 							<th className='text-left py-2 px-2'>Position</th>
-							<th className='text-right py-2 px-2'>Appearances</th>
+							<th className='text-right py-2 px-2'>Apps</th>
 							<th className='text-right py-2 px-2'>Percentage</th>
+							<th className='text-right py-2 px-2'>Mins</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1263,6 +1277,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{gk}</td>
 							<td className='text-right py-2 px-2 font-mono'>{gkPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{gkMinutes.toLocaleString()}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
@@ -1271,6 +1286,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{def}</td>
 							<td className='text-right py-2 px-2 font-mono'>{defPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{defMinutes.toLocaleString()}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
@@ -1279,6 +1295,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{mid}</td>
 							<td className='text-right py-2 px-2 font-mono'>{midPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{midMinutes.toLocaleString()}</td>
 						</tr>
 						<tr>
 							<td className='py-2 px-2'>
@@ -1287,6 +1304,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwd}</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwdPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{fwdMinutes.toLocaleString()}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -1313,6 +1331,10 @@ export default function PlayerStats() {
 	// State for opposition map data
 	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
 	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
+
+	// State for game details data
+	const [gameDetails, setGameDetails] = useState<any>(null);
+	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
 
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
@@ -1355,13 +1377,18 @@ export default function PlayerStats() {
 	// Prepare chart data (hooks must be called before early returns)
 	const keyPerformanceData = useMemo(() => {
 		if (!playerData) return [];
+		const totalSeasons = filterData?.seasons?.length || 0;
+		const seasonsPlayed = toNumber(playerData.numberSeasonsPlayedFor);
+		const seasonsDisplay = totalSeasons > 0 ? `${seasonsPlayed}/${totalSeasons}` : seasonsPlayed.toString();
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
+			{ name: "Mins", value: toNumber(playerData.minutes) },
+			{ name: "Seasons", value: seasonsDisplay, isString: true },
 			{ name: "MoM", value: toNumber(playerData.mom) },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
-	}, [playerData]);
+	}, [playerData, filterData]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -1555,6 +1582,39 @@ export default function PlayerStats() {
 		fetchOppositionMapData();
 	}, [selectedPlayer]);
 
+	// Fetch game details when player or filters change
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setGameDetails(null);
+			return;
+		}
+
+		const fetchGameDetails = async () => {
+			setIsLoadingGameDetails(true);
+			try {
+				const response = await fetch("/api/player-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setGameDetails(data);
+				}
+			} catch (error) {
+				console.error("Error fetching game details:", error);
+				setGameDetails(null);
+			} finally {
+				setIsLoadingGameDetails(false);
+			}
+		};
+
+		fetchGameDetails();
+	}, [selectedPlayer, playerFilters]);
+
 
 	// Prepare seasonal chart data (must be before early returns)
 	const seasonalChartData = useMemo(() => {
@@ -1666,7 +1726,13 @@ export default function PlayerStats() {
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
 					<div className='grid grid-cols-2 gap-3 md:gap-4'>
 						{keyPerformanceData.map((item) => {
-							const statKey = item.name === "Apps" ? "APP" : item.name === "MoM" ? "MOM" : item.name === "Goals" ? "AllGSC" : "A";
+							let statKey = "APP";
+							if (item.name === "Apps") statKey = "APP";
+							else if (item.name === "Mins") statKey = "MIN";
+							else if (item.name === "Seasons") statKey = "APP"; // Use APP icon as placeholder
+							else if (item.name === "MoM") statKey = "MOM";
+							else if (item.name === "Goals") statKey = "AllGSC";
+							else if (item.name === "Assists") statKey = "A";
 							const stat = statObject[statKey as keyof typeof statObject];
 							return (
 								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
@@ -1681,7 +1747,7 @@ export default function PlayerStats() {
 									</div>
 									<div className='flex flex-col flex-1'>
 										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
-											{formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit)}
+											{(item as any).isString ? item.value : formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit)}
 										</div>
 										<div className='text-white/70 text-xs md:text-sm mt-1'>
 											{item.name}
@@ -1856,16 +1922,138 @@ export default function PlayerStats() {
 					mid={toNumber(validPlayerData.mid)}
 					fwd={toNumber(validPlayerData.fwd)}
 					appearances={toNumber(validPlayerData.appearances)}
+					gkMinutes={toNumber(validPlayerData.gkMinutes || 0)}
+					defMinutes={toNumber(validPlayerData.defMinutes || 0)}
+					midMinutes={toNumber(validPlayerData.midMinutes || 0)}
+					fwdMinutes={toNumber(validPlayerData.fwdMinutes || 0)}
 				/>
 			)}
 
-			{/* Fantasy Points Section */}
-			{toNumber(validPlayerData.fantasyPoints) > 0 && (
-				<FantasyPointsSection
-					playerName={selectedPlayer || ""}
-					fantasyBreakdown={fantasyBreakdown}
-					isLoading={isLoadingFantasyBreakdown}
-				/>
+			{/* Match Results Section */}
+			{playerFilters.result.length !== 1 && (() => {
+				const wins = toNumber(validPlayerData.wins || 0);
+				const draws = toNumber(validPlayerData.draws || 0);
+				const losses = toNumber(validPlayerData.losses || 0);
+				const gamesPlayed = wins + draws + losses;
+				
+				if (gamesPlayed === 0) return null;
+				
+				const pieChartData = [
+					{ name: "Wins", value: wins, color: "#22c55e" },
+					{ name: "Draws", value: draws, color: "#60a5fa" },
+					{ name: "Losses", value: losses, color: "#ef4444" },
+				].filter(item => item.value > 0);
+				
+				if (pieChartData.length === 0) return null;
+				
+				const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
+				const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
+				
+				return (
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+						<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
+						<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+							<ResponsiveContainer width='100%' height={350}>
+								<PieChart>
+									<Pie
+										data={pieChartData}
+										cx='50%'
+										cy='50%'
+										labelLine={false}
+										label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+											const RADIAN = Math.PI / 180;
+											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+											const x = cx + radius * Math.cos(-midAngle * RADIAN);
+											const y = cy + radius * Math.sin(-midAngle * RADIAN);
+											
+											return (
+												<text
+													x={x}
+													y={y}
+													fill="#ffffff"
+													textAnchor={x > cx ? 'start' : 'end'}
+													dominantBaseline="central"
+													fontSize={14}
+													fontWeight='bold'
+												>
+													{`${name}: ${value}`}
+												</text>
+											);
+										}}
+										outerRadius={100}
+										fill='#8884d8'
+										dataKey='value'
+									>
+										{pieChartData.map((entry, index) => (
+											<Cell key={`cell-${index}`} fill={entry.color} />
+										))}
+									</Pie>
+									<Tooltip content={customTooltip} />
+									<Legend 
+										wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
+										iconType='circle' 
+									/>
+								</PieChart>
+							</ResponsiveContainer>
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* Game Details Section */}
+			{!isLoadingGameDetails && gameDetails && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
+					
+					{/* CompType Table */}
+					<div className='mb-6'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2'>Type</th>
+									<th className='text-right py-2 px-2'>Count</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					{/* Unique Counts */}
+					<div className='space-y-2'>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Opposition played: </span>
+							<span className='font-mono'>{gameDetails.uniqueOpponents || 0}</span>
+						</p>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Competitions competed: </span>
+							<span className='font-mono'>{gameDetails.uniqueCompetitions || 0}</span>
+						</p>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Teammates played with: </span>
+							<span className='font-mono'>{gameDetails.uniqueTeammates || 0}</span>
+						</p>
+					</div>
+				</div>
 			)}
 
 			{/* Defensive Record Section */}
@@ -1913,20 +2101,25 @@ export default function PlayerStats() {
 				);
 			})()}
 
+			{/* Distance Travelled Section */}
+			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
+				<DistanceTravelledSection
+					distance={toNumber(validPlayerData.distance)}
+					awayGames={toNumber(validPlayerData.awayGames)}
+				/>
+			)}
+
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
 				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 			)}
 
-			{/* Minutes per Stats Section */}
-			{toNumber(validPlayerData.minutes) > 0 && (
-				<MinutesPerStatsSection
-					minutes={toNumber(validPlayerData.minutes)}
-					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
-					assists={toNumber(validPlayerData.assists)}
-					mom={toNumber(validPlayerData.mom)}
-					conceded={toNumber(validPlayerData.conceded)}
-					cleanSheets={toNumber(validPlayerData.cleanSheets)}
+			{/* Fantasy Points Section */}
+			{toNumber(validPlayerData.fantasyPoints) > 0 && (
+				<FantasyPointsSection
+					playerName={selectedPlayer || ""}
+					fantasyBreakdown={fantasyBreakdown}
+					isLoading={isLoadingFantasyBreakdown}
 				/>
 			)}
 
@@ -1940,11 +2133,11 @@ export default function PlayerStats() {
 								const yellowCount = toNumber(validPlayerData.yellowCards);
 								const redCount = toNumber(validPlayerData.redCards);
 								const maxValue = Math.max(yellowCount, redCount, 1);
-								const maxHeight = 70;
+								const maxHeight = 90;
 								const minHeight = 10;
 								const cardWidth = 80;
 								const spacing = 40;
-								const textOffset = 50;
+								const textOffset = 30;
 								const centerX = 200;
 								const yellowRectX = centerX - cardWidth - spacing / 2;
 								const redRectX = centerX + spacing / 2;
@@ -1952,7 +2145,7 @@ export default function PlayerStats() {
 								const baseY = 98;
 								
 								const yellowHeight = yellowCount === 0 ? minHeight : Math.max(minHeight, (yellowCount / maxValue) * maxHeight);
-								const redHeight = redCount === 0 ? minHeight : Math.max(minHeight, (redCount / maxValue) * maxHeight);
+								const redHeight = redCount === 0 ? 1 : Math.max(minHeight, (redCount / maxValue) * maxHeight);
 								
 								return (
 									<>
@@ -2044,11 +2237,15 @@ export default function PlayerStats() {
 				/>
 			)}
 
-			{/* Distance Travelled Section */}
-			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
-				<DistanceTravelledSection
-					distance={toNumber(validPlayerData.distance)}
-					awayGames={toNumber(validPlayerData.awayGames)}
+			{/* Minutes per Stats Section */}
+			{toNumber(validPlayerData.minutes) > 0 && (
+				<MinutesPerStatsSection
+					minutes={toNumber(validPlayerData.minutes)}
+					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
+					assists={toNumber(validPlayerData.assists)}
+					mom={toNumber(validPlayerData.mom)}
+					conceded={toNumber(validPlayerData.conceded)}
+					cleanSheets={toNumber(validPlayerData.cleanSheets)}
 				/>
 			)}
 		</div>
