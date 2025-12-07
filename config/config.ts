@@ -302,7 +302,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Performance Stat",
-		iconName: "Goals-Icon",
+		iconName: "Open-Play-Goals-Icon",
 	},
 	G: {
 		statName: "openPlayGoalsScored",
@@ -362,7 +362,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Performance Stat",
-		iconName: "PenaltiesSaved-Icon",
+		iconName: "Saves-Icon",
 	},
 	OG: {
 		statName: "ownGoals",
@@ -470,7 +470,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 0,
 		statCategory: "Penalty Stat",
-		iconName: "PenaltiesMissed-Icon",
+		iconName: "PenaltyShootoutPenaltiesMissed-Icon",
 	},
 	'PS-PSV': {
 		statName: "penaltyShootoutPenaltiesSaved",
@@ -482,7 +482,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Penalty Stat",
-		iconName: "PenaltiesSaved-Icon",
+		iconName: "PenaltyShootoutPenaltiesSaved-Icon",
 	},
 	FTP: {
 		statName: "fantasyPoints",
@@ -813,7 +813,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Results Stat",
-		iconName: "Goals-Icon",
+		iconName: "PointsPerGame-Icon",
 	},
 	MostPlayedForTeam: {
 		statName: "mostPlayedForTeam",

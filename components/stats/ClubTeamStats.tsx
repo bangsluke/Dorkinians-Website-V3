@@ -91,11 +91,11 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
-							src={`/stat-icons/${stat.iconName}.webp`}
+							src={`/stat-icons/${stat.iconName}.svg`}
 							alt={stat.displayText}
 							width={24}
 							height={24}
-							className='w-6 h-6 md:w-8 md:h-8 object-contain brightness-0 invert'
+							className='w-6 h-6 md:w-8 md:h-8 object-contain'
 						/>
 					</div>
 				</td>
