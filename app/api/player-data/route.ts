@@ -135,6 +135,9 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
 			sum(coalesce(md.penaltiesConceded, 0)) as penaltiesConceded,
 			sum(coalesce(md.penaltiesSaved, 0)) as penaltiesSaved,
+			sum(coalesce(md.penaltyShootoutPenaltiesScored, 0)) as penaltyShootoutPenaltiesScored,
+			sum(coalesce(md.penaltyShootoutPenaltiesMissed, 0)) as penaltyShootoutPenaltiesMissed,
+			sum(coalesce(md.penaltyShootoutPenaltiesSaved, 0)) as penaltyShootoutPenaltiesSaved,
 			sum(coalesce(md.fantasyPoints, 0)) as fantasyPoints,
 			sum(coalesce(md.distance, 0)) as distance,
 			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "GK" THEN 1 ELSE 0 END) as gk,
@@ -152,7 +155,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(CASE WHEN f.result = "L" THEN 1 ELSE 0 END) as losses
 		// Calculate team aggregations separately - re-match with filters
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
 		MATCH (p)-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
@@ -167,31 +170,31 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	
 	query += `
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			md2.team as team,
 			md2.goals as teamGoal
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			team,
 			count(*) as teamAppearances,
 			sum(coalesce(teamGoal, 0)) as teamGoals
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
 		// Handle team stats - find most played and most scored teams
 		// Use reduce to find max, handling empty teamStats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			teams, seasons, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			CASE WHEN size(teamStats) = 0 THEN {team: "", appearances: 0, goals: 0}
@@ -202,7 +205,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			END as mostScoredTeam
 		// Calculate derived stats
 		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
-			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, fantasyPoints, distance,
+			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd,
 			coalesce(mostPlayedTeam.team, "") as mostPlayedForTeam,
 			coalesce(mostScoredTeam.team, "") as mostScoredForTeam,
@@ -255,6 +258,9 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(penaltiesMissed, 0) as penaltiesMissed,
 			coalesce(penaltiesConceded, 0) as penaltiesConceded,
 			coalesce(penaltiesSaved, 0) as penaltiesSaved,
+			coalesce(penaltyShootoutPenaltiesScored, 0) as penaltyShootoutPenaltiesScored,
+			coalesce(penaltyShootoutPenaltiesMissed, 0) as penaltyShootoutPenaltiesMissed,
+			coalesce(penaltyShootoutPenaltiesSaved, 0) as penaltyShootoutPenaltiesSaved,
 			coalesce(fantasyPoints, 0) as fantasyPoints,
 			coalesce(distance, 0) as distance,
 			coalesce(allGoalsScored, 0) as allGoalsScored,
@@ -424,6 +430,9 @@ export async function GET(request: NextRequest) {
 			penaltiesMissed: toNumber(record.get("penaltiesMissed")),
 			penaltiesConceded: toNumber(record.get("penaltiesConceded")),
 			penaltiesSaved: toNumber(record.get("penaltiesSaved")),
+			penaltyShootoutPenaltiesScored: toNumber(record.get("penaltyShootoutPenaltiesScored")),
+			penaltyShootoutPenaltiesMissed: toNumber(record.get("penaltyShootoutPenaltiesMissed")),
+			penaltyShootoutPenaltiesSaved: toNumber(record.get("penaltyShootoutPenaltiesSaved")),
 			fantasyPoints: Math.round(toNumber(record.get("fantasyPoints"))),
 			allGoalsScored: toNumber(record.get("allGoalsScored")),
 			openPlayGoalsScored: toNumber(record.get("openPlayGoalsScored")),
