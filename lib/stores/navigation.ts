@@ -26,6 +26,9 @@ export interface PlayerData {
 	penaltiesMissed: number;
 	penaltiesConceded: number;
 	penaltiesSaved: number;
+	penaltyShootoutPenaltiesScored: number;
+	penaltyShootoutPenaltiesMissed: number;
+	penaltyShootoutPenaltiesSaved: number;
 	fantasyPoints: number;
 	allGoalsScored: number;
 	goalsPerApp: number;

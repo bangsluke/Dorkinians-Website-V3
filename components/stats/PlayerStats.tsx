@@ -167,14 +167,17 @@ function toNumber(val: any): number {
 }
 
 // Penalty Stats Visualization Component
-function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored: number; missed: number; saved: number; conceded: number }) {
+function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
-	const maxValue = Math.max(scored, missed, saved, conceded, 1);
+	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
 	const missedSize = Math.max(30, Math.min(120, (missed / maxValue) * 120));
 	const savedSize = Math.max(30, Math.min(120, (saved / maxValue) * 120)); // Same scaling as scored
 	const concededWidth = Math.max(30, Math.min(150, (conceded / maxValue) * 150));
 	const concededHeight = Math.max(22.5, Math.min(60, (conceded / maxValue) * 60));
+	const penaltyShootoutScoredSize = Math.max(30, Math.min(120, (penaltyShootoutScored / maxValue) * 120));
+	const penaltyShootoutMissedWidth = Math.max(30, Math.min(150, (penaltyShootoutMissed / maxValue) * 150));
+	const penaltyShootoutMissedHeight = Math.max(22.5, Math.min(60, (penaltyShootoutMissed / maxValue) * 60));
 	
 	// Goal dimensions
 	const goalWidth = 200;
@@ -373,6 +376,88 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							</text>
 						</g>
 					)}
+					
+					{/* Dark green circle - Penalty Shootout Scored (centrally positioned) */}
+					{penaltyShootoutScored > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX}
+								cy={goalCenterY}
+								r={penaltyShootoutScoredSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX}
+								cy={goalCenterY}
+								r={penaltyShootoutScoredSize / 2}
+								fill='#15803d'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX}
+								y={goalCenterY}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutScored}
+							</text>
+						</g>
+					)}
+					
+					{/* Wide yellow ellipse - Penalty Shootout Missed */}
+					{penaltyShootoutMissed > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<ellipse
+								cx={goalCenterX + 120}
+								cy={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
+								rx={penaltyShootoutMissedWidth / 2 + 20}
+								ry={penaltyShootoutMissedHeight / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<ellipse
+								cx={goalCenterX + 120}
+								cy={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
+								rx={penaltyShootoutMissedWidth / 2}
+								ry={penaltyShootoutMissedHeight / 2}
+								fill='#eab308'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX + 120}
+								y={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#000000'
+								fontSize='20'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutMissed}
+							</text>
+						</g>
+					)}
 				</svg>
 			</div>
 			{/* Stats Table */}
@@ -406,13 +491,40 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{saved}</td>
 						</tr>
-						<tr>
+						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-orange-500 mr-2'></span>
 								Penalties Conceded
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{conceded}</td>
 						</tr>
+						{penaltyShootoutScored > 0 && (
+							<tr className='border-b border-white/10'>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-green-700 mr-2'></span>
+									Penalties Scored in Penalty Shootout
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutScored}</td>
+							</tr>
+						)}
+						{penaltyShootoutMissed > 0 && (
+							<tr className='border-b border-white/10'>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-yellow-500 mr-2'></span>
+									Penalties Missed in Penalty Shootout
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutMissed}</td>
+							</tr>
+						)}
+						{penaltyShootoutSaved > 0 && (
+							<tr>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
+									Penalties Saved in Penalty Shootout
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutSaved}</td>
+							</tr>
+						)}
 					</tbody>
 				</table>
 			</div>
@@ -1920,12 +2032,15 @@ export default function PlayerStats() {
 			)}
 
 			{/* Penalty Stats Custom Visualization */}
-			{penaltyData.some(item => item.value > 0) && (
+			{(penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
 					saved={toNumber(validPlayerData.penaltiesSaved)}
 					conceded={toNumber(validPlayerData.penaltiesConceded)}
+					penaltyShootoutScored={toNumber(validPlayerData.penaltyShootoutPenaltiesScored)}
+					penaltyShootoutMissed={toNumber(validPlayerData.penaltyShootoutPenaltiesMissed)}
+					penaltyShootoutSaved={toNumber(validPlayerData.penaltyShootoutPenaltiesSaved)}
 				/>
 			)}
 
