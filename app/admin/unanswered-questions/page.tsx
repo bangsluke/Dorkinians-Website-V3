@@ -13,6 +13,9 @@ export default function UnansweredQuestionsPage() {
 	const [questions, setQuestions] = useState<UnansweredQuestion[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [clearingQuestions, setClearingQuestions] = useState(false);
+	const [deletingQuestionTimestamp, setDeletingQuestionTimestamp] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
 	const fetchQuestions = async () => {
 		setLoading(true);
@@ -47,6 +50,66 @@ export default function UnansweredQuestionsPage() {
 		}
 	};
 
+	const clearUnansweredQuestions = async () => {
+		if (!confirm("Are you sure you want to clear all unanswered questions? This action cannot be undone.")) {
+			return;
+		}
+
+		setClearingQuestions(true);
+		setError(null);
+		setSuccessMessage(null);
+
+		try {
+			const response = await fetch("/api/admin/unanswered-questions", {
+				method: "DELETE",
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				setQuestions([]);
+				setSuccessMessage("All unanswered questions cleared successfully");
+			} else {
+				throw new Error(data.error || "Failed to clear unanswered questions");
+			}
+		} catch (err) {
+			console.error("Error clearing unanswered questions:", err);
+			setError(err instanceof Error ? err.message : "Network error");
+		} finally {
+			setClearingQuestions(false);
+		}
+	};
+
+	const clearSingleQuestion = async (timestamp: string) => {
+		if (!confirm("Are you sure you want to delete this question? This action cannot be undone.")) {
+			return;
+		}
+
+		setDeletingQuestionTimestamp(timestamp);
+		setError(null);
+		setSuccessMessage(null);
+
+		try {
+			const response = await fetch(`/api/admin/unanswered-questions?timestamp=${encodeURIComponent(timestamp)}`, {
+				method: "DELETE",
+			});
+
+			const data = await response.json();
+
+			if (data.success) {
+				setQuestions((prev) => prev.filter((q) => q.timestamp !== timestamp));
+				setSuccessMessage("Question deleted successfully");
+			} else {
+				throw new Error(data.error || "Failed to delete question");
+			}
+		} catch (err) {
+			console.error("Error deleting question:", err);
+			setError(err instanceof Error ? err.message : "Network error");
+		} finally {
+			setDeletingQuestionTimestamp(null);
+		}
+	};
+
 	return (
 		<div className='min-h-screen bg-gray-100 py-4 sm:py-8'>
 			<div className='container mx-auto max-w-6xl px-2 sm:px-4'>
@@ -65,14 +128,24 @@ export default function UnansweredQuestionsPage() {
 						</Link>
 					</div>
 
-					<div className='mb-4 flex gap-2'>
+					<div className='mb-4 flex flex-col sm:flex-row gap-2'>
 						<button
 							onClick={fetchQuestions}
 							disabled={loading}
-							className={`px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+							className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
 								loading ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
 							}`}>
 							{loading ? "🔄 Loading..." : "🔄 Refresh"}
+						</button>
+						<button
+							onClick={clearUnansweredQuestions}
+							disabled={clearingQuestions || questions.length === 0}
+							className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors ${
+								clearingQuestions || questions.length === 0
+									? "bg-gray-400 cursor-not-allowed"
+									: "bg-red-600 hover:bg-red-700"
+							}`}>
+							{clearingQuestions ? "🔄 Clearing..." : "🗑️ Clear All"}
 						</button>
 					</div>
 
@@ -80,6 +153,14 @@ export default function UnansweredQuestionsPage() {
 						<div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-lg'>
 							<p className='text-red-600 text-sm'>
 								❌ <strong>Error:</strong> {error}
+							</p>
+						</div>
+					)}
+
+					{successMessage && (
+						<div className='mb-4 p-3 bg-green-50 border border-green-200 rounded-lg'>
+							<p className='text-green-600 text-sm'>
+								✅ <strong>Success:</strong> {successMessage}
 							</p>
 						</div>
 					)}
@@ -106,6 +187,17 @@ export default function UnansweredQuestionsPage() {
 												</p>
 											</div>
 										</div>
+										<button
+											onClick={() => clearSingleQuestion(item.timestamp)}
+											disabled={deletingQuestionTimestamp === item.timestamp}
+											className={`px-2 py-1 rounded text-xs font-semibold text-white transition-colors flex-shrink-0 ${
+												deletingQuestionTimestamp === item.timestamp
+													? "bg-gray-400 cursor-not-allowed"
+													: "bg-red-600 hover:bg-red-700"
+											}`}
+											title='Delete this question'>
+											{deletingQuestionTimestamp === item.timestamp ? "⏳" : "🗑️"}
+										</button>
 									</div>
 								</div>
 							))}
