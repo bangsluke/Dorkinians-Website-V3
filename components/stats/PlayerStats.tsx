@@ -1721,7 +1721,7 @@ export default function PlayerStats() {
 	const chartContent = (
 		<div className='space-y-4 pb-4'>
 			{/* Key Performance Stats Grid */}
-			{keyPerformanceData.some(item => item.value > 0) && (
+			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
 					<div className='grid grid-cols-2 gap-3 md:gap-4'>
