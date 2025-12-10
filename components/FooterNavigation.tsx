@@ -25,7 +25,7 @@ export default function FooterNavigation() {
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-			<div className='flex items-center justify-between px-2 md:px-[15%] py-2 pb-[calc(1rem+5px)] md:pb-[calc(0.75rem+5px)]'>
+			<div className='flex items-center px-2 md:px-[15%] py-2 pb-[calc(1rem+5px)] md:pb-[calc(0.75rem+5px)] gap-[5px]'>
 				{navigationItems.map((item) => {
 					const Icon = item.icon;
 					const isActive = currentMainPage === item.id;

@@ -17,6 +17,122 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const rowRef = useRef<HTMLTableRowElement>(null);
+	const tooltipRef = useRef<HTMLDivElement | null>(null);
+
+	// Find all scroll containers up the DOM tree
+	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
+		const containers: HTMLElement[] = [];
+		let current: HTMLElement | null = element;
+		
+		while (current && current !== document.body) {
+			const style = window.getComputedStyle(current);
+			const overflowY = style.overflowY;
+			const overflowX = style.overflowX;
+			
+			if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
+				containers.push(current);
+			}
+			
+			current = current.parentElement;
+		}
+		
+		return containers;
+	};
+
+	const updateTooltipPosition = () => {
+		if (!rowRef.current) return;
+		
+		const rect = rowRef.current.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		
+		// Find scroll containers
+		const scrollContainers = findScrollContainers(rowRef.current);
+		
+		// Calculate tooltip dimensions - use actual if available, otherwise estimate
+		let tooltipHeight = 60; // Default estimate
+		const tooltipWidth = 256; // w-64 = 16rem = 256px
+		
+		// Try to measure actual tooltip if it exists
+		if (tooltipRef.current) {
+			const tooltipRect = tooltipRef.current.getBoundingClientRect();
+			tooltipHeight = tooltipRect.height || 60;
+		}
+		
+		// Calculate available space above and below
+		const spaceBelow = viewportHeight - rect.bottom;
+		const spaceAbove = rect.top;
+		const margin = 10; // Minimum margin from viewport edge
+		const arrowHeight = 8; // Height of arrow
+		const spacing = 8; // Space between row and tooltip
+		
+		// Determine placement based on available space
+		let placement: 'above' | 'below' = 'below';
+		let top: number;
+		
+		const neededSpaceBelow = tooltipHeight + arrowHeight + spacing + margin;
+		const neededSpaceAbove = tooltipHeight + arrowHeight + spacing + margin;
+		
+		if (spaceBelow < neededSpaceBelow && spaceAbove > neededSpaceAbove) {
+			// Show above if not enough space below but enough above
+			placement = 'above';
+			top = rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing;
+		} else if (spaceBelow >= neededSpaceBelow) {
+			// Show below if enough space
+			placement = 'below';
+			top = rect.bottom + window.scrollY + spacing;
+		} else {
+			// Default to above if neither has enough space (prefer above to avoid going off bottom)
+			placement = 'above';
+			top = Math.max(margin, rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing);
+		}
+		
+		// Calculate horizontal position (center on row, but keep within viewport)
+		let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
+		
+		// Ensure tooltip stays within viewport with margin
+		if (left < window.scrollX + margin) {
+			left = window.scrollX + margin;
+		} else if (left + tooltipWidth > window.scrollX + viewportWidth - margin) {
+			left = window.scrollX + viewportWidth - tooltipWidth - margin;
+		}
+		
+		setTooltipPosition({ top, left, placement });
+	};
+
+	// Update position when tooltip becomes visible (to measure actual dimensions)
+	useEffect(() => {
+		if (showTooltip) {
+			// Use a small delay to ensure tooltip is rendered and we can measure it
+			const timeoutId = setTimeout(() => {
+				updateTooltipPosition();
+			}, 0);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [showTooltip]);
+
+	// Add scroll listeners
+	useEffect(() => {
+		if (!showTooltip || !rowRef.current) return;
+		
+		const scrollContainers = findScrollContainers(rowRef.current);
+		const handleScroll = () => {
+			updateTooltipPosition();
+		};
+		
+		// Add listeners to window and all scroll containers
+		window.addEventListener('scroll', handleScroll, true);
+		scrollContainers.forEach(container => {
+			container.addEventListener('scroll', handleScroll, true);
+		});
+		
+		return () => {
+			window.removeEventListener('scroll', handleScroll, true);
+			scrollContainers.forEach(container => {
+				container.removeEventListener('scroll', handleScroll, true);
+			});
+		};
+	}, [showTooltip]);
 
 	useEffect(() => {
 		return () => {
@@ -25,46 +141,6 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			}
 		};
 	}, []);
-
-	const updateTooltipPosition = () => {
-		if (!rowRef.current) return;
-		
-		const rect = rowRef.current.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-		const scrollY = window.scrollY;
-		const scrollX = window.scrollX;
-		
-		// Check if row is in bottom portion of viewport (bottom 3 rows would be roughly bottom 20%)
-		const rowBottom = rect.bottom;
-		const distanceFromBottom = viewportHeight - rowBottom;
-		const isNearBottom = distanceFromBottom < 150; // Approximate space for 3 rows
-		
-		// Calculate tooltip dimensions (approximate)
-		const tooltipHeight = 60;
-		const tooltipWidth = 256; // w-64 = 16rem = 256px
-		
-		// Determine placement
-		let placement: 'above' | 'below' = 'below';
-		let top = rect.bottom + scrollY + 8;
-		
-		if (isNearBottom || (rect.bottom + tooltipHeight + 20 > viewportHeight)) {
-			placement = 'above';
-			top = rect.top + scrollY - tooltipHeight - 8;
-		}
-		
-		// Calculate horizontal position (center on row, but keep within viewport)
-		let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
-		
-		// Ensure tooltip stays within viewport
-		if (left < scrollX + 10) {
-			left = scrollX + 10;
-		} else if (left + tooltipWidth > scrollX + viewportWidth - 10) {
-			left = scrollX + viewportWidth - tooltipWidth - 10;
-		}
-		
-		setTooltipPosition({ top, left, placement });
-	};
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
@@ -146,7 +222,8 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
 				<div 
-					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
+					ref={tooltipRef}
+					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
 					style={{ 
 						backgroundColor: '#0f0f0f',
 						top: `${tooltipPosition.top}px`,
