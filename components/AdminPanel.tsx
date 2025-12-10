@@ -1026,6 +1026,7 @@ export default function AdminPanel() {
 		}
 	};
 
+
 	const statusInfo = getStatusDisplay();
 
 	// Fetch site details on mount

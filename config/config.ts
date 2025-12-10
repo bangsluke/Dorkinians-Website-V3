@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.20",
+	version: "1.1.21",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -302,7 +302,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Performance Stat",
-		iconName: "Goals-Icon",
+		iconName: "Open-Play-Goals-Icon",
 	},
 	G: {
 		statName: "openPlayGoalsScored",
@@ -362,7 +362,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Performance Stat",
-		iconName: "PenaltiesSaved-Icon",
+		iconName: "Saves-Icon",
 	},
 	OG: {
 		statName: "ownGoals",
@@ -447,6 +447,42 @@ export const statObject = {
 		numberDecimalPlaces: 0,
 		statCategory: "Penalty Stat",
 		iconName: "PenaltiesSaved-Icon",
+	},
+	'PS-PSC': {
+		statName: "penaltyShootoutPenaltiesScored",
+		displayText: "Penalties Scored in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PSC", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties scored in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties scored by the player in a penalty shootout.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltiesScored-Icon",
+	},
+	'PS-PM': {
+		statName: "penaltyShootoutPenaltiesMissed",
+		displayText: "Penalties Missed in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PM", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties missed in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties missed by the player in a penalty shootout.",
+		statHigherBetterBoolean: false,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltyShootoutPenaltiesMissed-Icon",
+	},
+	'PS-PSV': {
+		statName: "penaltyShootoutPenaltiesSaved",
+		displayText: "Penalties Saved in a Penalty Shootout", // The text displayed at all times on the page.
+		shortText: "PS-PSV", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalties saved in a penalty shootout", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of penalties saved by the player in a penalty shootout.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltyShootoutPenaltiesSaved-Icon",
 	},
 	FTP: {
 		statName: "fantasyPoints",
@@ -777,7 +813,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Results Stat",
-		iconName: "Goals-Icon",
+		iconName: "PointsPerGame-Icon",
 	},
 	MostPlayedForTeam: {
 		statName: "mostPlayedForTeam",
@@ -827,6 +863,42 @@ export const statObject = {
 		statCategory: "Appearance Stat",
 		iconName: "MostScoredForTeam-Icon",
 	},
+	OPP: {
+		statName: "oppositionPlayed",
+		displayText: "Opposition played", // The text displayed at all times on the page.
+		shortText: "Opp", // Used for short displays such as on the Comparison tab.
+		wordedText: "opposition played", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of different opposition teams the player has played against.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Opposition-Icon",
+	},
+	COMP: {
+		statName: "competitionsCompeted",
+		displayText: "Competitions competed", // The text displayed at all times on the page.
+		shortText: "Comp", // Used for short displays such as on the Comparison tab.
+		wordedText: "competitions competed in", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of different competitions the player has competed in.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Competition-Icon",
+	},
+	TEAM: {
+		statName: "teammatesPlayedWith",
+		displayText: "Teammates played with", // The text displayed at all times on the page.
+		shortText: "Teammates", // Used for short displays such as on the Comparison tab.
+		wordedText: "teammates played with", // Used for chatbot responses
+		statFormat: "Integer",
+		description: "The number of different teammates the player has played with.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 0,
+		statCategory: "Appearance Stat",
+		iconName: "Teammates-Icon",
+	},
 	// Team Stats
 	TeamGamesPlayed: {
 		statName: "gamesPlayed",
@@ -838,7 +910,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "TeamAppearance-Icon",
 	},
 	TeamWins: {
 		statName: "wins",
@@ -850,7 +922,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "Win-Icon",
 	},
 	TeamDraws: {
 		statName: "draws",
@@ -862,7 +934,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Assists-Icon",
+		iconName: "Draws-Icon",
 	},
 	TeamLosses: {
 		statName: "losses",
@@ -874,7 +946,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Conceded-Icon",
+		iconName: "Loss-Icon",
 	},
 	TeamGoalsScored: {
 		statName: "goalsScored",
@@ -910,7 +982,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "GoalDifference-Icon",
 	},
 	TeamCleanSheets: {
 		statName: "cleanSheets",
@@ -934,7 +1006,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageGamesWon-Icon",
 	},
 	TeamPointsPerGame: {
 		statName: "pointsPerGame",
@@ -946,7 +1018,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PointsPerGame-Icon",
 	},
 	TeamGoalsPerGame: {
 		statName: "goalsPerGame",
@@ -958,7 +1030,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "GoalsPerAppearance-Icon",
 	},
 	TeamGoalsConcededPerGame: {
 		statName: "goalsConcededPerGame",
@@ -970,7 +1042,7 @@ export const statObject = {
 		statHigherBetterBoolean: false,
 		numberDecimalPlaces: 2,
 		statCategory: "Team Stat",
-		iconName: "Conceded-Icon",
+		iconName: "ConcededPerAppearance-Icon",
 	},
 	TeamHomeGames: {
 		statName: "homeGames",
@@ -982,7 +1054,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "HomeGames-Icon",
 	},
 	TeamHomeWins: {
 		statName: "homeWins",
@@ -994,7 +1066,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "HomeWins-Icon",
 	},
 	TeamHomeWinPercentage: {
 		statName: "homeWinPercentage",
@@ -1006,7 +1078,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageHomeGamesWon-Icon",
 	},
 	TeamAwayGames: {
 		statName: "awayGames",
@@ -1018,7 +1090,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "AwayGames-Icon",
 	},
 	TeamAwayWins: {
 		statName: "awayWins",
@@ -1030,7 +1102,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "AwayWins-Icon",
 	},
 	TeamAwayWinPercentage: {
 		statName: "awayWinPercentage",
@@ -1042,7 +1114,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Goals-Icon",
+		iconName: "PercentageAwayGamesWon-Icon",
 	},
 	TeamNumberOfSeasons: {
 		statName: "numberOfSeasons",
@@ -1054,7 +1126,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 0,
 		statCategory: "Team Stat",
-		iconName: "Appearance-Icon",
+		iconName: "NumberSeasonsPlayedFor-Icon",
 	},
 };
 
@@ -1079,6 +1151,9 @@ export const statsPageConfig = {
 			"PM",
 			"PCO",
 			"PSV",
+			"PS-PSC",
+			"PS-PM",
+			"PS-PSV",
 			"FTP",
 			"GI",
 			"GperAPP",
@@ -1100,8 +1175,35 @@ export const statsPageConfig = {
 			"NumberTeamsPlayedFor",
 			"NumberSeasonsPlayedFor",
 			"MostScoredForTeam",
+			"OPP",
+			"COMP",
+			"TEAM",
 		],
 		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result", "position"],
+	},
+	"team-stats": {
+		statsToDisplay: [
+			"TeamGamesPlayed",
+			"TeamWins",
+			"TeamDraws",
+			"TeamLosses",
+			"TeamGoalsScored",
+			"TeamGoalsConceded",
+			"TeamGoalDifference",
+			"TeamCleanSheets",
+			"TeamWinPercentage",
+			"TeamPointsPerGame",
+			"TeamGoalsPerGame",
+			"TeamGoalsConcededPerGame",
+			"TeamHomeGames",
+			"TeamHomeWins",
+			"TeamHomeWinPercentage",
+			"TeamAwayGames",
+			"TeamAwayWins",
+			"TeamAwayWinPercentage",
+			"TeamNumberOfSeasons",
+		],
+		availableFilters: ["timeRange", "location", "opposition", "competition", "result"],
 	},
 	"club-stats": {
 		statsToDisplay: [
@@ -1125,7 +1227,7 @@ export const statsPageConfig = {
 			"TeamAwayWinPercentage",
 			"TeamNumberOfSeasons",
 		],
-		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result"],
+		availableFilters: ["timeRange", "location", "opposition", "competition", "result"],
 	},
 	"comparison": {
 		statsToDisplay: [
@@ -1145,6 +1247,9 @@ export const statsPageConfig = {
 			"PM",
 			"PCO",
 			"PSV",
+			"PS-PSC",
+			"PS-PM",
+			"PS-PSV",
 			"FTP",
 			"GI",
 			"GperAPP",

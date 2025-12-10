@@ -4,6 +4,7 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -13,7 +14,9 @@ import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const rowRef = useRef<HTMLTableRowElement>(null);
 
 	useEffect(() => {
 		return () => {
@@ -23,7 +26,48 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		};
 	}, []);
 
+	const updateTooltipPosition = () => {
+		if (!rowRef.current) return;
+		
+		const rect = rowRef.current.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		const scrollY = window.scrollY;
+		const scrollX = window.scrollX;
+		
+		// Check if row is in bottom portion of viewport (bottom 3 rows would be roughly bottom 20%)
+		const rowBottom = rect.bottom;
+		const distanceFromBottom = viewportHeight - rowBottom;
+		const isNearBottom = distanceFromBottom < 150; // Approximate space for 3 rows
+		
+		// Calculate tooltip dimensions (approximate)
+		const tooltipHeight = 60;
+		const tooltipWidth = 256; // w-64 = 16rem = 256px
+		
+		// Determine placement
+		let placement: 'above' | 'below' = 'below';
+		let top = rect.bottom + scrollY + 8;
+		
+		if (isNearBottom || (rect.bottom + tooltipHeight + 20 > viewportHeight)) {
+			placement = 'above';
+			top = rect.top + scrollY - tooltipHeight - 8;
+		}
+		
+		// Calculate horizontal position (center on row, but keep within viewport)
+		let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+		
+		// Ensure tooltip stays within viewport
+		if (left < scrollX + 10) {
+			left = scrollX + 10;
+		} else if (left + tooltipWidth > scrollX + viewportWidth - 10) {
+			left = scrollX + viewportWidth - tooltipWidth - 10;
+		}
+		
+		setTooltipPosition({ top, left, placement });
+	};
+
 	const handleMouseEnter = () => {
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -35,6 +79,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	const handleTouchStart = () => {
@@ -42,6 +87,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			clearTimeout(timeoutRef.current);
 			timeoutRef.current = null;
 		}
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -53,11 +99,13 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	return (
 		<>
 			<tr
+				ref={rowRef}
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -66,28 +114,52 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
-							src={`/stat-icons/${stat.iconName}.webp`}
+							src={`/stat-icons/${stat.iconName}.svg`}
 							alt={stat.displayText}
 							width={24}
 							height={24}
-							className={`w-6 h-6 md:w-8 md:h-8 object-contain ${stat.iconName?.includes('YellowCard') || stat.iconName?.includes('RedCard') ? '' : 'brightness-0 invert'}`}
+							className='w-6 h-6 md:w-8 md:h-8 object-contain'
 						/>
 					</div>
 				</td>
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
+				<td className='px-2 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
-						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
+						{(() => {
+							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+							if (stat.statName === "minutes") {
+								// Extract number and unit, format number with commas
+								const match = formatted.match(/^(\d+(?:\.\d+)?)\s*(.*)$/);
+								if (match) {
+									const num = parseFloat(match[1]);
+									const unit = match[2] || "";
+									const numWithCommas = Math.round(num).toLocaleString();
+									return unit ? `${numWithCommas} ${unit}` : numWithCommas;
+								}
+							}
+							return formatted;
+						})()}
 					</span>
 				</td>
 			</tr>
-			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
-					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
+				<div 
+					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
+					style={{ 
+						backgroundColor: '#0f0f0f',
+						top: `${tooltipPosition.top}px`,
+						left: `${tooltipPosition.left}px`
+					}}>
+					{tooltipPosition.placement === 'above' ? (
+						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
+					) : (
+						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+					)}
 					{stat.description}
-				</div>
+				</div>,
+				document.body
 			)}
 		</>
 	);
@@ -167,14 +239,17 @@ function toNumber(val: any): number {
 }
 
 // Penalty Stats Visualization Component
-function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored: number; missed: number; saved: number; conceded: number }) {
+function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
-	const maxValue = Math.max(scored, missed, saved, conceded, 1);
+	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
 	const missedSize = Math.max(30, Math.min(120, (missed / maxValue) * 120));
 	const savedSize = Math.max(30, Math.min(120, (saved / maxValue) * 120)); // Same scaling as scored
 	const concededWidth = Math.max(30, Math.min(150, (conceded / maxValue) * 150));
 	const concededHeight = Math.max(22.5, Math.min(60, (conceded / maxValue) * 60));
+	const penaltyShootoutScoredSize = Math.max(30, Math.min(120, (penaltyShootoutScored / maxValue) * 120));
+	const penaltyShootoutSavedSize = Math.max(30, Math.min(120, (penaltyShootoutSaved / maxValue) * 120));
+	const penaltyShootoutMissedSize = Math.max(30, Math.min(120, (penaltyShootoutMissed / maxValue) * 120));
 	
 	// Goal dimensions
 	const goalWidth = 200;
@@ -218,14 +293,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -239,7 +314,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<text
 								x={goalCenterX - 70}
-								y={goalCenterY - 100}
+								y={goalCenterY - 70}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -258,14 +333,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -279,7 +354,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<text
 								x={goalCenterX + 70}
-								y={goalCenterY - 100}
+								y={goalCenterY - 70}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -292,20 +367,60 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 						</g>
 					)}
 					
+					{/* Dark blue circle - Penalty Shootout Saved (same position as Saved but 20px left) */}
+					{penaltyShootoutSaved > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX + 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutSavedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX + 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutSavedSize / 2}
+								fill='#1e40af'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX + 50}
+								y={goalCenterY - 70}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='20'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutSaved}
+							</text>
+						</g>
+					)}
+					
 					{/* Red circle - Missed (wide of goal, to the right, moved up more) */}
 					{missed > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 170}
+								cy={goalCenterY - 140}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 170}
+								cy={goalCenterY - 140}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -319,7 +434,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 170}
+								y={goalCenterY - 140}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -332,13 +447,53 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 						</g>
 					)}
 					
+					{/* Dark red circle - Penalty Shootout Missed (opposite side of Missed, same height) */}
+					{penaltyShootoutMissed > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								cy={goalCenterY - 140}
+								r={penaltyShootoutMissedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								cy={goalCenterY - 140}
+								r={penaltyShootoutMissedSize / 2}
+								fill='#991b1b'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								y={goalCenterY - 140}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutMissed}
+							</text>
+						</g>
+					)}
+					
 					{/* Orange ellipse - Conceded (in front of goal, below, moved left and up more) */}
 					{conceded > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								rx={concededWidth / 2 + 20}
 								ry={concededHeight / 2 + 15}
 								fill='transparent'
@@ -346,7 +501,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								rx={concededWidth / 2}
 								ry={concededHeight / 2}
 								fill='#f97316'
@@ -361,7 +516,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							/>
 							<text
 								x={goalCenterX - 120}
-								y={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								y={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -370,6 +525,46 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 								pointerEvents='none'
 							>
 								{conceded}
+							</text>
+						</g>
+					)}
+					
+					{/* Dark green circle - Penalty Shootout Scored (same position as Scored but 20px right) */}
+					{penaltyShootoutScored > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX - 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutScoredSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX - 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutScoredSize / 2}
+								fill='#15803d'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX - 50}
+								y={goalCenterY - 70}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutScored}
 							</text>
 						</g>
 					)}
@@ -406,13 +601,40 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded }: { scored
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{saved}</td>
 						</tr>
-						<tr>
+						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-orange-500 mr-2'></span>
 								Penalties Conceded
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{conceded}</td>
 						</tr>
+						{penaltyShootoutScored > 0 && (
+							<tr className='border-b border-white/10'>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-green-700 mr-2'></span>
+									Penalty Shootout Scored
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutScored}</td>
+							</tr>
+						)}
+						{penaltyShootoutMissed > 0 && (
+							<tr className='border-b border-white/10'>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-red-800 mr-2'></span>
+									Penalty Shootout Misses
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutMissed}</td>
+							</tr>
+						)}
+						{penaltyShootoutSaved > 0 && (
+							<tr>
+								<td className='py-2 px-2'>
+									<span className='inline-block w-3 h-3 rounded-full bg-blue-800 mr-2'></span>
+									Penalty Shootout Saves
+								</td>
+								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutSaved}</td>
+							</tr>
+						)}
 					</tbody>
 				</table>
 			</div>
@@ -500,7 +722,7 @@ function FantasyPointsSection({
 		
 		// Always show minutes if available (player appeared in match)
 		const minutes = match.min !== undefined && match.min !== null ? Math.round(match.min) : 0;
-		parts.push(`${minutes} Mins`);
+		parts.push(`${minutes.toLocaleString()} Mins`);
 		
 		if (match.goals && match.goals > 0) {
 			parts.push(`${match.goals} ${match.goals === 1 ? "Goal" : "Goals"}`);
@@ -526,10 +748,10 @@ function FantasyPointsSection({
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Fantasy Points</h3>
 			
-			{/* Player Name and Total Score Display - Kit first, then dark box */}
-			<div className='flex flex-col items-center mb-4'>
+			{/* Player Name and Total Score Display - Kit and info side by side */}
+			<div className='flex items-center justify-center gap-3 md:gap-4 mb-4'>
 				{/* Kit Image */}
-				<div className='relative w-12 h-16 md:w-14 md:h-18 mb-2'>
+				<div className='relative w-12 h-16 md:w-14 md:h-18 flex-shrink-0'>
 					<Image
 						src='/totw-images/Kit.svg'
 						alt='Player Kit'
@@ -537,8 +759,8 @@ function FantasyPointsSection({
 						className='object-contain'
 					/>
 				</div>
-				{/* Dark grey box with player name and score */}
-				<div className='bg-black rounded-lg px-3 py-2 md:px-4 md:py-3 text-center min-w-[100px] md:min-w-[120px]'>
+				{/* Player name and score - no background */}
+				<div className='text-center'>
 					<p className='text-white text-xs md:text-sm font-medium mb-1'>{playerName}</p>
 					<p className='text-2xl md:text-3xl font-bold text-white leading-none'>
 						{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
@@ -564,10 +786,10 @@ function FantasyPointsSection({
 									<tr key={index} className='border-b border-white/10'>
 										<td className='py-2 px-2 text-xs md:text-sm'>{entry.stat}</td>
 										<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'>
-											{Math.round(entry.value)}
+											{Math.round(entry.value).toLocaleString()}
 										</td>
 										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
-											{entry.points > 0 ? "+" : ""}{entry.points}
+											{entry.points > 0 ? "+" : ""}{entry.points.toLocaleString()}
 										</td>
 									</tr>
 								))}
@@ -575,7 +797,7 @@ function FantasyPointsSection({
 									<td className='py-2 px-2 text-xs md:text-sm'>Total</td>
 									<td className='text-center py-2 px-2 font-mono text-xs md:text-sm'></td>
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
-										{Math.round(fantasyBreakdown.totalFantasyPoints || 0)}
+										{Math.round(fantasyBreakdown.totalFantasyPoints || 0).toLocaleString()}
 									</td>
 								</tr>
 							</tbody>
@@ -760,7 +982,7 @@ function DistanceTravelledSection({
 								</tr>
 								<tr className='border-b border-white/10'>
 									<td className='py-2 px-2 text-xs md:text-sm'>Distance Travelled</td>
-									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toFixed(1)} miles</td>
+									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{distance.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} miles</td>
 								</tr>
 								<tr>
 									<td colSpan={2} className='py-2 px-2 text-xs md:text-sm text-center text-white/90'>
@@ -994,7 +1216,7 @@ function MinutesPerStatsSection({
 }
 
 // Positional Stats Visualization Component
-function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: number; def: number; mid: number; fwd: number; appearances: number }) {
+function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinutes, defMinutes, midMinutes, fwdMinutes }: { gk: number; def: number; mid: number; fwd: number; appearances: number; gkMinutes: number; defMinutes: number; midMinutes: number; fwdMinutes: number }) {
 	// SVG dimensions: 127x87 (width x height)
 	const svgWidth = 127;
 	const svgHeight = 87;
@@ -1139,8 +1361,9 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 					<thead>
 						<tr className='border-b border-white/20'>
 							<th className='text-left py-2 px-2'>Position</th>
-							<th className='text-right py-2 px-2'>Appearances</th>
+							<th className='text-right py-2 px-2'>Apps</th>
 							<th className='text-right py-2 px-2'>Percentage</th>
+							<th className='text-right py-2 px-2'>Mins</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -1151,6 +1374,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{gk}</td>
 							<td className='text-right py-2 px-2 font-mono'>{gkPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{gkMinutes.toLocaleString()}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
@@ -1159,6 +1383,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{def}</td>
 							<td className='text-right py-2 px-2 font-mono'>{defPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{defMinutes.toLocaleString()}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
 							<td className='py-2 px-2'>
@@ -1167,6 +1392,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{mid}</td>
 							<td className='text-right py-2 px-2 font-mono'>{midPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{midMinutes.toLocaleString()}</td>
 						</tr>
 						<tr>
 							<td className='py-2 px-2'>
@@ -1175,6 +1401,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances }: { gk: 
 							</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwd}</td>
 							<td className='text-right py-2 px-2 font-mono'>{fwdPercentOfTotal.toFixed(1)}%</td>
+							<td className='text-right py-2 px-2 font-mono'>{fwdMinutes.toLocaleString()}</td>
 						</tr>
 					</tbody>
 				</table>
@@ -1201,6 +1428,13 @@ export default function PlayerStats() {
 	// State for opposition map data
 	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
 	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
+
+	// State for game details data
+	const [gameDetails, setGameDetails] = useState<any>(null);
+	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
+
+	// State for view mode toggle
+	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -1240,13 +1474,18 @@ export default function PlayerStats() {
 	// Prepare chart data (hooks must be called before early returns)
 	const keyPerformanceData = useMemo(() => {
 		if (!playerData) return [];
+		const totalSeasons = filterData?.seasons?.length || 0;
+		const seasonsPlayed = toNumber(playerData.numberSeasonsPlayedFor);
+		const seasonsDisplay = totalSeasons > 0 ? `${seasonsPlayed}/${totalSeasons}` : seasonsPlayed.toString();
 		return [
 			{ name: "Apps", value: toNumber(playerData.appearances) },
+			{ name: "Mins", value: toNumber(playerData.minutes) },
+			{ name: "Seasons", value: seasonsDisplay, isString: true },
 			{ name: "MoM", value: toNumber(playerData.mom) },
 			{ name: "Goals", value: toNumber(playerData.allGoalsScored) },
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
-	}, [playerData]);
+	}, [playerData, filterData]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -1440,6 +1679,39 @@ export default function PlayerStats() {
 		fetchOppositionMapData();
 	}, [selectedPlayer]);
 
+	// Fetch game details when player or filters change
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setGameDetails(null);
+			return;
+		}
+
+		const fetchGameDetails = async () => {
+			setIsLoadingGameDetails(true);
+			try {
+				const response = await fetch("/api/player-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setGameDetails(data);
+				}
+			} catch (error) {
+				console.error("Error fetching game details:", error);
+				setGameDetails(null);
+			} finally {
+				setIsLoadingGameDetails(false);
+			}
+		};
+
+		fetchGameDetails();
+	}, [selectedPlayer, playerFilters]);
+
 
 	// Prepare seasonal chart data (must be before early returns)
 	const seasonalChartData = useMemo(() => {
@@ -1526,7 +1798,49 @@ export default function PlayerStats() {
 		color: '#fff',
 	};
 
-	// Custom tooltip formatter to capitalize "value"
+	// Custom tooltip formatter for seasonal chart
+	const seasonalTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			let displayValue = payload[0].value || 0;
+			const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+			if (selectedOption?.statKey === "distance") {
+				displayValue = `${Number(displayValue).toFixed(1)} miles`;
+			}
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+	// Custom tooltip formatter for team chart
+	const teamTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			let displayValue = payload[0].value || 0;
+			const selectedOption = statOptions.find(opt => opt.value === teamSelectedStat);
+			if (selectedOption?.statKey === "distance") {
+				displayValue = `${Number(displayValue).toFixed(1)} miles`;
+			}
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+	// Custom tooltip formatter to capitalize "value" (for other charts)
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
 			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
@@ -1546,30 +1860,42 @@ export default function PlayerStats() {
 	const chartContent = (
 		<div className='space-y-4 pb-4'>
 			{/* Key Performance Stats Grid */}
-			{keyPerformanceData.some(item => item.value > 0) && (
+			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
-					<div className='grid grid-cols-2 gap-3 md:gap-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 						{keyPerformanceData.map((item) => {
-							const statKey = item.name === "Apps" ? "APP" : item.name === "MoM" ? "MOM" : item.name === "Goals" ? "AllGSC" : "A";
+							let statKey = "APP";
+							if (item.name === "Apps") statKey = "APP";
+							else if (item.name === "Mins") statKey = "MIN";
+							else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+							else if (item.name === "MoM") statKey = "MOM";
+							else if (item.name === "Goals") statKey = "AllGSC";
+							else if (item.name === "Assists") statKey = "A";
 							const stat = statObject[statKey as keyof typeof statObject];
 							return (
-								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
+								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
-											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.webp`}
+											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.svg`}
 											alt={stat?.displayText || item.name}
 											width={40}
 											height={40}
-											className='w-10 h-10 md:w-12 md:h-12 object-contain brightness-0 invert'
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
 										/>
 									</div>
-									<div className='flex flex-col flex-1'>
-										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
-											{formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit)}
-										</div>
-										<div className='text-white/70 text-xs md:text-sm mt-1'>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>
 											{item.name}
+										</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>
+											{(item as any).isString ? item.value : (() => {
+												if (item.name === "Mins") {
+													// Format minutes with commas and without " mins" suffix
+													return Math.round(toNumber(item.value)).toLocaleString();
+												}
+												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+											})()}
 										</div>
 									</div>
 								</div>
@@ -1632,7 +1958,7 @@ export default function PlayerStats() {
 										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
+										<Tooltip content={seasonalTooltip} />
 										<Bar 
 											dataKey='value' 
 											fill='#f9ed32' 
@@ -1709,7 +2035,7 @@ export default function PlayerStats() {
 										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
+										<Tooltip content={teamTooltip} />
 										<Bar
 											dataKey='value' 
 											fill='#f9ed32' 
@@ -1741,16 +2067,187 @@ export default function PlayerStats() {
 					mid={toNumber(validPlayerData.mid)}
 					fwd={toNumber(validPlayerData.fwd)}
 					appearances={toNumber(validPlayerData.appearances)}
+					gkMinutes={toNumber(validPlayerData.gkMinutes || 0)}
+					defMinutes={toNumber(validPlayerData.defMinutes || 0)}
+					midMinutes={toNumber(validPlayerData.midMinutes || 0)}
+					fwdMinutes={toNumber(validPlayerData.fwdMinutes || 0)}
 				/>
 			)}
 
-			{/* Fantasy Points Section */}
-			{toNumber(validPlayerData.fantasyPoints) > 0 && (
-				<FantasyPointsSection
-					playerName={selectedPlayer || ""}
-					fantasyBreakdown={fantasyBreakdown}
-					isLoading={isLoadingFantasyBreakdown}
-				/>
+			{/* Match Results Section */}
+			{playerFilters.result.length !== 1 && (() => {
+				const wins = toNumber(validPlayerData.wins || 0);
+				const draws = toNumber(validPlayerData.draws || 0);
+				const losses = toNumber(validPlayerData.losses || 0);
+				const gamesPlayed = wins + draws + losses;
+				
+				if (gamesPlayed === 0) return null;
+				
+				const pieChartData = [
+					{ name: "Wins", value: wins, color: "#22c55e" },
+					{ name: "Draws", value: draws, color: "#60a5fa" },
+					{ name: "Losses", value: losses, color: "#ef4444" },
+				].filter(item => item.value > 0);
+				
+				if (pieChartData.length === 0) return null;
+				
+				const pointsPerGame = gamesPlayed > 0 ? ((3 * wins) + (1 * draws)) / gamesPlayed : 0;
+				const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
+				
+				return (
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
+						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
+						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+							<ResponsiveContainer width='100%' height={220}>
+								<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+									<Pie
+										data={pieChartData}
+										cx='50%'
+										cy='50%'
+										labelLine={false}
+										label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
+											const RADIAN = Math.PI / 180;
+											const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+											const x = cx + radius * Math.cos(-midAngle * RADIAN);
+											const y = cy + radius * Math.sin(-midAngle * RADIAN);
+											
+											return (
+												<text
+													x={x}
+													y={y}
+													fill="#ffffff"
+													textAnchor={x > cx ? 'start' : 'end'}
+													dominantBaseline="central"
+													fontSize={14}
+													fontWeight='bold'
+												>
+													{`${name}: ${value}`}
+												</text>
+											);
+										}}
+										outerRadius={90}
+										fill='#8884d8'
+										dataKey='value'
+									>
+										{pieChartData.map((entry, index) => (
+											<Cell key={`cell-${index}`} fill={entry.color} />
+										))}
+									</Pie>
+									<Tooltip content={customTooltip} />
+								</PieChart>
+							</ResponsiveContainer>
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* Game Details Section */}
+			{!isLoadingGameDetails && gameDetails && (
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
+					
+					{/* CompType Table */}
+					<div className='mb-6'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2'>Type</th>
+									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.leagueGames > 0 
+											? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.cupGames > 0 
+											? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.friendlyGames > 0 
+											? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					{/* Home/Away Table */}
+					<div className='mb-6'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2'>Location</th>
+									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.homeGames > 0 
+											? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.awayGames > 0 
+											? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					{/* Unique Counts */}
+					<div className='space-y-2'>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Opposition played against: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
+						</p>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Competitions competed in: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
+						</p>
+						<p className='text-white text-sm'>
+							<span className='text-white'>Teammates played with: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueTeammates || 0}</span>
+						</p>
+					</div>
+				</div>
 			)}
 
 			{/* Defensive Record Section */}
@@ -1798,20 +2295,25 @@ export default function PlayerStats() {
 				);
 			})()}
 
+			{/* Distance Travelled Section */}
+			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
+				<DistanceTravelledSection
+					distance={toNumber(validPlayerData.distance)}
+					awayGames={toNumber(validPlayerData.awayGames)}
+				/>
+			)}
+
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
 				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 			)}
 
-			{/* Minutes per Stats Section */}
-			{toNumber(validPlayerData.minutes) > 0 && (
-				<MinutesPerStatsSection
-					minutes={toNumber(validPlayerData.minutes)}
-					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
-					assists={toNumber(validPlayerData.assists)}
-					mom={toNumber(validPlayerData.mom)}
-					conceded={toNumber(validPlayerData.conceded)}
-					cleanSheets={toNumber(validPlayerData.cleanSheets)}
+			{/* Fantasy Points Section */}
+			{toNumber(validPlayerData.fantasyPoints) > 0 && (
+				<FantasyPointsSection
+					playerName={selectedPlayer || ""}
+					fantasyBreakdown={fantasyBreakdown}
+					isLoading={isLoadingFantasyBreakdown}
 				/>
 			)}
 
@@ -1825,11 +2327,11 @@ export default function PlayerStats() {
 								const yellowCount = toNumber(validPlayerData.yellowCards);
 								const redCount = toNumber(validPlayerData.redCards);
 								const maxValue = Math.max(yellowCount, redCount, 1);
-								const maxHeight = 70;
+								const maxHeight = 90;
 								const minHeight = 10;
 								const cardWidth = 80;
 								const spacing = 40;
-								const textOffset = 50;
+								const textOffset = 30;
 								const centerX = 200;
 								const yellowRectX = centerX - cardWidth - spacing / 2;
 								const redRectX = centerX + spacing / 2;
@@ -1837,7 +2339,7 @@ export default function PlayerStats() {
 								const baseY = 98;
 								
 								const yellowHeight = yellowCount === 0 ? minHeight : Math.max(minHeight, (yellowCount / maxValue) * maxHeight);
-								const redHeight = redCount === 0 ? minHeight : Math.max(minHeight, (redCount / maxValue) * maxHeight);
+								const redHeight = redCount === 0 ? 1 : Math.max(minHeight, (redCount / maxValue) * maxHeight);
 								
 								return (
 									<>
@@ -1917,20 +2419,27 @@ export default function PlayerStats() {
 			)}
 
 			{/* Penalty Stats Custom Visualization */}
-			{penaltyData.some(item => item.value > 0) && (
+			{(penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
 					saved={toNumber(validPlayerData.penaltiesSaved)}
 					conceded={toNumber(validPlayerData.penaltiesConceded)}
+					penaltyShootoutScored={toNumber(validPlayerData.penaltyShootoutPenaltiesScored)}
+					penaltyShootoutMissed={toNumber(validPlayerData.penaltyShootoutPenaltiesMissed)}
+					penaltyShootoutSaved={toNumber(validPlayerData.penaltyShootoutPenaltiesSaved)}
 				/>
 			)}
 
-			{/* Distance Travelled Section */}
-			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
-				<DistanceTravelledSection
-					distance={toNumber(validPlayerData.distance)}
-					awayGames={toNumber(validPlayerData.awayGames)}
+			{/* Minutes per Stats Section */}
+			{toNumber(validPlayerData.minutes) > 0 && (
+				<MinutesPerStatsSection
+					minutes={toNumber(validPlayerData.minutes)}
+					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
+					assists={toNumber(validPlayerData.assists)}
+					mom={toNumber(validPlayerData.mom)}
+					conceded={toNumber(validPlayerData.conceded)}
+					cleanSheets={toNumber(validPlayerData.cleanSheets)}
 				/>
 			)}
 		</div>
@@ -1938,7 +2447,6 @@ export default function PlayerStats() {
 
 	const dataTableContent = (
 		<div className='mt-4'>
-			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>All Stats</h3>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
@@ -1971,14 +2479,21 @@ export default function PlayerStats() {
 						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
+				<div className='flex justify-center mb-2 md:mb-4'>
+					<button
+						onClick={() => setIsDataTableMode(!isDataTableMode)}
+						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+					</button>
+				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
 
 			<div 
 				className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
 				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-				{chartContent}
-				{dataTableContent}
+				{!isDataTableMode && chartContent}
+				{isDataTableMode && dataTableContent}
 				<div className='h-4'></div>
 			</div>
 		</div>

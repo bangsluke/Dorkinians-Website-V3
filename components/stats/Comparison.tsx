@@ -30,7 +30,7 @@ export default function Comparison() {
 	}
 
 	return (
-		<div className='p-4 text-center'>
+		<div className='p-2 md:p-4 text-center'>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Player Comparison</h2>
 			<div className='flex justify-center mb-4'>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />

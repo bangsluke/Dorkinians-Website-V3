@@ -28,7 +28,7 @@ export default function UsefulLinks() {
 	const categoryOrder = ["official", "social", "other"];
 
 	return (
-		<div className='p-4 md:p-6 h-full flex flex-col'>
+		<div className='p-2 md:p-4 h-full flex flex-col'>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 md:mb-6 text-center'>Useful Links</h2>
 
 			<div 

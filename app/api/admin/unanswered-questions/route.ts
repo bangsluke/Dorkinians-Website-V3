@@ -24,12 +24,26 @@ export async function GET(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
 	try {
-		await unansweredQuestionLogger.clearAllQuestions();
+		const { searchParams } = new URL(request.url);
+		const timestamp = searchParams.get("timestamp");
 
-		return NextResponse.json({
-			success: true,
-			message: "All unanswered questions cleared successfully",
-		});
+		if (timestamp) {
+			// Delete a single question by timestamp
+			await unansweredQuestionLogger.clearQuestion(timestamp);
+
+			return NextResponse.json({
+				success: true,
+				message: "Question cleared successfully",
+			});
+		} else {
+			// Delete all questions
+			await unansweredQuestionLogger.clearAllQuestions();
+
+			return NextResponse.json({
+				success: true,
+				message: "All unanswered questions cleared successfully",
+			});
+		}
 	} catch (error) {
 		console.error("❌ Error clearing unanswered questions:", error);
 		return NextResponse.json(

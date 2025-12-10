@@ -479,3 +479,12 @@
 	scrollbar-width: thin;
 	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
+
+/* Hide scrollbar utility class */
+.hide-scrollbar {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+	display: none;
+}

@@ -52,13 +52,15 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	query += `
 		WITH f
 		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
-		WITH f, md
+		OPTIONAL MATCH (md)<-[:PLAYED_IN]-(p:Player {graphLabel: $graphLabel})
+		WITH f, md, p
 		// Aggregate team-level stats from fixtures (use collect DISTINCT to avoid counting fixtures multiple times)
 		// Always use "Whole Club" as team label when aggregating (either all teams or filtered teams)
 		WITH "Whole Club" as team,
 			collect(DISTINCT f) as fixtures,
 			// Aggregate player-level stats from match details
 			count(md) as totalAppearances,
+			count(DISTINCT p.playerName) as numberOfPlayers,
 			sum(coalesce(md.minutes, 0)) as totalMinutes,
 			sum(coalesce(md.mom, 0)) as totalMOM,
 			sum(coalesce(md.goals, 0)) as totalGoals,
@@ -75,7 +77,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 			sum(coalesce(md.fantasyPoints, 0)) as totalFantasyPoints,
 			sum(coalesce(md.distance, 0)) as totalDistance
 		// Extract fixture-level stats from distinct fixtures
-		WITH team, fixtures, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+		WITH team, fixtures, totalAppearances, numberOfPlayers, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -95,14 +97,14 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		// Get distinct seasons and competitions
 		UNWIND allSeasons as season
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
-			homeGames, homeWins, awayGames, awayWins, allCompetitions, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			homeGames, homeWins, awayGames, awayWins, allCompetitions, totalAppearances, numberOfPlayers, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
 			collect(DISTINCT season) as seasons
 		UNWIND allCompetitions as competition
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
-			homeGames, homeWins, awayGames, awayWins, seasons, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			homeGames, homeWins, awayGames, awayWins, seasons, totalAppearances, numberOfPlayers, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -110,7 +112,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		// Calculate derived stats
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
 			homeGames, homeWins, awayGames, awayWins, seasons, competitions,
-			totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			totalAppearances, numberOfPlayers, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -148,6 +150,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 			coalesce(awayWins, 0) as awayWins,
 			coalesce(awayWinPercentage, 0.0) as awayWinPercentage,
 			coalesce(totalAppearances, 0) as totalAppearances,
+			coalesce(numberOfPlayers, 0) as numberOfPlayers,
 			coalesce(totalMinutes, 0) as totalMinutes,
 			coalesce(totalMOM, 0) as totalMOM,
 			coalesce(totalGoals, 0) as totalGoals,
@@ -358,6 +361,7 @@ export async function POST(request: NextRequest) {
 			awayWins: toNumber(record.get("awayWins")),
 			awayWinPercentage: toNumber(record.get("awayWinPercentage")),
 			totalAppearances: toNumber(record.get("totalAppearances")),
+			numberOfPlayers: toNumber(record.get("numberOfPlayers")),
 			totalMinutes: toNumber(record.get("totalMinutes")),
 			totalMOM: toNumber(record.get("totalMOM")),
 			totalGoals: toNumber(record.get("totalGoals")),
