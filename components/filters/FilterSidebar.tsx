@@ -144,16 +144,19 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				searchTerm,
 			},
 		});
-		setShowOppositionDropdown(searchTerm.length > 0);
+		setShowOppositionDropdown(true);
 	};
 
 	// Filter opposition based on search term
 	const filteredOpposition = useMemo(() => {
-		if (!filterData?.opposition || !playerFilters.opposition.searchTerm) return [];
+		if (!filterData?.opposition) return [];
 		const searchTerm = playerFilters.opposition.searchTerm.toLowerCase();
+		if (!searchTerm) {
+			return filterData.opposition.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+		}
 		return filterData.opposition
 			.filter(opp => opp.name.toLowerCase().includes(searchTerm))
-			.slice(0, 10); // Limit to 10 results
+			.slice(0, 50); // Limit to 50 results
 	}, [filterData?.opposition, playerFilters.opposition.searchTerm]);
 
 	const handleOppositionSelect = (oppositionName: string) => {
@@ -173,16 +176,19 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				searchTerm,
 			},
 		});
-		setShowCompetitionDropdown(searchTerm.length > 0);
+		setShowCompetitionDropdown(true);
 	};
 
 	// Filter competitions based on search term
 	const filteredCompetitions = useMemo(() => {
-		if (!filterData?.competitions || !playerFilters.competition.searchTerm) return [];
+		if (!filterData?.competitions) return [];
 		const searchTerm = playerFilters.competition.searchTerm.toLowerCase();
+		if (!searchTerm) {
+			return filterData.competitions.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
+		}
 		return filterData.competitions
 			.filter(comp => comp.name.toLowerCase().includes(searchTerm))
-			.slice(0, 10); // Limit to 10 results
+			.slice(0, 50); // Limit to 50 results
 	}, [filterData?.competitions, playerFilters.competition.searchTerm]);
 
 	const handleCompetitionSelect = (competitionName: string) => {
@@ -541,22 +547,28 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													placeholder='Search opposition teams...'
 													value={playerFilters.opposition.searchTerm}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
-													onFocus={() => setShowOppositionDropdown(playerFilters.opposition.searchTerm.length > 0)}
+													onFocus={() => setShowOppositionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
 													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 												/>
-												{showOppositionDropdown && filteredOpposition.length > 0 && (
+												{showOppositionDropdown && (
 													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
-														{filteredOpposition.map((opp) => (
-															<button
-																key={opp.name}
-																type='button'
-																onClick={() => handleOppositionSelect(opp.name)}
-																className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
-															>
-																{opp.name}
-															</button>
-														))}
+														{filteredOpposition.length > 0 ? (
+															filteredOpposition.map((opp) => (
+																<button
+																	key={opp.name}
+																	type='button'
+																	onClick={() => handleOppositionSelect(opp.name)}
+																	className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+																>
+																	{opp.name}
+																</button>
+															))
+														) : (
+															<div className='px-3 py-2 text-base md:text-sm text-white/60 text-center'>
+																No results found
+															</div>
+														)}
 													</div>
 												)}
 											</div>
@@ -603,22 +615,28 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													placeholder='Search competitions...'
 													value={playerFilters.competition.searchTerm}
 													onChange={(e) => handleCompetitionSearch(e.target.value)}
-													onFocus={() => setShowCompetitionDropdown(playerFilters.competition.searchTerm.length > 0)}
+													onFocus={() => setShowCompetitionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowCompetitionDropdown(false), 200)}
 													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 												/>
-												{showCompetitionDropdown && filteredCompetitions.length > 0 && (
+												{showCompetitionDropdown && (
 													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
-														{filteredCompetitions.map((comp) => (
-															<button
-																key={comp.name}
-																type='button'
-																onClick={() => handleCompetitionSelect(comp.name)}
-																className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
-															>
-																{comp.name}
-															</button>
-														))}
+														{filteredCompetitions.length > 0 ? (
+															filteredCompetitions.map((comp, index) => (
+																<button
+																	key={`${comp.name}-${comp.type}-${index}`}
+																	type='button'
+																	onClick={() => handleCompetitionSelect(comp.name)}
+																	className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+																>
+																	{comp.name}
+																</button>
+															))
+														) : (
+															<div className='px-3 py-2 text-base md:text-sm text-white/60 text-center'>
+																No results found
+															</div>
+														)}
 													</div>
 												)}
 											</div>
@@ -689,7 +707,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
 													<span className='text-base md:text-sm text-white/80'>
-														{position.label} ({position.value})
+														{position.label}
 													</span>
 												</label>
 											))}

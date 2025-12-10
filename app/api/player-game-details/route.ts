@@ -51,13 +51,13 @@ export async function POST(request: NextRequest) {
 				count(DISTINCT CASE WHEN f.compType = 'League' THEN f.id END) as leagueGames,
 				count(DISTINCT CASE WHEN f.compType = 'Cup' THEN f.id END) as cupGames,
 				count(DISTINCT CASE WHEN f.compType = 'Friendly' THEN f.id END) as friendlyGames,
-				count(DISTINCT CASE WHEN f.compType = 'League' AND f.result = 'Win' THEN f.id END) as leagueWins,
-				count(DISTINCT CASE WHEN f.compType = 'Cup' AND f.result = 'Win' THEN f.id END) as cupWins,
-				count(DISTINCT CASE WHEN f.compType = 'Friendly' AND f.result = 'Win' THEN f.id END) as friendlyWins,
+				count(DISTINCT CASE WHEN f.compType = 'League' AND f.result = "W" THEN f.id END) as leagueWins,
+				count(DISTINCT CASE WHEN f.compType = 'Cup' AND f.result = "W" THEN f.id END) as cupWins,
+				count(DISTINCT CASE WHEN f.compType = 'Friendly' AND f.result = "W" THEN f.id END) as friendlyWins,
 				count(DISTINCT CASE WHEN f.homeOrAway = 'Home' THEN f.id END) as homeGames,
-				count(DISTINCT CASE WHEN f.homeOrAway = 'Home' AND f.result = 'Win' THEN f.id END) as homeWins,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Home' AND f.result = "W" THEN f.id END) as homeWins,
 				count(DISTINCT CASE WHEN f.homeOrAway = 'Away' THEN f.id END) as awayGames,
-				count(DISTINCT CASE WHEN f.homeOrAway = 'Away' AND f.result = 'Win' THEN f.id END) as awayWins,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Away' AND f.result = "W" THEN f.id END) as awayWins,
 				count(DISTINCT f.opposition) as uniqueOpponents,
 				count(DISTINCT f.competition) as uniqueCompetitions
 			RETURN 

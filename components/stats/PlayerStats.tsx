@@ -4,6 +4,7 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -143,7 +144,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 					</span>
 				</td>
 			</tr>
-			{showTooltip && tooltipPosition && (
+			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
 				<div 
 					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
 					style={{ 
@@ -157,7 +158,8 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					)}
 					{stat.description}
-				</div>
+				</div>,
+				document.body
 			)}
 		</>
 	);
@@ -2233,16 +2235,16 @@ export default function PlayerStats() {
 					{/* Unique Counts */}
 					<div className='space-y-2'>
 						<p className='text-white text-sm'>
-							<span className='text-white'>Opposition played: </span>
-							<span className='font-mono'>{gameDetails.uniqueOpponents || 0}</span>
+							<span className='text-white'>Opposition played against: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
 						</p>
 						<p className='text-white text-sm'>
-							<span className='text-white'>Competitions competed: </span>
-							<span className='font-mono'>{gameDetails.uniqueCompetitions || 0}</span>
+							<span className='text-white'>Competitions competed in: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
 						</p>
 						<p className='text-white text-sm'>
 							<span className='text-white'>Teammates played with: </span>
-							<span className='font-mono'>{gameDetails.uniqueTeammates || 0}</span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueTeammates || 0}</span>
 						</p>
 					</div>
 				</div>
