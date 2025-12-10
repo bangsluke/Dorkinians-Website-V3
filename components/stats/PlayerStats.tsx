@@ -5,12 +5,15 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
+import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
+import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
+import { generateShareImage, shareImage, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -166,7 +169,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 500);
 	};
 
 	const handleTouchEnd = () => {
@@ -1514,6 +1517,12 @@ export default function PlayerStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
+	// State for share functionality
+	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
+	const shareCardRef = useRef<HTMLDivElement>(null);
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -1815,6 +1824,40 @@ export default function PlayerStats() {
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
 
+	// Get available visualizations (must be before early returns)
+	const availableVisualizations = useMemo(() => {
+		if (!playerData) return [];
+		return getAvailableVisualizations(
+			playerData,
+			playerFilters,
+			allSeasonsSelected,
+			allTeamsSelected,
+			seasonalChartData,
+			teamChartData,
+			isLoadingSeasonalStats,
+			isLoadingTeamStats,
+			oppositionMapData,
+			fantasyBreakdown,
+			isLoadingFantasyBreakdown,
+			gameDetails,
+			isLoadingGameDetails
+		);
+	}, [
+		playerData,
+		playerFilters,
+		allSeasonsSelected,
+		allTeamsSelected,
+		seasonalChartData,
+		teamChartData,
+		isLoadingSeasonalStats,
+		isLoadingTeamStats,
+		oppositionMapData,
+		fantasyBreakdown,
+		isLoadingFantasyBreakdown,
+		gameDetails,
+		isLoadingGameDetails,
+	]);
+
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
 		return (
@@ -1868,6 +1911,146 @@ export default function PlayerStats() {
 
 	// At this point, playerData is guaranteed to be non-null
 	const validPlayerData: PlayerData = playerData;
+
+	// Extract visualization data based on selection
+	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
+		switch (vizType) {
+			case "seasonal-performance":
+				return {
+					type: vizType,
+					data: { chartData: seasonalChartData },
+				};
+			case "team-performance":
+				return {
+					type: vizType,
+					data: { chartData: teamChartData },
+				};
+			case "match-results":
+				const wins = toNumber(validPlayerData.wins || 0);
+				const draws = toNumber(validPlayerData.draws || 0);
+				const losses = toNumber(validPlayerData.losses || 0);
+				const pieData = [
+					{ name: "Wins", value: wins, color: "#22c55e" },
+					{ name: "Draws", value: draws, color: "#60a5fa" },
+					{ name: "Losses", value: losses, color: "#ef4444" },
+				].filter(item => item.value > 0);
+				return {
+					type: vizType,
+					data: { pieData },
+				};
+			case "positional-stats":
+				return {
+					type: vizType,
+					data: {
+						gk: toNumber(validPlayerData.gk),
+						def: toNumber(validPlayerData.def),
+						mid: toNumber(validPlayerData.mid),
+						fwd: toNumber(validPlayerData.fwd),
+						appearances: toNumber(validPlayerData.appearances),
+					},
+				};
+			case "defensive-record":
+				return {
+					type: vizType,
+					data: {
+						cleanSheets: toNumber(validPlayerData.cleanSheets),
+						conceded: toNumber(validPlayerData.conceded),
+						ownGoals: toNumber(validPlayerData.ownGoals),
+					},
+				};
+			case "card-stats":
+				return {
+					type: vizType,
+					data: {
+						yellowCards: toNumber(validPlayerData.yellowCards),
+						redCards: toNumber(validPlayerData.redCards),
+					},
+				};
+			case "penalty-stats":
+				return {
+					type: vizType,
+					data: {
+						scored: toNumber(validPlayerData.penaltiesScored),
+						missed: toNumber(validPlayerData.penaltiesMissed),
+						saved: toNumber(validPlayerData.penaltiesSaved),
+						conceded: toNumber(validPlayerData.penaltiesConceded),
+					},
+				};
+			case "fantasy-points":
+				return {
+					type: vizType,
+					data: {
+						totalPoints: toNumber(validPlayerData.fantasyPoints),
+						highestWeek: fantasyBreakdown?.highestScoringWeek ? {
+							points: Math.round(fantasyBreakdown.highestScoringWeek.totalPoints),
+						} : null,
+					},
+				};
+			case "distance-travelled":
+				return {
+					type: vizType,
+					data: {
+						distance: toNumber(validPlayerData.distance),
+						awayGames: toNumber(validPlayerData.awayGames || 0),
+					},
+				};
+			case "minutes-per-stats":
+				const minutes = toNumber(validPlayerData.minutes);
+				const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
+				const assists = toNumber(validPlayerData.assists);
+				const mom = toNumber(validPlayerData.mom);
+				const cleanSheets = toNumber(validPlayerData.cleanSheets);
+				return {
+					type: vizType,
+					data: {
+						minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
+						minutesPerAssist: assists > 0 ? minutes / assists : 0,
+						minutesPerMoM: mom > 0 ? minutes / mom : 0,
+						minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
+					},
+				};
+			case "game-details":
+				return {
+					type: vizType,
+					data: {
+						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
+						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
+						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
+					},
+				};
+			default:
+				return { type: vizType };
+		}
+	};
+
+	// Handle visualization selection
+	const handleVisualizationSelect = async (vizId: string) => {
+		const vizData = getVisualizationData(vizId);
+		setSelectedShareVisualization(vizData);
+		
+		// Wait for state update, then generate image
+		setTimeout(async () => {
+			if (!shareCardRef.current) return;
+			
+			setIsGeneratingShare(true);
+			try {
+				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+				await shareImage(imageDataUrl, selectedPlayer || "");
+			} catch (error) {
+				console.error("Error generating share image:", error);
+				alert("Failed to generate share image. Please try again.");
+			} finally {
+				setIsGeneratingShare(false);
+				setSelectedShareVisualization(null);
+			}
+		}, 100);
+	};
+
+	// Share handler - opens modal
+	const handleShare = () => {
+		if (!selectedPlayer || !validPlayerData) return;
+		setIsShareModalOpen(true);
+	};
 
 	const tooltipStyle = {
 		backgroundColor: 'rgb(14, 17, 15)',
@@ -2573,7 +2756,60 @@ export default function PlayerStats() {
 				{!isDataTableMode && chartContent}
 				{isDataTableMode && dataTableContent}
 				<div className='h-4'></div>
+				
+				{/* Share Button */}
+				<div className='flex justify-center mt-2 mb-4'>
+					<button
+						onClick={handleShare}
+						disabled={isGeneratingShare}
+						className='flex items-center gap-2 px-6 py-3 bg-dorkinians-yellow hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+						{isGeneratingShare ? (
+							<>
+								<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+									<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+									<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+								</svg>
+								<span>Generating...</span>
+							</>
+						) : (
+							<>
+								<ArrowUpTrayIcon className='h-5 w-5' />
+								<span>Share Stats</span>
+							</>
+						)}
+					</button>
+				</div>
 			</div>
+
+			{/* Share Visualization Modal */}
+			<ShareVisualizationModal
+				isOpen={isShareModalOpen}
+				onClose={() => setIsShareModalOpen(false)}
+				onSelect={handleVisualizationSelect}
+				options={availableVisualizations}
+			/>
+
+			{/* Hidden share card for image generation */}
+			{selectedPlayer && validPlayerData && (
+				<div 
+					ref={shareCardRef}
+					style={{ 
+						position: 'fixed', 
+						left: '-9999px', 
+						top: '-9999px', 
+						visibility: 'hidden',
+						pointerEvents: 'none',
+						zIndex: -1,
+					}}>
+					<ShareableStatsCard
+						playerName={selectedPlayer}
+						playerData={validPlayerData}
+						playerFilters={playerFilters}
+						filterData={filterData}
+						selectedVisualization={selectedShareVisualization || undefined}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }
