@@ -127,6 +127,7 @@ export interface TeamData {
 	fantasyPointsPerAppearance: number;
 	numberOfSeasons: number;
 	numberOfCompetitions: number;
+	numberOfPlayers: number;
 }
 
 // TOTW cache interfaces

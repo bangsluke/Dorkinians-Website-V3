@@ -594,6 +594,105 @@ export default function ClubTeamStats() {
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+					{/* Key Performance Stats */}
+					<div className='mb-4'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/Teammates-Icon.svg'
+											alt='Players'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Players</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</div>
+									</div>
+								</div>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/TeamAppearance-Icon.svg'
+											alt='Games'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
+									</div>
+								</div>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/Win-Icon.svg'
+											alt='Wins'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Wins</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.wins).toLocaleString()}</div>
+									</div>
+								</div>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/Goals-Icon.svg'
+											alt='Goals'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Goals</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsScored).toLocaleString()}</div>
+									</div>
+								</div>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/Competition-Icon.svg'
+											alt='Competitions'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Competitions</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.numberOfCompetitions).toLocaleString()}</div>
+									</div>
+								</div>
+								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+									<div className='flex-shrink-0'>
+										<Image
+											src='/stat-icons/CleanSheet-Icon.svg'
+											alt='Clean Sheets'
+											width={40}
+											height={40}
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
+										/>
+									</div>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
