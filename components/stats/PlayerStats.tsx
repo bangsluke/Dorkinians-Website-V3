@@ -1946,6 +1946,7 @@ export default function PlayerStats() {
 						def: toNumber(validPlayerData.def),
 						mid: toNumber(validPlayerData.mid),
 						fwd: toNumber(validPlayerData.fwd),
+						appearances: toNumber(validPlayerData.appearances),
 					},
 				};
 			case "defensive-record":
@@ -1990,7 +1991,7 @@ export default function PlayerStats() {
 					type: vizType,
 					data: {
 						distance: toNumber(validPlayerData.distance),
-						awayGames: toNumber(validPlayerData.awayGames),
+						awayGames: toNumber(validPlayerData.awayGames || 0),
 					},
 				};
 			case "minutes-per-stats":

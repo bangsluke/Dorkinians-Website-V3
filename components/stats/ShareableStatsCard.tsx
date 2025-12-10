@@ -130,34 +130,181 @@ function renderVisualization(viz: { type: string; data?: any }) {
 
 		case "positional-stats":
 			if (!data) return null;
+			const svgWidth = 127;
+			const svgHeight = 87;
+			const thirdWidth = svgWidth / 3;
+			const totalPositionAppearances = (data.gk || 0) + (data.def || 0) + (data.mid || 0) + (data.fwd || 0);
+			const appearances = data.appearances || totalPositionAppearances;
+			const defPercentOfTotal = appearances > 0 ? ((data.def || 0) / appearances * 100) : 0;
+			const midPercentOfTotal = appearances > 0 ? ((data.mid || 0) / appearances * 100) : 0;
+			const fwdPercentOfTotal = appearances > 0 ? ((data.fwd || 0) / appearances * 100) : 0;
+			const gkPercentOfTotal = appearances > 0 ? ((data.gk || 0) / appearances * 100) : 0;
+			
 			return (
-				<div style={{ width: "100%", textAlign: "center", color: "#fff" }}>
-					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px" }}>Positional Stats</div>
-					<div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px" }}>
-						{data.gk > 0 && (
-							<div>
-								<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>{data.gk}</div>
-								<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>GK</div>
-							</div>
-						)}
-						{data.def > 0 && (
-							<div>
-								<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>{data.def}</div>
-								<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>DEF</div>
-							</div>
-						)}
-						{data.mid > 0 && (
-							<div>
-								<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>{data.mid}</div>
-								<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>MID</div>
-							</div>
-						)}
-						{data.fwd > 0 && (
-							<div>
-								<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>{data.fwd}</div>
-								<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>FWD</div>
-							</div>
-						)}
+				<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#fff" }}>Positional Stats</div>
+					<div style={{ width: "100%", height: "300px", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+						{/* Background pitch image */}
+						<div style={{ position: "absolute", width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+							<img
+								src={`${typeof window !== 'undefined' ? window.location.origin : ''}/stat-images/horizontal-pitch.svg`}
+								alt="Football Pitch"
+								style={{
+									width: "100%",
+									height: "100%",
+									objectFit: "contain",
+									opacity: 0.5,
+								}}
+								crossOrigin="anonymous"
+								loading="eager"
+							/>
+						</div>
+						
+						{/* Overlay SVG with position boxes */}
+						<svg width="100%" height="100%" viewBox={`0 0 ${svgWidth} ${svgHeight}`} preserveAspectRatio="xMidYMid meet" style={{ position: "relative", zIndex: 10 }}>
+							{/* DEF - Left third */}
+							{data.def > 0 && (
+								<>
+									<rect
+										x="0"
+										y="0"
+										width={thirdWidth}
+										height={svgHeight}
+										fill="rgba(139, 69, 19, 0.4)"
+										stroke="rgba(255, 255, 255, 0.6)"
+										strokeWidth="1"
+									/>
+									<text
+										x={thirdWidth / 2}
+										y={svgHeight / 2 - 8}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="20"
+										fontWeight="bold"
+									>
+										{data.def}
+									</text>
+									<text
+										x={thirdWidth / 2}
+										y={svgHeight / 2 + 12}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="12"
+									>
+										{defPercentOfTotal.toFixed(1)}%
+									</text>
+								</>
+							)}
+							
+							{/* MID - Middle third */}
+							{data.mid > 0 && (
+								<>
+									<rect
+										x={thirdWidth}
+										y="0"
+										width={thirdWidth}
+										height={svgHeight}
+										fill="rgba(144, 238, 144, 0.4)"
+										stroke="rgba(255, 255, 255, 0.6)"
+										strokeWidth="1"
+									/>
+									<text
+										x={thirdWidth + thirdWidth / 2}
+										y={svgHeight / 2 - 8}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="20"
+										fontWeight="bold"
+									>
+										{data.mid}
+									</text>
+									<text
+										x={thirdWidth + thirdWidth / 2}
+										y={svgHeight / 2 + 12}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="12"
+									>
+										{midPercentOfTotal.toFixed(1)}%
+									</text>
+								</>
+							)}
+							
+							{/* FWD - Right third */}
+							{data.fwd > 0 && (
+								<>
+									<rect
+										x={thirdWidth * 2}
+										y="0"
+										width={thirdWidth}
+										height={svgHeight}
+										fill="rgba(64, 224, 208, 0.4)"
+										stroke="rgba(255, 255, 255, 0.6)"
+										strokeWidth="1"
+									/>
+									<text
+										x={thirdWidth * 2 + thirdWidth / 2}
+										y={svgHeight / 2 - 8}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="20"
+										fontWeight="bold"
+									>
+										{data.fwd}
+									</text>
+									<text
+										x={thirdWidth * 2 + thirdWidth / 2}
+										y={svgHeight / 2 + 12}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="12"
+									>
+										{fwdPercentOfTotal.toFixed(1)}%
+									</text>
+								</>
+							)}
+							
+							{/* GK - Center circle (if applicable) */}
+							{data.gk > 0 && (
+								<>
+									<circle
+										cx={svgWidth / 2}
+										cy={svgHeight / 2}
+										r="15"
+										fill="rgba(147, 51, 234, 0.4)"
+										stroke="rgba(255, 255, 255, 0.6)"
+										strokeWidth="1"
+									/>
+									<text
+										x={svgWidth / 2}
+										y={svgHeight / 2 - 5}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="14"
+										fontWeight="bold"
+									>
+										{data.gk}
+									</text>
+									<text
+										x={svgWidth / 2}
+										y={svgHeight / 2 + 10}
+										textAnchor="middle"
+										dominantBaseline="middle"
+										fill="#ffffff"
+										fontSize="10"
+									>
+										{gkPercentOfTotal.toFixed(1)}%
+									</text>
+								</>
+							)}
+						</svg>
 					</div>
 				</div>
 			);
@@ -182,18 +329,96 @@ function renderVisualization(viz: { type: string; data?: any }) {
 
 		case "card-stats":
 			if (!data) return null;
+			const yellowCount = data.yellowCards || 0;
+			const redCount = data.redCards || 0;
+			const maxValue = Math.max(yellowCount, redCount, 1);
+			const maxHeight = 90;
+			const minHeight = 10;
+			const cardWidth = 80;
+			const spacing = 40;
+			const textOffset = 30;
+			const centerX = 200;
+			const yellowRectX = centerX - cardWidth - spacing / 2;
+			const redRectX = centerX + spacing / 2;
+			const containerCenterY = 54;
+			const baseY = 98;
+			
+			const yellowHeight = yellowCount === 0 ? minHeight : Math.max(minHeight, (yellowCount / maxValue) * maxHeight);
+			const redHeight = redCount === 0 ? 1 : Math.max(minHeight, (redCount / maxValue) * maxHeight);
+			
 			return (
-				<div style={{ width: "100%", textAlign: "center", color: "#fff" }}>
-					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px" }}>Card Stats</div>
-					<div style={{ display: "flex", justifyContent: "center", gap: "40px" }}>
-						<div>
-							<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>{data.yellowCards || 0}</div>
-							<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>Yellow Cards</div>
-						</div>
-						<div>
-							<div style={{ fontSize: "36px", fontWeight: "bold", color: "#ef4444" }}>{data.redCards || 0}</div>
-							<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>Red Cards</div>
-						</div>
+				<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#fff" }}>Card Stats</div>
+					<div style={{ width: "100%", height: "300px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+						<svg width="100%" height="108px" viewBox="0 0 400 108" preserveAspectRatio="xMidYMid meet" style={{ maxWidth: "600px" }}>
+							{/* Yellow Card Text - Left of rectangle, vertically centered */}
+							<text
+								x={yellowRectX - textOffset}
+								y={containerCenterY - 6}
+								textAnchor="end"
+								dominantBaseline="middle"
+								fill="#ffffff"
+								fontSize="24"
+								fontWeight="bold"
+							>
+								{yellowCount}
+							</text>
+							<text
+								x={yellowRectX - textOffset}
+								y={containerCenterY + 16}
+								textAnchor="end"
+								dominantBaseline="middle"
+								fill="#ffffff"
+								fontSize="14"
+							>
+								Yellows
+							</text>
+							
+							{/* Yellow Card Rectangle */}
+							<rect
+								x={yellowRectX}
+								y={baseY - yellowHeight}
+								width={cardWidth}
+								height={yellowHeight}
+								fill="#f9ed32"
+								opacity={0.9}
+								rx="4"
+							/>
+							
+							{/* Red Card Text - Right of rectangle, vertically centered */}
+							<text
+								x={redRectX + cardWidth + textOffset}
+								y={containerCenterY - 6}
+								textAnchor="start"
+								dominantBaseline="middle"
+								fill="#ffffff"
+								fontSize="24"
+								fontWeight="bold"
+							>
+								{redCount}
+							</text>
+							<text
+								x={redRectX + cardWidth + textOffset}
+								y={containerCenterY + 16}
+								textAnchor="start"
+								dominantBaseline="middle"
+								fill="#ffffff"
+								fontSize="14"
+							>
+								Reds
+							</text>
+							
+							{/* Red Card Rectangle */}
+							<rect
+								x={redRectX}
+								y={baseY - redHeight}
+								width={cardWidth}
+								height={redHeight}
+								fill="#ef4444"
+								opacity={0.9}
+								rx="4"
+							/>
+						</svg>
 					</div>
 				</div>
 			);
@@ -242,14 +467,56 @@ function renderVisualization(viz: { type: string; data?: any }) {
 
 		case "distance-travelled":
 			if (!data || !data.distance) return null;
+			const UK_LENGTH = 600;
+			const EUROPE_LENGTH = 3411;
+			const EARTH_CIRCUMFERENCE = 24901;
+			const distance = data.distance;
+			
+			let mapImage: string;
+			let comparisonText: string;
+			
+			if (distance < 1200) {
+				const percentage = (distance / UK_LENGTH) * 100;
+				mapImage = '/stat-images/uk-map.svg';
+				comparisonText = `${percentage.toFixed(1)}% of the length of the UK`;
+			} else if (distance < 6400) {
+				const times = distance / EUROPE_LENGTH;
+				mapImage = '/stat-images/europe-map.svg';
+				comparisonText = `${times.toFixed(2)} times the length of Europe`;
+			} else {
+				const times = distance / EARTH_CIRCUMFERENCE;
+				mapImage = '/stat-images/world-map.svg';
+				comparisonText = `${times.toFixed(2)} times around the Earth`;
+			}
+			
 			return (
-				<div style={{ width: "100%", textAlign: "center", color: "#fff" }}>
-					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px" }}>Distance Travelled</div>
-					<div style={{ fontSize: "36px", fontWeight: "bold", color: "#f9ed32" }}>
-						{data.distance.toLocaleString()} miles
-					</div>
-					<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)", marginTop: "10px" }}>
-						{data.awayGames} away games
+				<div style={{ width: "100%", height: "100%", position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+					<div style={{ fontSize: "24px", fontWeight: "bold", marginBottom: "20px", color: "#fff" }}>Distance Travelled</div>
+					<div style={{ width: "100%", height: "280px", position: "relative", borderRadius: "8px", overflow: "hidden" }}>
+						<img
+							src={`${typeof window !== 'undefined' ? window.location.origin : ''}${mapImage}`}
+							alt="Map"
+							style={{
+								width: "100%",
+								height: "100%",
+								objectFit: "contain",
+								filter: "brightness(0) invert(1)",
+								opacity: 0.3,
+							}}
+							crossOrigin="anonymous"
+							loading="eager"
+						/>
+						<div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", zIndex: 10 }}>
+							<div style={{ fontSize: "48px", fontWeight: "bold", color: "#f9ed32", marginBottom: "10px" }}>
+								{distance.toLocaleString()} miles
+							</div>
+							<div style={{ fontSize: "18px", color: "rgba(255,255,255,0.9)", marginBottom: "10px" }}>
+								{data.awayGames} away games
+							</div>
+							<div style={{ fontSize: "16px", color: "rgba(255,255,255,0.8)" }}>
+								{comparisonText}
+							</div>
+						</div>
 					</div>
 				</div>
 			);
@@ -399,15 +666,15 @@ export default function ShareableStatsCard({
 					top: "30px",
 					right: "30px",
 					zIndex: 2,
-					transform: "rotate(15deg)",
+					transform: "rotate(-15deg)",
 					opacity: 0.15,
 				}}>
 				<img
 					src={`${typeof window !== 'undefined' ? window.location.origin : ''}/icons/icon-512x512.png`}
 					alt="Dorkinians FC Logo"
 					style={{
-						width: "200px",
-						height: "200px",
+						width: "400px",
+						height: "400px",
 						filter: "brightness(0) invert(1)",
 						objectFit: "contain",
 					}}
@@ -452,21 +719,17 @@ export default function ShareableStatsCard({
 					</div>
 				</div>
 
-				{/* Selected Visualization */}
-				{selectedVisualization && (
-					<div
-						style={{
-							flex: "1",
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							marginBottom: "20px",
-							minHeight: "280px",
-							maxHeight: "380px",
-						}}>
-						{renderVisualization(selectedVisualization)}
-					</div>
-				)}
+				{/* Selected Visualization - Fixed height to keep stats in same position */}
+				<div
+					style={{
+						height: "380px",
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						marginBottom: "20px",
+					}}>
+					{selectedVisualization ? renderVisualization(selectedVisualization) : <div />}
+				</div>
 
 				{/* Stats Grid */}
 				<div
@@ -474,7 +737,7 @@ export default function ShareableStatsCard({
 						display: "grid",
 						gridTemplateColumns: "repeat(5, 1fr)",
 						gap: "30px",
-						marginTop: selectedVisualization ? "0" : "auto",
+						marginTop: "0",
 						marginBottom: "20px",
 						flexShrink: 0,
 					}}>
