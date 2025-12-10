@@ -174,8 +174,15 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 	const isHalfHeight = currentStatsSubPage === "player-stats" || currentStatsSubPage === "club-stats";
 
 	return (
-		<div className='mb-2 md:mb-4 overflow-x-auto'>
-			<div className='flex gap-2 min-w-max'>
+		<div
+			className='mb-2 md:mb-4 overflow-x-auto scrollbar-hide'
+			style={{
+				WebkitOverflowScrolling: "touch",
+				msOverflowStyle: "none",
+				scrollbarWidth: "none",
+				overscrollBehaviorX: "contain",
+			}}>
+			<div className='flex gap-2 min-w-max pr-4' style={{ touchAction: "pan-x" }}>
 				{Object.entries(groupedPills).map(([label, pills]) => {
 					// If only one pill in category, render normally
 					if (pills.length === 1) {

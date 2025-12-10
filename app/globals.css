@@ -386,6 +386,15 @@
 	}
 }
 
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* Global Scrollbar Styling */
 ::-webkit-scrollbar {
 	width: 12px;

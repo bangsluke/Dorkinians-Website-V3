@@ -3,17 +3,41 @@
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const rowRef = useRef<HTMLTableRowElement | null>(null);
+	const tooltipRef = useRef<HTMLDivElement | null>(null);
+	const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, placement: "bottom" as "top" | "bottom" });
+
+	const calculateTooltipPosition = useCallback(() => {
+		if (typeof window === "undefined" || !rowRef.current || !tooltipRef.current) return;
+		const rowRect = rowRef.current.getBoundingClientRect();
+		const tooltipRect = tooltipRef.current.getBoundingClientRect();
+		const margin = 12;
+		let placement: "top" | "bottom" = "bottom";
+		let top = rowRect.bottom + margin;
+
+		if (top + tooltipRect.height > window.innerHeight - margin) {
+			placement = "top";
+			top = rowRect.top - tooltipRect.height - margin;
+		}
+
+		top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
+
+		let left = rowRect.left + rowRect.width / 2 - tooltipRect.width / 2;
+		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+
+		setTooltipPosition({ top, left, placement });
+	}, []);
 
 	useEffect(() => {
 		return () => {
@@ -55,9 +79,29 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		setShowTooltip(false);
 	};
 
+	useEffect(() => {
+		if (!showTooltip) return;
+
+		const handlePosition = () => {
+			requestAnimationFrame(() => {
+				calculateTooltipPosition();
+			});
+		};
+
+		handlePosition();
+		window.addEventListener("scroll", handlePosition, true);
+		window.addEventListener("resize", handlePosition);
+
+		return () => {
+			window.removeEventListener("scroll", handlePosition, true);
+			window.removeEventListener("resize", handlePosition);
+		};
+	}, [showTooltip, calculateTooltipPosition]);
+
 	return (
 		<>
 			<tr
+				ref={rowRef}
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -78,7 +122,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
 				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
-					<span className='text-white font-mono text-xs md:text-sm'>
+					<span className='text-white font-mono text-xs md:text-sm whitespace-nowrap'>
 						{(() => {
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
 							if (stat.statName === "minutes") {
@@ -97,8 +141,25 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				</td>
 			</tr>
 			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
-					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+				<div
+					ref={tooltipRef}
+					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none'
+					style={{
+						backgroundColor: '#0f0f0f',
+						top: tooltipPosition.top,
+						left: tooltipPosition.left,
+					}}>
+					{tooltipPosition.placement === "bottom" ? (
+						<div
+							className='absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent'
+							style={{ borderBottomColor: '#0f0f0f' }}
+						/>
+					) : (
+						<div
+							className='absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent'
+							style={{ borderTopColor: '#0f0f0f' }}
+						/>
+					)}
 					{stat.description}
 				</div>
 			)}
@@ -1657,24 +1718,30 @@ export default function PlayerStats() {
 	// Prepare seasonal chart data (must be before early returns)
 	const seasonalChartData = useMemo(() => {
 		if (!seasonalStats.length) return [];
-		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+		const selectedOption = statOptions.find((opt) => opt.value === seasonalSelectedStat);
 		if (!selectedOption) return [];
-		
-		return seasonalStats.map(stat => ({
+		const isDistanceStat = selectedOption.statKey === "distance";
+
+		return seasonalStats.map((stat) => ({
 			name: stat.season,
 			value: toNumber(stat[selectedOption.statKey] || 0),
+			unit: isDistanceStat ? "miles" : undefined,
+			precision: isDistanceStat ? 1 : undefined,
 		}));
 	}, [seasonalStats, seasonalSelectedStat, statOptions]);
 
 	// Prepare team chart data (must be before early returns)
 	const teamChartData = useMemo(() => {
 		if (!teamStats.length) return [];
-		const selectedOption = statOptions.find(opt => opt.value === teamSelectedStat);
+		const selectedOption = statOptions.find((opt) => opt.value === teamSelectedStat);
 		if (!selectedOption) return [];
-		
-		return teamStats.map(stat => ({
+		const isDistanceStat = selectedOption.statKey === "distance";
+
+		return teamStats.map((stat) => ({
 			name: stat.team,
 			value: toNumber(stat[selectedOption.statKey] || 0),
+			unit: isDistanceStat ? "miles" : undefined,
+			precision: isDistanceStat ? 1 : undefined,
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
 
@@ -1742,18 +1809,40 @@ export default function PlayerStats() {
 	// Custom tooltip formatter to capitalize "value"
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
-			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
-			const displayValue = payload[0].value || 0;
+			const firstPayload = payload[0] || {};
+			const dataPoint = firstPayload.payload || {};
+			const displayLabel = label || firstPayload.name || dataPoint.name || "";
+			let numericValue = Number(firstPayload.value ?? 0);
+			if (Number.isNaN(numericValue)) {
+				numericValue = 0;
+			}
+
+			let formattedValue: string | number = numericValue;
+			if (dataPoint.unit === "miles") {
+				const precision = typeof dataPoint.precision === "number" ? dataPoint.precision : 1;
+				formattedValue = `${numericValue.toFixed(precision)} ${dataPoint.unit}`;
+			}
+
 			return (
 				<div style={tooltipStyle} className='px-3 py-2'>
 					<p className='text-white text-sm'>{displayLabel}</p>
 					<p className='text-white text-sm'>
-						<span className='font-semibold'>Value</span>: {displayValue}
+						<span className='font-semibold'>Value</span>: {formattedValue}
 					</p>
 				</div>
 			);
 		}
 		return null;
+	};
+
+	const formatWinPercentage = (percentage?: number, wins?: number, games?: number) => {
+		if (typeof percentage === "number" && !Number.isNaN(percentage)) {
+			return `${percentage.toFixed(1)}%`;
+		}
+		if (typeof wins === "number" && typeof games === "number" && games > 0) {
+			return `${((wins / games) * 100).toFixed(1)}%`;
+		}
+		return "0%";
 	};
 
 	const chartContent = (
@@ -1998,12 +2087,12 @@ export default function PlayerStats() {
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
 						<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-							<ResponsiveContainer width='100%' height={350}>
-								<PieChart>
+							<ResponsiveContainer width='100%' height={280}>
+								<PieChart margin={{ top: 10, bottom: 10 }}>
 									<Pie
 										data={pieChartData}
 										cx='50%'
-										cy='50%'
+										cy='45%'
 										labelLine={false}
 										label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
 											const RADIAN = Math.PI / 180;
@@ -2025,7 +2114,7 @@ export default function PlayerStats() {
 												</text>
 											);
 										}}
-										outerRadius={100}
+										outerRadius={110}
 										fill='#8884d8'
 										dataKey='value'
 									>
@@ -2034,10 +2123,6 @@ export default function PlayerStats() {
 										))}
 									</Pie>
 									<Tooltip content={customTooltip} />
-									<Legend 
-										wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
-										iconType='circle' 
-									/>
 								</PieChart>
 							</ResponsiveContainer>
 						</div>
@@ -2051,12 +2136,13 @@ export default function PlayerStats() {
 					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 					
 					{/* CompType Table */}
-					<div className='mb-6'>
+					<div className='mb-6 space-y-4'>
 						<table className='w-full text-white text-sm'>
 							<thead>
 								<tr className='border-b border-white/20'>
 									<th className='text-left py-2 px-2'>Type</th>
 									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -2065,18 +2151,57 @@ export default function PlayerStats() {
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{formatWinPercentage(gameDetails.leagueWinPercentage, gameDetails.leagueWins, gameDetails.leagueGames)}
+									</td>
 								</tr>
 								<tr className='border-b border-white/10'>
 									<td className='py-2 px-2'>
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{formatWinPercentage(gameDetails.cupWinPercentage, gameDetails.cupWins, gameDetails.cupGames)}
+									</td>
 								</tr>
 								<tr>
 									<td className='py-2 px-2'>
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{formatWinPercentage(gameDetails.friendlyWinPercentage, gameDetails.friendlyWins, gameDetails.friendlyGames)}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2'>Location</th>
+									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{formatWinPercentage(gameDetails.homeWinPercentage, gameDetails.homeWins, gameDetails.homeGames)}
+									</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{formatWinPercentage(gameDetails.awayWinPercentage, gameDetails.awayWins, gameDetails.awayGames)}
+									</td>
 								</tr>
 							</tbody>
 						</table>

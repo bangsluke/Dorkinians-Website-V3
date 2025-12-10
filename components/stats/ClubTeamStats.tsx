@@ -3,11 +3,11 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 
 interface TopPlayer {
@@ -39,6 +39,30 @@ type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "s
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const rowRef = useRef<HTMLTableRowElement | null>(null);
+	const tooltipRef = useRef<HTMLDivElement | null>(null);
+	const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0, placement: "bottom" as "top" | "bottom" });
+
+	const calculateTooltipPosition = useCallback(() => {
+		if (typeof window === "undefined" || !rowRef.current || !tooltipRef.current) return;
+		const rowRect = rowRef.current.getBoundingClientRect();
+		const tooltipRect = tooltipRef.current.getBoundingClientRect();
+		const margin = 12;
+		let placement: "top" | "bottom" = "bottom";
+		let top = rowRect.bottom + margin;
+
+		if (top + tooltipRect.height > window.innerHeight - margin) {
+			placement = "top";
+			top = rowRect.top - tooltipRect.height - margin;
+		}
+
+		top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
+
+		let left = rowRect.left + rowRect.width / 2 - tooltipRect.width / 2;
+		left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+
+		setTooltipPosition({ top, left, placement });
+	}, []);
 
 	useEffect(() => {
 		return () => {
@@ -80,9 +104,29 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 		setShowTooltip(false);
 	};
 
+	useEffect(() => {
+		if (!showTooltip) return;
+
+		const handlePosition = () => {
+			requestAnimationFrame(() => {
+				calculateTooltipPosition();
+			});
+		};
+
+		handlePosition();
+		window.addEventListener("scroll", handlePosition, true);
+		window.addEventListener("resize", handlePosition);
+
+		return () => {
+			window.removeEventListener("scroll", handlePosition, true);
+			window.removeEventListener("resize", handlePosition);
+		};
+	}, [showTooltip, calculateTooltipPosition]);
+
 	return (
 		<>
 			<tr
+				ref={rowRef}
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -103,14 +147,31 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
 				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
-					<span className='text-white font-mono text-xs md:text-sm'>
+					<span className='text-white font-mono text-xs md:text-sm whitespace-nowrap'>
 						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
 					</span>
 				</td>
 			</tr>
 			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
-					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+				<div
+					ref={tooltipRef}
+					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none'
+					style={{
+						backgroundColor: '#0f0f0f',
+						top: tooltipPosition.top,
+						left: tooltipPosition.left,
+					}}>
+					{tooltipPosition.placement === "bottom" ? (
+						<div
+							className='absolute -top-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent'
+							style={{ borderBottomColor: '#0f0f0f' }}
+						/>
+					) : (
+						<div
+							className='absolute -bottom-2 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent'
+							style={{ borderTopColor: '#0f0f0f' }}
+						/>
+					)}
 					{stat.description}
 				</div>
 			)}
@@ -731,12 +792,12 @@ export default function ClubTeamStats() {
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={350}>
-												<PieChart>
+											<ResponsiveContainer width='100%' height={280}>
+												<PieChart margin={{ top: 10, bottom: 10 }}>
 													<Pie
 														data={pieChartData}
 														cx='50%'
-														cy='50%'
+														cy='45%'
 														labelLine={false}
 														label={({ cx, cy, midAngle, innerRadius, outerRadius, name, value }) => {
 															const RADIAN = Math.PI / 180;
@@ -758,7 +819,7 @@ export default function ClubTeamStats() {
 																</text>
 															);
 														}}
-														outerRadius={100}
+														outerRadius={110}
 														fill='#8884d8'
 														dataKey='value'
 													>
@@ -767,10 +828,6 @@ export default function ClubTeamStats() {
 													))}
 												</Pie>
 												<Tooltip content={customTooltip} />
-												<Legend 
-													wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
-													iconType='circle' 
-												/>
 												</PieChart>
 											</ResponsiveContainer>
 										</div>

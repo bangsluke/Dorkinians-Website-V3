@@ -51,12 +51,26 @@ export async function POST(request: NextRequest) {
 				count(DISTINCT CASE WHEN f.compType = 'League' THEN f.id END) as leagueGames,
 				count(DISTINCT CASE WHEN f.compType = 'Cup' THEN f.id END) as cupGames,
 				count(DISTINCT CASE WHEN f.compType = 'Friendly' THEN f.id END) as friendlyGames,
+				count(DISTINCT CASE WHEN f.compType = 'League' AND f.result = 'W' THEN f.id END) as leagueWins,
+				count(DISTINCT CASE WHEN f.compType = 'Cup' AND f.result = 'W' THEN f.id END) as cupWins,
+				count(DISTINCT CASE WHEN f.compType = 'Friendly' AND f.result = 'W' THEN f.id END) as friendlyWins,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Home' THEN f.id END) as homeGames,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Home' AND f.result = 'W' THEN f.id END) as homeWins,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Away' THEN f.id END) as awayGames,
+				count(DISTINCT CASE WHEN f.homeOrAway = 'Away' AND f.result = 'W' THEN f.id END) as awayWins,
 				count(DISTINCT f.opposition) as uniqueOpponents,
 				count(DISTINCT f.competition) as uniqueCompetitions
 			RETURN 
 				leagueGames,
 				cupGames,
 				friendlyGames,
+				leagueWins,
+				cupWins,
+				friendlyWins,
+				homeGames,
+				homeWins,
+				awayGames,
+				awayWins,
 				uniqueOpponents,
 				uniqueCompetitions
 		`;
@@ -68,6 +82,18 @@ export async function POST(request: NextRequest) {
 				leagueGames: 0,
 				cupGames: 0,
 				friendlyGames: 0,
+				leagueWins: 0,
+				cupWins: 0,
+				friendlyWins: 0,
+				leagueWinPercentage: 0,
+				cupWinPercentage: 0,
+				friendlyWinPercentage: 0,
+				homeGames: 0,
+				homeWins: 0,
+				awayGames: 0,
+				awayWins: 0,
+				homeWinPercentage: 0,
+				awayWinPercentage: 0,
 				uniqueOpponents: 0,
 				uniqueCompetitions: 0,
 				uniqueTeammates: 0,
@@ -89,8 +115,26 @@ export async function POST(request: NextRequest) {
 		const leagueGames = toNumber(record.get("leagueGames"));
 		const cupGames = toNumber(record.get("cupGames"));
 		const friendlyGames = toNumber(record.get("friendlyGames"));
+		const leagueWins = toNumber(record.get("leagueWins"));
+		const cupWins = toNumber(record.get("cupWins"));
+		const friendlyWins = toNumber(record.get("friendlyWins"));
+		const homeGames = toNumber(record.get("homeGames"));
+		const homeWins = toNumber(record.get("homeWins"));
+		const awayGames = toNumber(record.get("awayGames"));
+		const awayWins = toNumber(record.get("awayWins"));
 		const uniqueOpponents = toNumber(record.get("uniqueOpponents"));
 		const uniqueCompetitions = toNumber(record.get("uniqueCompetitions"));
+
+		const calcWinPercentage = (wins: number, games: number): number => {
+			if (games === 0) return 0;
+			return (wins / games) * 100;
+		};
+
+		const leagueWinPercentage = calcWinPercentage(leagueWins, leagueGames);
+		const cupWinPercentage = calcWinPercentage(cupWins, cupGames);
+		const friendlyWinPercentage = calcWinPercentage(friendlyWins, friendlyGames);
+		const homeWinPercentage = calcWinPercentage(homeWins, homeGames);
+		const awayWinPercentage = calcWinPercentage(awayWins, awayGames);
 
 		// Get unique teammates - query separately
 		const teammateQuery = `
@@ -126,6 +170,18 @@ export async function POST(request: NextRequest) {
 			leagueGames,
 			cupGames,
 			friendlyGames,
+			leagueWins,
+			cupWins,
+			friendlyWins,
+			leagueWinPercentage,
+			cupWinPercentage,
+			friendlyWinPercentage,
+			homeGames,
+			homeWins,
+			awayGames,
+			awayWins,
+			homeWinPercentage,
+			awayWinPercentage,
 			uniqueOpponents,
 			uniqueCompetitions,
 			uniqueTeammates,
