@@ -21,6 +21,18 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 
 	// Check if team filter is provided via filters.teams
 	const hasTeamFilter = filters?.teams && Array.isArray(filters.teams) && filters.teams.length > 0;
+	const sanitizedTeamName = typeof teamName === "string" ? teamName.trim() : "";
+	const primaryFilterTeam =
+		hasTeamFilter && typeof filters.teams[0] === "string" ? String(filters.teams[0]).trim() : "";
+	const teamLabel =
+		sanitizedTeamName && sanitizedTeamName.length > 0
+			? sanitizedTeamName
+			: primaryFilterTeam && primaryFilterTeam.length > 0
+				? primaryFilterTeam
+				: hasTeamFilter
+					? "Filtered Teams"
+					: "Whole Club";
+	params.teamLabel = teamLabel;
 	
 	// Base query - match fixtures
 	let query = `
@@ -52,13 +64,12 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	query += `
 		WITH f
 		OPTIONAL MATCH (f)-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
-		WITH f, md
-		// Aggregate team-level stats from fixtures (use collect DISTINCT to avoid counting fixtures multiple times)
-		// Always use "Whole Club" as team label when aggregating (either all teams or filtered teams)
-		WITH "Whole Club" as team,
+		OPTIONAL MATCH (md)<-[:PLAYED_IN]-(p:Player {graphLabel: $graphLabel})
+		WITH $teamLabel as team,
 			collect(DISTINCT f) as fixtures,
 			// Aggregate player-level stats from match details
 			count(md) as totalAppearances,
+			count(DISTINCT p) as playerCount,
 			sum(coalesce(md.minutes, 0)) as totalMinutes,
 			sum(coalesce(md.mom, 0)) as totalMOM,
 			sum(coalesce(md.goals, 0)) as totalGoals,
@@ -75,7 +86,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 			sum(coalesce(md.fantasyPoints, 0)) as totalFantasyPoints,
 			sum(coalesce(md.distance, 0)) as totalDistance
 		// Extract fixture-level stats from distinct fixtures
-		WITH team, fixtures, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+		WITH team, fixtures, totalAppearances, playerCount, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -95,14 +106,14 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		// Get distinct seasons and competitions
 		UNWIND allSeasons as season
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
-			homeGames, homeWins, awayGames, awayWins, allCompetitions, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			homeGames, homeWins, awayGames, awayWins, allCompetitions, totalAppearances, playerCount, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
 			collect(DISTINCT season) as seasons
 		UNWIND allCompetitions as competition
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
-			homeGames, homeWins, awayGames, awayWins, seasons, totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			homeGames, homeWins, awayGames, awayWins, seasons, totalAppearances, playerCount, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -110,7 +121,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 		// Calculate derived stats
 		WITH team, gamesPlayed, wins, draws, losses, goalsScored, goalsConceded, cleanSheets,
 			homeGames, homeWins, awayGames, awayWins, seasons, competitions,
-			totalAppearances, totalMinutes, totalMOM, totalGoals, totalAssists,
+			totalAppearances, playerCount, totalMinutes, totalMOM, totalGoals, totalAssists,
 			totalYellowCards, totalRedCards, totalSaves, totalOwnGoals, totalPlayerCleanSheets,
 			totalPenaltiesScored, totalPenaltiesMissed, totalPenaltiesConceded, totalPenaltiesSaved,
 			totalFantasyPoints, totalDistance,
@@ -130,6 +141,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 			size(competitions) as numberOfCompetitions
 		RETURN team,
 			coalesce(gamesPlayed, 0) as gamesPlayed,
+			coalesce(playerCount, 0) as playerCount,
 			coalesce(wins, 0) as wins,
 			coalesce(draws, 0) as draws,
 			coalesce(losses, 0) as losses,
@@ -338,7 +350,8 @@ export async function POST(request: NextRequest) {
 		const record = result.records[0];
 		// Always use "Whole Club" as team name since we're aggregating stats
 		const teamData = {
-			team: "Whole Club",
+			team: params.teamLabel || "Whole Club",
+			playerCount: toNumber(record.get("playerCount")),
 			gamesPlayed: toNumber(record.get("gamesPlayed")),
 			wins: toNumber(record.get("wins")),
 			draws: toNumber(record.get("draws")),

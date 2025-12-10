@@ -37,6 +37,7 @@ const navigationItems = [
 		subPages: [
 			{ id: "player-stats", label: "Player Stats" },
 			{ id: "club-stats", label: "Club Stats" },
+			{ id: "team-stats", label: "Team Stats" },
 			{ id: "comparison", label: "Player Comparison" },
 		],
 	},

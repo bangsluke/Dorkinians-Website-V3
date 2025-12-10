@@ -6,12 +6,14 @@ import { useEffect } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import PlayerStats from "./stats/PlayerStats";
 import ClubTeamStats from "./stats/ClubTeamStats";
+import TeamStats from "./stats/TeamStats";
 import Comparison from "./stats/Comparison";
 
 // Define page arrays outside component to avoid dependency issues
 const statsSubPages = [
 	{ id: "player-stats" as StatsSubPage, component: PlayerStats, label: "Player Stats" },
 	{ id: "club-stats" as StatsSubPage, component: ClubTeamStats, label: "Club Stats" },
+	{ id: "team-stats" as StatsSubPage, component: TeamStats, label: "Team Stats" },
 	{ id: "comparison" as StatsSubPage, component: Comparison, label: "Player Comparison" },
 ];
 

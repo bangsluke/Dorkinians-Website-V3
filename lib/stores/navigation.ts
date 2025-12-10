@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
-export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
+export type StatsSubPage = "player-stats" | "club-stats" | "team-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "league-information" | "club-captains" | "club-awards" | "useful-links";
 
@@ -86,6 +86,7 @@ export interface CachedPlayerData {
 // Team data interface matching team stats query response
 export interface TeamData {
 	team: string;
+	playerCount: number;
 	gamesPlayed: number;
 	wins: number;
 	draws: number;
@@ -366,6 +367,28 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			result: ["Win", "Draw", "Loss"],
 			position: [],
 		},
+		"team-stats": {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		},
 		"comparison": {
 			timeRange: {
 				type: "allTime",
@@ -468,7 +491,13 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			// This ensures proper ordering and that the correct sub-page is restored
 			if (restoredMainPage === "stats") {
 				const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
-				if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
+				if (
+					savedStatsSubPage &&
+					(savedStatsSubPage === "player-stats" ||
+						savedStatsSubPage === "club-stats" ||
+						savedStatsSubPage === "team-stats" ||
+						savedStatsSubPage === "comparison")
+				) {
 					set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
 				}
 			} else if (restoredMainPage === "totw") {
@@ -748,6 +777,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
+			"team-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
@@ -779,6 +809,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
+			"team-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
 		const currentIndex = availablePages.indexOf(currentStatsSubPage);
