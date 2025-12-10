@@ -5,12 +5,14 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
+import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
+import { generateShareImage, shareImage } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1514,6 +1516,10 @@ export default function PlayerStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
+	// State for share functionality
+	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	const shareCardRef = useRef<HTMLDivElement>(null);
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -1595,6 +1601,25 @@ export default function PlayerStats() {
 	const handleEditClick = () => {
 		enterEditMode();
 		setMainPage("home");
+	};
+
+	// Share handler
+	const handleShare = async () => {
+		if (!selectedPlayer || !validPlayerData || !shareCardRef.current) return;
+
+		setIsGeneratingShare(true);
+		try {
+			// Generate image from share card (generateShareImage handles visibility and image loading)
+			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+			
+			// Share or download
+			await shareImage(imageDataUrl, selectedPlayer);
+		} catch (error) {
+			console.error("Error generating share image:", error);
+			alert("Failed to generate share image. Please try again.");
+		} finally {
+			setIsGeneratingShare(false);
+		}
 	};
 
 	// Check if all seasons are selected (must be before early returns)
@@ -2573,7 +2598,51 @@ export default function PlayerStats() {
 				{!isDataTableMode && chartContent}
 				{isDataTableMode && dataTableContent}
 				<div className='h-4'></div>
+				
+				{/* Share Button */}
+				<div className='flex justify-center mt-6 mb-4'>
+					<button
+						onClick={handleShare}
+						disabled={isGeneratingShare}
+						className='flex items-center gap-2 px-6 py-3 bg-dorkinians-yellow hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+						{isGeneratingShare ? (
+							<>
+								<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+									<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+									<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+								</svg>
+								<span>Generating...</span>
+							</>
+						) : (
+							<>
+								<ArrowUpTrayIcon className='h-5 w-5' />
+								<span>Share Stats</span>
+							</>
+						)}
+					</button>
+				</div>
 			</div>
+
+			{/* Hidden share card for image generation */}
+			{selectedPlayer && validPlayerData && (
+				<div 
+					ref={shareCardRef}
+					style={{ 
+						position: 'fixed', 
+						left: '-9999px', 
+						top: '-9999px', 
+						visibility: 'hidden',
+						pointerEvents: 'none',
+						zIndex: -1,
+					}}>
+					<ShareableStatsCard
+						playerName={selectedPlayer}
+						playerData={validPlayerData}
+						playerFilters={playerFilters}
+						filterData={filterData}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }
