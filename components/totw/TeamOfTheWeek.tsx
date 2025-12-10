@@ -773,9 +773,11 @@ export default function TeamOfTheWeek() {
 			{/* Summary Statistics */}
 			<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
 				<div className='text-center flex flex-col md:w-auto'>
-					<div className='h-5 mb-2 flex items-center justify-center'>
-						<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
-					</div>
+					{!loading && totwData && (
+						<div className='h-5 mb-2 flex items-center justify-center'>
+							<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+						</div>
+					)}
 					<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
 						{!loading && totwData ? (
 							<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
@@ -786,9 +788,11 @@ export default function TeamOfTheWeek() {
 					)}
 				</div>
 				<div className='flex flex-col items-center flex-shrink-0'>
-					<div className='h-5 mb-2 flex items-center justify-center'>
-						<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
-					</div>
+					{!loading && totwData?.starMan && (
+						<div className='h-5 mb-2 flex items-center justify-center'>
+							<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
+						</div>
+					)}
 					{!loading && totwData?.starMan && (
 						<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
 							<div className='relative w-12 h-12 md:w-14 md:h-14'>
