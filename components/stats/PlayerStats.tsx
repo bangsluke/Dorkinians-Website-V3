@@ -189,8 +189,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 	const concededWidth = Math.max(30, Math.min(150, (conceded / maxValue) * 150));
 	const concededHeight = Math.max(22.5, Math.min(60, (conceded / maxValue) * 60));
 	const penaltyShootoutScoredSize = Math.max(30, Math.min(120, (penaltyShootoutScored / maxValue) * 120));
-	const penaltyShootoutMissedWidth = Math.max(30, Math.min(150, (penaltyShootoutMissed / maxValue) * 150));
-	const penaltyShootoutMissedHeight = Math.max(22.5, Math.min(60, (penaltyShootoutMissed / maxValue) * 60));
+	const penaltyShootoutSavedSize = Math.max(30, Math.min(120, (penaltyShootoutSaved / maxValue) * 120));
+	const penaltyShootoutMissedSize = Math.max(30, Math.min(120, (penaltyShootoutMissed / maxValue) * 120));
 	
 	// Goal dimensions
 	const goalWidth = 200;
@@ -234,14 +234,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -255,7 +255,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 70}
-								y={goalCenterY - 100}
+								y={goalCenterY - 70}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -274,14 +274,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 100}
+								cy={goalCenterY - 70}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -295,7 +295,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 70}
-								y={goalCenterY - 100}
+								y={goalCenterY - 70}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -308,20 +308,60 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
+					{/* Dark blue circle - Penalty Shootout Saved (same position as Saved but 20px left) */}
+					{penaltyShootoutSaved > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalCenterX + 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutSavedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalCenterX + 50}
+								cy={goalCenterY - 70}
+								r={penaltyShootoutSavedSize / 2}
+								fill='#1e40af'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalCenterX + 50}
+								y={goalCenterY - 70}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='20'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutSaved}
+							</text>
+						</g>
+					)}
+					
 					{/* Red circle - Missed (wide of goal, to the right, moved up more) */}
 					{missed > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 170}
+								cy={goalCenterY - 140}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 170}
+								cy={goalCenterY - 140}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -335,7 +375,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 170}
+								y={goalCenterY - 140}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -348,13 +388,53 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
+					{/* Dark red circle - Penalty Shootout Missed (opposite side of Missed, same height) */}
+					{penaltyShootoutMissed > 0 && (
+						<g>
+							{/* Larger invisible hit area */}
+							<circle
+								cx={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								cy={goalCenterY - 140}
+								r={penaltyShootoutMissedSize / 2 + 15}
+								fill='transparent'
+								cursor='pointer'
+							/>
+							<circle
+								cx={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								cy={goalCenterY - 140}
+								r={penaltyShootoutMissedSize / 2}
+								fill='#991b1b'
+								cursor='pointer'
+								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
+								onMouseOver={(e) => {
+									e.currentTarget.style.opacity = '1';
+								}}
+								onMouseOut={(e) => {
+									e.currentTarget.style.opacity = '0.8';
+								}}
+							/>
+							<text
+								x={goalX - 50 - penaltyShootoutMissedSize / 2 - 10}
+								y={goalCenterY - 140}
+								textAnchor='middle'
+								dominantBaseline='middle'
+								fill='#ffffff'
+								fontSize='24'
+								fontWeight='bold'
+								pointerEvents='none'
+							>
+								{penaltyShootoutMissed}
+							</text>
+						</g>
+					)}
+					
 					{/* Orange ellipse - Conceded (in front of goal, below, moved left and up more) */}
 					{conceded > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								rx={concededWidth / 2 + 20}
 								ry={concededHeight / 2 + 15}
 								fill='transparent'
@@ -362,7 +442,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								rx={concededWidth / 2}
 								ry={concededHeight / 2}
 								fill='#f97316'
@@ -377,7 +457,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 120}
-								y={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								y={goalY + goalHeight + 30 + concededHeight / 2 - 10}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -390,20 +470,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark green circle - Penalty Shootout Scored (centrally positioned) */}
+					{/* Dark green circle - Penalty Shootout Scored (same position as Scored but 20px right) */}
 					{penaltyShootoutScored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
-								cx={goalCenterX}
-								cy={goalCenterY}
+								cx={goalCenterX - 50}
+								cy={goalCenterY - 70}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
-								cx={goalCenterX}
-								cy={goalCenterY}
+								cx={goalCenterX - 50}
+								cy={goalCenterY - 70}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -416,8 +496,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								}}
 							/>
 							<text
-								x={goalCenterX}
-								y={goalCenterY}
+								x={goalCenterX - 50}
+								y={goalCenterY - 70}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -426,48 +506,6 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								pointerEvents='none'
 							>
 								{penaltyShootoutScored}
-							</text>
-						</g>
-					)}
-					
-					{/* Wide yellow ellipse - Penalty Shootout Missed */}
-					{penaltyShootoutMissed > 0 && (
-						<g>
-							{/* Larger invisible hit area */}
-							<ellipse
-								cx={goalCenterX + 120}
-								cy={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
-								rx={penaltyShootoutMissedWidth / 2 + 20}
-								ry={penaltyShootoutMissedHeight / 2 + 15}
-								fill='transparent'
-								cursor='pointer'
-							/>
-							<ellipse
-								cx={goalCenterX + 120}
-								cy={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
-								rx={penaltyShootoutMissedWidth / 2}
-								ry={penaltyShootoutMissedHeight / 2}
-								fill='#eab308'
-								cursor='pointer'
-								style={{ transition: 'opacity 0.2s', opacity: '0.8' }}
-								onMouseOver={(e) => {
-									e.currentTarget.style.opacity = '1';
-								}}
-								onMouseOut={(e) => {
-									e.currentTarget.style.opacity = '0.8';
-								}}
-							/>
-							<text
-								x={goalCenterX + 120}
-								y={goalY + goalHeight + 30 + penaltyShootoutMissedHeight / 2 - 40}
-								textAnchor='middle'
-								dominantBaseline='middle'
-								fill='#000000'
-								fontSize='20'
-								fontWeight='bold'
-								pointerEvents='none'
-							>
-								{penaltyShootoutMissed}
 							</text>
 						</g>
 					)}
@@ -515,7 +553,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							<tr className='border-b border-white/10'>
 								<td className='py-2 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-green-700 mr-2'></span>
-									Penalties Scored in Penalty Shootout
+									Penalty Shootout Scored
 								</td>
 								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutScored}</td>
 							</tr>
@@ -523,8 +561,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{penaltyShootoutMissed > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-2 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-yellow-500 mr-2'></span>
-									Penalties Missed in Penalty Shootout
+									<span className='inline-block w-3 h-3 rounded-full bg-red-800 mr-2'></span>
+									Penalty Shootout Misses
 								</td>
 								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutMissed}</td>
 							</tr>
@@ -532,8 +570,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{penaltyShootoutSaved > 0 && (
 							<tr>
 								<td className='py-2 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
-									Penalties Saved in Penalty Shootout
+									<span className='inline-block w-3 h-3 rounded-full bg-blue-800 mr-2'></span>
+									Penalty Shootout Saves
 								</td>
 								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutSaved}</td>
 							</tr>
@@ -1747,7 +1785,13 @@ export default function PlayerStats() {
 									</div>
 									<div className='flex flex-col flex-1'>
 										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
-											{(item as any).isString ? item.value : formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit)}
+											{(item as any).isString ? item.value : (() => {
+												if (item.name === "Mins") {
+													// Format minutes with commas and without " mins" suffix
+													return Math.round(toNumber(item.value)).toLocaleString();
+												}
+												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+											})()}
 										</div>
 										<div className='text-white/70 text-xs md:text-sm mt-1'>
 											{item.name}
