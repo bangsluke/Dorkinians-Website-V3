@@ -104,7 +104,6 @@ export async function POST(request: NextRequest) {
 		// Debug: log the appearances value to see what we're getting
 		const appearancesRaw = record.get("appearances");
 		const appearancesConverted = toNumber(appearancesRaw);
-		console.log("[DEBUG] appearances - raw:", appearancesRaw, "type:", typeof appearancesRaw, "converted:", appearancesConverted);
 		
 		// Debug: Log position counts
 		const gkRaw = record.get("gk");
