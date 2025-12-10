@@ -170,8 +170,8 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		return null;
 	}
 
-	// Determine pill height based on page (half height for player-stats and club-stats)
-	const isHalfHeight = currentStatsSubPage === "player-stats" || currentStatsSubPage === "club-stats";
+	// Determine pill height based on page (half height for player-stats, team-stats and club-stats)
+	const isHalfHeight = currentStatsSubPage === "player-stats" || currentStatsSubPage === "team-stats" || currentStatsSubPage === "club-stats";
 
 	return (
 		<div className='mb-2 md:mb-4 overflow-x-auto'>

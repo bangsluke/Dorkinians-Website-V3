@@ -200,7 +200,17 @@ export default function TeamStats() {
 		filterData,
 	} = useNavigationStore();
 
-	const [selectedTeam, setSelectedTeam] = useState<string>("");
+	// Initialize selected team from localStorage, player's most played team, or first available team
+	const [selectedTeam, setSelectedTeam] = useState<string>(() => {
+		if (typeof window !== "undefined" && selectedPlayer) {
+			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+			const saved = localStorage.getItem(storageKey);
+			if (saved) {
+				return saved;
+			}
+		}
+		return "";
+	});
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
 	
@@ -221,15 +231,45 @@ export default function TeamStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
-	// Initialize selected team from player's most played team or first available team
+	// Track previous player to detect changes
+	const previousPlayerRef = useRef<string | null>(selectedPlayer);
+
+	// Initialize or reset selected team when player or teams data changes
 	useEffect(() => {
-		if (selectedTeam === "" && filterData.teams && filterData.teams.length > 0) {
+		if (!selectedPlayer || !filterData.teams || filterData.teams.length === 0) {
+			if (!selectedPlayer) {
+				setSelectedTeam("");
+				previousPlayerRef.current = null;
+			}
+			return;
+		}
+
+		const playerChanged = previousPlayerRef.current !== selectedPlayer;
+		previousPlayerRef.current = selectedPlayer;
+
+		const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+		const savedTeam = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
+		
+		// Check if saved team is valid
+		if (savedTeam && filterData.teams.some(team => team.name === savedTeam)) {
+			// Use saved team if it exists and is valid
+			setSelectedTeam(savedTeam);
+		} else {
+			// No saved team or saved team is invalid, use most played team or first available
 			const defaultTeam = cachedPlayerData?.playerData?.mostPlayedForTeam || filterData.teams[0]?.name || "";
-			if (defaultTeam) {
+			if (defaultTeam && filterData.teams.some(team => team.name === defaultTeam)) {
 				setSelectedTeam(defaultTeam);
 			}
 		}
-	}, [selectedTeam, filterData.teams, cachedPlayerData]);
+	}, [selectedPlayer, filterData.teams, cachedPlayerData?.playerData?.mostPlayedForTeam]);
+
+	// Save selected team to localStorage when it changes (only if player is selected)
+	useEffect(() => {
+		if (selectedPlayer && selectedTeam && typeof window !== "undefined") {
+			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+			localStorage.setItem(storageKey, selectedTeam);
+		}
+	}, [selectedTeam, selectedPlayer]);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
