@@ -30,6 +30,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		currentStatsSubPage,
 	} = useNavigationStore();
 
+	// State for autocomplete dropdowns
+	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
+	const [showCompetitionDropdown, setShowCompetitionDropdown] = useState(false);
+
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
 		const config = statsPageConfig[currentStatsSubPage];
@@ -140,6 +144,26 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				searchTerm,
 			},
 		});
+		setShowOppositionDropdown(searchTerm.length > 0);
+	};
+
+	// Filter opposition based on search term
+	const filteredOpposition = useMemo(() => {
+		if (!filterData?.opposition || !playerFilters.opposition.searchTerm) return [];
+		const searchTerm = playerFilters.opposition.searchTerm.toLowerCase();
+		return filterData.opposition
+			.filter(opp => opp.name.toLowerCase().includes(searchTerm))
+			.slice(0, 10); // Limit to 10 results
+	}, [filterData?.opposition, playerFilters.opposition.searchTerm]);
+
+	const handleOppositionSelect = (oppositionName: string) => {
+		updatePlayerFilters({
+			opposition: {
+				...playerFilters.opposition,
+				searchTerm: oppositionName,
+			},
+		});
+		setShowOppositionDropdown(false);
 	};
 
 	const handleCompetitionSearch = (searchTerm: string) => {
@@ -149,6 +173,26 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				searchTerm,
 			},
 		});
+		setShowCompetitionDropdown(searchTerm.length > 0);
+	};
+
+	// Filter competitions based on search term
+	const filteredCompetitions = useMemo(() => {
+		if (!filterData?.competitions || !playerFilters.competition.searchTerm) return [];
+		const searchTerm = playerFilters.competition.searchTerm.toLowerCase();
+		return filterData.competitions
+			.filter(comp => comp.name.toLowerCase().includes(searchTerm))
+			.slice(0, 10); // Limit to 10 results
+	}, [filterData?.competitions, playerFilters.competition.searchTerm]);
+
+	const handleCompetitionSelect = (competitionName: string) => {
+		updatePlayerFilters({
+			competition: {
+				...playerFilters.competition,
+				searchTerm: competitionName,
+			},
+		});
+		setShowCompetitionDropdown(false);
 	};
 
 	const handleCompetitionTypeToggle = (type: "League" | "Cup" | "Friendly") => {
@@ -192,7 +236,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const hasActiveFilters = () => {
-		const { timeRange, teams, location, opposition, competition, result } = playerFilters;
+		const { timeRange, teams, location, opposition, competition, result, position } = playerFilters;
 
 		return (
 			timeRange.seasons.length > 0 ||
@@ -206,7 +250,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			opposition.searchTerm !== "" ||
 			competition.types.length < 2 ||
 			competition.searchTerm !== "" ||
-			result.length < 3
+			result.length < 3 ||
+			position.length < 4
 		);
 	};
 
@@ -278,16 +323,16 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 														{ value: "afterDate", label: "After Date" },
 														{ value: "betweenDates", label: "Between Dates" },
 													].map((option) => (
-														<label key={option.value} className='flex items-center'>
+														<label key={option.value} className='flex items-center min-h-[44px]'>
 															<input
 																type='radio'
 																name='timeRangeType'
 																value={option.value}
 																checked={playerFilters.timeRange.type === option.value}
 																onChange={() => handleTimeRangeTypeChange(option.value as any)}
-																className='mr-2 accent-dorkinians-yellow'
+																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 															/>
-															<span className='text-sm text-white/80'>{option.label}</span>
+															<span className='text-base md:text-sm text-white/80'>{option.label}</span>
 														</label>
 													))}
 												</div>
@@ -303,14 +348,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 														<div className='max-h-32 overflow-y-auto'>
 															<div className='grid grid-cols-2 gap-1'>
 																{filterData.seasons.map((season) => (
-																	<label key={season.season} className='flex items-center'>
+																	<label key={season.season} className='flex items-center min-h-[44px]'>
 																		<input
 																			type='checkbox'
 																			checked={playerFilters.timeRange.seasons.includes(season.season)}
 																			onChange={() => handleSeasonToggle(season.season)}
-																			className='mr-2 accent-dorkinians-yellow'
+																			className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 																		/>
-																		<span className='text-sm text-white/80'>{season.season}</span>
+																		<span className='text-base md:text-sm text-white/80'>{season.season}</span>
 																	</label>
 																))}
 															</div>
@@ -322,7 +367,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											{/* Date Inputs */}
 											{playerFilters.timeRange.type === "beforeDate" && (
 												<div>
-													<label className='block text-sm font-medium text-white/90 mb-1'>Before Date</label>
+													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Before Date</label>
 													<input
 														type='date'
 														value={playerFilters.timeRange.beforeDate}
@@ -331,14 +376,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																timeRange: { ...playerFilters.timeRange, beforeDate: e.target.value },
 															})
 														}
-														className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 													/>
 												</div>
 											)}
 
 											{playerFilters.timeRange.type === "afterDate" && (
 												<div>
-													<label className='block text-sm font-medium text-white/90 mb-1'>After Date</label>
+													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>After Date</label>
 													<input
 														type='date'
 														value={playerFilters.timeRange.afterDate}
@@ -347,7 +392,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																timeRange: { ...playerFilters.timeRange, afterDate: e.target.value },
 															})
 														}
-														className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 													/>
 												</div>
 											)}
@@ -355,7 +400,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											{playerFilters.timeRange.type === "betweenDates" && (
 												<div className='space-y-2'>
 													<div>
-														<label className='block text-sm font-medium text-white/90 mb-1'>Start Date</label>
+														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Start Date</label>
 														<input
 															type='date'
 															value={playerFilters.timeRange.startDate}
@@ -364,11 +409,11 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	timeRange: { ...playerFilters.timeRange, startDate: e.target.value },
 																})
 															}
-															className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 														/>
 													</div>
 													<div>
-														<label className='block text-sm font-medium text-white/90 mb-1'>End Date</label>
+														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>End Date</label>
 														<input
 															type='date'
 															value={playerFilters.timeRange.endDate}
@@ -377,7 +422,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	timeRange: { ...playerFilters.timeRange, endDate: e.target.value },
 																})
 															}
-															className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 														/>
 													</div>
 												</div>
@@ -406,18 +451,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											{filterData.teams.length === 0 ? (
 												<div className='text-sm text-white/60'>Loading teams...</div>
 											) : (
-												<div className='max-h-32 overflow-y-auto space-y-1'>
-													{filterData.teams.map((team) => (
-														<label key={team.name} className='flex items-center'>
-															<input
-																type='checkbox'
-																checked={playerFilters.teams.includes(team.name)}
-																onChange={() => handleTeamToggle(team.name)}
-																className='mr-2 accent-dorkinians-yellow'
-															/>
-															<span className='text-sm text-white/80'>{team.name}</span>
-														</label>
-													))}
+												<div className='max-h-32 overflow-y-auto'>
+													<div className='grid grid-cols-2 gap-2'>
+														{filterData.teams.map((team) => (
+															<label key={team.name} className='flex items-center min-h-[44px]'>
+																<input
+																	type='checkbox'
+																	checked={playerFilters.teams.includes(team.name)}
+																	onChange={() => handleTeamToggle(team.name)}
+																	className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																/>
+																<span className='text-base md:text-sm text-white/80'>{team.name}</span>
+															</label>
+														))}
+													</div>
 												</div>
 											)}
 										</div>
@@ -442,14 +489,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 									{accordionSections.find((s) => s.id === "location")?.isOpen && (
 										<div className='px-4 pb-4 space-y-1'>
 											{["Home", "Away"].map((location) => (
-												<label key={location} className='flex items-center'>
+												<label key={location} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
 														checked={playerFilters.location.includes(location as "Home" | "Away")}
 														onChange={() => handleLocationToggle(location as "Home" | "Away")}
-														className='mr-2 accent-dorkinians-yellow'
+														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
-													<span className='text-sm text-white/80'>{location}</span>
+													<span className='text-base md:text-sm text-white/80'>{location}</span>
 												</label>
 											))}
 										</div>
@@ -473,7 +520,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 									{accordionSections.find((s) => s.id === "opposition")?.isOpen && (
 										<div className='px-4 pb-4 space-y-3'>
-											<label className='flex items-center'>
+											<label className='flex items-center min-h-[44px]'>
 												<input
 													type='checkbox'
 													checked={playerFilters.opposition.allOpposition}
@@ -482,20 +529,36 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 															opposition: { ...playerFilters.opposition, allOpposition: e.target.checked },
 														})
 													}
-													className='mr-2 accent-dorkinians-yellow'
+													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 												/>
-												<span className='text-sm text-white/80'>All Opposition</span>
+												<span className='text-base md:text-sm text-white/80'>All Opposition</span>
 											</label>
 
-											<div>
-												<label className='block text-sm font-medium text-white/90 mb-1'>Search Opposition</label>
+											<div className='relative'>
+												<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Search Opposition</label>
 												<input
 													type='text'
 													placeholder='Search opposition teams...'
 													value={playerFilters.opposition.searchTerm}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
-													className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+													onFocus={() => setShowOppositionDropdown(playerFilters.opposition.searchTerm.length > 0)}
+													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
+													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 												/>
+												{showOppositionDropdown && filteredOpposition.length > 0 && (
+													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
+														{filteredOpposition.map((opp) => (
+															<button
+																key={opp.name}
+																type='button'
+																onClick={() => handleOppositionSelect(opp.name)}
+																className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+															>
+																{opp.name}
+															</button>
+														))}
+													</div>
+												)}
 											</div>
 										</div>
 									)}
@@ -519,29 +582,45 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 									{accordionSections.find((s) => s.id === "competition")?.isOpen && (
 										<div className='px-4 pb-4 space-y-3'>
 											<div className='space-y-1'>
-												<label className='block text-sm font-medium text-white/90'>Competition Types</label>
+												<label className='block text-base md:text-sm font-medium text-white/90'>Competition Types</label>
 												{["League", "Cup", "Friendly"].map((type) => (
-													<label key={type} className='flex items-center'>
+													<label key={type} className='flex items-center min-h-[44px]'>
 														<input
 															type='checkbox'
 															checked={playerFilters.competition.types.includes(type as any)}
 															onChange={() => handleCompetitionTypeToggle(type as any)}
-															className='mr-2 accent-dorkinians-yellow'
+															className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 														/>
-														<span className='text-sm text-white/80'>{type}</span>
+														<span className='text-base md:text-sm text-white/80'>{type}</span>
 													</label>
 												))}
 											</div>
 
-											<div>
-												<label className='block text-sm font-medium text-white/90 mb-1'>Search Competition</label>
+											<div className='relative'>
+												<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Search Competition</label>
 												<input
 													type='text'
 													placeholder='Search competitions...'
 													value={playerFilters.competition.searchTerm}
 													onChange={(e) => handleCompetitionSearch(e.target.value)}
-													className='w-full px-3 py-2 bg-white/10 border border-white/20 rounded-md text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+													onFocus={() => setShowCompetitionDropdown(playerFilters.competition.searchTerm.length > 0)}
+													onBlur={() => setTimeout(() => setShowCompetitionDropdown(false), 200)}
+													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
 												/>
+												{showCompetitionDropdown && filteredCompetitions.length > 0 && (
+													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
+														{filteredCompetitions.map((comp) => (
+															<button
+																key={comp.name}
+																type='button'
+																onClick={() => handleCompetitionSelect(comp.name)}
+																className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+															>
+																{comp.name}
+															</button>
+														))}
+													</div>
+												)}
 											</div>
 										</div>
 									)}
@@ -565,14 +644,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 									{accordionSections.find((s) => s.id === "result")?.isOpen && (
 										<div className='px-4 pb-4 space-y-1'>
 											{["Win", "Draw", "Loss"].map((result) => (
-												<label key={result} className='flex items-center'>
+												<label key={result} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
 														checked={playerFilters.result.includes(result as any)}
 														onChange={() => handleResultToggle(result as any)}
-														className='mr-2 accent-dorkinians-yellow'
+														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
-													<span className='text-sm text-white/80'>{result}</span>
+													<span className='text-base md:text-sm text-white/80'>{result}</span>
 												</label>
 											))}
 										</div>
@@ -602,14 +681,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												{ value: "MID", label: "Midfielder" },
 												{ value: "FWD", label: "Forward" },
 											].map((position) => (
-												<label key={position.value} className='flex items-center'>
+												<label key={position.value} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
 														checked={playerFilters.position.includes(position.value as any)}
 														onChange={() => handlePositionToggle(position.value as any)}
-														className='mr-2 accent-dorkinians-yellow'
+														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
-													<span className='text-sm text-white/80'>
+													<span className='text-base md:text-sm text-white/80'>
 														{position.label} ({position.value})
 													</span>
 												</label>

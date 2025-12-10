@@ -38,7 +38,9 @@ type StatType = "appearances" | "goals" | "assists" | "cleanSheets" | "mom" | "s
 
 function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: TeamData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const rowRef = useRef<HTMLTableRowElement>(null);
 
 	useEffect(() => {
 		return () => {
@@ -48,7 +50,48 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 		};
 	}, []);
 
+	const updateTooltipPosition = () => {
+		if (!rowRef.current) return;
+		
+		const rect = rowRef.current.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		const scrollY = window.scrollY;
+		const scrollX = window.scrollX;
+		
+		// Check if row is in bottom portion of viewport (bottom 3 rows would be roughly bottom 20%)
+		const rowBottom = rect.bottom;
+		const distanceFromBottom = viewportHeight - rowBottom;
+		const isNearBottom = distanceFromBottom < 150; // Approximate space for 3 rows
+		
+		// Calculate tooltip dimensions (approximate)
+		const tooltipHeight = 60;
+		const tooltipWidth = 256; // w-64 = 16rem = 256px
+		
+		// Determine placement
+		let placement: 'above' | 'below' = 'below';
+		let top = rect.bottom + scrollY + 8;
+		
+		if (isNearBottom || (rect.bottom + tooltipHeight + 20 > viewportHeight)) {
+			placement = 'above';
+			top = rect.top + scrollY - tooltipHeight - 8;
+		}
+		
+		// Calculate horizontal position (center on row, but keep within viewport)
+		let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+		
+		// Ensure tooltip stays within viewport
+		if (left < scrollX + 10) {
+			left = scrollX + 10;
+		} else if (left + tooltipWidth > scrollX + viewportWidth - 10) {
+			left = scrollX + viewportWidth - tooltipWidth - 10;
+		}
+		
+		setTooltipPosition({ top, left, placement });
+	};
+
 	const handleMouseEnter = () => {
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -60,6 +103,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	const handleTouchStart = () => {
@@ -67,6 +111,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 			clearTimeout(timeoutRef.current);
 			timeoutRef.current = null;
 		}
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -78,11 +123,13 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	return (
 		<>
 			<tr
+				ref={rowRef}
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -108,9 +155,19 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 					</span>
 				</td>
 			</tr>
-			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
-					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+			{showTooltip && tooltipPosition && (
+				<div 
+					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
+					style={{ 
+						backgroundColor: '#0f0f0f',
+						top: `${tooltipPosition.top}px`,
+						left: `${tooltipPosition.left}px`
+					}}>
+					{tooltipPosition.placement === 'above' ? (
+						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
+					) : (
+						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+					)}
 					{stat.description}
 				</div>
 			)}
@@ -832,10 +889,10 @@ export default function ClubTeamStats() {
 									return (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
-										<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={350}>
-												<PieChart>
+										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
+										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={220}>
+												<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
 													<Pie
 														data={pieChartData}
 														cx='50%'
@@ -861,7 +918,7 @@ export default function ClubTeamStats() {
 																</text>
 															);
 														}}
-														outerRadius={100}
+														outerRadius={90}
 														fill='#8884d8'
 														dataKey='value'
 													>
@@ -870,10 +927,6 @@ export default function ClubTeamStats() {
 													))}
 												</Pie>
 												<Tooltip content={customTooltip} />
-												<Legend 
-													wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
-													iconType='circle' 
-												/>
 												</PieChart>
 											</ResponsiveContainer>
 										</div>
