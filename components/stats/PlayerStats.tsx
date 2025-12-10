@@ -240,6 +240,20 @@ function toNumber(val: any): number {
 
 // Penalty Stats Visualization Component
 function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
+	// Debug logging for Penalty Shootout stats
+	console.log('[PenaltyStatsVisualization] Props received:', {
+		scored,
+		missed,
+		saved,
+		conceded,
+		penaltyShootoutScored,
+		penaltyShootoutMissed,
+		penaltyShootoutSaved,
+		willRenderScored: penaltyShootoutScored > 0,
+		willRenderMissed: penaltyShootoutMissed > 0,
+		willRenderSaved: penaltyShootoutSaved > 0
+	});
+	
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
 	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
@@ -268,7 +282,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Penalty Stats</h3>
-			<div className='w-full relative' style={{ height: '250px', overflow: 'hidden' }}>
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
 				{/* Background SVG from TOTW - zoomed 3.5x, showing top center with less vertical height, trimmed more from bottom */}
 				<div className='absolute inset-0 w-full' style={{ top: '30px', bottom: '40px' }}>
 					<Image
@@ -292,15 +306,15 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
-								cx={goalCenterX - 70}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 75}
+								cy={goalCenterY - 60}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
-								cx={goalCenterX - 70}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 75}
+								cy={goalCenterY - 60}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -313,8 +327,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								}}
 							/>
 							<text
-								x={goalCenterX - 70}
-								y={goalCenterY - 70}
+								x={goalCenterX - 75}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -333,14 +347,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -354,7 +368,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 70}
-								y={goalCenterY - 70}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -373,14 +387,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 50}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutSavedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 50}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutSavedSize / 2}
 								fill='#1e40af'
 								cursor='pointer'
@@ -394,7 +408,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 50}
-								y={goalCenterY - 70}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -413,14 +427,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -434,7 +448,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 140}
+								y={goalCenterY - 130}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -529,20 +543,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark green circle - Penalty Shootout Scored (same position as Scored but 20px right) */}
+					{/* Dark green circle - Penalty Shootout Scored (same vertical position as Scored, 40px more to the left) */}
 					{penaltyShootoutScored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
-								cx={goalCenterX - 50}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 110}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
-								cx={goalCenterX - 50}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 110}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -555,8 +569,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								}}
 							/>
 							<text
-								x={goalCenterX - 50}
-								y={goalCenterY - 70}
+								x={goalCenterX - 110}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -571,68 +585,68 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 				</svg>
 			</div>
 			{/* Stats Table */}
-			<div className='mt-4'>
+			<div className='mt-2'>
 				<table className='w-full text-white text-sm'>
 					<thead>
 						<tr className='border-b border-white/20'>
-							<th className='text-left py-2 px-2'>Stat</th>
-							<th className='text-right py-2 px-2'>Value</th>
+							<th className='text-left py-1 px-2'>Stat</th>
+							<th className='text-right py-1 px-2'>Value</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
 								Penalties Scored
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{scored}</td>
+							<td className='text-right py-1 px-2 font-mono'>{scored}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
 								Penalties Missed
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{missed}</td>
+							<td className='text-right py-1 px-2 font-mono'>{missed}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
 								Penalties Saved
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{saved}</td>
+							<td className='text-right py-1 px-2 font-mono'>{saved}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-orange-500 mr-2'></span>
 								Penalties Conceded
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{conceded}</td>
+							<td className='text-right py-1 px-2 font-mono'>{conceded}</td>
 						</tr>
 						{penaltyShootoutScored > 0 && (
 							<tr className='border-b border-white/10'>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-green-700 mr-2'></span>
 									Penalty Shootout Scored
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutScored}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutScored}</td>
 							</tr>
 						)}
 						{penaltyShootoutMissed > 0 && (
 							<tr className='border-b border-white/10'>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-red-800 mr-2'></span>
 									Penalty Shootout Misses
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutMissed}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutMissed}</td>
 							</tr>
 						)}
 						{penaltyShootoutSaved > 0 && (
 							<tr>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-blue-800 mr-2'></span>
 									Penalty Shootout Saves
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutSaved}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutSaved}</td>
 							</tr>
 						)}
 					</tbody>
@@ -2419,7 +2433,15 @@ export default function PlayerStats() {
 			)}
 
 			{/* Penalty Stats Custom Visualization */}
-			{(penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
+			{(() => {
+				const penaltyShootoutSavedValue = toNumber(validPlayerData.penaltyShootoutPenaltiesSaved);
+				console.log('[PlayerStats] Penalty Shootout Saved check:', {
+					raw: validPlayerData.penaltyShootoutPenaltiesSaved,
+					converted: penaltyShootoutSavedValue,
+					willShow: penaltyShootoutSavedValue > 0
+				});
+				return (penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || penaltyShootoutSavedValue > 0);
+			})() && (
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
