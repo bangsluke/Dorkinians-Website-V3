@@ -240,19 +240,6 @@ function toNumber(val: any): number {
 
 // Penalty Stats Visualization Component
 function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
-	// Debug logging for Penalty Shootout stats
-	console.log('[PenaltyStatsVisualization] Props received:', {
-		scored,
-		missed,
-		saved,
-		conceded,
-		penaltyShootoutScored,
-		penaltyShootoutMissed,
-		penaltyShootoutSaved,
-		willRenderScored: penaltyShootoutScored > 0,
-		willRenderMissed: penaltyShootoutMissed > 0,
-		willRenderSaved: penaltyShootoutSaved > 0
-	});
 	
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
 	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
@@ -2433,15 +2420,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Penalty Stats Custom Visualization */}
-			{(() => {
-				const penaltyShootoutSavedValue = toNumber(validPlayerData.penaltyShootoutPenaltiesSaved);
-				console.log('[PlayerStats] Penalty Shootout Saved check:', {
-					raw: validPlayerData.penaltyShootoutPenaltiesSaved,
-					converted: penaltyShootoutSavedValue,
-					willShow: penaltyShootoutSavedValue > 0
-				});
-				return (penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || penaltyShootoutSavedValue > 0);
-			})() && (
+			{(penaltyData.some(item => item.value > 0) || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
