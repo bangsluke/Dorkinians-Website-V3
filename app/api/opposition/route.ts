@@ -23,20 +23,20 @@ export async function GET(request: NextRequest) {
 		}
 
 		// Fetch opposition teams with optional search
+		const params: any = { graphLabel: neo4jService.getGraphLabel() };
+		
 		let query = `
 			MATCH (f:Fixture {graphLabel: $graphLabel})
 			WHERE f.opposition IS NOT NULL AND f.opposition <> ''
-			WITH DISTINCT f.opposition as oppositionName
 		`;
 
-		const params: any = { graphLabel: neo4jService.getGraphLabel() };
-
 		if (search && search.trim()) {
-			query += ` AND f.opposition CONTAINS $search`;
+			query += ` AND toLower(f.opposition) CONTAINS toLower($search)`;
 			params.search = search.trim();
 		}
 
 		query += `
+			WITH DISTINCT f.opposition as oppositionName
 			RETURN oppositionName
 			ORDER BY oppositionName
 		`;

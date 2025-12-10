@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.20",
+	version: "1.1.21",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -1181,6 +1181,30 @@ export const statsPageConfig = {
 		],
 		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result", "position"],
 	},
+	"team-stats": {
+		statsToDisplay: [
+			"TeamGamesPlayed",
+			"TeamWins",
+			"TeamDraws",
+			"TeamLosses",
+			"TeamGoalsScored",
+			"TeamGoalsConceded",
+			"TeamGoalDifference",
+			"TeamCleanSheets",
+			"TeamWinPercentage",
+			"TeamPointsPerGame",
+			"TeamGoalsPerGame",
+			"TeamGoalsConcededPerGame",
+			"TeamHomeGames",
+			"TeamHomeWins",
+			"TeamHomeWinPercentage",
+			"TeamAwayGames",
+			"TeamAwayWins",
+			"TeamAwayWinPercentage",
+			"TeamNumberOfSeasons",
+		],
+		availableFilters: ["timeRange", "location", "opposition", "competition", "result"],
+	},
 	"club-stats": {
 		statsToDisplay: [
 			"TeamGamesPlayed",
@@ -1203,7 +1227,7 @@ export const statsPageConfig = {
 			"TeamAwayWinPercentage",
 			"TeamNumberOfSeasons",
 		],
-		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result"],
+		availableFilters: ["timeRange", "location", "opposition", "competition", "result"],
 	},
 	"comparison": {
 		statsToDisplay: [
