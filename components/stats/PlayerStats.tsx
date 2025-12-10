@@ -12,7 +12,8 @@ import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
 import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
-import { generateShareImage, shareImage } from "@/lib/utils/shareUtils";
+import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
+import { generateShareImage, shareImage, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1518,6 +1519,8 @@ export default function PlayerStats() {
 
 	// State for share functionality
 	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
 	const shareCardRef = useRef<HTMLDivElement>(null);
 
 	// Get stats to display for current page
@@ -1601,25 +1604,6 @@ export default function PlayerStats() {
 	const handleEditClick = () => {
 		enterEditMode();
 		setMainPage("home");
-	};
-
-	// Share handler
-	const handleShare = async () => {
-		if (!selectedPlayer || !validPlayerData || !shareCardRef.current) return;
-
-		setIsGeneratingShare(true);
-		try {
-			// Generate image from share card (generateShareImage handles visibility and image loading)
-			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-			
-			// Share or download
-			await shareImage(imageDataUrl, selectedPlayer);
-		} catch (error) {
-			console.error("Error generating share image:", error);
-			alert("Failed to generate share image. Please try again.");
-		} finally {
-			setIsGeneratingShare(false);
-		}
 	};
 
 	// Check if all seasons are selected (must be before early returns)
@@ -1840,6 +1824,40 @@ export default function PlayerStats() {
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
 
+	// Get available visualizations (must be before early returns)
+	const availableVisualizations = useMemo(() => {
+		if (!playerData) return [];
+		return getAvailableVisualizations(
+			playerData,
+			playerFilters,
+			allSeasonsSelected,
+			allTeamsSelected,
+			seasonalChartData,
+			teamChartData,
+			isLoadingSeasonalStats,
+			isLoadingTeamStats,
+			oppositionMapData,
+			fantasyBreakdown,
+			isLoadingFantasyBreakdown,
+			gameDetails,
+			isLoadingGameDetails
+		);
+	}, [
+		playerData,
+		playerFilters,
+		allSeasonsSelected,
+		allTeamsSelected,
+		seasonalChartData,
+		teamChartData,
+		isLoadingSeasonalStats,
+		isLoadingTeamStats,
+		oppositionMapData,
+		fantasyBreakdown,
+		isLoadingFantasyBreakdown,
+		gameDetails,
+		isLoadingGameDetails,
+	]);
+
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
 		return (
@@ -1893,6 +1911,145 @@ export default function PlayerStats() {
 
 	// At this point, playerData is guaranteed to be non-null
 	const validPlayerData: PlayerData = playerData;
+
+	// Extract visualization data based on selection
+	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
+		switch (vizType) {
+			case "seasonal-performance":
+				return {
+					type: vizType,
+					data: { chartData: seasonalChartData },
+				};
+			case "team-performance":
+				return {
+					type: vizType,
+					data: { chartData: teamChartData },
+				};
+			case "match-results":
+				const wins = toNumber(validPlayerData.wins || 0);
+				const draws = toNumber(validPlayerData.draws || 0);
+				const losses = toNumber(validPlayerData.losses || 0);
+				const pieData = [
+					{ name: "Wins", value: wins, color: "#22c55e" },
+					{ name: "Draws", value: draws, color: "#60a5fa" },
+					{ name: "Losses", value: losses, color: "#ef4444" },
+				].filter(item => item.value > 0);
+				return {
+					type: vizType,
+					data: { pieData },
+				};
+			case "positional-stats":
+				return {
+					type: vizType,
+					data: {
+						gk: toNumber(validPlayerData.gk),
+						def: toNumber(validPlayerData.def),
+						mid: toNumber(validPlayerData.mid),
+						fwd: toNumber(validPlayerData.fwd),
+					},
+				};
+			case "defensive-record":
+				return {
+					type: vizType,
+					data: {
+						cleanSheets: toNumber(validPlayerData.cleanSheets),
+						conceded: toNumber(validPlayerData.conceded),
+						ownGoals: toNumber(validPlayerData.ownGoals),
+					},
+				};
+			case "card-stats":
+				return {
+					type: vizType,
+					data: {
+						yellowCards: toNumber(validPlayerData.yellowCards),
+						redCards: toNumber(validPlayerData.redCards),
+					},
+				};
+			case "penalty-stats":
+				return {
+					type: vizType,
+					data: {
+						scored: toNumber(validPlayerData.penaltiesScored),
+						missed: toNumber(validPlayerData.penaltiesMissed),
+						saved: toNumber(validPlayerData.penaltiesSaved),
+						conceded: toNumber(validPlayerData.penaltiesConceded),
+					},
+				};
+			case "fantasy-points":
+				return {
+					type: vizType,
+					data: {
+						totalPoints: toNumber(validPlayerData.fantasyPoints),
+						highestWeek: fantasyBreakdown?.highestScoringWeek ? {
+							points: Math.round(fantasyBreakdown.highestScoringWeek.totalPoints),
+						} : null,
+					},
+				};
+			case "distance-travelled":
+				return {
+					type: vizType,
+					data: {
+						distance: toNumber(validPlayerData.distance),
+						awayGames: toNumber(validPlayerData.awayGames),
+					},
+				};
+			case "minutes-per-stats":
+				const minutes = toNumber(validPlayerData.minutes);
+				const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
+				const assists = toNumber(validPlayerData.assists);
+				const mom = toNumber(validPlayerData.mom);
+				const cleanSheets = toNumber(validPlayerData.cleanSheets);
+				return {
+					type: vizType,
+					data: {
+						minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
+						minutesPerAssist: assists > 0 ? minutes / assists : 0,
+						minutesPerMoM: mom > 0 ? minutes / mom : 0,
+						minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
+					},
+				};
+			case "game-details":
+				return {
+					type: vizType,
+					data: {
+						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
+						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
+						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
+					},
+				};
+			default:
+				return { type: vizType };
+		}
+	};
+
+	// Handle visualization selection
+	const handleVisualizationSelect = async (vizId: string) => {
+		const vizData = getVisualizationData(vizId);
+		setSelectedShareVisualization(vizData);
+		
+		// Wait for state update, then generate image
+		setTimeout(async () => {
+			if (!shareCardRef.current) return;
+			
+			setIsGeneratingShare(true);
+			try {
+				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+				await shareImage(imageDataUrl, selectedPlayer || "");
+			} catch (error) {
+				console.error("Error generating share image:", error);
+				alert("Failed to generate share image. Please try again.");
+			} finally {
+				setIsGeneratingShare(false);
+				setSelectedShareVisualization(null);
+			}
+		}, 100);
+	};
+
+	// Share handler - opens modal
+	const handleShare = () => {
+		if (!selectedPlayer || !validPlayerData) return;
+		setIsShareModalOpen(true);
+	};
 
 	const tooltipStyle = {
 		backgroundColor: 'rgb(14, 17, 15)',
@@ -2600,7 +2757,7 @@ export default function PlayerStats() {
 				<div className='h-4'></div>
 				
 				{/* Share Button */}
-				<div className='flex justify-center mt-6 mb-4'>
+				<div className='flex justify-center mt-2 mb-4'>
 					<button
 						onClick={handleShare}
 						disabled={isGeneratingShare}
@@ -2623,6 +2780,14 @@ export default function PlayerStats() {
 				</div>
 			</div>
 
+			{/* Share Visualization Modal */}
+			<ShareVisualizationModal
+				isOpen={isShareModalOpen}
+				onClose={() => setIsShareModalOpen(false)}
+				onSelect={handleVisualizationSelect}
+				options={availableVisualizations}
+			/>
+
 			{/* Hidden share card for image generation */}
 			{selectedPlayer && validPlayerData && (
 				<div 
@@ -2640,6 +2805,7 @@ export default function PlayerStats() {
 						playerData={validPlayerData}
 						playerFilters={playerFilters}
 						filterData={filterData}
+						selectedVisualization={selectedShareVisualization || undefined}
 					/>
 				</div>
 			)}

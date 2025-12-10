@@ -1,0 +1,107 @@
+"use client";
+
+import { Dialog, Transition } from "@headlessui/react";
+import { Fragment } from "react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
+
+export interface VisualizationOption {
+	id: string;
+	label: string;
+	description?: string;
+	available: boolean;
+}
+
+interface ShareVisualizationModalProps {
+	isOpen: boolean;
+	onClose: () => void;
+	onSelect: (visualizationId: string) => void;
+	options: VisualizationOption[];
+}
+
+export default function ShareVisualizationModal({
+	isOpen,
+	onClose,
+	onSelect,
+	options,
+}: ShareVisualizationModalProps) {
+	const availableOptions = options.filter(opt => opt.available);
+
+	return (
+		<Transition show={isOpen} as={Fragment}>
+			<Dialog as="div" className="relative z-50" onClose={onClose}>
+				<Transition.Child
+					as={Fragment}
+					enter="ease-out duration-300"
+					enterFrom="opacity-0"
+					enterTo="opacity-100"
+					leave="ease-in duration-200"
+					leaveFrom="opacity-100"
+					leaveTo="opacity-0">
+					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+				</Transition.Child>
+
+				<div className="fixed inset-0 overflow-y-auto">
+					<div className="flex min-h-full items-center justify-center p-4">
+						<Transition.Child
+							as={Fragment}
+							enter="ease-out duration-300"
+							enterFrom="opacity-0 scale-95"
+							enterTo="opacity-100 scale-100"
+							leave="ease-in duration-200"
+							leaveFrom="opacity-100 scale-100"
+							leaveTo="opacity-0 scale-95">
+							<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-[#0f0f0f] border border-white/20 p-6 shadow-xl transition-all">
+								<div className="flex items-center justify-between mb-4">
+									<Dialog.Title as="h3" className="text-xl font-bold text-dorkinians-yellow">
+										Select Visualization
+									</Dialog.Title>
+									<button
+										onClick={onClose}
+										className="text-white/70 hover:text-white transition-colors">
+										<XMarkIcon className="h-6 w-6" />
+									</button>
+								</div>
+
+								<div className="space-y-2 max-h-[60vh] overflow-y-auto">
+									{availableOptions.length === 0 ? (
+										<p className="text-white/70 text-sm py-4 text-center">
+											No visualizations available
+										</p>
+									) : (
+										availableOptions.map((option) => (
+											<button
+												key={option.id}
+												onClick={() => {
+													onSelect(option.id);
+													onClose();
+												}}
+												className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-dorkinians-yellow/50 transition-colors">
+												<div className="font-semibold text-white mb-1">
+													{option.label}
+												</div>
+												{option.description && (
+													<div className="text-sm text-white/70">
+														{option.description}
+													</div>
+												)}
+											</button>
+										))
+									)}
+								</div>
+
+								<div className="mt-4 flex justify-end">
+									<button
+										onClick={onClose}
+										className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors">
+										Cancel
+									</button>
+								</div>
+							</Dialog.Panel>
+						</Transition.Child>
+					</div>
+				</div>
+			</Dialog>
+		</Transition>
+	);
+}
+
