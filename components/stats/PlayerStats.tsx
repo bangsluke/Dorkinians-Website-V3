@@ -1761,8 +1761,8 @@ export default function PlayerStats() {
 			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
-					<div className='grid grid-cols-2 gap-3 md:gap-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 						{keyPerformanceData.map((item) => {
 							let statKey = "APP";
 							if (item.name === "Apps") statKey = "APP";
@@ -1773,18 +1773,21 @@ export default function PlayerStats() {
 							else if (item.name === "Assists") statKey = "A";
 							const stat = statObject[statKey as keyof typeof statObject];
 							return (
-								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
+								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
 											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.svg`}
 											alt={stat?.displayText || item.name}
 											width={40}
 											height={40}
-											className='w-10 h-10 md:w-12 md:h-12 object-contain'
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
 										/>
 									</div>
-									<div className='flex flex-col flex-1'>
-										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>
+											{item.name}
+										</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>
 											{(item as any).isString ? item.value : (() => {
 												if (item.name === "Mins") {
 													// Format minutes with commas and without " mins" suffix
@@ -1792,9 +1795,6 @@ export default function PlayerStats() {
 												}
 												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
 											})()}
-										</div>
-										<div className='text-white/70 text-xs md:text-sm mt-1'>
-											{item.name}
 										</div>
 									</div>
 								</div>
