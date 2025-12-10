@@ -175,12 +175,12 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 	return (
 		<div 
-			className='mb-2 md:mb-4 overflow-x-auto hide-scrollbar'
+			className='mb-2 md:mb-4 overflow-x-auto hide-scrollbar pr-4'
 			style={{ 
 				WebkitOverflowScrolling: 'touch',
 				touchAction: 'pan-x'
 			}}>
-			<div className='flex gap-2 min-w-max pr-4'>
+			<div className='flex gap-2 min-w-max'>
 				{Object.entries(groupedPills).map(([label, pills]) => {
 					// If only one pill in category, render normally
 					if (pills.length === 1) {

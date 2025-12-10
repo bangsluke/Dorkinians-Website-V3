@@ -166,7 +166,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 500);
 	};
 
 	const handleTouchEnd = () => {
