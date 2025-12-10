@@ -23,6 +23,8 @@ export default function ChatbotInterface() {
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
+	const exampleQuestionClasses =
+		"dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors text-left";
 
 	// Load conversation history from localStorage on component mount
 	useEffect(() => {
@@ -193,7 +195,7 @@ export default function ChatbotInterface() {
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player stats, team performance, or club information...'
-						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
+						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white placeholder:text-xs md:placeholder:text-sm'
 						disabled={isLoading}
 					/>
 					<button
@@ -314,7 +316,7 @@ export default function ChatbotInterface() {
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+									className={exampleQuestionClasses}
 									onClick={() => {
 										setQuestion(q.question);
 										// Focus the input after setting the question
@@ -339,11 +341,11 @@ export default function ChatbotInterface() {
 				{/* Show past conversations when they exist */}
 				{conversationHistory.length > 0 && (
 					<div>
-						<div className='flex items-center justify-between mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white text-sm md:text-base'>Previous Conversations</h3>
+						<div className='mb-3 md:mb-4'>
+							<h3 className='font-semibold text-white text-sm md:text-base whitespace-nowrap leading-tight'>Previous Conversations</h3>
 							<button
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
+								className='mt-1 text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline inline-flex'
 							>
 								{showExampleQuestions ? 'Hide' : 'Show'} example questions
 							</button>
@@ -384,12 +386,12 @@ export default function ChatbotInterface() {
 						) : (
 							<div className='space-y-2 md:space-y-3'>
 								{homepageQuestions.map((q, index) => (
-									<motion.div
+								<motion.div
 										key={q.id}
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.1 }}
-										className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+									className={exampleQuestionClasses}
 										onClick={() => {
 											setQuestion(q.question);
 											// Focus the input after setting the question
