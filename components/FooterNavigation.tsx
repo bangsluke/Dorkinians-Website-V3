@@ -25,7 +25,7 @@ export default function FooterNavigation() {
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-			<div className='flex items-center justify-around px-2 md:px-[15%] py-2 pb-4 md:pb-3'>
+			<div className='flex items-center justify-between px-2 md:px-[15%] py-2 pb-[calc(1rem+5px)] md:pb-[calc(0.75rem+5px)]'>
 				{navigationItems.map((item) => {
 					const Icon = item.icon;
 					const isActive = currentMainPage === item.id;
@@ -37,7 +37,7 @@ export default function FooterNavigation() {
 								console.log("🔘 [FooterNavigation] Button clicked:", item.id);
 								setMainPage(item.id);
 							}}
-							className={`flex items-center justify-center space-y-1 md:space-y-0 md:space-x-2 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${
+							className={`flex flex-1 items-center justify-center space-y-1 md:space-y-0 md:space-x-2 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${
 								isActive ? "text-yellow-400 bg-yellow-400/20" : "text-white hover:text-yellow-300 hover:bg-white/20"
 							}`}
 							whileHover={{ scale: 1.05 }}
