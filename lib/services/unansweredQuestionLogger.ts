@@ -177,6 +177,61 @@ export class UnansweredQuestionLogger {
 	}
 
 	/**
+	 * Clear a single question by timestamp from the UnansweredQuestions node
+	 */
+	public async clearQuestion(timestamp: string): Promise<void> {
+		try {
+			// First, get the current questions
+			const getQuery = `
+				MATCH (uq:UnansweredQuestions {id: $id, graphLabel: $graphLabel})
+				RETURN uq.questions as questions
+			`;
+
+			const existingResult = await neo4jService.executeQuery(getQuery, {
+				id: "unanswered_questions",
+				graphLabel: "dorkiniansWebsite",
+			});
+
+			if (!existingResult || existingResult.length === 0 || !existingResult[0]?.questions) {
+				throw new Error("No unanswered questions found");
+			}
+
+			const questionsData = existingResult[0].questions;
+			type QuestionEntry = string | { question: string; playerName: string; timestamp: string };
+			let questionsMap: Record<string, QuestionEntry> = {};
+
+			if (typeof questionsData === "string") {
+				questionsMap = JSON.parse(questionsData);
+			} else if (typeof questionsData === "object") {
+				questionsMap = questionsData;
+			}
+
+			// Remove the question with the specified timestamp
+			if (!questionsMap[timestamp]) {
+				throw new Error(`Question with timestamp ${timestamp} not found`);
+			}
+
+			delete questionsMap[timestamp];
+
+			// Update the node with the modified questions
+			const updateQuery = `
+				MATCH (uq:UnansweredQuestions {id: $id, graphLabel: $graphLabel})
+				SET uq.questions = $questions
+				RETURN uq
+			`;
+
+			await neo4jService.executeQuery(updateQuery, {
+				id: "unanswered_questions",
+				graphLabel: "dorkiniansWebsite",
+				questions: JSON.stringify(questionsMap),
+			});
+		} catch (error) {
+			console.error("❌ Failed to clear unanswered question:", error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Ensure all existing UnansweredQuestions nodes have the noDelete label
 	 * This method migrates existing nodes to include the noDelete label for protection
 	 */

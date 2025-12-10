@@ -302,8 +302,8 @@ export default function ChatbotInterface() {
 						type='text'
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
-						placeholder='Ask me about player stats, team performance, or club information...'
-						className='dark-chat-input w-full text-base text-white placeholder-white'
+						placeholder='Ask me about player, club or team stats...'
+						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
 						disabled={isLoading}
 					/>
 					{/* Desktop button - hidden on mobile */}
@@ -421,8 +421,8 @@ export default function ChatbotInterface() {
 				{/* Show past conversations when they exist */}
 				{conversationHistory.length > 0 && (
 					<div>
-						<div className='flex items-center justify-between mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white text-base'>Previous Conversations</h3>
+						<div className='flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4'>
+							<h3 className='font-semibold text-white text-base whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
 							<button
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
 								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
@@ -472,7 +472,7 @@ export default function ChatbotInterface() {
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.1 }}
-										className='dark-dropdown rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors'
+										className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
 										onClick={() => {
 											submitQuestion(q.question);
 										}}>

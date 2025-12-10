@@ -574,7 +574,7 @@ export default function LeagueInformation() {
 	return (
 		<div 
 			ref={containerRef} 
-			className='px-3 md:px-6 py-6 overflow-y-auto'
+			className='px-3 md:px-6 pt-2 md:pt-4 pb-6 overflow-y-auto'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 		<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>
 			League Information
@@ -945,7 +945,7 @@ export default function LeagueInformation() {
 					if (active && payload && payload.length) {
 						const data = payload[0].payload;
 						return (
-							<div className='bg-gray-800 border border-yellow-400/30 rounded-lg p-3 shadow-lg'>
+							<div className='bg-black border border-yellow-400/30 rounded-lg p-3 shadow-lg'>
 								<p className='text-yellow-300 font-semibold mb-2'>{data.season}</p>
 								{payload.map((entry: any, index: number) => {
 									// When single team selected, use selectedTeamFilter; otherwise use teamKeys[index]
@@ -1334,22 +1334,24 @@ export default function LeagueInformation() {
 									interval={0}
 								/>
 								<Tooltip content={<CustomTooltip />} />
-								<Legend 
-									wrapperStyle={{ 
-										paddingTop: "10px",
-										paddingBottom: "5px",
-										backgroundColor: "rgba(255, 255, 255, 0.35)",
-										borderRadius: "4px",
-										textAlign: "center",
-										paddingLeft: "10px",
-										paddingRight: "10px",
-										marginLeft: "70px",
-										width: "90%"
-									}}
-									iconType="line"
-									formatter={(value) => getTeamDisplayName(value.replace("_division", "").replace("_position", "").replace("_composite", ""))}
-									align="center"
-								/>
+								{!isSingleTeamSelected && (
+									<Legend 
+										wrapperStyle={{ 
+											paddingTop: "10px",
+											paddingBottom: "5px",
+											backgroundColor: "rgba(255, 255, 255, 0.6)",
+											borderRadius: "4px",
+											textAlign: "center",
+											paddingLeft: "10px",
+											paddingRight: "10px",
+											marginLeft: "70px",
+											width: "90%"
+										}}
+										iconType="line"
+										formatter={(value) => getTeamDisplayName(value.replace("_division", "").replace("_position", "").replace("_composite", ""))}
+										align="center"
+									/>
+								)}
 								{teamKeys
 									.filter(teamKey => selectedTeamFilter === "all" || selectedTeamFilter === teamKey)
 									.map((teamKey, index) => {

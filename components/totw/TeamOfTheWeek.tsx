@@ -658,7 +658,7 @@ export default function TeamOfTheWeek() {
 	}, [formation, playersInFormation, containerWidth]);
 
 	return (
-		<div className='flex flex-col px-[11.2px] md:px-[16.8px] py-4 md:py-6 relative'>
+		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative'>
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
