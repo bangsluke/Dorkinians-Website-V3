@@ -654,11 +654,12 @@ export default function TeamStats() {
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-					{/* Key Performance Stats */}
-					<div className='mb-4'>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
-							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+					{/* Key Performance Stats - Only show in data visualisation mode */}
+					{!isDataTableMode && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
@@ -752,6 +753,7 @@ export default function TeamStats() {
 							</div>
 						</div>
 					</div>
+					)}
 
 					{(() => {
 						const chartContent = (

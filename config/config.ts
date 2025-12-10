@@ -1227,7 +1227,7 @@ export const statsPageConfig = {
 			"TeamAwayWinPercentage",
 			"TeamNumberOfSeasons",
 		],
-		availableFilters: ["timeRange", "team", "location", "opposition", "competition", "result"],
+		availableFilters: ["timeRange", "location", "opposition", "competition", "result"],
 	},
 	"comparison": {
 		statsToDisplay: [
