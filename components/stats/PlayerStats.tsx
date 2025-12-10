@@ -4,6 +4,7 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -13,7 +14,9 @@ import OppositionMap from "@/components/maps/OppositionMap";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
+	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+	const rowRef = useRef<HTMLTableRowElement>(null);
 
 	useEffect(() => {
 		return () => {
@@ -23,7 +26,48 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		};
 	}, []);
 
+	const updateTooltipPosition = () => {
+		if (!rowRef.current) return;
+		
+		const rect = rowRef.current.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		const scrollY = window.scrollY;
+		const scrollX = window.scrollX;
+		
+		// Check if row is in bottom portion of viewport (bottom 3 rows would be roughly bottom 20%)
+		const rowBottom = rect.bottom;
+		const distanceFromBottom = viewportHeight - rowBottom;
+		const isNearBottom = distanceFromBottom < 150; // Approximate space for 3 rows
+		
+		// Calculate tooltip dimensions (approximate)
+		const tooltipHeight = 60;
+		const tooltipWidth = 256; // w-64 = 16rem = 256px
+		
+		// Determine placement
+		let placement: 'above' | 'below' = 'below';
+		let top = rect.bottom + scrollY + 8;
+		
+		if (isNearBottom || (rect.bottom + tooltipHeight + 20 > viewportHeight)) {
+			placement = 'above';
+			top = rect.top + scrollY - tooltipHeight - 8;
+		}
+		
+		// Calculate horizontal position (center on row, but keep within viewport)
+		let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+		
+		// Ensure tooltip stays within viewport
+		if (left < scrollX + 10) {
+			left = scrollX + 10;
+		} else if (left + tooltipWidth > scrollX + viewportWidth - 10) {
+			left = scrollX + viewportWidth - tooltipWidth - 10;
+		}
+		
+		setTooltipPosition({ top, left, placement });
+	};
+
 	const handleMouseEnter = () => {
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -35,6 +79,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	const handleTouchStart = () => {
@@ -42,6 +87,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			clearTimeout(timeoutRef.current);
 			timeoutRef.current = null;
 		}
+		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 1000);
@@ -53,11 +99,13 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		setShowTooltip(false);
+		setTooltipPosition(null);
 	};
 
 	return (
 		<>
 			<tr
+				ref={rowRef}
 				className='border-b border-white/10 hover:bg-white/5 transition-colors relative group cursor-help'
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
@@ -77,7 +125,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				<td className='px-2 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
+				<td className='px-2 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{(() => {
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
@@ -96,11 +144,22 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 					</span>
 				</td>
 			</tr>
-			{showTooltip && (
-				<div className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
-					<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
+				<div 
+					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
+					style={{ 
+						backgroundColor: '#0f0f0f',
+						top: `${tooltipPosition.top}px`,
+						left: `${tooltipPosition.left}px`
+					}}>
+					{tooltipPosition.placement === 'above' ? (
+						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
+					) : (
+						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+					)}
 					{stat.description}
-				</div>
+				</div>,
+				document.body
 			)}
 		</>
 	);
@@ -1739,7 +1798,49 @@ export default function PlayerStats() {
 		color: '#fff',
 	};
 
-	// Custom tooltip formatter to capitalize "value"
+	// Custom tooltip formatter for seasonal chart
+	const seasonalTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			let displayValue = payload[0].value || 0;
+			const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+			if (selectedOption?.statKey === "distance") {
+				displayValue = `${Number(displayValue).toFixed(1)} miles`;
+			}
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+	// Custom tooltip formatter for team chart
+	const teamTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			let displayValue = payload[0].value || 0;
+			const selectedOption = statOptions.find(opt => opt.value === teamSelectedStat);
+			if (selectedOption?.statKey === "distance") {
+				displayValue = `${Number(displayValue).toFixed(1)} miles`;
+			}
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+	// Custom tooltip formatter to capitalize "value" (for other charts)
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
 			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
@@ -1761,8 +1862,8 @@ export default function PlayerStats() {
 			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
 				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Performance Stats</h3>
-					<div className='grid grid-cols-2 gap-3 md:gap-4'>
+					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 						{keyPerformanceData.map((item) => {
 							let statKey = "APP";
 							if (item.name === "Apps") statKey = "APP";
@@ -1773,18 +1874,21 @@ export default function PlayerStats() {
 							else if (item.name === "Assists") statKey = "A";
 							const stat = statObject[statKey as keyof typeof statObject];
 							return (
-								<div key={item.name} className='bg-white/5 rounded-lg p-3 md:p-4 flex items-center gap-3 md:gap-4'>
+								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
 											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.svg`}
 											alt={stat?.displayText || item.name}
 											width={40}
 											height={40}
-											className='w-10 h-10 md:w-12 md:h-12 object-contain'
+											className='w-8 h-8 md:w-10 md:h-10 object-contain'
 										/>
 									</div>
-									<div className='flex flex-col flex-1'>
-										<div className='text-white font-mono text-2xl md:text-3xl font-bold'>
+									<div className='flex-1 min-w-0'>
+										<div className='text-white/70 text-sm md:text-base mb-1'>
+											{item.name}
+										</div>
+										<div className='text-white font-bold text-xl md:text-2xl'>
 											{(item as any).isString ? item.value : (() => {
 												if (item.name === "Mins") {
 													// Format minutes with commas and without " mins" suffix
@@ -1792,9 +1896,6 @@ export default function PlayerStats() {
 												}
 												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
 											})()}
-										</div>
-										<div className='text-white/70 text-xs md:text-sm mt-1'>
-											{item.name}
 										</div>
 									</div>
 								</div>
@@ -1857,7 +1958,7 @@ export default function PlayerStats() {
 										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
+										<Tooltip content={seasonalTooltip} />
 										<Bar 
 											dataKey='value' 
 											fill='#f9ed32' 
@@ -1934,7 +2035,7 @@ export default function PlayerStats() {
 										<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 										<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 										<YAxis stroke='#fff' fontSize={12} />
-										<Tooltip content={customTooltip} />
+										<Tooltip content={teamTooltip} />
 										<Bar
 											dataKey='value' 
 											fill='#f9ed32' 
@@ -1996,10 +2097,10 @@ export default function PlayerStats() {
 				return (
 					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
-						<p className='text-white text-sm mb-3 text-center'>Points per game: {pointsPerGameFormatted}</p>
-						<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-							<ResponsiveContainer width='100%' height={350}>
-								<PieChart>
+						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
+						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+							<ResponsiveContainer width='100%' height={220}>
+								<PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
 									<Pie
 										data={pieChartData}
 										cx='50%'
@@ -2025,7 +2126,7 @@ export default function PlayerStats() {
 												</text>
 											);
 										}}
-										outerRadius={100}
+										outerRadius={90}
 										fill='#8884d8'
 										dataKey='value'
 									>
@@ -2034,10 +2135,6 @@ export default function PlayerStats() {
 										))}
 									</Pie>
 									<Tooltip content={customTooltip} />
-									<Legend 
-										wrapperStyle={{ color: '#fff', backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '8px' }} 
-										iconType='circle' 
-									/>
 								</PieChart>
 							</ResponsiveContainer>
 						</div>
@@ -2057,6 +2154,7 @@ export default function PlayerStats() {
 								<tr className='border-b border-white/20'>
 									<th className='text-left py-2 px-2'>Type</th>
 									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -2065,18 +2163,70 @@ export default function PlayerStats() {
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.leagueGames > 0 
+											? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
 								</tr>
 								<tr className='border-b border-white/10'>
 									<td className='py-2 px-2'>
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.cupGames > 0 
+											? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
 								</tr>
 								<tr>
 									<td className='py-2 px-2'>
 										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
 									</td>
 									<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.friendlyGames > 0 
+											? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+
+					{/* Home/Away Table */}
+					<div className='mb-6'>
+						<table className='w-full text-white text-sm'>
+							<thead>
+								<tr className='border-b border-white/20'>
+									<th className='text-left py-2 px-2'>Location</th>
+									<th className='text-right py-2 px-2'>Count</th>
+									<th className='text-right py-2 px-2'>% Won</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr className='border-b border-white/10'>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.homeGames > 0 
+											? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
+								</tr>
+								<tr>
+									<td className='py-2 px-2'>
+										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+									</td>
+									<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+									<td className='text-right py-2 px-2 font-mono'>
+										{gameDetails.awayGames > 0 
+											? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
+											: '0.0%'}
+									</td>
 								</tr>
 							</tbody>
 						</table>
@@ -2085,16 +2235,16 @@ export default function PlayerStats() {
 					{/* Unique Counts */}
 					<div className='space-y-2'>
 						<p className='text-white text-sm'>
-							<span className='text-white'>Opposition played: </span>
-							<span className='font-mono'>{gameDetails.uniqueOpponents || 0}</span>
+							<span className='text-white'>Opposition played against: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
 						</p>
 						<p className='text-white text-sm'>
-							<span className='text-white'>Competitions competed: </span>
-							<span className='font-mono'>{gameDetails.uniqueCompetitions || 0}</span>
+							<span className='text-white'>Competitions competed in: </span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
 						</p>
 						<p className='text-white text-sm'>
 							<span className='text-white'>Teammates played with: </span>
-							<span className='font-mono'>{gameDetails.uniqueTeammates || 0}</span>
+							<span className='font-mono font-bold'>{gameDetails.uniqueTeammates || 0}</span>
 						</p>
 					</div>
 				</div>

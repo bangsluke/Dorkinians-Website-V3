@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
-export type StatsSubPage = "player-stats" | "club-stats" | "comparison";
+export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
 export type TOTWSubPage = "totw" | "players-of-month";
 export type ClubInfoSubPage = "club-information" | "league-information" | "club-captains" | "club-awards" | "useful-links";
 
@@ -127,6 +127,7 @@ export interface TeamData {
 	fantasyPointsPerAppearance: number;
 	numberOfSeasons: number;
 	numberOfCompetitions: number;
+	numberOfPlayers: number;
 }
 
 // TOTW cache interfaces
@@ -344,6 +345,28 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			result: ["Win", "Draw", "Loss"],
 			position: [],
 		},
+		"team-stats": {
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: [],
+			location: ["Home", "Away"],
+			opposition: {
+				allOpposition: true,
+				searchTerm: "",
+			},
+			competition: {
+				types: ["League", "Cup"],
+				searchTerm: "",
+			},
+			result: ["Win", "Draw", "Loss"],
+			position: [],
+		},
 		"club-stats": {
 			timeRange: {
 				type: "allTime",
@@ -468,9 +491,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			// This ensures proper ordering and that the correct sub-page is restored
 			if (restoredMainPage === "stats") {
 				const savedStatsSubPage = localStorage.getItem("dorkinians-current-stats-sub-page");
-				if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
-					set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
-				}
+			if (savedStatsSubPage && (savedStatsSubPage === "player-stats" || savedStatsSubPage === "team-stats" || savedStatsSubPage === "club-stats" || savedStatsSubPage === "comparison")) {
+				set({ currentStatsSubPage: savedStatsSubPage as StatsSubPage });
+			}
 			} else if (restoredMainPage === "totw") {
 				const savedTOTWSubPage = localStorage.getItem("dorkinians-current-totw-sub-page");
 				if (savedTOTWSubPage && (savedTOTWSubPage === "totw" || savedTOTWSubPage === "players-of-month")) {
@@ -744,9 +767,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	// Swipe navigation within stats
 	nextStatsSubPage: () => {
 		const { currentStatsSubPage, playerFilters, playerFiltersByPage } = get();
-		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
+			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
@@ -775,9 +799,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	previousStatsSubPage: () => {
 		const { currentStatsSubPage, playerFilters, playerFiltersByPage } = get();
-		// Always show all 3 pages: Player Stats, Club Stats, Player Comparison
+		// Always show all 4 pages: Player Stats, Team Stats, Club Stats, Player Comparison
 		const availablePages: StatsSubPage[] = [
 			"player-stats" as StatsSubPage,
+			"team-stats" as StatsSubPage,
 			"club-stats" as StatsSubPage,
 			"comparison" as StatsSubPage,
 		];
