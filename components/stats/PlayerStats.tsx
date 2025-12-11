@@ -13,7 +13,8 @@ import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Toolti
 import OppositionMap from "@/components/maps/OppositionMap";
 import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
 import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
-import { generateShareImage, shareImage, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
+import { generateShareImage, shareImage, performIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1521,6 +1522,9 @@ export default function PlayerStats() {
 	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
 	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
+	const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
+	const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
+	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
 	const shareCardRef = useRef<HTMLDivElement>(null);
 
 	// Get stats to display for current page
@@ -1916,14 +1920,22 @@ export default function PlayerStats() {
 	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
 		switch (vizType) {
 			case "seasonal-performance":
+				const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
 				return {
 					type: vizType,
-					data: { chartData: seasonalChartData },
+					data: { 
+						chartData: seasonalChartData,
+						selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
+					},
 				};
 			case "team-performance":
+				const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
 				return {
 					type: vizType,
-					data: { chartData: teamChartData },
+					data: { 
+						chartData: teamChartData,
+						selectedStat: selectedTeamOption?.label || teamSelectedStat,
+					},
 				};
 			case "match-results":
 				const wins = toNumber(validPlayerData.wins || 0);
@@ -1947,15 +1959,23 @@ export default function PlayerStats() {
 						mid: toNumber(validPlayerData.mid),
 						fwd: toNumber(validPlayerData.fwd),
 						appearances: toNumber(validPlayerData.appearances),
+						gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
+						defMinutes: toNumber(validPlayerData.defMinutes || 0),
+						midMinutes: toNumber(validPlayerData.midMinutes || 0),
+						fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
 					},
 				};
 			case "defensive-record":
 				return {
 					type: vizType,
 					data: {
-						cleanSheets: toNumber(validPlayerData.cleanSheets),
 						conceded: toNumber(validPlayerData.conceded),
+						cleanSheets: toNumber(validPlayerData.cleanSheets),
 						ownGoals: toNumber(validPlayerData.ownGoals),
+						appearances: toNumber(validPlayerData.appearances),
+						gk: toNumber(validPlayerData.gk),
+						saves: toNumber(validPlayerData.saves),
+						concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
 					},
 				};
 			case "card-stats":
@@ -1974,6 +1994,9 @@ export default function PlayerStats() {
 						missed: toNumber(validPlayerData.penaltiesMissed),
 						saved: toNumber(validPlayerData.penaltiesSaved),
 						conceded: toNumber(validPlayerData.penaltiesConceded),
+						penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
+						penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
+						penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
 					},
 				};
 			case "fantasy-points":
@@ -1981,9 +2004,9 @@ export default function PlayerStats() {
 					type: vizType,
 					data: {
 						totalPoints: toNumber(validPlayerData.fantasyPoints),
-						highestWeek: fantasyBreakdown?.highestScoringWeek ? {
-							points: Math.round(fantasyBreakdown.highestScoringWeek.totalPoints),
-						} : null,
+						breakdown: fantasyBreakdown?.breakdown || {},
+						breakdownValues: fantasyBreakdown?.breakdownValues || {},
+						playerName: selectedPlayer || "",
 					},
 				};
 			case "distance-travelled":
@@ -2013,6 +2036,16 @@ export default function PlayerStats() {
 				return {
 					type: vizType,
 					data: {
+						leagueGames: gameDetails?.leagueGames || 0,
+						cupGames: gameDetails?.cupGames || 0,
+						friendlyGames: gameDetails?.friendlyGames || 0,
+						leagueWins: gameDetails?.leagueWins || 0,
+						cupWins: gameDetails?.cupWins || 0,
+						friendlyWins: gameDetails?.friendlyWins || 0,
+						homeGames: gameDetails?.homeGames || 0,
+						awayGames: gameDetails?.awayGames || 0,
+						homeWins: gameDetails?.homeWins || 0,
+						awayWins: gameDetails?.awayWins || 0,
 						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
 						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
 						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
@@ -2024,26 +2057,69 @@ export default function PlayerStats() {
 	};
 
 	// Handle visualization selection
-	const handleVisualizationSelect = async (vizId: string) => {
+	const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
+		// Set generating state immediately to show blackout overlay
+		setIsGeneratingShare(true);
+		
 		const vizData = getVisualizationData(vizId);
 		setSelectedShareVisualization(vizData);
+		setShareBackgroundColor(backgroundColor);
+		
+		// Close modal immediately - blackout overlay is already in place
+		setIsShareModalOpen(false);
 		
 		// Wait for state update, then generate image
 		setTimeout(async () => {
-			if (!shareCardRef.current) return;
+			if (!shareCardRef.current) {
+				setIsGeneratingShare(false);
+				return;
+			}
 			
-			setIsGeneratingShare(true);
 			try {
 				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-				await shareImage(imageDataUrl, selectedPlayer || "");
+				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
+				
+				if (shareResult.needsIOSPreview) {
+					// Show iOS preview modal - keep blackout visible
+					setGeneratedImageDataUrl(imageDataUrl);
+					setIsIOSPreviewOpen(true);
+					// Don't clear selectedShareVisualization yet - wait for user action
+					// Keep isGeneratingShare true to maintain blackout
+				} else {
+					// Non-iOS or download - clear immediately and remove blackout
+					setIsGeneratingShare(false);
+					setSelectedShareVisualization(null);
+				}
 			} catch (error) {
 				console.error("Error generating share image:", error);
 				alert("Failed to generate share image. Please try again.");
-			} finally {
 				setIsGeneratingShare(false);
 				setSelectedShareVisualization(null);
 			}
 		}, 100);
+	};
+
+	// Handle iOS share continuation
+	const handleIOSShareContinue = async () => {
+		setIsIOSPreviewOpen(false);
+		try {
+			await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
+		} catch (error) {
+			console.error("Error sharing image:", error);
+			alert("Failed to share image. Please try again.");
+		} finally {
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+			setGeneratedImageDataUrl("");
+		}
+	};
+
+	// Handle iOS share close
+	const handleIOSShareClose = () => {
+		setIsIOSPreviewOpen(false);
+		setIsGeneratingShare(false);
+		setSelectedShareVisualization(null);
+		setGeneratedImageDataUrl("");
 	};
 
 	// Share handler - opens modal
@@ -2755,10 +2831,9 @@ export default function PlayerStats() {
 				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 				{!isDataTableMode && chartContent}
 				{isDataTableMode && dataTableContent}
-				<div className='h-4'></div>
 				
 				{/* Share Button */}
-				<div className='flex justify-center mt-2 mb-4'>
+				<div className='flex justify-center mt-1 mb-4'>
 					<button
 						onClick={handleShare}
 						disabled={isGeneratingShare}
@@ -2781,12 +2856,27 @@ export default function PlayerStats() {
 				</div>
 			</div>
 
+			{/* Blackout overlay - covers full screen during entire share process */}
+			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen) && (
+				<div className="fixed inset-0 bg-black z-[40]" style={{ pointerEvents: 'none' }} />
+			)}
+
 			{/* Share Visualization Modal */}
 			<ShareVisualizationModal
 				isOpen={isShareModalOpen}
 				onClose={() => setIsShareModalOpen(false)}
 				onSelect={handleVisualizationSelect}
 				options={availableVisualizations}
+				backgroundColor={shareBackgroundColor}
+				onBackgroundColorChange={setShareBackgroundColor}
+			/>
+
+			{/* iOS Share Preview Modal */}
+			<IOSSharePreviewModal
+				isOpen={isIOSPreviewOpen}
+				imageDataUrl={generatedImageDataUrl}
+				onContinue={handleIOSShareContinue}
+				onClose={handleIOSShareClose}
 			/>
 
 			{/* Hidden share card for image generation */}
@@ -2807,6 +2897,7 @@ export default function PlayerStats() {
 						playerFilters={playerFilters}
 						filterData={filterData}
 						selectedVisualization={selectedShareVisualization || undefined}
+						backgroundColor={shareBackgroundColor}
 					/>
 				</div>
 			)}
