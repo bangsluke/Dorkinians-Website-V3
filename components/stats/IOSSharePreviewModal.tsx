@@ -9,6 +9,9 @@ interface IOSSharePreviewModalProps {
 	imageDataUrl: string;
 	onContinue: () => void;
 	onClose: () => void;
+	backgroundColor?: "yellow" | "green";
+	onBackgroundColorChange?: (color: "yellow" | "green") => void;
+	onRegenerateImage?: (color: "yellow" | "green") => void;
 }
 
 export default function IOSSharePreviewModal({
@@ -16,7 +19,16 @@ export default function IOSSharePreviewModal({
 	imageDataUrl,
 	onContinue,
 	onClose,
+	backgroundColor = "yellow",
+	onBackgroundColorChange,
+	onRegenerateImage,
 }: IOSSharePreviewModalProps) {
+	const handleColorChange = (color: "yellow" | "green") => {
+		onBackgroundColorChange?.(color);
+		if (onRegenerateImage) {
+			onRegenerateImage(color);
+		}
+	};
 	return (
 		<Transition show={isOpen} as={Fragment}>
 			<Dialog as="div" className="relative z-[100]" onClose={onClose}>
@@ -54,6 +66,39 @@ export default function IOSSharePreviewModal({
 										}}
 									/>
 								</div>
+
+								{/* Background Colour Selection */}
+								{onBackgroundColorChange && (
+									<div className="w-full max-w-md px-4 pb-3">
+										<label className="block text-xs font-medium text-white mb-1.5 text-center">
+											Background colour
+										</label>
+										<div className="flex gap-4 justify-center">
+											<label className="flex items-center gap-1.5 cursor-pointer">
+												<input
+													type="radio"
+													name="backgroundColor"
+													value="yellow"
+													checked={backgroundColor === "yellow"}
+													onChange={() => handleColorChange("yellow")}
+													className="w-3.5 h-3.5 text-dorkinians-yellow focus:ring-0 focus:ring-offset-0"
+												/>
+												<span className="text-white text-sm">Yellow</span>
+											</label>
+											<label className="flex items-center gap-1.5 cursor-pointer">
+												<input
+													type="radio"
+													name="backgroundColor"
+													value="green"
+													checked={backgroundColor === "green"}
+													onChange={() => handleColorChange("green")}
+													className="w-3.5 h-3.5 text-dorkinians-green focus:ring-0 focus:ring-offset-0"
+												/>
+												<span className="text-white text-sm">Green</span>
+											</label>
+										</div>
+									</div>
+								)}
 
 								{/* Buttons */}
 								<div className="w-full max-w-md px-4 pb-8 space-y-3">

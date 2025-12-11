@@ -66,37 +66,6 @@ export default function ShareVisualizationModal({
 									</button>
 								</div>
 
-								{/* Background Colour Selection */}
-								<div className="mb-3 pb-3 border-b border-white/10">
-									<label className="block text-xs font-medium text-white mb-1.5">
-										Background colour
-									</label>
-									<div className="flex gap-4">
-										<label className="flex items-center gap-1.5 cursor-pointer">
-											<input
-												type="radio"
-												name="backgroundColor"
-												value="yellow"
-												checked={backgroundColor === "yellow"}
-												onChange={() => onBackgroundColorChange?.("yellow")}
-												className="w-3.5 h-3.5 text-dorkinians-yellow focus:ring-dorkinians-yellow focus:ring-2"
-											/>
-											<span className="text-white text-sm">Yellow</span>
-										</label>
-										<label className="flex items-center gap-1.5 cursor-pointer">
-											<input
-												type="radio"
-												name="backgroundColor"
-												value="green"
-												checked={backgroundColor === "green"}
-												onChange={() => onBackgroundColorChange?.("green")}
-												className="w-3.5 h-3.5 text-dorkinians-green focus:ring-dorkinians-green focus:ring-2"
-											/>
-											<span className="text-white text-sm">Green</span>
-										</label>
-									</div>
-								</div>
-
 								<div className="space-y-1 max-h-[70vh] overflow-y-auto">
 									{availableOptions.length === 0 ? (
 										<p className="text-white/70 text-xs py-3 text-center">

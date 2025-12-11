@@ -1172,7 +1172,7 @@ export default function ShareableStatsCard({
 					style={{
 						width: "400px",
 						height: "400px",
-						filter: "brightness(0) invert(1)",
+						filter: "grayscale(100%) brightness(0) invert(1)",
 						objectFit: "contain",
 					}}
 					crossOrigin="anonymous"
@@ -1219,8 +1219,8 @@ export default function ShareableStatsCard({
 				{/* Selected Visualization - Fixed height to keep stats in same position */}
 				<div
 					style={{
-						minHeight: "380px",
-						height: "380px",
+						minHeight: "500px",
+						height: "500px",
 						display: "flex",
 						flexDirection: "column",
 						alignItems: "center",
