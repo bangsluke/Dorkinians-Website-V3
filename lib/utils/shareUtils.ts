@@ -93,6 +93,16 @@ export function getAvailableVisualizations(
 		}
 	}
 
+	// Game Details
+	if (!isLoadingGameDetails && gameDetails) {
+		options.push({
+			id: "game-details",
+			label: "Game Details",
+			description: "Competition types, home/away, and unique counts",
+			available: true,
+		});
+	}
+
 	// Defensive Record
 	const conceded = toNumber(playerData.conceded);
 	const cleanSheets = toNumber(playerData.cleanSheets);
@@ -111,16 +121,6 @@ export function getAvailableVisualizations(
 			id: "distance-travelled",
 			label: "Distance Travelled",
 			description: "Total distance traveled for away games",
-			available: true,
-		});
-	}
-
-	// Opposition Map
-	if (oppositionMapData.length > 0) {
-		options.push({
-			id: "opposition-map",
-			label: "Opposition Map",
-			description: "Map showing opposition teams played",
 			available: true,
 		});
 	}
@@ -168,16 +168,6 @@ export function getAvailableVisualizations(
 			id: "minutes-per-stats",
 			label: "Minutes per Stats",
 			description: "Minutes per goal, assist, MoM, etc.",
-			available: true,
-		});
-	}
-
-	// Game Details
-	if (!isLoadingGameDetails && gameDetails) {
-		options.push({
-			id: "game-details",
-			label: "Game Details",
-			description: "Competition types, home/away, and unique counts",
 			available: true,
 		});
 	}
@@ -274,21 +264,38 @@ export async function generateShareImage(
 	element.style.opacity = "1";
 	element.style.zIndex = "9999";
 
-	// Wait for any images to load
+	// Wait for any images to load - including stat icons
 	const images = element.querySelectorAll("img");
 	const imagePromises = Array.from(images).map((img) => {
-		if (img.complete) return Promise.resolve();
-		return new Promise((resolve, reject) => {
-			img.onload = resolve;
-			img.onerror = resolve; // Resolve even on error to not block
-			setTimeout(resolve, 2000); // Timeout after 2 seconds
+		if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+		
+		// Force reload if image failed or hasn't loaded
+		if (!img.complete || img.naturalWidth === 0) {
+			const src = img.src;
+			img.src = '';
+			img.src = src;
+		}
+		
+		return new Promise((resolve) => {
+			const timeout = setTimeout(() => {
+				resolve(); // Resolve after timeout even if image hasn't loaded
+			}, 3000);
+			
+			img.onload = () => {
+				clearTimeout(timeout);
+				resolve();
+			};
+			img.onerror = () => {
+				clearTimeout(timeout);
+				resolve(); // Resolve even on error to not block
+			};
 		});
 	});
 
 	await Promise.all(imagePromises);
 	
-	// Small delay to ensure rendering
-	await new Promise(resolve => setTimeout(resolve, 100));
+	// Additional delay to ensure all rendering is complete, especially for SVG icons
+	await new Promise(resolve => setTimeout(resolve, 300));
 
 	try {
 		const canvas = await html2canvas(element, {
@@ -315,24 +322,36 @@ export async function generateShareImage(
 	}
 }
 
+// Detect iOS devices
+function isIOS(): boolean {
+	if (typeof window === "undefined") return false;
+	return /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+		(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
 export async function shareImage(
 	imageDataUrl: string,
 	playerName: string
-): Promise<boolean> {
+): Promise<{ success: boolean; needsIOSPreview?: boolean }> {
 	try {
 		// Convert data URL to blob
 		const response = await fetch(imageDataUrl);
 		const blob = await response.blob();
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
-		// Try Web Share API first (mobile-friendly)
+		// For iOS, return flag to show preview first
+		if (isIOS() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+			return { success: true, needsIOSPreview: true };
+		}
+
+		// Try Web Share API first (mobile-friendly, non-iOS)
 		if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
 			await navigator.share({
 				files: [file],
 				title: `${playerName} - Player Stats`,
 				text: `Check out ${playerName}'s stats!`,
 			});
-			return true;
+			return { success: true };
 		}
 
 		// Fallback: Download the image
@@ -342,9 +361,34 @@ export async function shareImage(
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
-		return true;
+		return { success: true };
 	} catch (error) {
 		console.error("Error sharing image:", error);
+		return { success: false };
+	}
+}
+
+export async function performIOSShare(
+	imageDataUrl: string,
+	playerName: string
+): Promise<boolean> {
+	try {
+		// Convert data URL to blob
+		const response = await fetch(imageDataUrl);
+		const blob = await response.blob();
+		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
+
+		if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+			await navigator.share({
+				files: [file],
+				title: `${playerName} - Player Stats`,
+				text: `Check out ${playerName}'s stats!`,
+			});
+			return true;
+		}
+		return false;
+	} catch (error) {
+		console.error("Error performing iOS share:", error);
 		return false;
 	}
 }
