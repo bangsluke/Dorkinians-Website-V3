@@ -14,8 +14,10 @@ export interface VisualizationOption {
 interface ShareVisualizationModalProps {
 	isOpen: boolean;
 	onClose: () => void;
-	onSelect: (visualizationId: string) => void;
+	onSelect: (visualizationId: string, backgroundColor: "yellow" | "green") => void;
 	options: VisualizationOption[];
+	backgroundColor?: "yellow" | "green";
+	onBackgroundColorChange?: (color: "yellow" | "green") => void;
 }
 
 export default function ShareVisualizationModal({
@@ -23,6 +25,8 @@ export default function ShareVisualizationModal({
 	onClose,
 	onSelect,
 	options,
+	backgroundColor = "yellow",
+	onBackgroundColorChange,
 }: ShareVisualizationModalProps) {
 	const availableOptions = options.filter(opt => opt.available);
 
@@ -36,8 +40,8 @@ export default function ShareVisualizationModal({
 					enterTo="opacity-100"
 					leave="ease-in duration-200"
 					leaveFrom="opacity-100"
-					leaveTo="opacity-0">
-					<div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+					leaveTo="opacity-100">
+					<div className="fixed inset-0 bg-black" />
 				</Transition.Child>
 
 				<div className="fixed inset-0 overflow-y-auto">
@@ -50,21 +54,21 @@ export default function ShareVisualizationModal({
 							leave="ease-in duration-200"
 							leaveFrom="opacity-100 scale-100"
 							leaveTo="opacity-0 scale-95">
-							<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-[#0f0f0f] border border-white/20 p-6 shadow-xl transition-all">
-								<div className="flex items-center justify-between mb-4">
-									<Dialog.Title as="h3" className="text-xl font-bold text-dorkinians-yellow">
-										Select Visualization
+							<Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-lg bg-[#0f0f0f] border border-white/20 p-4 shadow-xl transition-all">
+								<div className="flex items-center justify-between mb-3">
+									<Dialog.Title as="h3" className="text-lg font-bold text-dorkinians-yellow">
+										Select Visualisation
 									</Dialog.Title>
 									<button
 										onClick={onClose}
 										className="text-white/70 hover:text-white transition-colors">
-										<XMarkIcon className="h-6 w-6" />
+										<XMarkIcon className="h-5 w-5" />
 									</button>
 								</div>
 
-								<div className="space-y-2 max-h-[60vh] overflow-y-auto">
+								<div className="space-y-1 max-h-[70vh] overflow-y-auto">
 									{availableOptions.length === 0 ? (
-										<p className="text-white/70 text-sm py-4 text-center">
+										<p className="text-white/70 text-xs py-3 text-center">
 											No visualizations available
 										</p>
 									) : (
@@ -72,27 +76,22 @@ export default function ShareVisualizationModal({
 											<button
 												key={option.id}
 												onClick={() => {
-													onSelect(option.id);
+													onSelect(option.id, backgroundColor);
 													onClose();
 												}}
-												className="w-full text-left p-4 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-dorkinians-yellow/50 transition-colors">
-												<div className="font-semibold text-white mb-1">
+												className="w-full text-left p-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-dorkinians-yellow/50 transition-colors">
+												<div className="font-medium text-sm text-white">
 													{option.label}
 												</div>
-												{option.description && (
-													<div className="text-sm text-white/70">
-														{option.description}
-													</div>
-												)}
 											</button>
 										))
 									)}
 								</div>
 
-								<div className="mt-4 flex justify-end">
+								<div className="mt-3 flex justify-end">
 									<button
 										onClick={onClose}
-										className="px-4 py-2 text-sm font-medium text-white/70 hover:text-white transition-colors">
+										className="px-3 py-1.5 text-xs font-medium text-white/70 hover:text-white transition-colors">
 										Cancel
 									</button>
 								</div>
