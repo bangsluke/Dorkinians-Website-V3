@@ -361,6 +361,7 @@ export default function ClubTeamStats() {
 	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
 	const [isLoadingTeamComparison, setIsLoadingTeamComparison] = useState(false);
 	const [visibleTeams, setVisibleTeams] = useState<Set<string>>(new Set());
+	const [clickedCategory, setClickedCategory] = useState<string | null>(null);
 
 	// Player distribution state
 	const [playerDistributionData, setPlayerDistributionData] = useState<any>(null);
@@ -877,6 +878,116 @@ export default function ClubTeamStats() {
 		return null;
 	};
 
+	// Helper function to get tooltip content for a category
+	const getTooltipContentForCategory = (category: string) => {
+		if (!radarChartData.length) return null;
+		
+		const teamColors = [
+			"#f9ed32", // 1s - yellow
+			"#3b82f6", // 2s - blue
+			"#10b981", // 3s - green
+			"#f59e0b", // 4s - orange
+			"#ef4444", // 5s - red
+			"#8b5cf6", // 6s - purple
+			"#ec4899", // 7s - pink
+			"#06b6d4", // 8s - cyan
+		];
+		
+		// Find the data point for this category
+		const categoryData = radarChartData.find((d: any) => d.category === category);
+		if (!categoryData) return null;
+
+		// Get all visible teams and their values
+		const visibleTeamEntries = teamComparisonData
+			.filter(({ team }: any) => visibleTeams.has(team))
+			.map(({ team }: any) => {
+				const teamKey = team.replace(" XI", "s");
+				const originalIndex = teamComparisonData.findIndex((t: any) => t.team === team);
+				const color = teamColors[originalIndex % teamColors.length];
+				
+				// Get the actual value (not scaled) for display
+				const teamData = teamComparisonData.find((t: any) => t.team === team)?.data;
+				let actualValue = 0;
+				if (teamData) {
+					switch (category) {
+						case "Games":
+							actualValue = toNumber(teamData.gamesPlayed);
+							break;
+						case "Goals Scored":
+							actualValue = toNumber(teamData.goalsScored);
+							break;
+						case "Goals Conceded":
+							actualValue = toNumber(teamData.goalsConceded);
+							break;
+						case "Distance (Miles)":
+							actualValue = toNumber(teamData.totalDistance);
+							break;
+						case "Wins":
+							actualValue = toNumber(teamData.wins);
+							break;
+						case "Points per Game":
+							actualValue = Number(toNumber(teamData.pointsPerGame).toFixed(2));
+							break;
+						case "Clean Sheets":
+							actualValue = toNumber(teamData.cleanSheets);
+							break;
+						case "Competitions":
+							actualValue = toNumber(teamData.numberOfCompetitions);
+							break;
+						case "Fantasy Points":
+							actualValue = toNumber(teamData.totalFantasyPoints);
+							break;
+					}
+				}
+				
+				return { team, teamKey, color, value: actualValue };
+			});
+
+		// Sort entries by value (descending)
+		const sortedEntries = visibleTeamEntries.sort((a, b) => b.value - a.value);
+		
+		return { category, entries: sortedEntries };
+	};
+
+	// Custom tooltip for radar chart showing all visible teams
+	const radarTooltip = ({ active, payload, label }: any) => {
+		const category = (active && label) ? label : clickedCategory;
+		if (!category) return null;
+		
+		const tooltipContent = getTooltipContentForCategory(category);
+		if (!tooltipContent) return null;
+
+		return (
+			<div style={tooltipStyle} className='px-3 py-2'>
+				<p className='text-white text-sm font-semibold mb-2'>{tooltipContent.category}</p>
+				{tooltipContent.entries.map(({ team, color, value }) => {
+					// Format distance values to 0 decimal places with comma separators
+					// Format Fantasy Points with comma separators
+					let displayValue: string | number = value;
+					if (tooltipContent.category === "Distance (Miles)") {
+						displayValue = Math.round(value).toLocaleString('en-US');
+					} else if (tooltipContent.category === "Fantasy Points") {
+						displayValue = Math.round(value).toLocaleString('en-US');
+					}
+					return (
+						<p key={team} className='text-white text-sm' style={{ color: color }}>
+							{team}: {displayValue}
+						</p>
+					);
+				})}
+			</div>
+		);
+	};
+
+	// Handle label click to show tooltip
+	const handleLabelClick = (category: string) => {
+		setClickedCategory(category);
+		// Clear after 3 seconds
+		setTimeout(() => {
+			setClickedCategory(null);
+		}, 3000);
+	};
+
 	// Custom tooltip for Player Tenure (shows "X players" instead of "Value: X")
 	const tenureTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
@@ -900,7 +1011,7 @@ export default function ClubTeamStats() {
 		if (visibleTeamData.length === 0) return [];
 
 		// Get all stat categories
-		const categories = ["Games", "Goals Scored", "Goals Conceded", "Distance", "Wins", "Points per Game", "Clean Sheets", "Competitions", "Fantasy Points"];
+		const categories = ["Games", "Goals Scored", "Goals Conceded", "Distance (Miles)", "Wins", "Points per Game", "Clean Sheets", "Competitions", "Fantasy Points"];
 
 		// Find max values per category (only for visible teams)
 		const maxValues: { [key: string]: number } = {};
@@ -909,7 +1020,7 @@ export default function ClubTeamStats() {
 				maxValues.Games = Math.max(maxValues.Games || 0, toNumber(data.gamesPlayed));
 				maxValues["Goals Scored"] = Math.max(maxValues["Goals Scored"] || 0, toNumber(data.goalsScored));
 				maxValues["Goals Conceded"] = Math.max(maxValues["Goals Conceded"] || 0, toNumber(data.goalsConceded));
-				maxValues.Distance = Math.max(maxValues.Distance || 0, toNumber(data.totalDistance));
+				maxValues["Distance (Miles)"] = Math.max(maxValues["Distance (Miles)"] || 0, toNumber(data.totalDistance));
 				maxValues.Wins = Math.max(maxValues.Wins || 0, toNumber(data.wins));
 				maxValues["Points per Game"] = Math.max(maxValues["Points per Game"] || 0, toNumber(data.pointsPerGame));
 				maxValues["Clean Sheets"] = Math.max(maxValues["Clean Sheets"] || 0, toNumber(data.cleanSheets));
@@ -934,7 +1045,7 @@ export default function ClubTeamStats() {
 						case "Goals Conceded":
 							value = toNumber(data.goalsConceded);
 							break;
-						case "Distance":
+						case "Distance (Miles)":
 							value = toNumber(data.totalDistance);
 							break;
 						case "Wins":
@@ -993,8 +1104,8 @@ export default function ClubTeamStats() {
 		const totalPlayers = teamData ? toNumber(teamData.numberOfPlayers) : 0;
 
 		// Create nodes with labels that include player counts
-		const teamIds = filteredDistribution.map((item: any) => item.team);
-		const nodes = teamIds.map((team) => {
+		const teamIds: string[] = filteredDistribution.map((item: any) => item.team);
+		const nodes = teamIds.map((team: string) => {
 			const playerCount = links.find(link => link.target === team)?.value || 0;
 			return {
 				id: team,
@@ -1197,10 +1308,19 @@ export default function ClubTeamStats() {
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
 								{/* Team visibility checkboxes */}
-								<div className='mb-3 flex flex-wrap gap-3'>
+								<div className='mb-3 flex flex-wrap gap-3 justify-center bg-white/25 rounded-lg p-2'>
 									{teamComparisonData.map(({ team }, index) => {
-										const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
-										const color = colors[index % colors.length];
+										const teamColors = [
+											"#f9ed32", // 1s - yellow
+											"#3b82f6", // 2s - blue
+											"#10b981", // 3s - green
+											"#f59e0b", // 4s - orange
+											"#ef4444", // 5s - red
+											"#8b5cf6", // 6s - purple
+											"#ec4899", // 7s - pink
+											"#06b6d4", // 8s - cyan
+										];
+										const color = teamColors[index % teamColors.length];
 										const isVisible = visibleTeams.has(team);
 										return (
 											<label key={team} className='flex items-center gap-2 cursor-pointer'>
@@ -1216,8 +1336,11 @@ export default function ClubTeamStats() {
 														}
 														setVisibleTeams(newVisibleTeams);
 													}}
-													className='w-4 h-4 rounded'
-													style={{ accentColor: color }}
+													className='team-comparison-checkbox w-4 h-4 rounded'
+													style={{ 
+														borderColor: color,
+														backgroundColor: isVisible ? color : 'transparent',
+													}}
 												/>
 												<span className='text-white text-sm' style={{ color: color }}>
 													{team}
@@ -1226,17 +1349,28 @@ export default function ClubTeamStats() {
 										);
 									})}
 								</div>
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={400}>
-										<RadarChart data={radarChartData}>
+								<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<RadarChart 
+											data={radarChartData}
+											margin={{ top: 0, right: 25, bottom: 0, left: 25 }}
+										>
 											<PolarGrid />
-											<PolarAngleAxis dataKey='category' tick={{ fill: '#fff', fontSize: 12 }} />
-											<PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#fff', fontSize: 10 }} />
+											<PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
 											{teamComparisonData
 												.filter(({ team }) => visibleTeams.has(team))
 												.map(({ team }, index) => {
 													const teamKey = team.replace(" XI", "s");
-													const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
+													const teamColors = [
+														"#f9ed32", // 1s - yellow
+														"#3b82f6", // 2s - blue
+														"#10b981", // 3s - green
+														"#f59e0b", // 4s - orange
+														"#ef4444", // 5s - red
+														"#8b5cf6", // 6s - purple
+														"#ec4899", // 7s - pink
+														"#06b6d4", // 8s - cyan
+													];
 													// Find original index for color consistency
 													const originalIndex = teamComparisonData.findIndex((t: any) => t.team === team);
 													return (
@@ -1244,13 +1378,40 @@ export default function ClubTeamStats() {
 															key={team}
 															name={teamKey}
 															dataKey={teamKey}
-															stroke={colors[originalIndex % colors.length]}
-															fill={colors[originalIndex % colors.length]}
+															stroke={teamColors[originalIndex % teamColors.length]}
+															fill={teamColors[originalIndex % teamColors.length]}
 															fillOpacity={0.3}
 														/>
 													);
 												})}
-											<Tooltip content={customTooltip} />
+											<PolarAngleAxis 
+												dataKey='category' 
+												tick={(props: any) => {
+													const { x, y, payload } = props;
+													return (
+														<g transform={`translate(${x},${y})`}>
+															<text
+																x={0}
+																y={0}
+																dy={16}
+																textAnchor="middle"
+																fill="#fff"
+																fontSize={12}
+																style={{ cursor: 'pointer' }}
+																onClick={(e) => {
+																	e.stopPropagation();
+																	handleLabelClick(payload.value);
+																}}
+															>
+																{payload.value}
+															</text>
+														</g>
+													);
+												}}
+											/>
+											<Tooltip 
+												content={radarTooltip}
+											/>
 										</RadarChart>
 									</ResponsiveContainer>
 								</div>
@@ -1503,7 +1664,7 @@ export default function ClubTeamStats() {
 										nodeTooltip={() => null}
 										linkTooltip={() => null}
 										isInteractive={false}
-										layers={['links', 'nodes', CustomLabelLayer, 'legends']}
+										layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
 										theme={{
 											text: { fill: '#fff', fontSize: 12 },
 										}}

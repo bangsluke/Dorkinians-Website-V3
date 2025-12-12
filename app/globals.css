@@ -451,6 +451,29 @@
 	pointer-events: auto;
 }
 
+/* Team comparison checkbox with white checkmark */
+.team-comparison-checkbox {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	border: 2px solid;
+	cursor: pointer;
+	position: relative;
+	background-color: transparent;
+}
+
+.team-comparison-checkbox:checked::after {
+	content: '';
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -60%) rotate(45deg);
+	width: 3px;
+	height: 7px;
+	border: solid white;
+	border-width: 0 2px 2px 0;
+}
+
 /* Ensure Recharts chart elements don't block scroll events */
 .recharts-cartesian-grid,
 .recharts-bar,
