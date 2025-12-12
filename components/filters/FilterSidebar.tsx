@@ -98,7 +98,14 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		} else {
 			updatePlayerFilters({
 				timeRange: {
-					...playerFilters.timeRange,
+					...(playerFilters?.timeRange || {
+						type: "allTime",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: "",
+						endDate: "",
+					}),
 					type,
 				},
 			});
@@ -106,7 +113,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handleSeasonToggle = (season: string) => {
-		const currentSeasons = playerFilters.timeRange.seasons;
+		if (!playerFilters?.timeRange) return;
+		const currentSeasons = playerFilters.timeRange.seasons || [];
 		const newSeasons = currentSeasons.includes(season) ? currentSeasons.filter((s) => s !== season) : [...currentSeasons, season];
 
 		updatePlayerFilters({
@@ -120,7 +128,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	// When date inputs change, ensure "All Time" is unchecked (handled by isAllTimeSelected)
 
 	const handleTeamToggle = (team: string) => {
-		const currentTeams = playerFilters.teams;
+		if (!playerFilters) return;
+		const currentTeams = playerFilters.teams || [];
 		const newTeams = currentTeams.includes(team) ? currentTeams.filter((t) => t !== team) : [...currentTeams, team];
 
 		updatePlayerFilters({
@@ -129,7 +138,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handleLocationToggle = (location: "Home" | "Away") => {
-		const currentLocation = playerFilters.location;
+		if (!playerFilters) return;
+		const currentLocation = playerFilters.location || [];
 		const newLocation = currentLocation.includes(location) ? currentLocation.filter((l) => l !== location) : [...currentLocation, location];
 
 		updatePlayerFilters({
@@ -138,9 +148,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handleOppositionSearch = (searchTerm: string) => {
+		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...playerFilters.opposition,
+				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
 				searchTerm,
 			},
 		});
@@ -150,19 +161,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	// Filter opposition based on search term
 	const filteredOpposition = useMemo(() => {
 		if (!filterData?.opposition) return [];
-		const searchTerm = playerFilters.opposition.searchTerm.toLowerCase();
+		const searchTerm = (playerFilters?.opposition?.searchTerm || "").toLowerCase();
 		if (!searchTerm) {
 			return filterData.opposition.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
 		}
 		return filterData.opposition
 			.filter(opp => opp.name.toLowerCase().includes(searchTerm))
 			.slice(0, 50); // Limit to 50 results
-	}, [filterData?.opposition, playerFilters.opposition.searchTerm]);
+	}, [filterData?.opposition, playerFilters?.opposition?.searchTerm]);
 
 	const handleOppositionSelect = (oppositionName: string) => {
+		if (!playerFilters) return;
 		updatePlayerFilters({
 			opposition: {
-				...playerFilters.opposition,
+				...(playerFilters.opposition || { allOpposition: true, searchTerm: "" }),
 				searchTerm: oppositionName,
 			},
 		});
@@ -170,9 +182,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handleCompetitionSearch = (searchTerm: string) => {
+		if (!playerFilters) return;
 		updatePlayerFilters({
 			competition: {
-				...playerFilters.competition,
+				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
 				searchTerm,
 			},
 		});
@@ -182,19 +195,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	// Filter competitions based on search term
 	const filteredCompetitions = useMemo(() => {
 		if (!filterData?.competitions) return [];
-		const searchTerm = playerFilters.competition.searchTerm.toLowerCase();
+		const searchTerm = (playerFilters?.competition?.searchTerm || "").toLowerCase();
 		if (!searchTerm) {
 			return filterData.competitions.slice(0, 50); // Show all options (limited to 50) when searchTerm is empty
 		}
 		return filterData.competitions
 			.filter(comp => comp.name.toLowerCase().includes(searchTerm))
 			.slice(0, 50); // Limit to 50 results
-	}, [filterData?.competitions, playerFilters.competition.searchTerm]);
+	}, [filterData?.competitions, playerFilters?.competition?.searchTerm]);
 
 	const handleCompetitionSelect = (competitionName: string) => {
+		if (!playerFilters) return;
 		updatePlayerFilters({
 			competition: {
-				...playerFilters.competition,
+				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
 				searchTerm: competitionName,
 			},
 		});
@@ -202,19 +216,21 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handleCompetitionTypeToggle = (type: "League" | "Cup" | "Friendly") => {
-		const currentTypes = playerFilters.competition.types;
+		if (!playerFilters) return;
+		const currentTypes = playerFilters.competition?.types || [];
 		const newTypes = currentTypes.includes(type) ? currentTypes.filter((t) => t !== type) : [...currentTypes, type];
 
 		updatePlayerFilters({
 			competition: {
-				...playerFilters.competition,
+				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
 				types: newTypes,
 			},
 		});
 	};
 
 	const handleResultToggle = (result: "Win" | "Draw" | "Loss") => {
-		const currentResults = playerFilters.result;
+		if (!playerFilters) return;
+		const currentResults = playerFilters.result || [];
 		const newResults = currentResults.includes(result) ? currentResults.filter((r) => r !== result) : [...currentResults, result];
 
 		updatePlayerFilters({
@@ -223,7 +239,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const handlePositionToggle = (position: "GK" | "DEF" | "MID" | "FWD") => {
-		const currentPositions = playerFilters.position;
+		if (!playerFilters) return;
+		const currentPositions = playerFilters.position || [];
 		const newPositions = currentPositions.includes(position)
 			? currentPositions.filter((p) => p !== position)
 			: [...currentPositions, position];
@@ -242,22 +259,23 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	const hasActiveFilters = () => {
+		if (!playerFilters) return false;
 		const { timeRange, teams, location, opposition, competition, result, position } = playerFilters;
 
 		return (
-			timeRange.seasons.length > 0 ||
-			timeRange.beforeDate !== "" ||
-			timeRange.afterDate !== "" ||
-			timeRange.startDate !== "" ||
-			timeRange.endDate !== "" ||
-			teams.length > 0 ||
-			location.length < 2 ||
-			!opposition.allOpposition ||
-			opposition.searchTerm !== "" ||
-			competition.types.length < 2 ||
-			competition.searchTerm !== "" ||
-			result.length < 3 ||
-			position.length < 4
+			(timeRange?.seasons?.length || 0) > 0 ||
+			(timeRange?.beforeDate || "") !== "" ||
+			(timeRange?.afterDate || "") !== "" ||
+			(timeRange?.startDate || "") !== "" ||
+			(timeRange?.endDate || "") !== "" ||
+			(teams?.length || 0) > 0 ||
+			(location?.length || 2) < 2 ||
+			!opposition?.allOpposition ||
+			(opposition?.searchTerm || "") !== "" ||
+			(competition?.types?.length || 2) < 2 ||
+			(competition?.searchTerm || "") !== "" ||
+			(result?.length || 3) < 3 ||
+			(position?.length || 4) < 4
 		);
 	};
 
@@ -334,7 +352,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																type='radio'
 																name='timeRangeType'
 																value={option.value}
-																checked={playerFilters.timeRange.type === option.value}
+																checked={(playerFilters?.timeRange?.type || "allTime") === option.value}
 																onChange={() => handleTimeRangeTypeChange(option.value as any)}
 																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 															/>
@@ -345,7 +363,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											</div>
 
 											{/* Season Selection */}
-											{playerFilters.timeRange.type === "season" && (
+											{(playerFilters?.timeRange?.type || "allTime") === "season" && (
 												<div className='space-y-2'>
 													<label className='block text-sm font-medium text-white/90'>Seasons</label>
 													{filterData.seasons.length === 0 ? (
@@ -357,7 +375,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	<label key={season.season} className='flex items-center min-h-[44px]'>
 																		<input
 																			type='checkbox'
-																			checked={playerFilters.timeRange.seasons.includes(season.season)}
+																			checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
 																			onChange={() => handleSeasonToggle(season.season)}
 																			className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 																		/>
@@ -371,15 +389,25 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											)}
 
 											{/* Date Inputs */}
-											{playerFilters.timeRange.type === "beforeDate" && (
+											{(playerFilters?.timeRange?.type || "allTime") === "beforeDate" && (
 												<div>
 													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Before Date</label>
 													<input
 														type='date'
-														value={playerFilters.timeRange.beforeDate}
+														value={playerFilters?.timeRange?.beforeDate || ""}
 														onChange={(e) =>
 															updatePlayerFilters({
-																timeRange: { ...playerFilters.timeRange, beforeDate: e.target.value },
+																timeRange: { 
+																	...(playerFilters?.timeRange || {
+																		type: "beforeDate",
+																		seasons: [],
+																		beforeDate: "",
+																		afterDate: "",
+																		startDate: "",
+																		endDate: "",
+																	}), 
+																	beforeDate: e.target.value 
+																},
 															})
 														}
 														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
@@ -387,15 +415,25 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												</div>
 											)}
 
-											{playerFilters.timeRange.type === "afterDate" && (
+											{(playerFilters?.timeRange?.type || "allTime") === "afterDate" && (
 												<div>
 													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>After Date</label>
 													<input
 														type='date'
-														value={playerFilters.timeRange.afterDate}
+														value={playerFilters?.timeRange?.afterDate || ""}
 														onChange={(e) =>
 															updatePlayerFilters({
-																timeRange: { ...playerFilters.timeRange, afterDate: e.target.value },
+																timeRange: { 
+																	...(playerFilters?.timeRange || {
+																		type: "afterDate",
+																		seasons: [],
+																		beforeDate: "",
+																		afterDate: "",
+																		startDate: "",
+																		endDate: "",
+																	}), 
+																	afterDate: e.target.value 
+																},
 															})
 														}
 														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
@@ -403,16 +441,26 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												</div>
 											)}
 
-											{playerFilters.timeRange.type === "betweenDates" && (
+											{(playerFilters?.timeRange?.type || "allTime") === "betweenDates" && (
 												<div className='space-y-2'>
 													<div>
 														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Start Date</label>
 														<input
 															type='date'
-															value={playerFilters.timeRange.startDate}
+															value={playerFilters?.timeRange?.startDate || ""}
 															onChange={(e) =>
 																updatePlayerFilters({
-																	timeRange: { ...playerFilters.timeRange, startDate: e.target.value },
+																	timeRange: { 
+																		...(playerFilters?.timeRange || {
+																			type: "betweenDates",
+																			seasons: [],
+																			beforeDate: "",
+																			afterDate: "",
+																			startDate: "",
+																			endDate: "",
+																		}), 
+																		startDate: e.target.value 
+																	},
 																})
 															}
 															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
@@ -422,10 +470,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>End Date</label>
 														<input
 															type='date'
-															value={playerFilters.timeRange.endDate}
+															value={playerFilters?.timeRange?.endDate || ""}
 															onChange={(e) =>
 																updatePlayerFilters({
-																	timeRange: { ...playerFilters.timeRange, endDate: e.target.value },
+																	timeRange: { 
+																		...(playerFilters?.timeRange || {
+																			type: "betweenDates",
+																			seasons: [],
+																			beforeDate: "",
+																			afterDate: "",
+																			startDate: "",
+																			endDate: "",
+																		}), 
+																		endDate: e.target.value 
+																	},
 																})
 															}
 															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
@@ -463,7 +521,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 															<label key={team.name} className='flex items-center min-h-[44px]'>
 																<input
 																	type='checkbox'
-																	checked={playerFilters.teams.includes(team.name)}
+																	checked={(playerFilters?.teams || []).includes(team.name)}
 																	onChange={() => handleTeamToggle(team.name)}
 																	className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 																/>
@@ -498,7 +556,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<label key={location} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
-														checked={playerFilters.location.includes(location as "Home" | "Away")}
+														checked={(playerFilters?.location || []).includes(location as "Home" | "Away")}
 														onChange={() => handleLocationToggle(location as "Home" | "Away")}
 														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
@@ -529,10 +587,13 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											<label className='flex items-center min-h-[44px]'>
 												<input
 													type='checkbox'
-													checked={playerFilters.opposition.allOpposition}
+													checked={playerFilters?.opposition?.allOpposition ?? true}
 													onChange={(e) =>
 														updatePlayerFilters({
-															opposition: { ...playerFilters.opposition, allOpposition: e.target.checked },
+															opposition: { 
+																...(playerFilters?.opposition || { allOpposition: true, searchTerm: "" }), 
+																allOpposition: e.target.checked 
+															},
 														})
 													}
 													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
@@ -545,7 +606,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<input
 													type='text'
 													placeholder='Search opposition teams...'
-													value={playerFilters.opposition.searchTerm}
+													value={playerFilters?.opposition?.searchTerm || ""}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
 													onFocus={() => setShowOppositionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
@@ -599,7 +660,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													<label key={type} className='flex items-center min-h-[44px]'>
 														<input
 															type='checkbox'
-															checked={playerFilters.competition.types.includes(type as any)}
+															checked={(playerFilters?.competition?.types || []).includes(type as any)}
 															onChange={() => handleCompetitionTypeToggle(type as any)}
 															className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 														/>
@@ -613,7 +674,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<input
 													type='text'
 													placeholder='Search competitions...'
-													value={playerFilters.competition.searchTerm}
+													value={playerFilters?.competition?.searchTerm || ""}
 													onChange={(e) => handleCompetitionSearch(e.target.value)}
 													onFocus={() => setShowCompetitionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowCompetitionDropdown(false), 200)}
@@ -665,7 +726,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<label key={result} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
-														checked={playerFilters.result.includes(result as any)}
+														checked={(playerFilters?.result || []).includes(result as any)}
 														onChange={() => handleResultToggle(result as any)}
 														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
@@ -702,7 +763,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												<label key={position.value} className='flex items-center min-h-[44px]'>
 													<input
 														type='checkbox'
-														checked={playerFilters.position.includes(position.value as any)}
+														checked={(playerFilters?.position || []).includes(position.value as any)}
 														onChange={() => handlePositionToggle(position.value as any)}
 														className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 													/>
