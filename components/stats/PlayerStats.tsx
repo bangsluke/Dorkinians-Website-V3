@@ -9,7 +9,7 @@ import { PencilIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
+import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
 import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
 import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
@@ -1105,7 +1105,8 @@ function DefensiveRecordSection({
 	appearances,
 	gk,
 	saves,
-	concededPerApp
+	concededPerApp,
+	gkCleanSheets
 }: {
 	conceded: number;
 	cleanSheets: number;
@@ -1114,6 +1115,7 @@ function DefensiveRecordSection({
 	gk: number;
 	saves: number;
 	concededPerApp: number;
+	gkCleanSheets: number;
 }) {
 	// Debug logging
 	console.log('[DefensiveRecordSection] Props received:', {
@@ -1123,7 +1125,8 @@ function DefensiveRecordSection({
 		appearances,
 		gk,
 		saves,
-		concededPerApp
+		concededPerApp,
+		gkCleanSheets
 	});
 
 	// Calculate derived statistics
@@ -1197,7 +1200,7 @@ function DefensiveRecordSection({
 										</tr>
 										<tr className='border-b border-white/10'>
 											<td className='py-2 px-2 text-xs md:text-sm'>GK Clean Sheets</td>
-											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{cleanSheets}</td>
+											<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>{gkCleanSheets}</td>
 										</tr>
 										<tr>
 											<td className='py-2 px-2 text-xs md:text-sm'>Saves</td>
@@ -1519,6 +1522,12 @@ export default function PlayerStats() {
 	const [teamStats, setTeamStats] = useState<any[]>([]);
 	const [isLoadingSeasonalStats, setIsLoadingSeasonalStats] = useState(false);
 	const [isLoadingTeamStats, setIsLoadingTeamStats] = useState(false);
+	const [showTrend, setShowTrend] = useState(true);
+	
+	// State for monthly performance chart
+	const [monthlySelectedStat, setMonthlySelectedStat] = useState<string>("Apps");
+	const [monthlyStats, setMonthlyStats] = useState<any[]>([]);
+	const [isLoadingMonthlyStats, setIsLoadingMonthlyStats] = useState(false);
 
 	// State for fantasy points breakdown
 	const [fantasyBreakdown, setFantasyBreakdown] = useState<any>(null);
@@ -1535,6 +1544,10 @@ export default function PlayerStats() {
 	// State for game details data
 	const [gameDetails, setGameDetails] = useState<any>(null);
 	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
+
+	// State for awards data
+	const [awardsData, setAwardsData] = useState<any>(null);
+	const [isLoadingAwards, setIsLoadingAwards] = useState(false);
 
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
@@ -1735,6 +1748,38 @@ export default function PlayerStats() {
 		fetchTeamStats();
 	}, [selectedPlayer, allTeamsSelected, playerFilters]);
 
+	// Fetch monthly stats when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setMonthlyStats([]);
+			return;
+		}
+
+		const fetchMonthlyStats = async () => {
+			setIsLoadingMonthlyStats(true);
+			try {
+				const response = await fetch("/api/player-monthly-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setMonthlyStats(data.monthlyStats || []);
+				}
+			} catch (error) {
+				console.error("Error fetching monthly stats:", error);
+			} finally {
+				setIsLoadingMonthlyStats(false);
+			}
+		};
+
+		fetchMonthlyStats();
+	}, [selectedPlayer, playerFilters]);
+
 	// Fetch fantasy breakdown when player or filters change
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -1852,18 +1897,82 @@ export default function PlayerStats() {
 		fetchGameDetails();
 	}, [selectedPlayer, playerFilters]);
 
+	// Fetch awards data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setAwardsData(null);
+			return;
+		}
 
-	// Prepare seasonal chart data (must be before early returns)
+		const fetchAwards = async () => {
+			setIsLoadingAwards(true);
+			try {
+				const response = await fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setAwardsData(data);
+				}
+			} catch (error) {
+				console.error("Error fetching awards:", error);
+			} finally {
+				setIsLoadingAwards(false);
+			}
+		};
+
+		fetchAwards();
+	}, [selectedPlayer]);
+
+
+	// Calculate linear regression for trendline
+	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
+		if (data.length < 2) return [];
+		
+		const n = data.length;
+		let sumX = 0;
+		let sumY = 0;
+		let sumXY = 0;
+		let sumX2 = 0;
+		
+		data.forEach((point, index) => {
+			const x = index;
+			const y = point.value;
+			sumX += x;
+			sumY += y;
+			sumXY += x * y;
+			sumX2 += x * x;
+		});
+		
+		const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+		const intercept = (sumY - slope * sumX) / n;
+		
+		return data.map((point, index) => ({
+			name: point.name,
+			value: slope * index + intercept,
+		}));
+	};
+
+	// Prepare seasonal chart data with trendline (must be before early returns)
 	const seasonalChartData = useMemo(() => {
 		if (!seasonalStats.length) return [];
 		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
 		if (!selectedOption) return [];
 		
-		return seasonalStats.map(stat => ({
+		const baseData = seasonalStats.map(stat => ({
 			name: stat.season,
 			value: toNumber(stat[selectedOption.statKey] || 0),
 		}));
-	}, [seasonalStats, seasonalSelectedStat, statOptions]);
+
+		// Add trendline values if enabled
+		if (showTrend && baseData.length >= 2) {
+			const trendlinePoints = calculateTrendline(baseData);
+			return baseData.map((point, index) => ({
+				...point,
+				trendline: trendlinePoints[index]?.value || 0,
+			}));
+		}
+
+		return baseData;
+	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
 
 	// Prepare team chart data (must be before early returns)
 	const teamChartData = useMemo(() => {
@@ -1876,6 +1985,18 @@ export default function PlayerStats() {
 			value: toNumber(stat[selectedOption.statKey] || 0),
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
+
+	// Prepare monthly chart data (must be before early returns)
+	const monthlyChartData = useMemo(() => {
+		if (!monthlyStats.length) return [];
+		const selectedOption = statOptions.find(opt => opt.value === monthlySelectedStat);
+		if (!selectedOption) return [];
+		
+		return monthlyStats.map(stat => ({
+			name: stat.month,
+			value: toNumber(stat[selectedOption.statKey] || 0),
+		}));
+	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
 	// Get available visualizations (must be before early returns)
 	const availableVisualizations = useMemo(() => {
@@ -1893,7 +2014,11 @@ export default function PlayerStats() {
 			fantasyBreakdown,
 			isLoadingFantasyBreakdown,
 			gameDetails,
-			isLoadingGameDetails
+			isLoadingGameDetails,
+			monthlyChartData,
+			isLoadingMonthlyStats,
+			awardsData,
+			isLoadingAwards
 		);
 	}, [
 		playerData,
@@ -2099,6 +2224,20 @@ export default function PlayerStats() {
 						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
 						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
 					},
+				};
+			case "monthly-performance":
+				const selectedMonthlyOption = statOptions.find(opt => opt.value === monthlySelectedStat);
+				return {
+					type: vizType,
+					data: {
+						chartData: monthlyChartData,
+						selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
+					},
+				};
+			case "awards-and-achievements":
+				return {
+					type: vizType,
+					data: awardsData,
 				};
 			default:
 				return { type: vizType };
@@ -2308,11 +2447,13 @@ export default function PlayerStats() {
 							else if (item.name === "Goals") statKey = "AllGSC";
 							else if (item.name === "Assists") statKey = "A";
 							const stat = statObject[statKey as keyof typeof statObject];
+							// Use Goals-Icon specifically for Goals stat
+							const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
 							return (
 								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
-											src={`/stat-icons/${stat?.iconName || "Appearance-Icon"}.svg`}
+											src={`/stat-icons/${iconName}.svg`}
 											alt={stat?.displayText || item.name}
 											width={40}
 											height={40}
@@ -2377,6 +2518,19 @@ export default function PlayerStats() {
 						</div>
 					</div>
 				)}
+				{allSeasonsSelected && (
+					<div className='flex items-center justify-center gap-2 mb-2'>
+						<input 
+							type='checkbox' 
+							checked={showTrend} 
+							onChange={(e) => setShowTrend(e.target.checked)}
+							className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
+							id='show-trend-checkbox'
+							style={{ accentColor: '#f9ed32' }}
+						/>
+						<label htmlFor='show-trend-checkbox' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
+					</div>
+				)}
 				{allSeasonsSelected ? (
 					<>
 						{isLoadingSeasonalStats ? (
@@ -2386,7 +2540,7 @@ export default function PlayerStats() {
 						) : seasonalChartData.length > 0 ? (
 							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 								<ResponsiveContainer width='100%' height={240}>
-									<BarChart 
+									<ComposedChart 
 										data={seasonalChartData} 
 										margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
 									>
@@ -2401,7 +2555,20 @@ export default function PlayerStats() {
 											opacity={0.9} 
 											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
 										/>
-									</BarChart>
+										{showTrend && (
+											<Line 
+												type='linear' 
+												dataKey='trendline' 
+												stroke='#ffffff' 
+												strokeWidth={2}
+												strokeDasharray='5 5'
+												dot={false}
+												activeDot={false}
+												isAnimationActive={false}
+												connectNulls={false}
+											/>
+										)}
+									</ComposedChart>
 								</ResponsiveContainer>
 							</div>
 						) : (
@@ -2593,39 +2760,45 @@ export default function PlayerStats() {
 								</tr>
 							</thead>
 							<tbody>
-								<tr className='border-b border-white/10'>
-									<td className='py-2 px-2'>
-										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
-									</td>
-									<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
-									<td className='text-right py-2 px-2 font-mono'>
-										{gameDetails.leagueGames > 0 
-											? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
-											: '0.0%'}
-									</td>
-								</tr>
-								<tr className='border-b border-white/10'>
-									<td className='py-2 px-2'>
-										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
-									</td>
-									<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
-									<td className='text-right py-2 px-2 font-mono'>
-										{gameDetails.cupGames > 0 
-											? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
-											: '0.0%'}
-									</td>
-								</tr>
-								<tr>
-									<td className='py-2 px-2'>
-										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
-									</td>
-									<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
-									<td className='text-right py-2 px-2 font-mono'>
-										{gameDetails.friendlyGames > 0 
-											? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
-											: '0.0%'}
-									</td>
-								</tr>
+								{(gameDetails.leagueGames || 0) > 0 && (
+									<tr className='border-b border-white/10'>
+										<td className='py-2 px-2'>
+											<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
+										</td>
+										<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+										<td className='text-right py-2 px-2 font-mono'>
+											{gameDetails.leagueGames > 0 
+												? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
+												: '0.0%'}
+										</td>
+									</tr>
+								)}
+								{(gameDetails.cupGames || 0) > 0 && (
+									<tr className='border-b border-white/10'>
+										<td className='py-2 px-2'>
+											<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
+										</td>
+										<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+										<td className='text-right py-2 px-2 font-mono'>
+											{gameDetails.cupGames > 0 
+												? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
+												: '0.0%'}
+										</td>
+									</tr>
+								)}
+								{(gameDetails.friendlyGames || 0) > 0 && (
+									<tr>
+										<td className='py-2 px-2'>
+											<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
+										</td>
+										<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+										<td className='text-right py-2 px-2 font-mono'>
+											{gameDetails.friendlyGames > 0 
+												? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
+												: '0.0%'}
+										</td>
+									</tr>
+								)}
 							</tbody>
 						</table>
 					</div>
@@ -2641,28 +2814,32 @@ export default function PlayerStats() {
 								</tr>
 							</thead>
 							<tbody>
-								<tr className='border-b border-white/10'>
-									<td className='py-2 px-2'>
-										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
-									</td>
-									<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
-									<td className='text-right py-2 px-2 font-mono'>
-										{gameDetails.homeGames > 0 
-											? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
-											: '0.0%'}
-									</td>
-								</tr>
-								<tr>
-									<td className='py-2 px-2'>
-										<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
-									</td>
-									<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
-									<td className='text-right py-2 px-2 font-mono'>
-										{gameDetails.awayGames > 0 
-											? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
-											: '0.0%'}
-									</td>
-								</tr>
+								{(gameDetails.homeGames || 0) > 0 && (
+									<tr className='border-b border-white/10'>
+										<td className='py-2 px-2'>
+											<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+										</td>
+										<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+										<td className='text-right py-2 px-2 font-mono'>
+											{gameDetails.homeGames > 0 
+												? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
+												: '0.0%'}
+										</td>
+									</tr>
+								)}
+								{(gameDetails.awayGames || 0) > 0 && (
+									<tr>
+										<td className='py-2 px-2'>
+											<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+										</td>
+										<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+										<td className='text-right py-2 px-2 font-mono'>
+											{gameDetails.awayGames > 0 
+												? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
+												: '0.0%'}
+										</td>
+									</tr>
+								)}
 							</tbody>
 						</table>
 					</div>
@@ -2685,6 +2862,73 @@ export default function PlayerStats() {
 				</div>
 			)}
 
+			{/* Monthly Performance Section */}
+			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div className='flex items-center justify-between mb-2 gap-2'>
+					<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Monthly Performance</h3>
+					<div className='flex-1 max-w-[45%]'>
+						<Listbox value={monthlySelectedStat} onChange={setMonthlySelectedStat}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+									<span className='block truncate text-white'>
+										{statOptions.find(opt => opt.value === monthlySelectedStat)?.label || monthlySelectedStat}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+									{statOptions.map((option) => (
+										<Listbox.Option
+											key={option.value}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={option.value}>
+											{({ selected }) => (
+												<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+													{option.label}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
+				</div>
+				{isLoadingMonthlyStats ? (
+					<div className='flex items-center justify-center h-64'>
+						<p className='text-white text-sm'>Loading monthly stats...</p>
+					</div>
+				) : monthlyChartData.length > 0 ? (
+					<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+						<ResponsiveContainer width='100%' height={240}>
+							<BarChart 
+								data={monthlyChartData} 
+								margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+							>
+								<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+								<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+								<YAxis stroke='#fff' fontSize={12} />
+								<Tooltip content={seasonalTooltip} />
+								<Bar 
+									dataKey='value' 
+									fill='#f9ed32' 
+									radius={[4, 4, 0, 0]} 
+									opacity={0.9} 
+									activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+								/>
+							</BarChart>
+						</ResponsiveContainer>
+					</div>
+				) : (
+					<div className='flex items-center justify-center h-64'>
+						<p className='text-white text-sm'>No monthly data available</p>
+					</div>
+				)}
+			</div>
+
 			{/* Defensive Record Section */}
 			{(() => {
 				const concededVal = toNumber(validPlayerData.conceded);
@@ -2694,6 +2938,7 @@ export default function PlayerStats() {
 				const gkVal = toNumber(validPlayerData.gk);
 				const savesVal = toNumber(validPlayerData.saves);
 				const concededPerAppVal = toNumber(validPlayerData.concededPerApp);
+				const gkCleanSheetsVal = toNumber(validPlayerData.gkCleanSheets || 0);
 				
 				// Debug logging
 				console.log('[PlayerStats] Defensive Record Data:', {
@@ -2704,7 +2949,8 @@ export default function PlayerStats() {
 						appearances: validPlayerData.appearances,
 						gk: validPlayerData.gk,
 						saves: validPlayerData.saves,
-						concededPerApp: validPlayerData.concededPerApp
+						concededPerApp: validPlayerData.concededPerApp,
+						gkCleanSheets: validPlayerData.gkCleanSheets
 					},
 					converted: {
 						conceded: concededVal,
@@ -2713,7 +2959,8 @@ export default function PlayerStats() {
 						appearances: appearancesVal,
 						gk: gkVal,
 						saves: savesVal,
-						concededPerApp: concededPerAppVal
+						concededPerApp: concededPerAppVal,
+						gkCleanSheets: gkCleanSheetsVal
 					}
 				});
 
@@ -2726,6 +2973,7 @@ export default function PlayerStats() {
 						gk={gkVal}
 						saves={savesVal}
 						concededPerApp={concededPerAppVal}
+						gkCleanSheets={gkCleanSheetsVal}
 					/>
 				);
 			})()}
@@ -2894,6 +3142,63 @@ export default function PlayerStats() {
 					cleanSheets={toNumber(validPlayerData.cleanSheets)}
 				/>
 			)}
+
+			{/* Awards and Achievements Section */}
+			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Awards and Achievements</h3>
+				{isLoadingAwards ? (
+					<div className='flex items-center justify-center h-32'>
+						<p className='text-white text-sm'>Loading awards...</p>
+					</div>
+				) : awardsData ? (
+					<div className='space-y-4'>
+						{/* Awards List */}
+						{awardsData.awards && awardsData.awards.length > 0 && (
+							<div>
+								<h4 className='text-white font-medium text-xs md:text-sm mb-2'>Awards</h4>
+								<ul className='space-y-1'>
+									{awardsData.awards.map((award: any, index: number) => (
+										<li key={index} className='text-white text-xs md:text-sm'>
+											<span className='text-dorkinians-yellow'>{award.awardName}</span>
+											{award.season && <span className='text-white/70 ml-2'>({award.season})</span>}
+										</li>
+									))}
+								</ul>
+							</div>
+						)}
+						
+						{/* TOTW Count */}
+						<div className='pt-2 border-t border-white/10'>
+							<p className='text-white text-xs md:text-sm'>
+								<span className='text-white/70'>Number of times in TOTW: </span>
+								<span className='font-bold text-dorkinians-yellow'>{awardsData.totwCount || 0}</span>
+							</p>
+						</div>
+
+						{/* Star Man Count */}
+						<div>
+							<p className='text-white text-xs md:text-sm'>
+								<span className='text-white/70'>Number of times as Star Man: </span>
+								<span className='font-bold text-dorkinians-yellow'>{awardsData.starManCount || 0}</span>
+							</p>
+						</div>
+
+						{/* Player of the Month Count */}
+						<div>
+							<p className='text-white text-xs md:text-sm'>
+								<span className='text-white/70'>Number of times in Player of the Month: </span>
+								<span className='font-bold text-dorkinians-yellow'>{awardsData.playerOfMonthCount || 0}</span>
+							</p>
+						</div>
+
+						{(!awardsData.awards || awardsData.awards.length === 0) && awardsData.playerOfMonthCount === 0 && awardsData.starManCount === 0 && (awardsData.totwCount || 0) === 0 && (
+							<p className='text-white/70 text-xs md:text-sm'>No awards or achievements recorded.</p>
+						)}
+					</div>
+				) : (
+					<p className='text-white/70 text-xs md:text-sm'>No awards data available.</p>
+				)}
+			</div>
 		</div>
 	);
 

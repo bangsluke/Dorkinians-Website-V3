@@ -22,6 +22,7 @@ export interface PlayerData {
 	ownGoals: number;
 	conceded: number;
 	cleanSheets: number;
+	gkCleanSheets: number;
 	penaltiesScored: number;
 	penaltiesMissed: number;
 	penaltiesConceded: number;

@@ -41,7 +41,11 @@ export function getAvailableVisualizations(
 	fantasyBreakdown: any,
 	isLoadingFantasyBreakdown: boolean,
 	gameDetails: any,
-	isLoadingGameDetails: boolean
+	isLoadingGameDetails: boolean,
+	monthlyChartData: any[],
+	isLoadingMonthlyStats: boolean,
+	awardsData: any,
+	isLoadingAwards: boolean
 ): VisualizationOption[] {
 	if (!playerData) return [];
 
@@ -168,6 +172,26 @@ export function getAvailableVisualizations(
 			id: "minutes-per-stats",
 			label: "Minutes per Stats",
 			description: "Minutes per goal, assist, MoM, etc.",
+			available: true,
+		});
+	}
+
+	// Monthly Performance
+	if (!isLoadingMonthlyStats && monthlyChartData.length > 0) {
+		options.push({
+			id: "monthly-performance",
+			label: "Monthly Performance",
+			description: "Bar chart showing performance by month",
+			available: true,
+		});
+	}
+
+	// Awards and Achievements
+	if (!isLoadingAwards && awardsData && (awardsData.awards?.length > 0 || awardsData.playerOfMonthCount > 0 || awardsData.starManCount > 0)) {
+		options.push({
+			id: "awards-and-achievements",
+			label: "Awards and Achievements",
+			description: "Player awards, Player of the Month, and Star Man counts",
 			available: true,
 		});
 	}
