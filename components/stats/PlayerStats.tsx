@@ -2950,8 +2950,9 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Blackout overlay - covers full screen during entire share process */}
-			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen) && (
-				<div className="fixed inset-0 bg-black z-[40]" style={{ pointerEvents: 'none' }} />
+			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
+				<div className="fixed inset-0 bg-black z-[30]" style={{ pointerEvents: 'none', opacity: 1 }} />,
+				document.body
 			)}
 
 			{/* Share Visualization Modal */}
@@ -2981,11 +2982,15 @@ export default function PlayerStats() {
 					ref={shareCardRef}
 					style={{ 
 						position: 'fixed', 
-						left: '-9999px', 
-						top: '-9999px', 
+						left: '-20000px', 
+						top: '-20000px', 
+						width: '1080px',
+						height: '1080px',
 						visibility: 'hidden',
+						opacity: 0,
 						pointerEvents: 'none',
 						zIndex: -1,
+						overflow: 'hidden',
 					}}>
 					<ShareableStatsCard
 						playerName={selectedPlayer}

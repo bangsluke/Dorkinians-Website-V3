@@ -256,13 +256,11 @@ export async function generateShareImage(
 		zIndex: element.style.zIndex,
 	};
 
-	// Temporarily make element visible but off-screen
-	element.style.position = "fixed";
-	element.style.left = "0";
-	element.style.top = "0";
+	// Temporarily make element visible but keep it off-screen (html2canvas can capture off-screen elements)
+	// Don't change position or z-index - keep it hidden from user but visible to html2canvas
 	element.style.visibility = "visible";
 	element.style.opacity = "1";
-	element.style.zIndex = "9999";
+	// Keep original position and z-index to stay below blackout
 
 	// Wait for any images to load - including stat icons
 	const images = element.querySelectorAll("img");
@@ -276,7 +274,7 @@ export async function generateShareImage(
 			img.src = src;
 		}
 		
-		return new Promise((resolve) => {
+		return new Promise<void>((resolve) => {
 			const timeout = setTimeout(() => {
 				resolve(); // Resolve after timeout even if image hasn't loaded
 			}, 3000);
@@ -308,6 +306,16 @@ export async function generateShareImage(
 			height: element.offsetHeight,
 			windowWidth: element.offsetWidth,
 			windowHeight: element.offsetHeight,
+			onclone: (clonedDoc) => {
+				// Ensure filters are applied in cloned DOM
+				const clonedElement = clonedDoc.querySelector('.shareable-stats-card');
+				if (clonedElement) {
+					const logoImg = clonedElement.querySelector('img[alt="Dorkinians FC Logo"]') as HTMLImageElement;
+					if (logoImg) {
+						logoImg.style.filter = "grayscale(100%) brightness(0) invert(1)";
+					}
+				}
+			},
 		});
 
 		return canvas.toDataURL("image/png", 1.0);
@@ -340,12 +348,12 @@ export async function shareImage(
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
 		// For iOS, return flag to show preview first
-		if (isIOS() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+		if (isIOS() && typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
 			return { success: true, needsIOSPreview: true };
 		}
 
 		// Try Web Share API first (mobile-friendly, non-iOS)
-		if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+		if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
 			await navigator.share({
 				files: [file],
 				title: `${playerName} - Player Stats`,
