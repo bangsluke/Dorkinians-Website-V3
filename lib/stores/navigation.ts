@@ -53,6 +53,10 @@ export interface PlayerData {
 	penaltiesMissedPerApp: number;
 	penaltiesConcededPerApp: number;
 	penaltiesSavedPerApp: number;
+	assistsPerApp: number;
+	goalInvolvementsPerApp: number;
+	penaltyConversionRate: number;
+	winRateWhenScoring: number;
 	pointsPerGame: number;
 	wins: number;
 	draws: number;
