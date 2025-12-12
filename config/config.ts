@@ -42,6 +42,18 @@ export const homepageQuestions: HomepageQuestion[] = [
 		description: "See which players you've appeared with most often",
 		category: "player",
 	},
+	{
+		id: "most-opposition",
+		question: "What opposition have I played against the most?",
+		description: "See which teams you've faced most frequently",
+		category: "player",
+	},
+	{
+		id: "full-stats",
+		question: "What are my full stats?",
+		description: "View your complete player statistics",
+		category: "player",
+	},
 ];
 
 export const usefulLinks: UsefulLink[] = [

@@ -678,6 +678,26 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Save to localStorage
 		if (typeof window !== "undefined") {
 			localStorage.setItem("dorkinians-selected-player", playerName);
+			
+			// Track recently selected players (max 5, most recent first)
+			try {
+				const recentPlayersKey = "dorkinians-recent-players";
+				const existing = localStorage.getItem(recentPlayersKey);
+				let recentPlayers: string[] = existing ? JSON.parse(existing) : [];
+				
+				// Remove player if already in list (to avoid duplicates)
+				recentPlayers = recentPlayers.filter((p) => p !== playerName);
+				
+				// Add to front
+				recentPlayers.unshift(playerName);
+				
+				// Keep only the 5 most recent
+				recentPlayers = recentPlayers.slice(0, 5);
+				
+				localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
+			} catch (e) {
+				console.warn("Failed to save recent players:", e);
+			}
 		}
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
 

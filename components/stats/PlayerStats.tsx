@@ -377,14 +377,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 65}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -398,7 +398,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 65}
-								y={goalCenterY - 70}
+								y={goalCenterY - 80}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -418,14 +418,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 60}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -439,7 +439,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 60}
-								y={goalCenterY - 70}
+								y={goalCenterY - 80}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -459,14 +459,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={penaltyShootoutSavedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 20}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 80}
 								r={penaltyShootoutSavedSize / 2}
 								fill='#1e40af'
 								cursor='pointer'
@@ -480,7 +480,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 20}
-								y={goalCenterY - 70}
+								y={goalCenterY - 80}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -500,14 +500,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 130}
+								cy={goalCenterY - 140}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 130}
+								cy={goalCenterY - 140}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -521,7 +521,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 130}
+								y={goalCenterY - 140}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -582,7 +582,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 45}
 								rx={concededWidth / 2 + 20}
 								ry={concededHeight / 2 + 15}
 								fill='transparent'
@@ -590,7 +590,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<ellipse
 								cx={goalCenterX - 120}
-								cy={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								cy={goalY + goalHeight + 30 + concededHeight / 2 - 45}
 								rx={concededWidth / 2}
 								ry={concededHeight / 2}
 								fill='#f97316'
@@ -605,7 +605,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 120}
-								y={goalY + goalHeight + 30 + concededHeight / 2 - 40}
+								y={goalY + goalHeight + 30 + concededHeight / 2 - 45}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -625,14 +625,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 60}
+								cy={goalCenterY - 80}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX - 110}
-								cy={goalCenterY - 60}
+								cy={goalCenterY - 80}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -646,7 +646,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX - 110}
-								y={goalCenterY - 60}
+								y={goalCenterY - 80}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
