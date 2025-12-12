@@ -8,7 +8,8 @@ import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { ResponsiveSankey } from "@nivo/sankey";
 
 
 interface TopPlayer {
@@ -356,6 +357,23 @@ export default function ClubTeamStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
+	// Team comparison state
+	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
+	const [isLoadingTeamComparison, setIsLoadingTeamComparison] = useState(false);
+
+	// Player distribution state
+	const [playerDistributionData, setPlayerDistributionData] = useState<any>(null);
+	const [isLoadingPlayerDistribution, setIsLoadingPlayerDistribution] = useState(false);
+
+	// Player tenure state
+	const [playerTenureData, setPlayerTenureData] = useState<number[]>([]);
+	const [isLoadingPlayerTenure, setIsLoadingPlayerTenure] = useState(false);
+
+	// Position stats state
+	const [positionStatsData, setPositionStatsData] = useState<any[]>([]);
+	const [isLoadingPositionStats, setIsLoadingPositionStats] = useState(false);
+	const [selectedPositionStat, setSelectedPositionStat] = useState<string>("goals");
+
 	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
 		if (!playerFilters || !playerFilters.teams || playerFilters.teams.length === 0) {
@@ -480,6 +498,158 @@ export default function ClubTeamStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters]);
+
+	// Fetch team comparison data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchTeamComparison = async () => {
+			setIsLoadingTeamComparison(true);
+			try {
+				const teams = ["1st XI", "2nd XI", "3rd XI", "4th XI", "5th XI", "6th XI", "7th XI", "8th XI"];
+				const promises = teams.map(async (teamName) => {
+					try {
+						const response = await fetch("/api/team-data-filtered", {
+							method: "POST",
+							headers: {
+								"Content-Type": "application/json",
+							},
+							body: JSON.stringify({
+								teamName: teamName,
+								filters: playerFilters,
+							}),
+						});
+
+						if (response.ok) {
+							const data = await response.json();
+							return { team: teamName, data: data.teamData };
+						}
+						return null;
+					} catch (error) {
+						console.error(`Error fetching data for ${teamName}:`, error);
+						return null;
+					}
+				});
+
+				const results = await Promise.all(promises);
+				const validResults = results.filter((r) => r !== null);
+				setTeamComparisonData(validResults);
+			} catch (error) {
+				console.error("Error fetching team comparison data:", error);
+				setTeamComparisonData([]);
+			} finally {
+				setIsLoadingTeamComparison(false);
+			}
+		};
+
+		fetchTeamComparison();
+	}, [filtersKey, playerFilters]);
+
+	// Fetch player distribution data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerDistribution = async () => {
+			setIsLoadingPlayerDistribution(true);
+			try {
+				const response = await fetch("/api/club-player-distribution", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setPlayerDistributionData(data);
+				} else {
+					console.error("Failed to fetch player distribution:", response.statusText);
+					setPlayerDistributionData(null);
+				}
+			} catch (error) {
+				console.error("Error fetching player distribution:", error);
+				setPlayerDistributionData(null);
+			} finally {
+				setIsLoadingPlayerDistribution(false);
+			}
+		};
+
+		fetchPlayerDistribution();
+	}, [filtersKey, playerFilters]);
+
+	// Fetch player tenure data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerTenure = async () => {
+			setIsLoadingPlayerTenure(true);
+			try {
+				const response = await fetch("/api/club-player-tenure", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setPlayerTenureData(data.tenures || []);
+				} else {
+					console.error("Failed to fetch player tenure:", response.statusText);
+					setPlayerTenureData([]);
+				}
+			} catch (error) {
+				console.error("Error fetching player tenure:", error);
+				setPlayerTenureData([]);
+			} finally {
+				setIsLoadingPlayerTenure(false);
+			}
+		};
+
+		fetchPlayerTenure();
+	}, [filtersKey, playerFilters]);
+
+	// Fetch position stats data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPositionStats = async () => {
+			setIsLoadingPositionStats(true);
+			try {
+				const response = await fetch("/api/club-position-stats", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+						statType: selectedPositionStat,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setPositionStatsData(data.stats || []);
+				} else {
+					console.error("Failed to fetch position stats:", response.statusText);
+					setPositionStatsData([]);
+				}
+			} catch (error) {
+				console.error("Error fetching position stats:", error);
+				setPositionStatsData([]);
+			} finally {
+				setIsLoadingPositionStats(false);
+			}
+		};
+
+		fetchPositionStats();
+	}, [filtersKey, selectedPositionStat, playerFilters]);
 
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
@@ -704,6 +874,167 @@ export default function ClubTeamStats() {
 		return null;
 	};
 
+	// Transform team comparison data for radar chart
+	const radarChartData = useMemo(() => {
+		if (!teamComparisonData || teamComparisonData.length === 0) return [];
+
+		// Get all stat categories
+		const categories = ["Games", "Goals Scored", "Goals Conceded", "Distance", "Wins", "Points per Game", "Clean Sheets", "Competitions", "Fantasy Points"];
+
+		// Find max values for normalization
+		const maxValues: { [key: string]: number } = {};
+		teamComparisonData.forEach(({ data }: any) => {
+			if (data) {
+				maxValues.Games = Math.max(maxValues.Games || 0, toNumber(data.gamesPlayed));
+				maxValues["Goals Scored"] = Math.max(maxValues["Goals Scored"] || 0, toNumber(data.goalsScored));
+				maxValues["Goals Conceded"] = Math.max(maxValues["Goals Conceded"] || 0, toNumber(data.goalsConceded));
+				maxValues.Distance = Math.max(maxValues.Distance || 0, toNumber(data.totalDistance));
+				maxValues.Wins = Math.max(maxValues.Wins || 0, toNumber(data.wins));
+				maxValues["Points per Game"] = Math.max(maxValues["Points per Game"] || 0, toNumber(data.pointsPerGame));
+				maxValues["Clean Sheets"] = Math.max(maxValues["Clean Sheets"] || 0, toNumber(data.cleanSheets));
+				maxValues.Competitions = Math.max(maxValues.Competitions || 0, toNumber(data.numberOfCompetitions));
+				maxValues["Fantasy Points"] = Math.max(maxValues["Fantasy Points"] || 0, toNumber(data.totalFantasyPoints));
+			}
+		});
+
+		// Create data points for each category
+		return categories.map((category) => {
+			const dataPoint: any = { category };
+			teamComparisonData.forEach(({ team, data }: any) => {
+				if (data) {
+					let value = 0;
+					switch (category) {
+						case "Games":
+							value = toNumber(data.gamesPlayed);
+							break;
+						case "Goals Scored":
+							value = toNumber(data.goalsScored);
+							break;
+						case "Goals Conceded":
+							value = toNumber(data.goalsConceded);
+							break;
+						case "Distance":
+							value = toNumber(data.totalDistance);
+							break;
+						case "Wins":
+							value = toNumber(data.wins);
+							break;
+						case "Points per Game":
+							value = toNumber(data.pointsPerGame);
+							break;
+						case "Clean Sheets":
+							value = toNumber(data.cleanSheets);
+							break;
+						case "Competitions":
+							value = toNumber(data.numberOfCompetitions);
+							break;
+						case "Fantasy Points":
+							value = toNumber(data.totalFantasyPoints);
+							break;
+					}
+					// Normalize to 0-100 scale
+					const max = maxValues[category] || 1;
+					const teamKey = team.replace(" XI", "s");
+					dataPoint[teamKey] = max > 0 ? (value / max) * 100 : 0;
+				}
+			});
+			return dataPoint;
+		});
+	}, [teamComparisonData]);
+
+	// Transform player distribution data for sankey
+	const sankeyData = useMemo(() => {
+		if (!playerDistributionData || !playerDistributionData.distribution) return null;
+
+		const distribution = playerDistributionData.distribution;
+		const validTeams = ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"];
+
+		// Filter distribution to only include valid teams
+		const filteredDistribution = distribution.filter((item: any) => 
+			validTeams.includes(item.team) && item.count > 0
+		);
+
+		if (filteredDistribution.length === 0) return null;
+
+		// Create nodes only for teams that have data
+		const teamIds = filteredDistribution.map((item: any) => item.team);
+		const nodes = teamIds.map((team) => ({
+			id: team,
+			label: team,
+		}));
+
+		// Create links (for vertical sankey, we need to connect from top to bottom)
+		// Since we're showing distribution, we'll create links from each team to a "Players" source
+		const links: any[] = [];
+		filteredDistribution.forEach((item: any) => {
+			if (item.count > 0 && validTeams.includes(item.team)) {
+				links.push({
+					source: "Players",
+					target: item.team,
+					value: item.count,
+				});
+			}
+		});
+
+		// Add source node
+		nodes.unshift({ id: "Players", label: "Players" });
+
+		return { nodes, links };
+	}, [playerDistributionData]);
+
+	// Transform player tenure data for histogram
+	const tenureHistogramData = useMemo(() => {
+		if (!playerTenureData || playerTenureData.length === 0) return [];
+
+		// Create bins
+		const bins: { [key: number]: number } = {};
+		playerTenureData.forEach((tenure) => {
+			bins[tenure] = (bins[tenure] || 0) + 1;
+		});
+
+		// Convert to array format
+		const maxTenure = Math.max(...playerTenureData, 0);
+		const histogram = [];
+		for (let i = 1; i <= maxTenure; i++) {
+			histogram.push({
+				seasons: `${i} ${i === 1 ? "Season" : "Seasons"}`,
+				players: bins[i] || 0,
+			});
+		}
+
+		return histogram;
+	}, [playerTenureData]);
+
+	// Get position stat label
+	const getPositionStatLabel = (statType: string): string => {
+		switch (statType) {
+			case "goals":
+				return "Goals";
+			case "assists":
+				return "Assists";
+			case "appearances":
+				return "Appearances";
+			case "cleanSheets":
+				return "Clean Sheets";
+			case "saves":
+				return "Saves";
+			case "yellowCards":
+				return "Yellow Cards";
+			case "redCards":
+				return "Red Cards";
+			case "penaltiesScored":
+				return "Penalties Scored";
+			case "fantasyPoints":
+				return "Fantasy Points";
+			case "minutes":
+				return "Minutes";
+			case "mom":
+				return "Man of the Matches";
+			default:
+				return "Goals";
+		}
+	};
+
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
@@ -722,7 +1053,7 @@ export default function ClubTeamStats() {
 
 			{isLoadingTeamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
-					<p className='text-white text-sm md:text-base'>Loading team data...</p>
+					<p className='text-white text-sm md:text-base'>Loading club data...</p>
 				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
@@ -832,6 +1163,153 @@ export default function ClubTeamStats() {
 							</div>
 						</div>
 					</div>
+
+					{/* Team Comparison Section */}
+					{!isLoadingTeamComparison && teamComparisonData.length > 0 && radarChartData.length > 0 && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={400}>
+										<RadarChart data={radarChartData}>
+											<PolarGrid />
+											<PolarAngleAxis dataKey='category' tick={{ fill: '#fff', fontSize: 12 }} />
+											<PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#fff', fontSize: 10 }} />
+											{teamComparisonData.map(({ team }, index) => {
+												const teamKey = team.replace(" XI", "s");
+												const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
+												return (
+													<Radar
+														key={team}
+														name={teamKey}
+														dataKey={teamKey}
+														stroke={colors[index % colors.length]}
+														fill={colors[index % colors.length]}
+														fillOpacity={0.3}
+													/>
+												);
+											})}
+											<Legend />
+											<Tooltip content={customTooltip} />
+										</RadarChart>
+									</ResponsiveContainer>
+								</div>
+							</div>
+						</div>
+					)}
+
+					{/* Player Distribution Section */}
+					{!isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
+						// Validate that all links reference existing nodes
+						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
+						const validLinks = sankeyData.links.filter((link: any) => 
+							nodeIds.has(link.source) && nodeIds.has(link.target)
+						);
+						
+						if (validLinks.length === 0) return null;
+						
+						return (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y', height: '400px' }}>
+									<ResponsiveSankey
+										data={{ nodes: sankeyData.nodes, links: validLinks }}
+										margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+										layout="vertical"
+										align="justify"
+										colors={{ scheme: 'set3' }}
+										nodeOpacity={0.8}
+										nodeThickness={18}
+										nodeSpacing={24}
+										nodeBorderWidth={0}
+										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+										linkOpacity={0.4}
+										linkHoverOthersOpacity={0.1}
+										enableLinkGradient={true}
+										labelPosition="outside"
+										labelOrientation="vertical"
+										labelPadding={8}
+										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+										theme={{
+											text: { fill: '#fff', fontSize: 12 },
+										}}
+									/>
+								</div>
+							</div>
+						</div>
+						);
+					})()}
+
+					{/* Player Tenure Section */}
+					{!isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={tenureHistogramData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis dataKey='seasons' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
+											<YAxis stroke='#fff' fontSize={12} />
+											<Tooltip content={customTooltip} />
+											<Bar dataKey='players' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							</div>
+						</div>
+					)}
+
+					{/* Stats Distribution Section */}
+					{!isLoadingPositionStats && positionStatsData.length > 0 && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
+								<div className='mb-2'>
+									<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
+										<div className='relative'>
+											<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+												<span className='block truncate text-white'>
+													{getPositionStatLabel(selectedPositionStat)}
+												</span>
+												<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+													<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+												</span>
+											</Listbox.Button>
+											<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+												{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+													<Listbox.Option
+														key={statType}
+														className={({ active }) =>
+															`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+														}
+														value={statType}>
+														{({ selected }) => (
+															<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																{getPositionStatLabel(statType)}
+															</span>
+														)}
+													</Listbox.Option>
+												))}
+											</Listbox.Options>
+										</div>
+									</Listbox>
+								</div>
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
+											<YAxis stroke='#fff' fontSize={12} />
+											<Tooltip content={customTooltip} />
+											<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							</div>
+						</div>
+					)}
 
 					{(() => {
 						const chartContent = (
