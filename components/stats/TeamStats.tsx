@@ -9,6 +9,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import RecentGamesForm from "./RecentGamesForm";
 
 
 interface TopPlayer {
@@ -974,6 +975,11 @@ export default function TeamStats() {
 							</div>
 						</div>
 					</div>
+					)}
+
+					{/* Recent Games Form */}
+					{!isDataTableMode && selectedTeam && apiFilters && (
+						<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
 					)}
 
 					{(() => {
