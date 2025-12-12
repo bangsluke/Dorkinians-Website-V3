@@ -67,8 +67,88 @@ export async function POST(request: NextRequest) {
 			);
 		}
 
+		// Check if player exists first
+		const playerCheckQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			RETURN p.id as id, p.playerName as playerName, p.allowOnSite as allowOnSite, p.graphLabel as graphLabel
+			LIMIT 1
+		`;
+		const playerCheckResult = await neo4jService.runQuery(playerCheckQuery, { graphLabel: params.graphLabel, playerName: params.playerName });
+		
+		if (playerCheckResult.records.length === 0) {
+			return NextResponse.json({ error: "Player not found" }, { status: 404, headers: corsHeaders });
+		}
+
+		// If player exists but no matches for filters, return zero stats
 		if (result.records.length === 0) {
-			return NextResponse.json({ error: "Player not found or no matches for filters" }, { status: 404, headers: corsHeaders });
+			const playerRecord = playerCheckResult.records[0];
+			const defaultPlayerData = {
+				id: playerRecord.get("id"),
+				playerName: playerRecord.get("playerName"),
+				allowOnSite: playerRecord.get("allowOnSite"),
+				gk: 0,
+				def: 0,
+				mid: 0,
+				fwd: 0,
+				gkMinutes: 0,
+				defMinutes: 0,
+				midMinutes: 0,
+				fwdMinutes: 0,
+				appearances: 0,
+				minutes: 0,
+				mom: 0,
+				goals: 0,
+				assists: 0,
+				yellowCards: 0,
+				redCards: 0,
+				saves: 0,
+				ownGoals: 0,
+				conceded: 0,
+				cleanSheets: 0,
+				penaltiesScored: 0,
+				penaltiesMissed: 0,
+				penaltiesConceded: 0,
+				penaltiesSaved: 0,
+				penaltyShootoutPenaltiesScored: 0,
+				penaltyShootoutPenaltiesMissed: 0,
+				penaltyShootoutPenaltiesSaved: 0,
+				fantasyPoints: 0,
+				allGoalsScored: 0,
+				openPlayGoalsScored: 0,
+				goalInvolvements: 0,
+				goalsPerApp: 0,
+				concededPerApp: 0,
+				minutesPerGoal: 0,
+				minutesPerCleanSheet: 0,
+				fantasyPointsPerApp: 0,
+				distance: 0,
+				homeGames: 0,
+				homeWins: 0,
+				homeGamesPercentWon: 0,
+				awayGames: 0,
+				awayWins: 0,
+				awayGamesPercentWon: 0,
+				gamesPercentWon: 0,
+				pointsPerGame: 0,
+				wins: 0,
+				draws: 0,
+				losses: 0,
+				mostPlayedForTeam: "",
+				numberTeamsPlayedFor: 0,
+				mostScoredForTeam: "",
+				numberSeasonsPlayedFor: 0,
+				oppositionPlayed: 0,
+				competitionsCompeted: 0,
+				teammatesPlayedWith: 0,
+				graphLabel: playerRecord.get("graphLabel"),
+			};
+
+			return NextResponse.json({
+				playerData: defaultPlayerData,
+				debug: {
+					copyPasteQuery,
+				},
+			}, { headers: corsHeaders });
 		}
 
 		// Helper function to convert Neo4j Integer/Float to JavaScript number
