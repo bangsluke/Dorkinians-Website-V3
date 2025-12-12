@@ -11,6 +11,7 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
+import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
 import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
 import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
 import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
@@ -1527,6 +1528,10 @@ export default function PlayerStats() {
 	const [oppositionMapData, setOppositionMapData] = useState<any[]>([]);
 	const [isLoadingOppositionMap, setIsLoadingOppositionMap] = useState(false);
 
+	// State for opposition performance data
+	const [oppositionPerformanceData, setOppositionPerformanceData] = useState<any[]>([]);
+	const [isLoadingOppositionPerformance, setIsLoadingOppositionPerformance] = useState(false);
+
 	// State for game details data
 	const [gameDetails, setGameDetails] = useState<any>(null);
 	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
@@ -1786,6 +1791,32 @@ export default function PlayerStats() {
 		};
 
 		fetchOppositionMapData();
+	}, [selectedPlayer]);
+
+	// Fetch opposition performance data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionPerformanceData([]);
+			return;
+		}
+
+		const fetchOppositionPerformanceData = async () => {
+			setIsLoadingOppositionPerformance(true);
+			try {
+				const response = await fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionPerformanceData(data.performanceData || []);
+				}
+			} catch (error) {
+				console.error("Error fetching opposition performance data:", error);
+				setOppositionPerformanceData([]);
+			} finally {
+				setIsLoadingOppositionPerformance(false);
+			}
+		};
+
+		fetchOppositionPerformanceData();
 	}, [selectedPlayer]);
 
 	// Fetch game details when player or filters change
@@ -2711,6 +2742,23 @@ export default function PlayerStats() {
 			{oppositionMapData.length > 0 && (
 				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 			)}
+
+			{/* Opposition Performance Section */}
+			{(() => {
+				const hasGoalsOrAssists = toNumber(validPlayerData.goals) > 0 || toNumber(validPlayerData.assists) > 0;
+				const isSingleOppositionSelected = !playerFilters.opposition.allOpposition && playerFilters.opposition.searchTerm !== "";
+				
+				if (!hasGoalsOrAssists || isSingleOppositionSelected) {
+					return null;
+				}
+
+				return (
+					<OppositionPerformanceScatter
+						data={oppositionPerformanceData}
+						isLoading={isLoadingOppositionPerformance}
+					/>
+				);
+			})()}
 
 			{/* Fantasy Points Section */}
 			{toNumber(validPlayerData.fantasyPoints) > 0 && (
