@@ -8,8 +8,9 @@ import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Line } from "recharts";
 import { ResponsiveSankey } from "@nivo/sankey";
+import HomeAwayGauge from "./HomeAwayGauge";
 
 
 interface TopPlayer {
@@ -374,7 +375,21 @@ export default function ClubTeamStats() {
 	// Position stats state
 	const [positionStatsData, setPositionStatsData] = useState<any[]>([]);
 	const [isLoadingPositionStats, setIsLoadingPositionStats] = useState(false);
-	const [selectedPositionStat, setSelectedPositionStat] = useState<string>("goals");
+	const [selectedPositionStat, setSelectedPositionStat] = useState<string>("appearances");
+
+	// State for seasonal performance chart
+	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Games");
+	const [seasonalStats, setSeasonalStats] = useState<any[]>([]);
+	const [isLoadingSeasonalStats, setIsLoadingSeasonalStats] = useState(false);
+	const [showTrend, setShowTrend] = useState(true);
+
+	// State for game details
+	const [gameDetails, setGameDetails] = useState<any>(null);
+	const [isLoadingGameDetails, setIsLoadingGameDetails] = useState(false);
+
+	// State for unique player stats
+	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
+	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
 	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
@@ -500,6 +515,191 @@ export default function ClubTeamStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters]);
+
+	// Check if all seasons are selected
+	const allSeasonsSelected = useMemo(() => {
+		if (playerFilters?.timeRange?.type === "allTime") return true;
+		if (playerFilters?.timeRange?.type === "season" && filterData?.seasons) {
+			const selectedSeasons = playerFilters.timeRange.seasons || [];
+			const allSeasons = filterData.seasons.map((s: any) => s.season || s);
+			return selectedSeasons.length === allSeasons.length && 
+				allSeasons.every((season: string) => selectedSeasons.includes(season));
+		}
+		return false;
+	}, [playerFilters?.timeRange, filterData]);
+
+	// Stat options for seasonal chart dropdown
+	const statOptions = useMemo(() => [
+		{ value: "Games", label: "Games", statKey: "gamesPlayed" },
+		{ value: "Wins", label: "Wins", statKey: "wins" },
+		{ value: "Goals", label: "Goals", statKey: "goalsScored" },
+		{ value: "Goals Conceded", label: "Goals Conceded", statKey: "goalsConceded" },
+		{ value: "Clean Sheets", label: "Clean Sheets", statKey: "teamCleanSheets" },
+		{ value: "Appearances", label: "Appearances", statKey: "appearances" },
+		{ value: "Minutes", label: "Minutes", statKey: "minutes" },
+		{ value: "MoM", label: "MoM", statKey: "mom" },
+		{ value: "Assists", label: "Assists", statKey: "assists" },
+		{ value: "Fantasy Points", label: "Fantasy Points", statKey: "fantasyPoints" },
+		{ value: "Yellow Cards", label: "Yellow Cards", statKey: "yellowCards" },
+		{ value: "Red Cards", label: "Red Cards", statKey: "redCards" },
+		{ value: "Saves", label: "Saves", statKey: "saves" },
+		{ value: "Conceded", label: "Conceded", statKey: "conceded" },
+		{ value: "Own Goals", label: "Own Goals", statKey: "ownGoals" },
+		{ value: "Penalties Scored", label: "Penalties Scored", statKey: "penaltiesScored" },
+		{ value: "Penalties Missed", label: "Penalties Missed", statKey: "penaltiesMissed" },
+		{ value: "Penalties Conceded", label: "Penalties Conceded", statKey: "penaltiesConceded" },
+		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
+		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
+	], []);
+
+	// Fetch seasonal stats when all seasons selected
+	useEffect(() => {
+		if (!allSeasonsSelected || !playerFilters) {
+			setSeasonalStats([]);
+			return;
+		}
+
+		const fetchSeasonalStats = async () => {
+			setIsLoadingSeasonalStats(true);
+			try {
+				const response = await fetch("/api/team-seasonal-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonalStats(data.seasonalStats || []);
+				}
+			} catch (error) {
+				console.error("Error fetching seasonal stats:", error);
+			} finally {
+				setIsLoadingSeasonalStats(false);
+			}
+		};
+
+		fetchSeasonalStats();
+	}, [allSeasonsSelected, playerFilters]);
+
+	// Fetch game details when filters change
+	useEffect(() => {
+		if (!playerFilters) {
+			setGameDetails(null);
+			return;
+		}
+
+		const fetchGameDetails = async () => {
+			setIsLoadingGameDetails(true);
+			try {
+				const response = await fetch("/api/team-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setGameDetails(data);
+				}
+			} catch (error) {
+				console.error("Error fetching game details:", error);
+				setGameDetails(null);
+			} finally {
+				setIsLoadingGameDetails(false);
+			}
+		};
+
+		fetchGameDetails();
+	}, [playerFilters]);
+
+	// Fetch unique player stats when filters change
+	useEffect(() => {
+		if (!playerFilters) {
+			setUniquePlayerStats(null);
+			return;
+		}
+
+		const fetchUniqueStats = async () => {
+			setIsLoadingUniqueStats(true);
+			try {
+				const response = await fetch("/api/unique-player-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setUniquePlayerStats(data);
+				}
+			} catch (error) {
+				console.error("Error fetching unique player stats:", error);
+				setUniquePlayerStats(null);
+			} finally {
+				setIsLoadingUniqueStats(false);
+			}
+		};
+
+		fetchUniqueStats();
+	}, [playerFilters]);
+
+	// Calculate linear regression for trendline
+	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
+		if (data.length < 2) return [];
+		
+		const n = data.length;
+		let sumX = 0;
+		let sumY = 0;
+		let sumXY = 0;
+		let sumX2 = 0;
+		
+		data.forEach((point, index) => {
+			const x = index;
+			const y = point.value;
+			sumX += x;
+			sumY += y;
+			sumXY += x * y;
+			sumX2 += x * x;
+		});
+		
+		const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+		const intercept = (sumY - slope * sumX) / n;
+		
+		return data.map((point, index) => ({
+			name: point.name,
+			value: slope * index + intercept,
+		}));
+	};
+
+	// Prepare seasonal chart data with trendline
+	const seasonalChartData = useMemo(() => {
+		if (!seasonalStats.length) return [];
+		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+		if (!selectedOption) return [];
+		
+		const baseData = seasonalStats.map(stat => ({
+			name: stat.season,
+			value: toNumber(stat[selectedOption.statKey] || 0),
+		}));
+
+		// Add trendline values if enabled
+		if (showTrend && baseData.length >= 2) {
+			const trendlinePoints = calculateTrendline(baseData);
+			return baseData.map((point, index) => ({
+				...point,
+				trendline: trendlinePoints[index]?.value || 0,
+			}));
+		}
+
+		return baseData;
+	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
 
 	// Fetch team comparison data
 	useEffect(() => {
@@ -827,9 +1027,11 @@ export default function ClubTeamStats() {
 	// Prepare chart data (must be at top level for hooks)
 	const goalsData = useMemo(() => {
 		if (!teamData) return [];
+		const goalsScored = toNumber(teamData.goalsScored);
+		const goalsConceded = toNumber(teamData.goalsConceded);
 		return [
-			{ name: "Goals Scored", value: toNumber(teamData.goalsScored) },
-			{ name: "Goals Conceded", value: toNumber(teamData.goalsConceded) },
+			{ name: "Goals Scored", value: goalsScored, fill: "#22c55e" },
+			{ name: "Goals Conceded", value: goalsConceded, fill: "#ef4444" },
 		];
 	}, [teamData]);
 
@@ -871,6 +1073,24 @@ export default function ClubTeamStats() {
 					<p className='text-white text-sm'>{displayLabel}</p>
 					<p className='text-white text-sm'>
 						<span className='font-semibold'>Value</span>: {displayValue}
+					</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+	// Custom tooltip for Stats Distribution with comma formatting
+	const statsDistributionTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
+			const displayValue = payload[0].value || 0;
+			const formattedValue = typeof displayValue === 'number' ? displayValue.toLocaleString('en-US') : displayValue;
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayLabel}</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Value</span>: {formattedValue}
 					</p>
 				</div>
 			);
@@ -1422,7 +1642,7 @@ export default function ClubTeamStats() {
 					{/* Top Players Table */}
 					{(() => {
 						const chartContent = (
-							<div className='space-y-4 pb-4'>
+							<div className='space-y-4'>
 								{/* Top Players Table */}
 								<div className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -1546,6 +1766,101 @@ export default function ClubTeamStats() {
 						);
 						return !isDataTableMode && chartContent;
 					})()}
+
+					{/* Seasonal Performance Section */}
+					{allSeasonsSelected && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='flex items-center justify-between mb-2 gap-2'>
+									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
+									<div className='flex-1 max-w-[45%]'>
+										<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+											<div className='relative'>
+												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+													<span className='block truncate text-white'>
+														{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
+													</span>
+													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+													</span>
+												</Listbox.Button>
+												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+													{statOptions.map((option) => (
+														<Listbox.Option
+															key={option.value}
+															className={({ active }) =>
+																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+															}
+															value={option.value}>
+															{({ selected }) => (
+																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																	{option.label}
+																</span>
+															)}
+														</Listbox.Option>
+													))}
+												</Listbox.Options>
+											</div>
+										</Listbox>
+									</div>
+								</div>
+								<div className='flex items-center justify-center gap-2 mb-2'>
+									<input 
+										type='checkbox' 
+										checked={showTrend} 
+										onChange={(e) => setShowTrend(e.target.checked)}
+										className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
+										id='show-trend-checkbox-club'
+										style={{ accentColor: '#f9ed32' }}
+									/>
+									<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
+								</div>
+								{isLoadingSeasonalStats ? (
+									<div className='flex items-center justify-center h-64'>
+										<p className='text-white text-sm'>Loading seasonal stats...</p>
+									</div>
+								) : seasonalChartData.length > 0 ? (
+									<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+										<ResponsiveContainer width='100%' height={240}>
+											<ComposedChart 
+												data={seasonalChartData} 
+												margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+											>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip content={customTooltip} />
+												<Bar 
+													dataKey='value' 
+													fill='#f9ed32' 
+													radius={[4, 4, 0, 0]} 
+													opacity={0.9} 
+													activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+												/>
+												{showTrend && (
+													<Line 
+														type='linear' 
+														dataKey='trendline' 
+														stroke='#ffffff' 
+														strokeWidth={2}
+														strokeDasharray='5 5'
+														dot={false}
+														activeDot={false}
+														isAnimationActive={false}
+														connectNulls={false}
+													/>
+												)}
+											</ComposedChart>
+										</ResponsiveContainer>
+									</div>
+								) : (
+									<div className='flex items-center justify-center h-64'>
+										<p className='text-white text-sm'>No seasonal data available</p>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
 
 					{/* Player Distribution Section */}
 					{!isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
@@ -1739,8 +2054,12 @@ export default function ClubTeamStats() {
 										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
 											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
-											<YAxis stroke='#fff' fontSize={12} />
-											<Tooltip content={customTooltip} />
+											<YAxis 
+												stroke='#fff' 
+												fontSize={12} 
+												tickFormatter={(value) => value.toLocaleString('en-US')}
+											/>
+											<Tooltip content={statsDistributionTooltip} />
 											<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
 										</BarChart>
 									</ResponsiveContainer>
@@ -1813,56 +2132,441 @@ export default function ClubTeamStats() {
 									);
 								})()}
 
-								{/* Goals Scored vs Conceded Bar Chart */}
+								{/* Game Details Section */}
+								{!isLoadingGameDetails && gameDetails && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
+										
+										{/* CompType Table */}
+										<div className='mb-6'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Type</th>
+														<th className='text-right py-2 px-2'>Count</th>
+														<th className='text-right py-2 px-2'>% Won</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(gameDetails.leagueGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-blue-600/30 text-blue-300'>League</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.leagueGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.leagueGames > 0 
+																	? ((gameDetails.leagueWins || 0) / gameDetails.leagueGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.cupGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-purple-600/30 text-purple-300'>Cup</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.cupGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.cupGames > 0 
+																	? ((gameDetails.cupWins || 0) / gameDetails.cupGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.friendlyGames || 0) > 0 && (
+														<tr>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-green-600/30 text-green-300'>Friendly</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.friendlyGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.friendlyGames > 0 
+																	? ((gameDetails.friendlyWins || 0) / gameDetails.friendlyGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
+										</div>
+
+										{/* Home/Away Table */}
+										<div className='mb-6'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Location</th>
+														<th className='text-right py-2 px-2'>Count</th>
+														<th className='text-right py-2 px-2'>% Won</th>
+													</tr>
+												</thead>
+												<tbody>
+													{(gameDetails.homeGames || 0) > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-dorkinians-yellow/20 text-dorkinians-yellow'>Home</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.homeGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.homeGames > 0 
+																	? ((gameDetails.homeWins || 0) / gameDetails.homeGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+													{(gameDetails.awayGames || 0) > 0 && (
+														<tr>
+															<td className='py-2 px-2'>
+																<span className='px-2 py-1 rounded text-xs font-medium mr-2 bg-gray-700 text-gray-300'>Away</span>
+															</td>
+															<td className='text-right py-2 px-2 font-mono'>{gameDetails.awayGames || 0}</td>
+															<td className='text-right py-2 px-2 font-mono'>
+																{gameDetails.awayGames > 0 
+																	? ((gameDetails.awayWins || 0) / gameDetails.awayGames * 100).toFixed(1) + '%'
+																	: '0.0%'}
+															</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
+										</div>
+
+										{/* Unique Counts */}
+										<div className='space-y-2'>
+											<p className='text-white text-sm'>
+												<span className='text-white'>Opposition played against: </span>
+												<span className='font-mono font-bold'>{gameDetails.uniqueOpponents || 0}</span>
+											</p>
+											<p className='text-white text-sm'>
+												<span className='text-white'>Competitions competed in: </span>
+												<span className='font-mono font-bold'>{gameDetails.uniqueCompetitions || 0}</span>
+											</p>
+										</div>
+									</div>
+								)}
+
+								{/* Big Club Numbers Section */}
+								{teamData && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
+										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
+											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/Minutes-Icon.svg'
+															alt='Total Minutes'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Total Minutes Played</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															{(toNumber(teamData.totalMinutes) / 525600).toFixed(2)} years
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															{toNumber(teamData.totalMinutes).toLocaleString()} minutes
+														</div>
+													</div>
+												</div>
+											)}
+											{teamData.totalDistance && toNumber(teamData.totalDistance) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/Distance-Icon.svg'
+															alt='Total Distance'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Distance Travelled</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															{(toNumber(teamData.totalDistance) / 238900).toFixed(2)}x to the moon
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															{Math.round(toNumber(teamData.totalDistance)).toLocaleString()} miles
+														</div>
+													</div>
+												</div>
+											)}
+											{(teamData.totalYellowCards || teamData.totalRedCards) && 
+												(toNumber(teamData.totalYellowCards || 0) > 0 || toNumber(teamData.totalRedCards || 0) > 0) && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/YellowCard-Icon.svg'
+															alt='Total Cards Cost'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Total Cards Cost</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>
+															£{((toNumber(teamData.totalYellowCards || 0) * 13.5) + (toNumber(teamData.totalRedCards || 0) * 55)).toLocaleString()}
+														</div>
+														<div className='text-white/60 text-xs mt-1'>
+															Yellow + Red cards combined
+														</div>
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+												<ComposedChart data={goalsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
 													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
 													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
 													<YAxis stroke='#fff' fontSize={12} />
 													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
+													<Bar dataKey='value' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }}>
+														{goalsData.map((entry, index) => (
+															<Cell key={`cell-${index}`} fill={entry.fill} />
+														))}
+													</Bar>
+												</ComposedChart>
 											</ResponsiveContainer>
 										</div>
 									</div>
 								)}
 
-								{/* Home vs Away Performance Bar Chart */}
+								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={homeAwayData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
-											</ResponsiveContainer>
+										<HomeAwayGauge 
+											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
+											awayWinPercentage={toNumber(teamData.awayWinPercentage)} 
+										/>
+									</div>
+								)}
+
+								{/* Key Team Stats KPI Cards */}
+								{toNumber(teamData.gamesPlayed) > 0 && (
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
+										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/TeamAppearance-Icon.svg'
+														alt='Games'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Games</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.gamesPlayed).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/CleanSheet-Icon.svg'
+														alt='Clean Sheets'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Clean Sheets</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PointsPerGame-Icon.svg'
+														alt='Points/Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Points/Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.pointsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalsPerAppearance-Icon.svg'
+														alt='Goals/Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goals/Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/ConcededPerAppearance-Icon.svg'
+														alt='Conceded/Game'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Conceded/Game</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalsConcededPerGame).toFixed(2)}</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/PercentageGamesWon-Icon.svg'
+														alt='Win %'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Win %</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.winPercentage))}%</div>
+												</div>
+											</div>
+											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+												<div className='flex-shrink-0'>
+													<Image
+														src='/stat-icons/GoalDifference-Icon.svg'
+														alt='Goal Difference'
+														width={40}
+														height={40}
+														className='w-8 h-8 md:w-10 md:h-10 object-contain'
+													/>
+												</div>
+												<div className='flex-1 min-w-0'>
+													<div className='text-white/70 text-sm md:text-base mb-1'>Goal Diff</div>
+													<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.goalDifference).toLocaleString()}</div>
+												</div>
+											</div>
+											{teamData.totalFantasyPoints && toNumber(teamData.totalFantasyPoints) > 0 && (
+												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+													<div className='flex-shrink-0'>
+														<Image
+															src='/stat-icons/FantasyPoints-Icon.svg'
+															alt='Fantasy Points'
+															width={40}
+															height={40}
+															className='w-8 h-8 md:w-10 md:h-10 object-contain'
+														/>
+													</div>
+													<div className='flex-1 min-w-0'>
+														<div className='text-white/70 text-sm md:text-base mb-1'>Fantasy Points</div>
+														<div className='text-white font-bold text-xl md:text-2xl'>{Math.round(toNumber(teamData.totalFantasyPoints)).toLocaleString()}</div>
+													</div>
+												</div>
+											)}
 										</div>
 									</div>
 								)}
 
-								{/* Key Team Stats Bar Chart */}
-								{toNumber(teamData.gamesPlayed) > 0 && (
+								{/* Unique Player Stats Section */}
+								{!isLoadingUniqueStats && uniquePlayerStats && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Key Team Stats</h3>
-										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-											<ResponsiveContainer width='100%' height={300}>
-												<BarChart data={keyTeamStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-													<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-													<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-													<YAxis stroke='#fff' fontSize={12} />
-													<Tooltip content={customTooltip} />
-													<Bar dataKey='value' fill='#60a5fa' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-												</BarChart>
-											</ResponsiveContainer>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Unique Player Stats</h3>
+										<div className='overflow-x-auto'>
+											<table className='w-full text-white text-sm'>
+												<thead>
+													<tr className='border-b border-white/20'>
+														<th className='text-left py-2 px-2'>Stat</th>
+														<th className='text-right py-2 px-2'>Unique Players</th>
+													</tr>
+												</thead>
+												<tbody>
+													{uniquePlayerStats.playersWhoScored > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Scored</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScored}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoAssisted > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Assisted</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoAssisted}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithOwnGoals > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Own Goals</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithOwnGoals}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithCleanSheets > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Clean Sheets</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithCleanSheets}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithMoM > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With MoM</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithMoM}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithSaves > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Saves</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithSaves}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithYellowCards > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Yellow Cards</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithYellowCards}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWithRedCards > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players With Red Cards</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWithRedCards}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoScoredPenalties > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Scored Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoScoredPenalties}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoSavedPenalties > 0 && (
+														<tr className='border-b border-white/10'>
+															<td className='py-2 px-2'>Players Who Saved Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoSavedPenalties}</td>
+														</tr>
+													)}
+													{uniquePlayerStats.playersWhoConcededPenalties > 0 && (
+														<tr>
+															<td className='py-2 px-2'>Players Who Conceded Penalties</td>
+															<td className='text-right py-2 px-2 font-mono font-bold'>{uniquePlayerStats.playersWhoConcededPenalties}</td>
+														</tr>
+													)}
+												</tbody>
+											</table>
 										</div>
 									</div>
 								)}
