@@ -2,6 +2,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { getPWADebugInfo } from "@/lib/utils/pwaDebug";
+import { appConfig } from "@/config/config";
 
 interface Props {
 	children: ReactNode;
@@ -54,6 +55,37 @@ export class ErrorBoundary extends Component<Props, State> {
 		if (typeof window !== "undefined") {
 			window.location.reload();
 		}
+	};
+
+	handleEmailDev = () => {
+		if (typeof window === "undefined") return;
+
+		// Get selected player from localStorage
+		const selectedPlayer = localStorage.getItem("dorkinians-selected-player") || "None";
+
+		// Build email content
+		const errorMessage = this.state.error?.message || "Unknown error";
+		const stackTrace = this.state.error?.stack || "No stack trace available";
+		const environmentInfo = this.state.pwaDebugInfo ? JSON.stringify(this.state.pwaDebugInfo, null, 2) : "No environment info available";
+		const dateTime = new Date().toISOString();
+
+		const emailBody = `Error Message: ${errorMessage}
+
+Stack Trace:
+${stackTrace}
+
+Environment Info:
+${environmentInfo}
+
+Selected Player: ${selectedPlayer}
+
+Date/Time: ${dateTime}`;
+
+		const subject = encodeURIComponent("Dorkinians App Error Report");
+		const body = encodeURIComponent(emailBody);
+		const mailtoLink = `mailto:${appConfig.contact}?subject=${subject}&body=${body}`;
+
+		window.location.href = mailtoLink;
 	};
 
 	render() {
@@ -117,14 +149,10 @@ export class ErrorBoundary extends Component<Props, State> {
 								Reload App
 							</button>
 							<button
-								onClick={() => {
-									if (typeof window !== "undefined") {
-										window.location.href = "/";
-									}
-								}}
+								onClick={this.handleEmailDev}
 								className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-lg transition-colors border border-white/20"
 							>
-								Go Home
+								Email Dev
 							</button>
 						</div>
 

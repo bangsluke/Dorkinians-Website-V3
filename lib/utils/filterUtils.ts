@@ -20,12 +20,20 @@ export function getActiveFilters(
 ): ActiveFilter[] {
 	const activeFilters: ActiveFilter[] = [];
 
+	// Early return if playerFilters is null/undefined
+	if (!playerFilters) {
+		return activeFilters;
+	}
+
 	// Time Range filter
 	const { timeRange } = playerFilters;
-	if (timeRange.type !== "allTime" || timeRange.seasons.length > 0 || timeRange.beforeDate !== "" || timeRange.afterDate !== "" || timeRange.startDate !== "" || timeRange.endDate !== "") {
+	if (!timeRange) {
+		return activeFilters;
+	}
+	if (timeRange.type !== "allTime" || timeRange.seasons?.length > 0 || timeRange.beforeDate !== "" || timeRange.afterDate !== "" || timeRange.startDate !== "" || timeRange.endDate !== "") {
 		let timeRangeValue = "";
 		
-		if (timeRange.type === "season" && timeRange.seasons.length > 0) {
+		if (timeRange.type === "season" && timeRange.seasons?.length > 0) {
 			timeRangeValue = timeRange.seasons.join(", ");
 		} else if (timeRange.type === "beforeDate" && timeRange.beforeDate) {
 			timeRangeValue = `Before ${formatDate(timeRange.beforeDate)}`;
@@ -48,7 +56,7 @@ export function getActiveFilters(
 	}
 
 	// Teams filter
-	if (playerFilters.teams.length > 0) {
+	if (playerFilters.teams?.length > 0) {
 		activeFilters.push({
 			key: "teams",
 			label: "Team",
@@ -58,7 +66,7 @@ export function getActiveFilters(
 	}
 
 	// Location filter
-	if (playerFilters.location.length > 0 && playerFilters.location.length < 2) {
+	if (playerFilters.location?.length > 0 && playerFilters.location.length < 2) {
 		activeFilters.push({
 			key: "location",
 			label: "Location",
@@ -68,7 +76,7 @@ export function getActiveFilters(
 	}
 
 	// Opposition filter
-	if (!playerFilters.opposition.allOpposition || playerFilters.opposition.searchTerm !== "") {
+	if (playerFilters.opposition && (!playerFilters.opposition.allOpposition || playerFilters.opposition.searchTerm !== "")) {
 		let oppositionValue = "";
 		if (playerFilters.opposition.searchTerm) {
 			oppositionValue = playerFilters.opposition.searchTerm;
@@ -87,25 +95,27 @@ export function getActiveFilters(
 	}
 
 	// Competition filter
-	const competitionParts: string[] = [];
-	if (playerFilters.competition.types.length > 0 && playerFilters.competition.types.length < 3) {
-		competitionParts.push(playerFilters.competition.types.join(", "));
-	}
-	if (playerFilters.competition.searchTerm !== "") {
-		competitionParts.push(playerFilters.competition.searchTerm);
-	}
-	
-	if (competitionParts.length > 0) {
-		activeFilters.push({
-			key: "competition",
-			label: "Competition",
-			value: competitionParts.join(" - "),
-			removeKey: "competition",
-		});
+	if (playerFilters.competition) {
+		const competitionParts: string[] = [];
+		if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3) {
+			competitionParts.push(playerFilters.competition.types.join(", "));
+		}
+		if (playerFilters.competition.searchTerm !== "") {
+			competitionParts.push(playerFilters.competition.searchTerm);
+		}
+		
+		if (competitionParts.length > 0) {
+			activeFilters.push({
+				key: "competition",
+				label: "Competition",
+				value: competitionParts.join(" - "),
+				removeKey: "competition",
+			});
+		}
 	}
 
 	// Result filter
-	if (playerFilters.result.length > 0 && playerFilters.result.length < 3) {
+	if (playerFilters.result?.length > 0 && playerFilters.result.length < 3) {
 		activeFilters.push({
 			key: "result",
 			label: "Result",
@@ -115,7 +125,7 @@ export function getActiveFilters(
 	}
 
 	// Position filter
-	if (playerFilters.position.length > 0) {
+	if (playerFilters.position?.length > 0) {
 		activeFilters.push({
 			key: "position",
 			label: "Position",
