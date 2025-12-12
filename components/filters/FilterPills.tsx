@@ -175,7 +175,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 	return (
 		<div 
-			className='mb-2 md:mb-4 overflow-x-auto hide-scrollbar'
+			className='mb-2 md:mb-4 overflow-x-auto hide-scrollbar pr-4'
 			style={{ 
 				WebkitOverflowScrolling: 'touch',
 				touchAction: 'pan-x'

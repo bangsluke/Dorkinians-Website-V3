@@ -5,18 +5,139 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PencilIcon } from "@heroicons/react/24/outline";
+import { PencilIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
+import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
+import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
+import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
+import SharePreviewModal from "@/components/stats/SharePreviewModal";
+import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const rowRef = useRef<HTMLTableRowElement>(null);
+	const tooltipRef = useRef<HTMLDivElement | null>(null);
+
+	// Find all scroll containers up the DOM tree
+	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
+		const containers: HTMLElement[] = [];
+		let current: HTMLElement | null = element;
+		
+		while (current && current !== document.body) {
+			const style = window.getComputedStyle(current);
+			const overflowY = style.overflowY;
+			const overflowX = style.overflowX;
+			
+			if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
+				containers.push(current);
+			}
+			
+			current = current.parentElement;
+		}
+		
+		return containers;
+	};
+
+	const updateTooltipPosition = () => {
+		if (!rowRef.current) return;
+		
+		const rect = rowRef.current.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		const viewportWidth = window.innerWidth;
+		
+		// Find scroll containers
+		const scrollContainers = findScrollContainers(rowRef.current);
+		
+		// Calculate tooltip dimensions - use actual if available, otherwise estimate
+		let tooltipHeight = 60; // Default estimate
+		const tooltipWidth = 256; // w-64 = 16rem = 256px
+		
+		// Try to measure actual tooltip if it exists
+		if (tooltipRef.current) {
+			const tooltipRect = tooltipRef.current.getBoundingClientRect();
+			tooltipHeight = tooltipRect.height || 60;
+		}
+		
+		// Calculate available space above and below
+		const spaceBelow = viewportHeight - rect.bottom;
+		const spaceAbove = rect.top;
+		const margin = 10; // Minimum margin from viewport edge
+		const arrowHeight = 8; // Height of arrow
+		const spacing = 8; // Space between row and tooltip
+		
+		// Determine placement based on available space
+		let placement: 'above' | 'below' = 'below';
+		let top: number;
+		
+		const neededSpaceBelow = tooltipHeight + arrowHeight + spacing + margin;
+		const neededSpaceAbove = tooltipHeight + arrowHeight + spacing + margin;
+		
+		if (spaceBelow < neededSpaceBelow && spaceAbove > neededSpaceAbove) {
+			// Show above if not enough space below but enough above
+			placement = 'above';
+			top = rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing;
+		} else if (spaceBelow >= neededSpaceBelow) {
+			// Show below if enough space
+			placement = 'below';
+			top = rect.bottom + window.scrollY + spacing;
+		} else {
+			// Default to above if neither has enough space (prefer above to avoid going off bottom)
+			placement = 'above';
+			top = Math.max(margin, rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing);
+		}
+		
+		// Calculate horizontal position (center on row, but keep within viewport)
+		let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
+		
+		// Ensure tooltip stays within viewport with margin
+		if (left < window.scrollX + margin) {
+			left = window.scrollX + margin;
+		} else if (left + tooltipWidth > window.scrollX + viewportWidth - margin) {
+			left = window.scrollX + viewportWidth - tooltipWidth - margin;
+		}
+		
+		setTooltipPosition({ top, left, placement });
+	};
+
+	// Update position when tooltip becomes visible (to measure actual dimensions)
+	useEffect(() => {
+		if (showTooltip) {
+			// Use a small delay to ensure tooltip is rendered and we can measure it
+			const timeoutId = setTimeout(() => {
+				updateTooltipPosition();
+			}, 0);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [showTooltip]);
+
+	// Add scroll listeners
+	useEffect(() => {
+		if (!showTooltip || !rowRef.current) return;
+		
+		const scrollContainers = findScrollContainers(rowRef.current);
+		const handleScroll = () => {
+			updateTooltipPosition();
+		};
+		
+		// Add listeners to window and all scroll containers
+		window.addEventListener('scroll', handleScroll, true);
+		scrollContainers.forEach(container => {
+			container.addEventListener('scroll', handleScroll, true);
+		});
+		
+		return () => {
+			window.removeEventListener('scroll', handleScroll, true);
+			scrollContainers.forEach(container => {
+				container.removeEventListener('scroll', handleScroll, true);
+			});
+		};
+	}, [showTooltip]);
 
 	useEffect(() => {
 		return () => {
@@ -25,46 +146,6 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			}
 		};
 	}, []);
-
-	const updateTooltipPosition = () => {
-		if (!rowRef.current) return;
-		
-		const rect = rowRef.current.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-		const scrollY = window.scrollY;
-		const scrollX = window.scrollX;
-		
-		// Check if row is in bottom portion of viewport (bottom 3 rows would be roughly bottom 20%)
-		const rowBottom = rect.bottom;
-		const distanceFromBottom = viewportHeight - rowBottom;
-		const isNearBottom = distanceFromBottom < 150; // Approximate space for 3 rows
-		
-		// Calculate tooltip dimensions (approximate)
-		const tooltipHeight = 60;
-		const tooltipWidth = 256; // w-64 = 16rem = 256px
-		
-		// Determine placement
-		let placement: 'above' | 'below' = 'below';
-		let top = rect.bottom + scrollY + 8;
-		
-		if (isNearBottom || (rect.bottom + tooltipHeight + 20 > viewportHeight)) {
-			placement = 'above';
-			top = rect.top + scrollY - tooltipHeight - 8;
-		}
-		
-		// Calculate horizontal position (center on row, but keep within viewport)
-		let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
-		
-		// Ensure tooltip stays within viewport
-		if (left < scrollX + 10) {
-			left = scrollX + 10;
-		} else if (left + tooltipWidth > scrollX + viewportWidth - 10) {
-			left = scrollX + viewportWidth - tooltipWidth - 10;
-		}
-		
-		setTooltipPosition({ top, left, placement });
-	};
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
@@ -90,7 +171,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 		updateTooltipPosition();
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 500);
 	};
 
 	const handleTouchEnd = () => {
@@ -146,7 +227,8 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			</tr>
 			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
 				<div 
-					className='fixed z-20 px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
+					ref={tooltipRef}
+					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
 					style={{ 
 						backgroundColor: '#0f0f0f',
 						top: `${tooltipPosition.top}px`,
@@ -240,6 +322,7 @@ function toNumber(val: any): number {
 
 // Penalty Stats Visualization Component
 function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved }: { scored: number; missed: number; saved: number; conceded: number; penaltyShootoutScored: number; penaltyShootoutMissed: number; penaltyShootoutSaved: number }) {
+	
 	// Calculate sizes (max size 120px, min size 30px) - increased by 50%
 	const maxValue = Math.max(scored, missed, saved, conceded, penaltyShootoutScored, penaltyShootoutMissed, penaltyShootoutSaved, 1);
 	const scoredSize = Math.max(30, Math.min(120, (scored / maxValue) * 120));
@@ -268,7 +351,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Penalty Stats</h3>
-			<div className='w-full relative' style={{ height: '250px', overflow: 'hidden' }}>
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
 				{/* Background SVG from TOTW - zoomed 3.5x, showing top center with less vertical height, trimmed more from bottom */}
 				<div className='absolute inset-0 w-full' style={{ top: '30px', bottom: '40px' }}>
 					<Image
@@ -292,15 +375,15 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
-								cx={goalCenterX - 70}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 75}
+								cy={goalCenterY - 60}
 								r={scoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
-								cx={goalCenterX - 70}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 75}
+								cy={goalCenterY - 60}
 								r={scoredSize / 2}
 								fill='#22c55e'
 								cursor='pointer'
@@ -313,8 +396,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								}}
 							/>
 							<text
-								x={goalCenterX - 70}
-								y={goalCenterY - 70}
+								x={goalCenterX - 75}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -333,14 +416,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={savedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 70}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={savedSize / 2}
 								fill='#60a5fa'
 								cursor='pointer'
@@ -354,7 +437,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 70}
-								y={goalCenterY - 70}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -373,14 +456,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalCenterX + 50}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutSavedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalCenterX + 50}
-								cy={goalCenterY - 70}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutSavedSize / 2}
 								fill='#1e40af'
 								cursor='pointer'
@@ -394,7 +477,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalCenterX + 50}
-								y={goalCenterY - 70}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -413,14 +496,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -434,7 +517,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 140}
+								y={goalCenterY - 130}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -529,20 +612,20 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						</g>
 					)}
 					
-					{/* Dark green circle - Penalty Shootout Scored (same position as Scored but 20px right) */}
+					{/* Dark green circle - Penalty Shootout Scored (same vertical position as Scored, 40px more to the left) */}
 					{penaltyShootoutScored > 0 && (
 						<g>
 							{/* Larger invisible hit area */}
 							<circle
-								cx={goalCenterX - 50}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 110}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutScoredSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
-								cx={goalCenterX - 50}
-								cy={goalCenterY - 70}
+								cx={goalCenterX - 110}
+								cy={goalCenterY - 60}
 								r={penaltyShootoutScoredSize / 2}
 								fill='#15803d'
 								cursor='pointer'
@@ -555,8 +638,8 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 								}}
 							/>
 							<text
-								x={goalCenterX - 50}
-								y={goalCenterY - 70}
+								x={goalCenterX - 110}
+								y={goalCenterY - 60}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -571,68 +654,68 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 				</svg>
 			</div>
 			{/* Stats Table */}
-			<div className='mt-4'>
+			<div className='mt-2'>
 				<table className='w-full text-white text-sm'>
 					<thead>
 						<tr className='border-b border-white/20'>
-							<th className='text-left py-2 px-2'>Stat</th>
-							<th className='text-right py-2 px-2'>Value</th>
+							<th className='text-left py-1 px-2'>Stat</th>
+							<th className='text-right py-1 px-2'>Value</th>
 						</tr>
 					</thead>
 					<tbody>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
 								Penalties Scored
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{scored}</td>
+							<td className='text-right py-1 px-2 font-mono'>{scored}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
 								Penalties Missed
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{missed}</td>
+							<td className='text-right py-1 px-2 font-mono'>{missed}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
 								Penalties Saved
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{saved}</td>
+							<td className='text-right py-1 px-2 font-mono'>{saved}</td>
 						</tr>
 						<tr className='border-b border-white/10'>
-							<td className='py-2 px-2'>
+							<td className='py-1 px-2'>
 								<span className='inline-block w-3 h-3 rounded-full bg-orange-500 mr-2'></span>
 								Penalties Conceded
 							</td>
-							<td className='text-right py-2 px-2 font-mono'>{conceded}</td>
+							<td className='text-right py-1 px-2 font-mono'>{conceded}</td>
 						</tr>
 						{penaltyShootoutScored > 0 && (
 							<tr className='border-b border-white/10'>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-green-700 mr-2'></span>
 									Penalty Shootout Scored
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutScored}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutScored}</td>
 							</tr>
 						)}
 						{penaltyShootoutMissed > 0 && (
 							<tr className='border-b border-white/10'>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-red-800 mr-2'></span>
 									Penalty Shootout Misses
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutMissed}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutMissed}</td>
 							</tr>
 						)}
 						{penaltyShootoutSaved > 0 && (
 							<tr>
-								<td className='py-2 px-2'>
+								<td className='py-1 px-2'>
 									<span className='inline-block w-3 h-3 rounded-full bg-blue-800 mr-2'></span>
 									Penalty Shootout Saves
 								</td>
-								<td className='text-right py-2 px-2 font-mono'>{penaltyShootoutSaved}</td>
+								<td className='text-right py-1 px-2 font-mono'>{penaltyShootoutSaved}</td>
 							</tr>
 						)}
 					</tbody>
@@ -1436,6 +1519,17 @@ export default function PlayerStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
+	// State for share functionality
+	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
+	const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
+	const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
+	const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
+	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
+	const shareCardRef = useRef<HTMLDivElement>(null);
+
+
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
 		return [...(statsPageConfig[currentStatsSubPage]?.statsToDisplay || [])];
@@ -1737,6 +1831,40 @@ export default function PlayerStats() {
 		}));
 	}, [teamStats, teamSelectedStat, statOptions]);
 
+	// Get available visualizations (must be before early returns)
+	const availableVisualizations = useMemo(() => {
+		if (!playerData) return [];
+		return getAvailableVisualizations(
+			playerData,
+			playerFilters,
+			allSeasonsSelected,
+			allTeamsSelected,
+			seasonalChartData,
+			teamChartData,
+			isLoadingSeasonalStats,
+			isLoadingTeamStats,
+			oppositionMapData,
+			fantasyBreakdown,
+			isLoadingFantasyBreakdown,
+			gameDetails,
+			isLoadingGameDetails
+		);
+	}, [
+		playerData,
+		playerFilters,
+		allSeasonsSelected,
+		allTeamsSelected,
+		seasonalChartData,
+		teamChartData,
+		isLoadingSeasonalStats,
+		isLoadingTeamStats,
+		oppositionMapData,
+		fantasyBreakdown,
+		isLoadingFantasyBreakdown,
+		gameDetails,
+		isLoadingGameDetails,
+	]);
+
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
 		return (
@@ -1790,6 +1918,267 @@ export default function PlayerStats() {
 
 	// At this point, playerData is guaranteed to be non-null
 	const validPlayerData: PlayerData = playerData;
+
+	// Extract visualization data based on selection
+	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
+		switch (vizType) {
+			case "seasonal-performance":
+				const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+				return {
+					type: vizType,
+					data: { 
+						chartData: seasonalChartData,
+						selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
+					},
+				};
+			case "team-performance":
+				const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
+				return {
+					type: vizType,
+					data: { 
+						chartData: teamChartData,
+						selectedStat: selectedTeamOption?.label || teamSelectedStat,
+					},
+				};
+			case "match-results":
+				const wins = toNumber(validPlayerData.wins || 0);
+				const draws = toNumber(validPlayerData.draws || 0);
+				const losses = toNumber(validPlayerData.losses || 0);
+				const pieData = [
+					{ name: "Wins", value: wins, color: "#22c55e" },
+					{ name: "Draws", value: draws, color: "#60a5fa" },
+					{ name: "Losses", value: losses, color: "#ef4444" },
+				].filter(item => item.value > 0);
+				return {
+					type: vizType,
+					data: { pieData },
+				};
+			case "positional-stats":
+				return {
+					type: vizType,
+					data: {
+						gk: toNumber(validPlayerData.gk),
+						def: toNumber(validPlayerData.def),
+						mid: toNumber(validPlayerData.mid),
+						fwd: toNumber(validPlayerData.fwd),
+						appearances: toNumber(validPlayerData.appearances),
+						gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
+						defMinutes: toNumber(validPlayerData.defMinutes || 0),
+						midMinutes: toNumber(validPlayerData.midMinutes || 0),
+						fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
+					},
+				};
+			case "defensive-record":
+				return {
+					type: vizType,
+					data: {
+						conceded: toNumber(validPlayerData.conceded),
+						cleanSheets: toNumber(validPlayerData.cleanSheets),
+						ownGoals: toNumber(validPlayerData.ownGoals),
+						appearances: toNumber(validPlayerData.appearances),
+						gk: toNumber(validPlayerData.gk),
+						saves: toNumber(validPlayerData.saves),
+						concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
+					},
+				};
+			case "card-stats":
+				return {
+					type: vizType,
+					data: {
+						yellowCards: toNumber(validPlayerData.yellowCards),
+						redCards: toNumber(validPlayerData.redCards),
+					},
+				};
+			case "penalty-stats":
+				return {
+					type: vizType,
+					data: {
+						scored: toNumber(validPlayerData.penaltiesScored),
+						missed: toNumber(validPlayerData.penaltiesMissed),
+						saved: toNumber(validPlayerData.penaltiesSaved),
+						conceded: toNumber(validPlayerData.penaltiesConceded),
+						penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
+						penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
+						penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
+					},
+				};
+			case "fantasy-points":
+				return {
+					type: vizType,
+					data: {
+						totalPoints: toNumber(validPlayerData.fantasyPoints),
+						breakdown: fantasyBreakdown?.breakdown || {},
+						breakdownValues: fantasyBreakdown?.breakdownValues || {},
+						playerName: selectedPlayer || "",
+					},
+				};
+			case "distance-travelled":
+				return {
+					type: vizType,
+					data: {
+						distance: toNumber(validPlayerData.distance),
+						awayGames: toNumber(validPlayerData.awayGames || 0),
+					},
+				};
+			case "minutes-per-stats":
+				const minutes = toNumber(validPlayerData.minutes);
+				const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
+				const assists = toNumber(validPlayerData.assists);
+				const mom = toNumber(validPlayerData.mom);
+				const cleanSheets = toNumber(validPlayerData.cleanSheets);
+				return {
+					type: vizType,
+					data: {
+						minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
+						minutesPerAssist: assists > 0 ? minutes / assists : 0,
+						minutesPerMoM: mom > 0 ? minutes / mom : 0,
+						minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
+					},
+				};
+			case "game-details":
+				return {
+					type: vizType,
+					data: {
+						leagueGames: gameDetails?.leagueGames || 0,
+						cupGames: gameDetails?.cupGames || 0,
+						friendlyGames: gameDetails?.friendlyGames || 0,
+						leagueWins: gameDetails?.leagueWins || 0,
+						cupWins: gameDetails?.cupWins || 0,
+						friendlyWins: gameDetails?.friendlyWins || 0,
+						homeGames: gameDetails?.homeGames || 0,
+						awayGames: gameDetails?.awayGames || 0,
+						homeWins: gameDetails?.homeWins || 0,
+						awayWins: gameDetails?.awayWins || 0,
+						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
+						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
+						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
+					},
+				};
+			default:
+				return { type: vizType };
+		}
+	};
+
+	// Handle visualization selection
+	const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
+		// Set generating state immediately to show blackout overlay
+		setIsGeneratingShare(true);
+		
+		const vizData = getVisualizationData(vizId);
+		setSelectedShareVisualization(vizData);
+		setShareBackgroundColor(backgroundColor);
+		
+		// Close modal immediately - blackout overlay is already in place
+		setIsShareModalOpen(false);
+		
+		// Wait for state update, then generate image
+		setTimeout(async () => {
+			if (!shareCardRef.current) {
+				setIsGeneratingShare(false);
+				return;
+			}
+			
+			try {
+				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
+				
+				if (shareResult.needsIOSPreview) {
+					// Show iOS preview modal - keep blackout visible
+					setGeneratedImageDataUrl(imageDataUrl);
+					setIsIOSPreviewOpen(true);
+					// Don't clear selectedShareVisualization yet - wait for user action
+					// Keep isGeneratingShare true to maintain blackout
+				} else if (shareResult.needsPreview) {
+					// Show non-iOS preview modal - keep blackout visible
+					setGeneratedImageDataUrl(imageDataUrl);
+					setIsNonIOSPreviewOpen(true);
+					// Don't clear selectedShareVisualization yet - wait for user action
+					// Keep isGeneratingShare true to maintain blackout
+				} else {
+					// Download fallback (no Web Share API) - clear immediately and remove blackout
+					setIsGeneratingShare(false);
+					setSelectedShareVisualization(null);
+				}
+			} catch (error) {
+				console.error("[Share] Error generating share image:", error);
+				alert("Failed to generate share image. Please try again.");
+				setIsGeneratingShare(false);
+				setSelectedShareVisualization(null);
+			}
+		}, 100);
+	};
+
+	// Regenerate image when background color changes in preview
+	const handleRegenerateImage = async (color: "yellow" | "green") => {
+		setShareBackgroundColor(color);
+		
+		if (!shareCardRef.current) {
+			return;
+		}
+		
+		try {
+			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+			setGeneratedImageDataUrl(imageDataUrl);
+		} catch (error) {
+			console.error("[Share] Error regenerating image:", error);
+		}
+	};
+
+	// Handle iOS share continuation
+	const handleIOSShareContinue = async () => {
+		setIsIOSPreviewOpen(false);
+		
+		try {
+			await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
+		} catch (error) {
+			console.error("[Share] Error sharing image:", error);
+			alert("Failed to share image. Please try again.");
+		} finally {
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+			setGeneratedImageDataUrl("");
+		}
+	};
+
+	// Handle iOS share close
+	const handleIOSShareClose = () => {
+		setIsIOSPreviewOpen(false);
+		setIsGeneratingShare(false);
+		setSelectedShareVisualization(null);
+		setGeneratedImageDataUrl("");
+	};
+
+	// Handle non-iOS share continuation
+	const handleNonIOSShareContinue = async () => {
+		setIsNonIOSPreviewOpen(false);
+		
+		try {
+			await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
+		} catch (error) {
+			console.error("[Share] Error sharing image:", error);
+			alert("Failed to share image. Please try again.");
+		} finally {
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+			setGeneratedImageDataUrl("");
+		}
+	};
+
+	// Handle non-iOS share close
+	const handleNonIOSShareClose = () => {
+		setIsNonIOSPreviewOpen(false);
+		setIsGeneratingShare(false);
+		setSelectedShareVisualization(null);
+		setGeneratedImageDataUrl("");
+	};
+
+	// Share handler - opens modal
+	const handleShare = () => {
+		if (!selectedPlayer || !validPlayerData) {
+			return;
+		}
+		setIsShareModalOpen(true);
+	};
 
 	const tooltipStyle = {
 		backgroundColor: 'rgb(14, 17, 15)',
@@ -2494,8 +2883,95 @@ export default function PlayerStats() {
 				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 				{!isDataTableMode && chartContent}
 				{isDataTableMode && dataTableContent}
-				<div className='h-4'></div>
+				
+				{/* Share Button */}
+				<div className='flex justify-center mt-1 mb-4'>
+					<button
+						onClick={handleShare}
+						disabled={isGeneratingShare}
+						className='flex items-center gap-2 px-6 py-3 bg-dorkinians-yellow hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+						{isGeneratingShare ? (
+							<>
+								<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+									<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+									<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+								</svg>
+								<span>Generating...</span>
+							</>
+						) : (
+							<>
+								<ArrowUpTrayIcon className='h-5 w-5' />
+								<span>Share Stats</span>
+							</>
+						)}
+					</button>
+				</div>
 			</div>
+
+			{/* Blackout overlay - covers full screen during entire share process */}
+			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
+				<div className="fixed inset-0 bg-black z-[30]" style={{ pointerEvents: 'none', opacity: 1 }} />,
+				document.body
+			)}
+
+			{/* Share Visualization Modal */}
+			<ShareVisualizationModal
+				isOpen={isShareModalOpen}
+				onClose={() => setIsShareModalOpen(false)}
+				onSelect={handleVisualizationSelect}
+				options={availableVisualizations}
+				backgroundColor={shareBackgroundColor}
+				onBackgroundColorChange={setShareBackgroundColor}
+			/>
+
+			{/* iOS Share Preview Modal */}
+			<IOSSharePreviewModal
+				isOpen={isIOSPreviewOpen}
+				imageDataUrl={generatedImageDataUrl}
+				onContinue={handleIOSShareContinue}
+				onClose={handleIOSShareClose}
+				backgroundColor={shareBackgroundColor}
+				onBackgroundColorChange={setShareBackgroundColor}
+				onRegenerateImage={handleRegenerateImage}
+			/>
+
+			{/* Non-iOS Share Preview Modal */}
+			<SharePreviewModal
+				isOpen={isNonIOSPreviewOpen}
+				imageDataUrl={generatedImageDataUrl}
+				onContinue={handleNonIOSShareContinue}
+				onClose={handleNonIOSShareClose}
+				backgroundColor={shareBackgroundColor}
+				onBackgroundColorChange={setShareBackgroundColor}
+				onRegenerateImage={handleRegenerateImage}
+			/>
+
+			{/* Hidden share card for image generation */}
+			{selectedPlayer && validPlayerData && (
+				<div 
+					ref={shareCardRef}
+					style={{ 
+						position: 'fixed', 
+						left: '-20000px', 
+						top: '-20000px', 
+						width: '1080px',
+						height: '1080px',
+						visibility: 'hidden',
+						opacity: 0,
+						pointerEvents: 'none',
+						zIndex: -1,
+						overflow: 'hidden',
+					}}>
+					<ShareableStatsCard
+						playerName={selectedPlayer}
+						playerData={validPlayerData}
+						playerFilters={playerFilters}
+						filterData={filterData}
+						selectedVisualization={selectedShareVisualization || undefined}
+						backgroundColor={shareBackgroundColor}
+					/>
+				</div>
+			)}
 		</div>
 	);
 }
