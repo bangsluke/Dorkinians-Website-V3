@@ -1219,8 +1219,8 @@ export default function ShareableStatsCard({
 				{/* Selected Visualization - Fixed height to keep stats in same position */}
 				<div
 					style={{
-						minHeight: "500px",
-						height: "500px",
+						minHeight: "550px",
+						height: "550px",
 						display: "flex",
 						flexDirection: "column",
 						alignItems: "center",
