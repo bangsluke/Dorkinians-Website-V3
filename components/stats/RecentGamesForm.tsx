@@ -314,7 +314,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 				{boxesToShow.map((fixture, index) => (
 					<div
 						key={index}
-						ref={(el) => (boxRefs.current[index] = el)}
+						ref={(el) => { boxRefs.current[index] = el; }}
 						className={`flex-1 aspect-square ${getBoxColor(fixture?.result || "")} rounded flex items-center justify-center cursor-help relative`}
 						onMouseEnter={() => fixture && handleMouseEnter(index)}
 						onMouseLeave={handleMouseLeave}

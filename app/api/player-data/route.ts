@@ -131,6 +131,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(coalesce(md.ownGoals, 0)) as ownGoals,
 			sum(coalesce(md.conceded, 0)) as conceded,
 			sum(coalesce(md.cleanSheets, 0)) as cleanSheets,
+			sum(CASE WHEN toUpper(coalesce(md.class, "")) = "GK" THEN coalesce(md.cleanSheets, 0) ELSE 0 END) as gkCleanSheets,
 			sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
 			sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed,
 			sum(coalesce(md.penaltiesConceded, 0)) as penaltiesConceded,
@@ -160,7 +161,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(CASE WHEN f.result = "D" THEN 1 ELSE 0 END) as draws,
 			sum(CASE WHEN f.result = "L" THEN 1 ELSE 0 END) as losses
 		// Calculate team aggregations separately - re-match with filters
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses
@@ -175,31 +176,31 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	}
 	
 	query += `
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			md2.team as team,
 			md2.goals as teamGoal
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			team,
 			count(*) as teamAppearances,
 			sum(coalesce(teamGoal, 0)) as teamGoals
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			collect({team: team, appearances: teamAppearances, goals: teamGoals}) as teamStats
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses, teamStats
 		// Handle team stats - find most played and most scored teams
 		// Use reduce to find max, handling empty teamStats
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			teams, seasons, oppositionPlayed, competitionsCompeted, homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
@@ -221,7 +222,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 	}
 	
 	query += `
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			coalesce(mostPlayedTeam.team, "") as mostPlayedForTeam,
@@ -234,7 +235,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 		MATCH (f3)-[:HAS_MATCH_DETAILS]->(md4:MatchDetail {graphLabel: $graphLabel})
 		MATCH (md4)<-[:PLAYED_IN]-(p2:Player {graphLabel: $graphLabel})
 		WHERE p2.playerName <> $playerName
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			mostPlayedForTeam, mostScoredForTeam, numberTeamsPlayedFor, numberSeasonsPlayedFor,
@@ -242,7 +243,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			homeGames, homeWins, awayGames, awayWins, wins, draws, losses,
 			count(DISTINCT p2.playerName) as teammatesPlayedWith
 		// Calculate derived stats
-		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets,
+		WITH p, appearances, minutes, mom, goals, assists, yellowCards, redCards, saves, ownGoals, conceded, cleanSheets, gkCleanSheets,
 			penaltiesScored, penaltiesMissed, penaltiesConceded, penaltiesSaved, penaltyShootoutPenaltiesScored, penaltyShootoutPenaltiesMissed, penaltyShootoutPenaltiesSaved, fantasyPoints, distance,
 			gk, def, mid, fwd, gkMinutes, defMinutes, midMinutes, fwdMinutes,
 			mostPlayedForTeam, mostScoredForTeam, numberTeamsPlayedFor, numberSeasonsPlayedFor,
@@ -294,6 +295,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			coalesce(ownGoals, 0) as ownGoals,
 			coalesce(conceded, 0) as conceded,
 			coalesce(cleanSheets, 0) as cleanSheets,
+			coalesce(gkCleanSheets, 0) as gkCleanSheets,
 			coalesce(penaltiesScored, 0) as penaltiesScored,
 			coalesce(penaltiesMissed, 0) as penaltiesMissed,
 			coalesce(penaltiesConceded, 0) as penaltiesConceded,
@@ -476,6 +478,7 @@ export async function GET(request: NextRequest) {
 			ownGoals: toNumber(record.get("ownGoals")),
 			conceded: toNumber(record.get("conceded")),
 			cleanSheets: toNumber(record.get("cleanSheets")),
+			gkCleanSheets: toNumber(record.get("gkCleanSheets")),
 			penaltiesScored: toNumber(record.get("penaltiesScored")),
 			penaltiesMissed: toNumber(record.get("penaltiesMissed")),
 			penaltiesConceded: toNumber(record.get("penaltiesConceded")),
