@@ -3,7 +3,7 @@
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -360,6 +360,7 @@ export default function ClubTeamStats() {
 	// Team comparison state
 	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
 	const [isLoadingTeamComparison, setIsLoadingTeamComparison] = useState(false);
+	const [visibleTeams, setVisibleTeams] = useState<Set<string>>(new Set());
 
 	// Player distribution state
 	const [playerDistributionData, setPlayerDistributionData] = useState<any>(null);
@@ -534,6 +535,8 @@ export default function ClubTeamStats() {
 				const results = await Promise.all(promises);
 				const validResults = results.filter((r) => r !== null);
 				setTeamComparisonData(validResults);
+				// Initialize visible teams with all teams
+				setVisibleTeams(new Set(validResults.map((r: any) => r.team)));
 			} catch (error) {
 				console.error("Error fetching team comparison data:", error);
 				setTeamComparisonData([]);
@@ -874,16 +877,34 @@ export default function ClubTeamStats() {
 		return null;
 	};
 
-	// Transform team comparison data for radar chart
+	// Custom tooltip for Player Tenure (shows "X players" instead of "Value: X")
+	const tenureTooltip = ({ active, payload, label }: any) => {
+		if (active && payload && payload.length) {
+			const displayValue = payload[0].value || 0;
+			return (
+				<div style={tooltipStyle} className='px-3 py-2'>
+					<p className='text-white text-sm'>{displayValue} {displayValue === 1 ? 'player' : 'players'}</p>
+				</div>
+			);
+		}
+		return null;
+	};
+
+
+	// Transform team comparison data for radar chart with per-category scaling
 	const radarChartData = useMemo(() => {
 		if (!teamComparisonData || teamComparisonData.length === 0) return [];
+
+		// Filter to only visible teams
+		const visibleTeamData = teamComparisonData.filter(({ team }: any) => visibleTeams.has(team));
+		if (visibleTeamData.length === 0) return [];
 
 		// Get all stat categories
 		const categories = ["Games", "Goals Scored", "Goals Conceded", "Distance", "Wins", "Points per Game", "Clean Sheets", "Competitions", "Fantasy Points"];
 
-		// Find max values for normalization
+		// Find max values per category (only for visible teams)
 		const maxValues: { [key: string]: number } = {};
-		teamComparisonData.forEach(({ data }: any) => {
+		visibleTeamData.forEach(({ data }: any) => {
 			if (data) {
 				maxValues.Games = Math.max(maxValues.Games || 0, toNumber(data.gamesPlayed));
 				maxValues["Goals Scored"] = Math.max(maxValues["Goals Scored"] || 0, toNumber(data.goalsScored));
@@ -897,10 +918,10 @@ export default function ClubTeamStats() {
 			}
 		});
 
-		// Create data points for each category
+		// Create data points for each category with per-category scaling
 		return categories.map((category) => {
 			const dataPoint: any = { category };
-			teamComparisonData.forEach(({ team, data }: any) => {
+			visibleTeamData.forEach(({ team, data }: any) => {
 				if (data) {
 					let value = 0;
 					switch (category) {
@@ -932,7 +953,7 @@ export default function ClubTeamStats() {
 							value = toNumber(data.totalFantasyPoints);
 							break;
 					}
-					// Normalize to 0-100 scale
+					// Scale per category to 0-100 (each category has its own max)
 					const max = maxValues[category] || 1;
 					const teamKey = team.replace(" XI", "s");
 					dataPoint[teamKey] = max > 0 ? (value / max) * 100 : 0;
@@ -940,7 +961,7 @@ export default function ClubTeamStats() {
 			});
 			return dataPoint;
 		});
-	}, [teamComparisonData]);
+	}, [teamComparisonData, visibleTeams]);
 
 	// Transform player distribution data for sankey
 	const sankeyData = useMemo(() => {
@@ -956,15 +977,7 @@ export default function ClubTeamStats() {
 
 		if (filteredDistribution.length === 0) return null;
 
-		// Create nodes only for teams that have data
-		const teamIds = filteredDistribution.map((item: any) => item.team);
-		const nodes = teamIds.map((team) => ({
-			id: team,
-			label: team,
-		}));
-
-		// Create links (for vertical sankey, we need to connect from top to bottom)
-		// Since we're showing distribution, we'll create links from each team to a "Players" source
+		// Create links first to calculate counts
 		const links: any[] = [];
 		filteredDistribution.forEach((item: any) => {
 			if (item.count > 0 && validTeams.includes(item.team)) {
@@ -976,11 +989,25 @@ export default function ClubTeamStats() {
 			}
 		});
 
-		// Add source node
-		nodes.unshift({ id: "Players", label: "Players" });
+		// Use total players count from teamData (same as Key Performance Stats)
+		const totalPlayers = teamData ? toNumber(teamData.numberOfPlayers) : 0;
 
-		return { nodes, links };
-	}, [playerDistributionData]);
+		// Create nodes with labels that include player counts
+		const teamIds = filteredDistribution.map((item: any) => item.team);
+		const nodes = teamIds.map((team) => {
+			const playerCount = links.find(link => link.target === team)?.value || 0;
+			return {
+				id: team,
+				label: team,
+				playerCount: playerCount,
+			};
+		});
+
+		// Add source node with player count
+		nodes.unshift({ id: "Players", label: `Players (${totalPlayers})`, playerCount: totalPlayers });
+
+		return { nodes, links, totalPlayers };
+	}, [playerDistributionData, teamData]);
 
 	// Transform player tenure data for histogram
 	const tenureHistogramData = useMemo(() => {
@@ -1169,27 +1196,60 @@ export default function ClubTeamStats() {
 						<div className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
+								{/* Team visibility checkboxes */}
+								<div className='mb-3 flex flex-wrap gap-3'>
+									{teamComparisonData.map(({ team }, index) => {
+										const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
+										const color = colors[index % colors.length];
+										const isVisible = visibleTeams.has(team);
+										return (
+											<label key={team} className='flex items-center gap-2 cursor-pointer'>
+												<input
+													type='checkbox'
+													checked={isVisible}
+													onChange={(e) => {
+														const newVisibleTeams = new Set(visibleTeams);
+														if (e.target.checked) {
+															newVisibleTeams.add(team);
+														} else {
+															newVisibleTeams.delete(team);
+														}
+														setVisibleTeams(newVisibleTeams);
+													}}
+													className='w-4 h-4 rounded'
+													style={{ accentColor: color }}
+												/>
+												<span className='text-white text-sm' style={{ color: color }}>
+													{team}
+												</span>
+											</label>
+										);
+									})}
+								</div>
 								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 									<ResponsiveContainer width='100%' height={400}>
 										<RadarChart data={radarChartData}>
 											<PolarGrid />
 											<PolarAngleAxis dataKey='category' tick={{ fill: '#fff', fontSize: 12 }} />
 											<PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: '#fff', fontSize: 10 }} />
-											{teamComparisonData.map(({ team }, index) => {
-												const teamKey = team.replace(" XI", "s");
-												const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
-												return (
-													<Radar
-														key={team}
-														name={teamKey}
-														dataKey={teamKey}
-														stroke={colors[index % colors.length]}
-														fill={colors[index % colors.length]}
-														fillOpacity={0.3}
-													/>
-												);
-											})}
-											<Legend />
+											{teamComparisonData
+												.filter(({ team }) => visibleTeams.has(team))
+												.map(({ team }, index) => {
+													const teamKey = team.replace(" XI", "s");
+													const colors = ["#f9ed32", "#22c55e", "#60a5fa", "#ef4444", "#a855f7", "#f59e0b", "#ec4899", "#06b6d4"];
+													// Find original index for color consistency
+													const originalIndex = teamComparisonData.findIndex((t: any) => t.team === team);
+													return (
+														<Radar
+															key={team}
+															name={teamKey}
+															dataKey={teamKey}
+															stroke={colors[originalIndex % colors.length]}
+															fill={colors[originalIndex % colors.length]}
+															fillOpacity={0.3}
+														/>
+													);
+												})}
 											<Tooltip content={customTooltip} />
 										</RadarChart>
 									</ResponsiveContainer>
@@ -1198,119 +1258,7 @@ export default function ClubTeamStats() {
 						</div>
 					)}
 
-					{/* Player Distribution Section */}
-					{!isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
-						// Validate that all links reference existing nodes
-						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
-						const validLinks = sankeyData.links.filter((link: any) => 
-							nodeIds.has(link.source) && nodeIds.has(link.target)
-						);
-						
-						if (validLinks.length === 0) return null;
-						
-						return (
-						<div className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y', height: '400px' }}>
-									<ResponsiveSankey
-										data={{ nodes: sankeyData.nodes, links: validLinks }}
-										margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-										layout="vertical"
-										align="justify"
-										colors={{ scheme: 'set3' }}
-										nodeOpacity={0.8}
-										nodeThickness={18}
-										nodeSpacing={24}
-										nodeBorderWidth={0}
-										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
-										linkOpacity={0.4}
-										linkHoverOthersOpacity={0.1}
-										enableLinkGradient={true}
-										labelPosition="outside"
-										labelOrientation="vertical"
-										labelPadding={8}
-										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-										theme={{
-											text: { fill: '#fff', fontSize: 12 },
-										}}
-									/>
-								</div>
-							</div>
-						</div>
-						);
-					})()}
-
-					{/* Player Tenure Section */}
-					{!isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
-						<div className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={tenureHistogramData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis dataKey='seasons' stroke='#fff' fontSize={12} angle={-45} textAnchor='end' height={80} />
-											<YAxis stroke='#fff' fontSize={12} />
-											<Tooltip content={customTooltip} />
-											<Bar dataKey='players' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							</div>
-						</div>
-					)}
-
-					{/* Stats Distribution Section */}
-					{!isLoadingPositionStats && positionStatsData.length > 0 && (
-						<div className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
-								<div className='mb-2'>
-									<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
-										<div className='relative'>
-											<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-												<span className='block truncate text-white'>
-													{getPositionStatLabel(selectedPositionStat)}
-												</span>
-												<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-													<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-												</span>
-											</Listbox.Button>
-											<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-												{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
-													<Listbox.Option
-														key={statType}
-														className={({ active }) =>
-															`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-														}
-														value={statType}>
-														{({ selected }) => (
-															<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																{getPositionStatLabel(statType)}
-															</span>
-														)}
-													</Listbox.Option>
-												))}
-											</Listbox.Options>
-										</div>
-									</Listbox>
-								</div>
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
-											<YAxis stroke='#fff' fontSize={12} />
-											<Tooltip content={customTooltip} />
-											<Bar dataKey='value' fill='#f9ed32' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							</div>
-						</div>
-					)}
-
+					{/* Top Players Table */}
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
@@ -1433,7 +1381,220 @@ export default function ClubTeamStats() {
 										)}
 									</div>
 								</div>
+							</div>
+						);
+						return !isDataTableMode && chartContent;
+					})()}
 
+					{/* Player Distribution Section */}
+					{!isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
+						// Validate that all links reference existing nodes
+						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
+						const validLinks = sankeyData.links.filter((link: any) => 
+							nodeIds.has(link.source) && nodeIds.has(link.target)
+						);
+						
+						if (validLinks.length === 0) return null;
+						
+						// Custom label layer component that shows player count for team nodes
+						const CustomLabelLayer = ({ nodes, links: nivoLinks }: any) => {
+							return (
+								<g>
+									{nodes.map((node: any) => {
+										const nodeX = (node.x0 + node.x1) / 2;
+										const nodeY = node.y0;
+										const nodeHeight = node.y1 - node.y0;
+										
+										if (node.id === "Players") {
+											// Look up original node from sankeyData to get label with count
+											const originalNode = sankeyData.nodes.find((n: any) => n.id === "Players");
+											const labelText = originalNode?.label || node.label || "Players";
+											
+											// For Players node, show horizontal label at the top
+											return (
+												<g key={node.id}>
+													<text
+														x={nodeX}
+														y={nodeY - 10}
+														textAnchor="middle"
+														dominantBaseline="middle"
+														fill="#fff"
+														fontSize={12}
+														fontWeight="bold"
+													>
+														{labelText}
+													</text>
+												</g>
+											);
+										}
+										// For team nodes, show label and player count below
+										// Find the link that targets this node to get the correct count
+										// First try to get from node's playerCount property (set in sankeyData)
+										// Then try from validLinks (original data)
+										// Finally try from Nivo's processed links
+										let playerCount = node.playerCount;
+										if (!playerCount) {
+											// Try from original validLinks first (most reliable)
+											const originalLink = validLinks.find((l: any) => l.target === node.id);
+											if (originalLink) {
+												playerCount = originalLink.value;
+											} else {
+												// Fall back to Nivo's processed links
+												const matchingLink = nivoLinks.find((link: any) => {
+													const targetId = typeof link.target === 'object' ? (link.target.id ?? link.target) : link.target;
+													return targetId === node.id;
+												});
+												playerCount = matchingLink?.data?.value ?? matchingLink?.value ?? matchingLink?.thickness ?? 0;
+											}
+										}
+										return (
+											<g key={node.id}>
+												<text
+													x={nodeX}
+													y={nodeY + nodeHeight + 25}
+													textAnchor="middle"
+													dominantBaseline="middle"
+													fill="#fff"
+													fontSize={12}
+													fontWeight="bold"
+												>
+													{node.label}
+												</text>
+												<text
+													x={nodeX}
+													y={nodeY + nodeHeight + 40}
+													textAnchor="middle"
+													dominantBaseline="middle"
+													fill="#fff"
+													fontSize={11}
+												>
+													{playerCount}
+												</text>
+											</g>
+										);
+									})}
+								</g>
+							);
+						};
+						
+						return (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
+									<ResponsiveSankey
+										data={{ nodes: sankeyData.nodes, links: validLinks }}
+										margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
+										layout="vertical"
+										align="justify"
+										colors={{ scheme: 'set3' }}
+										nodeOpacity={0.8}
+										nodeThickness={18}
+										nodeSpacing={24}
+										nodeBorderWidth={0}
+										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+										linkOpacity={0.4}
+										linkHoverOthersOpacity={0.1}
+										enableLinkGradient={true}
+										labelPosition="outside"
+										labelOrientation="horizontal"
+										labelPadding={8}
+										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+										nodeTooltip={() => null}
+										linkTooltip={() => null}
+										isInteractive={false}
+										layers={['links', 'nodes', CustomLabelLayer, 'legends']}
+										theme={{
+											text: { fill: '#fff', fontSize: 12 },
+										}}
+									/>
+								</div>
+							</div>
+						</div>
+						);
+					})()}
+
+					{/* Player Tenure Section */}
+					{!isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
+						<div className='mb-4'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={tenureHistogramData} layout="vertical" margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis type="number" stroke='#fff' fontSize={12} />
+											<YAxis type="category" dataKey='seasons' stroke='#fff' fontSize={12} width={120} />
+											<Tooltip content={tenureTooltip} />
+											<Bar dataKey='players' fill='#f9ed32' radius={[0, 4, 4, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							</div>
+						</div>
+					)}
+
+					{/* Stats Distribution Section */}
+					<div className='mb-4'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
+							<div className='mb-2'>
+								<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
+									<div className='relative'>
+										<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+											<span className='block truncate text-white'>
+												{getPositionStatLabel(selectedPositionStat)}
+											</span>
+											<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+												<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+											</span>
+										</Listbox.Button>
+										<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+											{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+												<Listbox.Option
+													key={statType}
+													className={({ active }) =>
+														`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+													}
+													value={statType}>
+													{({ selected }) => (
+														<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+															{getPositionStatLabel(statType)}
+														</span>
+													)}
+												</Listbox.Option>
+											))}
+										</Listbox.Options>
+									</div>
+								</Listbox>
+							</div>
+							{isLoadingPositionStats ? (
+								<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
+									<p className='text-white text-sm'>Loading chart...</p>
+								</div>
+							) : positionStatsData.length > 0 ? (
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
+											<YAxis stroke='#fff' fontSize={12} />
+											<Tooltip content={customTooltip} />
+											<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							) : (
+								<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
+									<p className='text-white text-sm'>No data available</p>
+								</div>
+							)}
+						</div>
+					</div>
+
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4'>
 								{/* Win/Draw/Loss Pie Chart */}
 								{pieChartData.length > 0 && (() => {
 									const wins = toNumber(teamData.wins || 0);

@@ -2473,10 +2473,10 @@ export default function PlayerStats() {
 										<Tooltip content={teamTooltip} />
 										<Bar
 											dataKey='value' 
-											fill='#f9ed32' 
+											fill='#22c55e' 
 											radius={[4, 4, 0, 0]} 
 											opacity={0.9} 
-											activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+											activeBar={{ fill: '#22c55e', opacity: 1, stroke: 'none' }}
 										/>
 									</BarChart>
 								</ResponsiveContainer>
