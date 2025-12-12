@@ -1065,6 +1065,79 @@ function renderVisualization(viz: { type: string; data?: any }, accentColor: str
 			);
 		}
 
+		case "monthly-performance": {
+			if (!data || !data.chartData || data.chartData.length === 0) return null;
+			return (
+				<div style={{ width: "100%", height: "300px" }}>
+					<ResponsiveContainer width="100%" height="100%">
+						<BarChart data={data.chartData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+							<CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
+							<XAxis dataKey="name" stroke="#fff" fontSize={14} />
+							<YAxis stroke="#fff" fontSize={14} />
+							<Bar dataKey="value" fill={accentColor} radius={[4, 4, 0, 0]} opacity={0.9} />
+						</BarChart>
+					</ResponsiveContainer>
+				</div>
+			);
+		}
+
+		case "awards-and-achievements": {
+			if (!data) return null;
+			const awards = data.awards || [];
+			const playerOfMonthCount = data.playerOfMonthCount || 0;
+			const starManCount = data.starManCount || 0;
+			const totwCount = data.totwCount || 0;
+			
+			return (
+				<div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#fff", padding: "20px" }}>
+					<h3 style={{ fontSize: "20px", fontWeight: "bold", marginBottom: "20px", color: "#fff" }}>Awards and Achievements</h3>
+					
+					{/* Awards List */}
+					{awards.length > 0 && (
+						<div style={{ width: "100%", marginBottom: "20px" }}>
+							<h4 style={{ fontSize: "14px", fontWeight: "600", marginBottom: "12px", color: "#fff" }}>Awards</h4>
+							<div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "200px", overflowY: "auto" }}>
+								{awards.map((award: any, index: number) => (
+									<div key={index} style={{ fontSize: "12px", color: "#fff" }}>
+										<span style={{ color: accentColor, fontWeight: "500" }}>{award.awardName}</span>
+										{award.season && <span style={{ color: "rgba(255, 255, 255, 0.7)", marginLeft: "8px" }}>({award.season})</span>}
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+					
+					{/* TOTW Count */}
+					<div style={{ width: "100%", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.1)", marginBottom: "12px" }}>
+						<p style={{ fontSize: "12px", color: "#fff" }}>
+							<span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Number of times in TOTW: </span>
+							<span style={{ fontFamily: "monospace", fontWeight: "bold", color: accentColor }}>{totwCount}</span>
+						</p>
+					</div>
+
+					{/* Star Man Count */}
+					<div style={{ width: "100%", marginBottom: "12px" }}>
+						<p style={{ fontSize: "12px", color: "#fff" }}>
+							<span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Number of times as Star Man: </span>
+							<span style={{ fontFamily: "monospace", fontWeight: "bold", color: accentColor }}>{starManCount}</span>
+						</p>
+					</div>
+
+					{/* Player of the Month Count */}
+					<div style={{ width: "100%" }}>
+						<p style={{ fontSize: "12px", color: "#fff" }}>
+							<span style={{ color: "rgba(255, 255, 255, 0.7)" }}>Number of times in Player of the Month: </span>
+							<span style={{ fontFamily: "monospace", fontWeight: "bold", color: accentColor }}>{playerOfMonthCount}</span>
+						</p>
+					</div>
+
+					{(!awards || awards.length === 0) && playerOfMonthCount === 0 && starManCount === 0 && totwCount === 0 && (
+						<p style={{ fontSize: "12px", color: "rgba(255, 255, 255, 0.7)" }}>No awards or achievements recorded.</p>
+					)}
+				</div>
+			);
+		}
+
 		default:
 			return null;
 	}
