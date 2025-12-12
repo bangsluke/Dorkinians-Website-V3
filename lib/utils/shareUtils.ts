@@ -340,7 +340,7 @@ function isIOS(): boolean {
 export async function shareImage(
 	imageDataUrl: string,
 	playerName: string
-): Promise<{ success: boolean; needsIOSPreview?: boolean }> {
+): Promise<{ success: boolean; needsIOSPreview?: boolean; needsPreview?: boolean }> {
 	try {
 		// Convert data URL to blob
 		const response = await fetch(imageDataUrl);
@@ -352,17 +352,12 @@ export async function shareImage(
 			return { success: true, needsIOSPreview: true };
 		}
 
-		// Try Web Share API first (mobile-friendly, non-iOS)
+		// For non-iOS with Web Share API, return flag to show preview first
 		if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
-			await navigator.share({
-				files: [file],
-				title: `${playerName} - Player Stats`,
-				text: `Check out ${playerName}'s stats!`,
-			});
-			return { success: true };
+			return { success: true, needsPreview: true };
 		}
 
-		// Fallback: Download the image
+		// Fallback: Download the image (no preview for browsers without Web Share API)
 		const link = document.createElement("a");
 		link.href = imageDataUrl;
 		link.download = `${playerName.replace(/\s+/g, "-")}-stats.png`;
@@ -397,6 +392,40 @@ export async function performIOSShare(
 		return false;
 	} catch (error) {
 		console.error("Error performing iOS share:", error);
+		return false;
+	}
+}
+
+export async function performNonIOSShare(
+	imageDataUrl: string,
+	playerName: string
+): Promise<boolean> {
+	try {
+		// Convert data URL to blob
+		const response = await fetch(imageDataUrl);
+		const blob = await response.blob();
+		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
+
+		// Try Web Share API first
+		if (typeof navigator.share === 'function' && typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+			await navigator.share({
+				files: [file],
+				title: `${playerName} - Player Stats`,
+				text: `Check out ${playerName}'s stats!`,
+			});
+			return true;
+		}
+
+		// Fallback: Download the image
+		const link = document.createElement("a");
+		link.href = imageDataUrl;
+		link.download = `${playerName.replace(/\s+/g, "-")}-stats.png`;
+		document.body.appendChild(link);
+		link.click();
+		document.body.removeChild(link);
+		return true;
+	} catch (error) {
+		console.error("Error performing non-iOS share:", error);
 		return false;
 	}
 }

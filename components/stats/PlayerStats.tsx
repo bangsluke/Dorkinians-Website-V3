@@ -14,7 +14,8 @@ import OppositionMap from "@/components/maps/OppositionMap";
 import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
 import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
 import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
-import { generateShareImage, shareImage, performIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+import SharePreviewModal from "@/components/stats/SharePreviewModal";
+import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -1524,6 +1525,7 @@ export default function PlayerStats() {
 	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
 	const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
 	const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
+	const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
 	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
 	const shareCardRef = useRef<HTMLDivElement>(null);
 
@@ -2086,8 +2088,14 @@ export default function PlayerStats() {
 					setIsIOSPreviewOpen(true);
 					// Don't clear selectedShareVisualization yet - wait for user action
 					// Keep isGeneratingShare true to maintain blackout
+				} else if (shareResult.needsPreview) {
+					// Show non-iOS preview modal - keep blackout visible
+					setGeneratedImageDataUrl(imageDataUrl);
+					setIsNonIOSPreviewOpen(true);
+					// Don't clear selectedShareVisualization yet - wait for user action
+					// Keep isGeneratingShare true to maintain blackout
 				} else {
-					// Non-iOS or download - clear immediately and remove blackout
+					// Download fallback (no Web Share API) - clear immediately and remove blackout
 					setIsGeneratingShare(false);
 					setSelectedShareVisualization(null);
 				}
@@ -2135,6 +2143,30 @@ export default function PlayerStats() {
 	// Handle iOS share close
 	const handleIOSShareClose = () => {
 		setIsIOSPreviewOpen(false);
+		setIsGeneratingShare(false);
+		setSelectedShareVisualization(null);
+		setGeneratedImageDataUrl("");
+	};
+
+	// Handle non-iOS share continuation
+	const handleNonIOSShareContinue = async () => {
+		setIsNonIOSPreviewOpen(false);
+		
+		try {
+			await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
+		} catch (error) {
+			console.error("[Share] Error sharing image:", error);
+			alert("Failed to share image. Please try again.");
+		} finally {
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+			setGeneratedImageDataUrl("");
+		}
+	};
+
+	// Handle non-iOS share close
+	const handleNonIOSShareClose = () => {
+		setIsNonIOSPreviewOpen(false);
 		setIsGeneratingShare(false);
 		setSelectedShareVisualization(null);
 		setGeneratedImageDataUrl("");
@@ -2877,7 +2909,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Blackout overlay - covers full screen during entire share process */}
-			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
+			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
 				<div className="fixed inset-0 bg-black z-[30]" style={{ pointerEvents: 'none', opacity: 1 }} />,
 				document.body
 			)}
@@ -2898,6 +2930,17 @@ export default function PlayerStats() {
 				imageDataUrl={generatedImageDataUrl}
 				onContinue={handleIOSShareContinue}
 				onClose={handleIOSShareClose}
+				backgroundColor={shareBackgroundColor}
+				onBackgroundColorChange={setShareBackgroundColor}
+				onRegenerateImage={handleRegenerateImage}
+			/>
+
+			{/* Non-iOS Share Preview Modal */}
+			<SharePreviewModal
+				isOpen={isNonIOSPreviewOpen}
+				imageDataUrl={generatedImageDataUrl}
+				onContinue={handleNonIOSShareContinue}
+				onClose={handleNonIOSShareClose}
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
 				onRegenerateImage={handleRegenerateImage}
