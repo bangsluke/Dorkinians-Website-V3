@@ -307,13 +307,56 @@ export async function generateShareImage(
 			windowWidth: element.offsetWidth,
 			windowHeight: element.offsetHeight,
 			onclone: (clonedDoc) => {
-				// Ensure filters are applied in cloned DOM
+				// Ensure filters are applied in cloned DOM and convert SVG icons to canvas
 				const clonedElement = clonedDoc.querySelector('.shareable-stats-card');
 				if (clonedElement) {
+					// Handle logo
 					const logoImg = clonedElement.querySelector('img[alt="Dorkinians FC Logo"]') as HTMLImageElement;
 					if (logoImg) {
 						logoImg.style.filter = "grayscale(100%) brightness(0) invert(1)";
 					}
+					
+					// Convert all stat icon SVG images to canvas elements
+					const statIcons = clonedElement.querySelectorAll('img[src*="/stat-icons/"]') as NodeListOf<HTMLImageElement>;
+					statIcons.forEach((img) => {
+						if (img.src && img.src.includes('.svg') && img.complete && img.naturalWidth > 0) {
+							try {
+								const canvas = clonedDoc.createElement('canvas');
+								const width = img.naturalWidth || 42;
+								const height = img.naturalHeight || 42;
+								canvas.width = width;
+								canvas.height = height;
+								const ctx = canvas.getContext('2d');
+								
+								if (ctx) {
+									// Draw the image to canvas
+									ctx.drawImage(img, 0, 0, width, height);
+									
+									// Apply the filter effect (brightness(0) invert(1))
+									const imageData = ctx.getImageData(0, 0, width, height);
+									const data = imageData.data;
+									for (let i = 0; i < data.length; i += 4) {
+										// Invert colors
+										data[i] = 255 - data[i];     // R
+										data[i + 1] = 255 - data[i + 1]; // G
+										data[i + 2] = 255 - data[i + 2]; // B
+									}
+									ctx.putImageData(imageData, 0, 0);
+									
+									// Replace img with canvas
+									canvas.style.width = img.style.width || '42px';
+									canvas.style.height = img.style.height || '42px';
+									canvas.style.objectFit = 'contain';
+									img.parentNode?.replaceChild(canvas, img);
+								}
+							} catch (e) {
+								// If conversion fails, ensure the image is visible
+								img.style.display = 'block';
+								img.style.visibility = 'visible';
+								img.style.opacity = '1';
+							}
+						}
+					});
 				}
 			},
 		});
