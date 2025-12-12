@@ -29,6 +29,11 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		removePositionFilter,
 	} = useNavigationStore();
 
+	// Early return if playerFilters is null/undefined
+	if (!playerFilters) {
+		return null;
+	}
+
 	// Get available filters for current page
 	const availableFilters = useMemo(() => {
 		const config = statsPageConfig[currentStatsSubPage];
@@ -52,7 +57,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		const expandedPills: Array<ActiveFilter & { onRemove: () => void }> = [];
 
 		// Teams filter
-		if (availableFilters.includes("team") && playerFilters.teams.length > 0) {
+		if (availableFilters.includes("team") && playerFilters.teams?.length > 0) {
 			playerFilters.teams.forEach((team) => {
 				expandedPills.push({
 					key: `team-${team}`,
@@ -65,7 +70,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		}
 
 		// Location filter
-		if (availableFilters.includes("location") && playerFilters.location.length > 0 && playerFilters.location.length < 2) {
+		if (availableFilters.includes("location") && playerFilters.location?.length > 0 && playerFilters.location.length < 2) {
 			playerFilters.location.forEach((location) => {
 				expandedPills.push({
 					key: `location-${location}`,
@@ -78,7 +83,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		}
 
 		// Result filter
-		if (availableFilters.includes("result") && playerFilters.result.length > 0 && playerFilters.result.length < 3) {
+		if (availableFilters.includes("result") && playerFilters.result?.length > 0 && playerFilters.result.length < 3) {
 			playerFilters.result.forEach((result) => {
 				expandedPills.push({
 					key: `result-${result}`,
@@ -91,7 +96,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		}
 
 		// Position filter
-		if (availableFilters.includes("position") && playerFilters.position.length > 0) {
+		if (availableFilters.includes("position") && playerFilters.position?.length > 0) {
 			playerFilters.position.forEach((position) => {
 				expandedPills.push({
 					key: `position-${position}`,
@@ -104,14 +109,14 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		}
 
 		// Competition filter
-		if (availableFilters.includes("competition")) {
+		if (availableFilters.includes("competition") && playerFilters.competition) {
 			// Only show competition type pills if they differ from default (League + Cup)
 			const isDefaultCompetitionTypes = 
-				playerFilters.competition.types.length === 2 &&
+				playerFilters.competition.types?.length === 2 &&
 				playerFilters.competition.types.includes("League") &&
 				playerFilters.competition.types.includes("Cup");
 			
-			if (playerFilters.competition.types.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
+			if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
 				playerFilters.competition.types.forEach((type) => {
 					expandedPills.push({
 						key: `competition-type-${type}`,
