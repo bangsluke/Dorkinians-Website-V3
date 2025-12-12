@@ -10,6 +10,7 @@ import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import RecentGamesForm from "./RecentGamesForm";
+import { safeLocalStorageGet, safeLocalStorageSet, getPWADebugInfo } from "@/lib/utils/pwaDebug";
 
 
 interface TopPlayer {
@@ -360,15 +361,10 @@ export default function TeamStats() {
 	// Initialize selected team from localStorage, player's most played team, or first available team
 	const [selectedTeam, setSelectedTeam] = useState<string>(() => {
 		if (typeof window !== "undefined" && selectedPlayer) {
-			try {
-				const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-				const saved = localStorage.getItem(storageKey);
-				if (saved) {
-					return saved;
-				}
-			} catch (e) {
-				// localStorage may be unavailable (private mode, quota exceeded, etc.)
-				console.warn('Failed to read from localStorage:', e);
+			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+			const saved = safeLocalStorageGet(storageKey);
+			if (saved) {
+				return saved;
 			}
 		}
 		return "";
@@ -379,15 +375,10 @@ export default function TeamStats() {
 	// Top players table state
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
-			try {
-				const saved = localStorage.getItem("team-stats-top-players-stat-type");
-				const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
-				if (saved && validStatTypes.includes(saved as StatType)) {
-					return saved as StatType;
-				}
-			} catch (e) {
-				// localStorage may be unavailable
-				console.warn('Failed to read from localStorage:', e);
+			const saved = safeLocalStorageGet("team-stats-top-players-stat-type");
+			const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
+			if (saved && validStatTypes.includes(saved as StatType)) {
+				return saved as StatType;
 			}
 		}
 		return "appearances";
@@ -415,14 +406,7 @@ export default function TeamStats() {
 		previousPlayerRef.current = selectedPlayer;
 
 		const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-		let savedTeam: string | null = null;
-		if (typeof window !== "undefined") {
-			try {
-				savedTeam = localStorage.getItem(storageKey);
-			} catch (e) {
-				console.warn('Failed to read from localStorage:', e);
-			}
-		}
+		const savedTeam = typeof window !== "undefined" ? safeLocalStorageGet(storageKey) : null;
 		
 		// Check if saved team is valid
 		if (savedTeam && filterData.teams.some(team => team.name === savedTeam)) {
@@ -440,11 +424,12 @@ export default function TeamStats() {
 	// Save selected team to localStorage when it changes (only if player is selected)
 	useEffect(() => {
 		if (selectedPlayer && selectedTeam && typeof window !== "undefined") {
-			try {
-				const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-				localStorage.setItem(storageKey, selectedTeam);
-			} catch (e) {
-				console.warn('Failed to write to localStorage:', e);
+			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+			const success = safeLocalStorageSet(storageKey, selectedTeam);
+			if (!success) {
+				// Log PWA debug info if localStorage write fails
+				const pwaDebugInfo = getPWADebugInfo();
+				console.warn('[TeamStats] Failed to save selected team to localStorage. PWA Debug Info:', pwaDebugInfo);
 			}
 		}
 	}, [selectedTeam, selectedPlayer]);
@@ -477,10 +462,11 @@ export default function TeamStats() {
 	// Save selectedStatType to localStorage when it changes
 	useEffect(() => {
 		if (typeof window !== "undefined") {
-			try {
-				localStorage.setItem("team-stats-top-players-stat-type", selectedStatType);
-			} catch (e) {
-				console.warn('Failed to write to localStorage:', e);
+			const success = safeLocalStorageSet("team-stats-top-players-stat-type", selectedStatType);
+			if (!success) {
+				// Log PWA debug info if localStorage write fails
+				const pwaDebugInfo = getPWADebugInfo();
+				console.warn('[TeamStats] Failed to save selected stat type to localStorage. PWA Debug Info:', pwaDebugInfo);
 			}
 		}
 	}, [selectedStatType]);
@@ -528,6 +514,9 @@ export default function TeamStats() {
 				}
 			} catch (error) {
 				console.error("Error fetching team data:", error);
+				// Log PWA debug info on error
+				const pwaDebugInfo = getPWADebugInfo();
+				console.error("[TeamStats] PWA Debug Info on team data fetch error:", pwaDebugInfo);
 				setTeamData(null);
 			} finally {
 				setIsLoadingTeamData(false);
@@ -571,6 +560,9 @@ export default function TeamStats() {
 				}
 			} catch (error) {
 				console.error("[TeamStats] Error fetching top players:", error);
+				// Log PWA debug info on error
+				const pwaDebugInfo = getPWADebugInfo();
+				console.error("[TeamStats] PWA Debug Info on top players fetch error:", pwaDebugInfo);
 				setTopPlayers([]);
 			} finally {
 				setIsLoadingTopPlayers(false);
