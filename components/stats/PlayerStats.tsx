@@ -2067,6 +2067,13 @@ export default function PlayerStats() {
 							<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
 						</button>
 					</div>
+					<div className='flex justify-center mb-2 md:mb-4'>
+						<button
+							onClick={() => setIsDataTableMode(!isDataTableMode)}
+							className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+							{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+						</button>
+					</div>
 					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 				</div>
 				<div className='flex-1 flex items-center justify-center p-4'>
