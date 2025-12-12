@@ -492,26 +492,6 @@ export class ChatbotService {
 
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
-				// Log unanswered questions for clarification_needed cases (fire-and-forget, non-blocking)
-				// These represent unanswerable questions that should be tracked
-				const shouldLogClarification = 
-					(analysis.confidence !== undefined && analysis.confidence < 0.5) ||
-					analysis.requiresClarification ||
-					analysis.entities.length === 0 ||
-					analysis.metrics.length === 0;
-
-				if (shouldLogClarification) {
-					unansweredQuestionLogger.log({
-						originalQuestion,
-						correctedQuestion,
-						analysis,
-						confidence: analysis.confidence,
-						userContext: context.userContext,
-					}).catch((err) => {
-						console.error("❌ Failed to log unanswered question:", err);
-					});
-				}
-
 				// Try to provide a better fallback response
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
@@ -562,13 +542,7 @@ export class ChatbotService {
 			}
 
 			// Log unanswered questions (fire-and-forget, non-blocking)
-			const shouldLog = 
-				response.answer === "I couldn't find relevant information for your question." ||
-				(analysis.confidence !== undefined && analysis.confidence < 0.5) ||
-				analysis.requiresClarification ||
-				analysis.entities.length === 0 ||
-				analysis.metrics.length === 0 ||
-				(data && ((data as any).type === "error" || ((data as any).data && Array.isArray((data as any).data) && (data as any).data.length === 0)));
+			const shouldLog = response.answer === "I couldn't find relevant information for your question.";
 
 			if (shouldLog) {
 				unansweredQuestionLogger.log({
@@ -586,40 +560,6 @@ export class ChatbotService {
 		} catch (error) {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
-
-			// Log unanswered question when error occurs (fire-and-forget, non-blocking)
-			unansweredQuestionLogger.log({
-				originalQuestion,
-				correctedQuestion,
-				analysis: this.lastQuestionAnalysis || {
-					type: "general",
-					entities: [],
-					metrics: [],
-					extractionResult: {
-						entities: [],
-						statTypes: [],
-						statIndicators: [],
-						questionTypes: [],
-						negativeClauses: [],
-						locations: [],
-						timeFrames: [],
-						competitionTypes: [],
-						competitions: [],
-						results: [],
-						opponentOwnGoals: false,
-						goalInvolvements: false,
-					},
-					complexity: "simple",
-					requiresClarification: false,
-					question: context.question,
-					confidence: 0,
-					message: error instanceof Error ? error.message : String(error),
-				},
-				confidence: this.lastQuestionAnalysis?.confidence || 0,
-				userContext: context.userContext,
-			}).catch((err) => {
-				console.error("❌ Failed to log unanswered question:", err);
-			});
 
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
