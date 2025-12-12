@@ -1527,16 +1527,6 @@ export default function PlayerStats() {
 	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
 	const shareCardRef = useRef<HTMLDivElement>(null);
 
-	// Debug: Log blackout overlay state changes
-	useEffect(() => {
-		const shouldShowBlackout = isShareModalOpen || isGeneratingShare || isIOSPreviewOpen;
-		console.log("[Share] Blackout overlay state changed:", {
-			shouldShowBlackout,
-			isShareModalOpen,
-			isGeneratingShare,
-			isIOSPreviewOpen,
-		});
-	}, [isShareModalOpen, isGeneratingShare, isIOSPreviewOpen]);
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -2069,69 +2059,37 @@ export default function PlayerStats() {
 
 	// Handle visualization selection
 	const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
-		console.log("[Share] Visualization selected:", { vizId, backgroundColor });
-		console.log("[Share] State before selection:", {
-			isShareModalOpen,
-			isGeneratingShare,
-			isIOSPreviewOpen,
-			hasShareCardRef: !!shareCardRef.current,
-		});
-		
 		// Set generating state immediately to show blackout overlay
 		setIsGeneratingShare(true);
-		console.log("[Share] Set isGeneratingShare to true");
 		
 		const vizData = getVisualizationData(vizId);
 		setSelectedShareVisualization(vizData);
 		setShareBackgroundColor(backgroundColor);
-		console.log("[Share] Updated visualization data and background color");
 		
 		// Close modal immediately - blackout overlay is already in place
 		setIsShareModalOpen(false);
-		console.log("[Share] Closed share modal, blackout should be visible");
 		
 		// Wait for state update, then generate image
 		setTimeout(async () => {
-			console.log("[Share] Starting image generation timeout callback");
-			console.log("[Share] State in timeout:", {
-				isShareModalOpen,
-				isGeneratingShare,
-				isIOSPreviewOpen,
-				hasShareCardRef: !!shareCardRef.current,
-			});
-			
 			if (!shareCardRef.current) {
-				console.error("[Share] shareCardRef.current is null, aborting");
 				setIsGeneratingShare(false);
 				return;
 			}
 			
 			try {
-				console.log("[Share] Generating share image...");
 				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-				console.log("[Share] Image generated successfully, data URL length:", imageDataUrl.length);
-				
-				console.log("[Share] Attempting to share image...");
 				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
-				console.log("[Share] Share result:", shareResult);
 				
 				if (shareResult.needsIOSPreview) {
 					// Show iOS preview modal - keep blackout visible
-					console.log("[Share] iOS preview needed, opening preview modal");
 					setGeneratedImageDataUrl(imageDataUrl);
 					setIsIOSPreviewOpen(true);
-					console.log("[Share] iOS preview modal opened, state:", {
-						isIOSPreviewOpen: true,
-						isGeneratingShare: true,
-					});
 					// Don't clear selectedShareVisualization yet - wait for user action
 					// Keep isGeneratingShare true to maintain blackout
 				} else {
 					// Non-iOS or download - clear immediately and remove blackout
-					console.log("[Share] Non-iOS share, clearing state");
 					setIsGeneratingShare(false);
 					setSelectedShareVisualization(null);
-					console.log("[Share] Share process complete");
 				}
 			} catch (error) {
 				console.error("[Share] Error generating share image:", error);
@@ -2144,18 +2102,14 @@ export default function PlayerStats() {
 
 	// Regenerate image when background color changes in preview
 	const handleRegenerateImage = async (color: "yellow" | "green") => {
-		console.log("[Share] Regenerating image with new background color:", color);
 		setShareBackgroundColor(color);
 		
 		if (!shareCardRef.current) {
-			console.error("[Share] shareCardRef.current is null during regeneration");
 			return;
 		}
 		
 		try {
-			console.log("[Share] Generating new image with color:", color);
 			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-			console.log("[Share] New image generated, updating preview");
 			setGeneratedImageDataUrl(imageDataUrl);
 		} catch (error) {
 			console.error("[Share] Error regenerating image:", error);
@@ -2164,61 +2118,34 @@ export default function PlayerStats() {
 
 	// Handle iOS share continuation
 	const handleIOSShareContinue = async () => {
-		console.log("[Share] iOS share continue clicked");
-		console.log("[Share] State before continue:", {
-			isIOSPreviewOpen,
-			isGeneratingShare,
-			hasImageDataUrl: !!generatedImageDataUrl,
-		});
-		
 		setIsIOSPreviewOpen(false);
-		console.log("[Share] Closed iOS preview modal");
 		
 		try {
-			console.log("[Share] Performing iOS share...");
 			await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
-			console.log("[Share] iOS share completed successfully");
 		} catch (error) {
 			console.error("[Share] Error sharing image:", error);
 			alert("Failed to share image. Please try again.");
 		} finally {
-			console.log("[Share] Cleaning up share state");
 			setIsGeneratingShare(false);
 			setSelectedShareVisualization(null);
 			setGeneratedImageDataUrl("");
-			console.log("[Share] Share process complete");
 		}
 	};
 
 	// Handle iOS share close
 	const handleIOSShareClose = () => {
-		console.log("[Share] iOS share close clicked");
-		console.log("[Share] State before close:", {
-			isIOSPreviewOpen,
-			isGeneratingShare,
-		});
-		
 		setIsIOSPreviewOpen(false);
 		setIsGeneratingShare(false);
 		setSelectedShareVisualization(null);
 		setGeneratedImageDataUrl("");
-		console.log("[Share] Share process cancelled");
 	};
 
 	// Share handler - opens modal
 	const handleShare = () => {
-		console.log("[Share] Share button clicked");
 		if (!selectedPlayer || !validPlayerData) {
-			console.warn("[Share] Cannot share: missing player or data");
 			return;
 		}
-		console.log("[Share] Opening share modal");
 		setIsShareModalOpen(true);
-		console.log("[Share] Share modal opened, state:", {
-			isShareModalOpen: true,
-			isGeneratingShare,
-			isIOSPreviewOpen,
-		});
 	};
 
 	const tooltipStyle = {
