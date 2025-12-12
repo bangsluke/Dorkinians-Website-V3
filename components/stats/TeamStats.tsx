@@ -49,80 +49,100 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 		const containers: HTMLElement[] = [];
 		let current: HTMLElement | null = element;
 		
-		while (current && current !== document.body) {
-			const style = window.getComputedStyle(current);
-			const overflowY = style.overflowY;
-			const overflowX = style.overflowX;
-			
-			if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
-				containers.push(current);
+		try {
+			while (current && typeof document !== 'undefined' && current !== document.body) {
+				try {
+					const style = window.getComputedStyle(current);
+					const overflowY = style.overflowY;
+					const overflowX = style.overflowX;
+					
+					if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
+						containers.push(current);
+					}
+				} catch (e) {
+					// Element may not be in DOM or computed style unavailable
+					break;
+				}
+				
+				current = current.parentElement;
 			}
-			
-			current = current.parentElement;
+		} catch (e) {
+			// Silently fail if DOM traversal fails
 		}
 		
 		return containers;
 	};
 
 	const updateTooltipPosition = () => {
-		if (!rowRef.current) return;
+		if (!rowRef.current || typeof window === 'undefined') return;
 		
-		const rect = rowRef.current.getBoundingClientRect();
-		const viewportHeight = window.innerHeight;
-		const viewportWidth = window.innerWidth;
-		
-		// Find scroll containers
-		const scrollContainers = findScrollContainers(rowRef.current);
-		
-		// Calculate tooltip dimensions - use actual if available, otherwise estimate
-		let tooltipHeight = 60; // Default estimate
-		const tooltipWidth = 256; // w-64 = 16rem = 256px
-		
-		// Try to measure actual tooltip if it exists
-		if (tooltipRef.current) {
-			const tooltipRect = tooltipRef.current.getBoundingClientRect();
-			tooltipHeight = tooltipRect.height || 60;
+		try {
+			const rect = rowRef.current.getBoundingClientRect();
+			const viewportHeight = window.innerHeight || 0;
+			const viewportWidth = window.innerWidth || 0;
+			const scrollY = window.scrollY || 0;
+			const scrollX = window.scrollX || 0;
+			
+			// Find scroll containers
+			const scrollContainers = findScrollContainers(rowRef.current);
+			
+			// Calculate tooltip dimensions - use actual if available, otherwise estimate
+			let tooltipHeight = 60; // Default estimate
+			const tooltipWidth = 256; // w-64 = 16rem = 256px
+			
+			// Try to measure actual tooltip if it exists
+			if (tooltipRef.current) {
+				try {
+					const tooltipRect = tooltipRef.current.getBoundingClientRect();
+					tooltipHeight = tooltipRect.height || 60;
+				} catch (e) {
+					// Tooltip not yet rendered or not measurable
+				}
+			}
+			
+			// Calculate available space above and below
+			const spaceBelow = viewportHeight - rect.bottom;
+			const spaceAbove = rect.top;
+			const margin = 10; // Minimum margin from viewport edge
+			const arrowHeight = 8; // Height of arrow
+			const spacing = 8; // Space between row and tooltip
+			
+			// Determine placement based on available space
+			let placement: 'above' | 'below' = 'below';
+			let top: number;
+			
+			const neededSpaceBelow = tooltipHeight + arrowHeight + spacing + margin;
+			const neededSpaceAbove = tooltipHeight + arrowHeight + spacing + margin;
+			
+			if (spaceBelow < neededSpaceBelow && spaceAbove > neededSpaceAbove) {
+				// Show above if not enough space below but enough above
+				placement = 'above';
+				top = rect.top + scrollY - tooltipHeight - arrowHeight - spacing;
+			} else if (spaceBelow >= neededSpaceBelow) {
+				// Show below if enough space
+				placement = 'below';
+				top = rect.bottom + scrollY + spacing;
+			} else {
+				// Default to above if neither has enough space (prefer above to avoid going off bottom)
+				placement = 'above';
+				top = Math.max(margin, rect.top + scrollY - tooltipHeight - arrowHeight - spacing);
+			}
+			
+			// Calculate horizontal position (center on row, but keep within viewport)
+			let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+			
+			// Ensure tooltip stays within viewport with margin
+			if (left < scrollX + margin) {
+				left = scrollX + margin;
+			} else if (left + tooltipWidth > scrollX + viewportWidth - margin) {
+				left = scrollX + viewportWidth - tooltipWidth - margin;
+			}
+			
+			setTooltipPosition({ top, left, placement });
+		} catch (e) {
+			// Silently fail if positioning fails
+			console.error('Error updating tooltip position:', e);
 		}
-		
-		// Calculate available space above and below
-		const spaceBelow = viewportHeight - rect.bottom;
-		const spaceAbove = rect.top;
-		const margin = 10; // Minimum margin from viewport edge
-		const arrowHeight = 8; // Height of arrow
-		const spacing = 8; // Space between row and tooltip
-		
-		// Determine placement based on available space
-		let placement: 'above' | 'below' = 'below';
-		let top: number;
-		
-		const neededSpaceBelow = tooltipHeight + arrowHeight + spacing + margin;
-		const neededSpaceAbove = tooltipHeight + arrowHeight + spacing + margin;
-		
-		if (spaceBelow < neededSpaceBelow && spaceAbove > neededSpaceAbove) {
-			// Show above if not enough space below but enough above
-			placement = 'above';
-			top = rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing;
-		} else if (spaceBelow >= neededSpaceBelow) {
-			// Show below if enough space
-			placement = 'below';
-			top = rect.bottom + window.scrollY + spacing;
-		} else {
-			// Default to above if neither has enough space (prefer above to avoid going off bottom)
-			placement = 'above';
-			top = Math.max(margin, rect.top + window.scrollY - tooltipHeight - arrowHeight - spacing);
-		}
-		
-		// Calculate horizontal position (center on row, but keep within viewport)
-		let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
-		
-		// Ensure tooltip stays within viewport with margin
-		if (left < window.scrollX + margin) {
-			left = window.scrollX + margin;
-		} else if (left + tooltipWidth > window.scrollX + viewportWidth - margin) {
-			left = window.scrollX + viewportWidth - tooltipWidth - margin;
-		}
-		
-		setTooltipPosition({ top, left, placement });
 	};
 
 	// Update position when tooltip becomes visible (to measure actual dimensions)
@@ -232,7 +252,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 					</span>
 				</td>
 			</tr>
-			{showTooltip && tooltipPosition && typeof document !== 'undefined' && createPortal(
+			{showTooltip && tooltipPosition && typeof document !== 'undefined' && document.body && createPortal(
 				<div 
 					ref={tooltipRef}
 					className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg w-64 text-center pointer-events-none' 
@@ -339,10 +359,15 @@ export default function TeamStats() {
 	// Initialize selected team from localStorage, player's most played team, or first available team
 	const [selectedTeam, setSelectedTeam] = useState<string>(() => {
 		if (typeof window !== "undefined" && selectedPlayer) {
-			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-			const saved = localStorage.getItem(storageKey);
-			if (saved) {
-				return saved;
+			try {
+				const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+				const saved = localStorage.getItem(storageKey);
+				if (saved) {
+					return saved;
+				}
+			} catch (e) {
+				// localStorage may be unavailable (private mode, quota exceeded, etc.)
+				console.warn('Failed to read from localStorage:', e);
 			}
 		}
 		return "";
@@ -353,10 +378,15 @@ export default function TeamStats() {
 	// Top players table state
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
 		if (typeof window !== "undefined") {
-			const saved = localStorage.getItem("team-stats-top-players-stat-type");
-			const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
-			if (saved && validStatTypes.includes(saved as StatType)) {
-				return saved as StatType;
+			try {
+				const saved = localStorage.getItem("team-stats-top-players-stat-type");
+				const validStatTypes: StatType[] = ["appearances", "goals", "assists", "cleanSheets", "mom", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "goalInvolvements", "minutes", "ownGoals", "conceded", "penaltiesMissed", "penaltiesConceded", "penaltiesSaved", "distance"];
+				if (saved && validStatTypes.includes(saved as StatType)) {
+					return saved as StatType;
+				}
+			} catch (e) {
+				// localStorage may be unavailable
+				console.warn('Failed to read from localStorage:', e);
 			}
 		}
 		return "appearances";
@@ -384,7 +414,14 @@ export default function TeamStats() {
 		previousPlayerRef.current = selectedPlayer;
 
 		const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-		const savedTeam = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
+		let savedTeam: string | null = null;
+		if (typeof window !== "undefined") {
+			try {
+				savedTeam = localStorage.getItem(storageKey);
+			} catch (e) {
+				console.warn('Failed to read from localStorage:', e);
+			}
+		}
 		
 		// Check if saved team is valid
 		if (savedTeam && filterData.teams.some(team => team.name === savedTeam)) {
@@ -402,8 +439,12 @@ export default function TeamStats() {
 	// Save selected team to localStorage when it changes (only if player is selected)
 	useEffect(() => {
 		if (selectedPlayer && selectedTeam && typeof window !== "undefined") {
-			const storageKey = `team-stats-selected-team-${selectedPlayer}`;
-			localStorage.setItem(storageKey, selectedTeam);
+			try {
+				const storageKey = `team-stats-selected-team-${selectedPlayer}`;
+				localStorage.setItem(storageKey, selectedTeam);
+			} catch (e) {
+				console.warn('Failed to write to localStorage:', e);
+			}
 		}
 	}, [selectedTeam, selectedPlayer]);
 
@@ -435,7 +476,11 @@ export default function TeamStats() {
 	// Save selectedStatType to localStorage when it changes
 	useEffect(() => {
 		if (typeof window !== "undefined") {
-			localStorage.setItem("team-stats-top-players-stat-type", selectedStatType);
+			try {
+				localStorage.setItem("team-stats-top-players-stat-type", selectedStatType);
+			} catch (e) {
+				console.warn('Failed to write to localStorage:', e);
+			}
 		}
 	}, [selectedStatType]);
 
