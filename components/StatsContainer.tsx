@@ -52,7 +52,7 @@ export default function StatsContainer() {
 
 	// Conditionally enable drag based on whether touch starts in filter pills area
 	// Returns 'x' to allow horizontal drag, or false to disable drag
-	const shouldAllowDrag = (event: PointerEvent): 'x' | false => {
+	const shouldAllowDrag = (event: PointerEvent): boolean | "x" | "y" | undefined => {
 		if (isFilterPillsArea(event)) {
 			return false;
 		}
@@ -113,7 +113,7 @@ export default function StatsContainer() {
 					animate={{ opacity: 1, x: 0 }}
 					exit={{ opacity: 0 }}
 					transition={{ duration: 0.2 }}
-					drag={shouldAllowDrag}
+					drag={shouldAllowDrag as any}
 					dragConstraints={{ left: 0, right: 0 }}
 					dragElastic={0.05}
 					dragDirectionLock={true}
