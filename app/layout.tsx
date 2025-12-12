@@ -81,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 						defer
 						data-website-id={umamiWebsiteId}
 						src={umamiScriptUrl}
-						strategy='afterInteractive'
+						strategy='lazyOnload'
 					/>
 				)}
 				<UmamiAnalytics />
