@@ -20,7 +20,7 @@ interface SavedConversation {
 }
 
 export default function ChatbotInterface() {
-	const { selectedPlayer } = useNavigationStore();
+	const { selectedPlayer, setMainPage, setStatsSubPage } = useNavigationStore();
 	const isDevelopment = process.env.NODE_ENV === "development";
 	const [question, setQuestion] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
@@ -373,6 +373,20 @@ export default function ChatbotInterface() {
 							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
 
+						{/* Navigation button for full stats question */}
+						{response.answer.includes("Player Stats page") && (
+							<div className='mb-3 md:mb-4'>
+								<button
+									onClick={() => {
+										setMainPage("stats");
+										setStatsSubPage("player-stats");
+									}}
+									className='CTA px-4 py-2 text-sm md:text-base w-full md:w-auto'>
+									<span className='text-black font-medium'>View Player Stats</span>
+								</button>
+							</div>
+						)}
+
 						{/* Visualization */}
 						{response.visualization && (
 							response.visualization.type === "NumberCard" ? (
@@ -396,15 +410,15 @@ export default function ChatbotInterface() {
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
-						<h3 className='font-semibold text-white mb-3 md:mb-4 text-base'>Try these questions:</h3>
-						<div className='space-y-2 md:space-y-3'>
+						<h3 className='font-semibold text-white pb-4 pb-4mb-3 md:mb-4 text-base'>Try these questions:</h3>
+						<div className='space-y-2 md:space-y-3 pb-4'>
 							{homepageQuestions.map((q, index) => (
 								<motion.div
 									key={q.id}
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
-									className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
+									className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 									onClick={() => {
 										submitQuestion(q.question);
 									}}>
@@ -465,14 +479,14 @@ export default function ChatbotInterface() {
 									))}
 							</div>
 						) : (
-							<div className='space-y-2 md:space-y-3'>
+ 							<div className='space-y-2 md:space-y-3 pb-4'>
 								{homepageQuestions.map((q, index) => (
 									<motion.div
 										key={q.id}
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.1 }}
-										className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
+										className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 										onClick={() => {
 											submitQuestion(q.question);
 										}}>

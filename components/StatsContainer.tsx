@@ -95,7 +95,7 @@ export default function StatsContainer() {
 					onDragEnd={handleDragEnd}
 					style={{ 
 						position: 'relative',
-						touchAction: 'pan-y pinch-zoom'
+						touchAction: 'pan-y pan-x pinch-zoom'
 					}}
 					className='h-full'>
 					{currentPage ? React.createElement(currentPage.component) : null}

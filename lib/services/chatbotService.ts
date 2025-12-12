@@ -480,6 +480,29 @@ export class ChatbotService {
 				this.logToBoth(`🔤 Spelling corrections applied: ${spellingResult.corrections.map(c => `${c.original} → ${c.corrected}`).join(", ")}`, null, "log");
 			}
 
+			// Handle "full stats" question with special response
+			const fullStatsPattern = /\b(full|all|complete|entire|whole)\s+stats?\b/i;
+			if (fullStatsPattern.test(context.question)) {
+				const playerName = context.userContext || "you";
+				return {
+					answer: `You can view your complete player statistics on the Player Stats page. Click the link below to navigate there.`,
+					sources: [],
+					visualization: undefined,
+					debug: {
+						question: context.question,
+						userContext: context.userContext,
+						timestamp: new Date().toISOString(),
+						serverLogs: `Special handling for full stats question`,
+						processingDetails: {
+							questionAnalysis: null,
+							cypherQueries: [],
+							processingSteps: ["Detected full stats question, returning navigation response"],
+							queryBreakdown: null,
+						},
+					},
+				};
+			}
+
 			// Analyze the question
 			let analysis = await this.analyzeQuestion(context.question, context.userContext);
 			
@@ -688,6 +711,35 @@ export class ChatbotService {
 			
 			this.logToBoth(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedWith`, null, "log");
 			return await this.queryMostPlayedWith(resolvedPlayerName);
+		}
+
+		// Check for "opposition most" or "played against the most" questions
+		const isOppositionMostQuestion = 
+			(questionLower.includes("opposition") && questionLower.includes("most")) ||
+			(questionLower.includes("opposition") && questionLower.includes("played against")) ||
+			(questionLower.includes("played against") && questionLower.includes("most")) ||
+			(questionLower.includes("what opposition") && questionLower.includes("most"));
+
+		this.logToBoth(`🔍 Checking for "opposition most" question. Question: "${questionLower}", isOppositionMostQuestion: ${isOppositionMostQuestion}`, null, "log");
+
+		// If this is an "opposition most" question, handle it specially
+		if (isOppositionMostQuestion && entities.length > 0) {
+			this.logToBoth(`🔍 Detected "opposition most" question, using opponents query for player: ${entities[0]}`, null, "log");
+			const playerName = entities[0];
+			const resolvedPlayerName = await this.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				this.logToBoth(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			this.logToBoth(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
+			return await this.queryPlayerOpponentsData(resolvedPlayerName);
 		}
 
 		// If we have a specific player name and metrics, query their stats
@@ -3442,23 +3494,66 @@ export class ChatbotService {
 			} else if (data && data.type === "opponents" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle opponents data
 				const playerName = data.playerName as string;
-				const opponents = data.data.slice(0, 10) as OpponentData[];
+				const resultRecord = data.data[0] as { opponents?: Array<{ opponent: string; gamesPlayed: number | any }>; totalOpponents?: number | any };
+				
+				// Handle Neo4j Integer types
+				let totalOpponents = resultRecord.totalOpponents;
+				if (totalOpponents && typeof totalOpponents === "object") {
+					if ("toNumber" in totalOpponents && typeof totalOpponents.toNumber === "function") {
+						totalOpponents = totalOpponents.toNumber();
+					} else if ("low" in totalOpponents && "high" in totalOpponents) {
+						totalOpponents = (totalOpponents.low || 0) + (totalOpponents.high || 0) * 4294967296;
+					} else {
+						totalOpponents = Number(totalOpponents);
+					}
+				}
+				totalOpponents = Number(totalOpponents) || 0;
 
-				answer = `${playerName} has played against ${opponents.length} different opponents. Top opponents: ${opponents
-					.map((o: OpponentData) => o.opponent)
-					.join(", ")}.`;
+				const opponents = resultRecord.opponents || [];
+				if (opponents.length > 0) {
+					const topOpponent = opponents[0];
+					let gamesPlayed = topOpponent.gamesPlayed;
+					// Handle Neo4j Integer objects
+					if (gamesPlayed && typeof gamesPlayed === "object") {
+						if ("toNumber" in gamesPlayed && typeof gamesPlayed.toNumber === "function") {
+							gamesPlayed = gamesPlayed.toNumber();
+						} else if ("low" in gamesPlayed && "high" in gamesPlayed) {
+							gamesPlayed = (gamesPlayed.low || 0) + (gamesPlayed.high || 0) * 4294967296;
+						} else {
+							gamesPlayed = Number(gamesPlayed);
+						}
+					}
+					gamesPlayed = Number(gamesPlayed) || 0;
 
-				visualization = {
-					type: "Table",
-					data: opponents.map((opponent: OpponentData) => ({
-						Opponent: opponent.opponent,
-						"Games Played": opponent.gamesPlayed,
-					})),
-					config: {
-						title: `${playerName} - Opponents`,
-						type: "table",
-					},
-				};
+					answer = `${playerName} has played against ${totalOpponents} different opponents with the most appearances against ${topOpponent.opponent}.`;
+
+					visualization = {
+						type: "Table",
+						data: opponents.slice(0, 10).map((opponent, index) => {
+							let appearances = opponent.gamesPlayed;
+							if (appearances && typeof appearances === "object") {
+								if ("toNumber" in appearances && typeof appearances.toNumber === "function") {
+									appearances = appearances.toNumber();
+								} else if ("low" in appearances && "high" in appearances) {
+									appearances = (appearances.low || 0) + (appearances.high || 0) * 4294967296;
+								} else {
+									appearances = Number(appearances);
+								}
+							}
+							return {
+								Rank: index + 1,
+								"Opposition": opponent.opponent,
+								"Apps": Number(appearances) || 0,
+							};
+						}),
+						config: {
+							title: `${playerName} - Opposition Appearances`,
+							type: "table",
+						},
+					};
+				} else {
+					answer = `${playerName} has not played against any opponents yet.`;
+				}
 			} else if (data && data.type === "temporal" && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 				// Handle temporal data
 				const playerName = data.playerName as string;
@@ -3740,19 +3835,22 @@ export class ChatbotService {
 
 	private async queryPlayerOpponentsData(playerName: string): Promise<Record<string, unknown>> {
 		console.log(`🔍 Querying for opponents for player: ${playerName}`);
+		const graphLabel = neo4jService.getGraphLabel();
 		const query = `
-			MATCH (p:Player {playerName: $playerName})-[r:PLAYED_AGAINST_OPPONENT]->(od:OppositionDetails)
-			RETURN od.opposition as opponent, 
-			       r.timesPlayed as gamesPlayed,
-			       r.goalsScored as goalsScored,
-			       r.assists as assists,
-			       r.lastPlayed as lastPlayed
+			MATCH (p:Player {playerName: $playerName, graphLabel: $graphLabel})-[r:PLAYED_AGAINST_OPPONENT]->(od:OppositionDetails {graphLabel: $graphLabel})
+			WHERE r.timesPlayed > 0
+			WITH od.opposition as opponent, 
+			     r.timesPlayed as gamesPlayed,
+			     r.goalsScored as goalsScored,
+			     r.assists as assists,
+			     r.lastPlayed as lastPlayed
 			ORDER BY r.timesPlayed DESC, r.goalsScored DESC, r.assists DESC
-			LIMIT 20
+			WITH collect({opponent: opponent, gamesPlayed: gamesPlayed, goalsScored: goalsScored, assists: assists, lastPlayed: lastPlayed}) as opponents
+			RETURN opponents, size(opponents) as totalOpponents
 		`;
 
 		try {
-			const result = await neo4jService.executeQuery(query, { playerName });
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			return { type: "opponents", data: result, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in opponents query:`, error, "error");

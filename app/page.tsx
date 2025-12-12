@@ -43,11 +43,26 @@ export default function HomePage() {
 	// });
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
+	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
 		initializeFromStorage();
 		loadFilterData(); // Load filter data asynchronously
+		
+		// Load recent players from localStorage
+		if (typeof window !== "undefined") {
+			try {
+				const recentPlayersKey = "dorkinians-recent-players";
+				const saved = localStorage.getItem(recentPlayersKey);
+				if (saved) {
+					const players = JSON.parse(saved);
+					setRecentPlayers(Array.isArray(players) ? players : []);
+				}
+			} catch (e) {
+				console.warn("Failed to load recent players:", e);
+			}
+		}
 		
 		// Initialize currentSeason and preload captains data
 		const initAndPreload = async () => {
@@ -62,6 +77,23 @@ export default function HomePage() {
 		};
 		initAndPreload();
 	}, [initializeFromStorage, loadFilterData]);
+
+	// Update recent players when player is selected
+	useEffect(() => {
+		if (typeof window !== "undefined" && isPlayerSelected && selectedPlayer) {
+			try {
+				const recentPlayersKey = "dorkinians-recent-players";
+				const saved = localStorage.getItem(recentPlayersKey);
+				let players: string[] = saved ? JSON.parse(saved) : [];
+				players = players.filter((p) => p !== selectedPlayer);
+				players.unshift(selectedPlayer);
+				players = players.slice(0, 5);
+				setRecentPlayers(players);
+			} catch (e) {
+				console.warn("Failed to update recent players:", e);
+			}
+		}
+	}, [isPlayerSelected, selectedPlayer]);
 
 	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
@@ -139,8 +171,8 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4 md:mb-8'>
-										<h1 className='text-2xl md:text-3xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
-										<p className='text-base text-gray-300 max-w-md mx-auto'>
+										<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
+										<p className='text-base text-white max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
 									</motion.div>
@@ -167,6 +199,30 @@ export default function HomePage() {
 									</motion.div>
 								)}
 							</AnimatePresence>
+
+							{/* Recently Selected Players */}
+							{!isPlayerSelected && recentPlayers.length > 0 && (
+								<motion.div
+									initial={{ opacity: 0, y: 20 }}
+									animate={{ opacity: 1, y: 0 }}
+									transition={{ duration: 0.5, delay: 0.2 }}
+									className='w-full max-w-md mx-auto mt-4 md:mt-6'>
+									<h3 className='text-sm md:text-base font-semibold text-white mb-3 text-center'>Recently Selected Players</h3>
+									<div className='space-y-2 md:space-y-3'>
+										{recentPlayers.map((playerName, index) => (
+											<motion.div
+												key={playerName}
+												initial={{ opacity: 0, x: -20 }}
+												animate={{ opacity: 1, x: 0 }}
+												transition={{ delay: index * 0.1 }}
+												className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
+												onClick={() => handlePlayerSelect(playerName)}>
+												<p className='font-medium text-white text-xs md:text-sm'>{playerName}</p>
+											</motion.div>
+										))}
+									</div>
+								</motion.div>
+							)}
 
 							{/* Player Name Display when chatbot is visible and not in edit mode */}
 							<AnimatePresence mode='wait'>
