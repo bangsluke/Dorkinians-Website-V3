@@ -340,6 +340,18 @@ export const statObject = {
 		statCategory: "Performance Stat",
 		iconName: "Assists-Icon",
 	},
+	AperAPP: {
+		statName: "assistsPerApp",
+		displayText: "Assists Per Appearance", // The text displayed at all times on the page.
+		shortText: "AperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "assists per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of assists provided per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "AssistsPerAppearance-Icon",
+	},
 	Y: {
 		statName: "yellowCards",
 		displayText: "Yellow Cards Received", // The text displayed at all times on the page.
@@ -460,6 +472,19 @@ export const statObject = {
 		statCategory: "Penalty Stat",
 		iconName: "PenaltiesSaved-Icon",
 	},
+	PenConversionRate: {
+		statName: "penaltyConversionRate",
+		displayText: "Penalty Conversion Rate", // The text displayed at all times on the page.
+		shortText: "Pen Conv %", // Used for short displays such as on the Comparison tab.
+		wordedText: "penalty conversion rate", // Used for chatbot responses
+		statFormat: "Percentage",
+		description: "The percentage of penalties successfully converted (scored / (scored + missed) * 100).",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Penalty Stat",
+		iconName: "PenaltyConversionRate-Icon",
+		statUnit: "%",
+	},
 	'PS-PSC': {
 		statName: "penaltyShootoutPenaltiesScored",
 		displayText: "Penalties Scored in a Penalty Shootout", // The text displayed at all times on the page.
@@ -519,6 +544,18 @@ export const statObject = {
 		numberDecimalPlaces: 0,
 		statCategory: "Performance Stat",
 		iconName: "GoalInvolvements-Icon",
+	},
+	GIperAPP: {
+		statName: "goalInvolvementsPerApp",
+		displayText: "Goal Involvement Per Appearance", // The text displayed at all times on the page.
+		shortText: "GIperApp", // Used for short displays such as on the Comparison tab.
+		wordedText: "goal involvement per appearance", // Used for chatbot responses
+		statFormat: "Decimal2",
+		description: "The average number of goal involvements (goals + assists) per appearance by the player.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 2,
+		statCategory: "Per App/Minute Stat",
+		iconName: "GoalInvolvementsPerAppearance-Icon",
 	},
 	GperAPP: {
 		statName: "goalsPerApp",
@@ -739,6 +776,19 @@ export const statObject = {
 		numberDecimalPlaces: 1,
 		statCategory: "Results Stat",
 		iconName: "PercentageGamesWon-Icon",
+		statUnit: "%",
+	},
+	WinRateWhenScoring: {
+		statName: "winRateWhenScoring",
+		displayText: "Win Rate When Scoring", // The text displayed at all times on the page.
+		shortText: "Win % When G", // Used for short displays such as on the Comparison tab.
+		wordedText: "win rate when scoring", // Used for chatbot responses
+		statFormat: "Percentage",
+		description: "The percentage of games won when the player scored at least one goal.",
+		statHigherBetterBoolean: true,
+		numberDecimalPlaces: 1,
+		statCategory: "Results Stat",
+		iconName: "WinRateWhenScoring-Icon",
 		statUnit: "%",
 	},
 	HomeGames: {
@@ -1153,6 +1203,7 @@ export const statsPageConfig = {
 			"AllGSC",
 			"G",
 			"A",
+			"AperAPP",
 			"Y",
 			"R",
 			"SAVES",
@@ -1163,11 +1214,13 @@ export const statsPageConfig = {
 			"PM",
 			"PCO",
 			"PSV",
+			"PenConversionRate",
 			"PS-PSC",
 			"PS-PM",
 			"PS-PSV",
 			"FTP",
 			"GI",
+			"GIperAPP",
 			"GperAPP",
 			"CperAPP",
 			"MperG",
@@ -1176,6 +1229,7 @@ export const statsPageConfig = {
 			"MINperAPP",
 			"DIST",
 			"Games%Won",
+			"WinRateWhenScoring",
 			"PlayerPointsPerGame",
 			"HomeGames",
 			"HomeWins",
