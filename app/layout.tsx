@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
 import UmamiAnalytics from "../components/UmamiAnalytics";
+import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -73,18 +74,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 				<link rel='icon' type='image/png' sizes='512x512' href='/icons/icon-512x512.png' />
 			</head>
 			<body className={inter.className} suppressHydrationWarning={true}>
-				{children}
-				<PWAUpdateNotification />
-				{umamiScriptUrl && umamiWebsiteId && (
-					<Script
-						async
-						defer
-						data-website-id={umamiWebsiteId}
-						src={umamiScriptUrl}
-						strategy='lazyOnload'
-					/>
-				)}
-				<UmamiAnalytics />
+				<ErrorBoundaryWrapper>
+					{children}
+					<PWAUpdateNotification />
+					{umamiScriptUrl && umamiWebsiteId && (
+						<Script
+							async
+							defer
+							data-website-id={umamiWebsiteId}
+							src={umamiScriptUrl}
+							strategy='lazyOnload'
+						/>
+					)}
+					<UmamiAnalytics />
+				</ErrorBoundaryWrapper>
 			</body>
 		</html>
 	);

@@ -34,6 +34,31 @@ export default function StatsContainer() {
 		}
 	}, [currentMainPage, currentIndex, setStatsSubPage]);
 
+	// Check if touch event originates from filter pills area
+	const isFilterPillsArea = (event: MouseEvent | TouchEvent | PointerEvent | Event): boolean => {
+		const target = (event.target || (event as any).currentTarget) as HTMLElement;
+		if (!target) return false;
+		
+		// Check if target or any parent has the filter pills data attribute
+		let element: HTMLElement | null = target;
+		while (element) {
+			if (element.hasAttribute('data-filter-pills-container')) {
+				return true;
+			}
+			element = element.parentElement;
+		}
+		return false;
+	};
+
+	// Conditionally enable drag based on whether touch starts in filter pills area
+	// Returns 'x' to allow horizontal drag, or false to disable drag
+	const shouldAllowDrag = (event: PointerEvent): 'x' | false => {
+		if (isFilterPillsArea(event)) {
+			return false;
+		}
+		return 'x';
+	};
+
 	const handleDragEnd = (event: any, info: PanInfo) => {
 		const swipeThreshold = 50;
 		const velocityThreshold = 500;
@@ -88,7 +113,7 @@ export default function StatsContainer() {
 					animate={{ opacity: 1, x: 0 }}
 					exit={{ opacity: 0 }}
 					transition={{ duration: 0.2 }}
-					drag='x'
+					drag={shouldAllowDrag}
 					dragConstraints={{ left: 0, right: 0 }}
 					dragElastic={0.05}
 					dragDirectionLock={true}

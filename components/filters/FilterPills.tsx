@@ -175,6 +175,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 	return (
 		<div 
+			data-filter-pills-container
 			className='mb-2 md:mb-4 overflow-x-auto hide-scrollbar -mx-2 md:-mx-4 w-full'
 			style={{ 
 				WebkitOverflowScrolling: 'touch',
