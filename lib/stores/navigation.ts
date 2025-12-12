@@ -541,9 +541,29 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				try {
 					const parsedFilters: Record<StatsSubPage, PlayerFilters> = JSON.parse(savedFilters);
 					const currentPage = get().currentStatsSubPage;
+					const defaultFilters = get().playerFiltersByPage;
+					
+					// Validate and fix incomplete filter structures
+					const validatedFilters: Record<StatsSubPage, PlayerFilters> = {
+						"player-stats": parsedFilters["player-stats"] && parsedFilters["player-stats"].timeRange 
+							? parsedFilters["player-stats"] 
+							: defaultFilters["player-stats"],
+						"team-stats": parsedFilters["team-stats"] && parsedFilters["team-stats"].timeRange 
+							? parsedFilters["team-stats"] 
+							: defaultFilters["team-stats"],
+						"club-stats": parsedFilters["club-stats"] && parsedFilters["club-stats"].timeRange 
+							? parsedFilters["club-stats"] 
+							: defaultFilters["club-stats"],
+						"comparison": parsedFilters["comparison"] && parsedFilters["comparison"].timeRange 
+							? parsedFilters["comparison"] 
+							: defaultFilters["comparison"],
+					};
+					
+					const currentPageFilters = validatedFilters[currentPage] || validatedFilters["player-stats"];
+					
 					set({ 
-						playerFiltersByPage: parsedFilters,
-						playerFilters: parsedFilters[currentPage] || parsedFilters["player-stats"],
+						playerFiltersByPage: validatedFilters,
+						playerFilters: currentPageFilters,
 					});
 					
 					// Apply filters on initial load if player is selected
@@ -632,25 +652,39 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const currentFilters = get().playerFilters;
 		const filtersByPage = get().playerFiltersByPage;
 		
-		// Save current page filters
+		// Save current page filters (ensure currentFilters is valid)
 		const updatedFiltersByPage = {
 			...filtersByPage,
-			[currentPage]: currentFilters,
+			[currentPage]: currentFilters || filtersByPage[currentPage] || filtersByPage["player-stats"],
 		};
 		
-		// Load filters for new page
-		const newPageFilters = updatedFiltersByPage[page];
+		// Load filters for new page, fallback to default if undefined
+		const newPageFilters = updatedFiltersByPage[page] || filtersByPage[page] || filtersByPage["player-stats"];
 		
-		set({
-			currentStatsSubPage: page,
-			playerFiltersByPage: updatedFiltersByPage,
-			playerFilters: newPageFilters,
-			hasUnsavedFilters: false,
-		});
+		// Ensure newPageFilters has all required properties
+		if (!newPageFilters || !newPageFilters.timeRange) {
+			const defaultFilters = filtersByPage["player-stats"];
+			set({
+				currentStatsSubPage: page,
+				playerFiltersByPage: {
+					...updatedFiltersByPage,
+					[page]: defaultFilters,
+				},
+				playerFilters: defaultFilters,
+				hasUnsavedFilters: false,
+			});
+		} else {
+			set({
+				currentStatsSubPage: page,
+				playerFiltersByPage: updatedFiltersByPage,
+				playerFilters: newPageFilters,
+				hasUnsavedFilters: false,
+			});
+		}
 		
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
-			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(updatedFiltersByPage));
+			localStorage.setItem("dorkinians-player-filters-by-page", JSON.stringify(get().playerFiltersByPage));
 			localStorage.setItem("dorkinians-current-stats-sub-page", page);
 		}
 	},
