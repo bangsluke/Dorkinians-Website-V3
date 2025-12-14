@@ -136,3 +136,4 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Failed to fetch club position stats" }, { status: 500, headers: corsHeaders });
 	}
 }
+

@@ -5,7 +5,7 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
-import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
+import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/outline";
 
 interface Player {
 	rank: number;
@@ -71,6 +71,9 @@ export default function PlayersOfMonth() {
 		getCachedPOMMonths,
 		getCachedPOMMonthData,
 		getCachedPOMPlayerStats,
+		selectedPlayer,
+		enterEditMode,
+		setMainPage,
 	} = useNavigationStore();
 
 	const [seasons, setSeasons] = useState<string[]>([]);
@@ -88,6 +91,10 @@ export default function PlayersOfMonth() {
 	const previousSeasonRef = useRef<string>("");
 	const isMonthValidatingRef = useRef<boolean>(false);
 	const validatedMonthRef = useRef<string | null>(null);
+	const [monthRankings, setMonthRankings] = useState<Array<{rank: number; playerName: string; score: number}>>([]);
+	const [seasonRankings, setSeasonRankings] = useState<Array<{rank: number; playerName: string; score: number}>>([]);
+	const [loadingMonthRankings, setLoadingMonthRankings] = useState(false);
+	const [loadingSeasonRankings, setLoadingSeasonRankings] = useState(false);
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
@@ -538,6 +545,64 @@ export default function PlayersOfMonth() {
 		}
 	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
 
+	// Fetch month rankings when season and month change
+	useEffect(() => {
+		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
+			setMonthRankings([]);
+			return;
+		}
+
+		const fetchMonthRankings = async () => {
+			setLoadingMonthRankings(true);
+			try {
+				const response = await fetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setMonthRankings(data.rankings || []);
+				} else {
+					console.error("Failed to fetch month rankings");
+					setMonthRankings([]);
+				}
+			} catch (error) {
+				console.error("Error fetching month rankings:", error);
+				setMonthRankings([]);
+			} finally {
+				setLoadingMonthRankings(false);
+			}
+		};
+
+		fetchMonthRankings();
+	}, [selectedSeason, selectedMonth, selectedPlayer]);
+
+	// Fetch season rankings when season changes
+	useEffect(() => {
+		if (!selectedSeason || !selectedPlayer) {
+			setSeasonRankings([]);
+			return;
+		}
+
+		const fetchSeasonRankings = async () => {
+			setLoadingSeasonRankings(true);
+			try {
+				const response = await fetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonRankings(data.rankings || []);
+				} else {
+					console.error("Failed to fetch season rankings");
+					setSeasonRankings([]);
+				}
+			} catch (error) {
+				console.error("Error fetching season rankings:", error);
+				setSeasonRankings([]);
+			} finally {
+				setLoadingSeasonRankings(false);
+			}
+		};
+
+		fetchSeasonRankings();
+	}, [selectedSeason, selectedPlayer]);
+
 	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
 		if (expandedPlayers.has(playerName)) {
@@ -812,6 +877,64 @@ export default function PlayersOfMonth() {
 		
 		// Fallback: return original string
 		return dateStr;
+	};
+
+	// Helper function to get ranking table rows
+	const getRankingTableRows = useCallback((
+		rankings: Array<{rank: number; playerName: string; score: number}>,
+		selectedPlayerName: string
+	): Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> => {
+		const selectedIndex = rankings.findIndex(p => p.playerName === selectedPlayerName);
+		if (selectedIndex === -1) return [];
+		
+		const rows: Array<{rank: number | null; playerName: string; score: number | null; isDots?: boolean; isSelected?: boolean}> = [];
+		const selectedRank = selectedIndex + 1;
+		
+		// Always show rank 1
+		rows.push(rankings[0]);
+		
+		// Show rank 2 if it exists and is not the selected player
+		if (rankings.length > 1 && selectedRank !== 2) {
+			rows.push(rankings[1]);
+		}
+		
+		// Show rank 3 if it exists and is not the selected player
+		if (rankings.length > 2 && selectedRank !== 3) {
+			rows.push(rankings[2]);
+		}
+		
+		// If selected player is not in top 3, add dots
+		if (selectedRank > 3) {
+			rows.push({ playerName: "...", score: null, rank: null, isDots: true });
+		}
+		
+		// Add player above (if exists and not already shown)
+		if (selectedRank > 1 && selectedIndex > 0) {
+			const abovePlayer = rankings[selectedIndex - 1];
+			// Only add if not already shown (not in top 3)
+			if (abovePlayer.rank > 3) {
+				rows.push(abovePlayer);
+			}
+		}
+		
+		// Add selected player (highlighted)
+		rows.push({ ...rankings[selectedIndex], isSelected: true });
+		
+		// Add player below (if exists and not already shown)
+		if (selectedIndex < rankings.length - 1) {
+			const belowPlayer = rankings[selectedIndex + 1];
+			// Only add if not already shown (not in top 3)
+			if (belowPlayer.rank > 3) {
+				rows.push(belowPlayer);
+			}
+		}
+		
+		return rows;
+	}, []);
+
+	const handleEditClick = () => {
+		enterEditMode();
+		setMainPage("home");
 	};
 
 	const isInitialLoading = seasons.length === 0;
@@ -1106,6 +1229,181 @@ export default function PlayersOfMonth() {
 			{!loading && !loadingStats && !isFetchingMonthData && !isMonthValidating && !isMonthValidatingRef.current && players.length === 0 && selectedSeason && selectedMonth && (
 				<div className='text-center py-8 text-gray-400'>
 					<p>No players found for {selectedMonth} {selectedSeason}</p>
+				</div>
+			)}
+
+			{/* FTP Ranking Section */}
+			{!loading && !loadingStats && (
+				<div className='mt-8'>
+					{selectedPlayer ? (
+						<div className='bg-white/10 rounded-lg p-4 md:p-6 space-y-6'>
+							{/* Current Month Ranking Table */}
+							<div>
+								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+									This Month FTP Ranking
+								</h2>
+								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedMonth} {selectedSeason}</p>
+								{loadingMonthRankings ? (
+									<div className='flex items-center justify-center py-8'>
+										<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
+									</div>
+								) : monthRankings.length > 0 ? (
+									(() => {
+										const monthRows = getRankingTableRows(monthRankings, selectedPlayer);
+										const selectedInMonth = monthRankings.findIndex(p => p.playerName === selectedPlayer) !== -1;
+										
+										if (!selectedInMonth) {
+											return (
+												<div className='text-center py-8 text-gray-400'>
+													<p>{selectedPlayer} has no fantasy points for {selectedMonth} {selectedSeason}</p>
+												</div>
+											);
+										}
+										
+										return (
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white'>
+													<thead>
+														<tr className='border-b-2 border-dorkinians-yellow'>
+															<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'>Rank</th>
+															<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
+															<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
+														</tr>
+													</thead>
+													<tbody>
+														{monthRows.map((row, index) => {
+															if (row.isDots) {
+																return (
+																	<tr
+																		key={`dots-${index}`}
+																		className='border-b border-green-500'
+																		style={{
+																			background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																		}}
+																	>
+																		<td className='py-1 px-2 text-xs md:text-sm'></td>
+																		<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
+																		<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
+																	</tr>
+																);
+															}
+															
+															return (
+																<tr
+																	key={`${row.playerName}-${row.rank}`}
+																	className={`border-b border-green-500 ${row.isSelected ? 'bg-yellow-400/20' : ''}`}
+																	style={row.isSelected ? {} : {
+																		background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																	}}
+																>
+																	<td className='py-2 px-2 text-xs md:text-sm'>{row.rank}</td>
+																	<td className='py-2 px-2 text-xs md:text-sm font-semibold'>{row.playerName}</td>
+																	<td className='text-right py-2 px-2 text-xs md:text-sm font-bold'>{row.score !== null ? Math.round(row.score) : '-'}</td>
+																</tr>
+															);
+														})}
+													</tbody>
+												</table>
+											</div>
+										);
+									})()
+								) : (
+									<div className='text-center py-8 text-gray-400'>
+										<p>No rankings available for {selectedMonth} {selectedSeason}</p>
+									</div>
+								)}
+							</div>
+
+							{/* Current Season Ranking Table */}
+							<div>
+								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+									This Season FTP Ranking
+								</h2>
+								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedSeason}</p>
+								{loadingSeasonRankings ? (
+									<div className='flex items-center justify-center py-8'>
+										<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
+									</div>
+								) : seasonRankings.length > 0 ? (
+									(() => {
+										const seasonRows = getRankingTableRows(seasonRankings, selectedPlayer);
+										const selectedInSeason = seasonRankings.findIndex(p => p.playerName === selectedPlayer) !== -1;
+										
+										if (!selectedInSeason) {
+											return (
+												<div className='text-center py-8 text-gray-400'>
+													<p>{selectedPlayer} has no fantasy points for {selectedSeason}</p>
+												</div>
+											);
+										}
+										
+										return (
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white'>
+													<thead>
+														<tr className='border-b-2 border-dorkinians-yellow'>
+															<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'>Rank</th>
+															<th className='text-left py-2 px-2 text-xs md:text-sm'>Player Name</th>
+															<th className='w-[8.33%] text-right py-2 px-2 text-xs md:text-sm whitespace-nowrap'>FTP Points</th>
+														</tr>
+													</thead>
+													<tbody>
+														{seasonRows.map((row, index) => {
+															if (row.isDots) {
+																return (
+																	<tr
+																		key={`dots-${index}`}
+																		className='border-b border-green-500'
+																		style={{
+																			background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																		}}
+																	>
+																		<td className='py-1 px-2 text-xs md:text-sm'></td>
+																		<td className='py-1 px-2 text-xs md:text-sm text-center text-gray-400'>...</td>
+																		<td className='text-right py-1 px-2 text-xs md:text-sm'></td>
+																	</tr>
+																);
+															}
+															
+															return (
+																<tr
+																	key={`${row.playerName}-${row.rank}`}
+																	className={`border-b border-green-500 ${row.isSelected ? 'bg-yellow-400/20' : ''}`}
+																	style={row.isSelected ? {} : {
+																		background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))',
+																	}}
+																>
+																	<td className='py-2 px-2 text-xs md:text-sm'>{row.rank}</td>
+																	<td className='py-2 px-2 text-xs md:text-sm font-semibold'>{row.playerName}</td>
+																	<td className='text-right py-2 px-2 text-xs md:text-sm font-bold'>{row.score !== null ? Math.round(row.score) : '-'}</td>
+																</tr>
+															);
+														})}
+													</tbody>
+												</table>
+											</div>
+										);
+									})()
+								) : (
+									<div className='text-center py-8 text-gray-400'>
+										<p>No rankings available for {selectedSeason}</p>
+									</div>
+								)}
+							</div>
+						</div>
+					) : (
+						<div className='text-center py-8'>
+							<p className='text-white text-sm md:text-base mb-4'>
+								Select a player to see their current FTP ranking
+							</p>
+							<button
+								onClick={handleEditClick}
+								className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+								title='Select a player'>
+								<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+							</button>
+						</div>
+					)}
 				</div>
 			)}
 		</div>

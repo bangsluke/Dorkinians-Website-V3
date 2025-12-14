@@ -89,3 +89,4 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Failed to fetch club player tenure" }, { status: 500, headers: corsHeaders });
 	}
 }
+
