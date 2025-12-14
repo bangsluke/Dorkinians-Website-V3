@@ -119,3 +119,4 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ error: "Failed to fetch club player distribution" }, { status: 500, headers: corsHeaders });
 	}
 }
+
