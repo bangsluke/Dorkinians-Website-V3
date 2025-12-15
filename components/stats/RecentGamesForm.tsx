@@ -363,6 +363,26 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 					))}
 				</div>
 			)}
+			{/* Legend */}
+			{showDetailBoxes && (
+				<div className='flex flex-wrap gap-2 justify-center mt-3'>
+					<div className={`px-2 py-1 rounded text-xs font-medium ${getHomeAwayColor("Away")}`}>
+						Away
+					</div>
+					<div className={`px-2 py-1 rounded text-xs font-medium ${getHomeAwayColor("Home")}`}>
+						Home
+					</div>
+					<div className={`px-2 py-1 rounded text-xs font-medium ${getCompTypeColor("League")}`}>
+						League
+					</div>
+					<div className={`px-2 py-1 rounded text-xs font-medium ${getCompTypeColor("Cup")}`}>
+						Cup
+					</div>
+					<div className={`px-2 py-1 rounded text-xs font-medium ${getCompTypeColor("Friendly")}`}>
+						Friendly
+					</div>
+				</div>
+			)}
 			{/* Summary text */}
 			{fixtures.length > 0 && (
 				<div className='mt-2 text-center'>
