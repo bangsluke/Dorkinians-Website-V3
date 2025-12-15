@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line, LabelList } from "recharts";
 import RecentGamesForm from "./RecentGamesForm";
 import { safeLocalStorageGet, safeLocalStorageSet, getPWADebugInfo } from "@/lib/utils/pwaDebug";
 import HomeAwayGauge from "./HomeAwayGauge";
@@ -400,6 +400,27 @@ export default function TeamStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
+	// State for best season finish
+	const [bestSeasonFinishData, setBestSeasonFinishData] = useState<{
+		season: string;
+		division: string;
+		table: Array<{
+			position: number;
+			team: string;
+			played: number;
+			won: number;
+			drawn: number;
+			lost: number;
+			goalsFor: number;
+			goalsAgainst: number;
+			goalDifference: number;
+			points: number;
+		}>;
+		captains: string[];
+	} | null>(null);
+	const [isLoadingBestSeasonFinish, setIsLoadingBestSeasonFinish] = useState(false);
+	const [bestSeasonFinishError, setBestSeasonFinishError] = useState<string | null>(null);
+
 	// Track previous player to detect changes
 	const previousPlayerRef = useRef<string | null>(selectedPlayer);
 
@@ -595,6 +616,18 @@ export default function TeamStats() {
 		return false;
 	}, [playerFilters?.timeRange, filterData]);
 
+	// Filter detection for best season finish section
+	const isSeasonFilter = useMemo(() => {
+		return playerFilters?.timeRange?.type === "season" && 
+			playerFilters.timeRange.seasons?.length === 1;
+	}, [playerFilters?.timeRange]);
+
+	const isDateRangeFilter = useMemo(() => {
+		return ["betweenDates", "beforeDate", "afterDate"].includes(
+			playerFilters?.timeRange?.type || ""
+		);
+	}, [playerFilters?.timeRange?.type]);
+
 	// Stat options for seasonal chart dropdown
 	const statOptions = useMemo(() => [
 		{ value: "Games", label: "Games", statKey: "gamesPlayed" },
@@ -683,6 +716,55 @@ export default function TeamStats() {
 
 		fetchUniqueStats();
 	}, [selectedTeam, apiFilters]);
+
+	// Fetch best season finish data when team selected and filters change
+	useEffect(() => {
+		if (!selectedTeam) {
+			setBestSeasonFinishData(null);
+			setBestSeasonFinishError(null);
+			return;
+		}
+
+		// Don't fetch if date range filter is active
+		if (isDateRangeFilter) {
+			setBestSeasonFinishData(null);
+			setBestSeasonFinishError(null);
+			return;
+		}
+
+		const fetchBestSeasonFinish = async () => {
+			setIsLoadingBestSeasonFinish(true);
+			setBestSeasonFinishError(null);
+			try {
+				const season = isSeasonFilter ? playerFilters?.timeRange?.seasons?.[0] : null;
+				const response = await fetch("/api/team-best-season-finish", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: selectedTeam,
+						season: season || undefined,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setBestSeasonFinishData(data);
+				} else {
+					const errorData = await response.json();
+					setBestSeasonFinishError(errorData.error || "Failed to fetch best season finish");
+					setBestSeasonFinishData(null);
+				}
+			} catch (error) {
+				console.error("Error fetching best season finish:", error);
+				setBestSeasonFinishError("Failed to fetch best season finish");
+				setBestSeasonFinishData(null);
+			} finally {
+				setIsLoadingBestSeasonFinish(false);
+			}
+		};
+
+		fetchBestSeasonFinish();
+	}, [selectedTeam, isSeasonFilter, isDateRangeFilter, playerFilters?.timeRange?.seasons]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
@@ -909,9 +991,12 @@ export default function TeamStats() {
 		if (!teamData) return [];
 		const goalsScored = toNumber(teamData.goalsScored);
 		const goalsConceded = toNumber(teamData.goalsConceded);
+		const gamesPlayed = toNumber(teamData.gamesPlayed);
+		const goalsScoredPerGame = gamesPlayed > 0 ? (goalsScored / gamesPlayed).toFixed(2) : "0.00";
+		const goalsConcededPerGame = gamesPlayed > 0 ? (goalsConceded / gamesPlayed).toFixed(2) : "0.00";
 		return [
-			{ name: "Goals Scored", value: goalsScored, fill: "#22c55e" },
-			{ name: "Goals Conceded", value: goalsConceded, fill: "#ef4444" },
+			{ name: "Goals Scored", value: goalsScored, fill: "#22c55e", perGame: goalsScoredPerGame },
+			{ name: "Goals Conceded", value: goalsConceded, fill: "#ef4444", perGame: goalsConcededPerGame },
 		];
 	}, [teamData]);
 
@@ -1031,7 +1116,7 @@ export default function TeamStats() {
 				</div>
 			) : (
 				<div 
-					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
+					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats - Only show in data visualisation mode */}
 					{!isDataTableMode && (
@@ -1427,6 +1512,27 @@ export default function TeamStats() {
 														{goalsData.map((entry, index) => (
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
+														<LabelList 
+															content={(props: any) => {
+																const { x, y, width, height, payload, value } = props;
+																if (!payload) return null;
+																const perGame = payload.perGame || goalsData.find((e: any) => e.value === value)?.perGame;
+																if (!perGame) return null;
+																return (
+																	<text
+																		x={x + width / 2}
+																		y={y + height / 2}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																	>
+																		{`${value} (${perGame} per game)`}
+																	</text>
+																);
+															}}
+														/>
 													</Bar>
 												</ComposedChart>
 											</ResponsiveContainer>
@@ -1579,7 +1685,10 @@ export default function TeamStats() {
 								{/* Unique Player Stats Section */}
 								{!isLoadingUniqueStats && uniquePlayerStats && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Unique Player Stats</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
+										<p className='text-white text-sm md:text-base mb-3'>
+											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
+										</p>
 										<div className='overflow-x-auto'>
 											<table className='w-full text-white text-sm'>
 												<thead>
@@ -1694,6 +1803,115 @@ export default function TeamStats() {
 							</>
 						);
 					})()}
+
+					{/* Best Season Finish Section */}
+					{selectedTeam && (
+						<div className='mt-4'>
+							{isDateRangeFilter ? (
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
+									<p className='text-white text-sm md:text-base text-center py-4'>
+										Unfilter time frame to see Best Season Finish
+									</p>
+								</div>
+							) : (
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<h3 className='text-white font-semibold text-sm md:text-base mb-4'>
+										{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
+									</h3>
+									{isLoadingBestSeasonFinish ? (
+										<div className='flex items-center justify-center py-8'>
+											<p className='text-white text-sm md:text-base'>Loading season finish data...</p>
+										</div>
+									) : bestSeasonFinishError ? (
+										<div className='flex items-center justify-center py-8'>
+											<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
+										</div>
+									) : bestSeasonFinishData ? (
+										<>
+											{/* League name and season */}
+											<div className='text-center mb-4'>
+												<div className='text-lg md:text-xl font-bold text-white mb-1'>
+													{bestSeasonFinishData.season}
+												</div>
+												{bestSeasonFinishData.division && bestSeasonFinishData.division.trim() !== '' && (
+													<h4 className='text-lg md:text-xl font-bold text-dorkinians-yellow'>
+														{bestSeasonFinishData.division}
+													</h4>
+												)}
+											</div>
+
+											{/* Captains */}
+											{bestSeasonFinishData.captains && bestSeasonFinishData.captains.length > 0 && (
+												<div className='mb-4 text-center'>
+													<p className='text-white text-sm md:text-base mb-1'>
+														<span className='text-gray-300'>Captains: </span>
+														<span className='font-semibold'>{bestSeasonFinishData.captains.join(", ")}</span>
+													</p>
+												</div>
+											)}
+
+											{/* League Table */}
+											{bestSeasonFinishData.table && bestSeasonFinishData.table.length > 0 ? (
+												<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+													<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+														<thead className='sticky top-0 z-10'>
+															<tr className='bg-white/20'>
+																<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
+																<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+															</tr>
+														</thead>
+														<tbody>
+															{bestSeasonFinishData.table.map((entry, index) => {
+																const isDorkiniansTeam = entry.team.toLowerCase().includes("dorkinians");
+																return (
+																	<tr
+																		key={index}
+																		className={`border-b border-white/10 transition-colors ${
+																			isDorkiniansTeam
+																				? "bg-dorkinians-yellow/20 font-semibold"
+																				: index % 2 === 0
+																					? "bg-gray-800/30"
+																					: ""
+																		} hover:bg-white/5`}
+																	>
+																		<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
+																		<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+																		<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
+																			{entry.points}
+																		</td>
+																	</tr>
+																);
+															})}
+														</tbody>
+													</table>
+												</div>
+											) : (
+												<div className='text-center text-gray-300 py-4'>
+													No table data available.
+												</div>
+											)}
+										</>
+									) : null}
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			)}
 		</div>

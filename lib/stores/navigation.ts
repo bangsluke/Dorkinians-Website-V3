@@ -543,9 +543,14 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			const savedFilters = localStorage.getItem("dorkinians-player-filters-by-page");
 			if (savedFilters) {
 				try {
-					const parsedFilters: Record<StatsSubPage, PlayerFilters> = JSON.parse(savedFilters);
+					const parsedFilters: Record<StatsSubPage, PlayerFilters> | null = JSON.parse(savedFilters);
 					const currentPage = get().currentStatsSubPage;
 					const defaultFilters = get().playerFiltersByPage;
+					
+					// Validate parsedFilters is an object before accessing properties
+					if (!parsedFilters || typeof parsedFilters !== "object" || Array.isArray(parsedFilters)) {
+						throw new Error("Invalid filters format");
+					}
 					
 					// Validate and fix incomplete filter structures
 					const validatedFilters: Record<StatsSubPage, PlayerFilters> = {

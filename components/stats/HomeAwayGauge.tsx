@@ -12,11 +12,11 @@ export default function HomeAwayGauge({ homeWinPercentage, awayWinPercentage }: 
 	const advantageValue = Math.abs(homePercentage - awayPercentage);
 
 	// SVG path for semicircle gauge - fills from left to right
-	const createGaugePath = (percentage: number, color: string) => {
+	const createGaugePath = (percentage: number, color: string, offsetX: number = 0) => {
 		if (percentage === 0) return null;
 		
 		const radius = 60;
-		const centerX = 70;
+		const centerX = 70 + offsetX;
 		const centerY = 70;
 		const sweepAngle = (percentage / 100) * 180;
 		
@@ -45,53 +45,44 @@ export default function HomeAwayGauge({ homeWinPercentage, awayWinPercentage }: 
 	};
 
 	return (
-		<div className='flex items-center justify-center gap-4 md:gap-8 py-4'>
-			{/* Home Gauge */}
-			<div className='flex flex-col items-center'>
+		<div className='flex flex-col items-center py-4'>
+			{/* Combined Gauge with Overlay */}
+			<div className='relative mb-4'>
 				<svg width='140' height='80' viewBox='0 0 140 80' className='mb-2'>
-					{/* Background arc */}
+					{/* Single background arc */}
 					<path
 						d='M 10 70 A 60 60 0 0 1 130 70'
 						fill='none'
 						stroke='rgba(255, 255, 255, 0.1)'
 						strokeWidth='8'
 					/>
-					{/* Home win percentage arc */}
-					{createGaugePath(homePercentage, '#f9ed32')}
+					{/* Home win percentage arc - overlayed */}
+					{createGaugePath(homePercentage, '#f9ed32', 0)}
+					{/* Away win percentage arc - overlayed on top */}
+					{createGaugePath(awayPercentage, '#22c55e', 0)}
 					{/* Center dot */}
 					<circle cx='70' cy='70' r='4' fill='#fff' />
+					{/* Home label - left side */}
+					<text x='35' y='50' textAnchor='middle' fill='#fff' fontSize='12' className='text-xs md:text-sm'>
+						Home
+					</text>
+					<text x='35' y='65' textAnchor='middle' fill='#f9ed32' fontSize='16' fontWeight='bold' className='text-lg md:text-xl'>
+						{homePercentage}%
+					</text>
+					{/* Away label - right side */}
+					<text x='105' y='50' textAnchor='middle' fill='#fff' fontSize='12' className='text-xs md:text-sm'>
+						Away
+					</text>
+					<text x='105' y='65' textAnchor='middle' fill='#22c55e' fontSize='16' fontWeight='bold' className='text-lg md:text-xl'>
+						{awayPercentage}%
+					</text>
 				</svg>
-				<div className='text-center'>
-					<div className='text-white text-xs md:text-sm mb-1'>Home</div>
-					<div className='text-dorkinians-yellow font-bold text-lg md:text-xl'>{homePercentage}%</div>
-				</div>
 			</div>
 
-			{/* Advantage Indicator */}
-			<div className='flex flex-col items-center justify-center min-w-[80px]'>
+			{/* Home Advantage - Centered below */}
+			<div className='flex flex-col items-center justify-center'>
 				<div className='text-white text-xs md:text-sm mb-1'>{advantage} Advantage</div>
 				<div className='text-white font-semibold text-sm md:text-base'>{advantageValue}%</div>
-			</div>
-
-			{/* Away Gauge */}
-			<div className='flex flex-col items-center'>
-				<svg width='140' height='80' viewBox='0 0 140 80' className='mb-2'>
-					{/* Background arc */}
-					<path
-						d='M 10 70 A 60 60 0 0 1 130 70'
-						fill='none'
-						stroke='rgba(255, 255, 255, 0.1)'
-						strokeWidth='8'
-					/>
-					{/* Away win percentage arc */}
-					{createGaugePath(awayPercentage, '#22c55e')}
-					{/* Center dot */}
-					<circle cx='70' cy='70' r='4' fill='#fff' />
-				</svg>
-				<div className='text-center'>
-					<div className='text-white text-xs md:text-sm mb-1'>Away</div>
-					<div className='text-green-400 font-bold text-lg md:text-xl'>{awayPercentage}%</div>
-				</div>
 			</div>
 		</div>
 	);

@@ -30,14 +30,18 @@ export default function Comparison() {
 	}
 
 	return (
-		<div className='p-2 md:p-4 text-center'>
-			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Player Comparison</h2>
-			<div className='flex justify-center mb-4'>
-				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+		<div className='h-full flex flex-col overflow-hidden'>
+			<div className='flex-shrink-0 p-2 md:p-4 text-center overflow-x-hidden'>
+				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4'>Player Comparison</h2>
+				<div className='flex justify-center mb-4'>
+					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
+				</div>
 			</div>
-			<p className='text-sm md:text-base text-gray-300'>Compare statistics between different players will be displayed here</p>
-			<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
-				<p className='text-sm text-gray-500'>⚖️ Player comparison charts and metrics will be integrated here</p>
+			<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden' style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+				<p className='text-sm md:text-base text-gray-300'>Compare statistics between different players will be displayed here</p>
+				<div className='mt-8 p-4 bg-gray-100 rounded-lg'>
+					<p className='text-sm text-gray-500'>⚖️ Player comparison charts and metrics will be integrated here</p>
+				</div>
 			</div>
 		</div>
 	);
