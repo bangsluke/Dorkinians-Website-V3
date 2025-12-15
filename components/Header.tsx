@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Cog6ToothIcon, XMarkIcon, FunnelIcon } from "@heroicons/react/24/outline";
+import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Image from "next/image";
 
@@ -10,9 +10,11 @@ interface HeaderProps {
 	isSettingsPage?: boolean;
 	onFilterClick?: () => void;
 	showFilterIcon?: boolean;
+	onMenuClick?: () => void;
+	showMenuIcon?: boolean;
 }
 
-export default function Header({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false }: HeaderProps) {
+export default function Header({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false, onMenuClick, showMenuIcon = false }: HeaderProps) {
 	const { setMainPage } = useNavigationStore();
 
 	const handleLogoClick = () => {
@@ -41,7 +43,18 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 
 				{/* Right side icons */}
 				<div className='flex items-center space-x-2'>
-					{/* Filter Icon - only show on Player Stats page */}
+					{/* Burger Menu Icon - only show on stats pages */}
+					{showMenuIcon && onMenuClick && (
+						<motion.button
+							onClick={onMenuClick}
+							className='p-2 rounded-full hover:bg-white/20 transition-colors'
+							whileHover={{ scale: 1.1 }}
+							whileTap={{ scale: 0.9 }}
+							title='Open stats navigation'>
+							<Bars3Icon className='w-6 h-6 text-white' />
+						</motion.button>
+					)}
+					{/* Filter Icon - only show on stats pages */}
 					{showFilterIcon && onFilterClick && (
 						<motion.button
 							onClick={onFilterClick}

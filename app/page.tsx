@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/Header";
 import FilterSidebar from "@/components/filters/FilterSidebar";
+import StatsNavigationMenu from "@/components/stats/StatsNavigationMenu";
 import FooterNavigation from "@/components/FooterNavigation";
 import StatsContainer from "@/components/StatsContainer";
 import TOTWContainer from "@/components/TOTWContainer";
@@ -44,6 +45,7 @@ export default function HomePage() {
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
+	const [showStatsMenu, setShowStatsMenu] = useState(false);
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
@@ -147,8 +149,13 @@ export default function HomePage() {
 		openFilterSidebar();
 	};
 
+	const handleMenuClick = () => {
+		setShowStatsMenu(true);
+	};
+
 	// Check if we should show the filter icon (on all stats sub-pages)
 	const showFilterIcon = currentMainPage === "stats";
+	const showMenuIcon = currentMainPage === "stats";
 
 	const renderCurrentPage = () => {
 		switch (currentMainPage) {
@@ -330,7 +337,13 @@ export default function HomePage() {
 		<>
 			<div className='min-h-screen'>
 				{/* Header */}
-				<Header onSettingsClick={handleSettingsClick} onFilterClick={handleFilterClick} showFilterIcon={showFilterIcon} />
+				<Header 
+					onSettingsClick={handleSettingsClick} 
+					onFilterClick={handleFilterClick} 
+					showFilterIcon={showFilterIcon}
+					onMenuClick={handleMenuClick}
+					showMenuIcon={showMenuIcon}
+				/>
 
 				{/* Main Content */}
 				<main className='main-content-container'>
@@ -351,6 +364,9 @@ export default function HomePage() {
 
 				{/* Filter Sidebar */}
 				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} />
+				
+				{/* Stats Navigation Menu */}
+				<StatsNavigationMenu isOpen={showStatsMenu} onClose={() => setShowStatsMenu(false)} />
 			</div>
 
 			{/* Update Toast */}
