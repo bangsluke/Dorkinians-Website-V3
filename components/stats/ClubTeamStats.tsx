@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Line } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Line, LabelList } from "recharts";
 import { ResponsiveSankey } from "@nivo/sankey";
 import HomeAwayGauge from "./HomeAwayGauge";
 
@@ -1029,9 +1029,12 @@ export default function ClubTeamStats() {
 		if (!teamData) return [];
 		const goalsScored = toNumber(teamData.goalsScored);
 		const goalsConceded = toNumber(teamData.goalsConceded);
+		const gamesPlayed = toNumber(teamData.gamesPlayed);
+		const goalsScoredPerGame = gamesPlayed > 0 ? (goalsScored / gamesPlayed).toFixed(2) : "0.00";
+		const goalsConcededPerGame = gamesPlayed > 0 ? (goalsConceded / gamesPlayed).toFixed(2) : "0.00";
 		return [
-			{ name: "Goals Scored", value: goalsScored, fill: "#22c55e" },
-			{ name: "Goals Conceded", value: goalsConceded, fill: "#ef4444" },
+			{ name: "Goals Scored", value: goalsScored, fill: "#22c55e", perGame: goalsScoredPerGame },
+			{ name: "Goals Conceded", value: goalsConceded, fill: "#ef4444", perGame: goalsConcededPerGame },
 		];
 	}, [teamData]);
 
@@ -1421,7 +1424,7 @@ export default function ClubTeamStats() {
 				</div>
 			) : (
 				<div 
-					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
+					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats */}
 					<div className='mb-4'>
@@ -2337,6 +2340,27 @@ export default function ClubTeamStats() {
 														{goalsData.map((entry, index) => (
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
+														<LabelList 
+															content={(props: any) => {
+																const { x, y, width, height, payload, value } = props;
+																if (!payload) return null;
+																const perGame = payload.perGame || goalsData.find((e: any) => e.value === value)?.perGame;
+																if (!perGame) return null;
+																return (
+																	<text
+																		x={x + width / 2}
+																		y={y + height / 2}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																	>
+																		{`${value} (${perGame} per game)`}
+																	</text>
+																);
+															}}
+														/>
 													</Bar>
 												</ComposedChart>
 											</ResponsiveContainer>
@@ -2489,7 +2513,10 @@ export default function ClubTeamStats() {
 								{/* Unique Player Stats Section */}
 								{!isLoadingUniqueStats && uniquePlayerStats && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Unique Player Stats</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
+										<p className='text-white text-sm md:text-base mb-3'>
+											Unique players for the {pageHeading === "Team Stats" ? (playerFilters?.teams?.[0] || "2s") : "Club"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
+										</p>
 										<div className='overflow-x-auto'>
 											<table className='w-full text-white text-sm'>
 												<thead>

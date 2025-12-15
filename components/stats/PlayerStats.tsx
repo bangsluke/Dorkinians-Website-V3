@@ -500,14 +500,14 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							{/* Larger invisible hit area */}
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2 + 15}
 								fill='transparent'
 								cursor='pointer'
 							/>
 							<circle
 								cx={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								cy={goalCenterY - 140}
+								cy={goalCenterY - 130}
 								r={missedSize / 2}
 								fill='#ef4444'
 								cursor='pointer'
@@ -521,7 +521,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 							/>
 							<text
 								x={goalX + goalWidth + 50 + missedSize / 2 + 10}
-								y={goalCenterY - 140}
+								y={goalCenterY - 130}
 								textAnchor='middle'
 								dominantBaseline='middle'
 								fill='#ffffff'
@@ -828,6 +828,9 @@ function FantasyPointsSection({
 		}
 		if (match.assists && match.assists > 0) {
 			parts.push(`${match.assists} ${match.assists === 1 ? "Assist" : "Assists"}`);
+		}
+		if ((match.cleanSheets && match.cleanSheets > 0) || match.cleanSheet === 1) {
+			parts.push("1 clean sheet");
 		}
 		
 		return parts.join(", ");
@@ -1224,7 +1227,9 @@ function MinutesPerStatsSection({
 	assists,
 	mom,
 	conceded,
-	cleanSheets
+	cleanSheets,
+	gkMinutes,
+	saves
 }: {
 	minutes: number;
 	allGoalsScored: number;
@@ -1232,6 +1237,8 @@ function MinutesPerStatsSection({
 	mom: number;
 	conceded: number;
 	cleanSheets: number;
+	gkMinutes?: number;
+	saves?: number;
 }) {
 	// Calculate minutes per stat
 	const minutesPerGoal = allGoalsScored > 0 ? (minutes / allGoalsScored) : 0;
@@ -1239,6 +1246,7 @@ function MinutesPerStatsSection({
 	const minutesPerMoM = mom > 0 ? (minutes / mom) : 0;
 	const minutesPerConceded = conceded > 0 ? (minutes / conceded) : 0;
 	const minutesPerCleanSheet = cleanSheets > 0 ? (minutes / cleanSheets) : 0;
+	const minutesPerSave = (gkMinutes && gkMinutes > 0 && saves && saves > 0) ? (gkMinutes / saves) : 0;
 
 	// Format number with commas for thousands and 1 decimal place
 	const formatMinutesPerStat = (value: number): string => {
@@ -1302,12 +1310,20 @@ function MinutesPerStatsSection({
 										{formatMinutesPerStat(minutesPerConceded)}
 									</td>
 								</tr>
-								<tr>
+								<tr className='border-b border-white/10'>
 									<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Clean Sheet</td>
 									<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
 										{formatMinutesPerStat(minutesPerCleanSheet)}
 									</td>
 								</tr>
+								{gkMinutes && gkMinutes > 0 && saves && saves > 0 ? (
+									<tr>
+										<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Save</td>
+										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
+											{formatMinutesPerStat(minutesPerSave)}
+										</td>
+									</tr>
+								) : null}
 							</tbody>
 						</table>
 					</div>
@@ -2442,7 +2458,7 @@ export default function PlayerStats() {
 		<div className='space-y-4 pb-4'>
 			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
 					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 						{keyPerformanceData.map((item) => {
@@ -2489,7 +2505,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Seasonal Performance Section */}
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 				{allSeasonsSelected && (
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
@@ -2592,7 +2608,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Team Performance Section */}
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='team-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 				{allTeamsSelected && (
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Team Performance</h3>
@@ -2753,7 +2769,7 @@ export default function PlayerStats() {
 
 			{/* Game Details Section */}
 			{!isLoadingGameDetails && gameDetails && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 					
 					{/* CompType Table */}
@@ -2870,7 +2886,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Monthly Performance Section */}
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='monthly-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 				<div className='flex items-center justify-between mb-2 gap-2'>
 					<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Monthly Performance</h3>
 					<div className='flex-1 max-w-[45%]'>
@@ -2937,6 +2953,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Defensive Record Section */}
+			<div id='defensive-record'>
 			{(() => {
 				const concededVal = toNumber(validPlayerData.conceded);
 				const cleanSheetsVal = toNumber(validPlayerData.cleanSheets);
@@ -2984,6 +3001,7 @@ export default function PlayerStats() {
 					/>
 				);
 			})()}
+			</div>
 
 			{/* Distance Travelled Section */}
 			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
@@ -2995,10 +3013,13 @@ export default function PlayerStats() {
 
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
-				<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+				<div id='opposition-map'>
+					<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
+				</div>
 			)}
 
 			{/* Opposition Performance Section */}
+			<div id='opposition-performance'>
 			{(() => {
 				const hasGoalsOrAssists = toNumber(validPlayerData.goals) > 0 || toNumber(validPlayerData.assists) > 0;
 				const isSingleOppositionSelected = !playerFilters.opposition.allOpposition && playerFilters.opposition.searchTerm !== "";
@@ -3014,14 +3035,17 @@ export default function PlayerStats() {
 					/>
 				);
 			})()}
+			</div>
 
 			{/* Fantasy Points Section */}
 			{toNumber(validPlayerData.fantasyPoints) > 0 && (
+				<div id='fantasy-points'>
 				<FantasyPointsSection
 					playerName={selectedPlayer || ""}
 					fantasyBreakdown={fantasyBreakdown}
 					isLoading={isLoadingFantasyBreakdown}
 				/>
+				</div>
 			)}
 
 			{/* Card Stats SVG Visualization */}
@@ -3127,6 +3151,7 @@ export default function PlayerStats() {
 
 			{/* Penalty Stats Custom Visualization */}
 			{(toNumber(validPlayerData.penaltiesScored) > 0 || toNumber(validPlayerData.penaltiesMissed) > 0 || toNumber(validPlayerData.penaltiesSaved) > 0 || toNumber(validPlayerData.penaltiesConceded) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
+				<div id='penalty-stats'>
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
@@ -3136,10 +3161,12 @@ export default function PlayerStats() {
 					penaltyShootoutMissed={toNumber(validPlayerData.penaltyShootoutPenaltiesMissed)}
 					penaltyShootoutSaved={toNumber(validPlayerData.penaltyShootoutPenaltiesSaved)}
 				/>
+				</div>
 			)}
 
 			{/* Minutes per Stats Section */}
 			{toNumber(validPlayerData.minutes) > 0 && (
+				<div id='minutes-per-stats'>
 				<MinutesPerStatsSection
 					minutes={toNumber(validPlayerData.minutes)}
 					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
@@ -3147,11 +3174,14 @@ export default function PlayerStats() {
 					mom={toNumber(validPlayerData.mom)}
 					conceded={toNumber(validPlayerData.conceded)}
 					cleanSheets={toNumber(validPlayerData.cleanSheets)}
+					gkMinutes={toNumber(validPlayerData.gkMinutes || 0)}
+					saves={toNumber(validPlayerData.saves || 0)}
 				/>
+				</div>
 			)}
 
 			{/* Awards and Achievements Section */}
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Awards and Achievements</h3>
 				{isLoadingAwards ? (
 					<div className='flex items-center justify-center h-32'>
@@ -3166,7 +3196,7 @@ export default function PlayerStats() {
 								<ul className='space-y-1'>
 									{awardsData.awards.map((award: any, index: number) => (
 										<li key={index} className='text-white text-xs md:text-sm'>
-											<span className='text-dorkinians-yellow'>{award.awardName}</span>
+											<span className='text-dorkinians-yellow font-bold'>{award.awardName}</span>
 											{award.season && <span className='text-white/70 ml-2'>({award.season})</span>}
 										</li>
 									))}
@@ -3260,27 +3290,29 @@ export default function PlayerStats() {
 				{isDataTableMode && dataTableContent}
 				
 				{/* Share Button */}
-				<div className='flex justify-center mt-1 mb-4'>
-					<button
-						onClick={handleShare}
-						disabled={isGeneratingShare}
-						className='flex items-center gap-2 px-6 py-3 bg-dorkinians-yellow hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
-						{isGeneratingShare ? (
-							<>
-								<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-									<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-									<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
-								</svg>
-								<span>Generating...</span>
-							</>
-						) : (
-							<>
-								<ArrowUpTrayIcon className='h-5 w-5' />
-								<span>Share Stats</span>
-							</>
-						)}
-					</button>
-				</div>
+				{!isDataTableMode && (
+					<div className='flex justify-center mt-1 mb-4'>
+						<button
+							onClick={handleShare}
+							disabled={isGeneratingShare}
+							className='flex items-center gap-2 px-6 py-3 bg-dorkinians-yellow hover:bg-yellow-400 text-black font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed'>
+							{isGeneratingShare ? (
+								<>
+									<svg className='animate-spin h-5 w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
+										<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
+										<path className='opacity-75' fill='currentColor' d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'></path>
+									</svg>
+									<span>Generating...</span>
+								</>
+							) : (
+								<>
+									<ArrowUpTrayIcon className='h-5 w-5' />
+									<span>Share Stats</span>
+								</>
+							)}
+						</button>
+					</div>
+				)}
 			</div>
 
 			{/* Blackout overlay - covers full screen during entire share process */}
