@@ -2340,27 +2340,29 @@ export default function ClubTeamStats() {
 														{goalsData.map((entry, index) => (
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
-														<LabelList 
-															content={(props: any) => {
-																const { x, y, width, height, payload, value } = props;
-																if (!payload) return null;
-																const perGame = payload.perGame || goalsData.find((e: any) => e.value === value)?.perGame;
-																if (!perGame) return null;
-																return (
-																	<text
-																		x={x + width / 2}
-																		y={y + height / 2}
-																		fill="#ffffff"
-																		fontSize={12}
-																		fontWeight="bold"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																	>
-																		{`${value} (${perGame} per game)`}
-																	</text>
-																);
-															}}
-														/>
+													<LabelList 
+														content={(props: any) => {
+															const { x, y, width, height, payload, value } = props;
+															if (!payload) return null;
+															// Access perGame from the data entry by matching name
+															const dataEntry = goalsData.find((e: any) => e.name === payload.name);
+															const perGame = dataEntry?.perGame || payload.perGame;
+															if (!perGame) return null;
+															return (
+																<text
+																	x={x + width / 2}
+																	y={y + height / 2}
+																	fill="#ffffff"
+																	fontSize={12}
+																	fontWeight="bold"
+																	textAnchor="middle"
+																	dominantBaseline="middle"
+																>
+																	{`${value} (${perGame} per game)`}
+																</text>
+															);
+														}}
+													/>
 													</Bar>
 												</ComposedChart>
 											</ResponsiveContainer>
