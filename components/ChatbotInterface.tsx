@@ -175,6 +175,7 @@ export default function ChatbotInterface() {
 				"1. question": data.debug.question,
 				"2. queryBreakdown": data.debug.processingDetails.queryBreakdown,
 				"3. processingSteps": data.debug.processingDetails.processingSteps,
+				"4. cypherQueries": data.debug.processingDetails.cypherQueries,
 			});
 
 			// Log Cypher queries prominently if available (development mode only)
@@ -400,7 +401,7 @@ export default function ChatbotInterface() {
 
 						{/* Navigation button for full stats question */}
 						{response.answer.includes("Player Stats page") && (
-							<div className='mb-3 md:mb-4'>
+							<div className='mb-3 md:mb-4 flex justify-center'>
 								<button
 									onClick={() => {
 										setMainPage("stats");
