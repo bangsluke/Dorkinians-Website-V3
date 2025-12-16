@@ -45,9 +45,9 @@ export default function HomeAwayGauge({ homeWinPercentage, awayWinPercentage }: 
 	};
 
 	return (
-		<div className='flex flex-col items-center py-4'>
+		<div className='flex flex-row items-center gap-4 py-4'>
 			{/* Combined Gauge with Overlay */}
-			<div className='relative mb-4'>
+			<div className='relative flex-shrink-0'>
 				<svg width='140' height='80' viewBox='0 0 140 80' className='mb-2'>
 					{/* Single background arc */}
 					<path
@@ -79,8 +79,8 @@ export default function HomeAwayGauge({ homeWinPercentage, awayWinPercentage }: 
 				</svg>
 			</div>
 
-			{/* Home Advantage - Centered below */}
-			<div className='flex flex-col items-center justify-center'>
+			{/* Home Advantage - Right side */}
+			<div className='flex flex-col justify-center'>
 				<div className='text-white text-xs md:text-sm mb-1'>{advantage} Advantage</div>
 				<div className='text-white font-semibold text-sm md:text-base'>{advantageValue}%</div>
 			</div>

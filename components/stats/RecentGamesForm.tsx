@@ -23,7 +23,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [showTooltip, setShowTooltip] = useState<number | null>(null);
-	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
+	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below'; arrowLeft: number } | null>(null);
 	const [showDetailBoxes, setShowDetailBoxes] = useState(false);
 	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 	const boxRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -122,6 +122,7 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 
 			// Center horizontally on box
 			let left = rect.left + scrollX + (rect.width / 2) - (tooltipWidth / 2);
+			const boxCenter = rect.left + scrollX + (rect.width / 2);
 
 			// Keep within viewport
 			if (left < scrollX + margin) {
@@ -130,7 +131,11 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 				left = scrollX + window.innerWidth - tooltipWidth - margin;
 			}
 
-			setTooltipPosition({ top, left, placement });
+			// Calculate arrow position relative to tooltip left edge
+			// Arrow should point to box center, constrained to stay within tooltip bounds
+			const arrowLeft = Math.max(12, Math.min(tooltipWidth - 12, boxCenter - left));
+
+			setTooltipPosition({ top, left, placement, arrowLeft });
 		} catch (e) {
 			console.error('Error updating tooltip position:', e);
 		}
@@ -402,9 +407,9 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 						left: `${tooltipPosition.left}px`
 					}}>
 					{tooltipPosition.placement === 'above' ? (
-						<div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f' }}></div>
+						<div className='absolute top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent mt-1' style={{ borderTopColor: '#0f0f0f', left: `${tooltipPosition.arrowLeft}px`, transform: 'translateX(-50%)' }}></div>
 					) : (
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
+						<div className='absolute bottom-full w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f', left: `${tooltipPosition.arrowLeft}px`, transform: 'translateX(-50%)' }}></div>
 					)}
 					<div className='font-semibold mb-1'>{activeFixture.opposition || 'Unknown'}</div>
 					<div className='text-xs mb-1'>{formatDate(activeFixture.date)}</div>

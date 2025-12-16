@@ -32,7 +32,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 	const [selectedOpposition, setSelectedOpposition] = useState<OppositionLocation | null>(null);
 	const [map, setMap] = useState<google.maps.Map | null>(null);
 	const [infoWindow, setInfoWindow] = useState<google.maps.InfoWindow | null>(null);
-	const [markerLibrary, setMarkerLibrary] = useState<typeof google.maps.marker | null>(null);
+	const [markerLibrary, setMarkerLibrary] = useState<google.maps.MarkerLibrary | null>(null);
 	const mapRef = useRef<HTMLDivElement>(null);
 	const markersRef = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
 	const clustererRef = useRef<MarkerClusterer | null>(null);
@@ -55,14 +55,26 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 		loaderRef.current.load().then(async () => {
 			if (!mapRef.current) return;
 
-			// Import marker library for AdvancedMarkerElement
-			const { AdvancedMarkerElement } = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
-			setMarkerLibrary(google.maps.marker);
+			try {
+				// Import marker library for AdvancedMarkerElement
+				const markerLibrary = await google.maps.importLibrary("marker") as google.maps.MarkerLibrary;
+				if (markerLibrary && markerLibrary.AdvancedMarkerElement) {
+					setMarkerLibrary(markerLibrary);
+				} else {
+					console.error("[OppositionMap] Marker library not properly loaded");
+					return;
+				}
+			} catch (error) {
+				console.error("[OppositionMap] Error loading marker library:", error);
+				return;
+			}
 
-			const newMap = new google.maps.Map(mapRef.current, {
+			// Validate MAP_ID for Advanced Markers
+			const mapId = MAP_ID && MAP_ID !== "DEMO_MAP_ID" ? MAP_ID : undefined;
+			
+			const mapOptions: google.maps.MapOptions = {
 				center: defaultCenter,
 				zoom: defaultZoom,
-				mapId: MAP_ID,
 				styles: [
 					{
 						featureType: "all",
@@ -89,7 +101,14 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 				zoomControl: true,
 				streetViewControl: false,
 				fullscreenControl: true,
-			});
+			};
+
+			// Only add mapId if it's valid (Advanced Markers require a valid map ID)
+			if (mapId) {
+				mapOptions.mapId = mapId;
+			}
+
+			const newMap = new google.maps.Map(mapRef.current, mapOptions);
 
 			setMap(newMap);
 			setInfoWindow(new google.maps.InfoWindow());
@@ -99,63 +118,125 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 	useEffect(() => {
 		if (!map || oppositions.length === 0 || !markerLibrary) return;
 
-		// Clear existing markers
-		markersRef.current.forEach((marker) => {
-			marker.map = null;
-		});
-		markersRef.current = [];
-
-		if (clustererRef.current) {
-			clustererRef.current.clearMarkers();
+		// Verify AdvancedMarkerElement is available and is a constructor
+		if (!markerLibrary.AdvancedMarkerElement || typeof markerLibrary.AdvancedMarkerElement !== 'function') {
+			console.error("[OppositionMap] AdvancedMarkerElement not available or not a constructor in marker library", markerLibrary);
+			return;
 		}
 
-		// Create Advanced Markers for each opposition
-		const markers = oppositions.map((opposition) => {
-			const marker = new markerLibrary.AdvancedMarkerElement({
-				position: { lat: opposition.lat, lng: opposition.lng },
-				map: map,
-				title: opposition.name,
-			});
+		// Ensure map is fully initialized
+		if (!map.getDiv || !map.getDiv()) {
+			console.warn("[OppositionMap] Map not fully initialized");
+			return;
+		}
 
-			marker.addListener("click", () => {
-				setSelectedOpposition(opposition);
-				if (infoWindow) {
-					const content = `
-						<div style="padding: 8px; color: #000;">
-							<h4 style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${opposition.name}</h4>
-							<p style="font-size: 12px; color: #666; margin-bottom: 4px;">${opposition.address}</p>
-							<p style="font-size: 12px; color: #888;">Played ${opposition.timesPlayed} time${opposition.timesPlayed !== 1 ? "s" : ""}</p>
-						</div>
-					`;
-					infoWindow.setContent(content);
-					infoWindow.open(map, marker);
+		// Check if map has a valid mapId (required for Advanced Markers)
+		const mapId = (map as any).mapId;
+		if (!mapId || mapId === "DEMO_MAP_ID") {
+			console.warn("[OppositionMap] Map does not have a valid mapId, Advanced Markers may not work. Please configure NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID");
+			// Continue anyway, but markers might fail
+		}
+
+		// Small delay to ensure map is fully ready
+		const timeoutId = setTimeout(() => {
+			try {
+				// Clear existing markers
+				markersRef.current.forEach((marker) => {
+					if (marker) {
+						marker.map = null;
+					}
+				});
+				markersRef.current = [];
+
+				if (clustererRef.current) {
+					clustererRef.current.clearMarkers();
 				}
-			});
 
-			return marker;
-		});
+				// Create Advanced Markers for each opposition
+				const markers = oppositions.map((opposition) => {
+					try {
+						// Validate position values
+						if (typeof opposition.lat !== 'number' || typeof opposition.lng !== 'number' || 
+							isNaN(opposition.lat) || isNaN(opposition.lng)) {
+							console.warn("[OppositionMap] Invalid position for opposition:", opposition);
+							return null;
+						}
 
-		markersRef.current = markers;
+						// Ensure map is ready and marker library is valid
+						if (!map || !markerLibrary || !markerLibrary.AdvancedMarkerElement) {
+							console.warn("[OppositionMap] Map or marker library not ready");
+							return null;
+						}
 
-		// Create clusterer with Advanced Markers
-		if (markers.length > 0) {
-			clustererRef.current = new MarkerClusterer({
-				map,
-				markers,
-			});
-		}
+						// Create position object (use plain object for compatibility)
+						const position = { lat: opposition.lat, lng: opposition.lng };
+						
+						// Only create AdvancedMarker if mapId is set, otherwise fallback to regular markers
+						const markerOptions: google.maps.marker.AdvancedMarkerElementOptions = {
+							position: position,
+							map: map,
+							title: opposition.name || 'Unknown',
+						};
 
-		// Fit bounds to show all markers
-		if (markers.length > 0) {
-			const bounds = new google.maps.LatLngBounds();
-			markers.forEach((marker) => {
-				if (marker.position) {
-					const pos = marker.position as google.maps.LatLng;
-					bounds.extend(pos);
+						const marker = new markerLibrary.AdvancedMarkerElement(markerOptions);
+
+						if (marker && marker.addListener) {
+							marker.addListener("click", () => {
+								setSelectedOpposition(opposition);
+								if (infoWindow) {
+									const content = `
+										<div style="padding: 8px; color: #000;">
+											<h4 style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">${opposition.name}</h4>
+											<p style="font-size: 12px; color: #666; margin-bottom: 4px;">${opposition.address}</p>
+											<p style="font-size: 12px; color: #888;">Played ${opposition.timesPlayed} time${opposition.timesPlayed !== 1 ? "s" : ""}</p>
+										</div>
+									`;
+									infoWindow.setContent(content);
+									infoWindow.open(map, marker);
+								}
+							});
+						}
+
+						return marker;
+					} catch (error) {
+						console.error("[OppositionMap] Error creating marker:", error, opposition);
+						return null;
+					}
+				}).filter((marker): marker is google.maps.marker.AdvancedMarkerElement => marker !== null);
+
+				markersRef.current = markers;
+
+				// Create clusterer with Advanced Markers
+				if (markers.length > 0) {
+					clustererRef.current = new MarkerClusterer({
+						map,
+						markers,
+					});
 				}
-			});
-			map.fitBounds(bounds);
-		}
+
+				// Fit bounds to show all markers
+				if (markers.length > 0) {
+					const bounds = new google.maps.LatLngBounds();
+					markers.forEach((marker) => {
+						if (marker && marker.position) {
+							const pos = marker.position as google.maps.LatLng;
+							if (pos) {
+								bounds.extend(pos);
+							}
+						}
+					});
+					if (!bounds.isEmpty()) {
+						map.fitBounds(bounds);
+					}
+				}
+			} catch (error) {
+				console.error("[OppositionMap] Error creating markers:", error);
+			}
+		}, 100); // Small delay to ensure map is ready
+
+		return () => {
+			clearTimeout(timeoutId);
+		};
 	}, [map, oppositions, infoWindow, markerLibrary]);
 
 	if (isLoading) {
