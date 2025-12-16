@@ -1392,16 +1392,18 @@ export default function PlayersOfMonth() {
 							</div>
 						</div>
 					) : (
-						<div className='text-center py-8'>
-							<p className='text-white text-sm md:text-base mb-4'>
-								Select a player to see their current FTP ranking
-							</p>
-							<button
-								onClick={handleEditClick}
-								className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-								title='Select a player'>
-								<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
-							</button>
+						<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+							<div className='text-center py-2'>
+								<p className='text-white text-sm md:text-base mb-4'>
+									Select a player to see their current FTP ranking
+								</p>
+								<button
+									onClick={handleEditClick}
+									className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+									title='Select a player'>
+									<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+								</button>
+							</div>
 						</div>
 					)}
 				</div>

@@ -829,7 +829,10 @@ function FantasyPointsSection({
 		if (match.assists && match.assists > 0) {
 			parts.push(`${match.assists} ${match.assists === 1 ? "Assist" : "Assists"}`);
 		}
-		if ((match.cleanSheets && match.cleanSheets > 0) || match.cleanSheet === 1) {
+		// Check for clean sheet - support both cleanSheets (number) and cleanSheet (boolean/1)
+		const hasCleanSheet = (match.cleanSheets !== undefined && match.cleanSheets !== null && Number(match.cleanSheets) > 0) || 
+		                       (match.cleanSheet !== undefined && match.cleanSheet !== null && (match.cleanSheet === 1 || match.cleanSheet === true));
+		if (hasCleanSheet) {
 			parts.push("1 clean sheet");
 		}
 		
@@ -1246,7 +1249,7 @@ function MinutesPerStatsSection({
 	const minutesPerMoM = mom > 0 ? (minutes / mom) : 0;
 	const minutesPerConceded = conceded > 0 ? (minutes / conceded) : 0;
 	const minutesPerCleanSheet = cleanSheets > 0 ? (minutes / cleanSheets) : 0;
-	const minutesPerSave = (gkMinutes && gkMinutes > 0 && saves && saves > 0) ? (gkMinutes / saves) : 0;
+	const minutesPerSave = (gkMinutes && gkMinutes > 0) ? (saves && saves > 0 ? (gkMinutes / saves) : 0) : 0;
 
 	// Format number with commas for thousands and 1 decimal place
 	const formatMinutesPerStat = (value: number): string => {
@@ -1316,7 +1319,7 @@ function MinutesPerStatsSection({
 										{formatMinutesPerStat(minutesPerCleanSheet)}
 									</td>
 								</tr>
-								{gkMinutes && gkMinutes > 0 && saves && saves > 0 ? (
+								{gkMinutes && gkMinutes > 0 ? (
 									<tr>
 										<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Save</td>
 										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>

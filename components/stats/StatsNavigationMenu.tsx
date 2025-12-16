@@ -32,12 +32,21 @@ const statsNavigationItems = [
 	{
 		id: "team-stats" as StatsSubPage,
 		label: "Team Stats",
-		sections: [],
+		sections: [
+			{ id: "team-key-performance-stats", label: "Key Performance Stats" },
+			{ id: "team-recent-games", label: "Recent Games" },
+			{ id: "team-top-players", label: "Top Players" },
+			{ id: "team-best-season-finish", label: "Best Season Finish" },
+		],
 	},
 	{
 		id: "club-stats" as StatsSubPage,
 		label: "Club Stats",
-		sections: [],
+		sections: [
+			{ id: "club-key-performance-stats", label: "Key Performance Stats" },
+			{ id: "club-team-comparison", label: "Team Comparison" },
+			{ id: "club-top-players", label: "Top Players" },
+		],
 	},
 	{
 		id: "comparison" as StatsSubPage,
@@ -48,11 +57,19 @@ const statsNavigationItems = [
 
 export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigationMenuProps) {
 	const { setStatsSubPage, currentStatsSubPage } = useNavigationStore();
-	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>({
-		"player-stats": true,
-		"team-stats": true,
-		"club-stats": true,
-		"comparison": true,
+	// Initialize with only the current page expanded
+	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>(() => {
+		const initial: Record<string, boolean> = {
+			"player-stats": false,
+			"team-stats": false,
+			"club-stats": false,
+			"comparison": false,
+		};
+		// Expand the current page's section by default
+		if (currentStatsSubPage) {
+			initial[currentStatsSubPage] = true;
+		}
+		return initial;
 	});
 
 	const togglePage = (pageId: string) => {
@@ -71,9 +88,17 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 			setTimeout(() => {
 				const element = document.getElementById(sectionId);
 				if (element) {
-					element.scrollIntoView({ behavior: "smooth", block: "start" });
+					// Calculate offset for fixed headers (adjust as needed)
+					const offset = 80; // Approximate height of fixed header
+					const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+					const offsetPosition = elementPosition - offset;
+					
+					window.scrollTo({
+						top: offsetPosition,
+						behavior: "smooth"
+					});
 				}
-			}, 100);
+			}, 300); // Increased timeout to allow page transition
 		}
 	};
 
@@ -115,7 +140,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 							</div>
 
 							{/* Navigation Items */}
-							<div className='space-y-4'>
+							<div className='space-y-4 pb-20'>
 								{statsNavigationItems.map((item) => {
 									const isExpanded = expandedPages[item.id];
 									const hasSections = item.sections.length > 0;
@@ -181,6 +206,17 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 									);
 								})}
 							</div>
+							
+							{/* Yellow Close Button at Bottom */}
+							<div className='fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-[calc(100%-2rem)] md:max-w-md'>
+								<motion.button
+									onClick={onClose}
+									className='w-full bg-dorkinians-yellow text-black font-semibold py-3 px-4 rounded-lg hover:bg-yellow-400 transition-colors shadow-lg'
+									whileHover={{ scale: 1.02 }}
+									whileTap={{ scale: 0.98 }}>
+									Close
+								</motion.button>
+							</div>
 						</div>
 					</motion.div>
 				</>
@@ -188,3 +224,4 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		</AnimatePresence>
 	);
 }
+

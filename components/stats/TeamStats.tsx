@@ -1120,7 +1120,7 @@ export default function TeamStats() {
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats - Only show in data visualisation mode */}
 					{!isDataTableMode && (
-						<div className='mb-4'>
+						<div id='team-key-performance-stats' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
 								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
@@ -1221,14 +1221,16 @@ export default function TeamStats() {
 
 					{/* Recent Games Form */}
 					{!isDataTableMode && selectedTeam && apiFilters && (
-						<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
+						<div id='team-recent-games'>
+							<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
+						</div>
 					)}
 
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
 								{/* Top Players Table */}
-								<div className='mb-4 flex-shrink-0'>
+								<div id='team-top-players' className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1512,27 +1514,29 @@ export default function TeamStats() {
 														{goalsData.map((entry, index) => (
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
-														<LabelList 
-															content={(props: any) => {
-																const { x, y, width, height, payload, value } = props;
-																if (!payload) return null;
-																const perGame = payload.perGame || goalsData.find((e: any) => e.value === value)?.perGame;
-																if (!perGame) return null;
-																return (
-																	<text
-																		x={x + width / 2}
-																		y={y + height / 2}
-																		fill="#ffffff"
-																		fontSize={12}
-																		fontWeight="bold"
-																		textAnchor="middle"
-																		dominantBaseline="middle"
-																	>
-																		{`${value} (${perGame} per game)`}
-																	</text>
-																);
-															}}
-														/>
+													<LabelList 
+														content={(props: any) => {
+															const { x, y, width, height, payload, value } = props;
+															if (!payload) return null;
+															// Access perGame from the data entry by matching name
+															const dataEntry = goalsData.find((e: any) => e.name === payload.name);
+															const perGame = dataEntry?.perGame || payload.perGame;
+															if (!perGame) return null;
+															return (
+																<text
+																	x={x + width / 2}
+																	y={y + height / 2}
+																	fill="#ffffff"
+																	fontSize={12}
+																	fontWeight="bold"
+																	textAnchor="middle"
+																	dominantBaseline="middle"
+																>
+																	{`${value} (${perGame} per game)`}
+																</text>
+															);
+														}}
+													/>
 													</Bar>
 												</ComposedChart>
 											</ResponsiveContainer>
@@ -1799,14 +1803,14 @@ export default function TeamStats() {
 							<>
 								{!isDataTableMode && chartContent}
 								{isDataTableMode && dataTableContent}
-								<div className='h-4'></div>
+								<div className='mt-4'></div>
 							</>
 						);
 					})()}
 
 					{/* Best Season Finish Section */}
 					{selectedTeam && (
-						<div className='mt-4'>
+						<div id='team-best-season-finish' className='mt-4'>
 							{isDateRangeFilter ? (
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>

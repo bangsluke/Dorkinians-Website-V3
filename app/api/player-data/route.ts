@@ -133,7 +133,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(coalesce(md.cleanSheets, 0)) as cleanSheets,
 			sum(CASE 
 				WHEN toUpper(coalesce(md.class, "")) = "GK" 
-				AND (coalesce(f.conceded, 0) = 0 OR coalesce(f.cleanSheet, 0) = 1)
+				AND coalesce(f.conceded, 0) = 0
 				THEN 1 
 				ELSE 0 
 			END) as gkCleanSheets,
