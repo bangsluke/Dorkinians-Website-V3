@@ -13,32 +13,50 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 
 	useEffect(() => {
 		// Check if PWA is installed
-		const isPWAInstalled = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+		try {
+			const isPWAInstalled = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
 
-		if (isPWAInstalled) {
-			// Listen for service worker updates
-			if ("serviceWorker" in navigator) {
-				// Check for updates on page load
-				navigator.serviceWorker.getRegistration().then((registration) => {
-					if (registration) {
-						// Check if there's already a waiting worker
-						if (registration.waiting) {
-							setShowUpdateNotification(true);
-						}
-
-						registration.addEventListener("updatefound", () => {
-							const newWorker = registration.installing;
-							if (newWorker) {
-								newWorker.addEventListener("statechange", () => {
-									if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-										setShowUpdateNotification(true);
-									}
-								});
+			if (isPWAInstalled) {
+				// Listen for service worker updates
+				if ("serviceWorker" in navigator) {
+					// Check for updates on page load
+					navigator.serviceWorker.getRegistration().then((registration) => {
+						if (!registration) return;
+						
+						try {
+							// Check if there's already a waiting worker
+							if (registration.waiting) {
+								setShowUpdateNotification(true);
 							}
-						});
-					}
-				});
+
+							registration.addEventListener("updatefound", () => {
+								try {
+									const newWorker = registration.installing;
+									if (newWorker) {
+										newWorker.addEventListener("statechange", () => {
+											try {
+												if (newWorker.state === "installed" && navigator.serviceWorker?.controller) {
+													setShowUpdateNotification(true);
+												}
+											} catch (error) {
+												console.error("[PWAUpdateNotification] Error in statechange handler:", error);
+											}
+										});
+									}
+								} catch (error) {
+									console.error("[PWAUpdateNotification] Error in updatefound handler:", error);
+								}
+							});
+						} catch (error) {
+							console.error("[PWAUpdateNotification] Error setting up update listener:", error);
+						}
+					}).catch((error) => {
+						console.error("[PWAUpdateNotification] Error getting service worker registration:", error);
+					});
+				}
 			}
+		} catch (error) {
+			console.error("[PWAUpdateNotification] Error in useEffect:", error);
 		}
 	}, []);
 

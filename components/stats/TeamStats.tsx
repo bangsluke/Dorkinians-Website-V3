@@ -1120,7 +1120,7 @@ export default function TeamStats() {
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats - Only show in data visualisation mode */}
 					{!isDataTableMode && (
-						<div className='mb-4'>
+						<div id='team-key-performance-stats' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
 								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
@@ -1221,14 +1221,16 @@ export default function TeamStats() {
 
 					{/* Recent Games Form */}
 					{!isDataTableMode && selectedTeam && apiFilters && (
-						<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
+						<div id='team-recent-games'>
+							<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
+						</div>
 					)}
 
 					{(() => {
 						const chartContent = (
 							<div className='space-y-4 pb-4'>
 								{/* Top Players Table */}
-								<div className='mb-4 flex-shrink-0'>
+								<div id='team-top-players' className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1799,14 +1801,14 @@ export default function TeamStats() {
 							<>
 								{!isDataTableMode && chartContent}
 								{isDataTableMode && dataTableContent}
-								<div className='h-4'></div>
+								<div className='mt-4'></div>
 							</>
 						);
 					})()}
 
 					{/* Best Season Finish Section */}
 					{selectedTeam && (
-						<div className='mt-4'>
+						<div id='team-best-season-finish' className='mt-4'>
 							{isDateRangeFilter ? (
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
