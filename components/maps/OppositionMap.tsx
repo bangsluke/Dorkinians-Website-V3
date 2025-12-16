@@ -125,7 +125,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 		}
 
 		// Ensure map is fully initialized
-		if (!map.getDiv || !map.getDiv()) {
+		if (!mapRef.current) {
 			console.warn("[OppositionMap] Map not fully initialized");
 			return;
 		}
