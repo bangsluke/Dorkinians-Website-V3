@@ -188,3 +188,4 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		</AnimatePresence>
 	);
 }
+

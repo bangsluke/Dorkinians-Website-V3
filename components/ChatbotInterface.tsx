@@ -286,6 +286,31 @@ export default function ChatbotInterface() {
 		}
 	};
 
+	// Scroll to top helper function
+	const scrollToTop = () => {
+		// Find the main scrollable container - try multiple selectors for reliability
+		const selectors = [
+			'.main-content-container .frosted-container > div[class*="overflow-y-auto"]',
+			'.main-content-container [class*="overflow-y-auto"]',
+			'.frosted-container [class*="overflow-y-auto"]',
+			'[class*="overflow-y-auto"]'
+		];
+		
+		let scrollableContainer: Element | null = null;
+		for (const selector of selectors) {
+			scrollableContainer = document.querySelector(selector);
+			if (scrollableContainer) break;
+		}
+		
+		// Scroll the container if found
+		if (scrollableContainer) {
+			scrollableContainer.scrollTo({ top: 0, behavior: 'smooth' });
+		}
+		// Also scroll window and document element as fallbacks
+		window.scrollTo({ top: 0, behavior: 'smooth' });
+		document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+	};
+
 	// Handle the chatbot question submission
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault(); // Prevent the default form submission behavior
@@ -420,6 +445,7 @@ export default function ChatbotInterface() {
 									transition={{ delay: index * 0.1 }}
 									className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 									onClick={() => {
+										scrollToTop();
 										submitQuestion(q.question);
 									}}>
 									<div className='mb-2'>
@@ -488,6 +514,7 @@ export default function ChatbotInterface() {
 										transition={{ delay: index * 0.1 }}
 										className={`rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]`}
 										onClick={() => {
+											scrollToTop();
 											submitQuestion(q.question);
 										}}>
 										<div className='mb-2'>
