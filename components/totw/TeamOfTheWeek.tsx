@@ -9,6 +9,9 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { TOTWSummarySkeleton, TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -730,7 +733,15 @@ export default function TeamOfTheWeek() {
 						<div className='relative'>
 							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 								<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
-									{weeks.length === 0 ? "Loading..." : selectedWeek ? `Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}` : "Select week..."}
+									{weeks.length === 0 ? (
+										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+											<Skeleton height={16} width={100} />
+										</SkeletonTheme>
+									) : selectedWeek ? (
+										`Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}`
+									) : (
+										"Select week..."
+									)}
 								</span>
 								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
@@ -739,7 +750,9 @@ export default function TeamOfTheWeek() {
 							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 								{weeks.length === 0 ? (
 									<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-										Loading...
+										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+											<Skeleton height={16} width={100} />
+										</SkeletonTheme>
 									</Listbox.Option>
 								) : (
 									weeks.map((week) => (
@@ -763,58 +776,56 @@ export default function TeamOfTheWeek() {
 				</div>
 			</div>
 
-			{/* Central Loading Spinner */}
-			{loading && (
-				<div className='absolute inset-0 flex items-center justify-center z-50'>
-					<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
-				</div>
-			)}
 
 			{/* Summary Statistics */}
-			<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
-				<div className='text-center flex flex-col md:w-auto'>
-					{!loading && totwData && (
+			{loading || !totwData ? (
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<TOTWSummarySkeleton />
+				</SkeletonTheme>
+			) : (
+				<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
+					<div className='text-center flex flex-col md:w-auto'>
 						<div className='h-5 mb-2 flex items-center justify-center'>
 							<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
 						</div>
-					)}
-					<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
-						{!loading && totwData ? (
+						<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
 							<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
-						) : null}
-					</div>
-					{!loading && totwData && (
+						</div>
 						<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
-					)}
+					</div>
+					<div className='flex flex-col items-center flex-shrink-0'>
+						{totwData?.starMan && (
+							<>
+								<div className='h-5 mb-2 flex items-center justify-center'>
+									<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
+								</div>
+								<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
+									<div className='relative w-12 h-12 md:w-14 md:h-14'>
+										<Image
+											src='/totw-images/Kit.svg'
+											alt='Star Man Kit'
+											fill
+											className='object-contain'
+										/>
+									</div>
+									<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+										<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+										<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
+									</div>
+								</div>
+							</>
+						)}
+					</div>
 				</div>
-				<div className='flex flex-col items-center flex-shrink-0'>
-					{!loading && totwData?.starMan && (
-						<div className='h-5 mb-2 flex items-center justify-center'>
-							<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
-						</div>
-					)}
-					{!loading && totwData?.starMan && (
-						<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
-							<div className='relative w-12 h-12 md:w-14 md:h-14'>
-								<Image
-									src='/totw-images/Kit.svg'
-									alt='Star Man Kit'
-									fill
-									className='object-contain'
-								/>
-							</div>
-							<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
-								<div className='text-xs md:text-sm'>{totwData.starMan}</div>
-								<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
-							</div>
-						</div>
-					)}
-				</div>
-			</div>
+			)}
 
 			{/* Pitch Visualization */}
 			<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
-				{!loading && (
+				{loading ? (
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<TOTWPitchSkeleton />
+					</SkeletonTheme>
+				) : (
 					<>
 						{/* Pitch Background */}
 						<div className='absolute inset-0 w-full h-[110%]'>
@@ -930,12 +941,9 @@ export default function TeamOfTheWeek() {
 
 			{/* Loading Overlay */}
 			{loadingPlayerDetails && (
-				<div className='fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50'>
-					<div className='flex flex-col items-center'>
-						<div className='animate-spin rounded-full h-16 w-16 border-b-2 border-yellow-300 mb-4'></div>
-						<p className='text-white text-lg'>Loading player details...</p>
-					</div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<TOTWPlayerDetailsSkeleton />
+				</SkeletonTheme>
 			)}
 
 			{/* Player Detail Modal */}

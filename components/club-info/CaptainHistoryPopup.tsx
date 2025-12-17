@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { HistoryPopupSkeleton } from "@/components/skeletons";
 
 interface CaptainHistory {
 	season: string;
@@ -76,10 +79,9 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 				>
 					{/* Loading State */}
 					{loading && (
-						<div className='text-center'>
-							<div className='animate-spin rounded-full h-12 w-12 border-b-2 border-gray-300 mx-auto'></div>
-							<p className='text-white mt-4'>Loading captain history...</p>
-						</div>
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<HistoryPopupSkeleton />
+						</SkeletonTheme>
 					)}
 
 					{/* Captain History List */}

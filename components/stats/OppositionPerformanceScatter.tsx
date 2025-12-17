@@ -1,6 +1,9 @@
 "use client";
 
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { ScatterChartSkeleton } from "@/components/skeletons";
 
 interface OppositionPerformanceData {
 	name: string;
@@ -54,12 +57,9 @@ const scatterTooltip = ({ active, payload }: any) => {
 export default function OppositionPerformanceScatter({ data, isLoading }: OppositionPerformanceScatterProps) {
 	if (isLoading) {
 		return (
-			<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
-				<h3 className="text-white font-semibold text-sm md:text-base mb-4">Opposition Performance</h3>
-				<div className="flex items-center justify-center h-64">
-					<div className="text-white/60 text-sm">Loading chart...</div>
-				</div>
-			</div>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<ScatterChartSkeleton />
+			</SkeletonTheme>
 		);
 	}
 

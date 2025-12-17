@@ -4,6 +4,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { FixturesListSkeleton } from "@/components/skeletons";
 
 interface LeagueResultsModalProps {
 	isOpen: boolean;
@@ -185,9 +188,9 @@ export default function LeagueResultsModal({
 								className='flex-1 overflow-y-auto p-4 space-y-4'
 								style={{ WebkitOverflowScrolling: 'touch' }}>
 								{loading && (
-									<div className='flex justify-center py-8'>
-										<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-dorkinians-yellow'></div>
-									</div>
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<FixturesListSkeleton />
+									</SkeletonTheme>
 								)}
 
 								{error && (
