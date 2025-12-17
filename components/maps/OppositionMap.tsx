@@ -172,7 +172,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 						const position = { lat: opposition.lat, lng: opposition.lng };
 						
 						// Only create AdvancedMarker if mapId is set, otherwise fallback to regular markers
-						const markerOptions: google.maps.marker.AdvancedMarkerElementOptions = {
+						const markerOptions: google.maps.AdvancedMarkerElementOptions = {
 							position: position,
 							map: map,
 							title: opposition.name || 'Unknown',
