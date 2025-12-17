@@ -17,3 +17,9 @@ export { default as TOTWPlayerDetailsSkeleton } from "./TOTWPlayerDetailsSkeleto
 export { default as PlayersTableSkeleton } from "./PlayersTableSkeleton";
 export { default as PlayerStatsExpansionSkeleton } from "./PlayerStatsExpansionSkeleton";
 export { default as RankingTableSkeleton } from "./RankingTableSkeleton";
+export { default as MilestonesTableSkeleton } from "./MilestonesTableSkeleton";
+export { default as LeagueTableSkeleton } from "./LeagueTableSkeleton";
+export { default as FixturesListSkeleton } from "./FixturesListSkeleton";
+export { default as CaptainsTableSkeleton } from "./CaptainsTableSkeleton";
+export { default as AwardsTableSkeleton } from "./AwardsTableSkeleton";
+export { default as HistoryPopupSkeleton } from "./HistoryPopupSkeleton";

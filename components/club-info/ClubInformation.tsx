@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { MilestonesTableSkeleton } from "@/components/skeletons";
 
 interface MilestoneEntry {
 	playerName: string;
@@ -145,9 +148,9 @@ export default function ClubInformation() {
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Milestones Achieved</h4>
 				{loading ? (
-					<div className='flex justify-center py-4'>
-						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
-					</div>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<MilestonesTableSkeleton />
+					</SkeletonTheme>
 				) : filteredAchieved.length > 0 ? (
 					<div className='overflow-x-auto overflow-y-auto max-h-96'>
 						<table className='w-full text-white'>
@@ -187,9 +190,9 @@ export default function ClubInformation() {
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Nearing Milestones</h4>
 				{loading ? (
-					<div className='flex justify-center py-4'>
-						<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
-					</div>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<MilestonesTableSkeleton />
+					</SkeletonTheme>
 				) : filteredNearing.length > 0 ? (
 					<div className='overflow-x-auto overflow-y-auto max-h-96'>
 						<table className='w-full text-white'>
