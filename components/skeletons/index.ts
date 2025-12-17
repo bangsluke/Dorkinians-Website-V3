@@ -8,3 +8,6 @@ export { default as AwardsListSkeleton } from "./AwardsListSkeleton";
 export { default as TopPlayersTableSkeleton } from "./TopPlayersTableSkeleton";
 export { default as RecentGamesSkeleton } from "./RecentGamesSkeleton";
 export { default as BestSeasonFinishSkeleton } from "./BestSeasonFinishSkeleton";
+export { default as RadarChartSkeleton } from "./RadarChartSkeleton";
+export { default as SankeyChartSkeleton } from "./SankeyChartSkeleton";
+export { default as GameDetailsTableSkeleton } from "./GameDetailsTableSkeleton";
