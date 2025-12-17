@@ -17,6 +17,265 @@ import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal"
 import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
 import SharePreviewModal from "@/components/stats/SharePreviewModal";
 import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+
+// Skeleton Components
+function KeyPerformanceStatsSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="60%" className="mb-3" />
+			<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+				{[...Array(6)].map((_, i) => (
+					<div key={i} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+						<Skeleton circle height={40} width={40} className="flex-shrink-0" />
+						<div className='flex-1 min-w-0'>
+							<Skeleton height={14} width="60%" className="mb-1" />
+							<Skeleton height={20} width="80%" />
+						</div>
+					</div>
+				))}
+			</div>
+		</div>
+	);
+}
+
+function ChartSkeleton({ showDropdown = true }: { showDropdown?: boolean }) {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			{showDropdown && (
+				<div className='flex items-center justify-between mb-2 gap-2'>
+					<Skeleton height={20} width="40%" />
+					<Skeleton height={36} width="45%" className="rounded-md" />
+				</div>
+			)}
+			<div className='relative' style={{ height: '240px' }}>
+				{/* Y-axis */}
+				<div className='absolute left-0 top-0 bottom-0 flex flex-col justify-between py-2'>
+					{[...Array(5)].map((_, i) => (
+						<Skeleton key={i} height={12} width={30} />
+					))}
+				</div>
+				{/* Chart area with grid pattern */}
+				<div className='ml-8 mr-4 h-full flex flex-col justify-between'>
+					<div className='flex-1 relative'>
+						{/* Grid lines */}
+						<div className='absolute inset-0 flex flex-col justify-between'>
+							{[...Array(4)].map((_, i) => (
+								<div key={i} className='border-t border-white/10' />
+							))}
+						</div>
+						{/* Bars */}
+						<div className='absolute bottom-0 left-0 right-0 flex items-end justify-around gap-1 px-2'>
+							{[...Array(6)].map((_, i) => {
+								const barHeights = [120, 80, 140, 100, 90, 110]; // Fixed heights for consistency
+								return (
+									<Skeleton key={i} height={barHeights[i]} width="12%" />
+								);
+							})}
+						</div>
+					</div>
+					{/* X-axis */}
+					<div className='flex justify-around mt-2'>
+						{[...Array(6)].map((_, i) => (
+							<Skeleton key={i} height={12} width={40} />
+						))}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function PieChartSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-2" />
+			<div className='flex items-center justify-center' style={{ height: '220px' }}>
+				<div className='relative'>
+					<Skeleton circle height={180} width={180} />
+					{/* Labels around circle */}
+					<div className='absolute inset-0'>
+						<Skeleton height={14} width={60} style={{ position: 'absolute', top: '20%', left: '110%' }} />
+						<Skeleton height={14} width={60} style={{ position: 'absolute', bottom: '20%', right: '110%' }} />
+						<Skeleton height={14} width={60} style={{ position: 'absolute', bottom: '10%', left: '50%', transform: 'translateX(-50%)' }} />
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function TableSkeleton({ rows = 3 }: { rows?: number }) {
+	return (
+		<div className='mb-6'>
+			<table className='w-full text-white text-sm'>
+				<thead>
+					<tr className='border-b border-white/20'>
+						<th className='text-left py-2 px-2'><Skeleton height={16} width={60} /></th>
+						<th className='text-right py-2 px-2'><Skeleton height={16} width={50} className="ml-auto" /></th>
+						<th className='text-right py-2 px-2'><Skeleton height={16} width={50} className="ml-auto" /></th>
+					</tr>
+				</thead>
+				<tbody>
+					{[...Array(rows)].map((_, i) => (
+						<tr key={i} className='border-b border-white/10'>
+							<td className='py-2 px-2'><Skeleton height={14} width={80} /></td>
+							<td className='text-right py-2 px-2'><Skeleton height={14} width={40} className="ml-auto" /></td>
+							<td className='text-right py-2 px-2'><Skeleton height={14} width={50} className="ml-auto" /></td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		</div>
+	);
+}
+
+function MapSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-4" />
+			<div className='relative' style={{ height: '400px' }}>
+				<Skeleton height="100%" className="rounded-lg" />
+				{/* Marker placeholders */}
+				<div className='absolute inset-0'>
+					<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '30%', left: '40%' }} />
+					<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '50%', left: '60%' }} />
+					<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '70%', left: '35%' }} />
+					<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '45%', left: '75%' }} />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function ScatterChartSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6'>
+			<Skeleton height={20} width="40%" className="mb-4" />
+			<div className='relative' style={{ height: '320px' }}>
+				{/* Grid background */}
+				<div className='absolute inset-0'>
+					<div className='h-full flex flex-col justify-between'>
+						{[...Array(5)].map((_, i) => (
+							<div key={i} className='border-t border-white/10' />
+						))}
+					</div>
+					<div className='absolute inset-0 flex justify-between'>
+						{[...Array(6)].map((_, i) => (
+							<div key={i} className='border-l border-white/10' />
+						))}
+					</div>
+				</div>
+				{/* Scatter points */}
+				<div className='absolute inset-0'>
+					{[
+						{ top: '25%', left: '15%' },
+						{ top: '40%', left: '30%' },
+						{ top: '60%', left: '50%' },
+						{ top: '35%', left: '65%' },
+						{ top: '70%', left: '25%' },
+						{ top: '50%', left: '75%' },
+						{ top: '30%', left: '45%' },
+						{ top: '65%', left: '60%' },
+						{ top: '45%', left: '20%' },
+						{ top: '55%', left: '80%' },
+					].map((pos, i) => (
+						<Skeleton 
+							key={i} 
+							circle 
+							height={12} 
+							width={12} 
+							style={{ 
+								position: 'absolute', 
+								top: pos.top, 
+								left: pos.left 
+							}} 
+						/>
+					))}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function PositionalStatsSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-2" />
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
+				{/* Pitch outline */}
+				<Skeleton height="100%" className="rounded" />
+				{/* Position sections */}
+				<div className='absolute inset-0 flex'>
+					<Skeleton height="100%" width="33.33%" className="opacity-50" />
+					<Skeleton height="100%" width="33.33%" className="opacity-50" />
+					<Skeleton height="100%" width="33.33%" className="opacity-50" />
+				</div>
+			</div>
+		</div>
+	);
+}
+
+function PenaltyStatsSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-2" />
+			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden' }}>
+				<Skeleton height="100%" className="rounded" />
+				{/* Goal and penalty circles */}
+				<div className='absolute inset-0'>
+					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '30%', left: '35%' }} />
+					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '30%', left: '55%' }} />
+					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '20%', left: '70%' }} />
+					<Skeleton circle height={40} width={40} style={{ position: 'absolute', top: '60%', left: '30%' }} />
+				</div>
+			</div>
+			<div className='mt-2'>
+				<TableSkeleton rows={4} />
+			</div>
+		</div>
+	);
+}
+
+function AwardsListSkeleton() {
+	return (
+		<div className='space-y-4'>
+			<div>
+				<Skeleton height={16} width="30%" className="mb-2" />
+					<ul className='space-y-1'>
+						{[...Array(3)].map((_, i) => {
+							const widths = ['65%', '75%', '70%'];
+							return (
+								<li key={i}>
+									<Skeleton height={16} width={widths[i]} />
+								</li>
+							);
+						})}
+					</ul>
+			</div>
+			<div className='pt-2 border-t border-white/10 space-y-2'>
+				<Skeleton height={16} width="70%" />
+				<Skeleton height={16} width="75%" />
+				<Skeleton height={16} width="80%" />
+			</div>
+		</div>
+	);
+}
+
+function FantasyPointsSkeleton() {
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<Skeleton height={20} width="40%" className="mb-4" />
+			{/* Total points card */}
+			<div className='mb-4'>
+				<Skeleton height={60} className="rounded-lg" />
+			</div>
+			{/* Breakdown table */}
+			<TableSkeleton rows={5} />
+		</div>
+	);
+}
 
 function StatRow({ stat, value, playerData }: { stat: any; value: any; playerData: PlayerData }) {
 	const [showTooltip, setShowTooltip] = useState(false);
@@ -753,12 +1012,9 @@ function FantasyPointsSection({
 }) {
 	if (isLoading) {
 		return (
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Fantasy Points</h3>
-				<div className='flex items-center justify-center h-64'>
-					<p className='text-white text-sm'>Loading fantasy points breakdown...</p>
-				</div>
-			</div>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<FantasyPointsSkeleton />
+			</SkeletonTheme>
 		);
 	}
 
@@ -2075,30 +2331,35 @@ export default function PlayerStats() {
 
 	if (isLoadingPlayerData) {
 		return (
-			<div className='h-full flex flex-col'>
-				<div className='flex-shrink-0 p-2 md:p-4'>
-					<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-						<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
-						<button
-							onClick={handleEditClick}
-							className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-							title='Edit player selection'>
-							<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
-						</button>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<div className='h-full flex flex-col'>
+					<div className='flex-shrink-0 p-2 md:p-4'>
+						<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
+							<button
+								onClick={handleEditClick}
+								className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
+								title='Edit player selection'>
+								<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+							</button>
+						</div>
+						<div className='flex justify-center mb-2 md:mb-4'>
+							<button
+								onClick={() => setIsDataTableMode(!isDataTableMode)}
+								className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+								{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
+							</button>
+						</div>
+						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
-					<div className='flex justify-center mb-2 md:mb-4'>
-						<button
-							onClick={() => setIsDataTableMode(!isDataTableMode)}
-							className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
-							{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-						</button>
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
+						<KeyPerformanceStatsSkeleton />
+						<ChartSkeleton />
+						<ChartSkeleton />
+						<ChartSkeleton />
 					</div>
-					<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 				</div>
-				<div className='flex-1 flex items-center justify-center p-4'>
-					<p className='text-white text-sm md:text-base'>Loading player data...</p>
-				</div>
-			</div>
+			</SkeletonTheme>
 		);
 	}
 
@@ -2560,9 +2821,9 @@ export default function PlayerStats() {
 				{allSeasonsSelected ? (
 					<>
 						{isLoadingSeasonalStats ? (
-							<div className='flex items-center justify-center h-64'>
-								<p className='text-white text-sm'>Loading seasonal stats...</p>
-							</div>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<ChartSkeleton />
+							</SkeletonTheme>
 						) : seasonalChartData.length > 0 ? (
 							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 								<ResponsiveContainer width='100%' height={240}>
@@ -2650,9 +2911,9 @@ export default function PlayerStats() {
 				{allTeamsSelected ? (
 					<>
 						{isLoadingTeamStats ? (
-							<div className='flex items-center justify-center h-64'>
-								<p className='text-white text-sm'>Loading team stats...</p>
-							</div>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<ChartSkeleton />
+							</SkeletonTheme>
 						) : teamChartData.length > 0 ? (
 							<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 								<ResponsiveContainer width='100%' height={240}>
@@ -2771,7 +3032,20 @@ export default function PlayerStats() {
 			})()}
 
 			{/* Game Details Section */}
-			{!isLoadingGameDetails && gameDetails && (
+			{isLoadingGameDetails ? (
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<Skeleton height={20} width="40%" className="mb-4" />
+						<TableSkeleton rows={3} />
+						<TableSkeleton rows={2} />
+						<div className='space-y-2'>
+							<Skeleton height={16} width="60%" />
+							<Skeleton height={16} width="65%" />
+							<Skeleton height={16} width="55%" />
+						</div>
+					</div>
+				</SkeletonTheme>
+			) : gameDetails && (
 				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 					
@@ -2924,9 +3198,9 @@ export default function PlayerStats() {
 					</div>
 				</div>
 				{isLoadingMonthlyStats ? (
-					<div className='flex items-center justify-center h-64'>
-						<p className='text-white text-sm'>Loading monthly stats...</p>
-					</div>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<ChartSkeleton />
+					</SkeletonTheme>
 				) : monthlyChartData.length > 0 ? (
 					<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 						<ResponsiveContainer width='100%' height={240}>
@@ -3187,9 +3461,9 @@ export default function PlayerStats() {
 			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Awards and Achievements</h3>
 				{isLoadingAwards ? (
-					<div className='flex items-center justify-center h-32'>
-						<p className='text-white text-sm'>Loading awards...</p>
-					</div>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<AwardsListSkeleton />
+					</SkeletonTheme>
 				) : awardsData ? (
 					<div className='space-y-4'>
 						{/* Awards List */}

@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader } from "@googlemaps/js-api-loader";
 import { MarkerClusterer } from "@googlemaps/markerclusterer";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 interface OppositionLocation {
 	name: string;
@@ -239,12 +241,21 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 
 	if (isLoading) {
 		return (
-			<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
-				<h3 className="text-white font-semibold text-sm md:text-base mb-4">Opposition Locations</h3>
-				<div className="flex items-center justify-center h-96">
-					<div className="text-white/60 text-sm">Loading map...</div>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
+					<Skeleton height={20} width="40%" className="mb-4" />
+					<div className='relative' style={{ height: '400px' }}>
+						<Skeleton height="100%" className="rounded-lg" />
+						{/* Marker placeholders */}
+						<div className='absolute inset-0'>
+							<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '30%', left: '40%' }} />
+							<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '50%', left: '60%' }} />
+							<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '70%', left: '35%' }} />
+							<Skeleton circle height={20} width={20} style={{ position: 'absolute', top: '45%', left: '75%' }} />
+						</div>
+					</div>
 				</div>
-			</div>
+			</SkeletonTheme>
 		);
 	}
 

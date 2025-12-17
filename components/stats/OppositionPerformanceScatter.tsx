@@ -1,6 +1,8 @@
 "use client";
 
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 interface OppositionPerformanceData {
 	name: string;
@@ -54,12 +56,53 @@ const scatterTooltip = ({ active, payload }: any) => {
 export default function OppositionPerformanceScatter({ data, isLoading }: OppositionPerformanceScatterProps) {
 	if (isLoading) {
 		return (
-			<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
-				<h3 className="text-white font-semibold text-sm md:text-base mb-4">Opposition Performance</h3>
-				<div className="flex items-center justify-center h-64">
-					<div className="text-white/60 text-sm">Loading chart...</div>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 md:p-6">
+					<Skeleton height={20} width="40%" className="mb-4" />
+					<div className='relative' style={{ height: '320px' }}>
+						{/* Grid background */}
+						<div className='absolute inset-0'>
+							<div className='h-full flex flex-col justify-between'>
+								{[...Array(5)].map((_, i) => (
+									<div key={i} className='border-t border-white/10' />
+								))}
+							</div>
+							<div className='absolute inset-0 flex justify-between'>
+								{[...Array(6)].map((_, i) => (
+									<div key={i} className='border-l border-white/10' />
+								))}
+							</div>
+						</div>
+						{/* Scatter points */}
+						<div className='absolute inset-0'>
+							{[
+								{ top: '25%', left: '15%' },
+								{ top: '40%', left: '30%' },
+								{ top: '60%', left: '50%' },
+								{ top: '35%', left: '65%' },
+								{ top: '70%', left: '25%' },
+								{ top: '50%', left: '75%' },
+								{ top: '30%', left: '45%' },
+								{ top: '65%', left: '60%' },
+								{ top: '45%', left: '20%' },
+								{ top: '55%', left: '80%' },
+							].map((pos, i) => (
+								<Skeleton 
+									key={i} 
+									circle 
+									height={12} 
+									width={12} 
+									style={{ 
+										position: 'absolute', 
+										top: pos.top, 
+										left: pos.left 
+									}} 
+								/>
+							))}
+						</div>
+					</div>
 				</div>
-			</div>
+			</SkeletonTheme>
 		);
 	}
 
