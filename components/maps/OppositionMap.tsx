@@ -225,9 +225,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 							}
 						}
 					});
-					if (!bounds.isEmpty()) {
-						map.fitBounds(bounds);
-					}
+					map.fitBounds(bounds);
 				}
 			} catch (error) {
 				console.error("[OppositionMap] Error creating markers:", error);
