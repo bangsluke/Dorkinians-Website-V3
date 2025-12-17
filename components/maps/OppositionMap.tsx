@@ -125,7 +125,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 		}
 
 		// Ensure map is fully initialized
-		if (!map.getDiv || !map.getDiv()) {
+		if (!mapRef.current) {
 			console.warn("[OppositionMap] Map not fully initialized");
 			return;
 		}
@@ -172,7 +172,7 @@ function OppositionMapComponent({ oppositions, isLoading }: OppositionMapProps) 
 						const position = { lat: opposition.lat, lng: opposition.lng };
 						
 						// Only create AdvancedMarker if mapId is set, otherwise fallback to regular markers
-						const markerOptions: google.maps.marker.AdvancedMarkerElementOptions = {
+						const markerOptions: google.maps.AdvancedMarkerElementOptions = {
 							position: position,
 							map: map,
 							title: opposition.name || 'Unknown',
