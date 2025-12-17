@@ -50,7 +50,6 @@ export default function RadarChartSkeleton() {
 								height: '180px',
 								border: '2px solid',
 								borderColor: 'var(--skeleton-highlight)',
-								opacity: '0.4',
 								clipPath: 'polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%)',
 								backgroundColor: 'var(--skeleton-base)',
 								opacity: '0.2',
