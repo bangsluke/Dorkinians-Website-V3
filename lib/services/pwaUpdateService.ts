@@ -293,9 +293,7 @@ class PWAUpdateService {
 					});
 				} catch (error) {
 					console.error("[PWAUpdateService] Error in update check:", error);
-					if (!resolved) {
-						resolveOnce({ isUpdateAvailable: false });
-					}
+					resolve({ isUpdateAvailable: false });
 				}
 			}).catch((error) => {
 				console.error("[PWAUpdateService] Error getting service worker registration:", error);
