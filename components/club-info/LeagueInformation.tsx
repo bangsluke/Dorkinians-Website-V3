@@ -9,6 +9,10 @@ import { useNavigationStore } from "@/lib/stores/navigation";
 import LeagueResultsModal from "./LeagueResultsModal";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
+import { SkeletonTheme } from "react-loading-skeleton";
+import Skeleton from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
 
 interface LeagueTableEntry {
 	position: number;
@@ -666,9 +670,9 @@ export default function LeagueInformation() {
 
 			{/* Loading State */}
 			{loading && (
-				<div className='flex justify-center py-8'>
-					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-dorkinians-yellow'></div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<LeagueTableSkeleton />
+				</SkeletonTheme>
 			)}
 
 			{/* Covid-19 Message for 2019/20 Season */}
@@ -881,16 +885,19 @@ export default function LeagueInformation() {
 
 			{/* Loading state for My Seasons */}
 			{isMySeasonsMode && loadingMySeasons && (
-				<div className='flex justify-center py-8'>
-					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-dorkinians-yellow'></div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<LeagueTableSkeleton />
+				</SkeletonTheme>
 			)}
 
 			{/* Loading state for Season Progress */}
 			{isSeasonProgressMode && loadingSeasonProgress && (
-				<div className='flex justify-center py-8'>
-					<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-dorkinians-yellow'></div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+						<Skeleton height={20} width="40%" className="mb-2" />
+						<ChartSkeleton />
+					</div>
+				</SkeletonTheme>
 			)}
 
 			{/* Season Progress Chart */}

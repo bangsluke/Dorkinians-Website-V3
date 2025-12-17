@@ -6,6 +6,9 @@ import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/outline";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
 
 interface Player {
 	rank: number;
@@ -946,11 +949,19 @@ export default function PlayersOfMonth() {
 				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>
 			</div>
 
-			{/* Loading Spinner - Show during initial load */}
+			{/* Loading Skeleton - Show during initial load */}
 			{isInitialLoading && (
-				<div className='flex items-center justify-center py-12'>
-					<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<div className='flex flex-row gap-4 mb-6'>
+						<div className='flex-1'>
+							<Skeleton height={36} width="100%" className="rounded-md" />
+						</div>
+						<div className='flex-1'>
+							<Skeleton height={36} width="100%" className="rounded-md" />
+						</div>
+					</div>
+					<PlayersTableSkeleton />
+				</SkeletonTheme>
 			)}
 
 			{/* Filters - Hide during initial load */}
@@ -1006,9 +1017,15 @@ export default function PlayersOfMonth() {
 						}}>
 							<div className='relative'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
-									<span className={`block truncate ${selectedMonth ? "text-white" : "text-yellow-300"}`}>
-										{months.length === 0 ? "Loading..." : selectedMonth || "Select month..."}
-									</span>
+								<span className={`block truncate ${selectedMonth ? "text-white" : "text-yellow-300"}`}>
+									{months.length === 0 ? (
+										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+											<Skeleton height={16} width={100} />
+										</SkeletonTheme>
+									) : (
+										selectedMonth || "Select month..."
+									)}
+								</span>
 									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 									</span>
@@ -1016,7 +1033,9 @@ export default function PlayersOfMonth() {
 								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
 									{months.length === 0 ? (
 										<Listbox.Option value="" className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-											Loading...
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<Skeleton height={16} width={100} />
+											</SkeletonTheme>
 										</Listbox.Option>
 									) : (
 										months.map((month) => (
@@ -1041,11 +1060,11 @@ export default function PlayersOfMonth() {
 				</div>
 			)}
 
-			{/* Loading Spinner - Show when loading month data */}
+			{/* Loading Skeleton - Show when loading month data */}
 			{!isInitialLoading && (loading || loadingStats) && (
-				<div className='flex items-center justify-center py-12'>
-					<div className='animate-spin rounded-full h-16 w-16 md:h-20 md:w-20 border-b-2 border-gray-300'></div>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<PlayersTableSkeleton />
+				</SkeletonTheme>
 			)}
 
 			{/* Players Table */}
@@ -1108,9 +1127,9 @@ export default function PlayersOfMonth() {
 														<ChevronUpIcon className='h-4 w-4 text-yellow-300' />
 													</div>
 													{isLoadingStats ? (
-														<div className='flex justify-center py-4'>
-															<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
-														</div>
+														<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+															<PlayerStatsExpansionSkeleton />
+														</SkeletonTheme>
 													) : stats ? (
 														<div className='space-y-4'>
 															{/* Monthly Stats Summary */}
@@ -1244,9 +1263,9 @@ export default function PlayersOfMonth() {
 								</h2>
 								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedMonth} {selectedSeason}</p>
 								{loadingMonthRankings ? (
-									<div className='flex items-center justify-center py-8'>
-										<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
-									</div>
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<RankingTableSkeleton />
+									</SkeletonTheme>
 								) : monthRankings.length > 0 ? (
 									(() => {
 										const monthRows = getRankingTableRows(monthRankings, selectedPlayer);
@@ -1321,9 +1340,9 @@ export default function PlayersOfMonth() {
 								</h2>
 								<p className='text-white text-sm md:text-base mb-4 text-center'>{selectedSeason}</p>
 								{loadingSeasonRankings ? (
-									<div className='flex items-center justify-center py-8'>
-										<div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-300'></div>
-									</div>
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<RankingTableSkeleton />
+									</SkeletonTheme>
 								) : seasonRankings.length > 0 ? (
 									(() => {
 										const seasonRows = getRankingTableRows(seasonRankings, selectedPlayer);

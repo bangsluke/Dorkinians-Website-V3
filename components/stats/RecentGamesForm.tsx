@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { RecentGamesSkeleton } from "@/components/skeletons";
 
 interface Fixture {
 	result: string;
@@ -265,33 +268,9 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 
 	if (isLoading) {
 		return (
-			<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 mb-4'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Recent Form</h3>
-				<div className='flex gap-1 w-full'>
-					{Array.from({ length: 10 }).map((_, index) => (
-						<div
-							key={index}
-							className='flex-1 aspect-square bg-gray-700 rounded animate-pulse'
-						/>
-					))}
-				</div>
-				<div className='flex gap-1 w-full mt-1'>
-					{Array.from({ length: 10 }).map((_, index) => (
-						<div
-							key={index}
-							className='flex-1 aspect-square bg-gray-700 rounded animate-pulse'
-						/>
-					))}
-				</div>
-				<div className='flex gap-1 w-full mt-1'>
-					{Array.from({ length: 10 }).map((_, index) => (
-						<div
-							key={index}
-							className='flex-1 aspect-square bg-gray-700 rounded animate-pulse'
-						/>
-					))}
-				</div>
-			</div>
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<RecentGamesSkeleton />
+			</SkeletonTheme>
 		);
 	}
 

@@ -12,6 +12,9 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import RecentGamesForm from "./RecentGamesForm";
 import { safeLocalStorageGet, safeLocalStorageSet, getPWADebugInfo } from "@/lib/utils/pwaDebug";
 import HomeAwayGauge from "./HomeAwayGauge";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton } from "@/components/skeletons";
 
 
 interface TopPlayer {
@@ -1105,9 +1108,14 @@ export default function TeamStats() {
 					</div>
 				</div>
 			) : isLoadingTeamData ? (
-				<div className='flex-1 flex items-center justify-center p-4'>
-					<p className='text-white text-sm md:text-base'>Loading team data...</p>
-				</div>
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
+						<StatCardSkeleton />
+						<RecentGamesSkeleton />
+						<TopPlayersTableSkeleton />
+						<ChartSkeleton />
+					</div>
+				</SkeletonTheme>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
 					<div className='text-center'>
@@ -1283,9 +1291,9 @@ export default function TeamStats() {
 											</Listbox>
 										</div>
 										{isLoadingTopPlayers ? (
-											<div className='p-4'>
-												<p className='text-white text-xs md:text-sm text-center'>Loading top players...</p>
-											</div>
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<TopPlayersTableSkeleton />
+											</SkeletonTheme>
 										) : topPlayers.length > 0 ? (
 											<div className='overflow-x-auto'>
 												<table className='w-full text-white'>
@@ -1397,9 +1405,9 @@ export default function TeamStats() {
 											<label htmlFor='show-trend-checkbox-team' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
 										</div>
 										{isLoadingSeasonalStats ? (
-											<div className='flex items-center justify-center h-64'>
-												<p className='text-white text-sm'>Loading seasonal stats...</p>
-											</div>
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<ChartSkeleton />
+											</SkeletonTheme>
 										) : seasonalChartData.length > 0 ? (
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 												<ResponsiveContainer width='100%' height={240}>
@@ -1687,7 +1695,32 @@ export default function TeamStats() {
 								)}
 
 								{/* Unique Player Stats Section */}
-								{!isLoadingUniqueStats && uniquePlayerStats && (
+								{isLoadingUniqueStats ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<Skeleton height={20} width="40%" className="mb-2" />
+											<Skeleton height={16} width="60%" className="mb-3" />
+											<div className='overflow-x-auto'>
+												<table className='w-full text-white text-sm'>
+													<thead>
+														<tr className='border-b border-white/20'>
+															<th className='text-left py-2 px-2'><Skeleton height={16} width={80} /></th>
+															<th className='text-right py-2 px-2'><Skeleton height={16} width={100} className="ml-auto" /></th>
+														</tr>
+													</thead>
+													<tbody>
+														{[...Array(5)].map((_, i) => (
+															<tr key={i} className='border-b border-white/10'>
+																<td className='py-2 px-2'><Skeleton height={14} width="70%" /></td>
+																<td className='text-right py-2 px-2'><Skeleton height={14} width={30} className="ml-auto" /></td>
+															</tr>
+														))}
+													</tbody>
+												</table>
+											</div>
+										</div>
+									</SkeletonTheme>
+								) : uniquePlayerStats && (
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
@@ -1824,9 +1857,9 @@ export default function TeamStats() {
 										{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
 									</h3>
 									{isLoadingBestSeasonFinish ? (
-										<div className='flex items-center justify-center py-8'>
-											<p className='text-white text-sm md:text-base'>Loading season finish data...</p>
-										</div>
+										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+											<BestSeasonFinishSkeleton />
+										</SkeletonTheme>
 									) : bestSeasonFinishError ? (
 										<div className='flex items-center justify-center py-8'>
 											<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>

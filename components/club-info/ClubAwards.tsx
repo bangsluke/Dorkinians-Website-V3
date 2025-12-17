@@ -6,6 +6,9 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { getCachedAwardsData } from "@/lib/services/awardsPreloadService";
+import { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
+import { AwardsTableSkeleton } from "@/components/skeletons";
 
 interface AwardData {
 	awardName: string;
@@ -255,10 +258,9 @@ export default function ClubAwards() {
 			>
 				{/* Loading State */}
 				{loading && (
-					<div className='text-center'>
-						<div className='animate-spin rounded-full h-12 w-12 border-b-2 border-gray-300 mx-auto'></div>
-						<p className='text-white mt-4 text-sm md:text-base'>Loading award data...</p>
-					</div>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<AwardsTableSkeleton />
+					</SkeletonTheme>
 				)}
 
 				{/* Awards Table - Regular Awards */}
