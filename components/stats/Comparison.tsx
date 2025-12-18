@@ -1,8 +1,8 @@
 "use client";
 
 import { useNavigationStore } from "@/lib/stores/navigation";
-import { PencilIcon } from "@heroicons/react/24/outline";
 import FilterPills from "@/components/filters/FilterPills";
+import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 
 export default function Comparison() {
 	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage } = useNavigationStore();
@@ -22,7 +22,7 @@ export default function Comparison() {
 						onClick={handleEditClick}
 						className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Select a player'>
-						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
 			</div>

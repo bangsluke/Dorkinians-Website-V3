@@ -5,7 +5,8 @@ import { statObject, statsPageConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PencilIcon, ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
@@ -2122,7 +2123,7 @@ export default function PlayerStats() {
 						onClick={handleEditClick}
 						className='flex items-center justify-center mx-auto w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Select a player'>
-						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
 			</div>
@@ -2140,7 +2141,7 @@ export default function PlayerStats() {
 								onClick={handleEditClick}
 								className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 								title='Edit player selection'>
-								<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+								<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 							</button>
 						</div>
 						<div className='flex justify-center mb-2 md:mb-4'>
@@ -3347,7 +3348,7 @@ export default function PlayerStats() {
 						onClick={handleEditClick}
 						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
-						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
