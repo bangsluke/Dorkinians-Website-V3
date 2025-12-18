@@ -11,7 +11,8 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { TOTWSummarySkeleton, TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
+import { TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -59,6 +60,11 @@ export default function TeamOfTheWeek() {
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
+		if (appConfig.forceSkeletonView) {
+			setLoading(true);
+			return;
+		}
+
 		const cachedSeasons = getCachedTOTWSeasons();
 		if (cachedSeasons) {
 			setSeasons(cachedSeasons.seasons);
@@ -97,6 +103,10 @@ export default function TeamOfTheWeek() {
 	// Fetch weeks when season changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason) return;
+		if (appConfig.forceSkeletonView) {
+			setLoading(true);
+			return;
+		}
 
 		const cachedWeeks = getCachedTOTWWeeks(selectedSeason);
 		if (cachedWeeks) {
@@ -176,6 +186,10 @@ export default function TeamOfTheWeek() {
 	// Fetch TOTW data when season/week changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason || !selectedWeek || selectedWeek === 0) return;
+		if (appConfig.forceSkeletonView) {
+			setLoading(true);
+			return;
+		}
 
 		const cachedWeekData = getCachedTOTWWeekData(selectedSeason, selectedWeek);
 		if (cachedWeekData) {
@@ -665,7 +679,7 @@ export default function TeamOfTheWeek() {
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
-					className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'
+					className='text-xl md:text-2xl font-bold text-dorkinians-yellow'
 					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
 				>
 					Team of the Week
@@ -688,9 +702,9 @@ export default function TeamOfTheWeek() {
 						<path strokeLinecap='round' strokeLinejoin='round' d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z' />
 					</svg>
 					{showInfoTooltip && (
-						<div className='absolute bottom-full left-0 mb-2 px-3 py-2 text-xs text-white rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
+						<div className='absolute top-full right-0 mt-2 px-3 py-2 text-xs text-white rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
 							Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.
-							<div className='absolute top-full left-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent' style={{ borderTopColor: '#0f0f0f' }}></div>
+							<div className='absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent' style={{ borderBottomColor: '#0f0f0f' }}></div>
 						</div>
 					)}
 				</button>
@@ -777,56 +791,51 @@ export default function TeamOfTheWeek() {
 			</div>
 
 
-			{/* Summary Statistics */}
-			{loading || !totwData ? (
+			{/* Summary Statistics and Pitch Visualization */}
+			{(loading || !totwData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<TOTWSummarySkeleton />
+					<TOTWPitchSkeleton />
 				</SkeletonTheme>
 			) : (
-				<div className='flex flex-row flex-nowrap gap-4 md:gap-12 mb-6 justify-center'>
-					<div className='text-center flex flex-col md:w-auto'>
-						<div className='h-5 mb-2 flex items-center justify-center'>
-							<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+				<>
+					{/* Summary Statistics */}
+					<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
+						<div className='text-center flex flex-col md:w-auto'>
+							<div className='h-5 mb-2 flex items-center justify-center'>
+								<p className='text-gray-300 font-bold text-xs md:text-sm'>TOTW TOTAL POINTS</p>
+							</div>
+							<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
+								<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+							</div>
+							<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
 						</div>
-						<div className='flex-1 md:flex-none flex items-end md:items-center justify-center'>
-							<p className='text-7xl md:text-8xl font-bold text-gray-300 leading-none'>{Math.round(totwData?.totwScore || 0)}</p>
+						<div className='flex flex-col items-center flex-shrink-0'>
+							{totwData?.starMan && (
+								<>
+									<div className='h-5 mb-2 flex items-center justify-center'>
+										<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
+									</div>
+									<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
+										<div className='relative w-12 h-12 md:w-14 md:h-14'>
+											<Image
+												src='/totw-images/Kit.svg'
+												alt='Star Man Kit'
+												fill
+												className='object-contain'
+											/>
+										</div>
+										<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
+											<div className='text-xs md:text-sm'>{totwData.starMan}</div>
+											<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
+										</div>
+									</div>
+								</>
+							)}
 						</div>
-						<p className='text-gray-300 mt-2 text-[0.65rem] md:text-xs whitespace-nowrap'>Number Players Played: {totwData?.playerCount || 0}</p>
 					</div>
-					<div className='flex flex-col items-center flex-shrink-0'>
-						{totwData?.starMan && (
-							<>
-								<div className='h-5 mb-2 flex items-center justify-center'>
-									<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
-								</div>
-								<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
-									<div className='relative w-12 h-12 md:w-14 md:h-14'>
-										<Image
-											src='/totw-images/Kit.svg'
-											alt='Star Man Kit'
-											fill
-											className='object-contain'
-										/>
-									</div>
-									<div className='text-white px-4 py-1 rounded text-center' style={{ background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05))' }}>
-										<div className='text-xs md:text-sm'>{totwData.starMan}</div>
-										<div className='font-bold mt-1 text-xs md:text-sm'>{Math.round(totwData.starManScore)}</div>
-									</div>
-								</div>
-							</>
-						)}
-					</div>
-				</div>
-			)}
 
-			{/* Pitch Visualization */}
-			<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
-				{loading ? (
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<TOTWPitchSkeleton />
-					</SkeletonTheme>
-				) : (
-					<>
+					{/* Pitch Visualization */}
+					<div ref={pitchContainerRef} className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
 						{/* Pitch Background */}
 						<div className='absolute inset-0 w-full h-[110%]'>
 							<Image
@@ -935,9 +944,9 @@ export default function TeamOfTheWeek() {
 								</div>
 							);
 						})}
-					</>
-				)}
-			</div>
+					</div>
+				</>
+			)}
 
 			{/* Loading Overlay */}
 			{loadingPlayerDetails && (

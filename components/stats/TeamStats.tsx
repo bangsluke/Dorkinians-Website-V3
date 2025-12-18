@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -522,6 +522,10 @@ export default function TeamStats() {
 	
 	useEffect(() => {
 		if (!selectedTeam || !playerFilters) return;
+		if (appConfig.forceSkeletonView) {
+			setIsLoadingTeamData(true);
+			return;
+		}
 
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
@@ -564,6 +568,9 @@ export default function TeamStats() {
 	// Fetch top players when selected team, filters or stat type changes
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) return;
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
@@ -661,6 +668,9 @@ export default function TeamStats() {
 			setSeasonalStats([]);
 			return;
 		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
@@ -691,6 +701,9 @@ export default function TeamStats() {
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) {
 			setUniquePlayerStats(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -732,6 +745,9 @@ export default function TeamStats() {
 		if (isDateRangeFilter) {
 			setBestSeasonFinishData(null);
 			setBestSeasonFinishError(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -1107,7 +1123,7 @@ export default function TeamStats() {
 						<p className='text-white text-sm md:text-base'>Please select a team to view stats</p>
 					</div>
 				</div>
-			) : isLoadingTeamData ? (
+			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
 						<StatCardSkeleton />

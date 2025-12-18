@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
+import { appConfig } from "@/config/config";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
@@ -102,6 +103,11 @@ export default function PlayersOfMonth() {
 
 	// Fetch seasons on mount - check cache first
 	useEffect(() => {
+		if (appConfig.forceSkeletonView) {
+			setLoading(true);
+			return;
+		}
+
 		const cachedSeasons = getCachedPOMSeasons();
 		if (cachedSeasons) {
 			setSeasons(cachedSeasons.seasons);
@@ -137,6 +143,10 @@ export default function PlayersOfMonth() {
 	// Fetch months when season changes - check cache first
 	useEffect(() => {
 		if (!selectedSeason) return;
+		if (appConfig.forceSkeletonView) {
+			setLoading(true);
+			return;
+		}
 
 		const seasonChanged = previousSeasonRef.current !== selectedSeason;
 		const previousSeason = previousSeasonRef.current;
@@ -353,6 +363,10 @@ export default function PlayersOfMonth() {
 		}
 
 		// Loading state already set above, just set fetching flag
+		if (appConfig.forceSkeletonView) {
+			setIsFetchingMonthData(true);
+			return;
+		}
 		setIsFetchingMonthData(true);
 
 		const fetchMonthData = async () => {
@@ -409,6 +423,12 @@ export default function PlayersOfMonth() {
 		if (players.length === 0) {
 			// No players yet - maintain loading state until we know if there are any
 			// The loading check effect will clear it if month data fetch is complete
+			setLoading(true);
+			setLoadingStats(true);
+			return;
+		}
+
+		if (appConfig.forceSkeletonView) {
 			setLoading(true);
 			setLoadingStats(true);
 			return;
@@ -951,7 +971,7 @@ export default function PlayersOfMonth() {
 			</div>
 
 			{/* Loading Skeleton - Show during initial load */}
-			{isInitialLoading && (
+			{(isInitialLoading || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='flex flex-row gap-4 mb-6'>
 						<div className='flex-1'>

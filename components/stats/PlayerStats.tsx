@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -1766,6 +1766,9 @@ export default function PlayerStats() {
 			setSeasonalStats([]);
 			return;
 		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
@@ -1796,6 +1799,9 @@ export default function PlayerStats() {
 	useEffect(() => {
 		if (!selectedPlayer || !allTeamsSelected) {
 			setTeamStats([]);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -1830,6 +1836,9 @@ export default function PlayerStats() {
 			setMonthlyStats([]);
 			return;
 		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchMonthlyStats = async () => {
 			setIsLoadingMonthlyStats(true);
@@ -1860,6 +1869,9 @@ export default function PlayerStats() {
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setFantasyBreakdown(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -1894,6 +1906,9 @@ export default function PlayerStats() {
 			setOppositionMapData([]);
 			return;
 		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchOppositionMapData = async () => {
 			setIsLoadingOppositionMap(true);
@@ -1920,6 +1935,9 @@ export default function PlayerStats() {
 			setOppositionPerformanceData([]);
 			return;
 		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
 
 		const fetchOppositionPerformanceData = async () => {
 			setIsLoadingOppositionPerformance(true);
@@ -1944,6 +1962,9 @@ export default function PlayerStats() {
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setGameDetails(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -1977,6 +1998,9 @@ export default function PlayerStats() {
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setAwardsData(null);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
 			return;
 		}
 
@@ -2130,7 +2154,7 @@ export default function PlayerStats() {
 		);
 	}
 
-	if (isLoadingPlayerData) {
+	if (isLoadingPlayerData || appConfig.forceSkeletonView) {
 		return (
 			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 				<div className='h-full flex flex-col'>
