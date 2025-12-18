@@ -393,6 +393,7 @@ export default function ClubTeamStats() {
 	// State for unique player stats
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
+	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
 	// Determine page heading based on team filter
 	const pageHeading = useMemo(() => {
@@ -1430,8 +1431,32 @@ export default function ClubTeamStats() {
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
-				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
+				<div className='flex items-center justify-center mb-2 md:mb-4 relative gap-2'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
+					<button
+						className='relative min-w-[40px] min-h-[40px] flex items-center justify-center'
+						onMouseEnter={() => setShowInfoTooltip(true)}
+						onMouseLeave={() => setShowInfoTooltip(false)}
+						onTouchStart={() => setShowInfoTooltip(!showInfoTooltip)}
+						aria-label='Information about Club Stats'
+					>
+						<svg 
+							xmlns='http://www.w3.org/2000/svg' 
+							fill='none' 
+							viewBox='0 0 24 24' 
+							strokeWidth={1.5} 
+							stroke='currentColor' 
+							className='w-5 h-5 text-dorkinians-yellow cursor-pointer touch-manipulation'
+						>
+							<path strokeLinecap='round' strokeLinejoin='round' d='m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z' />
+						</svg>
+						{showInfoTooltip && (
+							<div className='absolute top-full right-0 mt-2 px-3 py-2 text-xs text-white rounded-lg shadow-lg w-64 text-center z-50 pointer-events-none' style={{ backgroundColor: '#0f0f0f' }}>
+								View club-wide statistics across all teams. Use filters to focus on specific teams or view aggregate club performance.
+								<div className='absolute bottom-full right-4 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent' style={{ borderBottomColor: '#0f0f0f' }}></div>
+							</div>
+						)}
+					</button>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
 					<button
