@@ -14,7 +14,6 @@ import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 import UpdateToast from "@/components/UpdateToast";
-import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 
@@ -248,7 +247,14 @@ export default function HomePage() {
 												onClick={handleEditClick}
 												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 												title='Edit player selection'>
-												<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
+												<svg className='h-4 w-4 md:h-5 md:w-5' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+													<path
+														strokeLinecap='round'
+														strokeLinejoin='round'
+														strokeWidth={2}
+														d='M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z'
+													/>
+												</svg>
 											</button>
 										</div>
 									</motion.div>

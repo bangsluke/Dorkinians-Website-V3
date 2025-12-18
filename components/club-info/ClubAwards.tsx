@@ -6,9 +6,10 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { getCachedAwardsData } from "@/lib/services/awardsPreloadService";
-import { SkeletonTheme } from "react-loading-skeleton";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { AwardsTableSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface AwardData {
 	awardName: string;
@@ -207,8 +208,14 @@ export default function ClubAwards() {
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Awards</h2>
 
 				{/* Season Dropdown */}
-				{seasons.length > 0 && (
-					<div className='mb-2'>
+				<div className='mb-2'>
+					{(loading || seasons.length === 0) ? (
+						<div className='w-[60%] md:w-full mx-auto'>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<Skeleton height={48} className='rounded-md' />
+							</SkeletonTheme>
+						</div>
+					) : (
 						<Listbox
 							value={selectedSeason}
 							onChange={(newSeason) => {
@@ -218,7 +225,7 @@ export default function ClubAwards() {
 									localStorage.setItem(AWARDS_SELECTED_SEASON_KEY, newSeason);
 								}
 							}}>
-							<div className='relative'>
+							<div className='relative w-[60%] md:w-full mx-auto'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
@@ -245,8 +252,8 @@ export default function ClubAwards() {
 								</Listbox.Options>
 							</div>
 						</Listbox>
-					</div>
-				)}
+					)}
+				</div>
 			</div>
 
 			{/* Scrollable Content Area */}
@@ -257,14 +264,14 @@ export default function ClubAwards() {
 				}}
 			>
 				{/* Loading State */}
-				{loading && (
+				{(loading || appConfig.forceSkeletonView) && (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<AwardsTableSkeleton />
 					</SkeletonTheme>
 				)}
 
 				{/* Awards Table - Regular Awards */}
-				{!loading && !isHistoricalAwards && awardsData.filter(item => item.receiver).length > 0 && (
+				{!loading && !appConfig.forceSkeletonView && !isHistoricalAwards && awardsData.filter(item => item.receiver).length > 0 && (
 					<div className='overflow-x-auto -mx-6 px-6'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
@@ -311,7 +318,7 @@ export default function ClubAwards() {
 				)}
 
 				{/* Historical Awards Table */}
-				{!loading && isHistoricalAwards && historicalAwardsData.length > 0 && (() => {
+				{!loading && !appConfig.forceSkeletonView && isHistoricalAwards && historicalAwardsData.length > 0 && (() => {
 					// Group items by season
 					const groupedData: { season: string; awards: HistoricalAwardEntry[] }[] = [];
 					let currentSeason = "";
@@ -390,12 +397,12 @@ export default function ClubAwards() {
 				})()}
 
 				{/* No Data Message */}
-				{!loading && !isHistoricalAwards && awardsData.length === 0 && selectedSeason && (
+				{!loading && !appConfig.forceSkeletonView && !isHistoricalAwards && awardsData.length === 0 && selectedSeason && (
 					<div className='text-center mt-8'>
 						<p className='text-sm md:text-base text-gray-300'>No award data available for {selectedSeason}.</p>
 					</div>
 				)}
-				{!loading && isHistoricalAwards && historicalAwardsData.length === 0 && (
+				{!loading && !appConfig.forceSkeletonView && isHistoricalAwards && historicalAwardsData.length === 0 && (
 					<div className='text-center mt-8'>
 						<p className='text-sm md:text-base text-gray-300'>No historical award data available.</p>
 					</div>

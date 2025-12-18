@@ -9,6 +9,7 @@ import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface Player {
 	rank: number;
@@ -1061,7 +1062,7 @@ export default function PlayersOfMonth() {
 			)}
 
 			{/* Loading Skeleton - Show when loading month data */}
-			{!isInitialLoading && (loading || loadingStats) && (
+			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<PlayersTableSkeleton />
 				</SkeletonTheme>

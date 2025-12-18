@@ -2,19 +2,20 @@ import Skeleton from "react-loading-skeleton";
 import Image from "next/image";
 
 export default function TOTWPitchSkeleton() {
-	// Using 4-4-2 formation as default - better spread positions
+	// Using 4-4-2 formation coordinates from formationCoordinateObject
+	// Positions match actual formation: GK at (40, 1), DEF at (5,25,55,75, 24), MID at (5,25,55,75, 47), FWD at (20,60, 71)
 	const playerPositions = [
-		{ x: 50, y: 92, isGoalkeeper: true }, // GK - center bottom
-		{ x: 15, y: 72 }, // DEF 1 - left (wider)
-		{ x: 35, y: 72 }, // DEF 2 - left center
-		{ x: 65, y: 72 }, // DEF 3 - right center
-		{ x: 85, y: 72 }, // DEF 4 - right (wider)
-		{ x: 15, y: 48 }, // MID 1 - left (wider)
-		{ x: 35, y: 48 }, // MID 2 - left center
-		{ x: 65, y: 48 }, // MID 3 - right center
-		{ x: 85, y: 48 }, // MID 4 - right (wider)
-		{ x: 35, y: 24 }, // FWD 1 - left forward
-		{ x: 65, y: 24 }, // FWD 2 - right forward
+		{ x: 40, y: 1, isGoalkeeper: true }, // GK - Pos1
+		{ x: 5, y: 24 }, // DEF 1 - Pos2
+		{ x: 25, y: 24 }, // DEF 2 - Pos3
+		{ x: 55, y: 24 }, // DEF 3 - Pos4
+		{ x: 75, y: 24 }, // DEF 4 - Pos5
+		{ x: 5, y: 47 }, // MID 1 - Pos6
+		{ x: 25, y: 47 }, // MID 2 - Pos7
+		{ x: 55, y: 47 }, // MID 3 - Pos8
+		{ x: 75, y: 47 }, // MID 4 - Pos9
+		{ x: 20, y: 71 }, // FWD 1 - Pos10
+		{ x: 60, y: 71 }, // FWD 2 - Pos11
 	];
 
 	return (
@@ -33,11 +34,11 @@ export default function TOTWPitchSkeleton() {
 			<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
 				{/* Square 1: TOTW TOTAL POINTS section */}
 				<div className='text-center flex flex-col md:w-auto'>
-					<Skeleton height={140} width={200} />
+					<Skeleton height={140} width={160} />
 				</div>
 				{/* Square 2: STAR MAN section */}
 				<div className='flex flex-col items-center flex-shrink-0'>
-					<Skeleton height={140} width={120} />
+					<Skeleton height={140} width={100} />
 				</div>
 			</div>
 
@@ -66,14 +67,12 @@ export default function TOTWPitchSkeleton() {
 							transform: "translate(-50%, -50%)",
 						}}
 					>
-						<div className='relative flex flex-col items-center'>
-							{/* Kit Circle */}
-							<Skeleton circle height={56} width={56} />
-							{/* Name Box Rectangle - overlaying bottom of circle */}
-							<div className='absolute' style={{ top: '40px' }}>
-								<Skeleton height={44} width={60} />
-							</div>
-						</div>
+					<div className='relative flex flex-col items-center'>
+						{/* Kit Circle - matches w-14 h-14 (56px) with mb-1 spacing */}
+						<Skeleton circle height={56} width={56} className="mb-1" />
+						{/* Name Box Rectangle - matches actual dimensions (60px width, 50px height) */}
+						<Skeleton height={50} width={60} />
+					</div>
 					</div>
 				))}
 			</div>

@@ -6,9 +6,10 @@ import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import CaptainHistoryPopup from "./CaptainHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { getCachedCaptainsData } from "@/lib/services/captainsPreloadService";
-import { SkeletonTheme } from "react-loading-skeleton";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { CaptainsTableSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface CaptainData {
 	team: string;
@@ -149,8 +150,14 @@ export default function ClubCaptains() {
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
 
 				{/* Season Dropdown */}
-				{seasons.length > 0 && (
-					<div className='mb-2'>
+				<div className='mb-2'>
+					{(loading || seasons.length === 0) ? (
+						<div className='w-[60%] md:w-full mx-auto'>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<Skeleton height={48} className='rounded-md' />
+							</SkeletonTheme>
+						</div>
+					) : (
 						<Listbox
 							value={selectedSeason}
 							onChange={(newSeason) => {
@@ -160,7 +167,7 @@ export default function ClubCaptains() {
 									localStorage.setItem(CAPTAINS_SELECTED_SEASON_KEY, newSeason);
 								}
 							}}>
-							<div className='relative'>
+							<div className='relative w-[60%] md:w-full mx-auto'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
@@ -187,8 +194,8 @@ export default function ClubCaptains() {
 								</Listbox.Options>
 							</div>
 						</Listbox>
-					</div>
-				)}
+					)}
+				</div>
 			</div>
 
 			{/* Scrollable Content Area */}
@@ -196,14 +203,14 @@ export default function ClubCaptains() {
 				className='flex-1 overflow-y-auto px-6 pb-6 min-h-0'
 				style={{ WebkitOverflowScrolling: 'touch' }}>
 				{/* Loading State */}
-				{loading && (
+				{(loading || appConfig.forceSkeletonView) && (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<CaptainsTableSkeleton />
 					</SkeletonTheme>
 				)}
 
 				{/* Captains Table */}
-				{!loading && captainsData.filter(item => item.captain).length > 0 && (
+				{!loading && !appConfig.forceSkeletonView && captainsData.filter(item => item.captain).length > 0 && (
 					<div className='overflow-x-auto'>
 						<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 							<thead className='sticky top-0 z-10'>
@@ -250,7 +257,7 @@ export default function ClubCaptains() {
 				)}
 
 				{/* No Data Message */}
-				{!loading && captainsData.length === 0 && selectedSeason && (
+				{!loading && !appConfig.forceSkeletonView && captainsData.length === 0 && selectedSeason && (
 					<div className='text-center mt-8'>
 						<p className='text-sm md:text-base text-gray-300'>No captain data available for {selectedSeason}.</p>
 					</div>

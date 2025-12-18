@@ -9,8 +9,8 @@ export default function ChartSkeleton({ showDropdown = true }: ChartSkeletonProp
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			{showDropdown && (
 				<div className='flex items-center justify-between mb-2 gap-2'>
-					<Skeleton height={20} width="40%" />
-					<Skeleton height={36} width="45%" className="rounded-md" />
+					<Skeleton height={20} width="40%" className="flex-shrink-0" />
+					<Skeleton height={36} width="45%" className="rounded-md flex-1 max-w-[45%]" />
 				</div>
 			)}
 			<div className='relative' style={{ height: '240px' }}>

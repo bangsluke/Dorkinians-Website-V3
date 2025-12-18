@@ -711,84 +711,86 @@ export default function TeamOfTheWeek() {
 			</div>
 
 			{/* Filters */}
-			<div className='flex flex-row gap-4 mb-6'>
-				<div className='w-1/3 md:w-1/2'>
-					<Listbox value={selectedSeason} onChange={setSelectedSeason}>
-						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
-								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
-									{selectedSeason || "Select season..."}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
-								{seasons.map((season) => (
-									<Listbox.Option
-										key={season}
-										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-										}
-										value={season}>
-										{({ selected }) => (
-											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-												{season}
-											</span>
-										)}
-									</Listbox.Option>
-								))}
-							</Listbox.Options>
-						</div>
-					</Listbox>
-				</div>
-				<div className='flex-1 md:w-1/2'>
-					<Listbox value={selectedWeek || 0} onChange={setSelectedWeek}>
-						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
-								<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
-									{weeks.length === 0 ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<Skeleton height={16} width={100} />
-										</SkeletonTheme>
-									) : selectedWeek ? (
-										`Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}`
-									) : (
-										"Select week..."
-									)}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
-								{weeks.length === 0 ? (
-									<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<Skeleton height={16} width={100} />
-										</SkeletonTheme>
-									</Listbox.Option>
-								) : (
-									weeks.map((week) => (
+			{!(loading || !totwData || appConfig.forceSkeletonView) && (
+				<div className='flex flex-row gap-4 mb-6'>
+					<div className='w-1/3 md:w-1/2'>
+						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
+										{selectedSeason || "Select season..."}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+									{seasons.map((season) => (
 										<Listbox.Option
-											key={week.week}
+											key={season}
 											className={({ active }) =>
 												`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
 											}
-											value={week.week}>
+											value={season}>
 											{({ selected }) => (
 												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-													Week {week.week} ({week.dateLookup || ''})
+													{season}
 												</span>
 											)}
 										</Listbox.Option>
-									))
-								)}
-							</Listbox.Options>
-						</div>
-					</Listbox>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
+					<div className='flex-1 md:w-1/2'>
+						<Listbox value={selectedWeek || 0} onChange={setSelectedWeek}>
+							<div className='relative'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+									<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
+										{weeks.length === 0 ? (
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<Skeleton height={16} width={100} />
+											</SkeletonTheme>
+										) : selectedWeek ? (
+											`Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}`
+										) : (
+											"Select week..."
+										)}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+									{weeks.length === 0 ? (
+										<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<Skeleton height={16} width={100} />
+											</SkeletonTheme>
+										</Listbox.Option>
+									) : (
+										weeks.map((week) => (
+											<Listbox.Option
+												key={week.week}
+												className={({ active }) =>
+													`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												}
+												value={week.week}>
+												{({ selected }) => (
+													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+														Week {week.week} ({week.dateLookup || ''})
+													</span>
+												)}
+											</Listbox.Option>
+										))
+									)}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					</div>
 				</div>
-			</div>
+			)}
 
 
 			{/* Summary Statistics and Pitch Visualization */}

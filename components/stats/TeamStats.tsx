@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
-import { statObject, statsPageConfig } from "@/config/config";
+import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -1107,7 +1107,7 @@ export default function TeamStats() {
 						<p className='text-white text-sm md:text-base'>Please select a team to view stats</p>
 					</div>
 				</div>
-			) : isLoadingTeamData ? (
+			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
 						<StatCardSkeleton />
@@ -1404,7 +1404,7 @@ export default function TeamStats() {
 											/>
 											<label htmlFor='show-trend-checkbox-team' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
 										</div>
-										{isLoadingSeasonalStats ? (
+										{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
 											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 												<ChartSkeleton />
 											</SkeletonTheme>
