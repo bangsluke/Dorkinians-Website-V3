@@ -259,6 +259,14 @@ interface NavigationState {
 	cachedPOMMonths: Record<string, string[]>; // Keyed by season
 	cachedPOMMonthData: Record<string, CachedPOMMonthData>; // Keyed by "season:month"
 	cachedPOMPlayerStats: Record<string, POMMonthPlayerStats>; // Keyed by "season:month:playerName"
+	// Data table mode state
+	shouldShowDataTable: boolean;
+	// Stats page preload cache
+	preloadedStatsData: {
+		playerStats: Record<string, any>;
+		teamStats: Record<string, any>;
+		clubStats: Record<string, any>;
+	};
 	// Navigation actions
 	setMainPage: (page: MainPage) => void;
 	setStatsSubPage: (page: StatsSubPage) => void;
@@ -312,6 +320,11 @@ interface NavigationState {
 	getCachedPOMMonths: (season: string) => string[] | null;
 	getCachedPOMMonthData: (season: string, month: string) => CachedPOMMonthData | null;
 	getCachedPOMPlayerStats: (season: string, month: string, playerName: string) => POMMonthPlayerStats | null;
+	// Data table mode actions
+	setDataTableMode: (enabled: boolean) => void;
+	// Stats preload actions
+	preloadStatsData: () => Promise<void>;
+	getPreloadedData: (page: StatsSubPage, key: string) => any;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -459,6 +472,12 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	cachedPOMMonths: {},
 	cachedPOMMonthData: {},
 	cachedPOMPlayerStats: {},
+	shouldShowDataTable: false,
+	preloadedStatsData: {
+		playerStats: {},
+		teamStats: {},
+		clubStats: {},
+	},
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
@@ -1426,5 +1445,585 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		const { cachedPOMPlayerStats } = get();
 		const cacheKey = `${season}:${month}:${playerName}`;
 		return cachedPOMPlayerStats[cacheKey] || null;
+	},
+
+	setDataTableMode: (enabled: boolean) => {
+		set({ shouldShowDataTable: enabled });
+	},
+
+	preloadStatsData: async () => {
+		const { selectedPlayer, playerFilters, playerFiltersByPage, filterData } = get();
+		
+		if (!selectedPlayer || !filterData.teams || filterData.teams.length === 0) {
+			return; // Can't preload without player or teams
+		}
+
+		const preloadPromises: Promise<void>[] = [];
+
+		// Preload Player Stats data
+		const playerFiltersForPreload = playerFiltersByPage["player-stats"] || playerFilters;
+		if (selectedPlayer && playerFiltersForPreload) {
+			// Preload seasonal stats (if all seasons selected)
+			const allSeasonsSelected = playerFiltersForPreload.timeRange?.type === "allTime" ||
+				(playerFiltersForPreload.timeRange?.type === "season" && 
+				 filterData.seasons && 
+				 playerFiltersForPreload.timeRange.seasons?.length === filterData.seasons.length);
+			
+			if (allSeasonsSelected) {
+				preloadPromises.push(
+					fetch("/api/player-seasonal-stats", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							playerName: selectedPlayer,
+							filters: playerFiltersForPreload,
+						}),
+					})
+						.then(res => res.ok ? res.json() : null)
+						.then(data => {
+							if (data) {
+								const state = get();
+								set({
+									preloadedStatsData: {
+										...state.preloadedStatsData,
+										playerStats: {
+											...state.preloadedStatsData.playerStats,
+											seasonalStats: data.seasonalStats || [],
+										},
+									},
+								});
+							}
+						})
+						.catch(() => {})
+				);
+			}
+
+			// Preload team stats (if all teams selected)
+			const allTeamsSelected = !playerFiltersForPreload.teams || 
+				playerFiltersForPreload.teams.length === 0 ||
+				(playerFiltersForPreload.teams.length === filterData.teams.length);
+			
+			if (allTeamsSelected) {
+				preloadPromises.push(
+					fetch("/api/player-team-stats", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							playerName: selectedPlayer,
+							filters: playerFiltersForPreload,
+						}),
+					})
+						.then(res => res.ok ? res.json() : null)
+						.then(data => {
+							if (data) {
+								const state = get();
+								set({
+									preloadedStatsData: {
+										...state.preloadedStatsData,
+										playerStats: {
+											...state.preloadedStatsData.playerStats,
+											teamStats: data.teamStats || [],
+										},
+									},
+								});
+							}
+						})
+						.catch(() => {})
+				);
+			}
+
+			// Preload monthly stats
+			preloadPromises.push(
+				fetch("/api/player-monthly-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										monthlyStats: data.monthlyStats || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload fantasy breakdown
+			preloadPromises.push(
+				fetch("/api/player-fantasy-breakdown", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										fantasyBreakdown: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition map
+			preloadPromises.push(
+				fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionMap: data.oppositions || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition performance
+			preloadPromises.push(
+				fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionPerformance: data.oppositionPerformance || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload game details
+			preloadPromises.push(
+				fetch("/api/player-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										gameDetails: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload awards
+			preloadPromises.push(
+				fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										awards: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+		}
+
+		// Preload Team Stats data
+		const teamFiltersForPreload = playerFiltersByPage["team-stats"] || playerFilters;
+		if (selectedPlayer && teamFiltersForPreload && filterData.teams && filterData.teams.length > 0) {
+			// Get the most likely team to preload (first team or most played team)
+			const cachedPlayerData = get().cachedPlayerData;
+			const defaultTeam = cachedPlayerData?.playerData?.mostPlayedForTeam || filterData.teams[0]?.name;
+			
+			if (defaultTeam) {
+				const apiFilters = {
+					...teamFiltersForPreload,
+					teams: [],
+				};
+
+				// Preload team data
+				preloadPromises.push(
+					fetch("/api/team-data-filtered", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							teamName: defaultTeam,
+							filters: {
+								...apiFilters,
+								teams: [],
+							},
+						}),
+					})
+						.then(res => res.ok ? res.json() : null)
+						.then(data => {
+							if (data) {
+								const state = get();
+								set({
+									preloadedStatsData: {
+										...state.preloadedStatsData,
+										teamStats: {
+											...state.preloadedStatsData.teamStats,
+											[`${defaultTeam}_teamData`]: data.teamData,
+										},
+									},
+								});
+							}
+						})
+						.catch(() => {})
+				);
+
+				// Preload top players
+				preloadPromises.push(
+					fetch("/api/top-players-stats", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							filters: apiFilters,
+							statType: "appearances",
+						}),
+					})
+						.then(res => res.ok ? res.json() : null)
+						.then(data => {
+							if (data) {
+								const state = get();
+								set({
+									preloadedStatsData: {
+										...state.preloadedStatsData,
+										teamStats: {
+											...state.preloadedStatsData.teamStats,
+											[`${defaultTeam}_topPlayers`]: data.players || [],
+										},
+									},
+								});
+							}
+						})
+						.catch(() => {})
+				);
+
+				// Preload unique player stats
+				preloadPromises.push(
+					fetch("/api/unique-player-stats", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({
+							teamName: defaultTeam,
+							filters: apiFilters,
+						}),
+					})
+						.then(res => res.ok ? res.json() : null)
+						.then(data => {
+							if (data) {
+								const state = get();
+								set({
+									preloadedStatsData: {
+										...state.preloadedStatsData,
+										teamStats: {
+											...state.preloadedStatsData.teamStats,
+											[`${defaultTeam}_uniqueStats`]: data,
+										},
+									},
+								});
+							}
+						})
+						.catch(() => {})
+				);
+			}
+		}
+
+		// Preload Club Stats data
+		const clubFiltersForPreload = playerFiltersByPage["club-stats"] || playerFilters;
+		if (clubFiltersForPreload) {
+			// Preload club team data
+			preloadPromises.push(
+				fetch("/api/team-data-filtered", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										teamData: data.teamData,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload top players
+			preloadPromises.push(
+				fetch("/api/top-players-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						filters: clubFiltersForPreload,
+						statType: "appearances",
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										topPlayers: data.players || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload team comparison
+			preloadPromises.push(
+				fetch("/api/team-seasonal-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										teamComparison: data.seasonalStats || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload player distribution
+			preloadPromises.push(
+				fetch("/api/club-player-distribution", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										playerDistribution: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload player tenure
+			preloadPromises.push(
+				fetch("/api/club-player-tenure", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										playerTenure: data.tenureData || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload position stats
+			preloadPromises.push(
+				fetch("/api/club-position-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										positionStats: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload game details
+			preloadPromises.push(
+				fetch("/api/team-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										gameDetails: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload unique player stats
+			preloadPromises.push(
+				fetch("/api/unique-player-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: clubFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									clubStats: {
+										...state.preloadedStatsData.clubStats,
+										uniquePlayerStats: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+		}
+
+		// Execute all preload requests in parallel (but don't wait for them)
+		Promise.all(preloadPromises).catch(() => {
+			// Silently fail - preloading is best effort
+		});
+	},
+
+	getPreloadedData: (page: StatsSubPage, key: string) => {
+		const { preloadedStatsData } = get();
+		switch (page) {
+			case "player-stats":
+				return preloadedStatsData.playerStats[key] || null;
+			case "team-stats":
+				return preloadedStatsData.teamStats[key] || null;
+			case "club-stats":
+				return preloadedStatsData.clubStats[key] || null;
+			default:
+				return null;
+		}
 	},
 }));

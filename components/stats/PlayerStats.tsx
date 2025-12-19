@@ -2775,6 +2775,7 @@ export default function PlayerStats() {
 
 			{/* Positional Stats Visualization */}
 			{(toNumber(validPlayerData.gk) > 0 || toNumber(validPlayerData.def) > 0 || toNumber(validPlayerData.mid) > 0 || toNumber(validPlayerData.fwd) > 0) && (
+				<div id='positional-stats'>
 				<PositionalStatsVisualization
 					gk={toNumber(validPlayerData.gk)}
 					def={toNumber(validPlayerData.def)}
@@ -2786,6 +2787,7 @@ export default function PlayerStats() {
 					midMinutes={toNumber(validPlayerData.midMinutes || 0)}
 					fwdMinutes={toNumber(validPlayerData.fwdMinutes || 0)}
 				/>
+				</div>
 			)}
 
 			{/* Match Results Section */}
@@ -2809,7 +2811,7 @@ export default function PlayerStats() {
 				const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 				
 				return (
-					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -3107,15 +3109,17 @@ export default function PlayerStats() {
 
 			{/* Distance Travelled Section */}
 			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
-				<DistanceTravelledSection
-					distance={toNumber(validPlayerData.distance)}
-					awayGames={toNumber(validPlayerData.awayGames)}
-				/>
+				<div id='distance-travelled'>
+					<DistanceTravelledSection
+						distance={toNumber(validPlayerData.distance)}
+						awayGames={toNumber(validPlayerData.awayGames)}
+					/>
+				</div>
 			)}
 
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
-				<div id='opposition-map'>
+				<div id='opposition-locations'>
 					<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 				</div>
 			)}
@@ -3342,7 +3346,7 @@ export default function PlayerStats() {
 	);
 
 	const dataTableContent = (
-		<div className='mt-4'>
+		<div className='mt-4 pb-4'>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>

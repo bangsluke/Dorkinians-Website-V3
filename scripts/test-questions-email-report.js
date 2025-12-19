@@ -107,8 +107,8 @@ require("ts-node").register({
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
 
-// Load dataSources to get TBL_TestQuestions URL
-const { dataSources } = require("../config/dataSources.js");
+// Load testDataSources to get TBL_TestQuestions URL
+const { testDataSources } = require("../config/dataSources.js");
 
 /**
  * Extract numeric value from chatbot answer for NumberCard responses
@@ -316,11 +316,11 @@ function parseCSVLine(line) {
  */
 async function fetchTestQuestions() {
 	try {
-		// Find TBL_TestQuestions in dataSources
-		const testQuestionsSource = dataSources.find((source) => source.name === "TBL_TestQuestions");
+		// Find TBL_TestQuestions in testDataSources
+		const testQuestionsSource = testDataSources.find((source) => source.name === "TBL_TestQuestions");
 
 		if (!testQuestionsSource) {
-			throw new Error("TBL_TestQuestions not found in dataSources");
+			throw new Error("TBL_TestQuestions not found in testDataSources");
 		}
 
 		console.log("🔍 Fetching test questions from CSV...");

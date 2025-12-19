@@ -36,6 +36,21 @@ export interface SeasonLeagueData {
 }
 
 /**
+ * Normalize season format between slash (2016/17) and hyphen (2016-17) formats
+ * @param season - Season string in any format
+ * @param targetFormat - Target format: 'slash' for "2016/17" or 'hyphen' for "2016-17"
+ * @returns Normalized season string
+ */
+export function normalizeSeasonFormat(season: string, targetFormat: 'slash' | 'hyphen' = 'slash'): string {
+	if (!season) return season;
+	if (targetFormat === 'slash') {
+		return season.replace('-', '/');
+	} else {
+		return season.replace('/', '-');
+	}
+}
+
+/**
  * Get all available seasons from JSON files
  */
 export async function getAvailableSeasons(): Promise<string[]> {
@@ -67,15 +82,21 @@ export async function getSeasonDataFromJSON(season: string): Promise<SeasonLeagu
 	try {
 		const dataDir = path.join(process.cwd(), 'data', 'league-tables');
 		// Normalize season format to match filename (use hyphen)
-		const normalizedSeason = season.replace('/', '-');
+		const normalizedSeason = normalizeSeasonFormat(season, 'hyphen');
 		const filePath = path.join(dataDir, `${normalizedSeason}.json`);
 
 		if (!fs.existsSync(filePath)) {
+			console.warn(`League table JSON file not found: ${filePath}`);
 			return null;
 		}
 
 		const fileContent = fs.readFileSync(filePath, 'utf-8');
 		const data: SeasonLeagueData = JSON.parse(fileContent);
+
+		// Ensure returned data's season property is in slash format for consistency
+		if (data.season) {
+			data.season = normalizeSeasonFormat(data.season, 'slash');
+		}
 
 		return data;
 	} catch (error) {
@@ -243,19 +264,27 @@ export async function getTeamSeasonData(
 	try {
 		// Try Neo4j first (for current season)
 		const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
-		if (currentSeasonData && currentSeasonData.season === season) {
-			const teamData = currentSeasonData.teams[teamName];
-			if (teamData && teamData.table && teamData.table.length > 0) {
-				// Find Dorkinians team entry
-				const dorkiniansEntry = teamData.table.find((entry) =>
-					entry.team.toLowerCase().includes('dorkinians'),
-				);
-				return dorkiniansEntry || null;
+		if (currentSeasonData) {
+			// Normalize seasons for comparison (both to slash format)
+			const normalizedRequestSeason = normalizeSeasonFormat(season, 'slash');
+			const normalizedCurrentSeason = normalizeSeasonFormat(currentSeasonData.season, 'slash');
+			
+			if (normalizedCurrentSeason === normalizedRequestSeason) {
+				const teamData = currentSeasonData.teams[teamName];
+				if (teamData && teamData.table && teamData.table.length > 0) {
+					// Find Dorkinians team entry
+					const dorkiniansEntry = teamData.table.find((entry) =>
+						entry.team.toLowerCase().includes('dorkinians'),
+					);
+					return dorkiniansEntry || null;
+				}
 			}
 		}
 
 		// Try JSON files for past seasons
-		const seasonData = await getSeasonDataFromJSON(season);
+		// Convert to hyphen format for filename lookup
+		const jsonSeasonFormat = normalizeSeasonFormat(season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(jsonSeasonFormat);
 		
 		if (seasonData) {
 			const teamData = seasonData.teams[teamName];
@@ -382,5 +411,93 @@ export async function getHighestLeagueFinish(): Promise<HistoricalPositionEntry 
 	});
 	
 	return bestPosition;
+}
+
+/**
+ * Get the highest (best) league finish for a specific team across all seasons
+ * Returns the position entry with full league table data for that season
+ */
+export async function getTeamHighestPosition(teamName: string): Promise<{ position: HistoricalPositionEntry; fullTable: LeagueTableEntry[]; division: string } | null> {
+	try {
+		const allPositions = await getAllHistoricalPositions();
+		
+		// Filter positions for the specific team
+		const teamPositions = allPositions.filter((pos) => pos.team === teamName);
+		
+		if (teamPositions.length === 0) {
+			return null;
+		}
+		
+		// Find the best position (lowest number = highest finish)
+		const bestPosition = teamPositions.reduce((best, current) => {
+			return current.position < best.position ? current : best;
+		});
+		
+		// Get full league table for this season
+		const normalizedSeason = normalizeSeasonFormat(bestPosition.season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+		let fullTable = seasonData?.teams[teamName]?.table || [];
+		
+		// If not found in JSON, try current season from Neo4j
+		if (fullTable.length === 0) {
+			const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+			if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(bestPosition.season, 'slash')) {
+				fullTable = currentSeasonData.teams[teamName]?.table || [];
+			}
+		}
+		
+		return {
+			position: bestPosition,
+			fullTable: fullTable,
+			division: bestPosition.division,
+		};
+	} catch (error) {
+		console.error(`Error fetching highest position for ${teamName}:`, error);
+		return null;
+	}
+}
+
+/**
+ * Get the lowest (worst) league finish for a specific team across all seasons
+ * Returns the position entry with full league table data for that season
+ */
+export async function getTeamLowestPosition(teamName: string): Promise<{ position: HistoricalPositionEntry; fullTable: LeagueTableEntry[]; division: string } | null> {
+	try {
+		const allPositions = await getAllHistoricalPositions();
+		
+		// Filter positions for the specific team
+		const teamPositions = allPositions.filter((pos) => pos.team === teamName);
+		
+		if (teamPositions.length === 0) {
+			return null;
+		}
+		
+		// Find the worst position (highest number = lowest finish)
+		const worstPosition = teamPositions.reduce((worst, current) => {
+			return current.position > worst.position ? current : worst;
+		});
+		
+		// Get full league table for this season
+		const normalizedSeason = normalizeSeasonFormat(worstPosition.season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+		let fullTable = seasonData?.teams[teamName]?.table || [];
+		
+		// If not found in JSON, try current season from Neo4j
+		if (fullTable.length === 0) {
+			const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+			if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(worstPosition.season, 'slash')) {
+				fullTable = currentSeasonData.teams[teamName]?.table || [];
+			}
+		}
+		
+		return {
+			position: worstPosition,
+			fullTable: fullTable,
+			division: worstPosition.division,
+		};
+	} catch (error) {
+		console.error(`Error fetching lowest position for ${teamName}:`, error);
+		return null;
+	}
 }
 
