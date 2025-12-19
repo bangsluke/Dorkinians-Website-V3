@@ -1097,6 +1097,7 @@ export class ChatbotService {
 				// Try to extract season from question (e.g., "2019/20", "2019-20", "2019/2020")
 				const seasonMatch = question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2})\b/);
 				if (seasonMatch) {
+					// Normalize to slash format
 					season = seasonMatch[1].replace("-", "/");
 				}
 			}
@@ -1110,12 +1111,18 @@ export class ChatbotService {
 			}
 
 			// Import league table service
-			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j } = await import("../services/leagueTableService");
+			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../services/leagueTableService");
+			
+			// Normalize season format if present (ensure slash format for consistency)
+			if (season) {
+				season = normalizeSeasonFormat(season, 'slash');
+			}
 
 			// If season specified and not current season query, get that season's data
 			if (season && !isCurrentSeasonQuery) {
-				// getTeamSeasonData handles season format conversion internally
-				const teamData = await getTeamSeasonData(teamName, season);
+				// Normalize season format before querying
+				const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+				const teamData = await getTeamSeasonData(teamName, normalizedSeason);
 				
 				if (!teamData) {
 					return {

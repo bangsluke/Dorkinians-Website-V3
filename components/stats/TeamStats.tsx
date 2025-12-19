@@ -430,6 +430,7 @@ export default function TeamStats() {
 			points: number;
 		}>;
 		captains: string[];
+		teamKey?: string;
 	} | null>(null);
 	const [isLoadingBestSeasonFinish, setIsLoadingBestSeasonFinish] = useState(false);
 	const [bestSeasonFinishError, setBestSeasonFinishError] = useState<string | null>(null);
@@ -1853,11 +1854,154 @@ export default function TeamStats() {
 										</div>
 									</div>
 								)}
+
+								{/* Best Season Finish Section */}
+								{selectedTeam && (
+									<div id='team-best-season-finish'>
+										{isDateRangeFilter ? (
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
+												<p className='text-white text-sm md:text-base text-center py-4'>
+													Unfilter time frame to see Best Season Finish
+												</p>
+											</div>
+										) : (
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-4'>
+													{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
+												</h3>
+												{isLoadingBestSeasonFinish ? (
+													<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+														<BestSeasonFinishSkeleton />
+													</SkeletonTheme>
+												) : bestSeasonFinishError ? (
+													<div className='flex items-center justify-center py-8'>
+														<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
+													</div>
+												) : bestSeasonFinishData ? (
+													<>
+														{/* League name and season */}
+														<div className='text-center mb-4'>
+															<div className='text-lg md:text-xl font-bold text-white mb-1'>
+																{bestSeasonFinishData.season}
+															</div>
+															{bestSeasonFinishData.division && bestSeasonFinishData.division.trim() !== '' && (
+																<h4 className='text-lg md:text-xl font-bold text-dorkinians-yellow'>
+																	{bestSeasonFinishData.division}
+																</h4>
+															)}
+														</div>
+
+														{/* Captains */}
+														{bestSeasonFinishData.captains && bestSeasonFinishData.captains.length > 0 && (
+															<div className='mb-4 text-center'>
+																<p className='text-white text-sm md:text-base mb-1'>
+																	<span className='text-gray-300'>Captains: </span>
+																	<span className='font-semibold'>{bestSeasonFinishData.captains.join(", ")}</span>
+																</p>
+															</div>
+														)}
+
+														{/* League Table */}
+														{bestSeasonFinishData.table && bestSeasonFinishData.table.length > 0 ? (
+															<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+																<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden text-[10px] md:text-xs'>
+																	<thead className='sticky top-0 z-10'>
+																		<tr className='bg-white/20'>
+																			<th className='w-6 px-0.5 py-1.5 text-left text-white font-semibold'></th>
+																			<th className='px-1.5 py-1.5 text-left text-white font-semibold max-w-[120px]'>Team</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>P</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>W</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>D</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>L</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>F</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>A</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>GD</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>Pts</th>
+																		</tr>
+																	</thead>
+																	<tbody>
+																		{bestSeasonFinishData.table.map((entry, index) => {
+																			// Match only the specific team being queried, not all Dorkinians teams
+																			const teamKey = bestSeasonFinishData.teamKey || selectedTeam;
+																			const teamNameLower = entry.team.toLowerCase();
+																			
+																			// Check if this is the specific Dorkinians team
+																			let isSpecificTeam = false;
+																			if (teamNameLower.includes("dorkinians")) {
+																				if (teamKey === "1s") {
+																					// 1st XI can be just "Dorkinians" or "Dorkinians 1st"
+																					isSpecificTeam = teamNameLower === "dorkinians" || 
+																						(teamNameLower.startsWith("dorkinians ") && 
+																						!teamNameLower.match(/\b(2nd|3rd|4th|5th|6th|7th|8th|ii|iii|iv|v|vi|vii|viii)\b/));
+																				} else {
+																					// Map team keys to both ordinals and Roman numerals
+																					const matchPatterns: { [key: string]: string[] } = {
+																						"2s": ["2nd", "ii"],
+																						"3s": ["3rd", "iii"],
+																						"4s": ["4th", "iv"],
+																						"5s": ["5th", "v"],
+																						"6s": ["6th", "vi"],
+																						"7s": ["7th", "vii"],
+																						"8s": ["8th", "viii"],
+																					};
+																					const patterns = matchPatterns[teamKey];
+																					if (patterns) {
+																						// Check if entry contains any of the matching patterns
+																						isSpecificTeam = patterns.some(pattern => {
+																							// Use word boundary for Roman numerals and ordinals
+																							const regex = new RegExp(`\\b${pattern}\\b`, 'i');
+																							return regex.test(teamNameLower);
+																						});
+																					}
+																				}
+																			}
+																			
+																			return (
+																				<tr
+																					key={index}
+																					className={`border-b border-white/10 transition-colors ${
+																						isSpecificTeam
+																							? "bg-dorkinians-yellow/20 font-semibold"
+																							: index % 2 === 0
+																								? "bg-gray-800/30"
+																								: ""
+																					} hover:bg-white/5`}
+																				>
+																					<td className='pl-2 pr-0.5 py-1.5 text-white'>{entry.position}</td>
+																					<td className='px-1.5 py-1.5 text-white max-w-[120px] truncate' title={entry.team}>{entry.team}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.played}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.won}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.drawn}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.lost}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalsFor}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalsAgainst}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalDifference}</td>
+																					<td className='px-0.5 py-1.5 text-center font-semibold text-dorkinians-yellow'>
+																						{entry.points}
+																					</td>
+																				</tr>
+																			);
+																		})}
+																	</tbody>
+																</table>
+															</div>
+														) : (
+															<div className='text-center text-gray-300 py-4'>
+																No table data available.
+															</div>
+														)}
+													</>
+												) : null}
+											</div>
+										)}
+									</div>
+								)}
 							</div>
 						);
 
 						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 flex flex-col'>
+							<div className='overflow-x-auto mt-4 pb-4 flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -1879,123 +2023,13 @@ export default function TeamStats() {
 							</div>
 						);
 
-						return (
-							<>
-								{!isDataTableMode && chartContent}
-								{isDataTableMode && dataTableContent}
-								<div className='mt-4'></div>
-							</>
-						);
+					return (
+						<>
+							{!isDataTableMode && chartContent}
+							{isDataTableMode && dataTableContent}
+						</>
+					);
 					})()}
-
-					{/* Best Season Finish Section */}
-					{selectedTeam && (
-						<div id='team-best-season-finish' className='mt-4'>
-							{isDateRangeFilter ? (
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
-									<p className='text-white text-sm md:text-base text-center py-4'>
-										Unfilter time frame to see Best Season Finish
-									</p>
-								</div>
-							) : (
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<h3 className='text-white font-semibold text-sm md:text-base mb-4'>
-										{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
-									</h3>
-									{isLoadingBestSeasonFinish ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<BestSeasonFinishSkeleton />
-										</SkeletonTheme>
-									) : bestSeasonFinishError ? (
-										<div className='flex items-center justify-center py-8'>
-											<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
-										</div>
-									) : bestSeasonFinishData ? (
-										<>
-											{/* League name and season */}
-											<div className='text-center mb-4'>
-												<div className='text-lg md:text-xl font-bold text-white mb-1'>
-													{bestSeasonFinishData.season}
-												</div>
-												{bestSeasonFinishData.division && bestSeasonFinishData.division.trim() !== '' && (
-													<h4 className='text-lg md:text-xl font-bold text-dorkinians-yellow'>
-														{bestSeasonFinishData.division}
-													</h4>
-												)}
-											</div>
-
-											{/* Captains */}
-											{bestSeasonFinishData.captains && bestSeasonFinishData.captains.length > 0 && (
-												<div className='mb-4 text-center'>
-													<p className='text-white text-sm md:text-base mb-1'>
-														<span className='text-gray-300'>Captains: </span>
-														<span className='font-semibold'>{bestSeasonFinishData.captains.join(", ")}</span>
-													</p>
-												</div>
-											)}
-
-											{/* League Table */}
-											{bestSeasonFinishData.table && bestSeasonFinishData.table.length > 0 ? (
-												<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-													<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-														<thead className='sticky top-0 z-10'>
-															<tr className='bg-white/20'>
-																<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-																<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
-															</tr>
-														</thead>
-														<tbody>
-															{bestSeasonFinishData.table.map((entry, index) => {
-																const isDorkiniansTeam = entry.team.toLowerCase().includes("dorkinians");
-																return (
-																	<tr
-																		key={index}
-																		className={`border-b border-white/10 transition-colors ${
-																			isDorkiniansTeam
-																				? "bg-dorkinians-yellow/20 font-semibold"
-																				: index % 2 === 0
-																					? "bg-gray-800/30"
-																					: ""
-																		} hover:bg-white/5`}
-																	>
-																		<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																		<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																		<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
-																			{entry.points}
-																		</td>
-																	</tr>
-																);
-															})}
-														</tbody>
-													</table>
-												</div>
-											) : (
-												<div className='text-center text-gray-300 py-4'>
-													No table data available.
-												</div>
-											)}
-										</>
-									) : null}
-								</div>
-							)}
-						</div>
-					)}
 				</div>
 			)}
 		</div>

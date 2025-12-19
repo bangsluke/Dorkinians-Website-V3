@@ -36,6 +36,21 @@ export interface SeasonLeagueData {
 }
 
 /**
+ * Normalize season format between slash (2016/17) and hyphen (2016-17) formats
+ * @param season - Season string in any format
+ * @param targetFormat - Target format: 'slash' for "2016/17" or 'hyphen' for "2016-17"
+ * @returns Normalized season string
+ */
+export function normalizeSeasonFormat(season: string, targetFormat: 'slash' | 'hyphen' = 'slash'): string {
+	if (!season) return season;
+	if (targetFormat === 'slash') {
+		return season.replace('-', '/');
+	} else {
+		return season.replace('/', '-');
+	}
+}
+
+/**
  * Get all available seasons from JSON files
  */
 export async function getAvailableSeasons(): Promise<string[]> {
@@ -67,15 +82,21 @@ export async function getSeasonDataFromJSON(season: string): Promise<SeasonLeagu
 	try {
 		const dataDir = path.join(process.cwd(), 'data', 'league-tables');
 		// Normalize season format to match filename (use hyphen)
-		const normalizedSeason = season.replace('/', '-');
+		const normalizedSeason = normalizeSeasonFormat(season, 'hyphen');
 		const filePath = path.join(dataDir, `${normalizedSeason}.json`);
 
 		if (!fs.existsSync(filePath)) {
+			console.warn(`League table JSON file not found: ${filePath}`);
 			return null;
 		}
 
 		const fileContent = fs.readFileSync(filePath, 'utf-8');
 		const data: SeasonLeagueData = JSON.parse(fileContent);
+
+		// Ensure returned data's season property is in slash format for consistency
+		if (data.season) {
+			data.season = normalizeSeasonFormat(data.season, 'slash');
+		}
 
 		return data;
 	} catch (error) {
@@ -243,19 +264,27 @@ export async function getTeamSeasonData(
 	try {
 		// Try Neo4j first (for current season)
 		const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
-		if (currentSeasonData && currentSeasonData.season === season) {
-			const teamData = currentSeasonData.teams[teamName];
-			if (teamData && teamData.table && teamData.table.length > 0) {
-				// Find Dorkinians team entry
-				const dorkiniansEntry = teamData.table.find((entry) =>
-					entry.team.toLowerCase().includes('dorkinians'),
-				);
-				return dorkiniansEntry || null;
+		if (currentSeasonData) {
+			// Normalize seasons for comparison (both to slash format)
+			const normalizedRequestSeason = normalizeSeasonFormat(season, 'slash');
+			const normalizedCurrentSeason = normalizeSeasonFormat(currentSeasonData.season, 'slash');
+			
+			if (normalizedCurrentSeason === normalizedRequestSeason) {
+				const teamData = currentSeasonData.teams[teamName];
+				if (teamData && teamData.table && teamData.table.length > 0) {
+					// Find Dorkinians team entry
+					const dorkiniansEntry = teamData.table.find((entry) =>
+						entry.team.toLowerCase().includes('dorkinians'),
+					);
+					return dorkiniansEntry || null;
+				}
 			}
 		}
 
 		// Try JSON files for past seasons
-		const seasonData = await getSeasonDataFromJSON(season);
+		// Convert to hyphen format for filename lookup
+		const jsonSeasonFormat = normalizeSeasonFormat(season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(jsonSeasonFormat);
 		
 		if (seasonData) {
 			const teamData = seasonData.teams[teamName];

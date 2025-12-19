@@ -1454,6 +1454,7 @@ export default function ClubStats() {
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats */}
+					{!isDataTableMode && (
 					<div id='club-key-performance-stats' className='mb-4'>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
@@ -1551,9 +1552,10 @@ export default function ClubStats() {
 							</div>
 						</div>
 					</div>
+					)}
 
 					{/* Team Comparison Section */}
-					{isLoadingTeamComparison ? (
+					{!isDataTableMode && (isLoadingTeamComparison ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<RadarChartSkeleton />
 						</SkeletonTheme>
@@ -1671,7 +1673,7 @@ export default function ClubStats() {
 								</div>
 							</div>
 						</div>
-					)}
+					))}
 
 					{/* Top Players Table */}
 					{(() => {
@@ -1802,7 +1804,7 @@ export default function ClubStats() {
 					})()}
 
 					{/* Seasonal Performance Section */}
-					{allSeasonsSelected && (
+					{!isDataTableMode && allSeasonsSelected && (
 						<div id='club-seasonal-performance' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<div className='flex items-center justify-between mb-2 gap-2'>
@@ -1897,7 +1899,7 @@ export default function ClubStats() {
 					)}
 
 					{/* Player Distribution Section */}
-					{isLoadingPlayerDistribution ? (
+					{!isDataTableMode && (isLoadingPlayerDistribution ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<div id='club-player-distribution' className='mb-4'>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -2030,10 +2032,10 @@ export default function ClubStats() {
 							</div>
 						</div>
 						);
-					})()}
+					})())}
 
 					{/* Player Tenure Section */}
-					{isLoadingPlayerTenure ? (
+					{!isDataTableMode && (isLoadingPlayerTenure ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<div id='club-player-tenure' className='mb-4'>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
@@ -2059,9 +2061,10 @@ export default function ClubStats() {
 								</div>
 							</div>
 						</div>
-					)}
+					))}
 
 					{/* Stats Distribution Section */}
+					{!isDataTableMode && (
 					<div id='club-stats-distribution' className='mb-4'>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
@@ -2122,6 +2125,7 @@ export default function ClubStats() {
 							)}
 						</div>
 					</div>
+					)}
 
 					{(() => {
 						const chartContent = (
