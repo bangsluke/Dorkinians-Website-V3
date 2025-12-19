@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Listbox } from "@headlessui/react";
-import { ChevronUpDownIcon, CheckIcon, PencilIcon } from "@heroicons/react/20/solid";
+import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 
 interface Player {
 	playerName: string;
@@ -222,7 +223,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 						onClick={onEditClick}
 						className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
-						<PencilIcon className='h-4 w-4 md:h-5 md:w-5' />
+						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
 					</button>
 				</div>
 			</motion.div>

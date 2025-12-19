@@ -2,76 +2,91 @@ import Skeleton from "react-loading-skeleton";
 import Image from "next/image";
 
 export default function TOTWPitchSkeleton() {
-	// Using 4-4-2 formation as default
-	const playerPositions = [
-		{ x: 50, y: 90, isGoalkeeper: true }, // GK
-		{ x: 25, y: 70 }, // DEF 1
-		{ x: 40, y: 70 }, // DEF 2
-		{ x: 60, y: 70 }, // DEF 3
-		{ x: 75, y: 70 }, // DEF 4
-		{ x: 25, y: 45 }, // MID 1
-		{ x: 40, y: 45 }, // MID 2
-		{ x: 60, y: 45 }, // MID 3
-		{ x: 75, y: 45 }, // MID 4
-		{ x: 40, y: 25 }, // FWD 1
-		{ x: 60, y: 25 }, // FWD 2
+	// Using 4-4-2 formation coordinates from formationCoordinateObject
+	// Apply same centering offsets as real component: x + 10, y * 0.97 + 15
+	const basePositions = [
+		{ x: 40, y: 1, isGoalkeeper: true }, // GK - Pos1
+		{ x: 5, y: 24 }, // DEF 1 - Pos2
+		{ x: 25, y: 24 }, // DEF 2 - Pos3
+		{ x: 55, y: 24 }, // DEF 3 - Pos4
+		{ x: 75, y: 24 }, // DEF 4 - Pos5
+		{ x: 5, y: 47 }, // MID 1 - Pos6
+		{ x: 25, y: 47 }, // MID 2 - Pos7
+		{ x: 55, y: 47 }, // MID 3 - Pos8
+		{ x: 75, y: 47 }, // MID 4 - Pos9
+		{ x: 20, y: 71 }, // FWD 1 - Pos10
+		{ x: 60, y: 71 }, // FWD 2 - Pos11
 	];
+	
+	// Apply centering offsets to match real component
+	const playerPositions = basePositions.map(pos => ({
+		...pos,
+		x: pos.x + 10,
+		y: 1 + (pos.y - 1) * 0.97 + 15,
+	}));
 
 	return (
-		<div className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
-			{/* Pitch Background */}
-			<div className='absolute inset-0 w-full h-[110%]'>
-				<Image
-					src='/totw-images/TOTWBackground.svg'
-					alt='Football Pitch'
-					fill
-					className='object-cover w-full h-full'
-					style={{ objectPosition: 'center top' }}
-					priority
-				/>
+		<div className='w-full'>
+			{/* Dropdown Filters */}
+			<div className='flex flex-row gap-4 mb-6'>
+				<div className='w-1/3 md:w-1/2'>
+					<Skeleton height={32} width="100%" />
+				</div>
+				<div className='flex-1 md:w-1/2'>
+					<Skeleton height={32} width="100%" />
+				</div>
 			</div>
 
-			{/* Player Skeletons */}
-			{playerPositions.map((position, index) => (
-				<div
-					key={index}
-					className='absolute z-10'
-					style={{
-						left: `${position.x}%`,
-						top: `${position.y}%`,
-						transform: "translate(-50%, -50%)",
-					}}
-				>
-					<div className='flex flex-col items-center'>
-						<div className='relative w-12 h-12 md:w-14 md:h-14 mb-1'>
-							<Skeleton circle height={56} width={56} />
-						</div>
-						<div 
-							className='bg-green-600 text-white rounded text-center' 
-							style={{ 
-								backgroundColor: 'rgba(28, 136, 65, 0.95)',
-								width: '60px',
-								minWidth: '60px',
-								maxWidth: '60px',
-								height: '44px',
-								overflow: 'hidden',
-								wordWrap: 'break-word',
-								paddingLeft: '6px',
-								paddingRight: '6px',
-								paddingTop: '4px',
-								paddingBottom: '4px',
-								display: 'flex',
-								flexDirection: 'column',
-								justifyContent: 'center',
-								alignItems: 'center',
-							}}
-						>
-							<Skeleton height={14} width={50} className="mb-1" />
-							<Skeleton height={14} width={30} />
-						</div>
-					</div>
+			{/* Summary Section - Detailed Skeletons */}
+			<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
+				{/* TOTW TOTAL POINTS section */}
+				<div className='text-center flex flex-col md:w-auto'>
+					<Skeleton height={20} width={140} className="mb-2 mx-auto" />
+					<Skeleton height={96} width={120} className="mx-auto" />
+					<Skeleton height={16} width={160} className="mt-2 mx-auto" />
 				</div>
-			))}
+				{/* STAR MAN section */}
+				<div className='flex flex-col items-center flex-shrink-0'>
+					<Skeleton height={20} width={80} className="mb-2" />
+					<Skeleton circle height={56} width={56} className="mb-2" />
+					<Skeleton height={50} width={80} className="mb-1" />
+				</div>
+			</div>
+
+			{/* Pitch Visualization */}
+			<div className='relative w-full mb-4 overflow-hidden' style={{ minHeight: '450px', aspectRatio: '16/9.6' }}>
+				{/* Pitch Background */}
+				<div className='absolute inset-0 w-full h-[110%]'>
+					<Image
+						src='/totw-images/TOTWBackground.svg'
+						alt='Football Pitch'
+						fill
+						className='object-cover w-full h-full'
+						style={{ objectPosition: 'center top' }}
+						priority
+					/>
+				</div>
+
+				{/* Player Markers - Circle (kit) + Rectangle (name box) overlaying */}
+				{playerPositions.map((position, index) => (
+					<div
+						key={index}
+						className='absolute z-10'
+						style={{
+							left: `${position.x}%`,
+							top: `${position.y}%`,
+							transform: "translate(-50%, -50%)",
+						}}
+					>
+					<div className='relative flex flex-col items-center'>
+						{/* Kit Circle - matches w-14 h-14 (56px) with reduced spacing */}
+						<Skeleton circle height={56} width={56} className="mb-0.2" />
+						{/* Name Box Rectangle - matches actual dimensions (60px width, 50px height) */}
+						<Skeleton height={40} width={60} />
+					</div>
+					</div>
+				))}
+			</div>
 		</div>
 	);
 }

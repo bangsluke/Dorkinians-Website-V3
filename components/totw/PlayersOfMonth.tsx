@@ -9,6 +9,7 @@ import { ChevronDownIcon, ChevronUpIcon, PencilIcon } from "@heroicons/react/24/
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface Player {
 	rank: number;
@@ -1018,13 +1019,7 @@ export default function PlayersOfMonth() {
 							<div className='relative'>
 								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 								<span className={`block truncate ${selectedMonth ? "text-white" : "text-yellow-300"}`}>
-									{months.length === 0 ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<Skeleton height={16} width={100} />
-										</SkeletonTheme>
-									) : (
-										selectedMonth || "Select month..."
-									)}
+									{selectedMonth || "Select month..."}
 								</span>
 									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
 										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
@@ -1061,7 +1056,7 @@ export default function PlayersOfMonth() {
 			)}
 
 			{/* Loading Skeleton - Show when loading month data */}
-			{!isInitialLoading && (loading || loadingStats) && (
+			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<PlayersTableSkeleton />
 				</SkeletonTheme>
@@ -1069,8 +1064,9 @@ export default function PlayersOfMonth() {
 
 			{/* Players Table */}
 			{!loading && !loadingStats && players.length > 0 && (
-				<div className='overflow-x-auto'>
-					<table className='w-full text-white'>
+				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div className='overflow-x-auto'>
+						<table className='w-full text-white'>
 						<thead>
 							<tr className='border-b-2 border-dorkinians-yellow'>
 								<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'></th>
@@ -1241,6 +1237,7 @@ export default function PlayersOfMonth() {
 							})}
 						</tbody>
 					</table>
+					</div>
 				</div>
 			)}
 

@@ -3,8 +3,9 @@ import { ChevronDownIcon } from "@heroicons/react/24/outline";
 
 export default function PlayersTableSkeleton() {
 	return (
-		<div className='overflow-x-auto'>
-			<table className='w-full text-white'>
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div className='overflow-x-auto'>
+				<table className='w-full text-white'>
 				<thead>
 					<tr className='border-b-2 border-dorkinians-yellow'>
 						<th className='w-[8.33%] text-left py-2 px-2 text-xs md:text-sm'><Skeleton height={16} width={30} /></th>
@@ -58,6 +59,7 @@ export default function PlayersTableSkeleton() {
 					})}
 				</tbody>
 			</table>
+			</div>
 		</div>
 	);
 }

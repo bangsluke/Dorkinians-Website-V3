@@ -7,15 +7,15 @@ export default function AwardsTableSkeleton() {
 				<thead className='sticky top-0 z-10'>
 					<tr className='bg-white/20'>
 						<th className='px-2 md:px-4 py-2 md:py-3 text-left'><Skeleton height={16} width={120} /></th>
-						<th className='px-2 md:px-4 py-2 md:py-3 text-left'><Skeleton height={16} width={100} /></th>
+						<th className='px-2 md:px-4 py-2 md:py-3 text-center'><Skeleton height={16} width={100} /></th>
 					</tr>
 				</thead>
 				<tbody>
-					{[...Array(6)].map((_, index) => (
+					{[...Array(16)].map((_, index) => (
 						<tr key={index} className='border-b border-white/10 hover:bg-white/5 transition-colors'>
-							<td className='px-2 md:px-4 py-2 md:py-3'><Skeleton height={14} width="50%" /></td>
-							<td className='px-2 md:px-4 py-2 md:py-3'>
-								<Skeleton height={14} width="50%" />
+							<td className='px-2 md:px-4 py-2 md:py-3'><Skeleton height={14} width="90%" /></td>
+							<td className='px-2 md:px-4 py-2 md:py-3 text-center'>
+								<Skeleton height={14} width="70%" />
 							</td>
 						</tr>
 					))}
@@ -24,3 +24,5 @@ export default function AwardsTableSkeleton() {
 		</div>
 	);
 }
+
+
