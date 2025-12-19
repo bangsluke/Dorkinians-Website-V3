@@ -13,6 +13,7 @@ import { questionSimilarityMatcher } from "./questionSimilarityMatcher";
 import { queryProfiler } from "./queryProfiler";
 import { errorHandler } from "./errorHandler";
 import { responseTemplateManager } from "./responseTemplates";
+import type { LeagueTableEntry } from "./leagueTableService";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -623,9 +624,9 @@ export class ChatbotService {
 				case "player":
 					return await this.queryPlayerData(entities, metrics, analysis);
 				case "team":
-					return await this.queryTeamData(entities, metrics);
+					return await this.queryTeamData(entities, metrics, analysis);
 				case "club":
-					return await this.queryClubData(entities, metrics);
+					return await this.queryClubData(entities, metrics, analysis);
 				case "fixture":
 					return await this.queryFixtureData(entities, metrics);
 				case "comparison":
@@ -951,31 +952,378 @@ export class ChatbotService {
 		return { type: "general_players", data: result };
 	}
 
-	private async queryTeamData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
-		this.logToBoth(`🔍 queryTeamData called with entities: ${_entities}, metrics: ${_metrics}`, null, "log");
+	private async queryTeamData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
-		const query = `
-      MATCH (t:Team)
-      RETURN t.name as name, t.id as source
-			LIMIT 20
-		`;
+		const question = analysis.question?.toLowerCase() || "";
+		const teamEntities = analysis.teamEntities || [];
+		const extractedMetrics = metrics || [];
+		
+		// Extract team name from entities or question
+		let teamName = "";
+		if (teamEntities.length > 0) {
+			teamName = this.mapTeamName(teamEntities[0]);
+		} else if (entities.length > 0) {
+			// Try to extract from entities (might be team names)
+			teamName = this.mapTeamName(entities[0]);
+		} else {
+			// Try to extract from question text
+			const teamMatch = question.match(/(\d+)(?:st|nd|rd|th)?\s*(?:team|s|xi)/i);
+			if (teamMatch) {
+				const teamNum = teamMatch[1];
+				teamName = this.mapTeamName(`${teamNum}s`);
+			}
+		}
 
-		const params = { graphLabel: neo4jService.getGraphLabel() };
-		const result = await neo4jService.executeQuery(query, params);
-		this.logToBoth(`🔍 Team data query result:`, result, "log");
+		if (!teamName) {
+			this.logToBoth(`⚠️ No team name found in queryTeamData`, null, "warn");
+			return { type: "team_not_found", data: [], message: "Could not identify team from question" };
+		}
 
-		return { type: "team", data: result } as Record<string, unknown>;
+		// Map metric keys to MatchDetail field names
+		const metricToFieldMap: { [key: string]: string } = {
+			"G": "goals",
+			"A": "assists",
+			"R": "redCards",
+			"Y": "yellowCards",
+			"APP": "appearances", // Special case - count
+			"MOM": "mom",
+			"SAVES": "saves",
+			"CLS": "cleanSheets",
+			"OG": "ownGoals",
+			"C": "conceded",
+			"MIN": "minutes",
+			"PSC": "penaltiesScored",
+			"PM": "penaltiesMissed",
+			"PCO": "penaltiesConceded",
+			"PSV": "penaltiesSaved",
+		};
+
+		// Find the primary metric from question text keywords FIRST (most reliable)
+		// Then fall back to extracted metrics if no keywords found
+		let detectedMetric: string | null = null;
+		let metricField: string | null = null;
+		
+		// Check question text for explicit metric keywords first (highest priority)
+		// This ensures "red cards" is detected even if extraction incorrectly identifies "G"
+		const questionLower = question.toLowerCase();
+		if (questionLower.includes("red card") || questionLower.includes("reds")) {
+			detectedMetric = "R";
+			metricField = "redCards";
+			this.logToBoth(`✅ Detected metric from question text: R (redCards)`, null, "log");
+		} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+			detectedMetric = "Y";
+			metricField = "yellowCards";
+			this.logToBoth(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
+		} else if (questionLower.includes("assist")) {
+			detectedMetric = "A";
+			metricField = "assists";
+			this.logToBoth(`✅ Detected metric from question text: A (assists)`, null, "log");
+		} else if (questionLower.includes("clean sheet")) {
+			detectedMetric = "CLS";
+			metricField = "cleanSheets";
+			this.logToBoth(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
+		} else if (questionLower.includes("save")) {
+			detectedMetric = "SAVES";
+			metricField = "saves";
+			this.logToBoth(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
+		} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
+			detectedMetric = "MOM";
+			metricField = "mom";
+			this.logToBoth(`✅ Detected metric from question text: MOM (mom)`, null, "log");
+		} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+			detectedMetric = "APP";
+			metricField = "appearances";
+			this.logToBoth(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+		}
+		
+		// If no metric found from question text, check extracted metrics
+		if (!detectedMetric && extractedMetrics.length > 0) {
+			const primaryMetric = extractedMetrics[0].toUpperCase();
+			if (metricToFieldMap[primaryMetric]) {
+				detectedMetric = primaryMetric;
+				metricField = metricToFieldMap[primaryMetric];
+				this.logToBoth(`✅ Detected metric from extracted metrics: ${detectedMetric} (${metricField})`, null, "log");
+			}
+		}
+		
+		// Determine goals-specific flags (only if no other metric detected)
+		const isGoalsConceded = !detectedMetric && question.includes("conceded");
+		const isOpenPlayGoals = question.includes("open play") || 
+		                        question.includes("openplay") ||
+		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
+		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
+
+		// Extract season and date range filters
+		const timeRange = analysis.timeRange;
+		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		
+		// Extract season from timeFrames or question
+		let season: string | null = null;
+		const seasonFrame = timeFrames.find(tf => tf.type === "season");
+		if (seasonFrame) {
+			season = seasonFrame.value;
+			// Normalize season format (2016-17 -> 2016/17)
+			season = season.replace("-", "/");
+		} else {
+			// Try to extract from question directly
+			const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+			if (seasonMatch) {
+				season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+			}
+		}
+		
+		// Extract date range from timeRange or question
+		let startDate: string | null = null;
+		let endDate: string | null = null;
+		
+		// First, try to extract from timeRange
+		if (timeRange && timeRange.includes(" to ")) {
+			const dateRange = timeRange.split(" to ");
+			if (dateRange.length === 2) {
+				startDate = this.convertDateFormat(dateRange[0].trim());
+				endDate = this.convertDateFormat(dateRange[1].trim());
+			}
+		}
+		
+		// If no date range found, check question for "between X and Y" patterns
+		if (!startDate || !endDate) {
+			// Check for full date format: "between DD/MM/YYYY and DD/MM/YYYY"
+			const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+			if (betweenDateMatch) {
+				startDate = this.convertDateFormat(betweenDateMatch[1]);
+				endDate = this.convertDateFormat(betweenDateMatch[2]);
+			} else {
+				// Check for year-only format: "between YYYY and YYYY"
+				const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+				if (betweenYearMatch) {
+					const startYear = parseInt(betweenYearMatch[1], 10);
+					const endYear = parseInt(betweenYearMatch[2], 10);
+					// Convert to full date range: 01/01/YYYY to 31/12/YYYY
+					startDate = `${startYear}-01-01`;
+					endDate = `${endYear}-12-31`;
+					this.logToBoth(`✅ Extracted year range: ${startYear} to ${endYear} -> ${startDate} to ${endDate}`, null, "log");
+				}
+			}
+		}
+		
+		// Also check timeFrames for range type
+		if (!startDate || !endDate) {
+			const rangeFrame = timeFrames.find(tf => tf.type === "range");
+			if (rangeFrame && rangeFrame.value.includes(" to ")) {
+				const dateRange = rangeFrame.value.split(" to ");
+				if (dateRange.length === 2) {
+					// Check if it's year-only format
+					const startYearMatch = dateRange[0].trim().match(/^(\d{4})$/);
+					const endYearMatch = dateRange[1].trim().match(/^(\d{4})$/);
+					if (startYearMatch && endYearMatch) {
+						const startYear = parseInt(startYearMatch[1], 10);
+						const endYear = parseInt(endYearMatch[1], 10);
+						startDate = `${startYear}-01-01`;
+						endDate = `${endYear}-12-31`;
+						this.logToBoth(`✅ Extracted year range from timeFrames: ${startYear} to ${endYear} -> ${startDate} to ${endDate}`, null, "log");
+					} else {
+						// Try to convert as full dates
+						startDate = this.convertDateFormat(dateRange[0].trim());
+						endDate = this.convertDateFormat(dateRange[1].trim());
+					}
+				}
+			}
+		}
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: any = {
+			graphLabel,
+			teamName,
+		};
+		
+		// Build WHERE conditions for filters
+		const whereConditions: string[] = [`f.team = $teamName`];
+		
+		// Add season filter
+		if (season) {
+			params.season = season;
+			// Also try normalized version (hyphen format)
+			const normalizedSeason = season.replace("/", "-");
+			params.normalizedSeason = normalizedSeason;
+			whereConditions.push(`(f.season = $season OR f.season = $normalizedSeason)`);
+		}
+		
+		// Add date range filter
+		if (startDate && endDate) {
+			params.startDate = startDate;
+			params.endDate = endDate;
+			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
+		}
+
+		// Build query based on what metric is being asked about
+		// Prioritize detected metric over goals
+		let query = "";
+		if (detectedMetric && metricField) {
+			// Query MatchDetail for the detected metric
+			if (metricField === "appearances") {
+				// Appearances is a count, not a sum
+				query = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+					WHERE ${whereConditions.join(" AND ")} AND md.team = $teamName
+					RETURN 
+						count(md) as value,
+						count(DISTINCT f) as gamesPlayed
+				`;
+			} else {
+				// Other stats are sums
+				query = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+					WHERE ${whereConditions.join(" AND ")} AND md.team = $teamName
+					RETURN 
+						coalesce(sum(md.${metricField}), 0) as value,
+						count(DISTINCT f) as gamesPlayed
+				`;
+			}
+		} else {
+			// Default: Query fixtures for team goals
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE ${whereConditions.join(" AND ")}
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					coalesce(sum(f.conceded), 0) as goalsConceded,
+					count(f) as gamesPlayed
+			`;
+		}
+
+		this.lastExecutedQueries.push(`TEAM_DATA: ${query}`);
+		this.lastExecutedQueries.push(`TEAM_DATA_PARAMS: ${JSON.stringify(params)}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			this.logToBoth(`🔍 Team data query result:`, result, "log");
+
+			if (result && result.length > 0) {
+				const teamStats = result[0];
+				if (detectedMetric && metricField) {
+					return {
+						type: "team_stats",
+						teamName,
+						value: teamStats.value || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						metric: detectedMetric,
+						metricField: metricField,
+						season: season || undefined,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
+					};
+				} else {
+					return {
+						type: "team_stats",
+						teamName,
+						goalsScored: teamStats.goalsScored || 0,
+						goalsConceded: teamStats.goalsConceded || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						isGoalsScored,
+						isGoalsConceded,
+						isOpenPlayGoals,
+					};
+				}
+			}
+
+			if (detectedMetric && metricField) {
+				return { 
+					type: "team_stats", 
+					teamName, 
+					value: 0, 
+					gamesPlayed: 0, 
+					metric: detectedMetric, 
+					metricField: metricField,
+					season: season || undefined,
+					startDate: startDate || undefined,
+					endDate: endDate || undefined,
+				};
+			} else {
+				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };
+			}
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryTeamData:`, error, "error");
+			return { type: "error", data: [], error: "Error querying team data" };
+		}
 	}
 
-	private async queryClubData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
-		const query = `
-      MATCH (c:Club)
-      RETURN c.name as name, c.id as source
-      LIMIT 10
-    `;
+	private async queryClubData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryClubData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
-		const result = await neo4jService.executeQuery(query);
-		return result as unknown as Record<string, unknown>;
+		const question = analysis.question?.toLowerCase() || "";
+		
+		// Determine what metric is being asked about
+		// Check for "conceded" first to avoid false positives
+		const isGoalsConceded = question.includes("conceded");
+		const isGoalsScored = question.includes("scored") || (question.includes("goals") && !isGoalsConceded);
+		const isPlayerCount = question.includes("players") || question.includes("played for");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: any = {
+			graphLabel,
+		};
+
+		try {
+			// Query fixtures for club-wide goals
+			const goalsQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					coalesce(sum(f.conceded), 0) as goalsConceded,
+					count(f) as gamesPlayed
+			`;
+
+			this.lastExecutedQueries.push(`CLUB_GOALS_DATA: ${goalsQuery}`);
+			this.lastExecutedQueries.push(`CLUB_GOALS_PARAMS: ${JSON.stringify(params)}`);
+
+			const goalsResult = await neo4jService.executeQuery(goalsQuery, params);
+			this.logToBoth(`🔍 Club goals query result:`, goalsResult, "log");
+
+			let goalsScored = 0;
+			let goalsConceded = 0;
+			let gamesPlayed = 0;
+
+			if (goalsResult && goalsResult.length > 0) {
+				goalsScored = goalsResult[0].goalsScored || 0;
+				goalsConceded = goalsResult[0].goalsConceded || 0;
+				gamesPlayed = goalsResult[0].gamesPlayed || 0;
+			}
+
+			// Query players count if needed
+			let numberOfPlayers = 0;
+			if (isPlayerCount) {
+				const playersQuery = `
+					MATCH (p:Player {graphLabel: $graphLabel})
+					WHERE p.allowOnSite = true
+					RETURN count(DISTINCT p.playerName) as numberOfPlayers
+				`;
+
+				this.lastExecutedQueries.push(`CLUB_PLAYERS_DATA: ${playersQuery}`);
+				this.lastExecutedQueries.push(`CLUB_PLAYERS_PARAMS: ${JSON.stringify(params)}`);
+
+				const playersResult = await neo4jService.executeQuery(playersQuery, params);
+				this.logToBoth(`🔍 Club players query result:`, playersResult, "log");
+
+				if (playersResult && playersResult.length > 0) {
+					numberOfPlayers = playersResult[0].numberOfPlayers || 0;
+				}
+			}
+
+			return {
+				type: "club_stats",
+				goalsScored,
+				goalsConceded,
+				gamesPlayed,
+				numberOfPlayers,
+				isGoalsScored,
+				isGoalsConceded,
+				isPlayerCount,
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryClubData:`, error, "error");
+			return { type: "error", data: [], error: "Error querying club data" };
+		}
 	}
 
 	private async queryFixtureData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
@@ -1034,6 +1382,73 @@ export class ChatbotService {
 			const question = analysis.question?.toLowerCase() || "";
 			const teamEntities = analysis.teamEntities || [];
 			
+			// Check for team-specific highest/lowest position queries
+			const isTeamHighestQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("highest position") ||
+				 question.includes("best position") ||
+				 question.includes("best finish") ||
+				 (question.includes("highest") && (question.includes("position") || question.includes("finish"))));
+			
+			const isTeamLowestQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("lowest position") ||
+				 question.includes("worst position") ||
+				 question.includes("worst finish") ||
+				 (question.includes("lowest") && (question.includes("position") || question.includes("finish"))));
+			
+			// Handle team-specific highest position query
+			if (isTeamHighestQuery) {
+				const teamName = teamEntities[0];
+				const { getTeamHighestPosition } = await import("../services/leagueTableService");
+				const result = await getTeamHighestPosition(teamName);
+				
+				if (!result) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find any historical league position data for the ${teamName}.`,
+					};
+				}
+				
+				const positionSuffix = result.position.position === 1 ? "st" : result.position.position === 2 ? "nd" : result.position.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [result.position],
+					fullTable: result.fullTable,
+					season: result.position.season,
+					division: result.division,
+					answer: `The ${teamName}'s highest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+				};
+			}
+			
+			// Handle team-specific lowest position query
+			if (isTeamLowestQuery) {
+				const teamName = teamEntities[0];
+				const { getTeamLowestPosition } = await import("../services/leagueTableService");
+				const result = await getTeamLowestPosition(teamName);
+				
+				if (!result) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find any historical league position data for the ${teamName}.`,
+					};
+				}
+				
+				const positionSuffix = result.position.position === 1 ? "st" : result.position.position === 2 ? "nd" : result.position.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [result.position],
+					fullTable: result.fullTable,
+					season: result.position.season,
+					division: result.division,
+					answer: `The ${teamName}'s lowest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+				};
+			}
+			
 			// Check for "highest league finish" queries (no team name required)
 			const isHighestFinishQuery = 
 				question.includes("highest league finish") ||
@@ -1044,7 +1459,7 @@ export class ChatbotService {
 			
 			if (isHighestFinishQuery) {
 				// Import league table service
-				const { getHighestLeagueFinish } = await import("../services/leagueTableService");
+				const { getHighestLeagueFinish, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../services/leagueTableService");
 				const bestFinish = await getHighestLeagueFinish();
 				
 				if (!bestFinish) {
@@ -1055,11 +1470,27 @@ export class ChatbotService {
 					};
 				}
 				
+				// Get full league table for this season
+				const normalizedSeason = normalizeSeasonFormat(bestFinish.season, 'hyphen');
+				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+				let fullTable = seasonData?.teams[bestFinish.team]?.table || [];
+				
+				// If not found in JSON, try current season from Neo4j
+				if (fullTable.length === 0) {
+					const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+					if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(bestFinish.season, 'slash')) {
+						fullTable = currentSeasonData.teams[bestFinish.team]?.table || [];
+					}
+				}
+				
 				const positionSuffix = bestFinish.position === 1 ? "st" : bestFinish.position === 2 ? "nd" : bestFinish.position === 3 ? "rd" : "th";
 				
 				return {
 					type: "league_table",
 					data: [bestFinish],
+					fullTable: fullTable,
+					season: bestFinish.season,
+					division: bestFinish.division,
 					answer: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`,
 				};
 			}
@@ -1097,6 +1528,7 @@ export class ChatbotService {
 				// Try to extract season from question (e.g., "2019/20", "2019-20", "2019/2020")
 				const seasonMatch = question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2})\b/);
 				if (seasonMatch) {
+					// Normalize to slash format
 					season = seasonMatch[1].replace("-", "/");
 				}
 			}
@@ -1110,12 +1542,18 @@ export class ChatbotService {
 			}
 
 			// Import league table service
-			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j } = await import("../services/leagueTableService");
+			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../services/leagueTableService");
+			
+			// Normalize season format if present (ensure slash format for consistency)
+			if (season) {
+				season = normalizeSeasonFormat(season, 'slash');
+			}
 
 			// If season specified and not current season query, get that season's data
 			if (season && !isCurrentSeasonQuery) {
-				// getTeamSeasonData handles season format conversion internally
-				const teamData = await getTeamSeasonData(teamName, season);
+				// Normalize season format before querying
+				const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+				const teamData = await getTeamSeasonData(teamName, normalizedSeason);
 				
 				if (!teamData) {
 					return {
@@ -1125,11 +1563,20 @@ export class ChatbotService {
 					};
 				}
 
+				// Get full league table for this season and team
+				const { getSeasonDataFromJSON } = await import("../services/leagueTableService");
+				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+				const fullTable = seasonData?.teams[teamName]?.table || [];
+
 				const positionSuffix = teamData.position === 1 ? "st" : teamData.position === 2 ? "nd" : teamData.position === 3 ? "rd" : "th";
+				const division = seasonData?.teams[teamName]?.division || "";
 				
 				return {
 					type: "league_table",
 					data: [teamData],
+					fullTable: fullTable,
+					season: normalizedSeason,
+					division: division,
 					answer: `The ${teamName} finished in ${teamData.position}${positionSuffix} position in the league in ${season}, with ${teamData.points} points from ${teamData.played} games (${teamData.won} wins, ${teamData.drawn} draws, ${teamData.lost} losses).`,
 				};
 			}
@@ -1164,10 +1611,15 @@ export class ChatbotService {
 			}
 
 			const positionSuffix = dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th";
+			const fullTable = teamData.table || [];
+			const division = teamData.division || "";
 			
 			return {
 				type: "league_table",
 				data: [dorkiniansEntry],
+				fullTable: fullTable,
+				season: currentSeasonData.season,
+				division: division,
 				answer: `The ${teamName} are currently in ${dorkiniansEntry.position}${positionSuffix} position in the league for ${currentSeasonData.season}, with ${dorkiniansEntry.points} points from ${dorkiniansEntry.played} games (${dorkiniansEntry.won} wins, ${dorkiniansEntry.drawn} draws, ${dorkiniansEntry.lost} losses).`,
 			};
 		} catch (error) {
@@ -2585,6 +3037,165 @@ export class ChatbotService {
 			answer = "Missing context: Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
 			answer = (data.message as string) || "Please clarify your question with more specific details.";
+		} else if (data.type === "not_found" || data.type === "no_team") {
+			// Handle league table error cases
+			answer = (data.message as string) || "I couldn't find league table data for your query.";
+		} else if (data && data.type === "team_stats") {
+			// Handle team statistics queries (check early before data.data checks)
+			const teamName = data.teamName as string;
+			const metric = data.metric as string | undefined;
+			
+			// Check if this is a generic metric query (not goals)
+			if (metric && data.value !== undefined) {
+				const value = data.value as number || 0;
+				const metricConfig = findMetricByAlias(metric);
+				const metricName = metricConfig ? getMetricDisplayName(metric, value) : metric;
+				const singular = metricConfig?.singular || metricName;
+				const plural = metricConfig?.plural || metricName;
+				const displayText = value === 1 ? singular : plural;
+				
+				// Add season/date context if available
+				const season = data.season as string | undefined;
+				const startDate = data.startDate as string | undefined;
+				const endDate = data.endDate as string | undefined;
+				let contextText = "";
+				
+				if (season) {
+					contextText = ` in ${season}`;
+				} else if (startDate && endDate) {
+					// Format dates for display (YYYY-MM-DD -> DD/MM/YYYY)
+					const formatDateForDisplay = (dateStr: string) => {
+						const parts = dateStr.split("-");
+						if (parts.length === 3) {
+							return `${parts[2]}/${parts[1]}/${parts[0]}`;
+						}
+						return dateStr;
+					};
+					contextText = ` between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`;
+				}
+				
+				answer = `The ${teamName} have ${value} ${displayText}${contextText}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: metricName, 
+						value: value,
+						metric: metric,
+						wordedText: metricName
+					}],
+					config: {
+						title: `${teamName} - ${metricName}${contextText}`,
+						type: "bar",
+					},
+				};
+			} else {
+				// Handle goals queries
+				const goalsScored = data.goalsScored as number || 0;
+				const goalsConceded = data.goalsConceded as number || 0;
+				const isGoalsScored = data.isGoalsScored as boolean;
+				const isGoalsConceded = data.isGoalsConceded as boolean;
+				const isOpenPlayGoals = data.isOpenPlayGoals as boolean;
+
+				// Determine the label based on whether open play was specifically asked for
+				const goalLabel = isOpenPlayGoals ? "Open Play Goals" : "Goals";
+				const goalLabelPlural = isOpenPlayGoals ? "open play goals" : "goals";
+
+				if (isGoalsScored) {
+				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: goalLabel, 
+						value: goalsScored,
+						metric: isOpenPlayGoals ? "OPENPLAYGOALS" : "G",
+						wordedText: goalLabel
+					}],
+					config: {
+						title: `${teamName} - ${goalLabel}`,
+						type: "bar",
+					},
+				};
+			} else if (isGoalsConceded) {
+				answer = `The ${teamName} have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Conceded", value: goalsConceded }],
+					config: {
+						title: `${teamName} - Goals Conceded`,
+						type: "bar",
+					},
+				};
+			} else {
+				// Default: show both
+				const goalLabelScored = isOpenPlayGoals ? "Open Play Goals" : "Goals Scored";
+				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [
+						{ name: goalLabelScored, value: goalsScored },
+						{ name: "Goals Conceded", value: goalsConceded },
+					],
+					config: {
+						title: `${teamName} - Goals Statistics`,
+						type: "bar",
+					},
+				};
+			}
+			}
+		} else if (data && data.type === "club_stats") {
+			// Handle club-wide statistics queries (check early before data.data checks)
+			const goalsScored = data.goalsScored as number || 0;
+			const goalsConceded = data.goalsConceded as number || 0;
+			const numberOfPlayers = data.numberOfPlayers as number || 0;
+			const isGoalsScored = data.isGoalsScored as boolean;
+			const isGoalsConceded = data.isGoalsConceded as boolean;
+			const isPlayerCount = data.isPlayerCount as boolean;
+
+			if (isPlayerCount) {
+				answer = `${numberOfPlayers} ${numberOfPlayers === 1 ? "player has" : "players have"} played for the club.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Total Players", value: numberOfPlayers }],
+					config: {
+						title: "Club Statistics - Total Players",
+						type: "bar",
+					},
+				};
+			} else if (isGoalsScored) {
+				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Scored", value: goalsScored }],
+					config: {
+						title: "Club Statistics - Goals Scored",
+						type: "bar",
+					},
+				};
+			} else if (isGoalsConceded) {
+				answer = `Dorkinians have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Conceded", value: goalsConceded }],
+					config: {
+						title: "Club Statistics - Goals Conceded",
+						type: "bar",
+					},
+				};
+			} else {
+				// Default: show both goals
+				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [
+						{ name: "Goals Scored", value: goalsScored },
+						{ name: "Goals Conceded", value: goalsConceded },
+					],
+					config: {
+						title: "Club Statistics - Goals",
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.data && Array.isArray(data.data) && data.data.length === 0) {
 			// Query executed successfully but returned no results
 			const metric = data.metric || "data";
@@ -3684,6 +4295,106 @@ export class ChatbotService {
 									{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
 									{ key: "value", label: metricName },
 								],
+							},
+						};
+					}
+				}
+			} else if (data && data.type === "league_table") {
+				// Handle league table data
+				// Check if answer is already provided (from queryLeagueTableData)
+				if (data.answer && typeof data.answer === "string") {
+					answer = data.answer;
+				} else if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
+					// Process league table entry data
+					const leagueData = data.data[0] as {
+						position?: number;
+						team?: string;
+						points?: number;
+						played?: number;
+						won?: number;
+						drawn?: number;
+						lost?: number;
+						season?: string;
+						division?: string;
+					};
+					
+					if (leagueData.position !== undefined) {
+						const positionSuffix = leagueData.position === 1 ? "st" : leagueData.position === 2 ? "nd" : leagueData.position === 3 ? "rd" : "th";
+						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
+						const divisionText = leagueData.division ? ` (${leagueData.division})` : "";
+						
+						if (leagueData.points !== undefined && leagueData.played !== undefined) {
+							answer = `Finished in ${leagueData.position}${positionSuffix} position${seasonText}${divisionText}, with ${leagueData.points} points from ${leagueData.played} games`;
+							if (leagueData.won !== undefined && leagueData.drawn !== undefined && leagueData.lost !== undefined) {
+								answer += ` (${leagueData.won} wins, ${leagueData.drawn} draws, ${leagueData.lost} losses).`;
+							} else {
+								answer += ".";
+							}
+						} else {
+							answer = `Finished in ${leagueData.position}${positionSuffix} position${seasonText}${divisionText}.`;
+						}
+					}
+				}
+				
+				// Create table visualization with full league table if available
+				if ("fullTable" in data && Array.isArray(data.fullTable) && data.fullTable.length > 0) {
+					const fullTable = data.fullTable as LeagueTableEntry[];
+					const season = (data.season as string) || "";
+					const division = (data.division as string) || "";
+					
+					visualization = {
+						type: "Table",
+						data: fullTable.map((entry) => ({
+							Position: entry.position,
+							Team: entry.team,
+							Played: entry.played,
+							Won: entry.won,
+							Drawn: entry.drawn,
+							Lost: entry.lost,
+							"Goals For": entry.goalsFor,
+							"Goals Against": entry.goalsAgainst,
+							"Goal Difference": entry.goalDifference,
+							Points: entry.points,
+						})),
+						config: {
+							title: division ? `League Table - ${division} ${season}` : `League Table ${season}`,
+							type: "table",
+							columns: [
+								{ key: "Position", label: "Pos" },
+								{ key: "Team", label: "Team" },
+								{ key: "Played", label: "P" },
+								{ key: "Won", label: "W" },
+								{ key: "Drawn", label: "D" },
+								{ key: "Lost", label: "L" },
+								{ key: "Goals For", label: "F" },
+								{ key: "Goals Against", label: "A" },
+								{ key: "Goal Difference", label: "GD" },
+								{ key: "Points", label: "Pts" },
+							],
+						},
+					};
+				} else if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
+					// Fallback: show just the single entry if full table not available
+					const leagueData = data.data[0] as {
+						position?: number;
+						team?: string;
+						points?: number;
+						played?: number;
+						won?: number;
+						drawn?: number;
+						lost?: number;
+						season?: string;
+						division?: string;
+					};
+					
+					if (leagueData.position !== undefined) {
+						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
+						visualization = {
+							type: "Table",
+							data: [leagueData],
+							config: {
+								title: `League Position${seasonText}`,
+								type: "table",
 							},
 						};
 					}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAvailableSeasons, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, type LeagueTableEntry, type TeamLeagueData } from "@/lib/services/leagueTableService";
+import { getAvailableSeasons, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat, type LeagueTableEntry, type TeamLeagueData } from "@/lib/services/leagueTableService";
 import { neo4jService } from "@/lib/neo4j";
 
 const corsHeaders = {
@@ -13,7 +13,11 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-	return NextResponse.json({ message: "Route is working", endpoint: "/api/team-best-season-finish" }, { headers: corsHeaders });
+	return NextResponse.json({ 
+		message: "Route is working", 
+		endpoint: "/api/team-best-season-finish",
+		timestamp: new Date().toISOString()
+	}, { headers: corsHeaders });
 }
 
 // Normalize season format (2019-20 <-> 2019/20)
@@ -24,6 +28,53 @@ function normalizeSeason(season: string): string {
 // Convert season format for comparison (2019/20 -> 2019-20)
 function normalizeSeasonForFile(season: string): string {
 	return season.replace("/", "-");
+}
+
+// Convert team name to team key (e.g., "8th XI" -> "8s", "1st XI" -> "1s")
+function normalizeTeamNameToKey(teamName: string): string {
+	if (!teamName) return teamName;
+	
+	// Convert to lowercase and trim
+	const normalized = teamName.toLowerCase().trim();
+	
+	// Use the same mapping as in leagueTableService.ts
+	const mapping: { [key: string]: string } = {
+		'1st xi': '1s',
+		'2nd xi': '2s',
+		'3rd xi': '3s',
+		'4th xi': '4s',
+		'5th xi': '5s',
+		'6th xi': '6s',
+		'7th xi': '7s',
+		'8th xi': '8s',
+		'1st': '1s',
+		'2nd': '2s',
+		'3rd': '3s',
+		'4th': '4s',
+		'5th': '5s',
+		'6th': '6s',
+		'7th': '7s',
+		'8th': '8s',
+	};
+	
+	// Check mapping first
+	if (mapping[normalized]) {
+		return mapping[normalized];
+	}
+	
+	// Handle formats like "8s", "1s" (already in correct format)
+	if (/^\d+s$/.test(normalized)) {
+		return normalized;
+	}
+	
+	// Handle numeric patterns like "8", "1"
+	const numericMatch = normalized.match(/^(\d+)$/);
+	if (numericMatch) {
+		return `${numericMatch[1]}s`;
+	}
+	
+	// If no pattern matches, return as-is (might already be in correct format)
+	return teamName;
 }
 
 // Get captains for a specific team and season
@@ -104,12 +155,13 @@ async function getCaptainsForTeam(teamKey: string, season: string): Promise<stri
 // Get league table data for a specific team and season
 async function getTeamLeagueDataForSeason(teamKey: string, season: string): Promise<{ season: string; division: string; table: LeagueTableEntry[] } | null> {
 	try {
-		// Normalize season format for file lookup
-		const normalizedSeason = normalizeSeasonForFile(season);
-		const normalizedSeasonForReturn = normalizeSeason(season);
+		// Normalize season format for file lookup (hyphen format for JSON filenames)
+		const normalizedSeasonForFile = normalizeSeasonFormat(season, 'hyphen');
+		// Normalize season format for return (slash format for consistency)
+		const normalizedSeasonForReturn = normalizeSeasonFormat(season, 'slash');
 
 		// Try JSON files first (for past seasons)
-		const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+		const seasonData = await getSeasonDataFromJSON(normalizedSeasonForFile);
 		if (seasonData) {
 			const teamData = seasonData.teams[teamKey];
 			if (teamData && teamData.table && teamData.table.length > 0) {
@@ -124,8 +176,9 @@ async function getTeamLeagueDataForSeason(teamKey: string, season: string): Prom
 		// Try Neo4j for current season
 		const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
 		if (currentSeasonData) {
-			const normalizedCurrentSeason = normalizeSeason(currentSeasonData.season);
-			const normalizedRequestSeason = normalizeSeason(season);
+			// Normalize both seasons to slash format for comparison
+			const normalizedCurrentSeason = normalizeSeasonFormat(currentSeasonData.season, 'slash');
+			const normalizedRequestSeason = normalizeSeasonFormat(season, 'slash');
 			
 			if (normalizedCurrentSeason === normalizedRequestSeason) {
 				const teamData = currentSeasonData.teams[teamKey];
@@ -151,7 +204,7 @@ async function findBestSeasonFinish(teamKey: string): Promise<{ season: string; 
 	try {
 		// Get current season from Neo4j (most recent season in database)
 		const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
-		const currentSeason = currentSeasonData ? normalizeSeason(currentSeasonData.season) : null;
+		const currentSeason = currentSeasonData ? normalizeSeasonFormat(currentSeasonData.season, 'slash') : null;
 		
 		const allSeasons = await getAvailableSeasons();
 		
@@ -165,9 +218,9 @@ async function findBestSeasonFinish(teamKey: string): Promise<{ season: string; 
 		}> = [];
 
 		for (const seasonFile of allSeasons) {
-			// Normalize season formats for comparison
-			const normalizedFileSeason = normalizeSeason(seasonFile);
-			const normalizedCurrentSeason = currentSeason ? normalizeSeason(currentSeason) : null;
+			// Normalize season formats for comparison (both to slash format)
+			const normalizedFileSeason = normalizeSeasonFormat(seasonFile, 'slash');
+			const normalizedCurrentSeason = currentSeason ? normalizeSeasonFormat(currentSeason, 'slash') : null;
 
 			// Skip current season
 			if (normalizedCurrentSeason && normalizedFileSeason === normalizedCurrentSeason) {
@@ -242,8 +295,8 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Team name is required" }, { status: 400, headers: corsHeaders });
 		}
 
-		// Convert team name to team key (e.g., "1s", "2s")
-		const teamKey = teamName;
+		// Convert team name to team key (e.g., "8th XI" -> "8s", "1st XI" -> "1s")
+		const teamKey = normalizeTeamNameToKey(teamName);
 
 		let leagueData: { season: string; division: string; table: LeagueTableEntry[] } | null = null;
 
@@ -288,7 +341,10 @@ export async function POST(request: NextRequest) {
 	} catch (error) {
 		console.error("Error in team-best-season-finish API:", error);
 		return NextResponse.json(
-			{ error: "Failed to fetch best season finish data" },
+			{ 
+				error: "Failed to fetch best season finish data",
+				details: error instanceof Error ? error.message : String(error)
+			},
 			{ status: 500, headers: corsHeaders }
 		);
 	}

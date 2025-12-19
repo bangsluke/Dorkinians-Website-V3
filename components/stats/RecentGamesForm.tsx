@@ -32,6 +32,35 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const boxRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const tooltipRef = useRef<HTMLDivElement | null>(null);
 
+	// Find all scroll containers up the DOM tree
+	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
+		const containers: HTMLElement[] = [];
+		let current: HTMLElement | null = element;
+		
+		try {
+			while (current && typeof document !== 'undefined' && current !== document.body) {
+				try {
+					const style = window.getComputedStyle(current);
+					const overflowY = style.overflowY;
+					const overflowX = style.overflowX;
+					
+					if (overflowY === 'auto' || overflowY === 'scroll' || overflowX === 'auto' || overflowX === 'scroll') {
+						containers.push(current);
+					}
+				} catch (e) {
+					// Element may not be in DOM or computed style unavailable
+					break;
+				}
+				
+				current = current.parentElement;
+			}
+		} catch (e) {
+			// Silently fail if DOM traversal fails
+		}
+		
+		return containers;
+	};
+
 	useEffect(() => {
 		if (!teamName) {
 			setFixtures([]);
@@ -78,13 +107,27 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 
 	const updateTooltipPosition = (index: number) => {
 		const boxRef = boxRefs.current[index];
-		if (!boxRef || typeof window === 'undefined') return;
+		if (!boxRef || typeof window === 'undefined') {
+			// Hide tooltip if box is not available
+			setShowTooltip(null);
+			setTooltipPosition(null);
+			return;
+		}
 
 		try {
 			const rect = boxRef.getBoundingClientRect();
 			const viewportHeight = window.innerHeight || 0;
+			const viewportWidth = window.innerWidth || 0;
 			const scrollY = window.scrollY || 0;
 			const scrollX = window.scrollX || 0;
+
+			// Check if box is still visible in viewport
+			// Hide tooltip if box has scrolled above the visible threshold
+			if (rect.bottom < 0 || rect.top > viewportHeight || rect.right < 0 || rect.left > viewportWidth) {
+				setShowTooltip(null);
+				setTooltipPosition(null);
+				return;
+			}
 
 			// Calculate tooltip dimensions
 			let tooltipHeight = 100; // Default estimate
@@ -151,6 +194,32 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 			}, 0);
 			return () => clearTimeout(timeoutId);
 		}
+	}, [showTooltip]);
+
+	// Add scroll listeners to update tooltip position on scroll
+	useEffect(() => {
+		if (showTooltip === null) return;
+		
+		const boxRef = boxRefs.current[showTooltip];
+		if (!boxRef) return;
+		
+		const scrollContainers = findScrollContainers(boxRef);
+		const handleScroll = () => {
+			updateTooltipPosition(showTooltip);
+		};
+		
+		// Add listeners to window and all scroll containers
+		window.addEventListener('scroll', handleScroll, true);
+		scrollContainers.forEach(container => {
+			container.addEventListener('scroll', handleScroll, true);
+		});
+		
+		return () => {
+			window.removeEventListener('scroll', handleScroll, true);
+			scrollContainers.forEach(container => {
+				container.removeEventListener('scroll', handleScroll, true);
+			});
+		};
 	}, [showTooltip]);
 
 	useEffect(() => {

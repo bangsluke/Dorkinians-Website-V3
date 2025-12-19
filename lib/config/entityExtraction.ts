@@ -1085,29 +1085,19 @@ export class EntityExtractor {
 			});
 		});
 
-		// Extract player names using compromise NLP for better accuracy
-		const playerNames = this.extractPlayerNamesWithNLP();
-		const addedPlayers = new Set<string>();
-		playerNames.forEach((player) => {
-			const normalizedName = player.text.toLowerCase();
-			if (!addedPlayers.has(normalizedName)) {
-				addedPlayers.add(normalizedName);
-				entities.push({
-					value: player.text,
-					type: "player",
-					originalText: player.text,
-					position: player.position,
-				});
-			}
-		});
-
+		// Extract team references BEFORE player names (if no "I" references found)
+		// This ensures team patterns like "2s" are captured as teams, not players
+		const hasPlayerContext = entities.some((e) => e.type === "player" && e.value === "I");
+		
 		// Extract team references (with or without "team" word)
 		const teamMatches = this.findMatches(
 			/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(team|teams))?\b/gi,
 		);
+		const extractedTeamNames = new Set<string>();
 		teamMatches.forEach((match) => {
 			// Extract just the team number/name part
 			const teamName = match.text.replace(/\s+(team|teams)$/i, "");
+			extractedTeamNames.add(teamName.toLowerCase());
 			entities.push({
 				value: teamName,
 				type: "team",
@@ -1115,6 +1105,26 @@ export class EntityExtractor {
 				position: match.position,
 			});
 		});
+
+		// Extract player names using compromise NLP for better accuracy
+		// Only extract if we have player context ("I" reference) or no team entities were found
+		// This prevents team patterns from being misclassified as player names
+		if (hasPlayerContext || extractedTeamNames.size === 0) {
+			const playerNames = this.extractPlayerNamesWithNLP(extractedTeamNames);
+			const addedPlayers = new Set<string>();
+			playerNames.forEach((player) => {
+				const normalizedName = player.text.toLowerCase();
+				if (!addedPlayers.has(normalizedName)) {
+					addedPlayers.add(normalizedName);
+					entities.push({
+						value: player.text,
+						type: "player",
+						originalText: player.text,
+						position: player.position,
+					});
+				}
+			});
+		}
 
 		// Extract league references (detect league-related terms dynamically)
 		// Look for patterns that typically indicate league names
@@ -1787,8 +1797,9 @@ export class EntityExtractor {
 
 	/**
 	 * Extract player names using compromise NLP for better accuracy
+	 * @param extractedTeamNames Set of team names already extracted to filter out from player names
 	 */
-	private extractPlayerNamesWithNLP(): Array<{ text: string; position: number }> {
+	private extractPlayerNamesWithNLP(extractedTeamNames: Set<string> = new Set()): Array<{ text: string; position: number }> {
 		const players: Array<{ text: string; position: number }> = [];
 
 		try {
@@ -1954,6 +1965,11 @@ export class EntityExtractor {
 					continue;
 				}
 
+				// Skip if it matches an already extracted team name
+				if (extractedTeamNames.has(normalizedName.toLowerCase())) {
+					continue;
+				}
+
 				// Find the position of this name in the original text
 				const position = this.question.toLowerCase().indexOf(normalizedName.toLowerCase());
 				if (position !== -1) {
@@ -2007,7 +2023,15 @@ export class EntityExtractor {
 			// Fallback to basic word extraction if NLP fails
 			const words = this.question.split(/\s+/);
 			const potentialNames = words.filter(
-				(word) => word.length >= 2 && /^[A-Z]/.test(word) && !["How", "What", "Where", "When", "Why", "Which", "Who"].includes(word),
+				(word) => {
+					const normalized = word.toLowerCase();
+					return word.length >= 2 && 
+						/^[A-Z]/.test(word) && 
+						!["How", "What", "Where", "When", "Why", "Which", "Who"].includes(word) &&
+						!extractedTeamNames.has(normalized) &&
+						!normalized.match(/^\d+(st|nd|rd|th)?$/) &&
+						!normalized.match(/^\d+s$/);
+				},
 			);
 
 			return potentialNames.map((name, index) => ({

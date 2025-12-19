@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface StatsNavigationMenuProps {
 	isOpen: boolean;
@@ -18,15 +18,19 @@ const statsNavigationItems = [
 			{ id: "key-performance-stats", label: "Key Performance Stats" },
 			{ id: "seasonal-performance", label: "Seasonal Performance" },
 			{ id: "team-performance", label: "Team Performance" },
+			{ id: "positional-stats", label: "Positional Stats" },
+			{ id: "match-results", label: "Match Results" },
+			{ id: "game-details", label: "Game Details" },
 			{ id: "monthly-performance", label: "Monthly Performance" },
 			{ id: "defensive-record", label: "Defensive Record" },
-			{ id: "penalty-stats", label: "Penalty Stats" },
+			{ id: "distance-travelled", label: "Distance Travelled" },
+			{ id: "opposition-locations", label: "Opposition Locations" },
 			{ id: "minutes-per-stats", label: "Minutes per Stats" },
-			{ id: "fantasy-points", label: "Fantasy Points" },
-			{ id: "opposition-map", label: "Opposition Map" },
 			{ id: "opposition-performance", label: "Opposition Performance" },
-			{ id: "game-details", label: "Game Details" },
+			{ id: "fantasy-points", label: "Fantasy Points" },
+			{ id: "penalty-stats", label: "Penalty Stats" },
 			{ id: "awards-and-achievements", label: "Awards and Achievements" },
+			{ id: "player-data-table", label: "Data Table", isDataTable: true },
 		],
 	},
 	{
@@ -34,18 +38,37 @@ const statsNavigationItems = [
 		label: "Team Stats",
 		sections: [
 			{ id: "team-key-performance-stats", label: "Key Performance Stats" },
-			{ id: "team-recent-games", label: "Recent Games" },
+			{ id: "team-recent-games", label: "Recent Form" },
 			{ id: "team-top-players", label: "Top Players" },
+			{ id: "team-seasonal-performance", label: "Seasonal Performance" },
+			{ id: "team-match-results", label: "Match Results" },
+			{ id: "team-goals-scored-conceded", label: "Goals Scored vs Conceded" },
+			{ id: "team-home-away-performance", label: "Home vs Away Performance" },
+			{ id: "team-key-team-stats", label: "Key Team Stats" },
+			{ id: "team-unique-player-stats", label: "Unique Player Stats" },
 			{ id: "team-best-season-finish", label: "Best Season Finish" },
+			{ id: "team-data-table", label: "Data Table", isDataTable: true },
 		],
 	},
 	{
 		id: "club-stats" as StatsSubPage,
 		label: "Club Stats",
 		sections: [
-			{ id: "club-key-performance-stats", label: "Key Performance Stats" },
+			{ id: "club-key-performance-stats", label: "Key Club Stats" },
 			{ id: "club-team-comparison", label: "Team Comparison" },
 			{ id: "club-top-players", label: "Top Players" },
+			{ id: "club-seasonal-performance", label: "Seasonal Performance" },
+			{ id: "club-player-distribution", label: "Player Distribution" },
+			{ id: "club-player-tenure", label: "Player Tenure" },
+			{ id: "club-stats-distribution", label: "Stats Distribution" },
+			{ id: "club-match-results", label: "Match Results" },
+			{ id: "club-game-details", label: "Game Details" },
+			{ id: "club-big-club-numbers", label: "Big Club Numbers" },
+			{ id: "club-goals-scored-conceded", label: "Goals Scored vs Conceded" },
+			{ id: "club-home-away-performance", label: "Home vs Away Performance" },
+			{ id: "club-key-team-stats", label: "Key Team Stats" },
+			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
+			{ id: "club-data-table", label: "Data Table", isDataTable: true },
 		],
 	},
 	{
@@ -56,7 +79,7 @@ const statsNavigationItems = [
 ];
 
 export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigationMenuProps) {
-	const { setStatsSubPage, currentStatsSubPage } = useNavigationStore();
+	const { setStatsSubPage, currentStatsSubPage, setDataTableMode, preloadStatsData } = useNavigationStore();
 	// Initialize with only the current page expanded
 	const [expandedPages, setExpandedPages] = useState<Record<string, boolean>>(() => {
 		const initial: Record<string, boolean> = {
@@ -72,6 +95,16 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		return initial;
 	});
 
+	// Trigger preload when menu opens
+	useEffect(() => {
+		if (isOpen) {
+			// Start preloading asynchronously - don't await, let it run in background
+			preloadStatsData().catch(() => {
+				// Silently fail - preloading is best effort
+			});
+		}
+	}, [isOpen, preloadStatsData]);
+
 	const togglePage = (pageId: string) => {
 		setExpandedPages((prev) => ({
 			...prev,
@@ -79,26 +112,151 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		}));
 	};
 
-	const handleSectionClick = (pageId: StatsSubPage, sectionId?: string) => {
+	const handleSectionClick = (pageId: StatsSubPage, sectionId?: string, isDataTable?: boolean) => {
+		// Handle data table mode
+		if (isDataTable) {
+			setDataTableMode(true);
+			setStatsSubPage(pageId);
+			onClose();
+			return;
+		}
+		
+		setDataTableMode(false);
+		const pageChanged = currentStatsSubPage !== pageId;
 		setStatsSubPage(pageId);
 		onClose();
 		
 		// Scroll to section if provided
 		if (sectionId) {
+			// Wait longer if page changed to allow for transition
+			const delay = pageChanged ? 600 : 100;
+			
 			setTimeout(() => {
-				const element = document.getElementById(sectionId);
-				if (element) {
-					// Calculate offset for fixed headers (adjust as needed)
-					const offset = 80; // Approximate height of fixed header
-					const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
-					const offsetPosition = elementPosition - offset;
-					
-					window.scrollTo({
-						top: offsetPosition,
-						behavior: "smooth"
-					});
+				scrollToSection(sectionId);
+			}, delay);
+		}
+	};
+
+	const scrollToSection = (sectionId: string) => {
+		const element = document.getElementById(sectionId);
+		if (!element) {
+			// Retry after a short delay if element not found yet (max 3 retries)
+			const retryCount = (scrollToSection as any).retryCount || 0;
+			if (retryCount < 3) {
+				(scrollToSection as any).retryCount = retryCount + 1;
+				setTimeout(() => {
+					scrollToSection(sectionId);
+				}, 200);
+			} else {
+				(scrollToSection as any).retryCount = 0;
+			}
+			return;
+		}
+		
+		// Reset retry count on success
+		(scrollToSection as any).retryCount = 0;
+
+		// Find the scrollable container that contains the element
+		const findScrollableContainer = (el: HTMLElement): HTMLElement | null => {
+			let current: HTMLElement | null = el;
+			while (current && current !== document.body) {
+				const style = window.getComputedStyle(current);
+				const overflowY = style.overflowY;
+				const overflowX = style.overflowX;
+				
+				// Check if this element is scrollable
+				if ((overflowY === 'auto' || overflowY === 'scroll') && 
+					current.scrollHeight > current.clientHeight) {
+					return current;
 				}
-			}, 300); // Increased timeout to allow page transition
+				
+				current = current.parentElement;
+			}
+			return null;
+		};
+
+		const scrollableContainer = findScrollableContainer(element) as HTMLElement | null;
+
+		// iOS detection for smooth scroll compatibility
+		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+		// Calculate offset for fixed headers and navigation
+		const offset = 120;
+
+		if (scrollableContainer) {
+			// Scroll within the container
+			const containerRect = scrollableContainer.getBoundingClientRect();
+			const elementRect = element.getBoundingClientRect();
+			
+			// Calculate position relative to container
+			const scrollTop = scrollableContainer.scrollTop;
+			const elementTop = elementRect.top - containerRect.top + scrollTop;
+			const targetPosition = Math.max(0, elementTop - offset);
+
+			if (isIOS) {
+				// Manual smooth scroll for iOS
+				const start = scrollableContainer.scrollTop;
+				const distance = targetPosition - start;
+				const duration = 600;
+				let startTime: number | null = null;
+				
+				const animateScroll = (currentTime: number) => {
+					if (startTime === null) startTime = currentTime;
+					const timeElapsed = currentTime - startTime;
+					const progress = Math.min(timeElapsed / duration, 1);
+					// Easing function (ease-in-out)
+					const ease = progress < 0.5 
+						? 2 * progress * progress 
+						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+					
+					scrollableContainer.scrollTop = start + distance * ease;
+					
+					if (timeElapsed < duration) {
+						requestAnimationFrame(animateScroll);
+					}
+				};
+				requestAnimationFrame(animateScroll);
+			} else {
+				// Use native smooth scroll for non-iOS
+				scrollableContainer.scrollTo({
+					top: targetPosition,
+					behavior: 'smooth'
+				});
+			}
+		} else {
+			// Fallback to window scroll if no container found
+			const elementPosition = element.getBoundingClientRect().top + window.scrollY;
+			const offsetPosition = Math.max(0, elementPosition - offset);
+			
+			if (isIOS) {
+				// Manual smooth scroll for iOS window
+				const start = window.scrollY;
+				const distance = offsetPosition - start;
+				const duration = 600;
+				let startTime: number | null = null;
+				
+				const animateScroll = (currentTime: number) => {
+					if (startTime === null) startTime = currentTime;
+					const timeElapsed = currentTime - startTime;
+					const progress = Math.min(timeElapsed / duration, 1);
+					const ease = progress < 0.5 
+						? 2 * progress * progress 
+						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+					
+					window.scrollTo(0, start + distance * ease);
+					
+					if (timeElapsed < duration) {
+						requestAnimationFrame(animateScroll);
+					}
+				};
+				requestAnimationFrame(animateScroll);
+			} else {
+				window.scrollTo({
+					top: offsetPosition,
+					behavior: 'smooth'
+				});
+			}
 		}
 	};
 
@@ -123,9 +281,9 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}
-						className='fixed left-0 top-0 bottom-0 w-full max-w-md bg-gradient-to-br from-gray-900 via-black to-gray-900 z-50 overflow-y-auto'
+						className='fixed left-0 top-0 bottom-0 w-full max-w-md bg-gradient-to-br from-black via-black to-yellow-900/30 z-50 flex flex-col'
 					>
-						<div className='p-4 md:p-6'>
+						<div className='flex-1 overflow-y-auto p-4 md:p-6 pb-24'>
 							{/* Header */}
 							<div className='flex items-center justify-between mb-6'>
 								<h2 className='text-2xl font-bold text-white'>Stats Navigation</h2>
@@ -140,7 +298,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 							</div>
 
 							{/* Navigation Items */}
-							<div className='space-y-4 pb-20'>
+							<div className='space-y-4'>
 								{statsNavigationItems.map((item) => {
 									const isExpanded = expandedPages[item.id];
 									const hasSections = item.sections.length > 0;
@@ -183,7 +341,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 													{item.sections.map((section) => (
 														<motion.button
 															key={section.id}
-															onClick={() => handleSectionClick(item.id, section.id)}
+															onClick={() => handleSectionClick(item.id, section.id, (section as any).isDataTable)}
 															className='w-full p-3 rounded-lg bg-white/5 hover:bg-white/15 transition-all duration-200 text-left'
 															whileHover={{ scale: 1.01 }}
 															whileTap={{ scale: 0.99 }}>
@@ -206,17 +364,17 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 									);
 								})}
 							</div>
-							
-							{/* Yellow Close Button at Bottom */}
-							<div className='fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-[calc(100%-2rem)] md:max-w-md'>
-								<motion.button
-									onClick={onClose}
-									className='w-full bg-dorkinians-yellow text-black font-semibold py-3 px-4 rounded-lg hover:bg-yellow-400 transition-colors shadow-lg'
-									whileHover={{ scale: 1.02 }}
-									whileTap={{ scale: 0.98 }}>
-									Close
-								</motion.button>
-							</div>
+						</div>
+						
+						{/* Yellow Close Button at Bottom - Always Visible */}
+						<div className='flex-shrink-0 p-4 md:p-6 pt-0 border-t border-white/10 bg-gradient-to-br from-black via-black to-yellow-900/30'>
+							<motion.button
+								onClick={onClose}
+								className='w-full bg-dorkinians-yellow text-black font-semibold py-3 px-4 rounded-lg hover:bg-yellow-400 transition-colors shadow-lg'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								Close
+							</motion.button>
 						</div>
 					</motion.div>
 				</>

@@ -360,6 +360,8 @@ export default function TeamStats() {
 		playerFilters,
 		currentStatsSubPage,
 		filterData,
+		shouldShowDataTable,
+		setDataTableMode,
 	} = useNavigationStore();
 
 	// Initialize selected team from localStorage, player's most played team, or first available team
@@ -393,6 +395,14 @@ export default function TeamStats() {
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
 
+	// Handle data table mode from navigation store
+	useEffect(() => {
+		if (shouldShowDataTable) {
+			setIsDataTableMode(true);
+			setDataTableMode(false); // Clear the flag after use
+		}
+	}, [shouldShowDataTable, setDataTableMode]);
+
 	// State for seasonal performance chart
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Games");
 	const [seasonalStats, setSeasonalStats] = useState<any[]>([]);
@@ -420,6 +430,7 @@ export default function TeamStats() {
 			points: number;
 		}>;
 		captains: string[];
+		teamKey?: string;
 	} | null>(null);
 	const [isLoadingBestSeasonFinish, setIsLoadingBestSeasonFinish] = useState(false);
 	const [bestSeasonFinishError, setBestSeasonFinishError] = useState<string | null>(null);
@@ -1031,17 +1042,34 @@ export default function TeamStats() {
 		color: '#fff',
 	};
 
-	// Custom tooltip formatter to capitalize "value"
+	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
 			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
 			const displayValue = payload[0].value || 0;
+			// Get perGame from the payload data
+			const dataEntry = goalsData.find((e: any) => e.name === displayLabel);
+			const perGame = dataEntry?.perGame || payload[0].payload?.perGame || "0.00";
+			const gamesPlayed = teamData?.gamesPlayed || 0;
+			const uniqueGoalscorers = uniquePlayerStats?.playersWhoScored || 0;
+			
 			return (
 				<div style={tooltipStyle} className='px-3 py-2'>
 					<p className='text-white text-sm'>{displayLabel}</p>
 					<p className='text-white text-sm'>
 						<span className='font-semibold'>Value</span>: {displayValue}
 					</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Per Game</span>: {perGame}
+					</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Games</span>: {gamesPlayed}
+					</p>
+					{displayLabel === "Goals Scored" && uniqueGoalscorers > 0 && (
+						<p className='text-white text-sm'>
+							<span className='font-semibold'>Unique Goalscorers</span>: {uniqueGoalscorers}
+						</p>
+					)}
 				</div>
 			);
 		}
@@ -1359,7 +1387,7 @@ export default function TeamStats() {
 
 								{/* Seasonal Performance Section */}
 								{allSeasonsSelected && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<div className='flex items-center justify-between mb-2 gap-2'>
 											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 											<div className='flex-1 max-w-[45%]'>
@@ -1460,7 +1488,7 @@ export default function TeamStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -1509,7 +1537,7 @@ export default function TeamStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -1523,25 +1551,45 @@ export default function TeamStats() {
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
 													<LabelList 
+														dataKey="value"
+														position="inside"
 														content={(props: any) => {
-															const { x, y, width, height, payload, value } = props;
-															if (!payload) return null;
-															// Access perGame from the data entry by matching name
-															const dataEntry = goalsData.find((e: any) => e.name === payload.name);
-															const perGame = dataEntry?.perGame || payload.perGame;
-															if (!perGame) return null;
+															const { x, y, width, height, name, index, value } = props;
+															if (value === undefined || value === null || height <= 0) return null;
+															// Access perGame from the data entry using index or name
+															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
+															const perGame = dataEntry?.perGame || "0.00";
+															// Calculate center position accounting for two-line layout
+															const lineHeight = 14;
+															const centerY = y + height / 2;
+															const startY = centerY - lineHeight / 2;
 															return (
-																<text
-																	x={x + width / 2}
-																	y={y + height / 2}
-																	fill="#ffffff"
-																	fontSize={12}
-																	fontWeight="bold"
-																	textAnchor="middle"
-																	dominantBaseline="middle"
-																>
-																	{`${value} (${perGame} per game)`}
-																</text>
+																<g>
+																	<text
+																		x={x + width / 2}
+																		y={startY}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{value}
+																	</text>
+																	<text
+																		x={x + width / 2}
+																		y={startY + lineHeight}
+																		fill="#ffffff"
+																		fontSize={11}
+																		fontWeight="normal"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{perGame} per game
+																	</text>
+																</g>
 															);
 														}}
 													/>
@@ -1554,7 +1602,7 @@ export default function TeamStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -1565,7 +1613,7 @@ export default function TeamStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
@@ -1697,7 +1745,7 @@ export default function TeamStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -1721,7 +1769,7 @@ export default function TeamStats() {
 										</div>
 									</SkeletonTheme>
 								) : uniquePlayerStats && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
@@ -1806,11 +1854,154 @@ export default function TeamStats() {
 										</div>
 									</div>
 								)}
+
+								{/* Best Season Finish Section */}
+								{selectedTeam && (
+									<div id='team-best-season-finish'>
+										{isDateRangeFilter ? (
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
+												<p className='text-white text-sm md:text-base text-center py-4'>
+													Unfilter time frame to see Best Season Finish
+												</p>
+											</div>
+										) : (
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<h3 className='text-white font-semibold text-sm md:text-base mb-4'>
+													{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
+												</h3>
+												{isLoadingBestSeasonFinish ? (
+													<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+														<BestSeasonFinishSkeleton />
+													</SkeletonTheme>
+												) : bestSeasonFinishError ? (
+													<div className='flex items-center justify-center py-8'>
+														<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
+													</div>
+												) : bestSeasonFinishData ? (
+													<>
+														{/* League name and season */}
+														<div className='text-center mb-4'>
+															<div className='text-lg md:text-xl font-bold text-white mb-1'>
+																{bestSeasonFinishData.season}
+															</div>
+															{bestSeasonFinishData.division && bestSeasonFinishData.division.trim() !== '' && (
+																<h4 className='text-lg md:text-xl font-bold text-dorkinians-yellow'>
+																	{bestSeasonFinishData.division}
+																</h4>
+															)}
+														</div>
+
+														{/* Captains */}
+														{bestSeasonFinishData.captains && bestSeasonFinishData.captains.length > 0 && (
+															<div className='mb-4 text-center'>
+																<p className='text-white text-sm md:text-base mb-1'>
+																	<span className='text-gray-300'>Captains: </span>
+																	<span className='font-semibold'>{bestSeasonFinishData.captains.join(", ")}</span>
+																</p>
+															</div>
+														)}
+
+														{/* League Table */}
+														{bestSeasonFinishData.table && bestSeasonFinishData.table.length > 0 ? (
+															<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
+																<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden text-[10px] md:text-xs'>
+																	<thead className='sticky top-0 z-10'>
+																		<tr className='bg-white/20'>
+																			<th className='w-6 px-0.5 py-1.5 text-left text-white font-semibold'></th>
+																			<th className='px-1.5 py-1.5 text-left text-white font-semibold max-w-[120px]'>Team</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>P</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>W</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>D</th>
+																			<th className='w-8 px-0.5 py-1.5 text-center text-white font-semibold'>L</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>F</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>A</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>GD</th>
+																			<th className='w-10 px-0.5 py-1.5 text-center text-white font-semibold'>Pts</th>
+																		</tr>
+																	</thead>
+																	<tbody>
+																		{bestSeasonFinishData.table.map((entry, index) => {
+																			// Match only the specific team being queried, not all Dorkinians teams
+																			const teamKey = bestSeasonFinishData.teamKey || selectedTeam;
+																			const teamNameLower = entry.team.toLowerCase();
+																			
+																			// Check if this is the specific Dorkinians team
+																			let isSpecificTeam = false;
+																			if (teamNameLower.includes("dorkinians")) {
+																				if (teamKey === "1s") {
+																					// 1st XI can be just "Dorkinians" or "Dorkinians 1st"
+																					isSpecificTeam = teamNameLower === "dorkinians" || 
+																						(teamNameLower.startsWith("dorkinians ") && 
+																						!teamNameLower.match(/\b(2nd|3rd|4th|5th|6th|7th|8th|ii|iii|iv|v|vi|vii|viii)\b/));
+																				} else {
+																					// Map team keys to both ordinals and Roman numerals
+																					const matchPatterns: { [key: string]: string[] } = {
+																						"2s": ["2nd", "ii"],
+																						"3s": ["3rd", "iii"],
+																						"4s": ["4th", "iv"],
+																						"5s": ["5th", "v"],
+																						"6s": ["6th", "vi"],
+																						"7s": ["7th", "vii"],
+																						"8s": ["8th", "viii"],
+																					};
+																					const patterns = matchPatterns[teamKey];
+																					if (patterns) {
+																						// Check if entry contains any of the matching patterns
+																						isSpecificTeam = patterns.some(pattern => {
+																							// Use word boundary for Roman numerals and ordinals
+																							const regex = new RegExp(`\\b${pattern}\\b`, 'i');
+																							return regex.test(teamNameLower);
+																						});
+																					}
+																				}
+																			}
+																			
+																			return (
+																				<tr
+																					key={index}
+																					className={`border-b border-white/10 transition-colors ${
+																						isSpecificTeam
+																							? "bg-dorkinians-yellow/20 font-semibold"
+																							: index % 2 === 0
+																								? "bg-gray-800/30"
+																								: ""
+																					} hover:bg-white/5`}
+																				>
+																					<td className='pl-2 pr-0.5 py-1.5 text-white'>{entry.position}</td>
+																					<td className='px-1.5 py-1.5 text-white max-w-[120px] truncate' title={entry.team}>{entry.team}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.played}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.won}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.drawn}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.lost}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalsFor}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalsAgainst}</td>
+																					<td className='px-0.5 py-1.5 text-center text-white'>{entry.goalDifference}</td>
+																					<td className='px-0.5 py-1.5 text-center font-semibold text-dorkinians-yellow'>
+																						{entry.points}
+																					</td>
+																				</tr>
+																			);
+																		})}
+																	</tbody>
+																</table>
+															</div>
+														) : (
+															<div className='text-center text-gray-300 py-4'>
+																No table data available.
+															</div>
+														)}
+													</>
+												) : null}
+											</div>
+										)}
+									</div>
+								)}
 							</div>
 						);
 
 						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 flex flex-col'>
+							<div className='overflow-x-auto mt-4 pb-4 flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -1832,123 +2023,13 @@ export default function TeamStats() {
 							</div>
 						);
 
-						return (
-							<>
-								{!isDataTableMode && chartContent}
-								{isDataTableMode && dataTableContent}
-								<div className='mt-4'></div>
-							</>
-						);
+					return (
+						<>
+							{!isDataTableMode && chartContent}
+							{isDataTableMode && dataTableContent}
+						</>
+					);
 					})()}
-
-					{/* Best Season Finish Section */}
-					{selectedTeam && (
-						<div id='team-best-season-finish' className='mt-4'>
-							{isDateRangeFilter ? (
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>
-									<p className='text-white text-sm md:text-base text-center py-4'>
-										Unfilter time frame to see Best Season Finish
-									</p>
-								</div>
-							) : (
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<h3 className='text-white font-semibold text-sm md:text-base mb-4'>
-										{isSeasonFilter ? "Season Finish" : "Best Season Finish"}
-									</h3>
-									{isLoadingBestSeasonFinish ? (
-										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-											<BestSeasonFinishSkeleton />
-										</SkeletonTheme>
-									) : bestSeasonFinishError ? (
-										<div className='flex items-center justify-center py-8'>
-											<p className='text-white text-sm md:text-base text-center'>{bestSeasonFinishError}</p>
-										</div>
-									) : bestSeasonFinishData ? (
-										<>
-											{/* League name and season */}
-											<div className='text-center mb-4'>
-												<div className='text-lg md:text-xl font-bold text-white mb-1'>
-													{bestSeasonFinishData.season}
-												</div>
-												{bestSeasonFinishData.division && bestSeasonFinishData.division.trim() !== '' && (
-													<h4 className='text-lg md:text-xl font-bold text-dorkinians-yellow'>
-														{bestSeasonFinishData.division}
-													</h4>
-												)}
-											</div>
-
-											{/* Captains */}
-											{bestSeasonFinishData.captains && bestSeasonFinishData.captains.length > 0 && (
-												<div className='mb-4 text-center'>
-													<p className='text-white text-sm md:text-base mb-1'>
-														<span className='text-gray-300'>Captains: </span>
-														<span className='font-semibold'>{bestSeasonFinishData.captains.join(", ")}</span>
-													</p>
-												</div>
-											)}
-
-											{/* League Table */}
-											{bestSeasonFinishData.table && bestSeasonFinishData.table.length > 0 ? (
-												<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-													<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
-														<thead className='sticky top-0 z-10'>
-															<tr className='bg-white/20'>
-																<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-																<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-																<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
-															</tr>
-														</thead>
-														<tbody>
-															{bestSeasonFinishData.table.map((entry, index) => {
-																const isDorkiniansTeam = entry.team.toLowerCase().includes("dorkinians");
-																return (
-																	<tr
-																		key={index}
-																		className={`border-b border-white/10 transition-colors ${
-																			isDorkiniansTeam
-																				? "bg-dorkinians-yellow/20 font-semibold"
-																				: index % 2 === 0
-																					? "bg-gray-800/30"
-																					: ""
-																		} hover:bg-white/5`}
-																	>
-																		<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																		<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																		<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																		<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
-																			{entry.points}
-																		</td>
-																	</tr>
-																);
-															})}
-														</tbody>
-													</table>
-												</div>
-											) : (
-												<div className='text-center text-gray-300 py-4'>
-													No table data available.
-												</div>
-											)}
-										</>
-									) : null}
-								</div>
-							)}
-						</div>
-					)}
 				</div>
 			)}
 		</div>
