@@ -18,17 +18,16 @@ export default function LeagueTableSkeleton() {
 
 			{/* Table */}
 			<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-				<table className='w-full max-w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 					<thead className='sticky top-0 z-10'>
 						<tr className='bg-white/20'>
-							<th className='w-8 px-1.5 py-2 text-left'><Skeleton height={14} width={20} /></th>
-							<th className='px-2 py-2 text-left'><Skeleton height={14} width={60} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
-							<th className='px-2 py-2 text-center'><Skeleton height={14} width={15} /></th>
+							<th className='w-8 px-1.5 py-2 text-left'><Skeleton height={14} width={15} /></th>
+							<th className='px-2 py-2 text-left'><Skeleton height={14} width={50} /></th>
+							<th className='px-2 py-2 text-center'><Skeleton height={14} width={14} /></th>
+							<th className='px-2 py-2 text-center'><Skeleton height={14} width={14} /></th>
+							<th className='px-2 py-2 text-center'><Skeleton height={14} width={14} /></th>
+							<th className='px-2 py-2 text-center'><Skeleton height={14} width={14} /></th>
+							<th className='px-2 py-2 text-center'><Skeleton height={14} width={14} /></th>
 							<th className='px-2 py-2 text-center'><Skeleton height={14} width={20} /></th>
 							<th className='px-2 py-2 text-center'><Skeleton height={14} width={20} /></th>
 						</tr>
@@ -47,16 +46,15 @@ export default function LeagueTableSkeleton() {
 												: ""
 									} hover:bg-white/5`}
 								>
-									<td className='px-1.5 py-2'><Skeleton height={14} width={20} /></td>
+									<td className='px-1.5 py-2'><Skeleton height={14} width={15} /></td>
 									<td className='px-2 py-2'><Skeleton height={14} width={teamNames[i]} /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={25} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={30} className="mx-auto" /></td>
-									<td className='px-2 py-2 text-center'><Skeleton height={14} width={30} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={18} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={18} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={18} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={18} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={18} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={22} className="mx-auto" /></td>
+									<td className='px-2 py-2 text-center'><Skeleton height={14} width={22} className="mx-auto" /></td>
 								</tr>
 							);
 						})}

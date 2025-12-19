@@ -11,7 +11,7 @@ export default function CaptainsTableSkeleton() {
 					</tr>
 				</thead>
 				<tbody>
-					{[...Array(6)].map((_, index) => (
+					{[...Array(8)].map((_, index) => (
 						<tr key={index} className='border-b border-white/10 hover:bg-white/5 transition-colors'>
 							<td className='px-2 md:px-4 py-2 md:py-3'><Skeleton height={14} width="40%" /></td>
 							<td className='px-2 md:px-4 py-2 md:py-3'>
