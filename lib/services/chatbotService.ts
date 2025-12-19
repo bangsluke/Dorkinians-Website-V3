@@ -624,9 +624,9 @@ export class ChatbotService {
 				case "player":
 					return await this.queryPlayerData(entities, metrics, analysis);
 				case "team":
-					return await this.queryTeamData(entities, metrics);
+					return await this.queryTeamData(entities, metrics, analysis);
 				case "club":
-					return await this.queryClubData(entities, metrics);
+					return await this.queryClubData(entities, metrics, analysis);
 				case "fixture":
 					return await this.queryFixtureData(entities, metrics);
 				case "comparison":
@@ -952,31 +952,261 @@ export class ChatbotService {
 		return { type: "general_players", data: result };
 	}
 
-	private async queryTeamData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
-		this.logToBoth(`🔍 queryTeamData called with entities: ${_entities}, metrics: ${_metrics}`, null, "log");
+	private async queryTeamData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
-		const query = `
-      MATCH (t:Team)
-      RETURN t.name as name, t.id as source
-			LIMIT 20
-		`;
+		const question = analysis.question?.toLowerCase() || "";
+		const teamEntities = analysis.teamEntities || [];
+		const extractedMetrics = metrics || [];
+		
+		// Extract team name from entities or question
+		let teamName = "";
+		if (teamEntities.length > 0) {
+			teamName = this.mapTeamName(teamEntities[0]);
+		} else if (entities.length > 0) {
+			// Try to extract from entities (might be team names)
+			teamName = this.mapTeamName(entities[0]);
+		} else {
+			// Try to extract from question text
+			const teamMatch = question.match(/(\d+)(?:st|nd|rd|th)?\s*(?:team|s|xi)/i);
+			if (teamMatch) {
+				const teamNum = teamMatch[1];
+				teamName = this.mapTeamName(`${teamNum}s`);
+			}
+		}
 
-		const params = { graphLabel: neo4jService.getGraphLabel() };
-		const result = await neo4jService.executeQuery(query, params);
-		this.logToBoth(`🔍 Team data query result:`, result, "log");
+		if (!teamName) {
+			this.logToBoth(`⚠️ No team name found in queryTeamData`, null, "warn");
+			return { type: "team_not_found", data: [], message: "Could not identify team from question" };
+		}
 
-		return { type: "team", data: result } as Record<string, unknown>;
+		// Map metric keys to MatchDetail field names
+		const metricToFieldMap: { [key: string]: string } = {
+			"G": "goals",
+			"A": "assists",
+			"R": "redCards",
+			"Y": "yellowCards",
+			"APP": "appearances", // Special case - count
+			"MOM": "mom",
+			"SAVES": "saves",
+			"CLS": "cleanSheets",
+			"OG": "ownGoals",
+			"C": "conceded",
+			"MIN": "minutes",
+			"PSC": "penaltiesScored",
+			"PM": "penaltiesMissed",
+			"PCO": "penaltiesConceded",
+			"PSV": "penaltiesSaved",
+		};
+
+		// Find the primary metric from extracted metrics or question FIRST
+		// This takes priority over goals detection
+		let detectedMetric: string | null = null;
+		let metricField: string | null = null;
+		
+		// Check extracted metrics first (highest priority)
+		if (extractedMetrics.length > 0) {
+			const primaryMetric = extractedMetrics[0].toUpperCase();
+			if (metricToFieldMap[primaryMetric]) {
+				detectedMetric = primaryMetric;
+				metricField = metricToFieldMap[primaryMetric];
+			}
+		}
+		
+		// If no metric found in extracted metrics, check question text for common patterns
+		if (!detectedMetric) {
+			if (question.includes("assist")) {
+				detectedMetric = "A";
+				metricField = "assists";
+			} else if (question.includes("red card") || question.includes("reds")) {
+				detectedMetric = "R";
+				metricField = "redCards";
+			} else if (question.includes("yellow card") || question.includes("booking") || question.includes("yellows")) {
+				detectedMetric = "Y";
+				metricField = "yellowCards";
+			} else if (question.includes("clean sheet")) {
+				detectedMetric = "CLS";
+				metricField = "cleanSheets";
+			} else if (question.includes("save")) {
+				detectedMetric = "SAVES";
+				metricField = "saves";
+			} else if (question.includes("man of the match") || question.includes("mom")) {
+				detectedMetric = "MOM";
+				metricField = "mom";
+			} else if (question.includes("appearance") || question.includes("app") || question.includes("game")) {
+				detectedMetric = "APP";
+				metricField = "appearances";
+			}
+		}
+		
+		// Determine goals-specific flags (only if no other metric detected)
+		const isGoalsConceded = !detectedMetric && question.includes("conceded");
+		const isOpenPlayGoals = question.includes("open play") || 
+		                        question.includes("openplay") ||
+		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
+		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: any = {
+			graphLabel,
+			teamName,
+		};
+
+		// Build query based on what metric is being asked about
+		// Prioritize detected metric over goals
+		let query = "";
+		if (detectedMetric && metricField) {
+			// Query MatchDetail for the detected metric
+			if (metricField === "appearances") {
+				// Appearances is a count, not a sum
+				query = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+					WHERE f.team = $teamName AND md.team = $teamName
+					RETURN 
+						count(md) as value,
+						count(DISTINCT f) as gamesPlayed
+				`;
+			} else {
+				// Other stats are sums
+				query = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
+					WHERE f.team = $teamName AND md.team = $teamName
+					RETURN 
+						coalesce(sum(md.${metricField}), 0) as value,
+						count(DISTINCT f) as gamesPlayed
+				`;
+			}
+		} else {
+			// Default: Query fixtures for team goals
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE f.team = $teamName
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					coalesce(sum(f.conceded), 0) as goalsConceded,
+					count(f) as gamesPlayed
+			`;
+		}
+
+		this.lastExecutedQueries.push(`TEAM_DATA: ${query}`);
+		this.lastExecutedQueries.push(`TEAM_DATA_PARAMS: ${JSON.stringify(params)}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			this.logToBoth(`🔍 Team data query result:`, result, "log");
+
+			if (result && result.length > 0) {
+				const teamStats = result[0];
+				if (detectedMetric && metricField && !isGoalsScored && !isGoalsConceded) {
+					return {
+						type: "team_stats",
+						teamName,
+						value: teamStats.value || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						metric: detectedMetric,
+						metricField: metricField,
+					};
+				} else {
+					return {
+						type: "team_stats",
+						teamName,
+						goalsScored: teamStats.goalsScored || 0,
+						goalsConceded: teamStats.goalsConceded || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						isGoalsScored,
+						isGoalsConceded,
+						isOpenPlayGoals,
+					};
+				}
+			}
+
+			if (detectedMetric && metricField && !isGoalsScored && !isGoalsConceded) {
+				return { type: "team_stats", teamName, value: 0, gamesPlayed: 0, metric: detectedMetric, metricField: metricField };
+			} else {
+				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };
+			}
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryTeamData:`, error, "error");
+			return { type: "error", data: [], error: "Error querying team data" };
+		}
 	}
 
-	private async queryClubData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
-		const query = `
-      MATCH (c:Club)
-      RETURN c.name as name, c.id as source
-      LIMIT 10
-    `;
+	private async queryClubData(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		this.logToBoth(`🔍 queryClubData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
-		const result = await neo4jService.executeQuery(query);
-		return result as unknown as Record<string, unknown>;
+		const question = analysis.question?.toLowerCase() || "";
+		
+		// Determine what metric is being asked about
+		// Check for "conceded" first to avoid false positives
+		const isGoalsConceded = question.includes("conceded");
+		const isGoalsScored = question.includes("scored") || (question.includes("goals") && !isGoalsConceded);
+		const isPlayerCount = question.includes("players") || question.includes("played for");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: any = {
+			graphLabel,
+		};
+
+		try {
+			// Query fixtures for club-wide goals
+			const goalsQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					coalesce(sum(f.conceded), 0) as goalsConceded,
+					count(f) as gamesPlayed
+			`;
+
+			this.lastExecutedQueries.push(`CLUB_GOALS_DATA: ${goalsQuery}`);
+			this.lastExecutedQueries.push(`CLUB_GOALS_PARAMS: ${JSON.stringify(params)}`);
+
+			const goalsResult = await neo4jService.executeQuery(goalsQuery, params);
+			this.logToBoth(`🔍 Club goals query result:`, goalsResult, "log");
+
+			let goalsScored = 0;
+			let goalsConceded = 0;
+			let gamesPlayed = 0;
+
+			if (goalsResult && goalsResult.length > 0) {
+				goalsScored = goalsResult[0].goalsScored || 0;
+				goalsConceded = goalsResult[0].goalsConceded || 0;
+				gamesPlayed = goalsResult[0].gamesPlayed || 0;
+			}
+
+			// Query players count if needed
+			let numberOfPlayers = 0;
+			if (isPlayerCount) {
+				const playersQuery = `
+					MATCH (p:Player {graphLabel: $graphLabel})
+					WHERE p.allowOnSite = true
+					RETURN count(DISTINCT p.playerName) as numberOfPlayers
+				`;
+
+				this.lastExecutedQueries.push(`CLUB_PLAYERS_DATA: ${playersQuery}`);
+				this.lastExecutedQueries.push(`CLUB_PLAYERS_PARAMS: ${JSON.stringify(params)}`);
+
+				const playersResult = await neo4jService.executeQuery(playersQuery, params);
+				this.logToBoth(`🔍 Club players query result:`, playersResult, "log");
+
+				if (playersResult && playersResult.length > 0) {
+					numberOfPlayers = playersResult[0].numberOfPlayers || 0;
+				}
+			}
+
+			return {
+				type: "club_stats",
+				goalsScored,
+				goalsConceded,
+				gamesPlayed,
+				numberOfPlayers,
+				isGoalsScored,
+				isGoalsConceded,
+				isPlayerCount,
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryClubData:`, error, "error");
+			return { type: "error", data: [], error: "Error querying club data" };
+		}
 	}
 
 	private async queryFixtureData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
@@ -2693,6 +2923,142 @@ export class ChatbotService {
 		} else if (data.type === "not_found" || data.type === "no_team") {
 			// Handle league table error cases
 			answer = (data.message as string) || "I couldn't find league table data for your query.";
+		} else if (data && data.type === "team_stats") {
+			// Handle team statistics queries (check early before data.data checks)
+			const teamName = data.teamName as string;
+			const metric = data.metric as string | undefined;
+			
+			// Check if this is a generic metric query (not goals)
+			if (metric && data.value !== undefined) {
+				const value = data.value as number || 0;
+				const metricConfig = findMetricByAlias(metric);
+				const metricName = metricConfig ? getMetricDisplayName(metric, value) : metric;
+				const singular = metricConfig?.singular || metricName;
+				const plural = metricConfig?.plural || metricName;
+				const displayText = value === 1 ? singular : plural;
+				
+				answer = `The ${teamName} have ${value} ${displayText}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: metricName, 
+						value: value,
+						metric: metric,
+						wordedText: metricName
+					}],
+					config: {
+						title: `${teamName} - ${metricName}`,
+						type: "bar",
+					},
+				};
+			} else {
+				// Handle goals queries
+				const goalsScored = data.goalsScored as number || 0;
+				const goalsConceded = data.goalsConceded as number || 0;
+				const isGoalsScored = data.isGoalsScored as boolean;
+				const isGoalsConceded = data.isGoalsConceded as boolean;
+				const isOpenPlayGoals = data.isOpenPlayGoals as boolean;
+
+				// Determine the label based on whether open play was specifically asked for
+				const goalLabel = isOpenPlayGoals ? "Open Play Goals" : "Goals";
+				const goalLabelPlural = isOpenPlayGoals ? "open play goals" : "goals";
+
+				if (isGoalsScored) {
+				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: goalLabel, 
+						value: goalsScored,
+						metric: isOpenPlayGoals ? "OPENPLAYGOALS" : "G",
+						wordedText: goalLabel
+					}],
+					config: {
+						title: `${teamName} - ${goalLabel}`,
+						type: "bar",
+					},
+				};
+			} else if (isGoalsConceded) {
+				answer = `The ${teamName} have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Conceded", value: goalsConceded }],
+					config: {
+						title: `${teamName} - Goals Conceded`,
+						type: "bar",
+					},
+				};
+			} else {
+				// Default: show both
+				const goalLabelScored = isOpenPlayGoals ? "Open Play Goals" : "Goals Scored";
+				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [
+						{ name: goalLabelScored, value: goalsScored },
+						{ name: "Goals Conceded", value: goalsConceded },
+					],
+					config: {
+						title: `${teamName} - Goals Statistics`,
+						type: "bar",
+					},
+				};
+			}
+			}
+		} else if (data && data.type === "club_stats") {
+			// Handle club-wide statistics queries (check early before data.data checks)
+			const goalsScored = data.goalsScored as number || 0;
+			const goalsConceded = data.goalsConceded as number || 0;
+			const numberOfPlayers = data.numberOfPlayers as number || 0;
+			const isGoalsScored = data.isGoalsScored as boolean;
+			const isGoalsConceded = data.isGoalsConceded as boolean;
+			const isPlayerCount = data.isPlayerCount as boolean;
+
+			if (isPlayerCount) {
+				answer = `${numberOfPlayers} ${numberOfPlayers === 1 ? "player has" : "players have"} played for the club.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Total Players", value: numberOfPlayers }],
+					config: {
+						title: "Club Statistics - Total Players",
+						type: "bar",
+					},
+				};
+			} else if (isGoalsScored) {
+				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Scored", value: goalsScored }],
+					config: {
+						title: "Club Statistics - Goals Scored",
+						type: "bar",
+					},
+				};
+			} else if (isGoalsConceded) {
+				answer = `Dorkinians have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [{ name: "Goals Conceded", value: goalsConceded }],
+					config: {
+						title: "Club Statistics - Goals Conceded",
+						type: "bar",
+					},
+				};
+			} else {
+				// Default: show both goals
+				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				visualization = {
+					type: "NumberCard",
+					data: [
+						{ name: "Goals Scored", value: goalsScored },
+						{ name: "Goals Conceded", value: goalsConceded },
+					],
+					config: {
+						title: "Club Statistics - Goals",
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.data && Array.isArray(data.data) && data.data.length === 0) {
 			// Query executed successfully but returned no results
 			const metric = data.metric || "data";

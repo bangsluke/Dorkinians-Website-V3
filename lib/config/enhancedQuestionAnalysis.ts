@@ -400,7 +400,12 @@ export class EnhancedQuestionAnalyzer {
 			return "team";
 		}
 
-		if (lowerQuestion.includes("club") || lowerQuestion.includes("captain") || lowerQuestion.includes("award")) {
+		if (
+			lowerQuestion.includes("club") ||
+			lowerQuestion.includes("dorkinians") ||
+			lowerQuestion.includes("captain") ||
+			lowerQuestion.includes("award")
+		) {
 			return "club";
 		}
 

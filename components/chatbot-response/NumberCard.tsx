@@ -89,7 +89,8 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 		? statObject[metricKey as keyof typeof statObject] 
 		: undefined;
 	const iconName = stat?.iconName;
-	const wordedText = stat?.wordedText || metricDisplayName || "statistic";
+	// Use wordedText from data if provided (for custom labels like "Goals" vs "Open Play Goals")
+	const wordedText = (dataItem as any)?.wordedText || stat?.wordedText || metricDisplayName || "statistic";
 
 	// Build icon path
 	const iconPath = iconName ? `/stat-icons/${iconName}.svg` : null;
