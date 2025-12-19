@@ -999,43 +999,51 @@ export class ChatbotService {
 			"PSV": "penaltiesSaved",
 		};
 
-		// Find the primary metric from extracted metrics or question FIRST
-		// This takes priority over goals detection
+		// Find the primary metric from question text keywords FIRST (most reliable)
+		// Then fall back to extracted metrics if no keywords found
 		let detectedMetric: string | null = null;
 		let metricField: string | null = null;
 		
-		// Check extracted metrics first (highest priority)
-		if (extractedMetrics.length > 0) {
+		// Check question text for explicit metric keywords first (highest priority)
+		// This ensures "red cards" is detected even if extraction incorrectly identifies "G"
+		const questionLower = question.toLowerCase();
+		if (questionLower.includes("red card") || questionLower.includes("reds")) {
+			detectedMetric = "R";
+			metricField = "redCards";
+			this.logToBoth(`✅ Detected metric from question text: R (redCards)`, null, "log");
+		} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+			detectedMetric = "Y";
+			metricField = "yellowCards";
+			this.logToBoth(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
+		} else if (questionLower.includes("assist")) {
+			detectedMetric = "A";
+			metricField = "assists";
+			this.logToBoth(`✅ Detected metric from question text: A (assists)`, null, "log");
+		} else if (questionLower.includes("clean sheet")) {
+			detectedMetric = "CLS";
+			metricField = "cleanSheets";
+			this.logToBoth(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
+		} else if (questionLower.includes("save")) {
+			detectedMetric = "SAVES";
+			metricField = "saves";
+			this.logToBoth(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
+		} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
+			detectedMetric = "MOM";
+			metricField = "mom";
+			this.logToBoth(`✅ Detected metric from question text: MOM (mom)`, null, "log");
+		} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+			detectedMetric = "APP";
+			metricField = "appearances";
+			this.logToBoth(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+		}
+		
+		// If no metric found from question text, check extracted metrics
+		if (!detectedMetric && extractedMetrics.length > 0) {
 			const primaryMetric = extractedMetrics[0].toUpperCase();
 			if (metricToFieldMap[primaryMetric]) {
 				detectedMetric = primaryMetric;
 				metricField = metricToFieldMap[primaryMetric];
-			}
-		}
-		
-		// If no metric found in extracted metrics, check question text for common patterns
-		if (!detectedMetric) {
-			if (question.includes("assist")) {
-				detectedMetric = "A";
-				metricField = "assists";
-			} else if (question.includes("red card") || question.includes("reds")) {
-				detectedMetric = "R";
-				metricField = "redCards";
-			} else if (question.includes("yellow card") || question.includes("booking") || question.includes("yellows")) {
-				detectedMetric = "Y";
-				metricField = "yellowCards";
-			} else if (question.includes("clean sheet")) {
-				detectedMetric = "CLS";
-				metricField = "cleanSheets";
-			} else if (question.includes("save")) {
-				detectedMetric = "SAVES";
-				metricField = "saves";
-			} else if (question.includes("man of the match") || question.includes("mom")) {
-				detectedMetric = "MOM";
-				metricField = "mom";
-			} else if (question.includes("appearance") || question.includes("app") || question.includes("game")) {
-				detectedMetric = "APP";
-				metricField = "appearances";
+				this.logToBoth(`✅ Detected metric from extracted metrics: ${detectedMetric} (${metricField})`, null, "log");
 			}
 		}
 		
@@ -1046,11 +1054,107 @@ export class ChatbotService {
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
 		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
 
+		// Extract season and date range filters
+		const timeRange = analysis.timeRange;
+		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		
+		// Extract season from timeFrames or question
+		let season: string | null = null;
+		const seasonFrame = timeFrames.find(tf => tf.type === "season");
+		if (seasonFrame) {
+			season = seasonFrame.value;
+			// Normalize season format (2016-17 -> 2016/17)
+			season = season.replace("-", "/");
+		} else {
+			// Try to extract from question directly
+			const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+			if (seasonMatch) {
+				season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+			}
+		}
+		
+		// Extract date range from timeRange or question
+		let startDate: string | null = null;
+		let endDate: string | null = null;
+		
+		// First, try to extract from timeRange
+		if (timeRange && timeRange.includes(" to ")) {
+			const dateRange = timeRange.split(" to ");
+			if (dateRange.length === 2) {
+				startDate = this.convertDateFormat(dateRange[0].trim());
+				endDate = this.convertDateFormat(dateRange[1].trim());
+			}
+		}
+		
+		// If no date range found, check question for "between X and Y" patterns
+		if (!startDate || !endDate) {
+			// Check for full date format: "between DD/MM/YYYY and DD/MM/YYYY"
+			const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+			if (betweenDateMatch) {
+				startDate = this.convertDateFormat(betweenDateMatch[1]);
+				endDate = this.convertDateFormat(betweenDateMatch[2]);
+			} else {
+				// Check for year-only format: "between YYYY and YYYY"
+				const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+				if (betweenYearMatch) {
+					const startYear = parseInt(betweenYearMatch[1], 10);
+					const endYear = parseInt(betweenYearMatch[2], 10);
+					// Convert to full date range: 01/01/YYYY to 31/12/YYYY
+					startDate = `${startYear}-01-01`;
+					endDate = `${endYear}-12-31`;
+					this.logToBoth(`✅ Extracted year range: ${startYear} to ${endYear} -> ${startDate} to ${endDate}`, null, "log");
+				}
+			}
+		}
+		
+		// Also check timeFrames for range type
+		if (!startDate || !endDate) {
+			const rangeFrame = timeFrames.find(tf => tf.type === "range");
+			if (rangeFrame && rangeFrame.value.includes(" to ")) {
+				const dateRange = rangeFrame.value.split(" to ");
+				if (dateRange.length === 2) {
+					// Check if it's year-only format
+					const startYearMatch = dateRange[0].trim().match(/^(\d{4})$/);
+					const endYearMatch = dateRange[1].trim().match(/^(\d{4})$/);
+					if (startYearMatch && endYearMatch) {
+						const startYear = parseInt(startYearMatch[1], 10);
+						const endYear = parseInt(endYearMatch[1], 10);
+						startDate = `${startYear}-01-01`;
+						endDate = `${endYear}-12-31`;
+						this.logToBoth(`✅ Extracted year range from timeFrames: ${startYear} to ${endYear} -> ${startDate} to ${endDate}`, null, "log");
+					} else {
+						// Try to convert as full dates
+						startDate = this.convertDateFormat(dateRange[0].trim());
+						endDate = this.convertDateFormat(dateRange[1].trim());
+					}
+				}
+			}
+		}
+
 		const graphLabel = neo4jService.getGraphLabel();
 		const params: any = {
 			graphLabel,
 			teamName,
 		};
+		
+		// Build WHERE conditions for filters
+		const whereConditions: string[] = [`f.team = $teamName`];
+		
+		// Add season filter
+		if (season) {
+			params.season = season;
+			// Also try normalized version (hyphen format)
+			const normalizedSeason = season.replace("/", "-");
+			params.normalizedSeason = normalizedSeason;
+			whereConditions.push(`(f.season = $season OR f.season = $normalizedSeason)`);
+		}
+		
+		// Add date range filter
+		if (startDate && endDate) {
+			params.startDate = startDate;
+			params.endDate = endDate;
+			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
+		}
 
 		// Build query based on what metric is being asked about
 		// Prioritize detected metric over goals
@@ -1061,7 +1165,7 @@ export class ChatbotService {
 				// Appearances is a count, not a sum
 				query = `
 					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
-					WHERE f.team = $teamName AND md.team = $teamName
+					WHERE ${whereConditions.join(" AND ")} AND md.team = $teamName
 					RETURN 
 						count(md) as value,
 						count(DISTINCT f) as gamesPlayed
@@ -1070,7 +1174,7 @@ export class ChatbotService {
 				// Other stats are sums
 				query = `
 					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
-					WHERE f.team = $teamName AND md.team = $teamName
+					WHERE ${whereConditions.join(" AND ")} AND md.team = $teamName
 					RETURN 
 						coalesce(sum(md.${metricField}), 0) as value,
 						count(DISTINCT f) as gamesPlayed
@@ -1080,7 +1184,7 @@ export class ChatbotService {
 			// Default: Query fixtures for team goals
 			query = `
 				MATCH (f:Fixture {graphLabel: $graphLabel})
-				WHERE f.team = $teamName
+				WHERE ${whereConditions.join(" AND ")}
 				RETURN 
 					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
 					coalesce(sum(f.conceded), 0) as goalsConceded,
@@ -1097,7 +1201,7 @@ export class ChatbotService {
 
 			if (result && result.length > 0) {
 				const teamStats = result[0];
-				if (detectedMetric && metricField && !isGoalsScored && !isGoalsConceded) {
+				if (detectedMetric && metricField) {
 					return {
 						type: "team_stats",
 						teamName,
@@ -1105,6 +1209,9 @@ export class ChatbotService {
 						gamesPlayed: teamStats.gamesPlayed || 0,
 						metric: detectedMetric,
 						metricField: metricField,
+						season: season || undefined,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
 					};
 				} else {
 					return {
@@ -1120,8 +1227,18 @@ export class ChatbotService {
 				}
 			}
 
-			if (detectedMetric && metricField && !isGoalsScored && !isGoalsConceded) {
-				return { type: "team_stats", teamName, value: 0, gamesPlayed: 0, metric: detectedMetric, metricField: metricField };
+			if (detectedMetric && metricField) {
+				return { 
+					type: "team_stats", 
+					teamName, 
+					value: 0, 
+					gamesPlayed: 0, 
+					metric: detectedMetric, 
+					metricField: metricField,
+					season: season || undefined,
+					startDate: startDate || undefined,
+					endDate: endDate || undefined,
+				};
 			} else {
 				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };
 			}
@@ -2937,7 +3054,27 @@ export class ChatbotService {
 				const plural = metricConfig?.plural || metricName;
 				const displayText = value === 1 ? singular : plural;
 				
-				answer = `The ${teamName} have ${value} ${displayText}.`;
+				// Add season/date context if available
+				const season = data.season as string | undefined;
+				const startDate = data.startDate as string | undefined;
+				const endDate = data.endDate as string | undefined;
+				let contextText = "";
+				
+				if (season) {
+					contextText = ` in ${season}`;
+				} else if (startDate && endDate) {
+					// Format dates for display (YYYY-MM-DD -> DD/MM/YYYY)
+					const formatDateForDisplay = (dateStr: string) => {
+						const parts = dateStr.split("-");
+						if (parts.length === 3) {
+							return `${parts[2]}/${parts[1]}/${parts[0]}`;
+						}
+						return dateStr;
+					};
+					contextText = ` between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`;
+				}
+				
+				answer = `The ${teamName} have ${value} ${displayText}${contextText}.`;
 				visualization = {
 					type: "NumberCard",
 					data: [{ 
@@ -2947,7 +3084,7 @@ export class ChatbotService {
 						wordedText: metricName
 					}],
 					config: {
-						title: `${teamName} - ${metricName}`,
+						title: `${teamName} - ${metricName}${contextText}`,
 						type: "bar",
 					},
 				};
