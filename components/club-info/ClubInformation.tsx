@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
-import { SkeletonTheme } from "react-loading-skeleton";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface MilestoneEntry {
 	playerName: string;
@@ -95,7 +96,7 @@ export default function ClubInformation() {
 
 			{/* Info Section */}
 			<div className='mb-8'>
-				<p className='text-sm md:text-base text-white mb-4'>Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level.</p>
+				<p className='text-sm md:text-base text-white mb-4 text-center'>Formed in 1930, Dorkinian F.C. is the greatest football club in the world, dominating Surrey football from youth to senior level.</p>
 				<div className='text-center'>
 					<a 
 						href='https://www.google.com/maps?saddr=My+Location&daddr=Pixham+Lane+Sports+Ground,+72+B2038,+Dorking+RH4+1PQ'
@@ -114,40 +115,48 @@ export default function ClubInformation() {
 				
 				{/* Filter Dropdown */}
 				<div className='mb-4'>
-					<Listbox value={selectedFilter} onChange={setSelectedFilter}>
-						<div className='relative w-full max-w-xs'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
-								<span className='block truncate text-white'>
-									{selectedFilter}
-								</span>
-								<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-									<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
-								</span>
-							</Listbox.Button>
-							<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-								{["Show all", "Apps", "MoMs", "Goals", "Assists"].map((option) => (
-									<Listbox.Option
-										key={option}
-										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-										}
-										value={option}>
-										{({ selected }) => (
-											<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-												{option}
-											</span>
-										)}
-									</Listbox.Option>
-								))}
-							</Listbox.Options>
+					{loading ? (
+						<div className='w-[60%] md:w-full md:max-w-xs mx-auto'>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<Skeleton height={40} className='rounded-md' />
+							</SkeletonTheme>
 						</div>
-					</Listbox>
+					) : (
+						<Listbox value={selectedFilter} onChange={setSelectedFilter}>
+							<div className='relative w-[60%] md:w-full md:max-w-xs mx-auto'>
+								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+									<span className='block truncate text-white'>
+										{selectedFilter}
+									</span>
+									<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+										<ChevronUpDownIcon className='h-5 w-5 text-yellow-300' aria-hidden='true' />
+									</span>
+								</Listbox.Button>
+								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+									{["Show all", "Apps", "MoMs", "Goals", "Assists"].map((option) => (
+										<Listbox.Option
+											key={option}
+											className={({ active }) =>
+												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											}
+											value={option}>
+											{({ selected }) => (
+												<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+													{option}
+												</span>
+											)}
+										</Listbox.Option>
+									))}
+								</Listbox.Options>
+							</div>
+						</Listbox>
+					)}
 				</div>
 
 				{/* Milestones Achieved Section */}
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Milestones Achieved</h4>
-				{loading ? (
+				{(loading || appConfig.forceSkeletonView) ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<MilestonesTableSkeleton />
 					</SkeletonTheme>
@@ -189,7 +198,7 @@ export default function ClubInformation() {
 				{/* Nearing Milestones Section */}
 				<div className='mb-8'>
 					<h4 className='text-base md:text-lg font-bold text-white mb-4'>Nearing Milestones</h4>
-				{loading ? (
+				{(loading || appConfig.forceSkeletonView) ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<MilestonesTableSkeleton />
 					</SkeletonTheme>

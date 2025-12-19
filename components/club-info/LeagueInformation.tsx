@@ -13,6 +13,7 @@ import { SkeletonTheme } from "react-loading-skeleton";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
+import { appConfig } from "@/config/config";
 
 interface LeagueTableEntry {
 	position: number;
@@ -586,12 +587,18 @@ export default function LeagueInformation() {
 
 		{/* Season Selector */}
 			<div className='mb-6'>
-				{seasons.length > 0 && (
+				{(loading || seasons.length === 0) ? (
+					<div className='w-[60%] md:w-full mx-auto'>
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<Skeleton height={48} className='rounded-md' />
+						</SkeletonTheme>
+					</div>
+				) : (
 					<Listbox
 						value={selectedSeason || ""}
 						onChange={handleSeasonChange}
 						disabled={loading || seasons.length === 0}>
-						<div className='relative'>
+						<div className='relative w-[60%] md:w-full mx-auto'>
 							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 									{selectedSeason === "my-seasons" 
@@ -669,21 +676,21 @@ export default function LeagueInformation() {
 			)}
 
 			{/* Loading State */}
-			{loading && (
+			{(loading || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<LeagueTableSkeleton />
 				</SkeletonTheme>
 			)}
 
 			{/* Covid-19 Message for 2019/20 Season */}
-			{!loading && !error && selectedSeason === "2019-20" && !isMySeasonsMode && (
+			{!loading && !appConfig.forceSkeletonView && !error && selectedSeason === "2019-20" && !isMySeasonsMode && (
 				<div className='text-center text-gray-300 py-8'>
 					League seasons were abandoned due to Covid-19 during this season
 				</div>
 			)}
 
 			{/* My Seasons Display */}
-			{isMySeasonsMode && !loadingMySeasons && !error && playerSeasonsData && playerSeasonsData.length > 0 && (
+			{isMySeasonsMode && !loadingMySeasons && !appConfig.forceSkeletonView && !error && playerSeasonsData && playerSeasonsData.length > 0 && (
 				<div className='space-y-8'>
 					{playerSeasonsData.map(({ season, team }, seasonIndex) => {
 						// Skip 2019-20 season
@@ -884,14 +891,14 @@ export default function LeagueInformation() {
 			)}
 
 			{/* Loading state for My Seasons */}
-			{isMySeasonsMode && loadingMySeasons && (
+			{isMySeasonsMode && (loadingMySeasons || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<LeagueTableSkeleton />
 				</SkeletonTheme>
 			)}
 
 			{/* Loading state for Season Progress */}
-			{isSeasonProgressMode && loadingSeasonProgress && (
+			{isSeasonProgressMode && (loadingSeasonProgress || appConfig.forceSkeletonView) && (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 						<Skeleton height={20} width="40%" className="mb-2" />
@@ -901,7 +908,7 @@ export default function LeagueInformation() {
 			)}
 
 			{/* Season Progress Chart */}
-			{isSeasonProgressMode && !loadingSeasonProgress && !error && seasonProgressData.size > 0 && (() => {
+			{isSeasonProgressMode && !loadingSeasonProgress && !appConfig.forceSkeletonView && !error && seasonProgressData.size > 0 && (() => {
 				const chartData = transformDataForChart();
 				const teamKeys = ["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"];
 				const teamColors = [
@@ -1430,14 +1437,14 @@ export default function LeagueInformation() {
 			})()}
 
 			{/* No data message for Season Progress */}
-			{isSeasonProgressMode && !loadingSeasonProgress && !error && seasonProgressData.size === 0 && (
+			{isSeasonProgressMode && !loadingSeasonProgress && !appConfig.forceSkeletonView && !error && seasonProgressData.size === 0 && (
 				<div className='text-center text-gray-300 py-8'>
 					No season progress data available
 				</div>
 			)}
 
 			{/* League Tables (Normal Mode) */}
-			{!isMySeasonsMode && !isSeasonProgressMode && !loading && !error && leagueData && selectedSeason !== "2019-20" && (
+			{!isMySeasonsMode && !isSeasonProgressMode && !loading && !appConfig.forceSkeletonView && !error && leagueData && selectedSeason !== "2019-20" && (
 				<div className='space-y-8'>
 				{/* Display tables for each team */}
 				{(() => {
@@ -1611,7 +1618,7 @@ export default function LeagueInformation() {
 			)}
 
 			{/* Back to Top Button - Only show when content is loaded, but not in Season Progress mode */}
-			{!loading && !loadingMySeasons && !loadingSeasonProgress && !error && !isSeasonProgressMode && (leagueData || selectedSeason === "2019-20" || (isMySeasonsMode && playerSeasonsData && playerSeasonsData.length > 0)) && (
+			{!loading && !loadingMySeasons && !loadingSeasonProgress && !appConfig.forceSkeletonView && !error && !isSeasonProgressMode && (leagueData || selectedSeason === "2019-20" || (isMySeasonsMode && playerSeasonsData && playerSeasonsData.length > 0)) && (
 				<div className='mt-8 flex justify-center'>
 					<button
 						onClick={scrollToTop}

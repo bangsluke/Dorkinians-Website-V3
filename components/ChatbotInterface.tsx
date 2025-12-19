@@ -303,13 +303,66 @@ export default function ChatbotInterface() {
 			if (scrollableContainer) break;
 		}
 		
+		// iOS detection
+		const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+		
 		// Scroll the container if found
 		if (scrollableContainer) {
-			scrollableContainer.scrollTo({ top: 0, behavior: 'smooth' });
+			if (isIOS) {
+				// Manual smooth scroll for iOS
+				const start = scrollableContainer.scrollTop;
+				const distance = -start;
+				const duration = 300;
+				let startTime: number | null = null;
+				
+				const animateScroll = (currentTime: number) => {
+					if (startTime === null) startTime = currentTime;
+					const timeElapsed = currentTime - startTime;
+					const progress = Math.min(timeElapsed / duration, 1);
+					const ease = progress < 0.5 
+						? 2 * progress * progress 
+						: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+					
+					scrollableContainer!.scrollTop = start + distance * ease;
+					
+					if (timeElapsed < duration) {
+						requestAnimationFrame(animateScroll);
+					}
+				};
+				requestAnimationFrame(animateScroll);
+			} else {
+				scrollableContainer.scrollTo({ top: 0, behavior: 'smooth' });
+			}
 		}
-		// Also scroll window and document element as fallbacks
-		window.scrollTo({ top: 0, behavior: 'smooth' });
-		document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+		
+		// Also handle window/document scroll as fallback
+		if (isIOS) {
+			// Manual scroll for window
+			const start = window.pageYOffset || document.documentElement.scrollTop;
+			const distance = -start;
+			const duration = 300;
+			let startTime: number | null = null;
+			
+			const animateScroll = (currentTime: number) => {
+				if (startTime === null) startTime = currentTime;
+				const timeElapsed = currentTime - startTime;
+				const progress = Math.min(timeElapsed / duration, 1);
+				const ease = progress < 0.5 
+					? 2 * progress * progress 
+					: 1 - Math.pow(-2 * progress + 2, 2) / 2;
+				
+				window.scrollTo(0, start + distance * ease);
+				
+				if (timeElapsed < duration) {
+					requestAnimationFrame(animateScroll);
+				}
+			};
+			requestAnimationFrame(animateScroll);
+		} else {
+			window.scrollTo({ top: 0, behavior: 'smooth' });
+			document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+		}
 	};
 
 	// Handle the chatbot question submission

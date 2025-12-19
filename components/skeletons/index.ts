@@ -11,7 +11,6 @@ export { default as BestSeasonFinishSkeleton } from "./BestSeasonFinishSkeleton"
 export { default as RadarChartSkeleton } from "./RadarChartSkeleton";
 export { default as SankeyChartSkeleton } from "./SankeyChartSkeleton";
 export { default as GameDetailsTableSkeleton } from "./GameDetailsTableSkeleton";
-export { default as TOTWSummarySkeleton } from "./TOTWSummarySkeleton";
 export { default as TOTWPitchSkeleton } from "./TOTWPitchSkeleton";
 export { default as TOTWPlayerDetailsSkeleton } from "./TOTWPlayerDetailsSkeleton";
 export { default as PlayersTableSkeleton } from "./PlayersTableSkeleton";

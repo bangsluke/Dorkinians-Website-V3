@@ -2,10 +2,10 @@ import Skeleton from "react-loading-skeleton";
 
 export default function TopPlayersTableSkeleton() {
 	return (
-		<>
-			<div className='flex items-center justify-between mb-2 gap-2'>
-				<Skeleton height={20} width="40%" />
-				<Skeleton height={36} width="45%" className="rounded-md" />
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div className='w-full mb-2'>
+				<Skeleton height={20} width="40%" className="mb-2" />
+				<Skeleton height={30} width="90%" className="rounded-md mb-2 ml-4" />
 			</div>
 			<div className='overflow-x-auto'>
 				<table className='w-full text-white'>
@@ -48,6 +48,6 @@ export default function TopPlayersTableSkeleton() {
 					</tbody>
 				</table>
 			</div>
-		</>
+		</div>
 	);
 }

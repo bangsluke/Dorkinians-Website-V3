@@ -4,6 +4,7 @@ export const appConfig = {
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
 	contact: "bangsluke@gmail.com",
+	forceSkeletonView: false,
 } as const;
 
 export type AppConfig = typeof appConfig;
