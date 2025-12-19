@@ -2,16 +2,31 @@ import Skeleton from "react-loading-skeleton";
 
 interface ChartSkeletonProps {
 	showDropdown?: boolean;
+	noContainer?: boolean;
+	showTrend?: boolean;
 }
 
-export default function ChartSkeleton({ showDropdown = true }: ChartSkeletonProps) {
-	return (
-		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-			{showDropdown && (
-				<div className='flex items-center justify-between mb-2 gap-2'>
-					<Skeleton height={20} width="40%" className="flex-shrink-0" />
-					<Skeleton height={36} width="45%" className="rounded-md flex-1 max-w-[45%]" />
+export default function ChartSkeleton({ showDropdown = true, showTrend = true, noContainer = false }: ChartSkeletonProps) {
+	const content = (
+		<>
+			{/* Section Title and Dropdown Title */}
+			<div className='flex items-center justify-between w-full mb-2 gap-2'>
+				{/* Section Title */}
+				<div className='flex-1 max-w-[50%]'>
+					<Skeleton height={20} width="80%" />
 				</div>
+				{/* Dropdown Title */}
+				{showDropdown && (
+					<div className='flex-1 max-w-[45%]'>
+						<Skeleton height={36} width="100%" className="rounded-md" />
+					</div>
+				)}
+			</div>
+			
+			{showTrend && (
+			<div className='mx-auto mb-2 text-center'>
+				<Skeleton height={16} width="35%" />
+			</div>
 			)}
 			<div className='relative' style={{ height: '240px' }}>
 				{/* Y-axis */}
@@ -47,6 +62,16 @@ export default function ChartSkeleton({ showDropdown = true }: ChartSkeletonProp
 					</div>
 				</div>
 			</div>
+		</>
+	);
+
+	if (noContainer) {
+		return content;
+	}
+
+	return (
+		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			{content}
 		</div>
 	);
 }

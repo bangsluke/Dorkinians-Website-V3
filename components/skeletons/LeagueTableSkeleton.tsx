@@ -18,7 +18,7 @@ export default function LeagueTableSkeleton() {
 
 			{/* Table */}
 			<div className='overflow-x-auto -mx-3 md:-mx-6 px-3 md:px-6'>
-				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
+				<table className='w-full max-w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 					<thead className='sticky top-0 z-10'>
 						<tr className='bg-white/20'>
 							<th className='w-8 px-1.5 py-2 text-left'><Skeleton height={14} width={20} /></th>

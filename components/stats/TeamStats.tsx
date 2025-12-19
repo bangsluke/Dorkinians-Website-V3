@@ -1113,7 +1113,7 @@ export default function TeamStats() {
 						<StatCardSkeleton />
 						<RecentGamesSkeleton />
 						<TopPlayersTableSkeleton />
-						<ChartSkeleton />
+						<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
 					</div>
 				</SkeletonTheme>
 			) : !teamData ? (
@@ -1406,7 +1406,7 @@ export default function TeamStats() {
 										</div>
 										{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
 											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<ChartSkeleton />
+												<ChartSkeleton showDropdown={true} noContainer={true} />
 											</SkeletonTheme>
 										) : seasonalChartData.length > 0 ? (
 											<div className='chart-container' style={{ touchAction: 'pan-y' }}>

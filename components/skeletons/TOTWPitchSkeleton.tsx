@@ -3,8 +3,8 @@ import Image from "next/image";
 
 export default function TOTWPitchSkeleton() {
 	// Using 4-4-2 formation coordinates from formationCoordinateObject
-	// Positions match actual formation: GK at (40, 1), DEF at (5,25,55,75, 24), MID at (5,25,55,75, 47), FWD at (20,60, 71)
-	const playerPositions = [
+	// Apply same centering offsets as real component: x + 10, y * 0.97 + 15
+	const basePositions = [
 		{ x: 40, y: 1, isGoalkeeper: true }, // GK - Pos1
 		{ x: 5, y: 24 }, // DEF 1 - Pos2
 		{ x: 25, y: 24 }, // DEF 2 - Pos3
@@ -17,6 +17,13 @@ export default function TOTWPitchSkeleton() {
 		{ x: 20, y: 71 }, // FWD 1 - Pos10
 		{ x: 60, y: 71 }, // FWD 2 - Pos11
 	];
+	
+	// Apply centering offsets to match real component
+	const playerPositions = basePositions.map(pos => ({
+		...pos,
+		x: pos.x + 10,
+		y: 1 + (pos.y - 1) * 0.97 + 15,
+	}));
 
 	return (
 		<div className='w-full'>
