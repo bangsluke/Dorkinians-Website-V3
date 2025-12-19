@@ -30,22 +30,26 @@ export default function TOTWPitchSkeleton() {
 			{/* Dropdown Filters */}
 			<div className='flex flex-row gap-4 mb-6'>
 				<div className='w-1/3 md:w-1/2'>
-					<Skeleton height={40} width="100%" />
+					<Skeleton height={32} width="100%" />
 				</div>
 				<div className='flex-1 md:w-1/2'>
-					<Skeleton height={40} width="100%" />
+					<Skeleton height={32} width="100%" />
 				</div>
 			</div>
 
-			{/* Summary Section - Two Squares */}
+			{/* Summary Section - Detailed Skeletons */}
 			<div className='flex flex-row flex-nowrap gap-8 md:gap-20 mb-6 justify-center'>
-				{/* Square 1: TOTW TOTAL POINTS section */}
+				{/* TOTW TOTAL POINTS section */}
 				<div className='text-center flex flex-col md:w-auto'>
-					<Skeleton height={140} width={160} />
+					<Skeleton height={20} width={140} className="mb-2 mx-auto" />
+					<Skeleton height={96} width={120} className="mx-auto" />
+					<Skeleton height={16} width={160} className="mt-2 mx-auto" />
 				</div>
-				{/* Square 2: STAR MAN section */}
+				{/* STAR MAN section */}
 				<div className='flex flex-col items-center flex-shrink-0'>
-					<Skeleton height={140} width={100} />
+					<Skeleton height={20} width={80} className="mb-2" />
+					<Skeleton circle height={56} width={56} className="mb-2" />
+					<Skeleton height={50} width={80} className="mb-1" />
 				</div>
 			</div>
 
@@ -75,10 +79,10 @@ export default function TOTWPitchSkeleton() {
 						}}
 					>
 					<div className='relative flex flex-col items-center'>
-						{/* Kit Circle - matches w-14 h-14 (56px) with mb-1 spacing */}
-						<Skeleton circle height={56} width={56} className="mb-1" />
+						{/* Kit Circle - matches w-14 h-14 (56px) with reduced spacing */}
+						<Skeleton circle height={56} width={56} className="mb-0.2" />
 						{/* Name Box Rectangle - matches actual dimensions (60px width, 50px height) */}
-						<Skeleton height={50} width={60} />
+						<Skeleton height={40} width={60} />
 					</div>
 					</div>
 				))}

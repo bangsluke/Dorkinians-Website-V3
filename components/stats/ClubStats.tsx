@@ -332,7 +332,7 @@ function toNumber(val: any): number {
 	return isNaN(num) ? 0 : num;
 }
 
-export default function ClubTeamStats() {
+export default function ClubStats() {
 	const {
 		selectedPlayer,
 		cachedPlayerData,
@@ -394,16 +394,8 @@ export default function ClubTeamStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
-	// Determine page heading based on team filter
-	const pageHeading = useMemo(() => {
-		if (!playerFilters || !playerFilters.teams || playerFilters.teams.length === 0) {
-			return "Club Stats";
-		} else if (playerFilters.teams.length === 1) {
-			return "Team Stats";
-		} else {
-			return "Club Stats";
-		}
-	}, [playerFilters?.teams]);
+	// Hard-coded page heading
+	const pageHeading = "Club Stats";
 
 	// Get stats to display for current page
 	const statsToDisplay = useMemo(() => {
@@ -482,7 +474,7 @@ export default function ClubTeamStats() {
 		
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
-			console.log(`[ClubTeamStats] Fetching top players for statType: ${selectedStatType}`, {
+				console.log(`[ClubStats] Fetching top players for statType: ${selectedStatType}`, {
 				filters: playerFilters,
 				filtersKey,
 			});
@@ -501,15 +493,15 @@ export default function ClubTeamStats() {
 
 				if (response.ok) {
 					const data = await response.json();
-					console.log(`[ClubTeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					console.log(`[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
 					setTopPlayers(data.players || []);
 				} else {
 					const errorText = await response.text();
-					console.error(`[ClubTeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					console.error(`[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
 					setTopPlayers([]);
 				}
 			} catch (error) {
-				console.error("[ClubTeamStats] Error fetching top players:", error);
+				console.error("[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
 			} finally {
 				setIsLoadingTopPlayers(false);
@@ -2571,7 +2563,7 @@ export default function ClubTeamStats() {
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
-											Unique players for the {pageHeading === "Team Stats" ? (playerFilters?.teams?.[0] || "2s") : "Club"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
+											Unique players for the Club: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
 										</p>
 										<div className='overflow-x-auto'>
 											<table className='w-full text-white text-sm'>
