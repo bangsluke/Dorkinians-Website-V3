@@ -1251,12 +1251,15 @@ export default function ClubStats() {
 	const radarChartData = useMemo(() => {
 		if (!teamComparisonData || teamComparisonData.length === 0) return [];
 
-		// Filter to only visible teams
-		const visibleTeamData = teamComparisonData.filter(({ team }: any) => visibleTeams.has(team));
-		if (visibleTeamData.length === 0) return [];
-
 		// Get all stat categories
 		const categories = ["Games", "Goals Scored", "Goals Conceded", "Distance (Miles)", "Wins", "Points per Game", "Clean Sheets", "Competitions", "Fantasy Points"];
+
+		// Filter to only visible teams
+		const visibleTeamData = teamComparisonData.filter(({ team }: any) => visibleTeams.has(team));
+		// If no teams are visible, return empty data structure with categories so chart can still render
+		if (visibleTeamData.length === 0) {
+			return categories.map((category) => ({ category }));
+		}
 
 		// Find max values per category (only for visible teams)
 		const maxValues: { [key: string]: number } = {};
@@ -1559,7 +1562,7 @@ export default function ClubStats() {
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<RadarChartSkeleton />
 						</SkeletonTheme>
-					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && radarChartData.length > 0 && (
+					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
 						<div id='club-team-comparison' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
@@ -2336,7 +2339,7 @@ export default function ClubStats() {
 												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 													<div className='flex-shrink-0'>
 														<Image
-															src='/stat-icons/Distance-Icon.svg'
+															src='/stat-icons/DistanceTravelled-Icon.svg'
 															alt='Total Distance'
 															width={40}
 															height={40}
@@ -2359,7 +2362,7 @@ export default function ClubStats() {
 												<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 													<div className='flex-shrink-0'>
 														<Image
-															src='/stat-icons/YellowCard-Icon.svg'
+															src='/stat-icons/RedCard-Icon.svg'
 															alt='Total Cards Cost'
 															width={40}
 															height={40}
@@ -2460,7 +2463,7 @@ export default function ClubStats() {
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
 									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 												<div className='flex-shrink-0'>
