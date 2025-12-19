@@ -25,6 +25,7 @@ export interface ChatbotResponse {
 	};
 	sources: string[];
 	cypherQuery?: string;
+	answerValue?: number | string | null;
 	debug?: {
 		question?: string;
 		userContext?: string;
@@ -3017,6 +3018,7 @@ export class ChatbotService {
 
 		let answer = "I couldn't find relevant information for your question.";
 		let visualization: ChatbotResponse['visualization'] = undefined;
+		let answerValue: number | string | null = null;
 		const sources = this.extractSources(data, analysis);
 
 		// Enhanced error handling with specific error messages
@@ -3048,6 +3050,7 @@ export class ChatbotService {
 			// Check if this is a generic metric query (not goals)
 			if (metric && data.value !== undefined) {
 				const value = data.value as number || 0;
+				answerValue = value;
 				const metricConfig = findMetricByAlias(metric);
 				const metricName = metricConfig ? getMetricDisplayName(metric, value) : metric;
 				const singular = metricConfig?.singular || metricName;
@@ -3101,6 +3104,7 @@ export class ChatbotService {
 				const goalLabelPlural = isOpenPlayGoals ? "open play goals" : "goals";
 
 				if (isGoalsScored) {
+				answerValue = goalsScored;
 				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural}.`;
 				visualization = {
 					type: "NumberCard",
@@ -3116,6 +3120,7 @@ export class ChatbotService {
 					},
 				};
 			} else if (isGoalsConceded) {
+				answerValue = goalsConceded;
 				answer = `The ${teamName} have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
 				visualization = {
 					type: "NumberCard",
@@ -3126,7 +3131,8 @@ export class ChatbotService {
 					},
 				};
 			} else {
-				// Default: show both
+				// Default: show both - use goalsScored as primary value
+				answerValue = goalsScored;
 				const goalLabelScored = isOpenPlayGoals ? "Open Play Goals" : "Goals Scored";
 				answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
 				visualization = {
@@ -3152,6 +3158,7 @@ export class ChatbotService {
 			const isPlayerCount = data.isPlayerCount as boolean;
 
 			if (isPlayerCount) {
+				answerValue = numberOfPlayers;
 				answer = `${numberOfPlayers} ${numberOfPlayers === 1 ? "player has" : "players have"} played for the club.`;
 				visualization = {
 					type: "NumberCard",
@@ -3162,6 +3169,7 @@ export class ChatbotService {
 					},
 				};
 			} else if (isGoalsScored) {
+				answerValue = goalsScored;
 				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"}.`;
 				visualization = {
 					type: "NumberCard",
@@ -3172,6 +3180,7 @@ export class ChatbotService {
 					},
 				};
 			} else if (isGoalsConceded) {
+				answerValue = goalsConceded;
 				answer = `Dorkinians have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
 				visualization = {
 					type: "NumberCard",
@@ -3182,7 +3191,8 @@ export class ChatbotService {
 					},
 				};
 			} else {
-				// Default: show both goals
+				// Default: show both goals - use goalsScored as primary value
+				answerValue = goalsScored;
 				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
 				visualization = {
 					type: "NumberCard",
@@ -3203,6 +3213,7 @@ export class ChatbotService {
 
 			// Check if this is a team-specific appearance query - return 0 instead of "No data found"
 			if (metric && typeof metric === 'string' && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				answerValue = 0;
 				const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i) || metric.match(/^(\d+)sApps$/i);
 				if (teamMatch) {
 					const teamName = teamMatch[1] + (metric.includes("XI") ? " XI" : "s");
@@ -3217,6 +3228,7 @@ export class ChatbotService {
 				typeof metric === "string" &&
 				/(\d{4}\/\d{2})\s*APPS?/i.test(metric)
 			) {
+				answerValue = 0;
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
 				if (seasonMatch) {
 					const season = seasonMatch[1];
@@ -3238,6 +3250,7 @@ export class ChatbotService {
 				typeof metric === "string" &&
 				/(\d{4}\/\d{2})GOALS/i.test(metric)
 			) {
+				answerValue = 0;
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
 				if (seasonMatch) {
 					const season = seasonMatch[1];
@@ -3286,11 +3299,13 @@ export class ChatbotService {
 						answer = `${playerName} has not scored any goals for the ${teamName}.`;
 					}
 				} else {
+					answerValue = 0;
 					answer = `${playerName} has scored 0 goals.`;
 				}
 			}
 			// Handle position metrics with zero results
 			else if (metric && typeof metric === 'string' && ["GK", "DEF", "MID", "FWD"].includes(metric.toUpperCase())) {
+				answerValue = 0;
 				const positionDisplayNames: Record<string, string> = {
 					"GK": "goalkeeper",
 					"DEF": "defender",
@@ -3324,6 +3339,7 @@ export class ChatbotService {
 					}
 				} else if (metricStr.toUpperCase() === "HOME" || metricStr === "HomeGames" || metricStr === "Home Games") {
 					// For home games count queries
+					answerValue = 0;
 					answer = `${playerNameStr} has played 0 home games.`;
 				} else if (metricStr.toUpperCase() === "HOMEGAMES%WON" || metricStr === "HomeGames%Won" || metricStr === "Home Games % Won") {
 					// For home games percentage won queries
@@ -3342,6 +3358,7 @@ export class ChatbotService {
 					}
 				} else if (metricStr.toUpperCase() === "AWAY" || metricStr === "AwayGames" || metricStr === "Away Games") {
 					// For away games count queries
+					answerValue = 0;
 					answer = `${playerNameStr} has played 0 away games.`;
 				} else if (metricStr.toUpperCase() === "AWAYGAMES%WON" || metricStr === "AwayGames%Won" || metricStr === "Away Games % Won") {
 					// For away games percentage won queries
@@ -3452,6 +3469,8 @@ export class ChatbotService {
 									current.value > max.value ? current : max
 								);
 								
+								// Set answerValue to the season name for Record responses
+								answerValue = mostProlific.season;
 								answer = `${mostProlific.season} was ${playerName}'s most prolific season with ${mostProlific.value} goals.`;
 								
 								// Create Record visualization with all seasons
@@ -3486,6 +3505,9 @@ export class ChatbotService {
 							value = Number(value.toFixed(decimalPlaces));
 						}
 					}
+					
+					// Set answerValue for NumberCard responses
+					answerValue = typeof value === "number" ? value : (typeof value === "string" ? parseFloat(value) || 0 : 0);
 
 				// Get the metric display name
 				const metricName = getMetricDisplayName(metric, value as number);
@@ -3523,6 +3545,7 @@ export class ChatbotService {
 					} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
 						if (this.isTeamCountQuestion(question)) {
 							const teamsPlayedFor = value || 0;
+							answerValue = teamsPlayedFor;
 							if (teamsPlayedFor === 0) {
 								answer = `${playerName} has not played for any of the club's teams yet.`;
 							} else if (teamsPlayedFor === 1) {
@@ -3535,6 +3558,7 @@ export class ChatbotService {
 							if (questionLower.includes("what team has") || questionLower.includes("which team has")) {
 								const teamName = String(value || "");
 								if (teamName && teamName !== "0" && teamName !== "") {
+									// Set answerValue to the team display name for string responses
 									const teamDisplayName = teamName
 										.replace("1st XI", "1s")
 										.replace("2nd XI", "2s") 
@@ -3544,8 +3568,10 @@ export class ChatbotService {
 										.replace("6th XI", "6s")
 										.replace("7th XI", "7s")
 										.replace("8th XI", "8s");
+									answerValue = teamDisplayName;
 									answer = `${playerName} has made the most appearances for the ${teamDisplayName}`;
 								} else {
+									answerValue = 0;
 									answer = `${playerName} has not made any appearances yet.`;
 								}
 							}
@@ -3567,6 +3593,9 @@ export class ChatbotService {
 							.replace("7th XI", "7s")
 							.replace("8th XI", "8s");
 						
+						// Set answerValue to the team display name
+						answerValue = teamDisplayName;
+						
 						// Get the stat type from analysis (stored during query building)
 						const statDisplayName = (analysis as any).mostScoredForTeamStatDisplayName || "goals";
 						const verb = statDisplayName === "goals" ? "scored" : statDisplayName === "assists" ? "got" : "got";
@@ -3579,6 +3608,7 @@ export class ChatbotService {
 							answer = `${playerName} has ${verb} the most ${statDisplayName} for the ${teamDisplayName} (${goalCount})`;
 						} else {
 							// If player hasn't scored for any team
+							answerValue = 0;
 							if (statDisplayName === "goals") {
 								answer = `${playerName} has not scored any goals for a team`;
 							} else {
@@ -4319,6 +4349,8 @@ export class ChatbotService {
 					};
 					
 					if (leagueData.position !== undefined) {
+						// Set answerValue to position for Table responses
+						answerValue = leagueData.position;
 						const positionSuffix = leagueData.position === 1 ? "st" : leagueData.position === 2 ? "nd" : leagueData.position === 3 ? "rd" : "th";
 						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
 						const divisionText = leagueData.division ? ` (${leagueData.division})` : "";
@@ -4341,6 +4373,11 @@ export class ChatbotService {
 					const fullTable = data.fullTable as LeagueTableEntry[];
 					const season = (data.season as string) || "";
 					const division = (data.division as string) || "";
+					
+					// Set answerValue to "table_data" for Table responses if position not already set
+					if (answerValue === null) {
+						answerValue = "table_data";
+					}
 					
 					visualization = {
 						type: "Table",
@@ -4408,6 +4445,7 @@ export class ChatbotService {
 			visualization,
 			sources,
 			cypherQuery: (data?.cypherQuery as string) || "N/A",
+			answerValue,
 		};
 	}
 

@@ -184,12 +184,34 @@ function extractScoreFromAnswer(answer) {
 
 /**
  * Extract value from chatbot response based on Expected_Output_Type
+ * Priority: answerValue field (if present) > text extraction
  */
 function extractValueFromResponse(response, expectedOutputType, expectedAnswer) {
 	if (!response || !response.answer) {
 		return null;
 	}
 
+	// Priority 1: Use answerValue if present (most reliable)
+	if (response.answerValue !== undefined && response.answerValue !== null) {
+		// Handle different types of answerValue
+		if (typeof response.answerValue === "number") {
+			return response.answerValue;
+		} else if (typeof response.answerValue === "string") {
+			// For Table responses, return "table_data" as-is
+			if (response.answerValue === "table_data") {
+				return "Table data present";
+			}
+			// Try to parse as number if it's a numeric string
+			const parsed = parseFloat(response.answerValue);
+			if (!isNaN(parsed) && isFinite(parsed)) {
+				return parsed;
+			}
+			// Return as string for Record responses (e.g., season names)
+			return response.answerValue;
+		}
+	}
+
+	// Priority 2: Fall back to text extraction for backward compatibility
 	const answer = response.answer;
 
 	switch (expectedOutputType) {
