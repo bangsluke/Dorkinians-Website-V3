@@ -413,3 +413,91 @@ export async function getHighestLeagueFinish(): Promise<HistoricalPositionEntry 
 	return bestPosition;
 }
 
+/**
+ * Get the highest (best) league finish for a specific team across all seasons
+ * Returns the position entry with full league table data for that season
+ */
+export async function getTeamHighestPosition(teamName: string): Promise<{ position: HistoricalPositionEntry; fullTable: LeagueTableEntry[]; division: string } | null> {
+	try {
+		const allPositions = await getAllHistoricalPositions();
+		
+		// Filter positions for the specific team
+		const teamPositions = allPositions.filter((pos) => pos.team === teamName);
+		
+		if (teamPositions.length === 0) {
+			return null;
+		}
+		
+		// Find the best position (lowest number = highest finish)
+		const bestPosition = teamPositions.reduce((best, current) => {
+			return current.position < best.position ? current : best;
+		});
+		
+		// Get full league table for this season
+		const normalizedSeason = normalizeSeasonFormat(bestPosition.season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+		let fullTable = seasonData?.teams[teamName]?.table || [];
+		
+		// If not found in JSON, try current season from Neo4j
+		if (fullTable.length === 0) {
+			const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+			if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(bestPosition.season, 'slash')) {
+				fullTable = currentSeasonData.teams[teamName]?.table || [];
+			}
+		}
+		
+		return {
+			position: bestPosition,
+			fullTable: fullTable,
+			division: bestPosition.division,
+		};
+	} catch (error) {
+		console.error(`Error fetching highest position for ${teamName}:`, error);
+		return null;
+	}
+}
+
+/**
+ * Get the lowest (worst) league finish for a specific team across all seasons
+ * Returns the position entry with full league table data for that season
+ */
+export async function getTeamLowestPosition(teamName: string): Promise<{ position: HistoricalPositionEntry; fullTable: LeagueTableEntry[]; division: string } | null> {
+	try {
+		const allPositions = await getAllHistoricalPositions();
+		
+		// Filter positions for the specific team
+		const teamPositions = allPositions.filter((pos) => pos.team === teamName);
+		
+		if (teamPositions.length === 0) {
+			return null;
+		}
+		
+		// Find the worst position (highest number = lowest finish)
+		const worstPosition = teamPositions.reduce((worst, current) => {
+			return current.position > worst.position ? current : worst;
+		});
+		
+		// Get full league table for this season
+		const normalizedSeason = normalizeSeasonFormat(worstPosition.season, 'hyphen');
+		const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+		let fullTable = seasonData?.teams[teamName]?.table || [];
+		
+		// If not found in JSON, try current season from Neo4j
+		if (fullTable.length === 0) {
+			const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+			if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(worstPosition.season, 'slash')) {
+				fullTable = currentSeasonData.teams[teamName]?.table || [];
+			}
+		}
+		
+		return {
+			position: worstPosition,
+			fullTable: fullTable,
+			division: worstPosition.division,
+		};
+	} catch (error) {
+		console.error(`Error fetching lowest position for ${teamName}:`, error);
+		return null;
+	}
+}
+

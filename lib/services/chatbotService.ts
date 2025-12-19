@@ -13,6 +13,7 @@ import { questionSimilarityMatcher } from "./questionSimilarityMatcher";
 import { queryProfiler } from "./queryProfiler";
 import { errorHandler } from "./errorHandler";
 import { responseTemplateManager } from "./responseTemplates";
+import type { LeagueTableEntry } from "./leagueTableService";
 
 export interface ChatbotResponse {
 	answer: string;
@@ -1034,6 +1035,73 @@ export class ChatbotService {
 			const question = analysis.question?.toLowerCase() || "";
 			const teamEntities = analysis.teamEntities || [];
 			
+			// Check for team-specific highest/lowest position queries
+			const isTeamHighestQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("highest position") ||
+				 question.includes("best position") ||
+				 question.includes("best finish") ||
+				 (question.includes("highest") && (question.includes("position") || question.includes("finish"))));
+			
+			const isTeamLowestQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("lowest position") ||
+				 question.includes("worst position") ||
+				 question.includes("worst finish") ||
+				 (question.includes("lowest") && (question.includes("position") || question.includes("finish"))));
+			
+			// Handle team-specific highest position query
+			if (isTeamHighestQuery) {
+				const teamName = teamEntities[0];
+				const { getTeamHighestPosition } = await import("../services/leagueTableService");
+				const result = await getTeamHighestPosition(teamName);
+				
+				if (!result) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find any historical league position data for the ${teamName}.`,
+					};
+				}
+				
+				const positionSuffix = result.position.position === 1 ? "st" : result.position.position === 2 ? "nd" : result.position.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [result.position],
+					fullTable: result.fullTable,
+					season: result.position.season,
+					division: result.division,
+					answer: `The ${teamName}'s highest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+				};
+			}
+			
+			// Handle team-specific lowest position query
+			if (isTeamLowestQuery) {
+				const teamName = teamEntities[0];
+				const { getTeamLowestPosition } = await import("../services/leagueTableService");
+				const result = await getTeamLowestPosition(teamName);
+				
+				if (!result) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find any historical league position data for the ${teamName}.`,
+					};
+				}
+				
+				const positionSuffix = result.position.position === 1 ? "st" : result.position.position === 2 ? "nd" : result.position.position === 3 ? "rd" : "th";
+				
+				return {
+					type: "league_table",
+					data: [result.position],
+					fullTable: result.fullTable,
+					season: result.position.season,
+					division: result.division,
+					answer: `The ${teamName}'s lowest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+				};
+			}
+			
 			// Check for "highest league finish" queries (no team name required)
 			const isHighestFinishQuery = 
 				question.includes("highest league finish") ||
@@ -1044,7 +1112,7 @@ export class ChatbotService {
 			
 			if (isHighestFinishQuery) {
 				// Import league table service
-				const { getHighestLeagueFinish } = await import("../services/leagueTableService");
+				const { getHighestLeagueFinish, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../services/leagueTableService");
 				const bestFinish = await getHighestLeagueFinish();
 				
 				if (!bestFinish) {
@@ -1055,11 +1123,27 @@ export class ChatbotService {
 					};
 				}
 				
+				// Get full league table for this season
+				const normalizedSeason = normalizeSeasonFormat(bestFinish.season, 'hyphen');
+				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+				let fullTable = seasonData?.teams[bestFinish.team]?.table || [];
+				
+				// If not found in JSON, try current season from Neo4j
+				if (fullTable.length === 0) {
+					const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+					if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizeSeasonFormat(bestFinish.season, 'slash')) {
+						fullTable = currentSeasonData.teams[bestFinish.team]?.table || [];
+					}
+				}
+				
 				const positionSuffix = bestFinish.position === 1 ? "st" : bestFinish.position === 2 ? "nd" : bestFinish.position === 3 ? "rd" : "th";
 				
 				return {
 					type: "league_table",
 					data: [bestFinish],
+					fullTable: fullTable,
+					season: bestFinish.season,
+					division: bestFinish.division,
 					answer: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`,
 				};
 			}
@@ -1132,11 +1216,20 @@ export class ChatbotService {
 					};
 				}
 
+				// Get full league table for this season and team
+				const { getSeasonDataFromJSON } = await import("../services/leagueTableService");
+				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+				const fullTable = seasonData?.teams[teamName]?.table || [];
+
 				const positionSuffix = teamData.position === 1 ? "st" : teamData.position === 2 ? "nd" : teamData.position === 3 ? "rd" : "th";
+				const division = seasonData?.teams[teamName]?.division || "";
 				
 				return {
 					type: "league_table",
 					data: [teamData],
+					fullTable: fullTable,
+					season: normalizedSeason,
+					division: division,
 					answer: `The ${teamName} finished in ${teamData.position}${positionSuffix} position in the league in ${season}, with ${teamData.points} points from ${teamData.played} games (${teamData.won} wins, ${teamData.drawn} draws, ${teamData.lost} losses).`,
 				};
 			}
@@ -1171,10 +1264,15 @@ export class ChatbotService {
 			}
 
 			const positionSuffix = dorkiniansEntry.position === 1 ? "st" : dorkiniansEntry.position === 2 ? "nd" : dorkiniansEntry.position === 3 ? "rd" : "th";
+			const fullTable = teamData.table || [];
+			const division = teamData.division || "";
 			
 			return {
 				type: "league_table",
 				data: [dorkiniansEntry],
+				fullTable: fullTable,
+				season: currentSeasonData.season,
+				division: division,
 				answer: `The ${teamName} are currently in ${dorkiniansEntry.position}${positionSuffix} position in the league for ${currentSeasonData.season}, with ${dorkiniansEntry.points} points from ${dorkiniansEntry.played} games (${dorkiniansEntry.won} wins, ${dorkiniansEntry.drawn} draws, ${dorkiniansEntry.lost} losses).`,
 			};
 		} catch (error) {
@@ -2592,6 +2690,9 @@ export class ChatbotService {
 			answer = "Missing context: Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
 			answer = (data.message as string) || "Please clarify your question with more specific details.";
+		} else if (data.type === "not_found" || data.type === "no_team") {
+			// Handle league table error cases
+			answer = (data.message as string) || "I couldn't find league table data for your query.";
 		} else if (data && data.data && Array.isArray(data.data) && data.data.length === 0) {
 			// Query executed successfully but returned no results
 			const metric = data.metric || "data";
@@ -3691,6 +3792,106 @@ export class ChatbotService {
 									{ key: "name", label: isTeamQuestion ? "Team" : "Player" },
 									{ key: "value", label: metricName },
 								],
+							},
+						};
+					}
+				}
+			} else if (data && data.type === "league_table") {
+				// Handle league table data
+				// Check if answer is already provided (from queryLeagueTableData)
+				if (data.answer && typeof data.answer === "string") {
+					answer = data.answer;
+				} else if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
+					// Process league table entry data
+					const leagueData = data.data[0] as {
+						position?: number;
+						team?: string;
+						points?: number;
+						played?: number;
+						won?: number;
+						drawn?: number;
+						lost?: number;
+						season?: string;
+						division?: string;
+					};
+					
+					if (leagueData.position !== undefined) {
+						const positionSuffix = leagueData.position === 1 ? "st" : leagueData.position === 2 ? "nd" : leagueData.position === 3 ? "rd" : "th";
+						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
+						const divisionText = leagueData.division ? ` (${leagueData.division})` : "";
+						
+						if (leagueData.points !== undefined && leagueData.played !== undefined) {
+							answer = `Finished in ${leagueData.position}${positionSuffix} position${seasonText}${divisionText}, with ${leagueData.points} points from ${leagueData.played} games`;
+							if (leagueData.won !== undefined && leagueData.drawn !== undefined && leagueData.lost !== undefined) {
+								answer += ` (${leagueData.won} wins, ${leagueData.drawn} draws, ${leagueData.lost} losses).`;
+							} else {
+								answer += ".";
+							}
+						} else {
+							answer = `Finished in ${leagueData.position}${positionSuffix} position${seasonText}${divisionText}.`;
+						}
+					}
+				}
+				
+				// Create table visualization with full league table if available
+				if ("fullTable" in data && Array.isArray(data.fullTable) && data.fullTable.length > 0) {
+					const fullTable = data.fullTable as LeagueTableEntry[];
+					const season = (data.season as string) || "";
+					const division = (data.division as string) || "";
+					
+					visualization = {
+						type: "Table",
+						data: fullTable.map((entry) => ({
+							Position: entry.position,
+							Team: entry.team,
+							Played: entry.played,
+							Won: entry.won,
+							Drawn: entry.drawn,
+							Lost: entry.lost,
+							"Goals For": entry.goalsFor,
+							"Goals Against": entry.goalsAgainst,
+							"Goal Difference": entry.goalDifference,
+							Points: entry.points,
+						})),
+						config: {
+							title: division ? `League Table - ${division} ${season}` : `League Table ${season}`,
+							type: "table",
+							columns: [
+								{ key: "Position", label: "Pos" },
+								{ key: "Team", label: "Team" },
+								{ key: "Played", label: "P" },
+								{ key: "Won", label: "W" },
+								{ key: "Drawn", label: "D" },
+								{ key: "Lost", label: "L" },
+								{ key: "Goals For", label: "F" },
+								{ key: "Goals Against", label: "A" },
+								{ key: "Goal Difference", label: "GD" },
+								{ key: "Points", label: "Pts" },
+							],
+						},
+					};
+				} else if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
+					// Fallback: show just the single entry if full table not available
+					const leagueData = data.data[0] as {
+						position?: number;
+						team?: string;
+						points?: number;
+						played?: number;
+						won?: number;
+						drawn?: number;
+						lost?: number;
+						season?: string;
+						division?: string;
+					};
+					
+					if (leagueData.position !== undefined) {
+						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
+						visualization = {
+							type: "Table",
+							data: [leagueData],
+							config: {
+								title: `League Position${seasonText}`,
+								type: "table",
 							},
 						};
 					}

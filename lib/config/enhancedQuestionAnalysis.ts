@@ -294,14 +294,56 @@ export class EnhancedQuestionAnalyzer {
 			return "streak";
 		}
 
+		// Check for highest league finish queries (highest priority for league position queries)
+		if (
+			(lowerQuestion.includes("highest league finish") ||
+				lowerQuestion.includes("best league position") ||
+				lowerQuestion.includes("best league finish") ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("league") && lowerQuestion.includes("finish")) ||
+				(lowerQuestion.includes("highest") && lowerQuestion.includes("position") && lowerQuestion.includes("league")) ||
+				(lowerQuestion.includes("my") && lowerQuestion.includes("highest") && (lowerQuestion.includes("finish") || lowerQuestion.includes("position"))))
+		) {
+			return "league_table";
+		}
+
+		// Check for league table/position queries BEFORE temporal queries
+		// This ensures questions like "Where did the 2s finish in 2017/18?" are classified correctly
+		// Check for team entities AND finish/position keywords, even if timeframes are present
+		if (
+			hasTeamEntities &&
+			(lowerQuestion.includes("league position") ||
+				lowerQuestion.includes("league table") ||
+				lowerQuestion.includes("finished") ||
+				lowerQuestion.includes("finish") ||
+				lowerQuestion.includes("position") ||
+				lowerQuestion.includes("table"))
+		) {
+			return "league_table";
+		}
+
+		// Also check for league table queries with explicit team mentions in question
+		if (
+			(lowerQuestion.includes("league position") ||
+				lowerQuestion.includes("league table") ||
+				lowerQuestion.includes("finished") ||
+				lowerQuestion.includes("finish") ||
+				(lowerQuestion.includes("position") && lowerQuestion.includes("league"))) &&
+			(lowerQuestion.includes("2s") || lowerQuestion.includes("1s") || lowerQuestion.includes("3s") || lowerQuestion.includes("4s") || lowerQuestion.includes("5s") || lowerQuestion.includes("6s") || lowerQuestion.includes("7s") || lowerQuestion.includes("8s") ||
+			 lowerQuestion.includes("1st") || lowerQuestion.includes("2nd") || lowerQuestion.includes("3rd") || lowerQuestion.includes("4th") || lowerQuestion.includes("5th") || lowerQuestion.includes("6th") || lowerQuestion.includes("7th") || lowerQuestion.includes("8th"))
+		) {
+			return "league_table";
+		}
+
 		// Check for player-specific queries (but not if it's a streak question)
 		if (hasPlayerEntities) {
 			return "player";
 		}
 
-		// Check for temporal queries (time-based questions without specific players)
+		// Check for temporal queries (time-based questions without specific players or team entities with league keywords)
+		// Only classify as temporal if we don't have team entities with finish/position keywords
 		if (
-			hasTimeFrames ||
+			!hasTeamEntities &&
+			(hasTimeFrames ||
 			lowerQuestion.includes("since") ||
 			lowerQuestion.includes("before") ||
 			lowerQuestion.includes("between") ||
@@ -309,7 +351,7 @@ export class EnhancedQuestionAnalyzer {
 			lowerQuestion.includes("in the") ||
 			lowerQuestion.includes("from") ||
 			lowerQuestion.includes("until") ||
-			lowerQuestion.includes("after")
+			lowerQuestion.includes("after"))
 		) {
 			return "temporal";
 		}
@@ -321,18 +363,6 @@ export class EnhancedQuestionAnalyzer {
 
 		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
 			return "double_game";
-		}
-
-		// Check for highest league finish queries (highest priority for league position queries)
-		if (
-			(lowerQuestion.includes("highest league finish") ||
-				lowerQuestion.includes("best league position") ||
-				lowerQuestion.includes("best league finish") ||
-				(lowerQuestion.includes("highest") && lowerQuestion.includes("league") && lowerQuestion.includes("finish")) ||
-				(lowerQuestion.includes("highest") && lowerQuestion.includes("position") && lowerQuestion.includes("league")) ||
-				(lowerQuestion.includes("my") && lowerQuestion.includes("highest") && (lowerQuestion.includes("finish") || lowerQuestion.includes("position"))))
-		) {
-			return "league_table";
 		}
 
 		// Check for ranking queries (which player/team has the highest/most...)
@@ -359,23 +389,13 @@ export class EnhancedQuestionAnalyzer {
 			return "comparison";
 		}
 
-		// Check for league table/position queries (higher priority than general team queries)
-		if (
-			(lowerQuestion.includes("league position") ||
-				lowerQuestion.includes("league table") ||
-				lowerQuestion.includes("finished") ||
-				lowerQuestion.includes("finish") ||
-				(lowerQuestion.includes("position") && (hasTeamEntities || lowerQuestion.includes("league")))) &&
-			(hasTeamEntities || lowerQuestion.includes("2s") || lowerQuestion.includes("1s") || lowerQuestion.includes("3s") || lowerQuestion.includes("4s") || lowerQuestion.includes("5s") || lowerQuestion.includes("6s") || lowerQuestion.includes("7s"))
-		) {
-			return "league_table";
-		}
-
+		// Check for general team queries (without league position context)
 		if (
 			hasTeamEntities &&
-			(lowerQuestion.includes("finish") ||
-				lowerQuestion.includes("position") ||
-				lowerQuestion.includes("table"))
+			!lowerQuestion.includes("finish") &&
+			!lowerQuestion.includes("position") &&
+			!lowerQuestion.includes("table") &&
+			!lowerQuestion.includes("league")
 		) {
 			return "team";
 		}
