@@ -360,6 +360,8 @@ export default function TeamStats() {
 		playerFilters,
 		currentStatsSubPage,
 		filterData,
+		shouldShowDataTable,
+		setDataTableMode,
 	} = useNavigationStore();
 
 	// Initialize selected team from localStorage, player's most played team, or first available team
@@ -392,6 +394,14 @@ export default function TeamStats() {
 
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
+
+	// Handle data table mode from navigation store
+	useEffect(() => {
+		if (shouldShowDataTable) {
+			setIsDataTableMode(true);
+			setDataTableMode(false); // Clear the flag after use
+		}
+	}, [shouldShowDataTable, setDataTableMode]);
 
 	// State for seasonal performance chart
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Games");
@@ -1359,7 +1369,7 @@ export default function TeamStats() {
 
 								{/* Seasonal Performance Section */}
 								{allSeasonsSelected && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<div className='flex items-center justify-between mb-2 gap-2'>
 											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 											<div className='flex-1 max-w-[45%]'>
@@ -1460,7 +1470,7 @@ export default function TeamStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -1509,7 +1519,7 @@ export default function TeamStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -1554,7 +1564,7 @@ export default function TeamStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -1565,7 +1575,7 @@ export default function TeamStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
@@ -1697,7 +1707,7 @@ export default function TeamStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -1721,7 +1731,7 @@ export default function TeamStats() {
 										</div>
 									</SkeletonTheme>
 								) : uniquePlayerStats && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>

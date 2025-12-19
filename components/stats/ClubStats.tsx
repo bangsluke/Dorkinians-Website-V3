@@ -339,6 +339,8 @@ export default function ClubStats() {
 		playerFilters,
 		currentStatsSubPage,
 		filterData,
+		shouldShowDataTable,
+		setDataTableMode,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -360,6 +362,14 @@ export default function ClubStats() {
 
 	// State for view mode toggle
 	const [isDataTableMode, setIsDataTableMode] = useState(false);
+
+	// Handle data table mode from navigation store
+	useEffect(() => {
+		if (shouldShowDataTable) {
+			setIsDataTableMode(true);
+			setDataTableMode(false); // Clear the flag after use
+		}
+	}, [shouldShowDataTable, setDataTableMode]);
 
 	// Team comparison state
 	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
@@ -1429,7 +1439,7 @@ export default function ClubStats() {
 					{/* Key Performance Stats */}
 					<div id='club-key-performance-stats' className='mb-4'>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
 							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
@@ -1776,7 +1786,7 @@ export default function ClubStats() {
 
 					{/* Seasonal Performance Section */}
 					{allSeasonsSelected && (
-						<div className='mb-4'>
+						<div id='club-seasonal-performance' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<div className='flex items-center justify-between mb-2 gap-2'>
 									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
@@ -1872,7 +1882,11 @@ export default function ClubStats() {
 					{/* Player Distribution Section */}
 					{isLoadingPlayerDistribution ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<SankeyChartSkeleton />
+							<div id='club-player-distribution' className='mb-4'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<SankeyChartSkeleton />
+								</div>
+							</div>
 						</SkeletonTheme>
 					) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
 						// Validate that all links reference existing nodes
@@ -1965,7 +1979,7 @@ export default function ClubStats() {
 						};
 						
 						return (
-						<div className='mb-4'>
+						<div id='club-player-distribution' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
 								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
@@ -2004,7 +2018,7 @@ export default function ClubStats() {
 					{/* Player Tenure Section */}
 					{isLoadingPlayerTenure ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div className='mb-4'>
+							<div id='club-player-tenure' className='mb-4'>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<Skeleton height={20} width="40%" className="mb-2" />
 									<ChartSkeleton />
@@ -2012,7 +2026,7 @@ export default function ClubStats() {
 							</div>
 						</SkeletonTheme>
 					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
-						<div className='mb-4'>
+						<div id='club-player-tenure' className='mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
 								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
@@ -2031,7 +2045,7 @@ export default function ClubStats() {
 					)}
 
 					{/* Stats Distribution Section */}
-					<div className='mb-4'>
+					<div id='club-stats-distribution' className='mb-4'>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
 							<div className='mb-2'>
@@ -2105,7 +2119,7 @@ export default function ClubStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -2158,7 +2172,7 @@ export default function ClubStats() {
 										<GameDetailsTableSkeleton />
 									</SkeletonTheme>
 								) : !isLoadingGameDetails && gameDetails && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 										
 										{/* CompType Table */}
@@ -2272,7 +2286,7 @@ export default function ClubStats() {
 
 								{/* Big Club Numbers Section */}
 								{teamData && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
 										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
 											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
@@ -2348,7 +2362,7 @@ export default function ClubStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -2393,7 +2407,7 @@ export default function ClubStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -2404,7 +2418,7 @@ export default function ClubStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
@@ -2536,7 +2550,7 @@ export default function ClubStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -2560,7 +2574,7 @@ export default function ClubStats() {
 										</div>
 									</SkeletonTheme>
 								) : !isLoadingUniqueStats && uniquePlayerStats && (
-									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the Club: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
