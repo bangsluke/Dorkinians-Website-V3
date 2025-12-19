@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 interface HomeAwayGaugeProps {
 	homeWinPercentage: number;
 	awayWinPercentage: number;
@@ -11,78 +13,143 @@ export default function HomeAwayGauge({ homeWinPercentage, awayWinPercentage }: 
 	const advantage = homePercentage > awayPercentage ? "Home" : homePercentage < awayPercentage ? "Away" : "Equal";
 	const advantageValue = Math.abs(homePercentage - awayPercentage);
 
-	// SVG path for semicircle gauge - fills from left to right
-	const createGaugePath = (percentage: number, color: string, offsetX: number = 0) => {
-		if (percentage === 0) return null;
+	// Animation state
+	const [animatedHome, setAnimatedHome] = useState(0);
+	const [animatedAway, setAnimatedAway] = useState(0);
+
+	// Animate on mount
+	useEffect(() => {
+		const duration = 1000; // 1 second animation
+		const startTime = Date.now();
 		
-		const radius = 60;
-		const centerX = 70 + offsetX;
-		const centerY = 70;
-		const sweepAngle = (percentage / 100) * 180;
+		const animate = () => {
+			const elapsed = Date.now() - startTime;
+			const progress = Math.min(elapsed / duration, 1);
+			
+			// Ease-out animation
+			const easeOut = 1 - Math.pow(1 - progress, 3);
+			
+			setAnimatedHome(homePercentage * easeOut);
+			setAnimatedAway(awayPercentage * easeOut);
+			
+			if (progress < 1) {
+				requestAnimationFrame(animate);
+			}
+		};
 		
-		// Start from left (180 degrees), sweep clockwise towards right
-		// For clockwise sweep from 180°: 180° → 270° → 360° (0°)
-		// So endAngle = 180 - sweepAngle (going clockwise)
-		const startAngle = 180;
-		const endAngle = 180 - sweepAngle;
-		
-		const startX = centerX + radius * Math.cos((startAngle * Math.PI) / 180);
-		const startY = centerY + radius * Math.sin((startAngle * Math.PI) / 180);
-		const endX = centerX + radius * Math.cos((endAngle * Math.PI) / 180);
-		const endY = centerY + radius * Math.sin((endAngle * Math.PI) / 180);
-		
-		// largeArcFlag: 0 for angles <= 180, 1 for > 180
-		// sweep: 1 for clockwise (left to right)
-		const largeArcFlag = sweepAngle > 180 ? 1 : 0;
-		
-		return (
-			<path
-				d={`M ${centerX} ${centerY} L ${startX} ${startY} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`}
-				fill={color}
-				opacity={0.8}
-			/>
-		);
+		requestAnimationFrame(animate);
+	}, [homePercentage, awayPercentage]);
+
+	// Calculate arc properties
+	const radius = 60;
+	const arcLength = Math.PI * radius; // Semi-circle circumference
+	const strokeWidth = 8;
+	const centerX = 70;
+	const centerY = 70;
+
+	// Calculate stroke-dasharray and stroke-dashoffset for percentage fill
+	const getArcProps = (percentage: number) => {
+		const dashLength = (percentage / 100) * arcLength;
+		return {
+			strokeDasharray: `${dashLength} ${arcLength}`,
+			strokeDashoffset: 0,
+		};
 	};
+
+	const homeArcProps = getArcProps(animatedHome);
+	const awayArcProps = getArcProps(animatedAway);
+
+	// Calculate gauge hand/needle position for Home percentage
+	// Gauge arc goes from left (180°) to right (0°) clockwise
+	// The needle should point to where the green arc ends (at the Home percentage)
+	// The arc path starts at left (180°) and sweeps clockwise to right (0°)
+	// For percentage p: angle = 180° - (p/100) * 180°
+	// This maps: 0% → 180° (left), 100% → 0° (right)
+	const needleAngle = 180 - (homePercentage / 100) * 180;
+	const needleLength = radius - 5; // Slightly shorter than radius for better visibility
+	// Convert angle to radians and calculate end point
+	// Math.cos/sin use standard math angles: 0° = right, 90° = up, 180° = left
+	// But SVG y-axis is inverted (down is positive), so we need to account for that
+	const angleRad = (needleAngle * Math.PI) / 180;
+	const needleEndX = centerX + needleLength * Math.cos(angleRad);
+	const needleEndY = centerY - needleLength * Math.sin(angleRad); // Negative because SVG y increases downward
 
 	return (
 		<div className='flex flex-row items-center gap-4 py-4'>
-			{/* Combined Gauge with Overlay */}
-			<div className='relative flex-shrink-0'>
-				<svg width='140' height='80' viewBox='0 0 140 80' className='mb-2'>
-					{/* Single background arc */}
+			{/* Gauge - 40% width */}
+			<div className='relative flex-shrink-0' style={{ width: '40%' }}>
+				<svg width='100%' height='80' viewBox='0 0 140 80' className='mb-2' preserveAspectRatio='xMidYMid meet'>
+					{/* Background arc - full semi-circle */}
 					<path
 						d='M 10 70 A 60 60 0 0 1 130 70'
 						fill='none'
 						stroke='rgba(255, 255, 255, 0.1)'
-						strokeWidth='8'
+						strokeWidth={strokeWidth}
+						strokeLinecap='round'
 					/>
-					{/* Home win percentage arc - overlayed */}
-					{createGaugePath(homePercentage, '#f9ed32', 0)}
-					{/* Away win percentage arc - overlayed on top */}
-					{createGaugePath(awayPercentage, '#22c55e', 0)}
+					{/* Home win percentage arc - fills from left to right (green) */}
+					{homePercentage > 0 && (
+						<path
+							d='M 10 70 A 60 60 0 0 1 130 70'
+							fill='none'
+							stroke='#22c55e'
+							strokeWidth={strokeWidth}
+							strokeLinecap='round'
+							opacity={0.8}
+							style={{
+								strokeDasharray: homeArcProps.strokeDasharray,
+								strokeDashoffset: homeArcProps.strokeDashoffset,
+								transition: 'stroke-dasharray 0.1s ease-out',
+							}}
+						/>
+					)}
+					{/* Away win percentage arc - overlays on top (yellow) */}
+					{awayPercentage > 0 && (
+						<path
+							d='M 10 70 A 60 60 0 0 1 130 70'
+							fill='none'
+							stroke='#f9ed32'
+							strokeWidth={strokeWidth}
+							strokeLinecap='round'
+							opacity={0.8}
+							style={{
+								strokeDasharray: awayArcProps.strokeDasharray,
+								strokeDashoffset: awayArcProps.strokeDashoffset,
+								transition: 'stroke-dasharray 0.1s ease-out',
+							}}
+						/>
+					)}
+					{/* Gauge hand/needle pointing to Home percentage */}
+					{homePercentage > 0 && (
+						<line
+							x1={centerX}
+							y1={centerY}
+							x2={needleEndX}
+							y2={needleEndY}
+							stroke='#ffffff'
+							strokeWidth='3'
+							strokeLinecap='round'
+							style={{
+								transition: 'all 0.1s ease-out',
+							}}
+						/>
+					)}
 					{/* Center dot */}
-					<circle cx='70' cy='70' r='4' fill='#fff' />
-					{/* Home label - left side */}
-					<text x='35' y='50' textAnchor='middle' fill='#fff' fontSize='12' className='text-xs md:text-sm'>
-						Home
-					</text>
-					<text x='35' y='65' textAnchor='middle' fill='#f9ed32' fontSize='16' fontWeight='bold' className='text-lg md:text-xl'>
-						{homePercentage}%
-					</text>
-					{/* Away label - right side */}
-					<text x='105' y='50' textAnchor='middle' fill='#fff' fontSize='12' className='text-xs md:text-sm'>
-						Away
-					</text>
-					<text x='105' y='65' textAnchor='middle' fill='#22c55e' fontSize='16' fontWeight='bold' className='text-lg md:text-xl'>
-						{awayPercentage}%
-					</text>
+					<circle cx={centerX} cy={centerY} r='4' fill='#fff' />
 				</svg>
 			</div>
 
-			{/* Home Advantage - Right side */}
-			<div className='flex flex-col justify-center'>
-				<div className='text-white text-xs md:text-sm mb-1'>{advantage} Advantage</div>
-				<div className='text-white font-semibold text-sm md:text-base'>{advantageValue}%</div>
+			{/* Text labels - 60% width, right side */}
+			<div className='flex flex-col justify-center' style={{ width: '60%' }}>
+				<div className='font-semibold text-base md:text-lg mb-2'>
+					<span style={{ color: '#22c55e' }}>{homePercentage}%</span> <span className='text-white/70'>Home</span>
+				</div>
+				<div className='font-semibold text-base md:text-lg mb-2'>
+					<span style={{ color: '#f9ed32' }}>{awayPercentage}%</span> <span className='text-white/70'>Away</span>
+				</div>
+				<div className='font-semibold text-base md:text-lg mb-1'>
+					<span className='text-white'>{advantageValue}%</span> <span className='text-white/70'>{advantage} Advantage</span>
+				</div>
 			</div>
 		</div>
 	);

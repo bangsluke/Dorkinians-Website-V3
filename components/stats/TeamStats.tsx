@@ -1041,17 +1041,34 @@ export default function TeamStats() {
 		color: '#fff',
 	};
 
-	// Custom tooltip formatter to capitalize "value"
+	// Custom tooltip formatter to capitalize "value" and show per game
 	const customTooltip = ({ active, payload, label }: any) => {
 		if (active && payload && payload.length) {
 			const displayLabel = label || payload[0].name || payload[0].payload?.name || '';
 			const displayValue = payload[0].value || 0;
+			// Get perGame from the payload data
+			const dataEntry = goalsData.find((e: any) => e.name === displayLabel);
+			const perGame = dataEntry?.perGame || payload[0].payload?.perGame || "0.00";
+			const gamesPlayed = teamData?.gamesPlayed || 0;
+			const uniqueGoalscorers = uniquePlayerStats?.playersWhoScored || 0;
+			
 			return (
 				<div style={tooltipStyle} className='px-3 py-2'>
 					<p className='text-white text-sm'>{displayLabel}</p>
 					<p className='text-white text-sm'>
 						<span className='font-semibold'>Value</span>: {displayValue}
 					</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Per Game</span>: {perGame}
+					</p>
+					<p className='text-white text-sm'>
+						<span className='font-semibold'>Games</span>: {gamesPlayed}
+					</p>
+					{displayLabel === "Goals Scored" && uniqueGoalscorers > 0 && (
+						<p className='text-white text-sm'>
+							<span className='font-semibold'>Unique Goalscorers</span>: {uniqueGoalscorers}
+						</p>
+					)}
 				</div>
 			);
 		}
@@ -1533,25 +1550,45 @@ export default function TeamStats() {
 															<Cell key={`cell-${index}`} fill={entry.fill} />
 														))}
 													<LabelList 
+														dataKey="value"
+														position="inside"
 														content={(props: any) => {
-															const { x, y, width, height, payload, value } = props;
-															if (!payload) return null;
-															// Access perGame from the data entry by matching name
-															const dataEntry = goalsData.find((e: any) => e.name === payload.name);
-															const perGame = dataEntry?.perGame || payload.perGame;
-															if (!perGame) return null;
+															const { x, y, width, height, name, index, value } = props;
+															if (value === undefined || value === null || height <= 0) return null;
+															// Access perGame from the data entry using index or name
+															const dataEntry = typeof index === 'number' && index >= 0 ? goalsData[index] : goalsData.find((e: any) => e.name === name);
+															const perGame = dataEntry?.perGame || "0.00";
+															// Calculate center position accounting for two-line layout
+															const lineHeight = 14;
+															const centerY = y + height / 2;
+															const startY = centerY - lineHeight / 2;
 															return (
-																<text
-																	x={x + width / 2}
-																	y={y + height / 2}
-																	fill="#ffffff"
-																	fontSize={12}
-																	fontWeight="bold"
-																	textAnchor="middle"
-																	dominantBaseline="middle"
-																>
-																	{`${value} (${perGame} per game)`}
-																</text>
+																<g>
+																	<text
+																		x={x + width / 2}
+																		y={startY}
+																		fill="#ffffff"
+																		fontSize={12}
+																		fontWeight="bold"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{value}
+																	</text>
+																	<text
+																		x={x + width / 2}
+																		y={startY + lineHeight}
+																		fill="#ffffff"
+																		fontSize={11}
+																		fontWeight="normal"
+																		textAnchor="middle"
+																		dominantBaseline="middle"
+																		style={{ pointerEvents: 'none', userSelect: 'none' }}
+																	>
+																		{perGame} per game
+																	</text>
+																</g>
 															);
 														}}
 													/>
