@@ -68,7 +68,7 @@ export interface LocationInfo {
 
 export interface TimeFrameInfo {
 	value: string;
-	type: "date" | "season" | "weekend" | "gameweek" | "consecutive" | "range";
+	type: "date" | "season" | "weekend" | "gameweek" | "consecutive" | "range" | "ordinal_weekend";
 	originalText: string;
 	position: number;
 }
@@ -1684,6 +1684,31 @@ export class EntityExtractor {
 				type: "range",
 				originalText: dateRangeMatch[0],
 				position: dateRangeMatch.index,
+			});
+		}
+
+		// Extract ordinal weekend patterns (e.g., "first weekend of 2023", "second weekend of 2022")
+		const ordinalWeekendRegex = /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|1st|2nd|3rd|4th|5th|6th|7th|8th|9th|10th)\s+weekend\s+of\s+(\d{4})\b/gi;
+		let ordinalWeekendMatch;
+		while ((ordinalWeekendMatch = ordinalWeekendRegex.exec(this.question)) !== null) {
+			const ordinalText = ordinalWeekendMatch[1].toLowerCase();
+			const year = parseInt(ordinalWeekendMatch[2], 10);
+			
+			// Map ordinal text to number
+			const ordinalMap: Record<string, number> = {
+				first: 1, second: 2, third: 3, fourth: 4, fifth: 5,
+				sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10,
+				"1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5,
+				"6th": 6, "7th": 7, "8th": 8, "9th": 9, "10th": 10,
+			};
+			
+			const ordinalNumber = ordinalMap[ordinalText] || 1;
+			
+			timeFrames.push({
+				value: `weekend_${ordinalNumber}_${year}`,
+				type: "ordinal_weekend",
+				originalText: ordinalWeekendMatch[0],
+				position: ordinalWeekendMatch.index,
 			});
 		}
 

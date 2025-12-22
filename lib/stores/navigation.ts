@@ -1006,10 +1006,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				const data = await response.json();
 
 				// Log copyable query for debugging
-				if (data.debug && data.debug.copyPasteQuery) {
-					console.log("🔍 COPY-PASTE QUERY FOR MANUAL TESTING:");
-					console.log(data.debug.copyPasteQuery);
-				}
+				// if (data.debug && data.debug.copyPasteQuery) {
+				// 	console.log("🔍 COPY-PASTE QUERY FOR MANUAL TESTING:");
+				// 	console.log(data.debug.copyPasteQuery);
+				// }
 
 				const currentDate = new Date().toISOString().split("T")[0];
 

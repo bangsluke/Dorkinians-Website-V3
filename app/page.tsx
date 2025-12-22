@@ -108,7 +108,7 @@ export default function HomePage() {
 		// });
 
 		if (currentMainPage === "home" && isPlayerSelected && selectedPlayer && !isEditMode) {
-			console.log("✅ [HomePage] Showing chatbot for player:", selectedPlayer);
+			// console.log("✅ [HomePage] Showing chatbot for player:", selectedPlayer);
 			setShowChatbot(true);
 		} else {
 			setShowChatbot(false);

@@ -389,6 +389,18 @@ export class EnhancedQuestionAnalyzer {
 			return "comparison";
 		}
 
+		// Check for opposition name queries (who did [team] play, opposition queries)
+		// This must be checked BEFORE general team queries to avoid false positives
+		if (
+			hasTeamEntities &&
+			((lowerQuestion.includes("who did") && (lowerQuestion.includes("play") || lowerQuestion.includes("played"))) ||
+				(lowerQuestion.includes("who") && lowerQuestion.includes("play") && (lowerQuestion.includes("against") || lowerQuestion.includes("opposition"))) ||
+				(lowerQuestion.includes("opposition") && (lowerQuestion.includes("play") || lowerQuestion.includes("played"))) ||
+				(lowerQuestion.includes("did") && lowerQuestion.includes("play") && hasTeamEntities))
+		) {
+			return "fixture";
+		}
+
 		// Check for general team queries (without league position context)
 		if (
 			hasTeamEntities &&
