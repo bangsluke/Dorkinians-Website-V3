@@ -272,7 +272,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			(location?.length || 2) < 2 ||
 			!opposition?.allOpposition ||
 			(opposition?.searchTerm || "") !== "" ||
-			(competition?.types?.length || 2) < 2 ||
+			(competition?.types?.length || 2) !== 2 ||
 			(competition?.searchTerm || "") !== "" ||
 			(result?.length || 3) < 3 ||
 			(position?.length || 4) < 4

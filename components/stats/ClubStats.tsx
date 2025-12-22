@@ -11,6 +11,7 @@ import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Line, LabelList } from "recharts";
 import { ResponsiveSankey } from "@nivo/sankey";
 import HomeAwayGauge from "./HomeAwayGauge";
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton } from "@/components/skeletons";
@@ -360,8 +361,15 @@ export default function ClubStats() {
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
-	// State for view mode toggle
-	const [isDataTableMode, setIsDataTableMode] = useState(false);
+	// State for view mode toggle - initialize from localStorage
+	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			const saved = safeLocalStorageGet("club-stats-view-mode");
+			if (saved === "true") return true;
+			if (saved === "false") return false;
+		}
+		return false;
+	});
 
 	// Handle data table mode from navigation store
 	useEffect(() => {
@@ -370,6 +378,13 @@ export default function ClubStats() {
 			setDataTableMode(false); // Clear the flag after use
 		}
 	}, [shouldShowDataTable, setDataTableMode]);
+
+	// Persist view mode to localStorage when it changes
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			safeLocalStorageSet("club-stats-view-mode", isDataTableMode ? "true" : "false");
+		}
+	}, [isDataTableMode]);
 
 	// Team comparison state
 	const [teamComparisonData, setTeamComparisonData] = useState<any[]>([]);
