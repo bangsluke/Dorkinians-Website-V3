@@ -691,11 +691,38 @@ export class ChatbotService {
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
 
-		// Check if this is a "how many games with [specific player]" question (2+ entities)
+		// Check if this is a "how many games/appearances with [specific player]" question (2+ entities)
+		// Handles variants like:
+		// - "How many games have I played with [Player]?"
+		// - "How many games do I have with [Player]?"
+		// - "How many appearances have I made with [Player]?"
+		// - "How many games/appearances with [Player]?"
+		const hasHowMany = questionLower.includes("how many") || questionLower.includes("how much");
+		const hasWith = questionLower.includes("with");
+		const hasGamesOrAppearances = questionLower.includes("games") || questionLower.includes("appearances");
+		
+		// Check for direct patterns: "played with", "play with", "have with", "made with", "make with"
+		const hasDirectPattern = questionLower.includes("played with") || 
+		                        questionLower.includes("play with") ||
+		                        questionLower.includes("have with") || 
+		                        questionLower.includes("made with") ||
+		                        questionLower.includes("make with");
+		
+		// Check for pattern: "how many" + (games/appearances) + verb + "with"
+		// Handles both past tense (played, made) and present/infinitive (play, make, have)
+		const hasGamesAppearancesWithPattern = hasGamesOrAppearances && 
+		                                      hasWith && 
+		                                      (questionLower.includes("played") || 
+		                                       questionLower.includes("play") ||
+		                                       questionLower.includes("have") || 
+		                                       questionLower.includes("made") ||
+		                                       questionLower.includes("make"));
+		
 		const isSpecificPlayerPairQuestion = 
-			isPlayedWithQuestion && 
 			entities.length >= 2 && 
-			(questionLower.includes("how many") || questionLower.includes("how much"));
+			hasHowMany &&
+			hasWith &&
+			(hasDirectPattern || hasGamesAppearancesWithPattern);
 
 		this.logToBoth(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, isSpecificPlayerPairQuestion: ${isSpecificPlayerPairQuestion}`, null, "log");
 		console.log(`[MOST_PLAYED_WITH] Checking detection. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, entities: ${entities.length}, isSpecificPlayerPairQuestion: ${isSpecificPlayerPairQuestion}`);
