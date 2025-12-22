@@ -430,6 +430,33 @@ export class ChatbotService {
 		return result;
 	}
 
+	private calculateWeekendDates(year: number, ordinal: number = 1): { startDate: string; endDate: string } {
+		// Find first Saturday of the year
+		const jan1 = new Date(year, 0, 1);
+		const dayOfWeek = jan1.getDay(); // 0=Sunday, 6=Saturday
+		const daysToFirstSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
+		const firstSaturday = new Date(year, 0, 1 + daysToFirstSaturday);
+		
+		// For ordinal weekends, add 7 * (ordinal - 1) days
+		const weekendStart = new Date(firstSaturday);
+		weekendStart.setDate(weekendStart.getDate() + 7 * (ordinal - 1));
+		const weekendEnd = new Date(weekendStart);
+		weekendEnd.setDate(weekendEnd.getDate() + 1); // Sunday
+		
+		// Format as YYYY-MM-DD
+		const formatDate = (date: Date): string => {
+			const yyyy = date.getFullYear();
+			const mm = String(date.getMonth() + 1).padStart(2, "0");
+			const dd = String(date.getDate()).padStart(2, "0");
+			return `${yyyy}-${mm}-${dd}`;
+		};
+		
+		return {
+			startDate: formatDate(weekendStart),
+			endDate: formatDate(weekendEnd),
+		};
+	}
+
 	private isTeamCountQuestion(question?: string): boolean {
 		if (!question) return false;
 		const q = question.toLowerCase();
@@ -629,7 +656,7 @@ export class ChatbotService {
 				case "club":
 					return await this.queryClubData(entities, metrics, analysis);
 				case "fixture":
-					return await this.queryFixtureData(entities, metrics);
+					return await this.queryFixtureData(entities, metrics, analysis);
 				case "comparison":
 					return await this.queryComparisonData(entities, metrics);
 				case "streak":
@@ -1536,15 +1563,130 @@ export class ChatbotService {
 		}
 	}
 
-	private async queryFixtureData(_entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
-		const query = `
-      MATCH (f:Fixture)
-      RETURN f.opponent as opponent, f.date as date
-      LIMIT 10
-    `;
-
-		const result = await neo4jService.executeQuery(query);
-		return result as unknown as Record<string, unknown>;
+	private async queryFixtureData(
+		entities: string[],
+		_metrics: string[],
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Extract team name from entities or analysis
+		let teamName = "";
+		if (analysis?.teamEntities && analysis.teamEntities.length > 0) {
+			teamName = this.mapTeamName(analysis.teamEntities[0]);
+		} else if (entities.length > 0) {
+			teamName = this.mapTeamName(entities[0]);
+		}
+		
+		if (!teamName) {
+			this.logToBoth(`⚠️ No team name found in queryFixtureData`, null, "warn");
+			return { type: "team_not_found", data: [], message: "Could not identify team from question" };
+		}
+		
+		// Extract date range from time frames
+		let startDate: string | null = null;
+		let endDate: string | null = null;
+		
+		if (analysis?.extractionResult?.timeFrames) {
+			const timeFrames = analysis.extractionResult.timeFrames;
+			
+			// Check for ordinal weekend pattern
+			const ordinalWeekendFrame = timeFrames.find(tf => tf.type === "ordinal_weekend");
+			if (ordinalWeekendFrame) {
+				// Parse "weekend_1_2023" format
+				const match = ordinalWeekendFrame.value.match(/weekend_(\d+)_(\d{4})/);
+				if (match) {
+					const ordinal = parseInt(match[1], 10);
+					const year = parseInt(match[2], 10);
+					const dates = this.calculateWeekendDates(year, ordinal);
+					startDate = dates.startDate;
+					endDate = dates.endDate;
+				}
+			} else {
+				// Check for date range
+				const rangeFrame = timeFrames.find(tf => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const dateRange = rangeFrame.value.split(" to ");
+					if (dateRange.length === 2) {
+						startDate = this.convertDateFormat(dateRange[0].trim());
+						endDate = this.convertDateFormat(dateRange[1].trim());
+					}
+				} else {
+					// Check for single date
+					const dateFrame = timeFrames.find(tf => tf.type === "date");
+					if (dateFrame) {
+						const convertedDate = this.convertDateFormat(dateFrame.value);
+						startDate = convertedDate;
+						endDate = convertedDate;
+					}
+				}
+			}
+		}
+		
+		// Build query
+		const params: Record<string, unknown> = {
+			graphLabel,
+			teamName,
+		};
+		
+		let query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.team = $teamName
+		`;
+		
+		if (startDate && endDate) {
+			// Log calculated dates for debugging
+			this.logToBoth(`🔍 Calculated weekend dates - startDate: ${startDate}, endDate: ${endDate}, teamName: ${teamName}`, null, "log");
+			query += ` AND f.date >= $startDate AND f.date <= $endDate`;
+			params.startDate = startDate;
+			params.endDate = endDate;
+		}
+		
+		query += `
+			RETURN f.opposition as opposition, f.date as date, f.homeOrAway as homeOrAway
+			ORDER BY f.date ASC
+		`;
+		
+		this.lastExecutedQueries.push(`FIXTURE_QUERY: ${query}`);
+		this.lastExecutedQueries.push(`FIXTURE_PARAMS: ${JSON.stringify(params)}`);
+		
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			this.logToBoth(`🔍 Fixture query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				this.logToBoth(`⚠️ No fixtures found for ${teamName}${startDate && endDate ? ` between ${startDate} and ${endDate}` : ""}`, null, "warn");
+				return {
+					type: "opposition_query",
+					teamName,
+					oppositions: [],
+					dates: startDate && endDate ? { start: startDate, end: endDate } : undefined,
+					message: `No fixtures found for ${teamName}${startDate && endDate ? ` between ${startDate} and ${endDate}` : ""}`,
+				};
+			}
+			
+			this.logToBoth(`✅ Found ${result.length} fixture(s) for ${teamName}`, null, "log");
+			
+			const oppositions = result.map((r: { opposition: string; date: string; homeOrAway?: string }) => ({
+				name: r.opposition,
+				date: r.date,
+				homeOrAway: r.homeOrAway,
+			}));
+			
+			return {
+				type: "opposition_query",
+				teamName,
+				oppositions,
+				dates: startDate && endDate ? { start: startDate, end: endDate } : undefined,
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in queryFixtureData:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
 	}
 
 	private async queryDoubleGameData(entities: string[], _metrics: string[]): Promise<Record<string, unknown>> {
@@ -3251,6 +3393,39 @@ export class ChatbotService {
 		} else if (data.type === "not_found" || data.type === "no_team") {
 			// Handle league table error cases
 			answer = (data.message as string) || "I couldn't find league table data for your query.";
+		} else if (data && data.type === "opposition_query") {
+			// Handle opposition name queries
+			const teamName = (data.teamName as string) || "";
+			const oppositions = (data.oppositions as Array<{ name: string; date: string; homeOrAway?: string }>) || [];
+			const dates = data.dates as { start: string; end: string } | undefined;
+			
+			if (oppositions.length === 0) {
+				answer = (data.message as string) || `I couldn't find any fixtures for the ${teamName}${dates ? ` between ${this.formatDate(dates.start)} and ${this.formatDate(dates.end)}` : ""}.`;
+			} else if (oppositions.length === 1) {
+				const opp = oppositions[0];
+				const formattedDate = this.formatDate(opp.date);
+				const location = opp.homeOrAway === "Home" ? "at home" : opp.homeOrAway === "Away" ? "away" : "";
+				answer = `The ${teamName} played ${opp.name}${location ? ` ${location}` : ""} on ${formattedDate}.`;
+				answerValue = opp.name;
+			} else {
+				// Multiple fixtures
+				const oppositionNames = oppositions.map(opp => opp.name);
+				const uniqueOppositions = [...new Set(oppositionNames)];
+				
+				if (uniqueOppositions.length === 1) {
+					// Same opposition, multiple dates
+					const opp = uniqueOppositions[0];
+					const dateList = oppositions.map(opp => this.formatDate(opp.date)).join(" and ");
+					answer = `The ${teamName} played ${opp} on ${dateList}.`;
+					answerValue = opp;
+				} else {
+					// Different oppositions
+					const oppList = uniqueOppositions.join(" and ");
+					const dateRange = dates ? ` between ${this.formatDate(dates.start)} and ${this.formatDate(dates.end)}` : "";
+					answer = `The ${teamName} played ${oppList}${dateRange}.`;
+					answerValue = uniqueOppositions.length === 1 ? uniqueOppositions[0] : oppList;
+				}
+			}
 		} else if (data && data.type === "games_played_together") {
 			// Handle games played together data (specific player pair) - check early before other data.data checks
 			console.log(`🔍 [RESPONSE_GEN] games_played_together data:`, data);
