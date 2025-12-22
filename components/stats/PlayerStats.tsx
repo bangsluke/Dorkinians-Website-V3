@@ -18,6 +18,7 @@ import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal"
 import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
 import SharePreviewModal from "@/components/stats/SharePreviewModal";
 import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton } from "@/components/skeletons";
@@ -1614,8 +1615,22 @@ export default function PlayerStats() {
 	const [awardsData, setAwardsData] = useState<any>(null);
 	const [isLoadingAwards, setIsLoadingAwards] = useState(false);
 
-	// State for view mode toggle
-	const [isDataTableMode, setIsDataTableMode] = useState(false);
+	// State for view mode toggle - initialize from localStorage
+	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			const saved = safeLocalStorageGet("player-stats-view-mode");
+			if (saved === "true") return true;
+			if (saved === "false") return false;
+		}
+		return false;
+	});
+
+	// Persist view mode to localStorage when it changes
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			safeLocalStorageSet("player-stats-view-mode", isDataTableMode ? "true" : "false");
+		}
+	}, [isDataTableMode]);
 
 	// State for share functionality
 	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
