@@ -392,8 +392,15 @@ export default function TeamStats() {
 	const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
 	const [isLoadingTopPlayers, setIsLoadingTopPlayers] = useState(false);
 
-	// State for view mode toggle
-	const [isDataTableMode, setIsDataTableMode] = useState(false);
+	// State for view mode toggle - initialize from localStorage
+	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			const saved = safeLocalStorageGet("team-stats-view-mode");
+			if (saved === "true") return true;
+			if (saved === "false") return false;
+		}
+		return false;
+	});
 
 	// Handle data table mode from navigation store
 	useEffect(() => {
@@ -402,6 +409,13 @@ export default function TeamStats() {
 			setDataTableMode(false); // Clear the flag after use
 		}
 	}, [shouldShowDataTable, setDataTableMode]);
+
+	// Persist view mode to localStorage when it changes
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			safeLocalStorageSet("team-stats-view-mode", isDataTableMode ? "true" : "false");
+		}
+	}, [isDataTableMode]);
 
 	// State for seasonal performance chart
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Games");
