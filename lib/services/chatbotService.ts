@@ -4443,6 +4443,25 @@ export class ChatbotService {
 				// Check if answer is already provided (from queryLeagueTableData)
 				if (data.answer && typeof data.answer === "string") {
 					answer = data.answer;
+					// Extract position from data.data if available to set answerValue
+					if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const leagueData = data.data[0] as {
+							position?: number;
+							team?: string;
+							points?: number;
+							played?: number;
+							won?: number;
+							drawn?: number;
+							lost?: number;
+							season?: string;
+							division?: string;
+						};
+						
+						if (leagueData.position !== undefined) {
+							const positionSuffix = leagueData.position === 1 ? "st" : leagueData.position === 2 ? "nd" : leagueData.position === 3 ? "rd" : "th";
+							answerValue = `${leagueData.position}${positionSuffix}`;
+						}
+					}
 				} else if ("data" in data && Array.isArray(data.data) && data.data.length > 0) {
 					// Process league table entry data
 					const leagueData = data.data[0] as {
@@ -4458,9 +4477,9 @@ export class ChatbotService {
 					};
 					
 					if (leagueData.position !== undefined) {
-						// Set answerValue to position for Table responses
-						answerValue = leagueData.position;
+						// Set answerValue to formatted position string for Table responses
 						const positionSuffix = leagueData.position === 1 ? "st" : leagueData.position === 2 ? "nd" : leagueData.position === 3 ? "rd" : "th";
+						answerValue = `${leagueData.position}${positionSuffix}`;
 						const seasonText = leagueData.season ? ` in ${leagueData.season}` : "";
 						const divisionText = leagueData.division ? ` (${leagueData.division})` : "";
 						
