@@ -886,11 +886,10 @@ function FantasyPointsSection({
 		if (match.assists && match.assists > 0) {
 			parts.push(`${match.assists} ${match.assists === 1 ? "Assist" : "Assists"}`);
 		}
-		// Check for clean sheet - support both cleanSheets (number) and cleanSheet (boolean/1)
-		const hasCleanSheet = (match.cleanSheets !== undefined && match.cleanSheets !== null && Number(match.cleanSheets) > 0) || 
-		                       (match.cleanSheet !== undefined && match.cleanSheet !== null && (match.cleanSheet === 1 || match.cleanSheet === true));
+		// Check for clean sheet - check fixture conceded is 0 (no goals conceded by Dorkinians)
+		const hasCleanSheet = match.conceded !== undefined && match.conceded !== null && Number(match.conceded) === 0;
 		if (hasCleanSheet) {
-			parts.push("1 clean sheet");
+			parts.push("1 Clean Sheet");
 		}
 		
 		return parts.join(", ");
@@ -1180,18 +1179,6 @@ function DefensiveRecordSection({
 	concededPerApp: number;
 	gkCleanSheets: number;
 }) {
-	// Debug logging
-	console.log('[DefensiveRecordSection] Props received:', {
-		conceded,
-		cleanSheets,
-		ownGoals,
-		appearances,
-		gk,
-		saves,
-		concededPerApp,
-		gkCleanSheets
-	});
-
 	// Calculate derived statistics
 	const avgGoalsConcededPerGame = appearances > 0 ? (conceded / appearances) : 0;
 	const gamesPerCleanSheet = cleanSheets > 0 ? (appearances / cleanSheets) : 0;
@@ -1288,6 +1275,7 @@ function MinutesPerStatsSection({
 	mom,
 	conceded,
 	cleanSheets,
+	gk,
 	gkMinutes,
 	saves
 }: {
@@ -1297,6 +1285,7 @@ function MinutesPerStatsSection({
 	mom: number;
 	conceded: number;
 	cleanSheets: number;
+	gk?: number;
 	gkMinutes?: number;
 	saves?: number;
 }) {
@@ -1376,7 +1365,7 @@ function MinutesPerStatsSection({
 										{formatMinutesPerStat(minutesPerCleanSheet)}
 									</td>
 								</tr>
-								{gkMinutes && gkMinutes > 0 ? (
+								{gk !== undefined && gk > 0 && saves !== undefined && saves > 0 ? (
 									<tr>
 										<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Save</td>
 										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
@@ -3067,30 +3056,6 @@ export default function PlayerStats() {
 				const savesVal = toNumber(validPlayerData.saves);
 				const concededPerAppVal = toNumber(validPlayerData.concededPerApp);
 				const gkCleanSheetsVal = toNumber(validPlayerData.gkCleanSheets || 0);
-				
-				// Debug logging
-				console.log('[PlayerStats] Defensive Record Data:', {
-					raw: {
-						conceded: validPlayerData.conceded,
-						cleanSheets: validPlayerData.cleanSheets,
-						ownGoals: validPlayerData.ownGoals,
-						appearances: validPlayerData.appearances,
-						gk: validPlayerData.gk,
-						saves: validPlayerData.saves,
-						concededPerApp: validPlayerData.concededPerApp,
-						gkCleanSheets: validPlayerData.gkCleanSheets
-					},
-					converted: {
-						conceded: concededVal,
-						cleanSheets: cleanSheetsVal,
-						ownGoals: ownGoalsVal,
-						appearances: appearancesVal,
-						gk: gkVal,
-						saves: savesVal,
-						concededPerApp: concededPerAppVal,
-						gkCleanSheets: gkCleanSheetsVal
-					}
-				});
 
 				return (
 					<DefensiveRecordSection
@@ -3280,6 +3245,7 @@ export default function PlayerStats() {
 					mom={toNumber(validPlayerData.mom)}
 					conceded={toNumber(validPlayerData.conceded)}
 					cleanSheets={toNumber(validPlayerData.cleanSheets)}
+					gk={toNumber(validPlayerData.gk || 0)}
 					gkMinutes={toNumber(validPlayerData.gkMinutes || 0)}
 					saves={toNumber(validPlayerData.saves || 0)}
 				/>
@@ -3346,7 +3312,7 @@ export default function PlayerStats() {
 	);
 
 	const dataTableContent = (
-		<div className='mt-4 pb-4'>
+		<div className='mt-4 mb-4'>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
