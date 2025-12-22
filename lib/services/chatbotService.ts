@@ -691,10 +691,121 @@ export class ChatbotService {
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
 
-		this.logToBoth(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}`, null, "log");
-		console.log(`[MOST_PLAYED_WITH] Checking detection. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, entities: ${entities.length}`);
+		// Check if this is a "how many games with [specific player]" question (2+ entities)
+		const isSpecificPlayerPairQuestion = 
+			isPlayedWithQuestion && 
+			entities.length >= 2 && 
+			(questionLower.includes("how many") || questionLower.includes("how much"));
 
-		// If this is a "played with" question, handle it specially (even if metrics were extracted)
+		this.logToBoth(`🔍 Checking for "played with" question. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, isSpecificPlayerPairQuestion: ${isSpecificPlayerPairQuestion}`, null, "log");
+		console.log(`[MOST_PLAYED_WITH] Checking detection. Question: "${questionLower}", isPlayedWithQuestion: ${isPlayedWithQuestion}, entities: ${entities.length}, isSpecificPlayerPairQuestion: ${isSpecificPlayerPairQuestion}`);
+
+		// If this is a specific player pair question ("How many games have I played with [Player]?")
+		if (isSpecificPlayerPairQuestion && entities.length >= 2) {
+			console.log(`[GAMES_PLAYED_TOGETHER] ✅ DETECTED! Querying games between: ${entities[0]} and ${entities[1]}`);
+			this.logToBoth(`🔍 Detected specific player pair question, querying games between: ${entities[0]} and ${entities[1]}`, null, "log");
+			
+			const playerName1 = entities[0];
+			const playerName2 = entities[1];
+			const resolvedPlayerName1 = await this.resolvePlayerName(playerName1);
+			const resolvedPlayerName2 = await this.resolvePlayerName(playerName2);
+			
+			if (!resolvedPlayerName1) {
+				this.logToBoth(`❌ Player not found: ${playerName1}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName1}". Please check the spelling or try a different player name.`,
+					playerName: playerName1,
+				};
+			}
+			
+			if (!resolvedPlayerName2) {
+				this.logToBoth(`❌ Player not found: ${playerName2}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName2}". Please check the spelling or try a different player name.`,
+					playerName: playerName2,
+				};
+			}
+			
+			// Extract team name if present in team entities
+			let teamName: string | undefined = undefined;
+			if (teamEntities.length > 0) {
+				teamName = this.mapTeamName(teamEntities[0]);
+				this.logToBoth(`🔍 Team filter detected: ${teamName}`, null, "log");
+			}
+			
+			// Extract season and date range filters
+			const timeFrames = analysis.extractionResult?.timeFrames || [];
+			const question = analysis.question || "";
+			
+			// Extract season from timeFrames or question
+			let season: string | null = null;
+			const seasonFrame = timeFrames.find(tf => tf.type === "season");
+			if (seasonFrame) {
+				season = seasonFrame.value;
+				// Normalize season format (2016-17 -> 2016/17)
+				season = season.replace("-", "/");
+			} else {
+				// Try to extract from question directly
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				}
+			}
+			
+			// Extract date range from timeRange or question
+			let startDate: string | null = null;
+			let endDate: string | null = null;
+			
+			// First, try to extract from timeRange string
+			if (timeRange && typeof timeRange === "string" && timeRange.includes(" to ")) {
+				const dateRange = timeRange.split(" to ");
+				if (dateRange.length === 2) {
+					startDate = this.convertDateFormat(dateRange[0].trim());
+					endDate = this.convertDateFormat(dateRange[1].trim());
+				}
+			}
+			
+			// If no date range found, check timeFrames for range type
+			if (!startDate || !endDate) {
+				const rangeFrame = timeFrames.find(tf => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const dateRange = rangeFrame.value.split(" to ");
+					if (dateRange.length === 2) {
+						startDate = this.convertDateFormat(dateRange[0].trim());
+						endDate = this.convertDateFormat(dateRange[1].trim());
+					}
+				}
+			}
+			
+			// If still no date range, check question for "between X and Y" patterns
+			if (!startDate || !endDate) {
+				// Check for full date format: "between DD/MM/YYYY and DD/MM/YYYY"
+				const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+				if (betweenDateMatch) {
+					startDate = this.convertDateFormat(betweenDateMatch[1]);
+					endDate = this.convertDateFormat(betweenDateMatch[2]);
+				} else {
+					// Check for year-only format: "between YYYY and YYYY"
+					const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+					if (betweenYearMatch) {
+						const startYear = parseInt(betweenYearMatch[1], 10);
+						const endYear = parseInt(betweenYearMatch[2], 10);
+						// Convert to full date range: 01/01/YYYY to 31/12/YYYY
+						startDate = `${startYear}-01-01`;
+						endDate = `${endYear}-12-31`;
+					}
+				}
+			}
+			
+			this.logToBoth(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGamesPlayedTogether`, null, "log");
+			return await this.queryGamesPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+		}
+
+		// If this is a "played with" question (but not specific player pair), handle it specially (even if metrics were extracted)
 		if (isPlayedWithQuestion && entities.length > 0) {
 			console.log(`[MOST_PLAYED_WITH] ✅ DETECTED! Using most played with query for player: ${entities[0]}`);
 			this.logToBoth(`🔍 Detected "played with" question, using most played with query for player: ${entities[0]}`, null, "log");
@@ -3113,6 +3224,93 @@ export class ChatbotService {
 		} else if (data.type === "not_found" || data.type === "no_team") {
 			// Handle league table error cases
 			answer = (data.message as string) || "I couldn't find league table data for your query.";
+		} else if (data && data.type === "games_played_together") {
+			// Handle games played together data (specific player pair) - check early before other data.data checks
+			console.log(`🔍 [RESPONSE_GEN] games_played_together data:`, data);
+			console.log(`🔍 [RESPONSE_GEN] data.data:`, data.data, `Type:`, typeof data.data);
+			
+			const playerName1 = data.playerName1 as string;
+			const playerName2 = data.playerName2 as string;
+			const teamName = (data.teamName as string) || undefined;
+			const season = (data.season as string) || undefined;
+			const startDate = (data.startDate as string) || undefined;
+			const endDate = (data.endDate as string) || undefined;
+			
+			let gamesTogether = 0;
+			if (typeof data.data === "number") {
+				gamesTogether = data.data;
+				console.log(`🔍 [RESPONSE_GEN] Extracted number directly:`, gamesTogether);
+			} else if (data.data !== null && data.data !== undefined) {
+				if (typeof data.data === "object") {
+					// Handle Neo4j Integer objects
+					if ("toNumber" in data.data && typeof data.data.toNumber === "function") {
+						gamesTogether = (data.data as { toNumber: () => number }).toNumber();
+						console.log(`🔍 [RESPONSE_GEN] Extracted via toNumber():`, gamesTogether);
+					} else if ("low" in data.data && "high" in data.data) {
+						const neo4jInt = data.data as { low?: number; high?: number };
+						gamesTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via low/high:`, gamesTogether);
+					} else {
+						gamesTogether = Number(data.data) || 0;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via Number():`, gamesTogether);
+					}
+				} else {
+					gamesTogether = Number(data.data) || 0;
+					console.log(`🔍 [RESPONSE_GEN] Extracted via Number() (not object):`, gamesTogether);
+				}
+			} else {
+				console.log(`🔍 [RESPONSE_GEN] data.data is null or undefined`);
+			}
+			
+			console.log(`🔍 [RESPONSE_GEN] Final gamesTogether:`, gamesTogether);
+			
+			const gamesText = gamesTogether === 1 ? "game" : "games";
+			
+			// Check if question is about "I/you" or a specific player
+			const questionLower = question.toLowerCase();
+			const isAboutUser = questionLower.includes(" i ") || questionLower.includes(" i've ") || questionLower.includes(" i'") || 
+				questionLower.startsWith("i ") || questionLower.includes(" who have i ") || questionLower.includes(" who have you ");
+			
+			// Build context string for team, season, and date range
+			const contextParts: string[] = [];
+			if (teamName) {
+				contextParts.push(`whilst playing in the ${teamName}`);
+			}
+			if (season) {
+				contextParts.push(`in ${season}`);
+			}
+			if (startDate && endDate) {
+				// Format dates for display (YYYY-MM-DD -> DD/MM/YYYY)
+				const formatDateForDisplay = (dateStr: string) => {
+					const parts = dateStr.split("-");
+					if (parts.length === 3) {
+						return `${parts[2]}/${parts[1]}/${parts[0]}`;
+					}
+					return dateStr;
+				};
+				contextParts.push(`between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`);
+			}
+			const context = contextParts.length > 0 ? ` ${contextParts.join(" ")}` : "";
+			
+			if (isAboutUser) {
+				answer = `You have played ${gamesTogether} ${gamesText} with ${playerName2}${context}.`;
+			} else {
+				answer = `${playerName1} has played ${gamesTogether} ${gamesText} with ${playerName2}${context}.`;
+			}
+			
+			// Create NumberCard visualization
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: isAboutUser ? "You" : playerName1, 
+					value: gamesTogether, 
+					metric: `Games with ${playerName2}` 
+				}],
+				config: {
+					title: `Games Played Together${context ? ` - ${contextParts.join(", ")}` : ""}`,
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries (check early before data.data checks)
 			const teamName = data.teamName as string;
@@ -4760,6 +4958,138 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth(`❌ Error in most played with query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying most played with data" };
+		}
+	}
+
+	private async queryGamesPlayedTogether(
+		playerName1: string,
+		playerName2: string,
+		teamName?: string,
+		season?: string | null,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<Record<string, unknown>> {
+		const timeContext = [
+			teamName ? `team: ${teamName}` : null,
+			season ? `season: ${season}` : null,
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+		].filter(Boolean).join(", ");
+		
+		this.logToBoth(`🔍 Querying games played together for players: ${playerName1} and ${playerName2}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Find fixtures where both players have MatchDetail nodes
+		// Match both players, find their MatchDetail nodes, and find Fixtures that contain MatchDetails for both players
+		const whereConditions: string[] = [
+			"p1.playerName = $playerName1",
+			"p2.playerName = $playerName2",
+			"p1 <> p2"
+		];
+		
+		if (teamName) {
+			whereConditions.push("md1.team = $teamName", "md2.team = $teamName");
+		}
+		
+		if (season) {
+			whereConditions.push("f.season = $season");
+		}
+		
+		if (startDate && endDate) {
+			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
+		}
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel, playerName: $playerName1})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel, playerName: $playerName2})-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
+			WHERE ${whereConditions.join(" AND ")}
+			RETURN count(DISTINCT f) as gamesTogether
+		`;
+
+		// Log copyable query for debugging
+		const queryParams: Record<string, string> = {
+			playerName1,
+			playerName2,
+			graphLabel
+		};
+		if (teamName) {
+			queryParams.teamName = teamName;
+		}
+		if (season) {
+			queryParams.season = season;
+		}
+		if (startDate && endDate) {
+			queryParams.startDate = startDate;
+			queryParams.endDate = endDate;
+		}
+		
+		const readyToExecuteQuery = query
+			.replace(/\$playerName1/g, `'${playerName1}'`)
+			.replace(/\$playerName2/g, `'${playerName2}'`)
+			.replace(/\$graphLabel/g, `'${graphLabel}'`)
+			.replace(/\$teamName/g, teamName ? `'${teamName}'` : "")
+			.replace(/\$season/g, season ? `'${season}'` : "")
+			.replace(/\$startDate/g, startDate ? `'${startDate}'` : "")
+			.replace(/\$endDate/g, endDate ? `'${endDate}'` : "");
+		
+		console.log(`🔍 [GAMES_PLAYED_TOGETHER] COPY-PASTE QUERY FOR MANUAL TESTING:`);
+		console.log(readyToExecuteQuery);
+		this.lastExecutedQueries.push(`GAMES_PLAYED_TOGETHER_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			console.log(`🔍 [GAMES_PLAYED_TOGETHER] Query result:`, result);
+			console.log(`🔍 [GAMES_PLAYED_TOGETHER] Result type:`, typeof result, `Is array:`, Array.isArray(result));
+			
+			// Extract the count from the result
+			let gamesTogether = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				console.log(`🔍 [GAMES_PLAYED_TOGETHER] First record:`, record);
+				if (record && typeof record === "object" && "gamesTogether" in record) {
+					let count = record.gamesTogether;
+					console.log(`🔍 [GAMES_PLAYED_TOGETHER] Count value:`, count, `Type:`, typeof count);
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							gamesTogether = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								gamesTogether = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								gamesTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								gamesTogether = Number(count) || 0;
+							}
+						} else {
+							gamesTogether = Number(count) || 0;
+						}
+					}
+				} else {
+					console.log(`🔍 [GAMES_PLAYED_TOGETHER] Record structure issue:`, record);
+				}
+			} else {
+				console.log(`🔍 [GAMES_PLAYED_TOGETHER] Result structure issue:`, result);
+			}
+			
+			console.log(`🔍 [GAMES_PLAYED_TOGETHER] Final gamesTogether value:`, gamesTogether);
+			
+			return {
+				type: "games_played_together",
+				data: gamesTogether,
+				playerName1,
+				playerName2,
+				teamName,
+				season,
+				startDate,
+				endDate
+			};
+		} catch (error) {
+			this.logToBoth(`❌ Error in games played together query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying games played together data" };
 		}
 	}
 
