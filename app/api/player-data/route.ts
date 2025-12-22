@@ -133,7 +133,8 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			sum(coalesce(md.cleanSheets, 0)) as cleanSheets,
 			sum(CASE 
 				WHEN toUpper(coalesce(md.class, "")) = "GK" 
-				AND coalesce(f.conceded, 0) = 0
+				AND f IS NOT NULL
+				AND coalesce(f.conceded, -1) = 0
 				THEN 1 
 				ELSE 0 
 			END) as gkCleanSheets,
@@ -418,66 +419,14 @@ export async function GET(request: NextRequest) {
 		// Extract aggregated stats from result
 		const record = result.records[0];
 		
-		// Debug: Log position counts and sample class values
-		const gkRaw = record.get("gk");
-		const defRaw = record.get("def");
-		const midRaw = record.get("mid");
-		const fwdRaw = record.get("fwd");
-		console.log("[DEBUG Position Counts] Raw values from query:", {
-			gk: gkRaw,
-			def: defRaw,
-			mid: midRaw,
-			fwd: fwdRaw,
-			gkType: typeof gkRaw,
-			defType: typeof defRaw
-		});
-		
-		// Debug: Query sample MatchDetail class values
-		const debugQuery = `
-			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-			RETURN md.class as class, count(*) as count, collect(md.class)[0..5] as sampleValues
-			ORDER BY count DESC
-			LIMIT 10
-		`;
-		try {
-			const debugResult = await neo4jService.runQuery(debugQuery, { graphLabel, playerName });
-			const classDistribution = debugResult.records.map(r => ({
-				class: r.get("class"),
-				classType: typeof r.get("class"),
-				classUpper: r.get("class") ? r.get("class").toUpperCase() : null,
-				count: r.get("count").toNumber ? r.get("count").toNumber() : r.get("count"),
-				sampleValues: r.get("sampleValues")
-			}));
-			console.log("[DEBUG] MatchDetail class distribution for player:", playerName, classDistribution);
-			
-			// Also check if class values match our expectations
-			const testQuery = `
-				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
-				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-				WITH md.class as class, count(*) as count
-				WHERE class IS NOT NULL
-				RETURN class, count
-				ORDER BY count DESC
-			`;
-			const testResult = await neo4jService.runQuery(testQuery, { graphLabel, playerName });
-			const nonNullClasses = testResult.records.map(r => ({
-				class: r.get("class"),
-				count: r.get("count").toNumber ? r.get("count").toNumber() : r.get("count")
-			}));
-			console.log("[DEBUG] Non-null class values:", nonNullClasses);
-		} catch (debugError) {
-			console.error("[DEBUG] Error fetching class distribution:", debugError);
-		}
-		
 		const playerData = {
 			id: record.get("id"),
 			playerName: record.get("playerName"),
 			allowOnSite: record.get("allowOnSite"),
-			gk: toNumber(gkRaw),
-			def: toNumber(defRaw),
-			mid: toNumber(midRaw),
-			fwd: toNumber(fwdRaw),
+			gk: toNumber(record.get("gk")),
+			def: toNumber(record.get("def")),
+			mid: toNumber(record.get("mid")),
+			fwd: toNumber(record.get("fwd")),
 			gkMinutes: toNumber(record.get("gkMinutes")),
 			defMinutes: toNumber(record.get("defMinutes")),
 			midMinutes: toNumber(record.get("midMinutes")),

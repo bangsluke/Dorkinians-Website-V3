@@ -257,6 +257,7 @@ export async function POST(request: NextRequest) {
 				f.fullResult as matchSummary, 
 				f.opposition as opposition, 
 				f.result as result,
+				f.conceded as fixtureConceded,
 				md.seasonWeek as seasonWeek,
 				md.seasonMonth as seasonMonth,
 				md.season as season,
@@ -286,6 +287,7 @@ export async function POST(request: NextRequest) {
 		const matches: MatchDetail[] = result.records.map((record) => {
 			const md = record.get("md");
 			const properties = md.properties;
+			const fixtureConceded = toNumber(record.get("fixtureConceded"));
 			return {
 				class: properties.class,
 				min: toNumber(properties.min || properties.minutes || 0),
@@ -312,6 +314,7 @@ export async function POST(request: NextRequest) {
 				opposition: record.get("opposition") || null,
 				result: record.get("result") || null,
 				matchSummary: record.get("matchSummary") || null,
+				fixtureConceded: fixtureConceded,
 			};
 		});
 
@@ -524,6 +527,7 @@ export async function POST(request: NextRequest) {
 						min: m.min || 0,
 						goals: (m.goals || 0) + (m.penaltiesScored || 0),
 						assists: m.assists || 0,
+						conceded: (m as any).fixtureConceded !== undefined ? (m as any).fixtureConceded : null,
 					})),
 			  }
 			: null;
@@ -543,6 +547,7 @@ export async function POST(request: NextRequest) {
 				min: number;
 				goals: number;
 				assists: number;
+				conceded: number | null;
 			}>;
 		} | null = null;
 		
@@ -569,6 +574,7 @@ export async function POST(request: NextRequest) {
 					min: m.min || 0,
 					goals: (m.goals || 0) + (m.penaltiesScored || 0),
 					assists: m.assists || 0,
+					conceded: (m as any).fixtureConceded !== undefined ? (m as any).fixtureConceded : null,
 				})),
 			};
 		}

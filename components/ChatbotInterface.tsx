@@ -254,6 +254,7 @@ export default function ChatbotInterface() {
 
 			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
 				answer: data.answer,
+				answerValue: data.answerValue,
 				hasVisualization: !!data.visualization,
 				hasDebug: !!data.debug,
 				hasProcessingDetails: !!data.debug?.processingDetails,
