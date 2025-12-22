@@ -1295,7 +1295,7 @@ function MinutesPerStatsSection({
 	const minutesPerMoM = mom > 0 ? (minutes / mom) : 0;
 	const minutesPerConceded = conceded > 0 ? (minutes / conceded) : 0;
 	const minutesPerCleanSheet = cleanSheets > 0 ? (minutes / cleanSheets) : 0;
-	const minutesPerSave = (gkMinutes && gkMinutes > 0) ? (saves && saves > 0 ? (gkMinutes / saves) : 0) : 0;
+	const minutesPerSave = saves && saves > 0 ? (minutes / saves) : 0;
 
 	// Format number with commas for thousands and 1 decimal place
 	const formatMinutesPerStat = (value: number): string => {
@@ -1306,7 +1306,7 @@ function MinutesPerStatsSection({
 	return (
 		<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 			<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Minutes per Stats</h3>
-			<div className='w-full relative' style={{ height: '200px', overflow: 'hidden', borderRadius: '0.5rem' }}>
+			<div className='w-full relative' style={{ minHeight: '200px', borderRadius: '0.5rem' }}>
 				{/* Background Stopwatch */}
 				<div className='absolute inset-0 w-full h-full' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
 					<Image
@@ -1325,7 +1325,7 @@ function MinutesPerStatsSection({
 				</div>
 				
 				{/* Content Overlay */}
-				<div className='relative z-10 h-full flex flex-col justify-center px-3 md:px-4 py-2'>
+				<div className='relative z-10 flex flex-col justify-center px-3 md:px-4 py-2'>
 					<div className='bg-black/60 backdrop-blur-sm rounded-lg p-3 md:p-4' style={{ borderRadius: '0.5rem', overflow: 'hidden' }}>
 						<table className='w-full text-white text-sm'>
 							<thead>
@@ -1365,14 +1365,14 @@ function MinutesPerStatsSection({
 										{formatMinutesPerStat(minutesPerCleanSheet)}
 									</td>
 								</tr>
-								{gk !== undefined && gk > 0 && saves !== undefined && saves > 0 ? (
-									<tr>
+								{gk !== undefined && gk > 0 && saves !== undefined && saves > 0 && (
+									<tr className='border-b border-white/10'>
 										<td className='py-2 px-2 text-xs md:text-sm'>Minutes per Save</td>
 										<td className='text-right py-2 px-2 font-mono text-xs md:text-sm'>
 											{formatMinutesPerStat(minutesPerSave)}
 										</td>
 									</tr>
-								) : null}
+								)}
 							</tbody>
 						</table>
 					</div>
