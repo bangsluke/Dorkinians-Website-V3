@@ -28,6 +28,9 @@ import { TemporalQueryHandler } from "./queryHandlers/temporalQueryHandler";
 import { LeagueTableQueryHandler } from "./queryHandlers/leagueTableQueryHandler";
 import type { ChatbotResponse, QuestionContext, ProcessingDetails, PlayerData, TeamData, StreakData, CoPlayerData, OpponentData, RankingData } from "./types/chatbotTypes";
 
+// Re-export types for use in route handlers and components
+export type { QuestionContext, ChatbotResponse };
+
 export class ChatbotService {
 	private static instance: ChatbotService;
 	private entityResolver: EntityNameResolver;
