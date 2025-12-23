@@ -28,26 +28,26 @@ export default function SankeyChartSkeleton() {
 						})}
 					</div>
 					{/* Flow connections */}
-					<svg className='absolute inset-0 w-full h-full' style={{ overflow: 'visible', pointerEvents: 'none' }}>
+					<svg className='absolute inset-0 w-full h-full' viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible', pointerEvents: 'none' }}>
 						{[...Array(5)].map((_, i) => {
-							const startX = 16; // Left node right edge
-							const endX = 84; // Right nodes left edge
-							const startY = 50;
-							const teamHeights = [120, 80, 100, 90, 110];
-							const teamPositions = [0, 20, 40, 60, 80];
+							const startX = 16; // Left node right edge in viewBox coordinates (0-100)
+							const endX = 84; // Right nodes left edge in viewBox coordinates (0-100)
+							const startY = 50; // Center Y in viewBox coordinates (0-100)
+							const teamHeights = [12, 8, 10, 9, 11]; // Heights in viewBox coordinates (0-100 scale)
+							const teamPositions = [0, 20, 40, 60, 80]; // Positions in viewBox coordinates (0-100 scale)
 							const endY = teamPositions[i] + (teamHeights[i] / 2);
 							
-							// Create curved path
+							// Create curved path - use numeric values in viewBox coordinate system
 							const controlX1 = startX + (endX - startX) * 0.3;
 							const controlX2 = startX + (endX - startX) * 0.7;
-							const path = `M ${startX}% ${startY}% C ${controlX1}% ${startY}%, ${controlX2}% ${endY}%, ${endX}% ${endY}%`;
+							const path = `M ${startX} ${startY} C ${controlX1} ${startY}, ${controlX2} ${endY}, ${endX} ${endY}`;
 							
 							return (
 								<path
 									key={i}
 									d={path}
 									stroke="var(--skeleton-base)"
-									strokeWidth="18"
+									strokeWidth="1.8"
 									fill="none"
 									opacity="0.3"
 								/>

@@ -87,7 +87,8 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 
 				if (response.ok) {
 					const data = await response.json();
-					setFixtures(data.fixtures || []);
+					// Reverse fixtures so most recent is on the right
+					setFixtures((data.fixtures || []).reverse());
 				} else {
 					const errorData = await response.json();
 					setError(errorData.error || "Failed to fetch recent fixtures");
