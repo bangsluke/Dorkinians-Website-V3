@@ -573,7 +573,7 @@ export const statObject = {
 		statFormat: "Decimal2",
 		description: "The average number of goals scored per appearance by the player.",
 		statHigherBetterBoolean: true,
-		numberDecimalPlaces: 1,
+		numberDecimalPlaces: 2,
 		statCategory: "Per App/Minute Stat",
 		iconName: "GoalsPerAppearance-Icon",
 	},

@@ -79,6 +79,7 @@ export interface PlayerData {
 	fwdMinutes: number;
 	// Team and season tracking
 	mostPlayedForTeam: string;
+	mostPlayedForTeamAppearances: number;
 	numberTeamsPlayedFor: number;
 	mostScoredForTeam: string;
 	numberSeasonsPlayedFor: number;

@@ -66,4 +66,33 @@ export class TeamMappingUtils {
 
 		return (mentionsClubTeams && mentionsPlayed) || (genericHowManyTeams && mentionsPlayed);
 	}
+
+	/**
+	 * Get team priority (lower number = higher team)
+	 * 1st XI = 1 (highest), 2nd XI = 2, etc.
+	 * Unknown teams = 999 (lowest)
+	 */
+	static getTeamPriority(team: string): number {
+		if (!team) return 999;
+		const teamLower = team.toLowerCase().trim();
+		const priorityMap: { [key: string]: number } = {
+			"1st xi": 1,
+			"2nd xi": 2,
+			"3rd xi": 3,
+			"4th xi": 4,
+			"5th xi": 5,
+			"6th xi": 6,
+			"7th xi": 7,
+			"8th xi": 8,
+			"1s": 1,
+			"2s": 2,
+			"3s": 3,
+			"4s": 4,
+			"5s": 5,
+			"6s": 6,
+			"7s": 7,
+			"8s": 8,
+		};
+		return priorityMap[teamLower] || 999;
+	}
 }

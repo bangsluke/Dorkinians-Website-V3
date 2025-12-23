@@ -8,6 +8,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { statObject, statsPageConfig } from "@/config/config";
+import { TeamMappingUtils } from "@/lib/services/chatbotUtils/teamMappingUtils";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -85,12 +86,16 @@ function ComparisonStatRow({
 	statKey, 
 	stat, 
 	player1Data, 
-	player2Data 
+	player2Data,
+	player1Name,
+	player2Name
 }: { 
 	statKey: string; 
 	stat: any; 
 	player1Data: PlayerData | null; 
 	player2Data: PlayerData | null;
+	player1Name: string | null;
+	player2Name: string | null;
 }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
@@ -108,7 +113,33 @@ function ComparisonStatRow({
 	let player1IsWinner = false;
 	let player2IsWinner = false;
 	
-	if (statHigherBetter) {
+	// Special handling for MostPlayedForTeam: compare by appearance counts first, then team priority
+	if (statKey === "MostPlayedForTeam") {
+		const player1Team = player1Data?.mostPlayedForTeam || "";
+		const player2Team = player2Data?.mostPlayedForTeam || "";
+		const player1Appearances = player1Data?.mostPlayedForTeamAppearances || 0;
+		const player2Appearances = player2Data?.mostPlayedForTeamAppearances || 0;
+		
+		// Compare appearance counts first
+		if (player1Appearances > player2Appearances) {
+			player1IsWinner = true;
+		} else if (player2Appearances > player1Appearances) {
+			player2IsWinner = true;
+		} else {
+			// If appearances are equal, compare team priorities (lower priority = higher team = better)
+			const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
+			const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
+			
+			if (player1Priority < player2Priority) {
+				// Player 1 has higher team (lower priority number)
+				player1IsWinner = true;
+			} else if (player2Priority < player1Priority) {
+				// Player 2 has higher team (lower priority number)
+				player2IsWinner = true;
+			}
+			// If priorities are also equal, neither wins
+		}
+	} else if (statHigherBetter) {
 		player1IsWinner = player1Value > player2Value;
 		player2IsWinner = player2Value > player1Value;
 	} else {
@@ -116,8 +147,19 @@ function ComparisonStatRow({
 		player2IsWinner = player2Value < player1Value;
 	}
 	
-	const player1Width = maxValue > 0 ? (player1Value / maxValue) * 100 : 0;
-	const player2Width = maxValue > 0 ? (player2Value / maxValue) * 100 : 0;
+	// For MostPlayedForTeam, use appearance counts for width calculation
+	let player1Width = 0;
+	let player2Width = 0;
+	if (statKey === "MostPlayedForTeam") {
+		const player1Appearances = player1Data?.mostPlayedForTeamAppearances || 0;
+		const player2Appearances = player2Data?.mostPlayedForTeamAppearances || 0;
+		const maxAppearances = Math.max(player1Appearances, player2Appearances, 1);
+		player1Width = maxAppearances > 0 ? (player1Appearances / maxAppearances) * 100 : 0;
+		player2Width = maxAppearances > 0 ? (player2Appearances / maxAppearances) * 100 : 0;
+	} else {
+		player1Width = maxValue > 0 ? (player1Value / maxValue) * 100 : 0;
+		player2Width = maxValue > 0 ? (player2Value / maxValue) * 100 : 0;
+	}
 
 	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
 		const containers: HTMLElement[] = [];
@@ -288,7 +330,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player1Width > 0 ? '40px' : '0' }}
 						>
-							{player1Width > 5 && (
+							{player1Value > 0 && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player1IsWinner ? 'text-black' : 'text-black'
 								}`}>
@@ -322,7 +364,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player2Width > 0 ? '40px' : '0' }}
 						>
-							{player2Width > 5 && (
+							{player2Value > 0 && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player2IsWinner ? 'text-black' : 'text-black'
 								}`}>
@@ -348,7 +390,13 @@ function ComparisonStatRow({
 						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					)}
 					<div className='font-semibold mb-1'>{stat.displayText}</div>
-					<div className='text-xs text-white/80'>{stat.description}</div>
+					<div className='text-xs text-white/80 mb-2'>{stat.description}</div>
+					{player1Name && player2Name && (
+						<div className='text-xs text-white/90 mt-2 pt-2 border-t border-white/20'>
+							<div className='mb-1'>{player1Name}: <span className='font-mono'>{player1Formatted}</span></div>
+							<div>{player2Name}: <span className='font-mono'>{player2Formatted}</span></div>
+						</div>
+					)}
 				</div>,
 				document.body
 			)}
@@ -975,6 +1023,8 @@ export default function Comparison() {
 								stat={stat}
 								player1Data={player1Data}
 								player2Data={secondPlayerData}
+								player1Name={selectedPlayer}
+								player2Name={secondPlayer}
 							/>
 						))}
 						<div className='pb-8 md:pb-12'></div>
