@@ -1,6 +1,10 @@
+---
+slug: /projects/dorkinians-website/settings-page
+---
+
 # Settings
 
-> [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
+> [Back to Dorkinians Website Documentation](1DorkiniansWebsite.md)
 
 ## Table of Contents
 

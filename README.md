@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.imgur.com/wMPmx9P.png" alt="Dorkinians FC Logo" width="200"/>
+  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" width="200"/>
 </p>
 
 # Dorkinians FC Statistics Website

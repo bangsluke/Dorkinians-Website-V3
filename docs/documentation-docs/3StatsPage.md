@@ -1,6 +1,10 @@
+---
+slug: /projects/dorkinians-website/stats-page
+---
+
 # Stats
 
-> [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
+> [Back to Dorkinians Website Documentation](1DorkiniansWebsite.md)
 
 ## Table of Contents
 

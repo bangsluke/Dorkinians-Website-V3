@@ -1,9 +1,22 @@
+---
+slug: /projects/dorkinians-website
+---
+
 # Dorkinians Website
 
 ![Dorkinians Logo](https://i.postimg.cc/gJ87N09K/Dorkinians.png)
 
+## Quick Links
+
+- [Home Page](2HomePage.md)
+- [Stats Page](3StatsPage.md)
+- [TOTW Page](4TOTWPage.md)
+- [Club Info Page](5ClubInfoPage.md)
+- [Settings Page](6SettingsPage.md)
+
 ## Table of Contents
 
+- [Quick Links](#quick-links)
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
 - [Main Features](#main-features)
@@ -68,7 +81,7 @@ The Home page features the chatbot interface where you can ask natural language 
 - Conversation history
 - Visual data responses
 
-[View Home Documentation →](Home.md)
+[View Home Documentation →](2HomePage.md)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -82,7 +95,7 @@ The Stats section provides comprehensive statistics for players, teams, and the 
 - **Club Stats**: Club-wide statistics and comparisons
 - **Comparison**: Side-by-side player comparison with radar charts
 
-[View Stats Documentation →](Stats.md)
+[View Stats Documentation →](3StatsPage.md)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -94,7 +107,7 @@ The TOTW (Team of the Week) section displays the best performing players each we
 - **Team of the Week**: Weekly best XI with visual pitch display
 - **Players of the Month**: Monthly player awards
 
-[View TOTW Documentation →](TOTW.md)
+[View TOTW Documentation →](4TOTWPage.md)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -109,7 +122,7 @@ The Club Info section contains information about the club, leagues, captains, aw
 - **Club Awards**: Award information and winners
 - **Useful Links**: External resources and links
 
-[View Club Info Documentation →](Club-Info.md)
+[View Club Info Documentation →](5ClubInfoPage.md)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -123,7 +136,7 @@ The Settings page provides quick navigation to all app sections, database status
 - PWA installation prompt
 - App version information
 
-[View Settings Documentation →](Settings.md)
+[View Settings Documentation →](6SettingsPage.md)
 
 > [Back to Table of Contents](#table-of-contents)
 

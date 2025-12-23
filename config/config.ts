@@ -5,7 +5,7 @@ export const appConfig = {
 	author: "Luke Bangs",
 	contact: "bangsluke@gmail.com",
 	forceSkeletonView: false,
-	documentationUrl: "https://bangsluke-documentation.netlify.app/docs/Projects/Dorkinians%20Website/1DorkiniansWebsite",
+	documentationUrl: "https://bangsluke-documentation.netlify.app/docs/projects/dorkinians-website",
 } as const;
 
 export type AppConfig = typeof appConfig;
