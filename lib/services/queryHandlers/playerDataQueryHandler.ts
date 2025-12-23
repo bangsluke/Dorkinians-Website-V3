@@ -6,8 +6,8 @@ import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { QueryExecutionUtils } from "../chatbotUtils/queryExecutionUtils";
 import { loggingService } from "../loggingService";
-import { relationshipQueryHandler } from "./relationshipQueryHandler";
-import { awardsQueryHandler } from "./awardsQueryHandler";
+import { RelationshipQueryHandler } from "./relationshipQueryHandler";
+import { AwardsQueryHandler } from "./awardsQueryHandler";
 
 export class PlayerDataQueryHandler {
 	/**
@@ -165,7 +165,7 @@ export class PlayerDataQueryHandler {
 			}
 			
 			loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGamesPlayedTogether`, null, "log");
-			return await relationshipQueryHandler.queryGamesPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+			return await RelationshipQueryHandler.queryGamesPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
 		}
 
 		// If this is a "played with" question (but not specific player pair), handle it specially
@@ -245,7 +245,7 @@ export class PlayerDataQueryHandler {
 			}
 			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedWith`, null, "log");
-			return await relationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
+			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
 		}
 
 		// Check for "opposition most" or "played against the most" questions
@@ -273,7 +273,7 @@ export class PlayerDataQueryHandler {
 			}
 			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
-			return await relationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+			return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
 		}
 
 		// If we have a specific player name and metrics, query their stats
@@ -316,27 +316,27 @@ export class PlayerDataQueryHandler {
 
 			// Check for special queries that can use enhanced relationship properties
 			if (metric === "TOTW" || metric === "WEEKLY_TOTW") {
-				return await awardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly");
 			}
 
 			if (metric === "SEASON_TOTW") {
-				return await awardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season");
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
-				return await awardsQueryHandler.queryPlayersOfTheMonthData(actualPlayerName);
+				return await AwardsQueryHandler.queryPlayersOfTheMonthData(actualPlayerName);
 			}
 
 			if (metric === "CAPTAIN" || metric === "CAPTAIN_AWARDS") {
-				return await awardsQueryHandler.queryPlayerCaptainAwardsData(actualPlayerName);
+				return await AwardsQueryHandler.queryPlayerCaptainAwardsData(actualPlayerName);
 			}
 
 			if (metric === "CO_PLAYERS" || metric === "PLAYED_WITH") {
-				return await relationshipQueryHandler.queryPlayerCoPlayersData(actualPlayerName);
+				return await RelationshipQueryHandler.queryPlayerCoPlayersData(actualPlayerName);
 			}
 
 			if (metric === "OPPONENTS" || metric === "PLAYED_AGAINST") {
-				return await relationshipQueryHandler.queryPlayerOpponentsData(actualPlayerName);
+				return await RelationshipQueryHandler.queryPlayerOpponentsData(actualPlayerName);
 			}
 
 			// Build the optimal query using unified architecture
