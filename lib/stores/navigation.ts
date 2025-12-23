@@ -363,7 +363,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -385,7 +385,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -407,7 +407,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -429,7 +429,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -453,7 +453,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			searchTerm: "",
 		},
 		competition: {
-			types: ["League", "Cup"],
+			types: ["League", "Cup", "Friendly"],
 			searchTerm: "",
 		},
 		result: ["Win", "Draw", "Loss"],
@@ -1064,7 +1064,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
