@@ -813,13 +813,15 @@ export default function Comparison() {
 					<div className='flex items-center justify-center h-64'>
 						<p className='text-sm md:text-base text-gray-300'>Loading comparison data...</p>
 					</div>
+				) : !secondPlayer ? (
+					<div className='flex items-center justify-center h-full'>
+						<p className='text-white text-sm md:text-base text-center'>Select a Player 2 to begin the comparison</p>
+					</div>
 				) : (
 					<div className='space-y-1'>
-						{secondPlayer && (
-							<>
-								{/* Radar Comparison Header and Radar Chart */}
-								<div className='mb-6'>
-									<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Radar Comparison</h3>
+						{/* Radar Comparison Header and Radar Chart */}
+						<div id='comparison-radar-chart' className='mb-6'>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Radar Comparison</h3>
 									
 									{/* Stat Category Dropdown */}
 									<div className='mb-4'>
@@ -853,6 +855,18 @@ export default function Comparison() {
 										</Listbox>
 									</div>
 
+									{/* Legend */}
+									<div className='flex items-center justify-center gap-4 md:gap-6 mb-4'>
+										<div className='flex items-center gap-2'>
+											<div className='w-4 h-4 rounded' style={{ backgroundColor: '#1C8841' }}></div>
+											<span className='text-white text-xs md:text-sm'>{selectedPlayer || "Player 1"}</span>
+										</div>
+										<div className='flex items-center gap-2'>
+											<div className='w-4 h-4 rounded' style={{ backgroundColor: '#F9ED32' }}></div>
+											<span className='text-white text-xs md:text-sm'>{secondPlayer || "Player 2"}</span>
+										</div>
+									</div>
+
 									{/* Radar Chart */}
 									{radarChartData.length > 0 ? (
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -866,32 +880,70 @@ export default function Comparison() {
 													<Radar
 														name={selectedPlayer || "Player 1"}
 														dataKey="player1"
-														stroke="#f9ed32"
-														fill="#f9ed32"
+														stroke="#1C8841"
+														fill="#1C8841"
 														fillOpacity={0.3}
 													/>
 													<Radar
 														name={secondPlayer || "Player 2"}
 														dataKey="player2"
-														stroke="#3b82f6"
-														fill="#3b82f6"
+														stroke="#F9ED32"
+														fill="#F9ED32"
 														fillOpacity={0.3}
 													/>
 													<PolarAngleAxis 
 														dataKey='category' 
 														tick={(props: any) => {
 															const { x, y, payload } = props;
+															const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+															const text = payload.value;
+															
+															// Aggressive wrapping for mobile - split on spaces and limit characters per line
+															const splitText = (str: string, maxChars: number): string[] => {
+																if (!isMobile) return [str];
+																const words = str.split(' ');
+																const lines: string[] = [];
+																let currentLine = '';
+																
+																words.forEach((word, index) => {
+																	if (currentLine.length + word.length + 1 <= maxChars || currentLine === '') {
+																		currentLine += (currentLine ? ' ' : '') + word;
+																	} else {
+																		if (currentLine) lines.push(currentLine);
+																		currentLine = word;
+																	}
+																	if (index === words.length - 1 && currentLine) {
+																		lines.push(currentLine);
+																	}
+																});
+																
+																return lines.length > 0 ? lines : [str];
+															};
+															
+															const lines = splitText(text, isMobile ? 8 : 20);
+															const lineHeight = isMobile ? 10 : 12;
+															const startY = -(lines.length - 1) * lineHeight / 2;
+															
 															return (
 																<g transform={`translate(${x},${y})`}>
 																	<text
 																		x={0}
-																		y={0}
+																		y={startY}
 																		dy={16}
 																		textAnchor="middle"
 																		fill="#fff"
-																		fontSize={12}
+																		fontSize={isMobile ? 10 : 12}
 																	>
-																		{payload.value}
+																		{lines.map((line, index) => (
+																			<tspan
+																				key={index}
+																				x={0}
+																				dy={index === 0 ? 0 : lineHeight}
+																				textAnchor="middle"
+																			>
+																				{line}
+																			</tspan>
+																		))}
 																	</text>
 																</g>
 															);
@@ -906,15 +958,16 @@ export default function Comparison() {
 											<p className='text-white text-sm'>No data available for comparison</p>
 										</div>
 									)}
-								</div>
+						</div>
 
-								<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Full Comparison</h3>
+						<div id='comparison-full-comparison'>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Full Comparison</h3>
 
-								<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
-									Click on any stat row to see an explanation of the stat
-								</div>
-							</>
-						)}
+							<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
+								<span className='md:hidden'>Press and hold on any stat row to see an explanation of the stat</span>
+								<span className='hidden md:inline'>Click on any stat row to see an explanation of the stat</span>
+							</div>
+						</div>
 						{filteredStatEntries.map(([key, stat]) => (
 							<ComparisonStatRow
 								key={key}
@@ -924,6 +977,7 @@ export default function Comparison() {
 								player2Data={secondPlayerData}
 							/>
 						))}
+						<div className='pb-8 md:pb-12'></div>
 					</div>
 				)}
 			</div>
