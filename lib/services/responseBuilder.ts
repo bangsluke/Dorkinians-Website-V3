@@ -161,6 +161,17 @@ export class ResponseBuilder {
 			finalMetricName = metricName.toLowerCase().replace(verb.toLowerCase(), "").trim();
 		}
 
+		// Check if this is a goal metric and "open play" wasn't mentioned in the question
+		// If so, replace "open play goals" with "goals"
+		const questionLower = (analysis.question || "").toLowerCase();
+		const isGoalMetric = resolvedMetricForDisplay === "G" || resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
+		const mentionsOpenPlay = questionLower.includes("open play") || questionLower.includes("openplay");
+		
+		if (isGoalMetric && !mentionsOpenPlay && finalMetricName.toLowerCase().includes("open play")) {
+			// Replace "open play goals" with "goals"
+			finalMetricName = finalMetricName.toLowerCase().replace("open play ", "").replace("openplay ", "");
+		}
+
 		// Start with the basic response
 		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
 
