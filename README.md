@@ -535,6 +535,15 @@ The project uses a unified schema system where configuration files are synchroni
 
 ## Additional Documentation
 
+For complete user-facing documentation and guides:
+
+- Complete user guide for all app features
+- Navigation and interaction instructions
+- Tips and tricks for using the app effectively
+- Feature explanations and usage examples
+
+See: [Dorkinians Website Documentation](https://bangsluke-documentation.netlify.app/docs/Projects/Dorkinians%20Website/1Dorkinians-Website)
+
 For detailed technical documentation including:
 
 - Complete architecture details

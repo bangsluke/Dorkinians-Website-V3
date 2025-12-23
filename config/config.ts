@@ -5,6 +5,7 @@ export const appConfig = {
 	author: "Luke Bangs",
 	contact: "bangsluke@gmail.com",
 	forceSkeletonView: false,
+	documentationUrl: "https://bangsluke-documentation.netlify.app/docs/Projects/Dorkinians%20Website/1DorkiniansWebsite",
 } as const;
 
 export type AppConfig = typeof appConfig;
@@ -93,6 +94,13 @@ export const usefulLinks: UsefulLink[] = [
 		url: "https://www.facebook.com/groups/234447916584875",
 		description: "Join us on Facebook for latest updates",
 		category: "social",
+	},
+	{
+		id: "documentation",
+		title: "Help",
+		url: "https://bangsluke-documentation.netlify.app/docs/Projects/Dorkinians%20Website/1Dorkinians-Website",
+		description: "Complete user guide and documentation for the Dorkinians Website",
+		category: "other",
 	},
 	{
 		id: "the-fa",
