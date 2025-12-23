@@ -2,8 +2,6 @@
 
 > [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
 
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
-
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -32,7 +30,7 @@ The Settings page provides quick navigation to all app sections, displays databa
 The Settings page is accessible from the header menu icon on any page in the app.
 :::
 
-![Settings Page Screenshot](path/to/settings-page-screenshot.png)
+[Image: Settings Page Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -48,7 +46,7 @@ To access the Settings page:
 The Settings page is hidden from the bottom navigation bar to keep the main navigation clean, but it's always accessible via the header menu.
 :::
 
-![Accessing Settings Screenshot](path/to/accessing-settings-screenshot.png)
+[Image: Accessing Settings Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -67,7 +65,7 @@ The main navigation pages are displayed with icons:
 
 Each main page is displayed as a button that navigates directly to that page when tapped.
 
-![Main Pages Navigation Screenshot](path/to/main-pages-navigation-screenshot.png)
+[Image: Main Pages Navigation Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -98,7 +96,7 @@ Each sub-page is displayed as a nested button that navigates directly to that sp
 Use the sub-page navigation to jump directly to a specific section without having to navigate through the main pages first.
 :::
 
-![Sub-Pages Navigation Screenshot](path/to/sub-pages-navigation-screenshot.png)
+[Image: Sub-Pages Navigation Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -112,7 +110,7 @@ The Available Screens section can be expanded or collapsed:
 
 This provides a quick way to navigate to any section of the app without using the bottom navigation or swiping through pages.
 
-![Quick Navigation Screenshot](path/to/quick-navigation-screenshot.png)
+[Image: Quick Navigation Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -133,7 +131,7 @@ The seeding status indicates whether the database has been successfully populate
 Database seeding is the process of loading statistics data into the database. This typically happens automatically but may need to be triggered manually in some cases.
 :::
 
-![Seeding Status Screenshot](path/to/seeding-status-screenshot.png)
+[Image: Seeding Status Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -148,7 +146,7 @@ Status indicators use color-coded icons to show the current state:
 
 The status indicator is accompanied by a text summary explaining the current state.
 
-![Status Indicators Screenshot](path/to/status-indicators-screenshot.png)
+[Image: Status Indicators Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -166,7 +164,7 @@ This information helps verify that the database contains the expected amount of 
 If you notice statistics seem outdated, check the database status to see when data was last updated.
 :::
 
-![Database Information Screenshot](path/to/database-information-screenshot.png)
+[Image: Database Information Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -191,7 +189,7 @@ The install prompt appears when:
 PWA installation is supported on most modern mobile browsers and some desktop browsers (Chrome, Edge, Safari).
 :::
 
-![Install Prompt Screenshot](path/to/install-prompt-screenshot.png)
+[Image: Install Prompt Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -209,7 +207,7 @@ Installing the app as a PWA provides several benefits:
 Installing the app provides a more native, app-like experience compared to using it in a browser.
 :::
 
-![Installation Benefits Screenshot](path/to/installation-benefits-screenshot.png)
+[Image: Installation Benefits Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -223,7 +221,7 @@ When the app is installed as a PWA, you may receive notifications about:
 
 Update notifications help ensure you're always using the latest version with the most current data.
 
-![Update Notifications Screenshot](path/to/update-notifications-screenshot.png)
+[Image: Update Notifications Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -237,7 +235,7 @@ The Settings page may display additional app information, such as:
 
 This information helps identify which version of the app you're using and when it was last updated.
 
-![App Information Screenshot](path/to/app-information-screenshot.png)
+[Image: App Information Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 

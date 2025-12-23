@@ -1,8 +1,6 @@
 # Dorkinians Website
 
-> [Back to Documentation Intro Contents](../DocumentationIntro.md)
-
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
+![Dorkinians Logo](https://i.postimg.cc/gJ87N09K/Dorkinians.png)
 
 ## Table of Contents
 

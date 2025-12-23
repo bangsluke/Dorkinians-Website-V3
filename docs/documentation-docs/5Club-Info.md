@@ -2,8 +2,6 @@
 
 > [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
 
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
-
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -35,7 +33,7 @@ The Club Info section provides comprehensive information about Dorkinians FC, in
 This section serves as a central hub for club information and resources.
 :::
 
-![Club Info Page Screenshot](path/to/club-info-page-screenshot.png)
+[Image: Club Info Page Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -72,7 +70,7 @@ The Club History section displays information about the formation and background
 Dorkinians FC was formed in 1930 and has been a dominant force in Surrey football from youth to senior level.
 :::
 
-![Club History Screenshot](path/to/club-history-screenshot.png)
+[Image: Club History Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -98,7 +96,7 @@ The Milestones section displays significant achievements and records reached by 
 Check the "Nearing Milestones" section regularly to see what club records are about to be broken!
 :::
 
-![Milestones Screenshot](path/to/milestones-screenshot.png)
+[Image: Milestones Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -121,7 +119,7 @@ The Location section provides information about the club's home ground and navig
 The navigation link uses your current location (if enabled) to provide the most direct route to Pixham Sports Ground.
 :::
 
-![Location and Navigation Screenshot](path/to/location-navigation-screenshot.png)
+[Image: Location and Navigation Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -140,7 +138,7 @@ The League Details section displays information about:
 
 This information helps understand the competitive context in which the teams play.
 
-![League Details Screenshot](path/to/league-details-screenshot.png)
+[Image: League Details Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -158,7 +156,7 @@ The Standings section (where available) may display:
 Standings information may be updated periodically and may not always be available for all teams or leagues.
 :::
 
-![Standings Screenshot](path/to/standings-screenshot.png)
+[Image: Standings Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -176,7 +174,7 @@ The Current Captains section shows:
 
 This information helps identify who to contact for team-specific matters.
 
-![Current Captains Screenshot](path/to/current-captains-screenshot.png)
+[Image: Current Captains Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -192,7 +190,7 @@ The Historical Captains section (where available) may display:
 Historical captain information may be limited depending on available records.
 :::
 
-![Historical Captains Screenshot](path/to/historical-captains-screenshot.png)
+[Image: Historical Captains Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -211,7 +209,7 @@ The Award Categories section may include:
 
 Each award category may have its own criteria and selection process.
 
-![Award Categories Screenshot](path/to/award-categories-screenshot.png)
+[Image: Award Categories Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -230,7 +228,7 @@ This section celebrates outstanding individual and team achievements throughout 
 Check this section to see who has won various club awards and what achievements they represent.
 :::
 
-![Award Winners Screenshot](path/to/award-winners-screenshot.png)
+[Image: Award Winners Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -253,7 +251,7 @@ Each link opens in a new tab/window for easy access.
 Links are regularly updated to ensure they remain current and accessible.
 :::
 
-![External Resources Screenshot](path/to/external-resources-screenshot.png)
+[Image: External Resources Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -268,7 +266,7 @@ The Useful Links section provides quick access to:
 
 Links are organized for easy navigation and quick access to the most commonly needed resources.
 
-![Useful Links Screenshot](path/to/useful-links-screenshot.png)
+[Image: Useful Links Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 

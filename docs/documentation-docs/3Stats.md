@@ -2,8 +2,6 @@
 
 > [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
 
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
-
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -69,8 +67,7 @@ The Stats section provides comprehensive statistics for players, teams, and the 
 All statistics can be filtered by time range, team, location, opposition, competition, result, and position (where applicable).
 :::
 
-![Stats Page Screenshot](path/to/stats-page-screenshot.png)
-
+[Image: Stats Page Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Navigation
@@ -113,8 +110,7 @@ Filters allow you to narrow down statistics to specific criteria. Available filt
 Filters are applied across all sections within the Stats page, so you can set them once and navigate between Player Stats, Team Stats, and Club Stats with the same filters active.
 :::
 
-![Filters Screenshot](path/to/filters-screenshot.png)
-
+[Image: Filters Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Player Stats
@@ -135,8 +131,7 @@ The Key Performance Stats section displays the most important metrics for the se
 
 These stats are displayed as large, easy-to-read cards with icons and labels.
 
-![Key Performance Stats Screenshot](path/to/key-performance-stats-screenshot.png)
-
+[Image: Key Performance Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Seasonal Performance
@@ -154,8 +149,7 @@ Data is displayed in bar charts or line graphs showing trends across seasons.
 Use this section to identify a player's best seasons and track their performance trajectory over time.
 :::
 
-![Seasonal Performance Screenshot](path/to/seasonal-performance-screenshot.png)
-
+[Image: Seasonal Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Team Performance
@@ -169,8 +163,7 @@ The Team Performance section shows how the player performs for different teams w
 
 This helps identify which team a player performs best for.
 
-![Team Performance Screenshot](path/to/team-performance-screenshot.png)
-
+[Image: Team Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Positional Stats
@@ -186,8 +179,7 @@ The Positional Stats section displays statistics broken down by the position the
 Position is determined by the captain's assessment of where the player played the majority of each match.
 :::
 
-![Positional Stats Screenshot](path/to/positional-stats-screenshot.png)
-
+[Image: Positional Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Match Results
@@ -201,8 +193,7 @@ The Match Results section shows the player's record in matches, including:
 
 This section helps understand the player's impact on match outcomes.
 
-![Match Results Screenshot](path/to/match-results-screenshot.png)
-
+[Image: Match Results Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Game Details
@@ -219,8 +210,7 @@ The Game Details section provides a detailed list of all matches the player has 
 
 You can scroll through the list to see individual match performances.
 
-![Game Details Screenshot](path/to/game-details-screenshot.png)
-
+[Image: Game Details Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Monthly Performance
@@ -233,8 +223,7 @@ The Monthly Performance section shows statistics broken down by month, helping i
 
 Data is displayed in bar charts showing performance across different months.
 
-![Monthly Performance Screenshot](path/to/monthly-performance-screenshot.png)
-
+[Image: Monthly Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Defensive Record
@@ -249,8 +238,7 @@ The Defensive Record section focuses on defensive statistics, including:
 
 This section is particularly relevant for defenders and goalkeepers.
 
-![Defensive Record Screenshot](path/to/defensive-record-screenshot.png)
-
+[Image: Defensive Record Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Distance Travelled
@@ -261,16 +249,14 @@ The Distance Travelled section shows the total distance the player has traveled 
 Distance is calculated as the round trip (there and back) for each away match.
 :::
 
-![Distance Travelled Screenshot](path/to/distance-travelled-screenshot.png)
-
+[Image: Distance Travelled Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Opposition Locations
 
 The Opposition Locations section displays a map or list showing all the locations where the player has played away matches, providing a visual representation of their travel history.
 
-![Opposition Locations Screenshot](path/to/opposition-locations-screenshot.png)
-
+[Image: Opposition Locations Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Minutes per Stats
@@ -284,8 +270,7 @@ The Minutes per Stats section shows efficiency metrics, displaying how many minu
 
 Lower numbers indicate higher efficiency.
 
-![Minutes per Stats Screenshot](path/to/minutes-per-stats-screenshot.png)
-
+[Image: Minutes per Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Opposition Performance
@@ -299,8 +284,7 @@ The Opposition Performance section shows how the player performs against differe
 
 This helps identify which teams the player performs best against.
 
-![Opposition Performance Screenshot](path/to/opposition-performance-screenshot.png)
-
+[Image: Opposition Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Fantasy Points
@@ -315,8 +299,7 @@ The Fantasy Points section displays the player's fantasy football points total a
 Fantasy points are calculated using a standard fantasy football scoring system.
 :::
 
-![Fantasy Points Screenshot](path/to/fantasy-points-screenshot.png)
-
+[Image: Fantasy Points Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Penalty Stats
@@ -331,8 +314,7 @@ The Penalty Stats section provides detailed penalty statistics, including:
 
 This section helps assess a player's penalty-taking ability.
 
-![Penalty Stats Screenshot](path/to/penalty-stats-screenshot.png)
-
+[Image: Penalty Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Awards and Achievements
@@ -344,8 +326,7 @@ The Awards and Achievements section displays any awards, milestones, or achievem
 - Milestone achievements (e.g., 100 appearances, 50 goals)
 - Club records
 
-![Awards and Achievements Screenshot](path/to/awards-achievements-screenshot.png)
-
+[Image: Awards and Achievements Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Data Table
@@ -361,8 +342,7 @@ The Data Table section provides a comprehensive, sortable table of all player st
 Use the data table when you need to see exact values or compare specific statistics that aren't shown in the visual sections.
 :::
 
-![Data Table Screenshot](path/to/player-data-table-screenshot.png)
-
+[Image: Data Table Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Team Stats
@@ -383,8 +363,7 @@ The Key Performance Stats section displays the most important metrics for the se
 
 These stats are displayed as large, easy-to-read cards.
 
-![Team Key Performance Stats Screenshot](path/to/team-key-performance-stats-screenshot.png)
-
+[Image: Team Key Performance Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Recent Form
@@ -398,8 +377,7 @@ The Recent Form section shows the team's performance in their most recent matche
 
 This helps assess the team's current form and momentum.
 
-![Recent Form Screenshot](path/to/recent-form-screenshot.png)
-
+[Image: Recent Form Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Top Players
@@ -414,8 +392,7 @@ The Top Players section displays the best performing players for the selected te
 
 Players are ranked and displayed with their statistics.
 
-![Top Players Screenshot](path/to/top-players-screenshot.png)
-
+[Image: Top Players Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Seasonal Performance
@@ -430,8 +407,7 @@ The Seasonal Performance section shows how the team's statistics have changed ac
 
 Data is displayed in charts showing trends across seasons.
 
-![Team Seasonal Performance Screenshot](path/to/team-seasonal-performance-screenshot.png)
-
+[Image: Team Seasonal Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Match Results
@@ -447,8 +423,7 @@ The Match Results section provides a detailed list of all matches the team has p
 
 You can scroll through the list to see individual match results.
 
-![Team Match Results Screenshot](path/to/team-match-results-screenshot.png)
-
+[Image: Team Match Results Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Goals Scored vs Conceded
@@ -459,8 +434,7 @@ The Goals Scored vs Conceded section displays a comparison chart showing the rel
 - Defensive strength
 - Balance between attack and defense
 
-![Goals Scored vs Conceded Screenshot](path/to/goals-scored-conceded-screenshot.png)
-
+[Image: Goals Scored vs Conceded Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Home vs Away Performance
@@ -474,8 +448,7 @@ The Home vs Away Performance section compares the team's performance at home ver
 
 This helps identify whether the team performs better at home or away.
 
-![Home vs Away Performance Screenshot](path/to/home-away-performance-screenshot.png)
-
+[Image: Home vs Away Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Key Team Stats
@@ -488,8 +461,7 @@ The Key Team Stats section displays important team-level statistics, including:
 - Points per game
 - Other team metrics
 
-![Key Team Stats Screenshot](path/to/key-team-stats-screenshot.png)
-
+[Image: Key Team Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Unique Player Stats
@@ -501,8 +473,7 @@ The Unique Player Stats section shows interesting statistics about the players w
 - Longest-serving player
 - Other player-related metrics
 
-![Unique Player Stats Screenshot](path/to/unique-player-stats-screenshot.png)
-
+[Image: Unique Player Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Best Season Finish
@@ -514,8 +485,7 @@ The Best Season Finish section displays the team's best league finish across all
 - Points total in best season
 - Other season records
 
-![Best Season Finish Screenshot](path/to/best-season-finish-screenshot.png)
-
+[Image: Best Season Finish Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Data Table
@@ -526,8 +496,7 @@ The Data Table section provides a comprehensive, sortable table of all team stat
 - Scroll through all available statistics
 - View raw data values
 
-![Team Data Table Screenshot](path/to/team-data-table-screenshot.png)
-
+[Image: Team Data Table Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Club Stats
@@ -544,8 +513,7 @@ The Key Club Stats section displays the most important club-wide metrics, includ
 - Overall win percentage
 - Other club-level statistics
 
-![Key Club Stats Screenshot](path/to/key-club-stats-screenshot.png)
-
+[Image: Key Club Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Team Comparison
@@ -558,8 +526,7 @@ The Team Comparison section allows you to compare statistics across different te
 
 This helps identify which teams are performing best and how they compare to each other.
 
-![Team Comparison Screenshot](path/to/team-comparison-screenshot.png)
-
+[Image: Team Comparison Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Top Players
@@ -572,8 +539,7 @@ The Top Players section displays the best performing players across the entire c
 - Highest fantasy points (all teams)
 - Other club-wide player rankings
 
-![Club Top Players Screenshot](path/to/club-top-players-screenshot.png)
-
+[Image: Club Top Players Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Seasonal Performance
@@ -587,8 +553,7 @@ The Seasonal Performance section shows how the club's overall statistics have ch
 
 Data is displayed in charts showing trends across seasons.
 
-![Club Seasonal Performance Screenshot](path/to/club-seasonal-performance-screenshot.png)
-
+[Image: Club Seasonal Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Player Distribution
@@ -599,8 +564,7 @@ The Player Distribution section shows how players are distributed across teams, 
 - Players who have played for multiple teams
 - Team representation statistics
 
-![Player Distribution Screenshot](path/to/player-distribution-screenshot.png)
-
+[Image: Player Distribution Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Player Tenure
@@ -612,8 +576,7 @@ The Player Tenure section displays statistics about how long players have been w
 - Players by years of service
 - Other tenure-related metrics
 
-![Player Tenure Screenshot](path/to/player-tenure-screenshot.png)
-
+[Image: Player Tenure Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Stats Distribution
@@ -626,8 +589,7 @@ The Stats Distribution section shows how various statistics are distributed acro
 
 This helps identify whether performance is concentrated in a few players or spread across many.
 
-![Stats Distribution Screenshot](path/to/stats-distribution-screenshot.png)
-
+[Image: Stats Distribution Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Match Results
@@ -644,16 +606,14 @@ The Match Results section provides a comprehensive list of all matches played by
 
 You can filter and scroll through all club matches.
 
-![Club Match Results Screenshot](path/to/club-match-results-screenshot.png)
-
+[Image: Club Match Results Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Game Details
 
 The Game Details section provides detailed information about all matches, including comprehensive match statistics for the entire club.
 
-![Club Game Details Screenshot](path/to/club-game-details-screenshot.png)
-
+[Image: Club Game Details Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Big Club Numbers
@@ -665,32 +625,28 @@ The Big Club Numbers section displays impressive club-wide milestones and record
 - Club records and achievements
 - Other significant numbers
 
-![Big Club Numbers Screenshot](path/to/big-club-numbers-screenshot.png)
-
+[Image: Big Club Numbers Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Goals Scored vs Conceded
 
 The Goals Scored vs Conceded section displays a club-wide comparison chart showing the relationship between goals scored and goals conceded across all teams.
 
-![Club Goals Scored vs Conceded Screenshot](path/to/club-goals-scored-conceded-screenshot.png)
-
+[Image: Club Goals Scored vs Conceded Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Home vs Away Performance
 
 The Home vs Away Performance section compares the club's overall performance at home versus away matches across all teams.
 
-![Club Home vs Away Performance Screenshot](path/to/club-home-away-performance-screenshot.png)
-
+[Image: Club Home vs Away Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Key Team Stats
 
 The Key Team Stats section displays important team-level statistics aggregated across all teams, showing club-wide averages and totals.
 
-![Club Key Team Stats Screenshot](path/to/club-key-team-stats-screenshot.png)
-
+[Image: Club Key Team Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Unique Player Stats
@@ -701,8 +657,7 @@ The Unique Player Stats section shows interesting statistics about all players w
 - Players who have played for multiple teams
 - Other club-wide player metrics
 
-![Club Unique Player Stats Screenshot](path/to/club-unique-player-stats-screenshot.png)
-
+[Image: Club Unique Player Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Data Table
@@ -713,8 +668,7 @@ The Data Table section provides a comprehensive, sortable table of all club stat
 - Scroll through all available statistics
 - View raw data values
 
-![Club Data Table Screenshot](path/to/club-data-table-screenshot.png)
-
+[Image: Club Data Table Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Comparison
@@ -734,8 +688,7 @@ To compare players:
 You can compare up to multiple players simultaneously. The radar chart will show all selected players for easy comparison.
 :::
 
-![Player Selection Screenshot](path/to/player-selection-screenshot.png)
-
+[Image: Player Selection Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Radar Charts
@@ -752,8 +705,7 @@ Radar charts provide a visual comparison of multiple players across various stat
 Radar charts are particularly useful for comparing players across multiple dimensions at once, such as goals, assists, appearances, and fantasy points.
 :::
 
-![Radar Chart Screenshot](path/to/radar-chart-screenshot.png)
-
+[Image: Radar Chart Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Filtering Options
@@ -770,8 +722,7 @@ The Comparison section supports all standard filters, allowing you to:
 
 Filters are applied to all players in the comparison simultaneously.
 
-![Comparison Filters Screenshot](path/to/comparison-filters-screenshot.png)
-
+[Image: Comparison Filters Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Tips and Tricks

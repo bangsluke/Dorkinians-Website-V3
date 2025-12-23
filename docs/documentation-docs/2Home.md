@@ -2,8 +2,6 @@
 
 > [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
 
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
-
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -25,7 +23,7 @@ The Home page is the main entry point of the Dorkinians Website app. It features
 The chatbot uses advanced natural language processing to understand your questions and return relevant statistics with visualizations.
 :::
 
-![Home Page Screenshot](path/to/home-screenshot.png)
+[Image: Home Page Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -51,7 +49,7 @@ The chatbot processes your question and returns:
 - Visual data (charts, tables, or number cards)
 - Source information showing where the data came from
 
-![Chatbot Interface Screenshot](path/to/chatbot-interface-screenshot.png)
+[Image: Chatbot Interface Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -74,7 +72,7 @@ Player context persists across sessions, so you don't need to reselect your play
 - Click the edit button to enter edit mode
 - Clear the player selection
 
-![Player Context Screenshot](path/to/player-context-screenshot.png)
+[Image: Player Context Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -94,7 +92,7 @@ Clicking an example question will automatically populate the input field, and yo
 Use example questions as templates for your own queries - they show the best way to phrase questions for accurate results.
 :::
 
-![Example Questions Screenshot](path/to/example-questions-screenshot.png)
+[Image: Example Questions Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -112,7 +110,7 @@ Conversation history is stored locally in your browser and persists across page 
 Conversation history helps the chatbot understand context for follow-up questions, making your interactions more natural.
 :::
 
-![Conversation History Screenshot](path/to/conversation-history-screenshot.png)
+[Image: Conversation History Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -132,7 +130,7 @@ Visualizations are interactive and responsive, adapting to your device screen si
 Tap or click on chart elements to see detailed values and tooltips.
 :::
 
-![Visual Response Screenshot](path/to/visual-response-screenshot.png)
+[Image: Visual Response Screenshot]
 
 > [Back to Table of Contents](#table-of-contents)
 

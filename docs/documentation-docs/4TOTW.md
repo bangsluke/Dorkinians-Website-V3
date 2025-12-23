@@ -2,8 +2,6 @@
 
 > [Back to Dorkinians Website Documentation](Dorkinians-Website.md)
 
-![Dorkinians Logo](https://i.imgur.com/6er1G1n.png)
-
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -28,8 +26,7 @@ The TOTW (Team of the Week) section displays the best performing players each we
 Team of the Week is calculated based on fantasy points earned in each match, with the highest-scoring players in each position selected for the team.
 :::
 
-![TOTW Page Screenshot](path/to/totw-page-screenshot.png)
-
+[Image: TOTW Page Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Navigation
@@ -66,8 +63,7 @@ To view a specific Team of the Week:
 If no week is available for the selected season, it means no matches were played that week or the data hasn't been processed yet.
 :::
 
-![Season and Week Selection Screenshot](path/to/season-week-selection-screenshot.png)
-
+[Image: Season and Week Selection Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Pitch Visualization
@@ -89,8 +85,7 @@ Each player is displayed with:
 The formation may vary slightly depending on the actual best-performing players and their positions for that week.
 :::
 
-![Pitch Visualization Screenshot](path/to/pitch-visualization-screenshot.png)
-
+[Image: Pitch Visualization Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Player Details
@@ -122,8 +117,7 @@ To view detailed statistics for a player in the Team of the Week:
 Use the player details modal to understand exactly how each player earned their fantasy points and why they were selected for Team of the Week.
 :::
 
-![Player Details Modal Screenshot](path/to/player-details-modal-screenshot.png)
-
+[Image: Player Details Modal Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Star Man
@@ -137,8 +131,7 @@ The Star Man is the highest-scoring player in the Team of the Week, displayed pr
 
 The Star Man represents the best individual performance of the week across all players and positions.
 
-![Star Man Screenshot](path/to/star-man-screenshot.png)
-
+[Image: Star Man Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Points System
@@ -199,8 +192,7 @@ Each monthly award winner is displayed with:
 Players of the Month often correlate with players who appeared multiple times in Team of the Week during that month.
 :::
 
-![Players of the Month Screenshot](path/to/players-of-month-screenshot.png)
-
+[Image: Players of the Month Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Historical Winners
@@ -215,8 +207,7 @@ The Players of the Month section allows you to browse historical award winners:
 Historical data is available for all months where matches were played and statistics were recorded.
 :::
 
-![Historical Winners Screenshot](path/to/historical-winners-screenshot.png)
-
+[Image: Historical Winners Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Tips and Tricks
