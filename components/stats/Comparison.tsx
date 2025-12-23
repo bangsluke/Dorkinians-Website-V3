@@ -12,6 +12,10 @@ import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { createPortal } from "react-dom";
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from "@/lib/utils/pwaDebug";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer } from "recharts";
+import { RadarChartSkeleton } from "@/components/skeletons";
+import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
+import "react-loading-skeleton/dist/skeleton.css";
 
 interface Player {
 	playerName: string;
@@ -383,6 +387,7 @@ export default function Comparison() {
 	const [playersLoaded, setPlayersLoaded] = useState(false);
 	const [query, setQuery] = useState("");
 	const inputRef = useRef<HTMLInputElement>(null);
+	const [selectedStatCategory, setSelectedStatCategory] = useState<string>("Appearance Stats");
 
 	const player1Data: PlayerData | null = cachedPlayerData?.playerData || null;
 
@@ -391,8 +396,164 @@ export default function Comparison() {
 	}, []);
 
 	const filteredStatEntries = useMemo(() => {
-		return Object.entries(statObject).filter(([key]) => statsToDisplay.includes(key as keyof typeof statObject));
+		const statsToDisplaySet = new Set(statsToDisplay);
+		return Object.entries(statObject).filter(([key]) => statsToDisplaySet.has(key as any));
 	}, [statsToDisplay]);
+
+	// Stat category mapping configuration
+	const statCategoryMapping: { [key: string]: Array<{ displayName: string; statKey: string | null; statName: string }> } = {
+		"Appearance Stats": [
+			{ displayName: "Appearances", statKey: "APP", statName: "appearances" },
+			{ displayName: "Minutes", statKey: "MIN", statName: "minutes" },
+			{ displayName: "Appearances as GK", statKey: null, statName: "gk" },
+			{ displayName: "Appearances as DEF", statKey: null, statName: "def" },
+			{ displayName: "Appearances as MID", statKey: null, statName: "mid" },
+			{ displayName: "Appearances as FWD", statKey: null, statName: "fwd" },
+			{ displayName: "Average Minutes Per Appearance", statKey: "MINperAPP", statName: "minutesPerApp" },
+			{ displayName: "Distance Travelled", statKey: "DIST", statName: "distance" },
+			{ displayName: "Teammates played with", statKey: "TEAM", statName: "teammatesPlayedWith" }
+		],
+		"Performance Stats": [
+			{ displayName: "MoM", statKey: "MOM", statName: "mom" },
+			{ displayName: "Fantasy Points Achieved", statKey: "FTP", statName: "fantasyPoints" },
+			{ displayName: "Yellow Cards", statKey: "Y", statName: "yellowCards" },
+			{ displayName: "Red Cards", statKey: "R", statName: "redCards" },
+			{ displayName: "Fantasy Points Per Appearance", statKey: "FTPperAPP", statName: "fantasyPointsPerApp" },
+			{ displayName: "% Games Won", statKey: "Games%Won", statName: "gamesPercentWon" }
+		],
+		"Attacking Stats": [
+			{ displayName: "All Goals Scored", statKey: "AllGSC", statName: "allGoalsScored" },
+			{ displayName: "Assists", statKey: "A", statName: "assists" },
+			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
+			{ displayName: "Goal Involvements Per Appearance", statKey: "GIperAPP", statName: "goalInvolvementsPerApp" },
+			{ displayName: "Goals Per Appearance", statKey: "GperAPP", statName: "goalsPerApp" },
+			{ displayName: "Assists Per Appearance", statKey: "AperAPP", statName: "assistsPerApp" },
+			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" }
+		],
+		"Defensive Stats": [
+			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
+			{ displayName: "Conceded", statKey: "C", statName: "conceded" },
+			{ displayName: "OGs", statKey: "OG", statName: "ownGoals" },
+			{ displayName: "Penalties Conceded", statKey: "PCO", statName: "penaltiesConceded" },
+			{ displayName: "Conceded Per Appearance", statKey: "CperAPP", statName: "concededPerApp" },
+			{ displayName: "Minutes Per Clean Sheet", statKey: "MperCLS", statName: "minutesPerCleanSheet" }
+		],
+		"Penalty Stats": [
+			{ displayName: "Penalties Taken", statKey: null, statName: "penaltiesTaken" },
+			{ displayName: "Penalties Scored", statKey: "PSC", statName: "penaltiesScored" },
+			{ displayName: "Penalties Missed", statKey: "PM", statName: "penaltiesMissed" },
+			{ displayName: "Penalties Conceded", statKey: "PCO", statName: "penaltiesConceded" },
+			{ displayName: "Penalties Saved", statKey: "PSV", statName: "penaltiesSaved" },
+			{ displayName: "Penalty Conversion Rate", statKey: "PenConversionRate", statName: "penaltyConversionRate" },
+			{ displayName: "Penalties Scored in a Penalty Shootout", statKey: "PS-PSC", statName: "penaltyShootoutPenaltiesScored" },
+			{ displayName: "Penalties Missed in a Penalty Shootout", statKey: "PS-PM", statName: "penaltyShootoutPenaltiesMissed" },
+			{ displayName: "Penalties Saved in a Penalty Shootout", statKey: "PS-PSV", statName: "penaltyShootoutPenaltiesSaved" }
+		],
+		"Goalkeeping Stats": [
+			{ displayName: "Saves", statKey: "SAVES", statName: "saves" },
+			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
+			{ displayName: "Conceded", statKey: "C", statName: "conceded" },
+			{ displayName: "Penalties Saved", statKey: "PSV", statName: "penaltiesSaved" },
+			{ displayName: "Penalties Saved in a Penalty Shootout", statKey: "PS-PSV", statName: "penaltyShootoutPenaltiesSaved" }
+		]
+	};
+
+	// Helper function to get stat value from player data
+	const getPlayerStatValue = (playerData: PlayerData | null, statMapping: { displayName: string; statKey: string | null; statName: string }): number => {
+		if (!playerData) return 0;
+		
+		// Special case for "Penalties Taken" - sum of scored and missed
+		if (statMapping.displayName === "Penalties Taken") {
+			const scored = toNumber(playerData.penaltiesScored);
+			const missed = toNumber(playerData.penaltiesMissed);
+			return scored + missed;
+		}
+		
+		// If statKey exists, use getStatValue function
+		if (statMapping.statKey) {
+			return getStatValue(playerData, statMapping.statKey);
+		}
+		
+		// Otherwise, access directly from PlayerData
+		const value = playerData[statMapping.statName as keyof PlayerData];
+		return toNumber(value);
+	};
+
+	// Build radar chart data
+	const radarChartData = useMemo(() => {
+		if (!player1Data || !secondPlayerData) return [];
+
+		const categoryStats = statCategoryMapping[selectedStatCategory];
+		if (!categoryStats || categoryStats.length === 0) return [];
+
+		// Get all stat values for both players
+		const statValues: { [key: string]: { player1: number; player2: number } } = {};
+		categoryStats.forEach((statMapping) => {
+			const player1Value = getPlayerStatValue(player1Data, statMapping);
+			const player2Value = getPlayerStatValue(secondPlayerData, statMapping);
+			statValues[statMapping.displayName] = {
+				player1: player1Value,
+				player2: player2Value
+			};
+		});
+
+		// Find max values per stat for normalization
+		const maxValues: { [key: string]: number } = {};
+		Object.entries(statValues).forEach(([statName, values]) => {
+			maxValues[statName] = Math.max(values.player1, values.player2, 1);
+		});
+
+		// Create data points with normalized values (0-100)
+		return categoryStats.map((statMapping) => {
+			const { player1, player2 } = statValues[statMapping.displayName];
+			const max = maxValues[statMapping.displayName] || 1;
+			
+			return {
+				category: statMapping.displayName,
+				player1: max > 0 ? (player1 / max) * 100 : 0,
+				player2: max > 0 ? (player2 / max) * 100 : 0,
+				player1Raw: player1,
+				player2Raw: player2
+			};
+		});
+	}, [player1Data, secondPlayerData, selectedStatCategory]);
+
+	// Custom tooltip for radar chart
+	const radarTooltip = ({ active, payload, label }: any) => {
+		if (!active || !payload || !payload.length) return null;
+
+		const data = payload[0].payload;
+		if (!data) return null;
+
+		return (
+			<div className='bg-black/90 px-3 py-2 rounded-lg shadow-lg border border-yellow-400/20'>
+				<p className='text-white text-sm font-semibold mb-2'>{label}</p>
+				{payload.map((entry: any, index: number) => {
+					// Determine which player based on dataKey
+					const isPlayer1 = entry.dataKey === "player1";
+					const playerName = isPlayer1 ? (selectedPlayer || "Player 1") : (secondPlayer || "Player 2");
+					const rawValue = isPlayer1 ? data.player1Raw : data.player2Raw;
+					const color = entry.color;
+					
+					// Format the raw value
+					let displayValue: string | number = rawValue;
+					if (typeof rawValue === 'number') {
+						if (rawValue % 1 !== 0) {
+							displayValue = rawValue.toFixed(2);
+						} else {
+							displayValue = rawValue.toLocaleString('en-US');
+						}
+					}
+					
+					return (
+						<p key={index} className='text-white text-xs' style={{ color: color }}>
+							{playerName}: {displayValue}
+						</p>
+					);
+				})}
+			</div>
+		);
+	};
 
 	useEffect(() => {
 		const fetchAllPlayers = async () => {
@@ -655,9 +816,104 @@ export default function Comparison() {
 				) : (
 					<div className='space-y-1'>
 						{secondPlayer && (
-							<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
-								Click on any stat row to see an explanation of the stat
-							</div>
+							<>
+								{/* Radar Comparison Header and Radar Chart */}
+								<div className='mb-6'>
+									<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Radar Comparison</h3>
+									
+									{/* Stat Category Dropdown */}
+									<div className='mb-4'>
+										<Listbox value={selectedStatCategory} onChange={setSelectedStatCategory}>
+											<div className='relative'>
+												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+													<span className='block truncate text-white'>
+														{selectedStatCategory}
+													</span>
+													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+													</span>
+												</Listbox.Button>
+												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-sm md:text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+													{["Appearance Stats", "Performance Stats", "Attacking Stats", "Defensive Stats", "Penalty Stats", "Goalkeeping Stats"].map((category) => (
+														<Listbox.Option
+															key={category}
+															className={({ active }) =>
+																`relative cursor-default select-none dark-dropdown-option ${active ? "bg-yellow-400/10 text-yellow-300" : "text-white"}`
+															}
+															value={category}>
+															{({ selected }) => (
+																<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+																	{category}
+																</span>
+															)}
+														</Listbox.Option>
+													))}
+												</Listbox.Options>
+											</div>
+										</Listbox>
+									</div>
+
+									{/* Radar Chart */}
+									{radarChartData.length > 0 ? (
+										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
+											<ResponsiveContainer width='100%' height={300}>
+												<RadarChart 
+													data={radarChartData}
+													margin={{ top: 0, right: 25, bottom: 0, left: 25 }}
+												>
+													<PolarGrid />
+													<PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} />
+													<Radar
+														name={selectedPlayer || "Player 1"}
+														dataKey="player1"
+														stroke="#f9ed32"
+														fill="#f9ed32"
+														fillOpacity={0.3}
+													/>
+													<Radar
+														name={secondPlayer || "Player 2"}
+														dataKey="player2"
+														stroke="#3b82f6"
+														fill="#3b82f6"
+														fillOpacity={0.3}
+													/>
+													<PolarAngleAxis 
+														dataKey='category' 
+														tick={(props: any) => {
+															const { x, y, payload } = props;
+															return (
+																<g transform={`translate(${x},${y})`}>
+																	<text
+																		x={0}
+																		y={0}
+																		dy={16}
+																		textAnchor="middle"
+																		fill="#fff"
+																		fontSize={12}
+																	>
+																		{payload.value}
+																	</text>
+																</g>
+															);
+														}}
+													/>
+													<Tooltip content={radarTooltip} />
+												</RadarChart>
+											</ResponsiveContainer>
+										</div>
+									) : (
+										<div className='flex items-center justify-center h-64'>
+											<p className='text-white text-sm'>No data available for comparison</p>
+										</div>
+									)}
+								</div>
+
+								<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Full Comparison</h3>
+
+								<div className='text-xs md:text-sm text-white/70 italic mb-4 text-center'>
+									Click on any stat row to see an explanation of the stat
+								</div>
+							</>
 						)}
 						{filteredStatEntries.map(([key, stat]) => (
 							<ComparisonStatRow
