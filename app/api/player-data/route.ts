@@ -280,7 +280,7 @@ export function buildPlayerStatsQuery(playerName: string, filters: any = null): 
 			CASE WHEN appearances > 0 THEN toFloat(penaltiesSaved) / appearances ELSE 0.0 END as penaltiesSavedPerApp,
 			CASE WHEN (penaltiesScored + penaltiesMissed) > 0 THEN toFloat(penaltiesScored) / (penaltiesScored + penaltiesMissed) * 100 ELSE 0.0 END as penaltyConversionRate,
 			CASE WHEN gamesWithGoals > 0 THEN toFloat(winsWhenScoring) / gamesWithGoals * 100 ELSE 0.0 END as winRateWhenScoring,
-			CASE WHEN homeGames + awayGames > 0 THEN toFloat(homeWins + awayWins) / (homeGames + awayGames) * 100 ELSE 0.0 END as gamesPercentWon,
+			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins) / (homeGames + awayGames) * 100 ELSE 0.0 END as gamesPercentWon,
 			CASE WHEN homeGames > 0 THEN toFloat(homeWins) / homeGames * 100 ELSE 0.0 END as homeGamesPercentWon,
 			CASE WHEN awayGames > 0 THEN toFloat(awayWins) / awayGames * 100 ELSE 0.0 END as awayGamesPercentWon,
 			CASE WHEN homeGames + awayGames > 0 THEN toFloat(wins * 3 + draws * 1 + losses * 0) / (homeGames + awayGames) ELSE 0.0 END as pointsPerGame
@@ -459,6 +459,7 @@ export async function GET(request: NextRequest) {
 			minutesPerGoal: toNumber(record.get("minutesPerGoal")),
 			minutesPerCleanSheet: toNumber(record.get("minutesPerCleanSheet")),
 			fantasyPointsPerApp: toNumber(record.get("fantasyPointsPerApp")),
+			minutesPerApp: toNumber(record.get("minutesPerApp")),
 			assistsPerApp: toNumber(record.get("assistsPerApp")),
 			goalInvolvementsPerApp: toNumber(record.get("goalInvolvementsPerApp")),
 			penaltyConversionRate: toNumber(record.get("penaltyConversionRate")),

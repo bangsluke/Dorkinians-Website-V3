@@ -110,11 +110,12 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 
 		// Competition filter
 		if (availableFilters.includes("competition") && playerFilters.competition) {
-			// Only show competition type pills if they differ from default (League + Cup)
+			// Only show competition type pills if they differ from default (League + Cup + Friendly)
 			const isDefaultCompetitionTypes = 
-				playerFilters.competition.types?.length === 2 &&
+				playerFilters.competition.types?.length === 3 &&
 				playerFilters.competition.types.includes("League") &&
-				playerFilters.competition.types.includes("Cup");
+				playerFilters.competition.types.includes("Cup") &&
+				playerFilters.competition.types.includes("Friendly");
 			
 			if (playerFilters.competition.types?.length > 0 && playerFilters.competition.types.length < 3 && !isDefaultCompetitionTypes) {
 				playerFilters.competition.types.forEach((type) => {
