@@ -22,3 +22,4 @@ export { default as FixturesListSkeleton } from "./FixturesListSkeleton";
 export { default as CaptainsTableSkeleton } from "./CaptainsTableSkeleton";
 export { default as AwardsTableSkeleton } from "./AwardsTableSkeleton";
 export { default as HistoryPopupSkeleton } from "./HistoryPopupSkeleton";
+export { default as DataTableSkeleton } from "./DataTableSkeleton";

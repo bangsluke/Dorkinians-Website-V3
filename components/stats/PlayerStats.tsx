@@ -21,7 +21,7 @@ import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, ge
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton } from "@/components/skeletons";
+import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -3327,7 +3327,7 @@ export default function PlayerStats() {
 	);
 
 	const dataTableContent = (
-		<div className='mt-4 mb-4'>
+		<div className='mb-4'>
 			<div className='overflow-x-auto'>
 				<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 				<thead className='sticky top-0 z-10'>
@@ -3374,7 +3374,15 @@ export default function PlayerStats() {
 				className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto'
 				style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 				{!isDataTableMode && chartContent}
-				{isDataTableMode && dataTableContent}
+				{isDataTableMode && (
+					isLoadingPlayerData ? (
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<DataTableSkeleton />
+						</SkeletonTheme>
+					) : (
+						dataTableContent
+					)
+				)}
 				
 				{/* Share Button */}
 				{!isDataTableMode && (

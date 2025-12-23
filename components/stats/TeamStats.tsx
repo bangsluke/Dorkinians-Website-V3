@@ -14,7 +14,7 @@ import { safeLocalStorageGet, safeLocalStorageSet, getPWADebugInfo } from "@/lib
 import HomeAwayGauge from "./HomeAwayGauge";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton } from "@/components/skeletons";
+import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
 
 
 interface TopPlayer {
@@ -451,6 +451,9 @@ export default function TeamStats() {
 
 	// Track previous player to detect changes
 	const previousPlayerRef = useRef<string | null>(selectedPlayer);
+	
+	// Track last fetched filters to implement caching
+	const lastFetchedFiltersRef = useRef<string | null>(null);
 
 	// Initialize or reset selected team when player or teams data changes
 	useEffect(() => {
@@ -464,6 +467,12 @@ export default function TeamStats() {
 
 		const playerChanged = previousPlayerRef.current !== selectedPlayer;
 		previousPlayerRef.current = selectedPlayer;
+		
+		// Reset cache when player changes
+		if (playerChanged) {
+			lastFetchedFiltersRef.current = null;
+			setTeamData(null);
+		}
 
 		const storageKey = `team-stats-selected-team-${selectedPlayer}`;
 		const savedTeam = typeof window !== "undefined" ? safeLocalStorageGet(storageKey) : null;
@@ -548,6 +557,11 @@ export default function TeamStats() {
 	useEffect(() => {
 		if (!selectedTeam || !playerFilters) return;
 
+		// Check if we already have data for this filter combination
+		if (teamData && lastFetchedFiltersRef.current === filtersKey) {
+			return; // Data already loaded for these filters, skip fetch
+		}
+
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
 			try {
@@ -568,9 +582,11 @@ export default function TeamStats() {
 				if (response.ok) {
 					const data = await response.json();
 					setTeamData(data.teamData);
+					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 				} else {
 					console.error("Failed to fetch team data:", response.statusText);
 					setTeamData(null);
+					lastFetchedFiltersRef.current = null;
 				}
 			} catch (error) {
 				console.error("Error fetching team data:", error);
@@ -578,6 +594,7 @@ export default function TeamStats() {
 				const pwaDebugInfo = getPWADebugInfo();
 				console.error("[TeamStats] PWA Debug Info on team data fetch error:", pwaDebugInfo);
 				setTeamData(null);
+				lastFetchedFiltersRef.current = null;
 			} finally {
 				setIsLoadingTeamData(false);
 			}
@@ -2015,7 +2032,7 @@ export default function TeamStats() {
 						);
 
 						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 pb-4 flex flex-col'>
+							<div className='overflow-x-auto pb-4 flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -2040,7 +2057,15 @@ export default function TeamStats() {
 					return (
 						<>
 							{!isDataTableMode && chartContent}
-							{isDataTableMode && dataTableContent}
+							{isDataTableMode && (
+								isLoadingTeamData ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<DataTableSkeleton />
+									</SkeletonTheme>
+								) : (
+									dataTableContent
+								)
+							)}
 						</>
 					);
 					})()}
