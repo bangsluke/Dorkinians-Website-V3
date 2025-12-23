@@ -10,7 +10,7 @@ import type { LeagueTableEntry } from "./leagueTableService";
 import { TeamMappingUtils } from "./chatbotUtils/teamMappingUtils";
 import { FormattingUtils } from "./chatbotUtils/formattingUtils";
 import { DateUtils } from "./chatbotUtils/dateUtils";
-import type { ChatbotResponse, PlayerData, StreakData, CoPlayerData } from "./chatbotService";
+import type { ChatbotResponse } from "./chatbotService";
 
 /**
  * ResponseBuilder - Handles building chatbot responses from query data
