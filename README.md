@@ -51,6 +51,15 @@
 - **Natural Language Processing**: Process user questions and return visualized answers
 - **Unified Data Schema**: Single source of truth for all data definitions
 - **Database**: Neo4j Aura for efficient data storage and querying
+- **Comprehensive Statistics**: Detailed player, team, and club statistics with multiple visualization types
+- **Player Comparison**: Side-by-side player comparison with interactive radar charts
+- **Team of the Week**: Weekly best XI display with visual pitch formation and player details
+- **Players of the Month**: Monthly award winners and historical achievements
+- **Advanced Filtering**: Filter statistics by time range, team, location, opposition, competition, result, and position
+- **Club Information**: Club history, milestones, league information, captains, and awards
+- **Settings Hub**: Quick navigation to all sections, database status monitoring, and PWA installation
+- **Swipe Navigation**: Intuitive swipe gestures for navigating between pages on mobile devices
+- **Player Context**: Set player context for personalized chatbot queries using pronouns
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -557,5 +566,14 @@ For development guidelines and best practices:
 - Quality gates and debugging strategies
 
 See: [ENGINEERING_DOCTRINE.md](./docs/ENGINEERING_DOCTRINE.md)
+
+For user-facing documentation and guides:
+
+- Complete user guide for all app features
+- Navigation and interaction instructions
+- Tips and tricks for using the app effectively
+- Feature explanations and usage examples
+
+See: [Dorkinians Website Documentation](./docs/documentation-docs/Dorkinians-Website.md)
 
 > [Back to Table of Contents](#table-of-contents)
