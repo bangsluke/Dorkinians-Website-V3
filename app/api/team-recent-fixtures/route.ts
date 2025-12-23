@@ -46,6 +46,9 @@ export async function POST(request: NextRequest) {
 
 		// Build filter conditions
 		const filterConditions = buildFilterConditions(filters, params);
+		
+		// Filter out position conditions (md.class) since this query doesn't match MatchDetail nodes
+		const fixtureConditions = filterConditions.filter((cond) => !cond.includes("md.class"));
 
 		// If teamName is provided and not "Whole Club", use it
 		if (teamName && teamName !== "Whole Club" && !hasTeamFilter) {
@@ -55,8 +58,8 @@ export async function POST(request: NextRequest) {
 
 		// Keep team filter from filterConditions if present (filters.teams)
 		const conditions = hasTeamFilter || teamName === "Whole Club" || !teamName
-			? filterConditions
-			: filterConditions.filter((cond) => !cond.includes("f.team IN $teams"));
+			? fixtureConditions
+			: fixtureConditions.filter((cond) => !cond.includes("f.team IN $teams"));
 
 		if (conditions.length > 0) {
 			const hasWhereClause = query.includes("WHERE");

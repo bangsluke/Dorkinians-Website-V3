@@ -2517,6 +2517,8 @@ export default function PlayerStats() {
 			const selectedOption = statOptions.find(opt => opt.value === teamSelectedStat);
 			if (selectedOption?.statKey === "distance") {
 				displayValue = `${Number(displayValue).toFixed(1)} miles`;
+			} else if (selectedOption?.statKey === "fantasyPoints") {
+				displayValue = Math.round(Number(displayValue));
 			}
 			return (
 				<div style={tooltipStyle} className='px-3 py-2'>

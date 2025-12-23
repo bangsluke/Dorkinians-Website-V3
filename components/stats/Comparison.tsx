@@ -8,6 +8,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { statObject, statsPageConfig } from "@/config/config";
+import { TeamMappingUtils } from "@/lib/services/chatbotUtils/teamMappingUtils";
 import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -85,12 +86,16 @@ function ComparisonStatRow({
 	statKey, 
 	stat, 
 	player1Data, 
-	player2Data 
+	player2Data,
+	player1Name,
+	player2Name
 }: { 
 	statKey: string; 
 	stat: any; 
 	player1Data: PlayerData | null; 
 	player2Data: PlayerData | null;
+	player1Name: string | null;
+	player2Name: string | null;
 }) {
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number; placement: 'above' | 'below' } | null>(null);
@@ -98,6 +103,23 @@ function ComparisonStatRow({
 	const rowRef = useRef<HTMLDivElement>(null);
 	const tooltipRef = useRef<HTMLDivElement | null>(null);
 	const isInView = useInView(rowRef, { once: true, margin: "-100px" });
+
+	// Helper function to convert team name from "1st XI" to "1s" format
+	const formatTeamNameForDisplay = (teamName: string): string => {
+		if (!teamName) return "";
+		const teamNameLower = teamName.toLowerCase().trim();
+		const reverseMap: { [key: string]: string } = {
+			"1st xi": "1s",
+			"2nd xi": "2s",
+			"3rd xi": "3s",
+			"4th xi": "4s",
+			"5th xi": "5s",
+			"6th xi": "6s",
+			"7th xi": "7s",
+			"8th xi": "8s",
+		};
+		return reverseMap[teamNameLower] || teamName;
+	};
 
 	const player1Value = getStatValue(player1Data, statKey);
 	const player2Value = getStatValue(player2Data, statKey);
@@ -107,17 +129,104 @@ function ComparisonStatRow({
 	
 	let player1IsWinner = false;
 	let player2IsWinner = false;
+	let player1DisplayValue: string | number = player1Value;
+	let player2DisplayValue: string | number = player2Value;
 	
-	if (statHigherBetter) {
-		player1IsWinner = player1Value > player2Value;
-		player2IsWinner = player2Value > player1Value;
+	// Special handling for MostPlayedForTeam: compare by team priority (higher team = better)
+	// Higher team means lower priority number (1s = 1, 2s = 2, etc.)
+	if (statKey === "MostPlayedForTeam") {
+		const player1Team = player1Data?.mostPlayedForTeam || "";
+		const player2Team = player2Data?.mostPlayedForTeam || "";
+		const player1Appearances = player1Data?.mostPlayedForTeamAppearances || 0;
+		const player2Appearances = player2Data?.mostPlayedForTeamAppearances || 0;
+		
+		// Set display values to team names in short format
+		player1DisplayValue = formatTeamNameForDisplay(player1Team);
+		player2DisplayValue = formatTeamNameForDisplay(player2Team);
+		
+		// Compare team priorities (lower priority number = higher team = better)
+		// For this stat, higher team always wins, regardless of appearance counts
+		const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
+		const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
+		
+		if (player1Priority < player2Priority) {
+			// Player 1 has higher team (lower priority number, e.g., 1s vs 2s)
+			player1IsWinner = true;
+		} else if (player2Priority < player1Priority) {
+			// Player 2 has higher team (lower priority number)
+			player2IsWinner = true;
+		} else {
+			// If teams are equal (same team), both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
+	} else if (statKey === "MostScoredForTeam") {
+		const player1Team = player1Data?.mostScoredForTeam || "";
+		const player2Team = player2Data?.mostScoredForTeam || "";
+		const player1Goals = player1Data?.mostScoredForTeamGoals || 0;
+		const player2Goals = player2Data?.mostScoredForTeamGoals || 0;
+		
+		// Set display values to team names in short format
+		player1DisplayValue = formatTeamNameForDisplay(player1Team);
+		player2DisplayValue = formatTeamNameForDisplay(player2Team);
+		
+		// Compare team priorities (lower priority number = higher team = better)
+		// For this stat, higher team always wins, regardless of goal counts
+		const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
+		const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
+		
+		if (player1Priority < player2Priority) {
+			// Player 1 has higher team (lower priority number, e.g., 1s vs 2s)
+			player1IsWinner = true;
+		} else if (player2Priority < player1Priority) {
+			// Player 2 has higher team (lower priority number)
+			player2IsWinner = true;
+		} else {
+			// If teams are equal (same team), both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
+	} else if (statHigherBetter) {
+		if (player1Value > player2Value) {
+			player1IsWinner = true;
+		} else if (player2Value > player1Value) {
+			player2IsWinner = true;
+		} else {
+			// Values are equal, both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
 	} else {
-		player1IsWinner = player1Value < player2Value;
-		player2IsWinner = player2Value < player1Value;
+		if (player1Value < player2Value) {
+			player1IsWinner = true;
+		} else if (player2Value < player1Value) {
+			player2IsWinner = true;
+		} else {
+			// Values are equal, both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
 	}
 	
-	const player1Width = maxValue > 0 ? (player1Value / maxValue) * 100 : 0;
-	const player2Width = maxValue > 0 ? (player2Value / maxValue) * 100 : 0;
+	// For MostPlayedForTeam and MostScoredForTeam, use appropriate values for width calculation
+	let player1Width = 0;
+	let player2Width = 0;
+	if (statKey === "MostPlayedForTeam") {
+		const player1Appearances = player1Data?.mostPlayedForTeamAppearances || 0;
+		const player2Appearances = player2Data?.mostPlayedForTeamAppearances || 0;
+		const maxAppearances = Math.max(player1Appearances, player2Appearances, 1);
+		player1Width = maxAppearances > 0 ? (player1Appearances / maxAppearances) * 100 : 0;
+		player2Width = maxAppearances > 0 ? (player2Appearances / maxAppearances) * 100 : 0;
+	} else if (statKey === "MostScoredForTeam") {
+		const player1Goals = player1Data?.mostScoredForTeamGoals || 0;
+		const player2Goals = player2Data?.mostScoredForTeamGoals || 0;
+		const maxGoals = Math.max(player1Goals, player2Goals, 1);
+		player1Width = maxGoals > 0 ? (player1Goals / maxGoals) * 100 : 0;
+		player2Width = maxGoals > 0 ? (player2Goals / maxGoals) * 100 : 0;
+	} else {
+		player1Width = maxValue > 0 ? (player1Value / maxValue) * 100 : 0;
+		player2Width = maxValue > 0 ? (player2Value / maxValue) * 100 : 0;
+	}
 
 	const findScrollContainers = (element: HTMLElement | null): HTMLElement[] => {
 		const containers: HTMLElement[] = [];
@@ -263,8 +372,13 @@ function ComparisonStatRow({
 		setTooltipPosition(null);
 	};
 
-	const player1Formatted = formatStatValue(player1Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
-	const player2Formatted = formatStatValue(player2Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+	// For MostPlayedForTeam and MostScoredForTeam, use the team name directly; otherwise format the numeric value
+	const player1Formatted = (statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam")
+		? String(player1DisplayValue || "N/A")
+		: formatStatValue(player1Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+	const player2Formatted = (statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam")
+		? String(player2DisplayValue || "N/A")
+		: formatStatValue(player2Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
 
 	return (
 		<>
@@ -288,7 +402,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player1Width > 0 ? '40px' : '0' }}
 						>
-							{player1Width > 5 && (
+							{((statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam") ? player1DisplayValue : player1Value > 0) && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player1IsWinner ? 'text-black' : 'text-black'
 								}`}>
@@ -322,7 +436,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player2Width > 0 ? '40px' : '0' }}
 						>
-							{player2Width > 5 && (
+							{((statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam") ? player2DisplayValue : player2Value > 0) && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player2IsWinner ? 'text-black' : 'text-black'
 								}`}>
@@ -348,7 +462,13 @@ function ComparisonStatRow({
 						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-b-4 border-transparent mb-1' style={{ borderBottomColor: '#0f0f0f' }}></div>
 					)}
 					<div className='font-semibold mb-1'>{stat.displayText}</div>
-					<div className='text-xs text-white/80'>{stat.description}</div>
+					<div className='text-xs text-white/80 mb-2'>{stat.description}</div>
+					{player1Name && player2Name && (
+						<div className='text-xs text-white/90 mt-2 pt-2 border-t border-white/20'>
+							<div className='mb-1'>{player1Name}: <span className='font-mono'>{player1Formatted}</span></div>
+							<div>{player2Name}: <span className='font-mono'>{player2Formatted}</span></div>
+						</div>
+					)}
 				</div>,
 				document.body
 			)}
@@ -405,30 +525,29 @@ export default function Comparison() {
 		"Appearance Stats": [
 			{ displayName: "Appearances", statKey: "APP", statName: "appearances" },
 			{ displayName: "Minutes", statKey: "MIN", statName: "minutes" },
-			{ displayName: "Appearances as GK", statKey: null, statName: "gk" },
-			{ displayName: "Appearances as DEF", statKey: null, statName: "def" },
-			{ displayName: "Appearances as MID", statKey: null, statName: "mid" },
-			{ displayName: "Appearances as FWD", statKey: null, statName: "fwd" },
 			{ displayName: "Average Minutes Per Appearance", statKey: "MINperAPP", statName: "minutesPerApp" },
 			{ displayName: "Distance Travelled", statKey: "DIST", statName: "distance" },
-			{ displayName: "Teammates played with", statKey: "TEAM", statName: "teammatesPlayedWith" }
+			{ displayName: "Teammates played with", statKey: "TEAM", statName: "teammatesPlayedWith" },
+			{ displayName: "Number Teams Played For", statKey: "NumberTeamsPlayedFor", statName: "numberTeamsPlayedFor" },
+			{ displayName: "Number Seasons Played For", statKey: "NumberSeasonsPlayedFor", statName: "numberSeasonsPlayedFor" }
 		],
 		"Performance Stats": [
 			{ displayName: "MoM", statKey: "MOM", statName: "mom" },
 			{ displayName: "Fantasy Points Achieved", statKey: "FTP", statName: "fantasyPoints" },
+			{ displayName: "Fantasy Points Per Appearance", statKey: "FTPperAPP", statName: "fantasyPointsPerApp" },
 			{ displayName: "Yellow Cards", statKey: "Y", statName: "yellowCards" },
 			{ displayName: "Red Cards", statKey: "R", statName: "redCards" },
-			{ displayName: "Fantasy Points Per Appearance", statKey: "FTPperAPP", statName: "fantasyPointsPerApp" },
-			{ displayName: "% Games Won", statKey: "Games%Won", statName: "gamesPercentWon" }
+			{ displayName: "% Games Won", statKey: "Games%Won", statName: "gamesPercentWon" },
+			{ displayName: "Points Per Game", statKey: "PlayerPointsPerGame", statName: "pointsPerGame" }
 		],
 		"Attacking Stats": [
 			{ displayName: "All Goals Scored", statKey: "AllGSC", statName: "allGoalsScored" },
-			{ displayName: "Assists", statKey: "A", statName: "assists" },
-			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
-			{ displayName: "Goal Involvements Per Appearance", statKey: "GIperAPP", statName: "goalInvolvementsPerApp" },
 			{ displayName: "Goals Per Appearance", statKey: "GperAPP", statName: "goalsPerApp" },
+			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" },
+			{ displayName: "Assists", statKey: "A", statName: "assists" },
 			{ displayName: "Assists Per Appearance", statKey: "AperAPP", statName: "assistsPerApp" },
-			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" }
+			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
+			{ displayName: "Goal Involvements Per Appearance", statKey: "GIperAPP", statName: "goalInvolvementsPerApp" }
 		],
 		"Defensive Stats": [
 			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
@@ -451,6 +570,7 @@ export default function Comparison() {
 		],
 		"Goalkeeping Stats": [
 			{ displayName: "Saves", statKey: "SAVES", statName: "saves" },
+			{ displayName: "Saves Per Appearance", statKey: "SAVESperAPP", statName: "savesPerApp" },
 			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
 			{ displayName: "Conceded", statKey: "C", statName: "conceded" },
 			{ displayName: "Penalties Saved", statKey: "PSV", statName: "penaltiesSaved" },
@@ -975,6 +1095,8 @@ export default function Comparison() {
 								stat={stat}
 								player1Data={player1Data}
 								player2Data={secondPlayerData}
+								player1Name={selectedPlayer}
+								player2Name={secondPlayer}
 							/>
 						))}
 						<div className='pb-8 md:pb-12'></div>
