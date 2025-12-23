@@ -349,7 +349,7 @@ function formatStatValue(value: any, statFormat: string, decimalPlaces: number, 
 			formattedValue = numValue.toFixed(decimalPlaces);
 			break;
 		case "Percentage":
-			formattedValue = `${Math.round(numValue)}%`;
+			formattedValue = `${numValue.toFixed(1)}%`;
 			break;
 		case "String":
 			formattedValue = String(value);

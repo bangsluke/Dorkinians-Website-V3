@@ -61,6 +61,12 @@ export interface PlayerData {
 	wins: number;
 	draws: number;
 	losses: number;
+	homeGames: number;
+	homeWins: number;
+	homeGamesPercentWon: number;
+	awayWins: number;
+	awayGamesPercentWon: number;
+	gamesPercentWon: number;
 
 	// Position tracking
 	gk: number;
