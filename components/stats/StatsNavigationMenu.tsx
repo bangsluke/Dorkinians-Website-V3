@@ -74,7 +74,10 @@ const statsNavigationItems = [
 	{
 		id: "comparison" as StatsSubPage,
 		label: "Comparison",
-		sections: [],
+		sections: [
+			{ id: "comparison-radar-chart", label: "Radar Chart" },
+			{ id: "comparison-full-comparison", label: "Full Comparison" },
+		],
 	},
 ];
 
