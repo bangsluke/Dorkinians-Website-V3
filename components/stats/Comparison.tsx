@@ -525,30 +525,29 @@ export default function Comparison() {
 		"Appearance Stats": [
 			{ displayName: "Appearances", statKey: "APP", statName: "appearances" },
 			{ displayName: "Minutes", statKey: "MIN", statName: "minutes" },
-			{ displayName: "Appearances as GK", statKey: null, statName: "gk" },
-			{ displayName: "Appearances as DEF", statKey: null, statName: "def" },
-			{ displayName: "Appearances as MID", statKey: null, statName: "mid" },
-			{ displayName: "Appearances as FWD", statKey: null, statName: "fwd" },
 			{ displayName: "Average Minutes Per Appearance", statKey: "MINperAPP", statName: "minutesPerApp" },
 			{ displayName: "Distance Travelled", statKey: "DIST", statName: "distance" },
-			{ displayName: "Teammates played with", statKey: "TEAM", statName: "teammatesPlayedWith" }
+			{ displayName: "Teammates played with", statKey: "TEAM", statName: "teammatesPlayedWith" },
+			{ displayName: "Number Teams Played For", statKey: "NumberTeamsPlayedFor", statName: "numberTeamsPlayedFor" },
+			{ displayName: "Number Seasons Played For", statKey: "NumberSeasonsPlayedFor", statName: "numberSeasonsPlayedFor" }
 		],
 		"Performance Stats": [
 			{ displayName: "MoM", statKey: "MOM", statName: "mom" },
 			{ displayName: "Fantasy Points Achieved", statKey: "FTP", statName: "fantasyPoints" },
+			{ displayName: "Fantasy Points Per Appearance", statKey: "FTPperAPP", statName: "fantasyPointsPerApp" },
 			{ displayName: "Yellow Cards", statKey: "Y", statName: "yellowCards" },
 			{ displayName: "Red Cards", statKey: "R", statName: "redCards" },
-			{ displayName: "Fantasy Points Per Appearance", statKey: "FTPperAPP", statName: "fantasyPointsPerApp" },
-			{ displayName: "% Games Won", statKey: "Games%Won", statName: "gamesPercentWon" }
+			{ displayName: "% Games Won", statKey: "Games%Won", statName: "gamesPercentWon" },
+			{ displayName: "Points Per Game", statKey: "PlayerPointsPerGame", statName: "pointsPerGame" }
 		],
 		"Attacking Stats": [
 			{ displayName: "All Goals Scored", statKey: "AllGSC", statName: "allGoalsScored" },
-			{ displayName: "Assists", statKey: "A", statName: "assists" },
-			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
-			{ displayName: "Goal Involvements Per Appearance", statKey: "GIperAPP", statName: "goalInvolvementsPerApp" },
 			{ displayName: "Goals Per Appearance", statKey: "GperAPP", statName: "goalsPerApp" },
+			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" },
+			{ displayName: "Assists", statKey: "A", statName: "assists" },
 			{ displayName: "Assists Per Appearance", statKey: "AperAPP", statName: "assistsPerApp" },
-			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" }
+			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
+			{ displayName: "Goal Involvements Per Appearance", statKey: "GIperAPP", statName: "goalInvolvementsPerApp" }
 		],
 		"Defensive Stats": [
 			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
@@ -571,6 +570,7 @@ export default function Comparison() {
 		],
 		"Goalkeeping Stats": [
 			{ displayName: "Saves", statKey: "SAVES", statName: "saves" },
+			{ displayName: "Saves Per Appearance", statKey: "SAVESperAPP", statName: "savesPerApp" },
 			{ displayName: "Clean Sheets", statKey: "CLS", statName: "cleanSheets" },
 			{ displayName: "Conceded", statKey: "C", statName: "conceded" },
 			{ displayName: "Penalties Saved", statKey: "PSV", statName: "penaltiesSaved" },
