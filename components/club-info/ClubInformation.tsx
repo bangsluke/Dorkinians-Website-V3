@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
+import SquadPlayersModal from "./SquadPlayersModal";
 
 interface MilestoneEntry {
 	playerName: string;
@@ -17,12 +19,91 @@ interface MilestoneEntry {
 	mostRecentMatchDate?: string;
 }
 
+interface ClubAchievement {
+	team: string;
+	division: string;
+	season: string;
+	trophyNumber?: number;
+}
+
+
+// Helper function to convert team key to display format
+function formatTeamName(team: string): string {
+	const teamMap: { [key: string]: string } = {
+		"1s": "1st XI",
+		"2s": "2nd XI",
+		"3s": "3rd XI",
+		"4s": "4th XI",
+		"5s": "5th XI",
+		"6s": "6th XI",
+		"7s": "7th XI",
+		"8s": "8th XI",
+	};
+	return teamMap[team] || team;
+}
+
+function AchievementBox({ achievement }: { achievement: ClubAchievement }) {
+	const [isModalOpen, setIsModalOpen] = useState(false);
+
+	const teamName = formatTeamName(achievement.team);
+	const restOfText = `${achievement.division} Champions ${achievement.season}`;
+	const trophyPath = `/stat-icons/trophies/Trophy${achievement.trophyNumber || 1}.svg`;
+
+	const handleClick = () => {
+		setIsModalOpen(true);
+	};
+
+	const handleCloseModal = () => {
+		setIsModalOpen(false);
+	};
+
+	return (
+		<>
+			<div className='relative p-4 min-w-[140px] flex flex-col items-center'>
+				{/* Trophy Icon */}
+				<div className='mb-3 flex-shrink-0'>
+					<Image
+						src={trophyPath}
+						alt="Trophy"
+						width={150}
+						height={150}
+						className='w-[120px] h-[120px] md:w-[160px] md:h-[160px] object-contain'
+					/>
+				</div>
+				{/* Achievement Text */}
+				<div className='text-center'>
+					<p className='text-white text-sm md:text-base leading-tight'>
+						<span className='block font-bold'>{teamName}</span>
+						<span className='block'>{restOfText}</span>
+						<button
+							onClick={handleClick}
+							className='mt-2 text-xs text-dorkinians-yellow underline decoration-dorkinians-yellow decoration-2 hover:text-yellow-400 transition-colors cursor-pointer'
+						>
+							Show squad
+						</button>
+					</p>
+				</div>
+			</div>
+			<SquadPlayersModal
+				isOpen={isModalOpen}
+				onClose={handleCloseModal}
+				teamKey={achievement.team}
+				teamDisplayName={teamName}
+				season={achievement.season}
+				division={achievement.division}
+			/>
+		</>
+	);
+}
+
 export default function ClubInformation() {
 	const [achieved, setAchieved] = useState<MilestoneEntry[]>([]);
 	const [nearing, setNearing] = useState<MilestoneEntry[]>([]);
 	const [closestToMilestone, setClosestToMilestone] = useState<MilestoneEntry[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [selectedFilter, setSelectedFilter] = useState<string>("Show all");
+	const [achievements, setAchievements] = useState<ClubAchievement[]>([]);
+	const [achievementsLoading, setAchievementsLoading] = useState(true);
 
 	useEffect(() => {
 		const fetchMilestones = async () => {
@@ -77,6 +158,37 @@ export default function ClubInformation() {
 		fetchMilestones();
 	}, []);
 
+	useEffect(() => {
+		const fetchAchievements = async () => {
+			try {
+				const response = await fetch("/api/club-achievements");
+				if (response.ok) {
+					const data = await response.json();
+					const achievementsData = data.achievements || [];
+					
+					// Shuffle trophy numbers and assign to achievements
+					const trophyNumbers = [1, 2, 3, 4, 5];
+					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
+					
+					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
+						...achievement,
+						trophyNumber: shuffled[index % 5],
+					}));
+					
+					setAchievements(achievementsWithTrophies);
+				} else {
+					console.error("Failed to fetch achievements");
+				}
+			} catch (error) {
+				console.error("Error fetching achievements:", error);
+			} finally {
+				setAchievementsLoading(false);
+			}
+		};
+
+		fetchAchievements();
+	}, []);
+
 	// Filter milestones based on selected filter
 	// "Show all": top 5 globally (already sorted by milestone, then proximity)
 	// Single stat type: top 5 for that stat type
@@ -107,6 +219,40 @@ export default function ClubInformation() {
 						Navigate to Pixham
 					</a>
 				</div>
+			</div>
+
+			{/* Club Achievements Section */}
+			<div className='mb-8'>
+				<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-4'>Club Achievements</h3>
+				{achievementsLoading ? (
+					<div className='flex overflow-x-auto gap-1 pb-2'>
+						{[1, 2, 3].map((i) => (
+							<div key={i} className='flex-shrink-0 min-w-[140px] flex flex-col items-center p-4'>
+								<div className='mb-3 flex-shrink-0'>
+									<Image
+										src="/stat-icons/trophies/Trophy1.svg"
+										alt="Trophy"
+										width={150}
+										height={150}
+										className='w-[120px] h-[120px] md:w-[160px] md:h-[160px] object-contain opacity-30'
+									/>
+								</div>
+								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+									<Skeleton height={20} width={120} className='mb-2' />
+									<Skeleton height={20} width={100} />
+								</SkeletonTheme>
+							</div>
+						))}
+					</div>
+				) : achievements.length > 0 ? (
+					<div className='flex overflow-x-auto gap-1 pb-2' style={{ WebkitOverflowScrolling: 'touch' }}>
+						{achievements.map((achievement, index) => (
+							<AchievementBox key={`${achievement.team}-${achievement.season}-${index}`} achievement={achievement} />
+						))}
+					</div>
+				) : (
+					<p className='text-sm text-gray-400 text-center py-4'>No league championships to display</p>
+				)}
 			</div>
 
 			{/* Milestones Section */}

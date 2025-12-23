@@ -44,7 +44,13 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Build filter conditions
-		const conditions = buildFilterConditions(filters || null, params);
+		const allConditions = buildFilterConditions(filters || null, params);
+		// Filter out position conditions (they reference md.class which doesn't exist in this query)
+		const conditions = allConditions.filter(cond => !cond.includes("md.class"));
+		// Remove position params if they were added
+		if (params.positions) {
+			delete params.positions;
+		}
 		if (conditions.length > 0) {
 			const hasWhereClause = query.includes("WHERE");
 			query += hasWhereClause ? ` AND ${conditions.join(" AND ")}` : ` WHERE ${conditions.join(" AND ")}`;
