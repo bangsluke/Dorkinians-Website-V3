@@ -56,17 +56,22 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 		// Expand multi-value filters into individual pills
 		const expandedPills: Array<ActiveFilter & { onRemove: () => void }> = [];
 
-		// Teams filter
-		if (availableFilters.includes("team") && playerFilters.teams?.length > 0) {
-			playerFilters.teams.forEach((team) => {
-				expandedPills.push({
-					key: `team-${team}`,
-					label: "Team",
-					value: team,
-					removeKey: "team",
-					onRemove: () => removeTeamFilter(team),
+		// Teams filter - only show when not all teams are selected
+		if (availableFilters.includes("team") && playerFilters.teams?.length > 0 && filterData?.teams) {
+			const allTeamsCount = filterData.teams.length;
+			const selectedTeamsCount = playerFilters.teams.length;
+			// Only show pills if not all teams are selected
+			if (selectedTeamsCount < allTeamsCount) {
+				playerFilters.teams.forEach((team) => {
+					expandedPills.push({
+						key: `team-${team}`,
+						label: "Team",
+						value: team,
+						removeKey: "team",
+						onRemove: () => removeTeamFilter(team),
+					});
 				});
-			});
+			}
 		}
 
 		// Location filter
@@ -95,17 +100,22 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 			});
 		}
 
-		// Position filter
+		// Position filter - only show when not all positions are selected
 		if (availableFilters.includes("position") && playerFilters.position?.length > 0) {
-			playerFilters.position.forEach((position) => {
-				expandedPills.push({
-					key: `position-${position}`,
-					label: "Position",
-					value: position,
-					removeKey: "position",
-					onRemove: () => removePositionFilter(position),
+			const allPositionsCount = 4; // GK, DEF, MID, FWD
+			const selectedPositionsCount = playerFilters.position.length;
+			// Only show pills if not all positions are selected
+			if (selectedPositionsCount < allPositionsCount) {
+				playerFilters.position.forEach((position) => {
+					expandedPills.push({
+						key: `position-${position}`,
+						label: "Position",
+						value: position,
+						removeKey: "position",
+						onRemove: () => removePositionFilter(position),
+					});
 				});
-			});
+			}
 		}
 
 		// Competition filter

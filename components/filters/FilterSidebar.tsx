@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation";
@@ -36,6 +36,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	
 	// State to track initial filter state when sidebar opens
 	const [initialFilterSnapshot, setInitialFilterSnapshot] = useState<PlayerFilters | null>(null);
+	// Ref to track if snapshot has been captured for current sidebar opening
+	const snapshotCapturedRef = useRef(false);
+	// Ref to track user-initiated clears to prevent auto-initialization
+	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>({});
+	// State for validation warning modal
+	const [validationWarning, setValidationWarning] = useState<string[] | null>(null);
 
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
@@ -81,10 +87,61 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		}
 	}, [isOpen, isFilterDataLoaded, loadFilterData]);
 
-	// Capture initial filter state when sidebar opens
+	// Initialize default values when sidebar opens
 	useEffect(() => {
-		if (isOpen && playerFilters) {
-			// Create a deep copy of the current filters as the snapshot
+		if (isOpen && playerFilters && isFilterDataLoaded && filterData) {
+			const updates: Partial<PlayerFilters> = {};
+			let needsUpdate = false;
+
+			// Initialize teams to all teams if empty (unless user explicitly cleared)
+			if ((playerFilters.teams?.length || 0) === 0 && filterData.teams.length > 0 && !userClearedRef.current.teams) {
+				updates.teams = filterData.teams.map(team => team.name);
+				needsUpdate = true;
+			}
+
+			// Initialize positions to all positions if empty (unless user explicitly cleared)
+			if ((playerFilters.position?.length || 0) === 0 && !userClearedRef.current.position) {
+				updates.position = ["GK", "DEF", "MID", "FWD"];
+				needsUpdate = true;
+			}
+
+			// Initialize location to both if empty
+			if ((playerFilters.location?.length || 0) === 0) {
+				updates.location = ["Home", "Away"];
+				needsUpdate = true;
+			}
+
+			// Initialize competition types to all if empty
+			if ((playerFilters.competition?.types?.length || 0) === 0) {
+				updates.competition = {
+					...(playerFilters.competition || { types: [], searchTerm: "" }),
+					types: ["League", "Cup", "Friendly"],
+				};
+				needsUpdate = true;
+			}
+
+			if (needsUpdate) {
+				updatePlayerFilters(updates);
+			}
+		}
+	}, [isOpen, isFilterDataLoaded, filterData, playerFilters, updatePlayerFilters]);
+
+	// Capture snapshot after initialization completes
+	useEffect(() => {
+		if (isOpen && playerFilters && isFilterDataLoaded && filterData && !snapshotCapturedRef.current) {
+		// Get default values for comparison
+		const allTeams = filterData.teams.map(team => team.name);
+		const allPositions = ["GK", "DEF", "MID", "FWD"] as const;
+		const defaultLocation: ("Home" | "Away")[] = ["Home", "Away"];
+		const defaultCompetitionTypes = ["League", "Cup", "Friendly"] as const;
+
+		// Use defaults if empty for snapshot
+		const teamsForSnapshot = (playerFilters.teams?.length || 0) === 0 ? allTeams : (playerFilters.teams || []);
+		const positionForSnapshot = (playerFilters.position?.length || 0) === 0 ? allPositions : (playerFilters.position || []);
+		const locationForSnapshot: ("Home" | "Away")[] = (playerFilters.location?.length || 0) === 0 ? defaultLocation : (playerFilters.location || []);
+		const competitionTypesForSnapshot = (playerFilters.competition?.types?.length || 0) === 0 ? defaultCompetitionTypes : (playerFilters.competition?.types || []);
+
+			// Create a deep copy of the filters as the snapshot
 			const snapshot: PlayerFilters = {
 				timeRange: {
 					type: playerFilters.timeRange.type,
@@ -94,25 +151,29 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 					startDate: playerFilters.timeRange.startDate || "",
 					endDate: playerFilters.timeRange.endDate || "",
 				},
-				teams: [...(playerFilters.teams || [])],
-				location: [...(playerFilters.location || [])],
+				teams: [...teamsForSnapshot],
+				location: [...locationForSnapshot],
 				opposition: {
 					allOpposition: playerFilters.opposition?.allOpposition ?? true,
 					searchTerm: playerFilters.opposition?.searchTerm || "",
 				},
 				competition: {
-					types: [...(playerFilters.competition?.types || [])],
+					types: [...competitionTypesForSnapshot],
 					searchTerm: playerFilters.competition?.searchTerm || "",
 				},
 				result: [...(playerFilters.result || [])],
-				position: [...(playerFilters.position || [])],
+				position: [...positionForSnapshot],
 			};
 			setInitialFilterSnapshot(snapshot);
+			snapshotCapturedRef.current = true;
 		} else if (!isOpen) {
-			// Clear snapshot when sidebar closes
+			// Clear snapshot and reset refs when sidebar closes
 			setInitialFilterSnapshot(null);
+			snapshotCapturedRef.current = false;
+			userClearedRef.current = {};
+			setValidationWarning(null);
 		}
-	}, [isOpen, playerFilters]);
+	}, [isOpen, isFilterDataLoaded, filterData, playerFilters]);
 
 	const toggleAccordion = (sectionId: string) => {
 		setAccordionSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, isOpen: !section.isOpen } : section)));
@@ -167,9 +228,34 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		if (!playerFilters) return;
 		const currentTeams = playerFilters.teams || [];
 		const newTeams = currentTeams.includes(team) ? currentTeams.filter((t) => t !== team) : [...currentTeams, team];
+		
+		// If user unchecks last team, mark as user-cleared to prevent auto-reinitialization
+		if (newTeams.length === 0) {
+			userClearedRef.current.teams = true;
+		} else if (currentTeams.length === 0 && newTeams.length > 0) {
+			// If user adds a team back after clearing, reset the flag
+			userClearedRef.current.teams = false;
+		}
 
 		updatePlayerFilters({
 			teams: newTeams,
+		});
+	};
+
+	const handleTeamCheckAll = () => {
+		if (!playerFilters || !filterData) return;
+		userClearedRef.current.teams = false;
+		const allTeams = filterData.teams.map(team => team.name);
+		updatePlayerFilters({
+			teams: allTeams,
+		});
+	};
+
+	const handleTeamClearAll = () => {
+		if (!playerFilters) return;
+		userClearedRef.current.teams = true;
+		updatePlayerFilters({
+			teams: [],
 		});
 	};
 
@@ -280,16 +366,75 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		const newPositions = currentPositions.includes(position)
 			? currentPositions.filter((p) => p !== position)
 			: [...currentPositions, position];
+		
+		// If user unchecks last position, mark as user-cleared to prevent auto-reinitialization
+		if (newPositions.length === 0) {
+			userClearedRef.current.position = true;
+		} else if (currentPositions.length === 0 && newPositions.length > 0) {
+			// If user adds a position back after clearing, reset the flag
+			userClearedRef.current.position = false;
+		}
 
 		updatePlayerFilters({
 			position: newPositions,
 		});
 	};
 
+	const handlePositionCheckAll = () => {
+		if (!playerFilters) return;
+		userClearedRef.current.position = false;
+		updatePlayerFilters({
+			position: ["GK", "DEF", "MID", "FWD"],
+		});
+	};
+
+	const handlePositionClearAll = () => {
+		if (!playerFilters) return;
+		userClearedRef.current.position = true;
+		updatePlayerFilters({
+			position: [],
+		});
+	};
+
+	const validateRequiredFilters = (): string[] => {
+		const missingSections: string[] = [];
+		
+		if (availableFilters.includes("team") && (playerFilters?.teams?.length || 0) === 0) {
+			missingSections.push("Team");
+		}
+		
+		if (availableFilters.includes("position") && (playerFilters?.position?.length || 0) === 0) {
+			missingSections.push("Position");
+		}
+		
+		if (availableFilters.includes("location") && (playerFilters?.location?.length || 0) === 0) {
+			missingSections.push("Location");
+		}
+		
+		if (availableFilters.includes("result") && (playerFilters?.result?.length || 0) === 0) {
+			missingSections.push("Result");
+		}
+		
+		if (availableFilters.includes("competition") && (playerFilters?.competition?.types?.length || 0) === 0) {
+			missingSections.push("Competition");
+		}
+		
+		return missingSections;
+	};
+
 	const handleApply = async () => {
+		const missingSections = validateRequiredFilters();
+		
+		if (missingSections.length > 0) {
+			setValidationWarning(missingSections);
+			return;
+		}
+		
 		await applyPlayerFilters();
-		// Reset snapshot after applying filters
+		// Reset snapshot and cleared flags after applying filters
 		setInitialFilterSnapshot(null);
+		snapshotCapturedRef.current = false;
+		userClearedRef.current = {};
 	};
 
 	const handleReset = () => {
@@ -376,6 +521,42 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		<AnimatePresence>
 			{isOpen && (
 				<>
+					{/* Validation Warning Modal */}
+					{validationWarning && (
+						<>
+							<motion.div
+								className='fixed inset-0 bg-black/70 z-[60]'
+								initial={{ opacity: 0 }}
+								animate={{ opacity: 1 }}
+								exit={{ opacity: 0 }}
+								onClick={() => setValidationWarning(null)}
+							/>
+							<motion.div
+								className='fixed inset-0 z-[70] flex items-center justify-center p-4'
+								initial={{ opacity: 0, scale: 0.9 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.9 }}
+								onClick={(e) => e.stopPropagation()}>
+								<div className='bg-[#0f0f0f] border border-white/20 rounded-lg p-6 max-w-md w-full'>
+									<h3 className='text-lg font-semibold text-white mb-4'>Missing Required Filters</h3>
+									<p className='text-white/80 mb-4'>
+										You must select at least one option from each section. The following sections are missing selections:
+									</p>
+									<ul className='list-disc list-inside text-white/80 mb-6 space-y-1'>
+										{validationWarning.map((section) => (
+											<li key={section}>{section}</li>
+										))}
+									</ul>
+									<button
+										onClick={() => setValidationWarning(null)}
+										className='w-full px-4 py-2 bg-dorkinians-yellow text-black font-medium rounded-md hover:bg-dorkinians-yellow/90 transition-colors'>
+										OK
+									</button>
+								</div>
+							</motion.div>
+						</>
+					)}
+
 					{/* Backdrop */}
 					<motion.div
 						className='fixed inset-0 bg-black/50 z-40'
@@ -611,19 +792,35 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											{filterData.teams.length === 0 ? (
 												<div className='text-sm text-white/60'>Loading teams...</div>
 											) : (
-												<div className='grid grid-cols-2 gap-2'>
-													{filterData.teams.map((team) => (
-														<label key={team.name} className='flex items-center min-h-[36px]'>
-															<input
-																type='checkbox'
-																checked={(playerFilters?.teams || []).includes(team.name)}
-																onChange={() => handleTeamToggle(team.name)}
-																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
-															/>
-															<span className='text-base md:text-sm text-white/80'>{team.name}</span>
-														</label>
-													))}
-												</div>
+												<>
+													<div className='grid grid-cols-2 gap-2 mb-3'>
+														{filterData.teams.map((team) => (
+															<label key={team.name} className='flex items-center min-h-[36px]'>
+																<input
+																	type='checkbox'
+																	checked={(playerFilters?.teams || []).includes(team.name)}
+																	onChange={() => handleTeamToggle(team.name)}
+																	className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																/>
+																<span className='text-base md:text-sm text-white/80'>{team.name}</span>
+															</label>
+														))}
+													</div>
+													<div className='flex gap-2'>
+														<button
+															type='button'
+															onClick={handleTeamCheckAll}
+															className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+															Check all
+														</button>
+														<button
+															type='button'
+															onClick={handleTeamClearAll}
+															className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+															Clear all
+														</button>
+													</div>
+												</>
 											)}
 										</div>
 									)}
@@ -854,7 +1051,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 									{accordionSections.find((s) => s.id === "position")?.isOpen && (
 										<div className='px-4 pb-4'>
-											<div className='grid grid-cols-2 gap-1'>
+											<div className='grid grid-cols-2 gap-1 mb-3'>
 												{[
 													{ value: "GK", label: "Goalkeeper" },
 													{ value: "DEF", label: "Defender" },
@@ -874,6 +1071,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													</label>
 												))}
 											</div>
+											<div className='flex gap-2'>
+												<button
+													type='button'
+													onClick={handlePositionCheckAll}
+													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													Check all
+												</button>
+												<button
+													type='button'
+													onClick={handlePositionClearAll}
+													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													Clear all
+												</button>
+											</div>
 										</div>
 									)}
 									</div>
@@ -881,7 +1092,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 							</div>
 
 							{/* Footer */}
-							<div className='border-t border-white/20 p-4'>
+							<div className='border-t border-white/20 p-4' style={{ marginBottom: '10px' }}>
 								<div className='flex space-x-3'>
 									<button
 										onClick={onClose}

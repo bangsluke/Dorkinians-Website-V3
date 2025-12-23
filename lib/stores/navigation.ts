@@ -367,7 +367,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
-			position: [],
+			position: ["GK", "DEF", "MID", "FWD"],
 		},
 		"team-stats": {
 			timeRange: {
@@ -389,7 +389,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
-			position: [],
+			position: ["GK", "DEF", "MID", "FWD"],
 		},
 		"club-stats": {
 			timeRange: {
@@ -411,7 +411,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
-			position: [],
+			position: ["GK", "DEF", "MID", "FWD"],
 		},
 		"comparison": {
 			timeRange: {
@@ -433,7 +433,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
-			position: [],
+			position: ["GK", "DEF", "MID", "FWD"],
 		},
 	},
 	// Current page filters (synced from playerFiltersByPage)
@@ -457,7 +457,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			searchTerm: "",
 		},
 		result: ["Win", "Draw", "Loss"],
-		position: [],
+		position: ["GK", "DEF", "MID", "FWD"],
 	},
 	isFilterSidebarOpen: false,
 	hasUnsavedFilters: false,
@@ -1046,8 +1046,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		}
 	},
 
-	resetPlayerFilters: () => {
+		resetPlayerFilters: () => {
 		const currentPage = get().currentStatsSubPage;
+		const { filterData } = get();
 		const defaultFilters: PlayerFilters = {
 			timeRange: {
 				type: "allTime",
@@ -1057,7 +1058,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				startDate: "",
 				endDate: "",
 			},
-			teams: [],
+			teams: filterData?.teams?.map(team => team.name) || [],
 			location: ["Home", "Away"],
 			opposition: {
 				allOpposition: true,
@@ -1068,7 +1069,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
-			position: [],
+			position: ["GK", "DEF", "MID", "FWD"],
 		};
 		const updatedFiltersByPage = {
 			...get().playerFiltersByPage,
