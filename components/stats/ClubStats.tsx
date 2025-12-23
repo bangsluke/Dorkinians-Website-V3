@@ -14,7 +14,7 @@ import HomeAwayGauge from "./HomeAwayGauge";
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
-import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton } from "@/components/skeletons";
+import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
 
 
 interface TopPlayer {
@@ -419,6 +419,9 @@ export default function ClubStats() {
 	const [uniquePlayerStats, setUniquePlayerStats] = useState<any>(null);
 	const [isLoadingUniqueStats, setIsLoadingUniqueStats] = useState(false);
 
+	// Track last fetched filters to implement caching
+	const lastFetchedFiltersRef = useRef<string | null>(null);
+
 	// Hard-coded page heading
 	const pageHeading = "Club Stats";
 
@@ -461,6 +464,11 @@ export default function ClubStats() {
 	useEffect(() => {
 		if (!playerFilters) return;
 		
+		// Check if we already have data for this filter combination
+		if (teamData && lastFetchedFiltersRef.current === filtersKey) {
+			return; // Data already loaded for these filters, skip fetch
+		}
+
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
 			try {
@@ -478,13 +486,16 @@ export default function ClubStats() {
 				if (response.ok) {
 					const data = await response.json();
 					setTeamData(data.teamData);
+					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 				} else {
 					console.error("Failed to fetch team data:", response.statusText);
 					setTeamData(null);
+					lastFetchedFiltersRef.current = null;
 				}
 			} catch (error) {
 				console.error("Error fetching team data:", error);
 				setTeamData(null);
+				lastFetchedFiltersRef.current = null;
 			} finally {
 				setIsLoadingTeamData(false);
 			}
@@ -2722,7 +2733,7 @@ export default function ClubStats() {
 						);
 
 						const dataTableContent = (
-							<div className='overflow-x-auto mt-4 flex flex-col'>
+							<div className='overflow-x-auto flex flex-col'>
 								{/* Team Stats Table */}
 								<div className='flex-1 min-h-0'>
 									<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
@@ -2747,7 +2758,15 @@ export default function ClubStats() {
 						return (
 							<>
 								{!isDataTableMode && chartContent}
-								{isDataTableMode && dataTableContent}
+								{isDataTableMode && (
+									isLoadingTeamData ? (
+										<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+											<DataTableSkeleton />
+										</SkeletonTheme>
+									) : (
+										dataTableContent
+									)
+								)}
 								<div className='mt-4'></div>
 							</>
 						);

@@ -61,6 +61,12 @@ export interface PlayerData {
 	wins: number;
 	draws: number;
 	losses: number;
+	homeGames: number;
+	homeWins: number;
+	homeGamesPercentWon: number;
+	awayWins: number;
+	awayGamesPercentWon: number;
+	gamesPercentWon: number;
 
 	// Position tracking
 	gk: number;
@@ -357,7 +363,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -379,7 +385,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -401,7 +407,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -423,7 +429,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],
@@ -447,7 +453,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			searchTerm: "",
 		},
 		competition: {
-			types: ["League", "Cup"],
+			types: ["League", "Cup", "Friendly"],
 			searchTerm: "",
 		},
 		result: ["Win", "Draw", "Loss"],
@@ -1058,7 +1064,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				searchTerm: "",
 			},
 			competition: {
-				types: ["League", "Cup"],
+				types: ["League", "Cup", "Friendly"],
 				searchTerm: "",
 			},
 			result: ["Win", "Draw", "Loss"],

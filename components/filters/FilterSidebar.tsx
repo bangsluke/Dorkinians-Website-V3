@@ -33,6 +33,9 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
 	const [showCompetitionDropdown, setShowCompetitionDropdown] = useState(false);
+	
+	// State to track initial filter state when sidebar opens
+	const [initialFilterSnapshot, setInitialFilterSnapshot] = useState<PlayerFilters | null>(null);
 
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
@@ -77,6 +80,39 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			loadFilterData();
 		}
 	}, [isOpen, isFilterDataLoaded, loadFilterData]);
+
+	// Capture initial filter state when sidebar opens
+	useEffect(() => {
+		if (isOpen && playerFilters) {
+			// Create a deep copy of the current filters as the snapshot
+			const snapshot: PlayerFilters = {
+				timeRange: {
+					type: playerFilters.timeRange.type,
+					seasons: [...(playerFilters.timeRange.seasons || [])],
+					beforeDate: playerFilters.timeRange.beforeDate || "",
+					afterDate: playerFilters.timeRange.afterDate || "",
+					startDate: playerFilters.timeRange.startDate || "",
+					endDate: playerFilters.timeRange.endDate || "",
+				},
+				teams: [...(playerFilters.teams || [])],
+				location: [...(playerFilters.location || [])],
+				opposition: {
+					allOpposition: playerFilters.opposition?.allOpposition ?? true,
+					searchTerm: playerFilters.opposition?.searchTerm || "",
+				},
+				competition: {
+					types: [...(playerFilters.competition?.types || [])],
+					searchTerm: playerFilters.competition?.searchTerm || "",
+				},
+				result: [...(playerFilters.result || [])],
+				position: [...(playerFilters.position || [])],
+			};
+			setInitialFilterSnapshot(snapshot);
+		} else if (!isOpen) {
+			// Clear snapshot when sidebar closes
+			setInitialFilterSnapshot(null);
+		}
+	}, [isOpen, playerFilters]);
 
 	const toggleAccordion = (sectionId: string) => {
 		setAccordionSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, isOpen: !section.isOpen } : section)));
@@ -185,7 +221,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
+				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				searchTerm,
 			},
 		});
@@ -208,7 +244,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		if (!playerFilters) return;
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
+				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				searchTerm: competitionName,
 			},
 		});
@@ -222,7 +258,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 		updatePlayerFilters({
 			competition: {
-				...(playerFilters.competition || { types: ["League", "Cup"], searchTerm: "" }),
+				...(playerFilters.competition || { types: ["League", "Cup", "Friendly"], searchTerm: "" }),
 				types: newTypes,
 			},
 		});
@@ -252,6 +288,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 	const handleApply = async () => {
 		await applyPlayerFilters();
+		// Reset snapshot after applying filters
+		setInitialFilterSnapshot(null);
 	};
 
 	const handleReset = () => {
@@ -272,11 +310,66 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			(location?.length || 2) < 2 ||
 			!opposition?.allOpposition ||
 			(opposition?.searchTerm || "") !== "" ||
-			(competition?.types?.length || 2) !== 2 ||
+			(competition?.types?.length || 3) !== 3 ||
 			(competition?.searchTerm || "") !== "" ||
 			(result?.length || 3) < 3 ||
 			(position?.length || 4) < 4
 		);
+	};
+
+	// Compare current filters with initial snapshot to detect changes
+	const hasFilterChanges = (): boolean => {
+		if (!playerFilters || !initialFilterSnapshot) return false;
+
+		// Compare timeRange
+		if (
+			playerFilters.timeRange.type !== initialFilterSnapshot.timeRange.type ||
+			JSON.stringify(playerFilters.timeRange.seasons?.sort()) !== JSON.stringify(initialFilterSnapshot.timeRange.seasons?.sort()) ||
+			(playerFilters.timeRange.beforeDate || "") !== (initialFilterSnapshot.timeRange.beforeDate || "") ||
+			(playerFilters.timeRange.afterDate || "") !== (initialFilterSnapshot.timeRange.afterDate || "") ||
+			(playerFilters.timeRange.startDate || "") !== (initialFilterSnapshot.timeRange.startDate || "") ||
+			(playerFilters.timeRange.endDate || "") !== (initialFilterSnapshot.timeRange.endDate || "")
+		) {
+			return true;
+		}
+
+		// Compare teams
+		if (JSON.stringify((playerFilters.teams || []).sort()) !== JSON.stringify((initialFilterSnapshot.teams || []).sort())) {
+			return true;
+		}
+
+		// Compare location
+		if (JSON.stringify((playerFilters.location || []).sort()) !== JSON.stringify((initialFilterSnapshot.location || []).sort())) {
+			return true;
+		}
+
+		// Compare opposition
+		if (
+			(playerFilters.opposition?.allOpposition ?? true) !== (initialFilterSnapshot.opposition?.allOpposition ?? true) ||
+			(playerFilters.opposition?.searchTerm || "") !== (initialFilterSnapshot.opposition?.searchTerm || "")
+		) {
+			return true;
+		}
+
+		// Compare competition
+		if (
+			JSON.stringify((playerFilters.competition?.types || []).sort()) !== JSON.stringify((initialFilterSnapshot.competition?.types || []).sort()) ||
+			(playerFilters.competition?.searchTerm || "") !== (initialFilterSnapshot.competition?.searchTerm || "")
+		) {
+			return true;
+		}
+
+		// Compare result
+		if (JSON.stringify((playerFilters.result || []).sort()) !== JSON.stringify((initialFilterSnapshot.result || []).sort())) {
+			return true;
+		}
+
+		// Compare position
+		if (JSON.stringify((playerFilters.position || []).sort()) !== JSON.stringify((initialFilterSnapshot.position || []).sort())) {
+			return true;
+		}
+
+		return false;
 	};
 
 	return (
@@ -797,9 +890,9 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 									</button>
 									<button
 										onClick={handleApply}
-										disabled={!hasActiveFilters()}
+										disabled={!hasFilterChanges()}
 										className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-											hasActiveFilters()
+											hasFilterChanges()
 												? "bg-dorkinians-yellow text-black hover:bg-dorkinians-yellow/90"
 												: "bg-white/10 text-white/40 cursor-not-allowed"
 										}`}>

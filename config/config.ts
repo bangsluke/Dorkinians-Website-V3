@@ -483,8 +483,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 1,
 		statCategory: "Penalty Stat",
-		iconName: "PenaltyConversionRate-Icon",
-		statUnit: "%",
+		iconName: "PenaltyConversionRate-Icon"
 	},
 	'PS-PSC': {
 		statName: "penaltyShootoutPenaltiesScored",
@@ -767,7 +766,7 @@ export const statObject = {
 		statUnit: "miles",
 	},
 	"Games%Won": {
-		statName: "gamesWon",
+		statName: "gamesPercentWon",
 		displayText: "% Games Won", // The text displayed at all times on the page.
 		shortText: "% Won", // Used for short displays such as on the Comparison tab.
 		wordedText: "games won", // Used for chatbot responses
@@ -776,8 +775,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 1,
 		statCategory: "Results Stat",
-		iconName: "PercentageGamesWon-Icon",
-		statUnit: "%",
+		iconName: "PercentageGamesWon-Icon"
 	},
 	WinRateWhenScoring: {
 		statName: "winRateWhenScoring",
@@ -789,8 +787,7 @@ export const statObject = {
 		statHigherBetterBoolean: true,
 		numberDecimalPlaces: 1,
 		statCategory: "Results Stat",
-		iconName: "WinRateWhenScoring-Icon",
-		statUnit: "%",
+		iconName: "WinRateWhenScoring-Icon"
 	},
 	HomeGames: {
 		statName: "homeGames",
@@ -827,7 +824,6 @@ export const statObject = {
 		numberDecimalPlaces: 1,
 		statCategory: "Results Stat",
 		iconName: "PercentageHomeGamesWon-Icon",
-		statUnit: "%",
 	},
 	AwayGames: {
 		statName: "awayGames",
@@ -864,7 +860,6 @@ export const statObject = {
 		numberDecimalPlaces: 1,
 		statCategory: "Results Stat",
 		iconName: "PercentageAwayGamesWon-Icon",
-		statUnit: "%",
 	},
 	PlayerPointsPerGame: {
 		statName: "pointsPerGame",
@@ -1213,9 +1208,9 @@ export const statsPageConfig = {
 			"CLS",
 			"PSC",
 			"PM",
+			"PenConversionRate",
 			"PCO",
 			"PSV",
-			"PenConversionRate",
 			"PS-PSC",
 			"PS-PM",
 			"PS-PSV",

@@ -189,7 +189,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 										<Listbox.Option
 											key={playerIdx}
 											className={({ active }) =>
-												`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+												`relative cursor-default select-none dark-dropdown-option ${active ? "bg-yellow-400/10 text-yellow-300" : "text-white"}`
 											}
 											value={player.playerName}>
 											{({ selected }) => (
@@ -248,7 +248,9 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							if (player) handlePlayerSelect(player);
 						}}>
 						<div className='relative'>
-							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+							<Listbox.Button
+								onClick={handleDropdownOpen}
+								className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
 									{localSelectedPlayer || "Choose a player..."}
 								</span>
@@ -298,7 +300,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									<Listbox.Option
 										key={playerIdx}
 										className={({ active }) =>
-											`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+											`relative cursor-default select-none dark-dropdown-option ${active ? "bg-yellow-400/10 text-yellow-300" : "text-white"}`
 										}
 										value={player.playerName}>
 										{({ selected }) => (

@@ -14,6 +14,7 @@ import Settings from "@/components/pages/Settings";
 import ChatbotInterface from "@/components/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 import UpdateToast from "@/components/UpdateToast";
+import DevClearStorageFAB from "@/components/DevClearStorageFAB";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 
@@ -371,6 +372,9 @@ export default function HomePage() {
 
 			{/* Update Toast */}
 			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
+
+			{/* Development Clear Storage FAB */}
+			<DevClearStorageFAB />
 		</>
 	);
 }
