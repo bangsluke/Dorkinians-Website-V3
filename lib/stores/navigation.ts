@@ -82,6 +82,7 @@ export interface PlayerData {
 	mostPlayedForTeamAppearances: number;
 	numberTeamsPlayedFor: number;
 	mostScoredForTeam: string;
+	mostScoredForTeamGoals: number;
 	numberSeasonsPlayedFor: number;
 	oppositionPlayed: number;
 	competitionsCompeted: number;

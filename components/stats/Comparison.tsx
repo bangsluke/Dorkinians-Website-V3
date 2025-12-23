@@ -104,6 +104,23 @@ function ComparisonStatRow({
 	const tooltipRef = useRef<HTMLDivElement | null>(null);
 	const isInView = useInView(rowRef, { once: true, margin: "-100px" });
 
+	// Helper function to convert team name from "1st XI" to "1s" format
+	const formatTeamNameForDisplay = (teamName: string): string => {
+		if (!teamName) return "";
+		const teamNameLower = teamName.toLowerCase().trim();
+		const reverseMap: { [key: string]: string } = {
+			"1st xi": "1s",
+			"2nd xi": "2s",
+			"3rd xi": "3s",
+			"4th xi": "4s",
+			"5th xi": "5s",
+			"6th xi": "6s",
+			"7th xi": "7s",
+			"8th xi": "8s",
+		};
+		return reverseMap[teamNameLower] || teamName;
+	};
+
 	const player1Value = getStatValue(player1Data, statKey);
 	const player2Value = getStatValue(player2Data, statKey);
 	
@@ -112,42 +129,86 @@ function ComparisonStatRow({
 	
 	let player1IsWinner = false;
 	let player2IsWinner = false;
+	let player1DisplayValue: string | number = player1Value;
+	let player2DisplayValue: string | number = player2Value;
 	
-	// Special handling for MostPlayedForTeam: compare by appearance counts first, then team priority
+	// Special handling for MostPlayedForTeam: compare by team priority (higher team = better)
+	// Higher team means lower priority number (1s = 1, 2s = 2, etc.)
 	if (statKey === "MostPlayedForTeam") {
 		const player1Team = player1Data?.mostPlayedForTeam || "";
 		const player2Team = player2Data?.mostPlayedForTeam || "";
 		const player1Appearances = player1Data?.mostPlayedForTeamAppearances || 0;
 		const player2Appearances = player2Data?.mostPlayedForTeamAppearances || 0;
 		
-		// Compare appearance counts first
-		if (player1Appearances > player2Appearances) {
+		// Set display values to team names in short format
+		player1DisplayValue = formatTeamNameForDisplay(player1Team);
+		player2DisplayValue = formatTeamNameForDisplay(player2Team);
+		
+		// Compare team priorities (lower priority number = higher team = better)
+		// For this stat, higher team always wins, regardless of appearance counts
+		const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
+		const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
+		
+		if (player1Priority < player2Priority) {
+			// Player 1 has higher team (lower priority number, e.g., 1s vs 2s)
 			player1IsWinner = true;
-		} else if (player2Appearances > player1Appearances) {
+		} else if (player2Priority < player1Priority) {
+			// Player 2 has higher team (lower priority number)
 			player2IsWinner = true;
 		} else {
-			// If appearances are equal, compare team priorities (lower priority = higher team = better)
-			const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
-			const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
-			
-			if (player1Priority < player2Priority) {
-				// Player 1 has higher team (lower priority number)
-				player1IsWinner = true;
-			} else if (player2Priority < player1Priority) {
-				// Player 2 has higher team (lower priority number)
-				player2IsWinner = true;
-			}
-			// If priorities are also equal, neither wins
+			// If teams are equal (same team), both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
+	} else if (statKey === "MostScoredForTeam") {
+		const player1Team = player1Data?.mostScoredForTeam || "";
+		const player2Team = player2Data?.mostScoredForTeam || "";
+		const player1Goals = player1Data?.mostScoredForTeamGoals || 0;
+		const player2Goals = player2Data?.mostScoredForTeamGoals || 0;
+		
+		// Set display values to team names in short format
+		player1DisplayValue = formatTeamNameForDisplay(player1Team);
+		player2DisplayValue = formatTeamNameForDisplay(player2Team);
+		
+		// Compare team priorities (lower priority number = higher team = better)
+		// For this stat, higher team always wins, regardless of goal counts
+		const player1Priority = TeamMappingUtils.getTeamPriority(player1Team);
+		const player2Priority = TeamMappingUtils.getTeamPriority(player2Team);
+		
+		if (player1Priority < player2Priority) {
+			// Player 1 has higher team (lower priority number, e.g., 1s vs 2s)
+			player1IsWinner = true;
+		} else if (player2Priority < player1Priority) {
+			// Player 2 has higher team (lower priority number)
+			player2IsWinner = true;
+		} else {
+			// If teams are equal (same team), both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
 		}
 	} else if (statHigherBetter) {
-		player1IsWinner = player1Value > player2Value;
-		player2IsWinner = player2Value > player1Value;
+		if (player1Value > player2Value) {
+			player1IsWinner = true;
+		} else if (player2Value > player1Value) {
+			player2IsWinner = true;
+		} else {
+			// Values are equal, both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
 	} else {
-		player1IsWinner = player1Value < player2Value;
-		player2IsWinner = player2Value < player1Value;
+		if (player1Value < player2Value) {
+			player1IsWinner = true;
+		} else if (player2Value < player1Value) {
+			player2IsWinner = true;
+		} else {
+			// Values are equal, both win (both bars yellow)
+			player1IsWinner = true;
+			player2IsWinner = true;
+		}
 	}
 	
-	// For MostPlayedForTeam, use appearance counts for width calculation
+	// For MostPlayedForTeam and MostScoredForTeam, use appropriate values for width calculation
 	let player1Width = 0;
 	let player2Width = 0;
 	if (statKey === "MostPlayedForTeam") {
@@ -156,6 +217,12 @@ function ComparisonStatRow({
 		const maxAppearances = Math.max(player1Appearances, player2Appearances, 1);
 		player1Width = maxAppearances > 0 ? (player1Appearances / maxAppearances) * 100 : 0;
 		player2Width = maxAppearances > 0 ? (player2Appearances / maxAppearances) * 100 : 0;
+	} else if (statKey === "MostScoredForTeam") {
+		const player1Goals = player1Data?.mostScoredForTeamGoals || 0;
+		const player2Goals = player2Data?.mostScoredForTeamGoals || 0;
+		const maxGoals = Math.max(player1Goals, player2Goals, 1);
+		player1Width = maxGoals > 0 ? (player1Goals / maxGoals) * 100 : 0;
+		player2Width = maxGoals > 0 ? (player2Goals / maxGoals) * 100 : 0;
 	} else {
 		player1Width = maxValue > 0 ? (player1Value / maxValue) * 100 : 0;
 		player2Width = maxValue > 0 ? (player2Value / maxValue) * 100 : 0;
@@ -305,8 +372,13 @@ function ComparisonStatRow({
 		setTooltipPosition(null);
 	};
 
-	const player1Formatted = formatStatValue(player1Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
-	const player2Formatted = formatStatValue(player2Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+	// For MostPlayedForTeam and MostScoredForTeam, use the team name directly; otherwise format the numeric value
+	const player1Formatted = (statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam")
+		? String(player1DisplayValue || "N/A")
+		: formatStatValue(player1Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
+	const player2Formatted = (statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam")
+		? String(player2DisplayValue || "N/A")
+		: formatStatValue(player2Value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
 
 	return (
 		<>
@@ -330,7 +402,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player1Width > 0 ? '40px' : '0' }}
 						>
-							{player1Value > 0 && (
+							{((statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam") ? player1DisplayValue : player1Value > 0) && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player1IsWinner ? 'text-black' : 'text-black'
 								}`}>
@@ -364,7 +436,7 @@ function ComparisonStatRow({
 							}`}
 							style={{ minWidth: player2Width > 0 ? '40px' : '0' }}
 						>
-							{player2Value > 0 && (
+							{((statKey === "MostPlayedForTeam" || statKey === "MostScoredForTeam") ? player2DisplayValue : player2Value > 0) && (
 								<span className={`text-xs md:text-sm font-mono font-semibold ${
 									player2IsWinner ? 'text-black' : 'text-black'
 								}`}>
