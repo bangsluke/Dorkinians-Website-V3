@@ -847,15 +847,15 @@ export class PlayerQueryBuilder {
 		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
 			if (TeamMappingUtils.isTeamCountQuestion(analysis.question)) {
 				return `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
 					WITH p, collect(DISTINCT md.team) as teams
 					RETURN p.playerName as playerName, size(teams) as value
 				`;
 			} else {
-				// Query for most played for team
+				// Query for all teams played for with counts - return all teams, not just the top one
 				return `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					WHERE md.team IS NOT NULL
 					WITH p, md.team as team, count(md) as appearances, 
 						sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
@@ -873,8 +873,7 @@ export class PlayerQueryBuilder {
 							ELSE 9
 						END as teamOrder
 					ORDER BY appearances DESC, teamOrder ASC
-					LIMIT 1
-					RETURN p.playerName as playerName, team as value
+					RETURN p.playerName as playerName, team as value, appearances, teamOrder
 				`;
 			}
 		} else if (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor") {

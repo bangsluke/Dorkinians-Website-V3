@@ -304,6 +304,60 @@ export class PlayerDataQueryHandler {
 			return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
 		}
 
+		// Check for "penalties taken" questions
+		const isPenaltiesTakenQuestion = 
+			(questionLower.includes("how many") && questionLower.includes("penalties") && questionLower.includes("taken")) ||
+			(questionLower.includes("how many") && questionLower.includes("penalty") && questionLower.includes("taken")) ||
+			(questionLower.includes("penalties") && questionLower.includes("taken")) ||
+			(questionLower.includes("penalty") && questionLower.includes("taken"));
+
+		loggingService.log(`🔍 Checking for "penalties taken" question. Question: "${questionLower}", isPenaltiesTakenQuestion: ${isPenaltiesTakenQuestion}`, null, "log");
+
+		// If this is a "penalties taken" question, handle it specially
+		if (isPenaltiesTakenQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPenaltiesTaken`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltiesTaken(resolvedPlayerName);
+		}
+
+		// Check for "penalty record" questions
+		const isPenaltyRecordQuestion = 
+			questionLower.includes("penalty record") ||
+			(questionLower.includes("penalty") && questionLower.includes("record"));
+
+		loggingService.log(`🔍 Checking for "penalty record" question. Question: "${questionLower}", isPenaltyRecordQuestion: ${isPenaltyRecordQuestion}`, null, "log");
+
+		// If this is a "penalty record" question, handle it specially
+		if (isPenaltyRecordQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPenaltyRecord`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltyRecord(resolvedPlayerName);
+		}
+
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
@@ -481,6 +535,104 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in highest weekly score query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying highest weekly score data" };
+		}
+	}
+
+	/**
+	 * Query penalties taken for a player (penaltiesScored + penaltiesMissed)
+	 */
+	static async queryPenaltiesTaken(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalties taken for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
+				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed
+			RETURN p.playerName as playerName, 
+				(penaltiesScored + penaltiesMissed) as value,
+				penaltiesScored,
+				penaltiesMissed
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalties_taken", 
+					data: [{ 
+						playerName: row.playerName, 
+						value: row.value || 0,
+						penaltiesScored: row.penaltiesScored || 0,
+						penaltiesMissed: row.penaltiesMissed || 0
+					}], 
+					playerName,
+					penaltiesScored: row.penaltiesScored || 0,
+					penaltiesMissed: row.penaltiesMissed || 0
+				};
+			}
+			return { 
+				type: "penalties_taken", 
+				data: [{ playerName, value: 0, penaltiesScored: 0, penaltiesMissed: 0 }], 
+				playerName,
+				penaltiesScored: 0,
+				penaltiesMissed: 0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalties taken query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalties taken data" };
+		}
+	}
+
+	/**
+	 * Query penalty record for a player (returns both penaltiesScored and penaltiesMissed)
+	 */
+	static async queryPenaltyRecord(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalty record for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
+				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed
+			RETURN p.playerName as playerName, 
+				penaltiesScored,
+				penaltiesMissed,
+				(penaltiesScored + penaltiesMissed) as totalPenalties
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalty_record", 
+					data: [{ 
+						playerName: row.playerName, 
+						penaltiesScored: row.penaltiesScored || 0,
+						penaltiesMissed: row.penaltiesMissed || 0,
+						totalPenalties: row.totalPenalties || 0
+					}], 
+					playerName,
+					penaltiesScored: row.penaltiesScored || 0,
+					penaltiesMissed: row.penaltiesMissed || 0,
+					totalPenalties: row.totalPenalties || 0
+				};
+			}
+			return { 
+				type: "penalty_record", 
+				data: [{ playerName, penaltiesScored: 0, penaltiesMissed: 0, totalPenalties: 0 }], 
+				playerName,
+				penaltiesScored: 0,
+				penaltiesMissed: 0,
+				totalPenalties: 0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalty record query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalty record data" };
 		}
 	}
 

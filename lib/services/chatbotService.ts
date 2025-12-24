@@ -2091,6 +2091,19 @@ export class ChatbotService {
 					answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
 				}
 			}
+		} else if (data && data.type === "penalties_taken") {
+			// Handle penalties taken query
+			const playerName = data.playerName as string;
+			const totalPenalties = (data.data as Array<{ value: number }>)[0]?.value || 0;
+			answer = `${playerName} has taken ${totalPenalties} ${totalPenalties === 1 ? "penalty" : "penalties"}.`;
+			answerValue = totalPenalties;
+		} else if (data && data.type === "penalty_record") {
+			// Handle penalty record query - format as "X has taken N penalties, scoring M"
+			const playerName = data.playerName as string;
+			const totalPenalties = (data.totalPenalties as number) || 0;
+			const penaltiesScored = (data.penaltiesScored as number) || 0;
+			answer = `${playerName} has taken ${totalPenalties} ${totalPenalties === 1 ? "penalty" : "penalties"}, scoring ${penaltiesScored}.`;
+			answerValue = totalPenalties;
 		} else if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 			if (data.type === "specific_player") {
 				const playerName = data.playerName as string;
@@ -2176,6 +2189,35 @@ export class ChatbotService {
 								},
 							};
 						}
+					}
+				}
+				// Handle MostPlayedForTeam/TEAM_ANALYSIS - create table with all teams
+				else if (metric && (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS")) {
+					const teamData = data.data as Array<{ playerName: string; value: string; appearances?: number; teamOrder?: number }>;
+					if (teamData && teamData.length > 0) {
+						// Get the most played team (first in the sorted list)
+						const mostPlayedTeam = teamData[0].value;
+						answer = `${playerName} has played for the ${mostPlayedTeam} most.`;
+						answerValue = mostPlayedTeam;
+						
+						// Create table visualization with all teams
+						const tableData = teamData.map((item) => ({
+							Team: item.value,
+							Games: item.appearances || 0,
+						}));
+						
+						visualization = {
+							type: "Table",
+							data: tableData,
+							config: {
+								columns: [
+									{ key: "Team", label: "Team" },
+									{ key: "Games", label: "Games" },
+								],
+							},
+						};
+					} else {
+						answer = `${playerName} has no team data available.`;
 					}
 				}
 				// Handle regular single-value queries

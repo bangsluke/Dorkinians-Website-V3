@@ -68,6 +68,12 @@ export class ResponseBuilder {
 		const formattedValue = FormattingUtils.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		const verb = getAppropriateVerb(metric, value as number);
 
+		// Special handling for MostPlayedForTeam/TEAM_ANALYSIS - value is a team name string
+		if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
+			const teamName = typeof value === "string" ? value : String(value);
+			return `${playerName} has played for the ${teamName} most.`;
+		}
+
 		// Special handling for GPERAPP - always include numeric value for test extraction
 		if (metric === "GperAPP" || metric.toUpperCase() === "GPERAPP") {
 			return `${playerName} averages ${formattedValue} goals per appearance.`;
