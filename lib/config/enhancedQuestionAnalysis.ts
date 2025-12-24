@@ -375,11 +375,27 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
-		// Check for ranking queries (which player/team has the highest/most...)
+		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
+		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
+			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+		) {
+			return "club";
+		}
+
+		// Check for ranking queries (which player/team has the highest/most/fewest/least...)
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
-			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"))
+			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest"))
 		) {
+			// If it's asking about teams specifically, route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+				return "club";
+			}
 			return "ranking";
 		}
 

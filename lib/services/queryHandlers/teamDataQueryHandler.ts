@@ -103,6 +103,10 @@ export class TeamDataQueryHandler {
 		                        question.includes("openplay") ||
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
 		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
+		
+		// Check if this is a team goals query (team goals, not player goals)
+		// This happens when asking "How many goals did the 2nd team score during the 2017/18 season?"
+		const isTeamGoalsQuery = isGoalsScored && !question.includes("player") && !question.includes("for");
 
 		// Extract season and date range filters
 		const timeRange = analysis.timeRange;
@@ -213,6 +217,16 @@ export class TeamDataQueryHandler {
 						count(DISTINCT f) as gamesPlayed
 				`;
 			}
+		} else if (isTeamGoalsQuery && season) {
+			// Team goals query for a specific season - query Fixture nodes directly
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel, team: $teamName})
+				WHERE (f.season = $season OR f.season = $normalizedSeason)
+				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					count(f) as gamesPlayed
+			`;
 		} else {
 			query = `
 				MATCH (f:Fixture {graphLabel: $graphLabel})
@@ -242,6 +256,16 @@ export class TeamDataQueryHandler {
 						startDate: startDate || undefined,
 						endDate: endDate || undefined,
 					};
+				} else if (isTeamGoalsQuery && season) {
+					// Return team goals for specific season
+					return {
+						type: "team_stats",
+						teamName,
+						goalsScored: teamStats.goalsScored || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						isGoalsScored: true,
+						season: season,
+					};
 				} else {
 					return {
 						type: "team_stats",
@@ -267,6 +291,15 @@ export class TeamDataQueryHandler {
 					season: season || undefined,
 					startDate: startDate || undefined,
 					endDate: endDate || undefined,
+				};
+			} else if (isTeamGoalsQuery && season) {
+				return { 
+					type: "team_stats", 
+					teamName, 
+					goalsScored: 0, 
+					gamesPlayed: 0, 
+					isGoalsScored: true,
+					season: season,
 				};
 			} else {
 				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };

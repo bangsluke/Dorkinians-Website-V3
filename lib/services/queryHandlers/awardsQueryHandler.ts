@@ -108,6 +108,33 @@ export class AwardsQueryHandler {
 			return { type: "error", data: [], error: "Error querying Captain data" };
 		}
 	}
+
+	/**
+	 * Query player awards count (excluding Captain items)
+	 */
+	static async queryPlayerAwardsCount(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying for awards count (excluding Captain) for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:HAS_CAPTAIN_AWARDS]->(ca:CaptainsAndAwards {graphLabel: $graphLabel})
+			WHERE NOT (ca.itemName CONTAINS "Captain")
+			RETURN count(r) as awardCount
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const count = result && result.length > 0 && result[0].awardCount !== undefined 
+				? (typeof result[0].awardCount === 'number' 
+					? result[0].awardCount 
+					: (result[0].awardCount?.low || 0) + (result[0].awardCount?.high || 0) * 4294967296)
+				: 0;
+			return { type: "awards_count", count, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in awards count query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying awards count data" };
+		}
+	}
 }
 
 export const awardsQueryHandler = new AwardsQueryHandler();

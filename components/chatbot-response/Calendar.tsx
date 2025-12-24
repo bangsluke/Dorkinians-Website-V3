@@ -248,6 +248,8 @@ function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
 }
 
 export default function Calendar({ visualization }: CalendarProps) {
+	const [showFullCalendar, setShowFullCalendar] = useState(false);
+	
 	if (!visualization) return null;
 
 	// Handle week-based format, date range format, and array of game dates
@@ -345,13 +347,30 @@ export default function Calendar({ visualization }: CalendarProps) {
 		);
 	}
 
-	// Get all years in the range
+	// Calculate if streak is less than a year
+	const daysDiff = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+	// If we have week-based data with a small number of weeks, it's definitely less than a year
+	const isStreakLessThanYear = weekBasedData 
+		? (weekBasedData.weeks.length <= 52 || daysDiff < 365)
+		: daysDiff < 365;
+
+	// Get years in the range
+	// In compact mode, only include years within the streak range
 	const years: number[] = [];
 	const startYear = startDate.getFullYear();
 	const endYear = endDate.getFullYear();
 	
-	for (let year = startYear; year <= endYear; year++) {
-		years.push(year);
+	if (isStreakLessThanYear && !showFullCalendar && highlightRange) {
+		// In compact mode with highlightRange, only include years within the highlight range
+		// This ensures we only show the year(s) that contain the actual streak
+		for (let year = highlightRange.startYear; year <= highlightRange.endYear; year++) {
+			years.push(year);
+		}
+	} else {
+		// In full calendar mode or when no highlightRange, include all years in the date range
+		for (let year = startYear; year <= endYear; year++) {
+			years.push(year);
+		}
 	}
 
 	// Process weeks for each year
@@ -396,17 +415,51 @@ export default function Calendar({ visualization }: CalendarProps) {
 		const weekCounts = yearGameCounts.get(year) || new Map();
 		const weekValues = yearWeekValues.get(year) || new Map();
 
+		// Create a set of months that contain data for compact view filtering
+		const monthsWithData = new Set<number>();
+		if (isStreakLessThanYear && !showFullCalendar) {
+			if (weekBasedData) {
+				// For week-based data, determine which months contain data weeks
+				for (const week of weekBasedData.weeks) {
+					if (week.year === year) {
+						const monday = getMondayOfWeek(week.year, week.weekNumber);
+						const thursday = new Date(monday);
+						thursday.setDate(monday.getDate() + 3);
+						monthsWithData.add(thursday.getMonth());
+					}
+				}
+			} else {
+				// For other formats, determine months from game dates
+				for (const dateStr of gameDates) {
+					const date = new Date(dateStr);
+					if (date.getFullYear() === year) {
+						monthsWithData.add(date.getMonth());
+					}
+				}
+			}
+		}
+
 		for (let weekNum = 1; weekNum <= weeksInYear; weekNum++) {
 			const monday = getMondayOfWeek(year, weekNum);
 			const sunday = new Date(monday);
 			sunday.setDate(monday.getDate() + 6);
 
-			// Check if this week is within our date range
-			const weekEnd = new Date(sunday);
-			weekEnd.setHours(23, 59, 59, 999);
-			
-			if (weekEnd < startDate || monday > endDate) {
-				continue; // Skip weeks outside the date range
+			// In compact mode (streak < 1 year and not showing full calendar), only include weeks in months with data
+			if (isStreakLessThanYear && !showFullCalendar) {
+				// Use Thursday (middle of week) to determine which month the week belongs to
+				const thursday = new Date(monday);
+				thursday.setDate(monday.getDate() + 3);
+				if (!monthsWithData.has(thursday.getMonth())) {
+					continue; // Skip weeks in months without data
+				}
+			} else {
+				// In full calendar mode, check if this week is within our date range
+				const weekEnd = new Date(sunday);
+				weekEnd.setHours(23, 59, 59, 999);
+				
+				if (weekEnd < startDate || monday > endDate) {
+					continue; // Skip weeks outside the date range
+				}
 			}
 
 			// Determine if this week is highlighted
@@ -585,6 +638,16 @@ export default function Calendar({ visualization }: CalendarProps) {
 					</div>
 				);
 			})}
+			{/* Toggle button for full calendar view */}
+			{isStreakLessThanYear && (
+				<div className='mt-4 text-center'>
+					<button
+						onClick={() => setShowFullCalendar(!showFullCalendar)}
+						className='text-sm text-yellow-300 hover:text-yellow-200 cursor-pointer underline transition-colors'>
+						{showFullCalendar ? 'Hide full calendar' : 'Click for full calendar'}
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

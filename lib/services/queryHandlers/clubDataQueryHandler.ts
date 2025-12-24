@@ -11,6 +11,9 @@ export class ClubDataQueryHandler {
 
 		const question = analysis.question?.toLowerCase() || "";
 		
+		// Check if this is asking about which team has fewest/most goals conceded
+		const isFewestConceded = (question.includes("fewest") || question.includes("least")) && question.includes("conceded");
+		const isMostConceded = question.includes("most") && question.includes("conceded");
 		const isGoalsConceded = question.includes("conceded");
 		const isGoalsScored = question.includes("scored") || (question.includes("goals") && !isGoalsConceded);
 		const isPlayerCount = question.includes("players") || question.includes("played for");
@@ -21,6 +24,36 @@ export class ClubDataQueryHandler {
 		};
 
 		try {
+			// Handle "which team has conceded the fewest goals" query
+			if (isFewestConceded || isMostConceded) {
+				const orderDirection = isFewestConceded ? "ASC" : "DESC";
+				const teamConcededQuery = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})
+					WHERE f.team IS NOT NULL 
+					  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+					WITH f.team as team, sum(coalesce(f.conceded, 0)) as goalsConceded
+					RETURN team, goalsConceded
+					ORDER BY goalsConceded ${orderDirection}
+				`;
+
+				const teamConcededResult = await neo4jService.executeQuery(teamConcededQuery, params);
+				loggingService.log(`🔍 Team conceded goals query result:`, teamConcededResult, "log");
+
+				if (teamConcededResult && teamConcededResult.length > 0) {
+					return {
+						type: "team_conceded_ranking",
+						data: teamConcededResult,
+						isFewest: isFewestConceded,
+					};
+				}
+
+				return {
+					type: "team_conceded_ranking",
+					data: [],
+					isFewest: isFewestConceded,
+				};
+			}
+
 			// Query fixtures for club-wide goals
 			const goalsQuery = `
 				MATCH (f:Fixture {graphLabel: $graphLabel})

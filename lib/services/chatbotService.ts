@@ -26,6 +26,7 @@ import { FixtureDataQueryHandler } from "./queryHandlers/fixtureDataQueryHandler
 import { RankingQueryHandler } from "./queryHandlers/rankingQueryHandler";
 import { TemporalQueryHandler } from "./queryHandlers/temporalQueryHandler";
 import { LeagueTableQueryHandler } from "./queryHandlers/leagueTableQueryHandler";
+import { AwardsQueryHandler } from "./queryHandlers/awardsQueryHandler";
 import type { ChatbotResponse, QuestionContext, ProcessingDetails, PlayerData, TeamData, StreakData, CoPlayerData, OpponentData, RankingData } from "./types/chatbotTypes";
 
 // Re-export types for use in route handlers and components
@@ -283,7 +284,7 @@ export class ChatbotService {
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
-			const data = await this.queryRelevantData(analysis);
+			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
 			// Generate the response
@@ -337,8 +338,9 @@ export class ChatbotService {
 		return enhancedAnalysis;
 	}
 
-	private async queryRelevantData(analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown> | null> {
+	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
+		const question = analysis.question?.toLowerCase() || "";
 
 		try {
 			// Ensure Neo4j connection before querying
@@ -346,6 +348,30 @@ export class ChatbotService {
 			if (!connected) {
 				this.logToBoth("❌ Neo4j connection failed", null, "error");
 				return null;
+			}
+
+			// Check if this is a "which team has fewest/most goals conceded" question
+			// This needs to be checked before player routing to avoid misclassification
+			const isTeamConcededRankingQuestion = 
+				(question.includes("which team") || question.includes("what team")) &&
+				(question.includes("fewest") || question.includes("most") || question.includes("least") || question.includes("highest")) &&
+				(question.includes("conceded") || question.includes("scored") || question.includes("goals"));
+
+			if (isTeamConcededRankingQuestion) {
+				return await ClubDataQueryHandler.queryClubData(entities, metrics, analysis);
+			}
+
+			// Check if this is an awards count question (e.g., "How many awards have I won?")
+			const isAwardsCountQuestion = type === "player" && 
+				(question.includes("how many awards") || question.includes("how many award")) &&
+				(question.includes("won") || question.includes("have") || question.includes("i"));
+
+			if (isAwardsCountQuestion) {
+				// Use entities first, fallback to userContext
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await AwardsQueryHandler.queryPlayerAwardsCount(playerName);
+				}
 			}
 
 		// Delegate to query handlers
@@ -1723,6 +1749,7 @@ export class ChatbotService {
 			const isGoalsConceded = data.isGoalsConceded as boolean | undefined;
 			const metric = data.metric as string | undefined;
 			const metricField = data.metricField as string | undefined;
+			const season = data.season as string | undefined;
 
 			if (value !== undefined && metric && metricField) {
 				// Single metric query (e.g., appearances, assists, etc.)
@@ -1733,7 +1760,20 @@ export class ChatbotService {
 				// Goals query
 				if (isGoalsScored) {
 					answerValue = goalsScored || 0;
-					answer = `The ${teamName} have scored ${goalsScored || 0} ${(goalsScored || 0) === 1 ? "goal" : "goals"}.`;
+					const seasonText = season ? ` in the ${season} season` : "";
+					answer = `The ${teamName} have scored ${goalsScored || 0} ${(goalsScored || 0) === 1 ? "goal" : "goals"}${seasonText}.`;
+					
+					// Return NumberCard for team goals in season
+					if (season) {
+						visualization = {
+							type: "NumberCard",
+							data: [{ name: "Goals Scored", value: goalsScored || 0 }],
+							config: {
+								title: `${teamName} - Goals in ${season}`,
+								type: "bar",
+							},
+						};
+					}
 				} else if (isGoalsConceded) {
 					answerValue = goalsConceded || 0;
 					answer = `The ${teamName} have conceded ${goalsConceded || 0} ${(goalsConceded || 0) === 1 ? "goal" : "goals"}.`;
@@ -1756,6 +1796,57 @@ export class ChatbotService {
 					};
 				}
 			}
+		} else if (data && data.type === "team_conceded_ranking") {
+			// Handle team conceded goals ranking
+			const teamData = (data.data as Array<{ team: string; goalsConceded: number }>) || [];
+			const isFewest = data.isFewest as boolean;
+			
+			if (teamData.length === 0) {
+				answer = "No team data found.";
+			} else {
+				const topTeam = teamData[0];
+				const direction = isFewest ? "fewest" : "most";
+				answer = `The ${topTeam.team} have conceded the ${direction} goals in history with ${topTeam.goalsConceded} ${topTeam.goalsConceded === 1 ? "goal" : "goals"} conceded.`;
+				answerValue = topTeam.goalsConceded;
+				
+				// Create table with all teams sorted by goals conceded
+				const tableData = teamData.map((team) => ({
+					Team: team.team,
+					"Goals Conceded": team.goalsConceded,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Team", label: "Team" },
+							{ key: "Goals Conceded", label: "Goals Conceded" },
+						],
+					},
+				};
+			}
+		} else if (data && data.type === "awards_count") {
+			// Handle awards count queries
+			const playerName = (data.playerName as string) || "You";
+			const count = (data.count as number) || 0;
+			
+			if (count === 0) {
+				answer = `${playerName} has not won any club awards.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName} has won ${count} club ${count === 1 ? "award" : "awards"}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ name: "awards", value: count, wordedText: "club awards" }],
+				config: {
+					title: "Awards Won",
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "club_stats") {
 			// Handle club-wide statistics queries (check early before data.data checks)
 			const goalsScored = data.goalsScored as number || 0;
