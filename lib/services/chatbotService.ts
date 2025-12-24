@@ -1429,6 +1429,98 @@ export class ChatbotService {
 						},
 					};
 				}
+			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement") {
+				// Handle consecutive clean sheets and goal involvement streaks with calendar visualization
+				const streakCount = (data.streakCount as number) || 0;
+				const streakSequence = (data.streakSequence as string[]) || [];
+				const streakData = (data.data as Array<{ date: string; [key: string]: any }>) || [];
+				const streakStartDate = (data.streakStartDate as string) || null;
+				const streakEndDate = (data.streakEndDate as string) || null;
+				const highlightRange = (data.highlightRange as { startWeek: number; startYear: number; endWeek: number; endYear: number }) || undefined;
+				
+				if (streakCount === 0) {
+					if (streakType === "consecutive_clean_sheets") {
+						answer = "You haven't had any consecutive clean sheets.";
+					} else {
+						answer = "You haven't had any consecutive games with goal involvement.";
+					}
+				} else {
+					// Format dates for display
+					let dateRangeText = "";
+					if (streakStartDate && streakEndDate) {
+						const startDate = new Date(streakStartDate);
+						const endDate = new Date(streakEndDate);
+						const startFormatted = startDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+						const endFormatted = endDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+						dateRangeText = ` from ${startFormatted} to ${endFormatted}`;
+					}
+					
+					if (streakType === "consecutive_clean_sheets") {
+						answer = `Your longest consecutive clean sheet streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					} else {
+						answer = `Your longest consecutive goal involvement streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					}
+					answerValue = streakCount;
+				}
+
+				// Add streak sequence to query breakdown for client console logging
+				if (streakSequence.length > 0) {
+					this.lastQueryBreakdown = {
+						...this.lastQueryBreakdown,
+						[streakType]: {
+							count: streakCount,
+							sequence: streakSequence,
+							sequenceFormatted: streakSequence.join(' → '),
+						},
+					};
+					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
+				}
+
+				// Build Calendar visualization for consecutive clean sheets/goal involvement
+				// Convert date array to week-based format with highlightRange
+				if (streakData.length > 0) {
+					// Helper function to calculate week number (matching Calendar.tsx weekNum function)
+					const weekNum = (date: Date): number => {
+						const year = date.getFullYear();
+						const jan1 = new Date(year, 0, 1);
+						const jan1Day = jan1.getDay();
+						const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+						const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+						return Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+					};
+
+					// Group dates by year and week
+					const weekMap = new Map<string, { year: number; weekNumber: number; value: number }>();
+					
+					for (const item of streakData) {
+						if (item.date) {
+							const date = new Date(item.date);
+							const year = date.getFullYear();
+							const week = weekNum(date);
+							const key = `${year}-${week}`;
+							
+							if (!weekMap.has(key)) {
+								weekMap.set(key, { year, weekNumber: week, value: 0 });
+							}
+							weekMap.get(key)!.value += 1;
+						}
+					}
+
+					// Convert to week-based format
+					const weeks = Array.from(weekMap.values()).map(w => ({
+						weekNumber: w.weekNumber,
+						year: w.year,
+						value: w.value,
+					}));
+
+					visualization = {
+						type: "Calendar",
+						data: {
+							weeks: weeks,
+							highlightRange: highlightRange,
+						},
+					};
+				}
 			} else {
 				// Handle other streak types (goals, assists, etc.)
 				const streakData = (data.data as StreakData[]) || [];
