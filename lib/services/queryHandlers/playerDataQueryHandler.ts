@@ -248,6 +248,34 @@ export class PlayerDataQueryHandler {
 			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
 		}
 
+		// Check for "highest score in a week" questions
+		const isHighestWeeklyScoreQuestion = 
+			(questionLower.includes("highest score") && questionLower.includes("week")) ||
+			(questionLower.includes("highest") && questionLower.includes("score") && questionLower.includes("week")) ||
+			(questionLower.includes("best score") && questionLower.includes("week")) ||
+			(questionLower.includes("most points") && questionLower.includes("week"));
+
+		loggingService.log(`🔍 Checking for "highest weekly score" question. Question: "${questionLower}", isHighestWeeklyScoreQuestion: ${isHighestWeeklyScoreQuestion}`, null, "log");
+
+		// If this is a "highest weekly score" question, handle it specially
+		if (isHighestWeeklyScoreQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryHighestWeeklyScore`, null, "log");
+			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
+		}
+
 		// Check for "opposition most" or "played against the most" questions
 		const isOppositionMostQuestion = 
 			(questionLower.includes("opposition") && questionLower.includes("most")) ||
@@ -316,11 +344,11 @@ export class PlayerDataQueryHandler {
 
 			// Check for special queries that can use enhanced relationship properties
 			if (metric === "TOTW" || metric === "WEEKLY_TOTW") {
-				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly", analysis.question);
 			}
 
 			if (metric === "SEASON_TOTW") {
-				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season", analysis.question);
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
@@ -426,6 +454,34 @@ export class PlayerDataQueryHandler {
 
 		const result = await neo4jService.executeQuery(query);
 		return { type: "general_players", data: result };
+	}
+
+	/**
+	 * Query highest weekly score for a player
+	 */
+	static async queryHighestWeeklyScore(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying highest weekly score for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.seasonWeek IS NOT NULL AND md.fantasyPoints IS NOT NULL
+			WITH md.seasonWeek as seasonWeek, sum(md.fantasyPoints) as weeklyPoints
+			RETURN max(weeklyPoints) as highestWeeklyScore
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const highestScore = result && result.length > 0 && result[0].highestWeeklyScore !== undefined 
+				? (typeof result[0].highestWeeklyScore === 'number' 
+					? result[0].highestWeeklyScore 
+					: (result[0].highestWeeklyScore?.low || 0) + (result[0].highestWeeklyScore?.high || 0) * 4294967296)
+				: 0;
+			return { type: "highest_weekly_score", highestScore, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in highest weekly score query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying highest weekly score data" };
+		}
 	}
 
 	/**

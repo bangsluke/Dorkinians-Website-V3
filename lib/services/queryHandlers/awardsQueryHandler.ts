@@ -5,12 +5,48 @@ export class AwardsQueryHandler {
 	/**
 	 * Query TOTW (Team of the Week) data for a player
 	 */
-	static async queryPlayerTOTWData(playerName: string, period: "weekly" | "season"): Promise<Record<string, unknown>> {
+	static async queryPlayerTOTWData(playerName: string, period: "weekly" | "season", question?: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying for TOTW awards for player: ${playerName}, period: ${period}`, null, "log");
 		const relationshipType = period === "weekly" ? "IN_WEEKLY_TOTW" : "IN_SEASON_TOTW";
+		const graphLabel = neo4jService.getGraphLabel();
 
+		// Check if question is asking for count (e.g., "how many times", "how many")
+		const isCountQuestion = question && (
+			question.toLowerCase().includes("how many times") ||
+			question.toLowerCase().includes("how many") ||
+			question.toLowerCase().includes("how much")
+		);
+
+		if (isCountQuestion) {
+			// Return count query
+			const totwNodeType = period === "weekly" ? "WeeklyTOTW" : "SeasonTOTW";
+			const countQuery = period === "weekly"
+				? `
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_WEEKLY_TOTW]->(totw:WeeklyTOTW {graphLabel: $graphLabel})
+					RETURN count(r) as totwCount
+				`
+				: `
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_SEASON_TOTW]->(totw:SeasonTOTW {graphLabel: $graphLabel})
+					RETURN count(r) as totwCount
+				`;
+
+			try {
+				const result = await neo4jService.executeQuery(countQuery, { playerName, graphLabel });
+				const count = result && result.length > 0 && result[0].totwCount !== undefined 
+					? (typeof result[0].totwCount === 'number' 
+						? result[0].totwCount 
+						: (result[0].totwCount?.low || 0) + (result[0].totwCount?.high || 0) * 4294967296)
+					: 0;
+				return { type: "totw_count", count, playerName, period };
+			} catch (error) {
+				loggingService.log(`❌ Error in TOTW count query:`, error, "error");
+				return { type: "error", data: [], error: "Error querying TOTW count data" };
+			}
+		}
+
+		// Return list query (existing behavior)
 		const query = `
-			MATCH (p:Player {playerName: $playerName})-[r:${relationshipType}]->(totw)
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:${relationshipType}]->(totw {graphLabel: $graphLabel})
 			RETURN p.playerName as playerName, 
 			       totw.week as week, 
 			       totw.season as season,
@@ -19,7 +55,7 @@ export class AwardsQueryHandler {
 		`;
 
 		try {
-			const result = await neo4jService.executeQuery(query, { playerName });
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			return { type: "totw_awards", data: result, playerName, period };
 		} catch (error) {
 			loggingService.log(`❌ Error in TOTW query:`, error, "error");

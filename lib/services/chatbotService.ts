@@ -891,16 +891,23 @@ export class ChatbotService {
 		}
 
 		const playerName = entities[0];
+		const graphLabel = neo4jService.getGraphLabel();
 		const query = `
-			MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-			WHERE md.doubleGameWeek = true
-			RETURN md.date as date, md.goals as goals, md.assists as assists
-			ORDER BY md.date
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.seasonWeek IS NOT NULL
+			WITH md.seasonWeek as seasonWeek, count(md) as matchCount
+			WHERE matchCount > 1
+			RETURN count(seasonWeek) as doubleGameWeekCount
 		`;
 
 		try {
-			const result = await neo4jService.executeQuery(query, { playerName });
-			return { type: "double_game", data: result, playerName };
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const count = result && result.length > 0 && result[0].doubleGameWeekCount !== undefined 
+				? (typeof result[0].doubleGameWeekCount === 'number' 
+					? result[0].doubleGameWeekCount 
+					: (result[0].doubleGameWeekCount?.low || 0) + (result[0].doubleGameWeekCount?.high || 0) * 4294967296)
+				: 0;
+			return { type: "double_game", data: [{ value: count }], count, playerName };
 		} catch (error) {
 			this.logToBoth(`❌ Error in double game query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying double game data" };
@@ -1500,6 +1507,71 @@ export class ChatbotService {
 				answer = `The highest scoring game for the ${teamName} in ${season} was ${gameData.dorkiniansGoals}-${gameData.conceded} ${gameData.result === "W" ? "win" : gameData.result === "D" ? "draw" : "loss"} against ${gameData.opposition}${location ? ` ${location}` : ""} on ${formattedDate} (${gameData.totalGoals} total goals).`;
 				answerValue = gameData.totalGoals;
 			}
+		} else if (data && data.type === "double_game") {
+			// Handle double game weeks queries
+			const playerName = (data.playerName as string) || "You";
+			const count = (data.count as number) || 0;
+			
+			if (count === 0) {
+				answer = `${playerName} have not played any double game weeks.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName} have played ${count} ${count === 1 ? "double game week" : "double game weeks"}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ name: "Double Game Weeks", value: count }],
+				config: {
+					title: "Double Game Weeks",
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "totw_count") {
+			// Handle TOTW count queries
+			const playerName = (data.playerName as string) || "You";
+			const count = (data.count as number) || 0;
+			const period = (data.period as string) || "weekly";
+			const periodLabel = period === "weekly" ? "Team of the Week" : "Season Team of the Week";
+			
+			if (count === 0) {
+				answer = `${playerName} have not been in ${periodLabel}.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName} have been in ${periodLabel} ${count} ${count === 1 ? "time" : "times"}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ name: periodLabel, value: count }],
+				config: {
+					title: periodLabel,
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "highest_weekly_score") {
+			// Handle highest weekly score queries
+			const playerName = (data.playerName as string) || "You";
+			const highestScore = (data.highestScore as number) || 0;
+			
+			if (highestScore === 0) {
+				answer = `${playerName} have not scored any points in a week.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName}'s highest score in a week is ${Math.round(highestScore)} ${highestScore === 1 ? "point" : "points"}.`;
+				answerValue = Math.round(highestScore);
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ name: "Highest Weekly Score", value: Math.round(highestScore) }],
+				config: {
+					title: "Highest Weekly Score",
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries
 			const teamName = data.teamName as string;
