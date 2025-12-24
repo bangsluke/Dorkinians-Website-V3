@@ -21,7 +21,7 @@ export default function FooterNavigation() {
 
 	return (
 		<motion.nav
-			className='fixed bottom-0 left-0 right-0 z-50 w-full'
+			className='md:hidden fixed bottom-0 left-0 right-0 z-50 w-full'
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>

@@ -24,6 +24,13 @@
 		font-family: "Inter", system-ui, sans-serif;
 	}
 
+	/* Desktop font size reduction (30% smaller) */
+	@media (min-width: 768px) {
+		html {
+			font-size: 70%;
+		}
+	}
+
 	body {
 		@apply bg-gray-50 text-gray-900;
 		background: #0f0f0f;
@@ -346,10 +353,12 @@
 	/* Desktop frosted glass container */
 	@media (min-width: 768px) {
 		.frosted-container {
-			width: 70%;
-			left: 50%;
-			right: auto;
-			transform: translateX(-50%);
+			left: 231px;
+			right: 11px;
+			width: auto;
+			transform: none;
+			top: 11px;
+			bottom: 11px;
 		}
 	}
 }
@@ -363,7 +372,26 @@
 /* Desktop main content container */
 @media (min-width: 768px) {
 	.main-content-container {
-		padding: 64px 11px 76px 11px;
+		padding: 11px 11px 11px 231px;
+		height: 100vh;
+	}
+
+	/* Masonry layout for player stats - desktop only */
+	.player-stats-masonry {
+		column-count: 2;
+		column-gap: 1rem;
+		width: 100%;
+	}
+
+	.player-stats-masonry > *,
+	.player-stats-masonry > div {
+		break-inside: avoid !important;
+		page-break-inside: avoid !important;
+		-webkit-column-break-inside: avoid !important;
+		display: block !important;
+		width: 100% !important;
+		margin-bottom: 1rem !important;
+		box-sizing: border-box;
 	}
 }
 

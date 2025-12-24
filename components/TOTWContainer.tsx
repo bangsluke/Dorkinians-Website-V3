@@ -35,8 +35,9 @@ export default function TOTWContainer() {
 
 	return (
 		<div className='w-full'>
-			{/* TOTW Sub-Page Dot Indicators */}
-			<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
+
+			{/* TOTW Sub-Page Dot Indicators - Mobile only */}
+			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0'>
 				{totwSubPages.map((page, index) => (
 					<button
 						key={page.id}

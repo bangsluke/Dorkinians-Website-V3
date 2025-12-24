@@ -1484,7 +1484,8 @@ export default function ClubStats() {
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
 					{/* Key Performance Stats */}
 					{!isDataTableMode && (
-					<div id='club-key-performance-stats' className='mb-4'>
+					<div className='md:grid md:grid-cols-2 md:gap-4 md:space-y-0 space-y-4 pb-4'>
+						<div id='club-key-performance-stats' className='mb-4'>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
 							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
@@ -1831,6 +1832,8 @@ export default function ClubStats() {
 						);
 						return !isDataTableMode && chartContent;
 					})()}
+					</div>
+					)}
 
 					{/* Seasonal Performance Section */}
 					{!isDataTableMode && allSeasonsSelected && (
@@ -2158,7 +2161,7 @@ export default function ClubStats() {
 
 					{(() => {
 						const chartContent = (
-							<div className='space-y-4 pb-4'>
+							<div className='space-y-4 pb-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0'>
 								{/* Win/Draw/Loss Pie Chart */}
 								{pieChartData.length > 0 && (() => {
 									const wins = toNumber(teamData.wins || 0);

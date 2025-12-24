@@ -1295,7 +1295,7 @@ export default function TeamStats() {
 
 					{(() => {
 						const chartContent = (
-							<div className='space-y-4 pb-4'>
+							<div className='space-y-4 pb-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0'>
 								{/* Top Players Table */}
 								<div id='team-top-players' className='mb-4 flex-shrink-0'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>

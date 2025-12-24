@@ -23,7 +23,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 
 	return (
 		<motion.header
-			className='fixed top-0 left-0 right-0 z-50 w-full'
+			className='md:hidden fixed top-0 left-0 right-0 z-50 w-full'
 			initial={isSettingsPage ? { y: 0 } : { y: -100 }}
 			animate={{ y: 0 }}
 			transition={isSettingsPage ? {} : { type: "spring", stiffness: 300, damping: 30 }}>
