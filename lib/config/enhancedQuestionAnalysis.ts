@@ -334,6 +334,16 @@ export class EnhancedQuestionAnalyzer {
 			return "league_table";
 		}
 
+		// Check for highest scoring game queries (before player check)
+		if (
+			lowerQuestion.includes("highest scoring game") ||
+			(lowerQuestion.includes("highest scoring") && lowerQuestion.includes("game")) ||
+			(lowerQuestion.includes("most goals") && lowerQuestion.includes("game")) ||
+			(lowerQuestion.includes("highest total") && lowerQuestion.includes("game"))
+		) {
+			return "fixture";
+		}
+
 		// Check for player-specific queries (but not if it's a streak question)
 		if (hasPlayerEntities) {
 			return "player";

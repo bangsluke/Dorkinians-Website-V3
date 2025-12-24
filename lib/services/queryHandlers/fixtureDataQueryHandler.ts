@@ -250,7 +250,7 @@ export class FixtureDataQueryHandler {
 		const query = `
 			MATCH (f:Fixture {graphLabel: $graphLabel, team: $team})
 			WHERE (f.season = $season OR f.season = $normalizedSeason)
-			  AND (f.status IS NULL OR f.status NOT IN ['Void', 'Postponed', 'Abandoned'])
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
 			WITH f, 
 			     coalesce(f.dorkiniansGoals, 0) + coalesce(f.conceded, 0) as totalGoals
 			ORDER BY totalGoals DESC

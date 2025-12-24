@@ -1550,11 +1550,9 @@ export class ChatbotService {
 			if (!gameData) {
 				answer = (data.message as string) || "No highest scoring game found.";
 			} else {
-				const teamName = (data.teamName as string) || "";
-				const season = (data.season as string) || "";
 				const location = gameData.homeOrAway === "Home" ? "at home" : gameData.homeOrAway === "Away" ? "away" : "";
 				const formattedDate = DateUtils.formatDate(gameData.date);
-				answer = `The highest scoring game for the ${teamName} in ${season} was ${gameData.dorkiniansGoals}-${gameData.conceded} ${gameData.result === "W" ? "win" : gameData.result === "D" ? "draw" : "loss"} against ${gameData.opposition}${location ? ` ${location}` : ""} on ${formattedDate} (${gameData.totalGoals} total goals).`;
+				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = gameData.totalGoals;
 			}
 		} else if (data && data.type === "double_game") {
