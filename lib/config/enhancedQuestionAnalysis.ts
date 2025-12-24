@@ -344,6 +344,11 @@ export class EnhancedQuestionAnalyzer {
 			return "fixture";
 		}
 
+		// Check for double game weeks queries (before player check)
+		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
+			return "double_game";
+		}
+
 		// Check for player-specific queries (but not if it's a streak question)
 		if (hasPlayerEntities) {
 			return "player";
@@ -371,8 +376,20 @@ export class EnhancedQuestionAnalyzer {
 			return "player";
 		}
 
-		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
-			return "double_game";
+		// Check for milestone questions (who will reach next X milestone, closest to X goals/apps/assists/moms)
+		if (
+			(lowerQuestion.includes("who will reach") || lowerQuestion.includes("who is closest") || lowerQuestion.includes("closest to")) &&
+			(lowerQuestion.includes("milestone") || lowerQuestion.includes("goals") || lowerQuestion.includes("apps") || lowerQuestion.includes("appearances") || lowerQuestion.includes("assists") || lowerQuestion.includes("moms") || lowerQuestion.includes("mom"))
+		) {
+			return "milestone";
+		}
+
+		// Check for milestone questions with "next" pattern
+		if (
+			lowerQuestion.includes("next") &&
+			(lowerQuestion.includes("milestone") || (lowerQuestion.includes("goal") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("app") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("assist") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("mom") && /\d+/.test(lowerQuestion)))
+		) {
+			return "milestone";
 		}
 
 		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check

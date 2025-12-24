@@ -449,9 +449,10 @@ export class PlayerQueryBuilder {
 		// - Player has games but 0 wins (query returns value=0)
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
+		// Filter through OppositionDetails nodes as per schema requirements
+		// Note: OppositionDetails node is matched in buildPlayerQuery, so we only need to link Fixture to it
 		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
-			const oppositionName = oppositionEntities[0];
-			whereConditions.push(`f.opposition = '${oppositionName}'`);
+			whereConditions.push(`f.opposition = od.opposition`);
 		}
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -486,12 +487,13 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		// Use exact match (=) instead of CONTAINS as per schema requirements
 		if (analysis.competitions && analysis.competitions.length > 0 && 
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
 			!metric.match(/^\d+sApps$/i) &&
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
 			!metric.match(/^\d+sGoals$/i)) {
-			const competitionFilters = analysis.competitions.map((comp) => `f.competition CONTAINS '${comp}'`);
+			const competitionFilters = analysis.competitions.map((comp) => `f.competition = '${comp}'`);
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 		}
 
@@ -1095,10 +1097,20 @@ export class PlayerQueryBuilder {
 			// Use MatchDetail join query with simplified path pattern
 			if (needsFixture) {
 				// Use explicit path pattern to ensure we only count the player's own MatchDetail records
-				query = `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-					MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				`;
+				// Add OppositionDetails MATCH when opposition filter is present
+				if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
+					const oppositionName = oppositionEntities[0];
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+						MATCH (od:OppositionDetails {opposition: '${oppositionName}'})
+					`;
+				} else {
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+					`;
+				}
 			} else {
 				// Use simple MatchDetail query for queries that don't need fixture data
 				// For team-specific or position metrics, use OPTIONAL MATCH to ensure we always return a row

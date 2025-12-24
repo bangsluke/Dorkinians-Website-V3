@@ -390,17 +390,19 @@ export class ChatbotService {
 				return await TemporalQueryHandler.queryStreakData(entities, metrics, analysis);
 			case "temporal":
 				return await TemporalQueryHandler.queryTemporalData(entities, metrics, analysis.timeRange);
-			case "double_game":
-				return await this.queryDoubleGameData(entities, metrics);
-			case "ranking":
-				return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
-			case "league_table":
-				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis);
-			case "general":
-				return await this.queryGeneralData();
-			default:
-				this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
-				return { type: "unknown", data: [], message: "Unknown question type" };
+		case "double_game":
+			return await this.queryDoubleGameData(entities, metrics);
+		case "milestone":
+			return await this.queryMilestoneData(entities, metrics, analysis);
+		case "ranking":
+			return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
+		case "league_table":
+			return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis);
+		case "general":
+			return await this.queryGeneralData();
+		default:
+			this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
+			return { type: "unknown", data: [], message: "Unknown question type" };
 		}
 		} catch (error) {
 			this.logToBoth(`❌ Error in queryRelevantData:`, error, "error");
@@ -918,16 +920,22 @@ export class ChatbotService {
 
 		const playerName = entities[0];
 		const graphLabel = neo4jService.getGraphLabel();
+		const params = { playerName, graphLabel };
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-			WHERE md.seasonWeek IS NOT NULL
-			WITH md.seasonWeek as seasonWeek, count(md) as matchCount
+			WHERE md.seasonWeek IS NOT NULL AND md.seasonWeek <> ""
+			WITH md.seasonWeek as seasonWeek, collect(md) as matches
+			WITH seasonWeek, size(matches) as matchCount
 			WHERE matchCount > 1
 			RETURN count(seasonWeek) as doubleGameWeekCount
 		`;
 
+		// Log query for debug info
+		this.lastExecutedQueries.push(`DOUBLE_GAME_WEEKS: ${query}`);
+		this.lastExecutedQueries.push(`DOUBLE_GAME_WEEKS_PARAMS: ${JSON.stringify(params)}`);
+
 		try {
-			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const result = await neo4jService.executeQuery(query, params);
 			const count = result && result.length > 0 && result[0].doubleGameWeekCount !== undefined 
 				? (typeof result[0].doubleGameWeekCount === 'number' 
 					? result[0].doubleGameWeekCount 
@@ -937,6 +945,118 @@ export class ChatbotService {
 		} catch (error) {
 			this.logToBoth(`❌ Error in double game query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying double game data" };
+		}
+	}
+
+	private async queryMilestoneData(entities: string[], _metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		const lowerQuestion = (analysis.question || "").toLowerCase();
+		
+		// Extract milestone number from question (e.g., "100", "50", "25")
+		const milestoneMatch = lowerQuestion.match(/\b(\d+)\s*(?:goal|app|appearance|assist|mom|milestone)/);
+		const milestoneNumber = milestoneMatch ? parseInt(milestoneMatch[1], 10) : null;
+		
+		// Determine stat type from question
+		let statType: string | null = null;
+		if (lowerQuestion.includes("goal")) {
+			statType = "Goals";
+		} else if (lowerQuestion.includes("app") || lowerQuestion.includes("appearance")) {
+			statType = "Apps";
+		} else if (lowerQuestion.includes("assist")) {
+			statType = "Assists";
+		} else if (lowerQuestion.includes("mom")) {
+			statType = "MoMs";
+		}
+		
+		// If milestone number not found, try to extract from "next X milestone" pattern
+		if (!milestoneNumber) {
+			const nextMilestoneMatch = lowerQuestion.match(/next\s+(\d+)/);
+			if (nextMilestoneMatch) {
+				const extractedMilestone = parseInt(nextMilestoneMatch[1], 10);
+				if (!isNaN(extractedMilestone)) {
+					// Use extracted milestone, but still need to determine stat type
+					if (!statType) {
+						// Default to Goals if not specified
+						statType = "Goals";
+					}
+					return await this.fetchMilestoneData(extractedMilestone, statType);
+				}
+			}
+		}
+		
+		// If we have both milestone and stat type, fetch the data
+		if (milestoneNumber && statType) {
+			return await this.fetchMilestoneData(milestoneNumber, statType);
+		}
+		
+		// Fallback: try to find closest to any milestone for the detected stat type
+		if (statType) {
+			// Try common milestones: 10, 25, 50, 100, 150, 200, 250, 300
+			const commonMilestones = [300, 250, 200, 150, 100, 50, 25, 10];
+			for (const milestone of commonMilestones) {
+				const result = await this.fetchMilestoneData(milestone, statType);
+				if (result && result.type === "milestone" && result.playerName) {
+					return result;
+				}
+			}
+		}
+		
+		return { type: "error", data: [], error: "Could not determine milestone or stat type from question" };
+	}
+	
+	private async fetchMilestoneData(milestone: number, statType: string): Promise<Record<string, unknown>> {
+		try {
+			const response = await fetch("/api/milestones");
+			if (!response.ok) {
+				this.logToBoth(`❌ Error fetching milestones: ${response.statusText}`, null, "error");
+				return { type: "error", data: [], error: "Failed to fetch milestone data" };
+			}
+			
+			const data = await response.json();
+			const closestToMilestone = data.closestToMilestone || [];
+			
+			// Find the entry matching the requested milestone and stat type
+			const key = `${statType}-${milestone}`;
+			const entry = closestToMilestone.find((e: { playerName: string; statType: string; milestone: number }) => 
+				e.statType === statType && e.milestone === milestone
+			);
+			
+			if (entry) {
+				return {
+					type: "milestone",
+					playerName: entry.playerName,
+					statType: entry.statType,
+					milestone: entry.milestone,
+					currentValue: entry.currentValue,
+					distanceFromMilestone: entry.distanceFromMilestone,
+				};
+			}
+			
+			// If exact match not found, find closest player for this stat type regardless of milestone
+			const statTypeEntries = closestToMilestone.filter((e: { statType: string }) => e.statType === statType);
+			if (statTypeEntries.length > 0) {
+				// Sort by distance from milestone (ascending) and milestone (descending)
+				statTypeEntries.sort((a: { distanceFromMilestone: number; milestone: number }, b: { distanceFromMilestone: number; milestone: number }) => {
+					if (a.distanceFromMilestone !== b.distanceFromMilestone) {
+						return a.distanceFromMilestone - b.distanceFromMilestone;
+					}
+					return b.milestone - a.milestone;
+				});
+				
+				const closest = statTypeEntries[0];
+				return {
+					type: "milestone",
+					playerName: closest.playerName,
+					statType: closest.statType,
+					milestone: closest.milestone,
+					currentValue: closest.currentValue,
+					distanceFromMilestone: closest.distanceFromMilestone,
+				};
+			}
+			
+			return { type: "error", data: [], error: `No player found close to ${milestone} ${statType} milestone` };
+		} catch (error) {
+			this.logToBoth(`❌ Error in milestone query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying milestone data" };
 		}
 	}
 
@@ -1679,18 +1799,41 @@ export class ChatbotService {
 			const count = (data.count as number) || 0;
 			
 			if (count === 0) {
-				answer = `${playerName} have not played any double game weeks.`;
+				answer = `${playerName} has not played any double game weeks.`;
 				answerValue = 0;
 			} else {
-				answer = `${playerName} have played ${count} ${count === 1 ? "double game week" : "double game weeks"}.`;
+				answer = `${playerName} has played ${count} ${count === 1 ? "double game week" : "double game weeks"}.`;
 				answerValue = count;
 			}
 			
 			visualization = {
 				type: "NumberCard",
-				data: [{ name: "Double Game Weeks", value: count }],
+				data: [{ wordedText: "double gameweeks", value: count }],
 				config: {
-					title: "Double Game Weeks",
+					title: "double gameweeks",
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "milestone") {
+			// Handle milestone queries
+			const playerName = (data.playerName as string) || "";
+			const statType = (data.statType as string) || "";
+			const milestone = (data.milestone as number) || 0;
+			const currentValue = (data.currentValue as number) || 0;
+			const distanceFromMilestone = (data.distanceFromMilestone as number) || 0;
+			
+			if (!playerName) {
+				answer = "I couldn't find any player close to that milestone.";
+			} else {
+				answer = `${playerName} is closest to reaching the ${milestone} ${statType} milestone, currently on ${currentValue} ${statType} (${distanceFromMilestone} ${distanceFromMilestone === 1 ? "away" : "away"}).`;
+				answerValue = currentValue;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ name: `${milestone} ${statType} Milestone`, value: currentValue }],
+				config: {
+					title: `${milestone} ${statType} Milestone`,
 					type: "bar",
 				},
 			};
