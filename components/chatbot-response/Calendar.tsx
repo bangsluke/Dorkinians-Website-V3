@@ -18,6 +18,65 @@ interface GameDate {
 	[key: string]: unknown;
 }
 
+interface WeekData {
+	weekNumber: number;
+	year: number;
+	startDate: Date;
+	endDate: Date;
+	gameCount: number;
+}
+
+interface MonthLabel {
+	month: string;
+	startWeekIndex: number;
+	endWeekIndex: number;
+}
+
+// Google Sheets WEEKNUM(date, 2) equivalent
+// Mode 2: Week starts Monday, Week 1 = week containing January 1st
+function weekNum(date: Date): number {
+	const year = date.getFullYear();
+	const jan1 = new Date(year, 0, 1);
+	
+	// Get day of week for Jan 1 (0=Sunday, 1=Monday, ..., 6=Saturday)
+	const jan1Day = jan1.getDay();
+	
+	// Convert to Monday-based (0=Monday, 1=Tuesday, ..., 6=Sunday)
+	const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+	
+	// Calculate days since Jan 1
+	const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+	
+	// Calculate week number
+	// Week 1 starts on the Monday of the week containing Jan 1
+	const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+	
+	return weekNumber;
+}
+
+// Get the Monday of a given week number in a year
+function getMondayOfWeek(year: number, weekNumber: number): Date {
+	const jan1 = new Date(year, 0, 1);
+	const jan1Day = jan1.getDay();
+	const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+	
+	// Calculate days to add to get to the Monday of weekNumber
+	const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+	const monday = new Date(jan1);
+	monday.setDate(jan1.getDate() + daysToAdd);
+	
+	return monday;
+}
+
+// Get number of weeks in a year (52 or 53)
+function getWeeksInYear(year: number): number {
+	const dec31 = new Date(year, 11, 31);
+	const weekNumDec31 = weekNum(dec31);
+	
+	// If Dec 31 is in week 53, the year has 53 weeks
+	return weekNumDec31 === 53 ? 53 : 52;
+}
+
 export default function Calendar({ visualization }: CalendarProps) {
 	if (!visualization) return null;
 
@@ -73,127 +132,207 @@ export default function Calendar({ visualization }: CalendarProps) {
 		);
 	}
 
-	// Get all months in the range
-	const months: Date[] = [];
-	const current = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-	const end = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-
-	while (current <= end) {
-		months.push(new Date(current));
-		current.setMonth(current.getMonth() + 1);
+	// Get all years in the range
+	const years: number[] = [];
+	const startYear = startDate.getFullYear();
+	const endYear = endDate.getFullYear();
+	
+	for (let year = startYear; year <= endYear; year++) {
+		years.push(year);
 	}
 
-	// Check if a date has a game (for highlighting)
-	const hasGame = (date: Date): boolean => {
-		return gameDates.has(date.toDateString());
-	};
-	
-	// Check if a date is within the overall range (for display purposes)
-	const isInRange = (date: Date): boolean => {
-		return date >= startDate && date <= endDate;
-	};
+	// Process weeks for each year
+	const yearWeeks: Map<number, WeekData[]> = new Map();
+	const yearGameCounts: Map<number, Map<number, number>> = new Map(); // year -> week -> count
 
-	// Get days in month
-	const getDaysInMonth = (date: Date): Date[] => {
+	// Count games per week
+	for (const dateStr of gameDates) {
+		const date = new Date(dateStr);
 		const year = date.getFullYear();
-		const month = date.getMonth();
-		const firstDay = new Date(year, month, 1);
-		const lastDay = new Date(year, month + 1, 0);
-		const days: Date[] = [];
+		const week = weekNum(date);
+		
+		if (!yearGameCounts.has(year)) {
+			yearGameCounts.set(year, new Map());
+		}
+		const weekCounts = yearGameCounts.get(year)!;
+		weekCounts.set(week, (weekCounts.get(week) || 0) + 1);
+	}
 
-		// Add days from previous month to fill first week
-		const startDayOfWeek = firstDay.getDay();
-		for (let i = startDayOfWeek - 1; i >= 0; i--) {
-			const prevDate = new Date(year, month, -i);
-			days.push(prevDate);
+	// Generate all weeks for each year
+	for (const year of years) {
+		const weeksInYear = getWeeksInYear(year);
+		const weeks: WeekData[] = [];
+		const weekCounts = yearGameCounts.get(year) || new Map();
+
+		for (let weekNum = 1; weekNum <= weeksInYear; weekNum++) {
+			const monday = getMondayOfWeek(year, weekNum);
+			const sunday = new Date(monday);
+			sunday.setDate(monday.getDate() + 6);
+
+			// Check if this week is within our date range
+			const weekEnd = new Date(sunday);
+			weekEnd.setHours(23, 59, 59, 999);
+			
+			if (weekEnd < startDate || monday > endDate) {
+				continue; // Skip weeks outside the date range
+			}
+
+			weeks.push({
+				weekNumber: weekNum,
+				year: year,
+				startDate: monday,
+				endDate: sunday,
+				gameCount: weekCounts.get(weekNum) || 0,
+			});
 		}
 
-		// Add days of current month
-		for (let day = 1; day <= lastDay.getDate(); day++) {
-			days.push(new Date(year, month, day));
+		if (weeks.length > 0) {
+			yearWeeks.set(year, weeks);
+		}
+	}
+
+	// Calculate month labels for each year - span weeks that belong to each month
+	const yearMonthLabels: Map<number, MonthLabel[]> = new Map();
+	const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+	for (const year of years) {
+		const weeks = yearWeeks.get(year);
+		if (!weeks || weeks.length === 0) continue;
+
+		const monthLabels: MonthLabel[] = [];
+		const monthWeekMap = new Map<number, number[]>(); // month -> array of week indices
+
+		// For each week, determine which month it primarily belongs to (using Thursday as the reference)
+		for (let idx = 0; idx < weeks.length; idx++) {
+			const week = weeks[idx];
+			// Use the middle of the week (Thursday) to determine the month
+			const thursday = new Date(week.startDate);
+			thursday.setDate(week.startDate.getDate() + 3);
+			const month = thursday.getMonth();
+
+			if (!monthWeekMap.has(month)) {
+				monthWeekMap.set(month, []);
+			}
+			monthWeekMap.get(month)!.push(idx);
 		}
 
-		// Add days from next month to fill last week
-		const remainingDays = 42 - days.length; // 6 weeks * 7 days
-		for (let day = 1; day <= remainingDays; day++) {
-			days.push(new Date(year, month + 1, day));
+		// Create month labels with start and end week indices
+		for (const [month, weekIndices] of monthWeekMap.entries()) {
+			if (weekIndices.length > 0) {
+				const sortedIndices = weekIndices.sort((a, b) => a - b);
+				monthLabels.push({
+					month: monthNames[month],
+					startWeekIndex: sortedIndices[0],
+					endWeekIndex: sortedIndices[sortedIndices.length - 1],
+				});
+			}
 		}
 
-		return days;
-	};
-
-	// Format month/year
-	const formatMonthYear = (date: Date): string => {
-		return date.toLocaleDateString("en-US", { month: "long", year: "numeric" });
-	};
-
-	// Check if date is in current month
-	const isCurrentMonth = (date: Date, monthDate: Date): boolean => {
-		return date.getMonth() === monthDate.getMonth() && date.getFullYear() === monthDate.getFullYear();
-	};
-
-	const daysOfWeek = ["S", "T", "W", "T", "F", "S", "S"];
+		// Sort month labels by start week index
+		monthLabels.sort((a, b) => a.startWeekIndex - b.startWeekIndex);
+		yearMonthLabels.set(year, monthLabels);
+	}
 
 	return (
-		<div className='mt-4 space-y-4'>
-			{months.map((monthDate, monthIndex) => {
-				const days = getDaysInMonth(monthDate);
-				const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-				const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+		<div className='mt-4 space-y-6'>
+			{years.map((year) => {
+				const weeks = yearWeeks.get(year);
+				const monthLabels = yearMonthLabels.get(year) || [];
+
+				if (!weeks || weeks.length === 0) return null;
+
+				// Calculate max game count for opacity scaling
+				const maxGameCount = Math.max(...weeks.map((w) => w.gameCount), 1);
+
+				// Group weeks into rows (approximately 10 weeks per row for better visibility)
+				// This can be adjusted based on container width, but 10 is a good default
+				const weeksPerRow = 10;
+				const weekRows: WeekData[][] = [];
+				for (let i = 0; i < weeks.length; i += weeksPerRow) {
+					weekRows.push(weeks.slice(i, i + weeksPerRow));
+				}
 
 				return (
-					<div
-						key={monthIndex}
-						className='bg-white rounded-lg p-4 shadow-lg'
-						style={{
-							background: "rgba(255, 255, 255, 0.95)",
-						}}>
-						{/* Month Header */}
-						<div className='flex items-center justify-between mb-3'>
-							<h4 className='text-lg font-semibold text-gray-800'>
-								{formatMonthYear(monthDate)}
-							</h4>
+					<div key={year} className='dark-dropdown rounded-2xl p-4'>
+						{/* Year Header */}
+						<div className='mb-4'>
+							<h4 className='text-lg font-semibold text-white'>{year}</h4>
 						</div>
 
-						{/* Days of Week Header */}
-						<div className='grid grid-cols-7 gap-1 mb-2'>
-							{daysOfWeek.map((day, index) => (
-								<div
-									key={index}
-									className='text-center text-xs font-medium text-gray-600 py-1'>
-									{day}
-								</div>
-							))}
-						</div>
-
-						{/* Calendar Grid */}
-						<div className='grid grid-cols-7 gap-1'>
-							{days.map((date, index) => {
-								const hasGameOnDate = hasGame(date);
-								const isCurrentMonthDate = isCurrentMonth(date, monthDate);
-								const isStartDate = date.toDateString() === startDate.toDateString();
-								const isEndDate = date.toDateString() === endDate.toDateString();
+						{/* Render week rows with month label rows between them */}
+						<div className='space-y-2'>
+							{weekRows.map((rowWeeks, rowIndex) => {
+								const startWeekIndex = rowIndex * weeksPerRow;
+								const endWeekIndex = Math.min(startWeekIndex + rowWeeks.length - 1, weeks.length - 1);
+								
+								// Find month labels that start in this row (only show label in the row where it begins)
+								const rowMonthLabels = monthLabels.filter((label) => {
+									return label.startWeekIndex >= startWeekIndex && label.startWeekIndex <= endWeekIndex;
+								});
 
 								return (
-									<div
-										key={index}
-										className={`
-											aspect-square flex items-center justify-center text-sm
-											${isCurrentMonthDate ? "text-gray-800" : "text-gray-400"}
-											${hasGameOnDate ? "bg-teal-500 text-white rounded" : ""}
-											${isStartDate || isEndDate ? "font-bold" : ""}
-										`}
-										style={{
-											backgroundColor: hasGameOnDate ? "#14B8A6" : undefined,
-										}}>
-										<div className='flex flex-col items-center'>
-											<span>{date.getDate()}</span>
-											{hasGameOnDate && (
-												<span
-													className='w-1 h-1 rounded-full mt-0.5'
-													style={{ backgroundColor: "#14B8A6" }}
-												/>
-											)}
+									<div key={rowIndex} className='space-y-1'>
+										{/* Month Labels Row for this week row */}
+										{rowMonthLabels.length > 0 && (
+											<div className='relative h-4' style={{ width: `${rowWeeks.length * 26}px` }}>
+												{rowMonthLabels.map((label, labelIdx) => {
+													// Calculate position relative to this row
+													const labelStartInRow = Math.max(0, label.startWeekIndex - startWeekIndex);
+													const labelEndInRow = Math.min(rowWeeks.length - 1, label.endWeekIndex - startWeekIndex);
+													
+													if (labelEndInRow < 0 || labelStartInRow >= rowWeeks.length) return null;
+
+													const left = labelStartInRow * 26;
+													const width = (labelEndInRow - labelStartInRow + 1) * 26 - 2;
+
+													return (
+														<div
+															key={labelIdx}
+															className='absolute text-xs font-medium text-gray-400 text-center'
+															style={{
+																left: `${left}px`,
+																width: `${width}px`,
+																fontSize: '10px',
+															}}>
+															{label.month}
+														</div>
+													);
+												})}
+											</div>
+										)}
+
+										{/* Week Tiles Row */}
+										<div className='flex gap-0.5'>
+											{rowWeeks.map((week, idx) => {
+												const globalIdx = startWeekIndex + idx;
+												// Calculate opacity: more games = more opaque (lower transparency)
+												// For weeks with games: opacity ranges from 0.4 (1 game) to 1.0 (max games)
+												// For weeks without games: white with high transparency (0.1)
+												const opacity = week.gameCount > 0
+													? 0.4 + (week.gameCount / maxGameCount) * 0.6
+													: 0.1;
+
+												return (
+													<div
+														key={globalIdx}
+														className='w-6 h-6 rounded flex items-center justify-center relative'
+														style={{
+															backgroundColor: week.gameCount > 0
+																? `rgba(249, 237, 50, ${opacity})` // Yellow with opacity
+																: `rgba(255, 255, 255, ${opacity})`, // White with transparency
+														}}
+														title={`Week ${week.weekNumber}: ${week.startDate.toLocaleDateString()} - ${week.endDate.toLocaleDateString()}${week.gameCount > 0 ? ` (${week.gameCount} game${week.gameCount > 1 ? 's' : ''})` : ''}`}>
+														<span
+															className='text-xs font-medium'
+															style={{
+																fontSize: '9px',
+																color: week.gameCount > 0 ? '#000000' : 'rgba(255, 255, 255, 0.6)',
+															}}>
+															{week.weekNumber}
+														</span>
+													</div>
+												);
+											})}
 										</div>
 									</div>
 								);
@@ -205,4 +344,3 @@ export default function Calendar({ visualization }: CalendarProps) {
 		</div>
 	);
 }
-

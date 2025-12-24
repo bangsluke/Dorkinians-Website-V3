@@ -1,5 +1,12 @@
+import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
+
+interface ParsedSeasonWeek {
+	season: string;
+	week: number;
+	original: string;
+}
 
 export class TemporalQueryHandler {
 	/**
@@ -79,7 +86,7 @@ export class TemporalQueryHandler {
 	/**
 	 * Query streak data
 	 */
-	static async queryStreakData(entities: string[], metrics: string[]): Promise<Record<string, unknown>> {
+	static async queryStreakData(entities: string[], metrics: string[], analysis?: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying streak data for entities: ${entities}, metrics: ${metrics}`, null, "log");
 
 		if (entities.length === 0) {
@@ -87,6 +94,13 @@ export class TemporalQueryHandler {
 		}
 
 		const playerName = entities[0];
+		const question = analysis?.question?.toLowerCase() || "";
+
+		// Check if this is a consecutive weekends question
+		if (question.includes("weekend") || question.includes("weekends")) {
+			return await TemporalQueryHandler.queryConsecutiveWeekendsStreak(playerName);
+		}
+
 		const metric = metrics[0] || "goals";
 
 		// Determine streak type based on metric
@@ -133,5 +147,186 @@ export class TemporalQueryHandler {
 			loggingService.log(`❌ Error in streak query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying streak data" };
 		}
+	}
+
+	/**
+	 * Query consecutive weekends streak data
+	 */
+	static async queryConsecutiveWeekendsStreak(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying consecutive weekends streak for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query to get distinct seasonWeek values and their dates for calendar visualization
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0 AND md.seasonWeek IS NOT NULL AND md.seasonWeek <> ""
+			WITH md.seasonWeek as seasonWeek, md.season as season, md.week as week, md.date as date
+			ORDER BY season ASC, week ASC, date ASC
+			WITH seasonWeek, season, week, collect(date)[0] as firstDate
+			RETURN seasonWeek, season, week, firstDate as date
+			ORDER BY season ASC, week ASC
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			const seasonWeeks = (result || [])
+				.map((record: any) => record?.seasonWeek)
+				.filter((sw: string | null | undefined) => sw !== null && sw !== undefined && sw !== "");
+
+			// Extract date data for calendar visualization
+			const dateData = (result || [])
+				.map((record: any) => ({
+					date: record?.date,
+					seasonWeek: record?.seasonWeek,
+				}))
+				.filter((item: any) => item.date && item.seasonWeek);
+
+			if (seasonWeeks.length === 0) {
+				loggingService.log(`⚠️ No seasonWeek data found for player: ${playerName}`, null, "warn");
+				return { type: "streak", data: [], playerName, streakType: "consecutive_weekends", streakCount: 0, streakSequence: [] };
+			}
+
+			const streakResult = TemporalQueryHandler.calculateConsecutiveWeeks(seasonWeeks);
+			const longestStreak = streakResult.count;
+			const streakSequence = streakResult.sequence;
+			
+			loggingService.log(`✅ Calculated consecutive weekends streak: ${longestStreak} for player: ${playerName}`, null, "log");
+			loggingService.log(`📊 Longest consecutive streak sequence: ${streakSequence.join(' → ')}`, null, "log");
+
+			return { 
+				type: "streak", 
+				data: dateData, 
+				playerName, 
+				streakType: "consecutive_weekends", 
+				streakCount: longestStreak,
+				streakSequence: streakSequence
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in consecutive weekends streak query: ${errorMessage}`, error, "error");
+			return { type: "error", data: [], error: `Error querying consecutive weekends streak data: ${errorMessage}` };
+		}
+	}
+
+	/**
+	 * Parse seasonWeek string into season and week components
+	 * Format: "YYYY/YY-WK#" (e.g., "2023/24-38")
+	 */
+	static parseSeasonWeek(seasonWeek: string): ParsedSeasonWeek | null {
+		const match = seasonWeek.match(/^(\d{4}\/\d{2})-(\d+)$/);
+		if (!match) {
+			loggingService.log(`⚠️ Invalid seasonWeek format: ${seasonWeek}`, null, "warn");
+			return null;
+		}
+
+		const season = match[1];
+		const week = parseInt(match[2], 10);
+
+		return { season, week, original: seasonWeek };
+	}
+
+	/**
+	 * Check if two seasons are consecutive (e.g., "2023/24" -> "2024/25")
+	 */
+	static areSeasonsConsecutive(season1: string, season2: string): boolean {
+		const match1 = season1.match(/^(\d{4})\/(\d{2})$/);
+		const match2 = season2.match(/^(\d{4})\/(\d{2})$/);
+
+		if (!match1 || !match2) {
+			return false;
+		}
+
+		const year1 = parseInt(match1[1], 10);
+		const year2 = parseInt(match2[1], 10);
+
+		// Check if season2 is the next season after season1
+		return year2 === year1 + 1;
+	}
+
+	/**
+	 * Calculate the longest consecutive streak of weeks
+	 * Returns both the count and the sequence of seasonWeek values
+	 */
+	static calculateConsecutiveWeeks(seasonWeeks: string[]): { count: number; sequence: string[] } {
+		if (seasonWeeks.length === 0) {
+			return { count: 0, sequence: [] };
+		}
+
+		// Parse all seasonWeek values
+		const parsed = seasonWeeks
+			.map((sw) => TemporalQueryHandler.parseSeasonWeek(sw))
+			.filter((p): p is ParsedSeasonWeek => p !== null);
+
+		if (parsed.length === 0) {
+			return { count: 0, sequence: [] };
+		}
+
+		// Sort by season and week
+		parsed.sort((a, b) => {
+			// First compare seasons
+			const seasonA = a.season;
+			const seasonB = b.season;
+			if (seasonA !== seasonB) {
+				const yearA = parseInt(seasonA.match(/^(\d{4})/)?.[1] || "0", 10);
+				const yearB = parseInt(seasonB.match(/^(\d{4})/)?.[1] || "0", 10);
+				return yearA - yearB;
+			}
+			// Then compare weeks within the same season
+			return a.week - b.week;
+		});
+
+		// Remove duplicates (same season and week)
+		const unique: ParsedSeasonWeek[] = [];
+		for (const item of parsed) {
+			const exists = unique.some((u) => u.season === item.season && u.week === item.week);
+			if (!exists) {
+				unique.push(item);
+			}
+		}
+
+		if (unique.length === 0) {
+			return { count: 0, sequence: [] };
+		}
+
+		// Find longest consecutive streak
+		let longestStreak = 1;
+		let currentStreak = 1;
+		let longestStreakSequence: ParsedSeasonWeek[] = [unique[0]];
+		let currentStreakSequence: ParsedSeasonWeek[] = [unique[0]];
+
+		for (let i = 1; i < unique.length; i++) {
+			const prev = unique[i - 1];
+			const curr = unique[i];
+
+			let isConsecutive = false;
+
+			if (prev.season === curr.season) {
+				// Same season: check if weeks are consecutive
+				isConsecutive = prev.week + 1 === curr.week;
+			} else {
+				// Different seasons: check if it's a season boundary transition
+				// (e.g., "2023/24-52" -> "2024/25-1")
+				const areConsecutiveSeasons = TemporalQueryHandler.areSeasonsConsecutive(prev.season, curr.season);
+				isConsecutive = areConsecutiveSeasons && prev.week === 52 && curr.week === 1;
+			}
+
+			if (isConsecutive) {
+				currentStreak++;
+				currentStreakSequence.push(curr);
+				if (currentStreak > longestStreak) {
+					longestStreak = currentStreak;
+					longestStreakSequence = [...currentStreakSequence];
+				}
+			} else {
+				currentStreak = 1;
+				currentStreakSequence = [curr];
+			}
+		}
+
+		return {
+			count: longestStreak,
+			sequence: longestStreakSequence.map((s) => s.original),
+		};
 	}
 }

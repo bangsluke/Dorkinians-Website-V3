@@ -275,8 +275,8 @@ function compareAnswers(extractedValue, expectedAnswer, expectedOutputType) {
 				return Math.abs(extractedNum - expectedNum) < 0.1;
 			}
 			// Fallback: if numeric parsing failed, try string comparison (handles cases where NumberCard type is used for string values)
-			const extractedStr = String(extractedValue).trim().toLowerCase();
-			return extractedStr === normalizedExpected || extractedStr.includes(normalizedExpected) || normalizedExpected.includes(extractedStr);
+			const extractedStrFallback = String(extractedValue).trim().toLowerCase();
+			return extractedStrFallback === normalizedExpected || extractedStrFallback.includes(normalizedExpected) || normalizedExpected.includes(extractedStrFallback);
 		case "Table":
 		case "Record":
 			// For Table/Record, check if answer contains expected text or if table data exists

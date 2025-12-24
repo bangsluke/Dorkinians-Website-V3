@@ -361,7 +361,7 @@ export class ChatbotService {
 			case "comparison":
 				return await this.queryComparisonData(entities, metrics);
 			case "streak":
-				return await TemporalQueryHandler.queryStreakData(entities, metrics);
+				return await TemporalQueryHandler.queryStreakData(entities, metrics, analysis);
 			case "temporal":
 				return await TemporalQueryHandler.queryTemporalData(entities, metrics, analysis.timeRange);
 			case "double_game":
@@ -1337,14 +1337,51 @@ export class ChatbotService {
 			}
 		} else if (data && data.type === "streak") {
 			// Handle streak data
-			const streakData = (data.data as StreakData[]) || [];
-			if (streakData.length === 0) {
-				answer = "No streak data found.";
+			const streakType = (data.streakType as string) || "goals";
+			
+			// Handle consecutive weekends streak (returns streakCount directly)
+			if (streakType === "consecutive_weekends") {
+				const streakCount = (data.streakCount as number) || 0;
+				const streakSequence = (data.streakSequence as string[]) || [];
+				const streakData = (data.data as Array<{ date: string; seasonWeek?: string }>) || [];
+				
+				if (streakCount === 0) {
+					answer = "You haven't played any consecutive weekends.";
+				} else {
+					answer = `Your longest consecutive streak of weekends played is ${streakCount} ${streakCount === 1 ? "weekend" : "weekends"}.`;
+					answerValue = streakCount;
+				}
+
+				// Add streak sequence to query breakdown for client console logging
+				if (streakSequence.length > 0) {
+					this.lastQueryBreakdown = {
+						...this.lastQueryBreakdown,
+						consecutiveWeekendsStreak: {
+							count: streakCount,
+							sequence: streakSequence,
+							sequenceFormatted: streakSequence.join(' → '),
+						},
+					};
+					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
+				}
+
+				// Build Calendar visualization for consecutive weekends
+				if (streakData.length > 0) {
+					visualization = {
+						type: "Calendar",
+						data: streakData,
+					};
+				}
 			} else {
-				const streakType = (data.streakType as string) || "goals";
-				const streakLength = streakData.length;
-				answer = `Your longest ${streakType} streak is ${streakLength} ${streakLength === 1 ? "game" : "games"}.`;
-				answerValue = streakLength;
+				// Handle other streak types (goals, assists, etc.)
+				const streakData = (data.data as StreakData[]) || [];
+				if (streakData.length === 0) {
+					answer = "No streak data found.";
+				} else {
+					const streakLength = streakData.length;
+					answer = `Your longest ${streakType} streak is ${streakLength} ${streakLength === 1 ? "game" : "games"}.`;
+					answerValue = streakLength;
+				}
 			}
 		} else if (data && data.type === "comparison") {
 			// Handle comparison data
