@@ -21,7 +21,7 @@ export default function FooterNavigation() {
 
 	return (
 		<motion.nav
-			className='fixed bottom-0 left-0 right-0 z-50 w-full'
+			className='md:hidden fixed bottom-0 left-0 right-0 z-50 w-full'
 			initial={{ y: 100 }}
 			animate={{ y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
@@ -43,7 +43,7 @@ export default function FooterNavigation() {
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}>
 							<Icon className={`w-6 h-6 ${isActive ? "text-yellow-400" : ""}`} />
-							<span className={`text-sm font-medium ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
+							<span className={`text-sm font-medium whitespace-nowrap ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
 						</motion.button>
 					);
 				})}

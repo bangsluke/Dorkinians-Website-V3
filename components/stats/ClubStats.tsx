@@ -886,6 +886,7 @@ export default function ClubStats() {
 		fetchPositionStats();
 	}, [filtersKey, selectedPositionStat, playerFilters]);
 
+
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
 		setSelectedStatType(statType);
@@ -1465,11 +1466,19 @@ export default function ClubStats() {
 
 			{(isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<RadarChartSkeleton />
-						<TopPlayersTableSkeleton />
-						<ChartSkeleton />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<RadarChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
 					</div>
 				</SkeletonTheme>
 			) : !teamData ? (
@@ -1482,12 +1491,15 @@ export default function ClubStats() {
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-					{/* Key Performance Stats */}
-					{!isDataTableMode && (
-					<div id='club-key-performance-stats' className='mb-4'>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
+								{/* Key Performance Stats */}
+								{!isDataTableMode && (
+									<div id='club-key-performance-stats' className='mb-4 md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
-							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+							<div className='grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
@@ -1578,18 +1590,18 @@ export default function ClubStats() {
 										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
 									</div>
 								</div>
-							</div>
-						</div>
-					</div>
-					)}
+										</div>
+									</div>
+								</div>
+								)}
 
-					{/* Team Comparison Section */}
+								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<RadarChartSkeleton />
 						</SkeletonTheme>
 					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
-						<div id='club-team-comparison' className='mb-4'>
+						<div id='club-team-comparison' className='mb-4 md:break-inside-avoid md:mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
 								{/* Team visibility checkboxes */}
@@ -1702,14 +1714,11 @@ export default function ClubStats() {
 								</div>
 							</div>
 						</div>
-					))}
+									))}
 
-					{/* Top Players Table */}
-					{(() => {
-						const chartContent = (
-							<div className='space-y-4'>
 								{/* Top Players Table */}
-								<div id='club-top-players' className='mb-4 flex-shrink-0'>
+								{!isDataTableMode && (
+								<div id='club-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1827,338 +1836,8 @@ export default function ClubStats() {
 										)}
 									</div>
 								</div>
-							</div>
-						);
-						return !isDataTableMode && chartContent;
-					})()}
-
-					{/* Seasonal Performance Section */}
-					{!isDataTableMode && allSeasonsSelected && (
-						<div id='club-seasonal-performance' className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<div className='flex items-center justify-between mb-2 gap-2'>
-									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
-									<div className='flex-1 max-w-[45%]'>
-										<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
-											<div className='relative'>
-												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-													<span className='block truncate text-white'>
-														{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
-													</span>
-													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-													</span>
-												</Listbox.Button>
-												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-													{statOptions.map((option) => (
-														<Listbox.Option
-															key={option.value}
-															className={({ active }) =>
-																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-															}
-															value={option.value}>
-															{({ selected }) => (
-																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																	{option.label}
-																</span>
-															)}
-														</Listbox.Option>
-													))}
-												</Listbox.Options>
-											</div>
-										</Listbox>
-									</div>
-								</div>
-								<div className='flex items-center justify-center gap-2 mb-2'>
-									<input 
-										type='checkbox' 
-										checked={showTrend} 
-										onChange={(e) => setShowTrend(e.target.checked)}
-										className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
-										id='show-trend-checkbox-club'
-										style={{ accentColor: '#f9ed32' }}
-									/>
-									<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
-								</div>
-								{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<ChartSkeleton />
-									</SkeletonTheme>
-								) : seasonalChartData.length > 0 ? (
-									<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-										<ResponsiveContainer width='100%' height={240}>
-											<ComposedChart 
-												data={seasonalChartData} 
-												margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-											>
-												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip content={customTooltip} />
-												<Bar 
-													dataKey='value' 
-													fill='#f9ed32' 
-													radius={[4, 4, 0, 0]} 
-													opacity={0.9} 
-													activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-												/>
-												{showTrend && (
-													<Line 
-														type='linear' 
-														dataKey='trendline' 
-														stroke='#ffffff' 
-														strokeWidth={2}
-														strokeDasharray='5 5'
-														dot={false}
-														activeDot={false}
-														isAnimationActive={false}
-														connectNulls={false}
-													/>
-												)}
-											</ComposedChart>
-										</ResponsiveContainer>
-									</div>
-								) : (
-									<div className='flex items-center justify-center h-64'>
-										<p className='text-white text-sm'>No seasonal data available</p>
-									</div>
 								)}
-							</div>
-						</div>
-					)}
 
-					{/* Player Distribution Section */}
-					{!isDataTableMode && (isLoadingPlayerDistribution ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-distribution' className='mb-4'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<SankeyChartSkeleton />
-								</div>
-							</div>
-						</SkeletonTheme>
-					) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
-						// Validate that all links reference existing nodes
-						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
-						const validLinks = sankeyData.links.filter((link: any) => 
-							nodeIds.has(link.source) && nodeIds.has(link.target)
-						);
-						
-						if (validLinks.length === 0) return null;
-						
-						// Custom label layer component that shows player count for team nodes
-						const CustomLabelLayer = ({ nodes, links: nivoLinks }: any) => {
-							return (
-								<g>
-									{nodes.map((node: any) => {
-										const nodeX = (node.x0 + node.x1) / 2;
-										const nodeY = node.y0;
-										const nodeHeight = node.y1 - node.y0;
-										
-										if (node.id === "Players") {
-											// Look up original node from sankeyData to get label with count
-											const originalNode = sankeyData.nodes.find((n: any) => n.id === "Players");
-											const labelText = originalNode?.label || node.label || "Players";
-											
-											// For Players node, show horizontal label at the top
-											return (
-												<g key={node.id}>
-													<text
-														x={nodeX}
-														y={nodeY - 10}
-														textAnchor="middle"
-														dominantBaseline="middle"
-														fill="#fff"
-														fontSize={12}
-														fontWeight="bold"
-													>
-														{labelText}
-													</text>
-												</g>
-											);
-										}
-										// For team nodes, show label and player count below
-										// Find the link that targets this node to get the correct count
-										// First try to get from node's playerCount property (set in sankeyData)
-										// Then try from validLinks (original data)
-										// Finally try from Nivo's processed links
-										let playerCount = node.playerCount;
-										if (!playerCount) {
-											// Try from original validLinks first (most reliable)
-											const originalLink = validLinks.find((l: any) => l.target === node.id);
-											if (originalLink) {
-												playerCount = originalLink.value;
-											} else {
-												// Fall back to Nivo's processed links
-												const matchingLink = nivoLinks.find((link: any) => {
-													const targetId = typeof link.target === 'object' ? (link.target.id ?? link.target) : link.target;
-													return targetId === node.id;
-												});
-												playerCount = matchingLink?.data?.value ?? matchingLink?.value ?? matchingLink?.thickness ?? 0;
-											}
-										}
-										return (
-											<g key={node.id}>
-												<text
-													x={nodeX}
-													y={nodeY + nodeHeight + 25}
-													textAnchor="middle"
-													dominantBaseline="middle"
-													fill="#fff"
-													fontSize={12}
-													fontWeight="bold"
-												>
-													{node.label}
-												</text>
-												<text
-													x={nodeX}
-													y={nodeY + nodeHeight + 40}
-													textAnchor="middle"
-													dominantBaseline="middle"
-													fill="#fff"
-													fontSize={11}
-												>
-													{playerCount}
-												</text>
-											</g>
-										);
-									})}
-								</g>
-							);
-						};
-						
-						return (
-						<div id='club-player-distribution' className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
-									<ResponsiveSankey
-										data={{ nodes: sankeyData.nodes, links: validLinks }}
-										margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
-										layout="vertical"
-										align="justify"
-										colors={{ scheme: 'set3' }}
-										nodeOpacity={0.8}
-										nodeThickness={18}
-										nodeSpacing={24}
-										nodeBorderWidth={0}
-										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
-										linkOpacity={0.4}
-										linkHoverOthersOpacity={0.1}
-										enableLinkGradient={true}
-										labelPosition="outside"
-										labelOrientation="horizontal"
-										labelPadding={8}
-										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-										nodeTooltip={() => null}
-										linkTooltip={() => null}
-										isInteractive={false}
-										layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
-										theme={{
-											text: { fill: '#fff', fontSize: 12 },
-										}}
-									/>
-								</div>
-							</div>
-						</div>
-						);
-					})())}
-
-					{/* Player Tenure Section */}
-					{!isDataTableMode && (isLoadingPlayerTenure ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-tenure' className='mb-4'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="40%" className="mb-2" />
-									<ChartSkeleton />
-								</div>
-							</div>
-						</SkeletonTheme>
-					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
-						<div id='club-player-tenure' className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={tenureHistogramData} layout="vertical" margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis type="number" stroke='#fff' fontSize={12} />
-											<YAxis type="category" dataKey='seasons' stroke='#fff' fontSize={12} width={120} />
-											<Tooltip content={tenureTooltip} />
-											<Bar dataKey='players' fill='#f9ed32' radius={[0, 4, 4, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							</div>
-						</div>
-					))}
-
-					{/* Stats Distribution Section */}
-					{!isDataTableMode && (
-					<div id='club-stats-distribution' className='mb-4'>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
-							<div className='mb-2'>
-								<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
-									<div className='relative'>
-										<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-											<span className='block truncate text-white'>
-												{getPositionStatLabel(selectedPositionStat)}
-											</span>
-											<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-												<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-											</span>
-										</Listbox.Button>
-										<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-											{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
-												<Listbox.Option
-													key={statType}
-													className={({ active }) =>
-														`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-													}
-													value={statType}>
-													{({ selected }) => (
-														<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-															{getPositionStatLabel(statType)}
-														</span>
-													)}
-												</Listbox.Option>
-											))}
-										</Listbox.Options>
-									</div>
-								</Listbox>
-							</div>
-							{isLoadingPositionStats ? (
-								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-									<ChartSkeleton />
-								</SkeletonTheme>
-							) : positionStatsData.length > 0 ? (
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
-											<YAxis 
-												stroke='#fff' 
-												fontSize={12} 
-												tickFormatter={(value) => value.toLocaleString('en-US')}
-											/>
-											<Tooltip content={statsDistributionTooltip} />
-											<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							) : (
-								<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
-									<p className='text-white text-sm'>No data available</p>
-								</div>
-							)}
-						</div>
-					</div>
-					)}
-
-					{(() => {
-						const chartContent = (
-							<div className='space-y-4 pb-4'>
 								{/* Win/Draw/Loss Pie Chart */}
 								{pieChartData.length > 0 && (() => {
 									const wins = toNumber(teamData.wins || 0);
@@ -2169,7 +1848,7 @@ export default function ClubStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -2212,8 +1891,8 @@ export default function ClubStats() {
 												</PieChart>
 											</ResponsiveContainer>
 										</div>
-									</div>
-									);
+							</div>
+						);
 								})()}
 
 								{/* Game Details Section */}
@@ -2222,7 +1901,7 @@ export default function ClubStats() {
 										<GameDetailsTableSkeleton />
 									</SkeletonTheme>
 								) : !isLoadingGameDetails && gameDetails && (
-									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 										
 										{/* CompType Table */}
@@ -2336,7 +2015,7 @@ export default function ClubStats() {
 
 								{/* Big Club Numbers Section */}
 								{teamData && (
-									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
 										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
 											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
@@ -2412,7 +2091,7 @@ export default function ClubStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -2477,7 +2156,7 @@ export default function ClubStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -2488,9 +2167,9 @@ export default function ClubStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
-										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
+										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 												<div className='flex-shrink-0'>
 													<Image
@@ -2620,7 +2299,7 @@ export default function ClubStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -2644,7 +2323,7 @@ export default function ClubStats() {
 										</div>
 									</SkeletonTheme>
 								) : !isLoadingUniqueStats && uniquePlayerStats && (
-									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the Club: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
@@ -2771,6 +2450,330 @@ export default function ClubStats() {
 							</>
 						);
 					})()}
+
+					{/* Seasonal Performance Section */}
+					{!isDataTableMode && allSeasonsSelected && (
+						<div id='club-seasonal-performance' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='flex items-center justify-between mb-2 gap-2'>
+									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
+									<div className='flex-1 max-w-[45%]'>
+										<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+											<div className='relative'>
+												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+													<span className='block truncate text-white'>
+														{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
+													</span>
+													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+													</span>
+												</Listbox.Button>
+												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+													{statOptions.map((option) => (
+														<Listbox.Option
+															key={option.value}
+															className={({ active }) =>
+																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+															}
+															value={option.value}>
+															{({ selected }) => (
+																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																	{option.label}
+																</span>
+															)}
+														</Listbox.Option>
+													))}
+												</Listbox.Options>
+											</div>
+										</Listbox>
+									</div>
+								</div>
+								<div className='flex items-center justify-center gap-2 mb-2'>
+									<input 
+										type='checkbox' 
+										checked={showTrend} 
+										onChange={(e) => setShowTrend(e.target.checked)}
+										className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
+										id='show-trend-checkbox-club'
+										style={{ accentColor: '#f9ed32' }}
+									/>
+									<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
+								</div>
+								{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<ChartSkeleton />
+									</SkeletonTheme>
+								) : seasonalChartData.length > 0 ? (
+									<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+										<ResponsiveContainer width='100%' height={240}>
+											<ComposedChart 
+												data={seasonalChartData} 
+												margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+											>
+												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+												<YAxis stroke='#fff' fontSize={12} />
+												<Tooltip content={customTooltip} />
+												<Bar 
+													dataKey='value' 
+													fill='#f9ed32' 
+													radius={[4, 4, 0, 0]} 
+													opacity={0.9} 
+													activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+												/>
+												{showTrend && (
+													<Line 
+														type='linear' 
+														dataKey='trendline' 
+														stroke='#ffffff' 
+														strokeWidth={2}
+														strokeDasharray='5 5'
+														dot={false}
+														activeDot={false}
+														isAnimationActive={false}
+														connectNulls={false}
+													/>
+												)}
+											</ComposedChart>
+										</ResponsiveContainer>
+									</div>
+								) : (
+									<div className='flex items-center justify-center h-64'>
+										<p className='text-white text-sm'>No seasonal data available</p>
+									</div>
+								)}
+							</div>
+						</div>
+					)}
+
+					{/* Player Distribution Section */}
+					{!isDataTableMode && (isLoadingPlayerDistribution ? (
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<SankeyChartSkeleton />
+								</div>
+							</div>
+						</SkeletonTheme>
+					) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
+						// Validate that all links reference existing nodes
+						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
+						const validLinks = sankeyData.links.filter((link: any) => 
+							nodeIds.has(link.source) && nodeIds.has(link.target)
+						);
+						
+						if (validLinks.length === 0) return null;
+						
+						// Custom label layer component that shows player count for team nodes
+						const CustomLabelLayer = ({ nodes, links: nivoLinks }: any) => {
+							return (
+								<g>
+									{nodes.map((node: any) => {
+										const nodeX = (node.x0 + node.x1) / 2;
+										const nodeY = node.y0;
+										const nodeHeight = node.y1 - node.y0;
+										
+										if (node.id === "Players") {
+											// Look up original node from sankeyData to get label with count
+											const originalNode = sankeyData.nodes.find((n: any) => n.id === "Players");
+											const labelText = originalNode?.label || node.label || "Players";
+											
+											// For Players node, show horizontal label at the top
+											return (
+												<g key={node.id}>
+													<text
+														x={nodeX}
+														y={nodeY - 10}
+														textAnchor="middle"
+														dominantBaseline="middle"
+														fill="#fff"
+														fontSize={12}
+														fontWeight="bold"
+													>
+														{labelText}
+													</text>
+												</g>
+											);
+										}
+										// For team nodes, show label and player count below
+										// Find the link that targets this node to get the correct count
+										// First try to get from node's playerCount property (set in sankeyData)
+										// Then try from validLinks (original data)
+										// Finally try from Nivo's processed links
+										let playerCount = node.playerCount;
+										if (!playerCount) {
+											// Try from original validLinks first (most reliable)
+											const originalLink = validLinks.find((l: any) => l.target === node.id);
+											if (originalLink) {
+												playerCount = originalLink.value;
+											} else {
+												// Fall back to Nivo's processed links
+												const matchingLink = nivoLinks.find((link: any) => {
+													const targetId = typeof link.target === 'object' ? (link.target.id ?? link.target) : link.target;
+													return targetId === node.id;
+												});
+												playerCount = matchingLink?.data?.value ?? matchingLink?.value ?? matchingLink?.thickness ?? 0;
+											}
+										}
+										return (
+											<g key={node.id}>
+												<text
+													x={nodeX}
+													y={nodeY + nodeHeight + 25}
+													textAnchor="middle"
+													dominantBaseline="middle"
+													fill="#fff"
+													fontSize={12}
+													fontWeight="bold"
+												>
+													{node.label}
+												</text>
+												<text
+													x={nodeX}
+													y={nodeY + nodeHeight + 40}
+													textAnchor="middle"
+													dominantBaseline="middle"
+													fill="#fff"
+													fontSize={11}
+												>
+													{playerCount}
+												</text>
+											</g>
+										);
+									})}
+								</g>
+							);
+						};
+						
+						return (
+						<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
+									<ResponsiveSankey
+										data={{ nodes: sankeyData.nodes, links: validLinks }}
+										margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
+										layout="vertical"
+										align="justify"
+										colors={{ scheme: 'set3' }}
+										nodeOpacity={0.8}
+										nodeThickness={18}
+										nodeSpacing={24}
+										nodeBorderWidth={0}
+										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+										linkOpacity={0.4}
+										linkHoverOthersOpacity={0.1}
+										enableLinkGradient={true}
+										labelPosition="outside"
+										labelOrientation="horizontal"
+										labelPadding={8}
+										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+										nodeTooltip={() => null}
+										linkTooltip={() => null}
+										isInteractive={false}
+										layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
+										theme={{
+											text: { fill: '#fff', fontSize: 12 },
+										}}
+									/>
+								</div>
+							</div>
+						</div>
+						);
+					})())}
+
+					{/* Player Tenure Section */}
+					{!isDataTableMode && (isLoadingPlayerTenure ? (
+						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+							<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<Skeleton height={20} width="40%" className="mb-2" />
+									<ChartSkeleton />
+								</div>
+							</div>
+						</SkeletonTheme>
+					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
+						<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={tenureHistogramData} layout="vertical" margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis type="number" stroke='#fff' fontSize={12} />
+											<YAxis type="category" dataKey='seasons' stroke='#fff' fontSize={12} width={120} />
+											<Tooltip content={tenureTooltip} />
+											<Bar dataKey='players' fill='#f9ed32' radius={[0, 4, 4, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							</div>
+						</div>
+					))}
+
+					{/* Stats Distribution Section */}
+					{!isDataTableMode && (
+					<div id='club-stats-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
+							<div className='mb-2'>
+								<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
+									<div className='relative'>
+										<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+											<span className='block truncate text-white'>
+												{getPositionStatLabel(selectedPositionStat)}
+											</span>
+											<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+												<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+											</span>
+										</Listbox.Button>
+										<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+											{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+												<Listbox.Option
+													key={statType}
+													className={({ active }) =>
+														`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+													}
+													value={statType}>
+													{({ selected }) => (
+														<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+															{getPositionStatLabel(statType)}
+														</span>
+													)}
+												</Listbox.Option>
+											))}
+										</Listbox.Options>
+									</div>
+								</Listbox>
+							</div>
+							{isLoadingPositionStats ? (
+								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+									<ChartSkeleton />
+								</SkeletonTheme>
+							) : positionStatsData.length > 0 ? (
+								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+									<ResponsiveContainer width='100%' height={300}>
+										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
+											<YAxis 
+												stroke='#fff' 
+												fontSize={12} 
+												tickFormatter={(value) => value.toLocaleString('en-US')}
+											/>
+											<Tooltip content={statsDistributionTooltip} />
+											<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+										</BarChart>
+									</ResponsiveContainer>
+								</div>
+							) : (
+								<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
+									<p className='text-white text-sm'>No data available</p>
+								</div>
+							)}
+						</div>
+					</div>
+					)}
 				</div>
 			)}
 		</div>

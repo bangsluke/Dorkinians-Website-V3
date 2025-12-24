@@ -41,6 +41,7 @@ export default function ClubInfoContainer() {
 
 	return (
 		<div className='h-full overflow-hidden'>
+
 			{/* Swipeable Content - Scrollable area */}
 			<AnimatePresence mode='wait'>
 				<motion.div
@@ -59,8 +60,8 @@ export default function ClubInfoContainer() {
 						WebkitOverflowScrolling: 'touch'
 					}}
 					className='h-full overflow-y-auto'>
-					{/* Club Info Sub-Page Dot Indicators - Scrolls with content */}
-					<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
+					{/* Club Info Sub-Page Dot Indicators - Mobile only, scrolls with content */}
+					<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0'>
 						{clubInfoSubPages.map((page, index) => (
 							<button
 								key={page.id}

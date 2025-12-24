@@ -14,6 +14,7 @@ import {
 	ClockIcon,
 	CheckCircleIcon,
 	XCircleIcon,
+	XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
 
@@ -93,18 +94,33 @@ export default function Settings() {
 		setMainPage("home");
 	};
 
+	const handleCloseClick = () => {
+		setMainPage("home");
+	};
+
 	return (
 		<div className='h-full flex flex-col'>
 			{/* Header */}
-			<div className='flex items-center mb-4 p-4 pb-0 pl-6'>
+			<div className='flex items-center justify-between mb-4 p-4 pb-0 pl-6'>
+				<div className='flex items-center'>
+					<motion.button
+						onClick={handleBackClick}
+						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.9 }}>
+						<ArrowLeftIcon className='w-6 h-6 text-white' />
+					</motion.button>
+					<h1 className='text-3xl font-bold text-white'>Settings</h1>
+				</div>
+				{/* Desktop Close Button */}
 				<motion.button
-					onClick={handleBackClick}
-					className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
+					onClick={handleCloseClick}
+					className='hidden md:flex p-2 rounded-full hover:bg-white/20 transition-colors'
 					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.9 }}>
-					<ArrowLeftIcon className='w-6 h-6 text-white' />
+					whileTap={{ scale: 0.9 }}
+					aria-label="Close settings">
+					<XMarkIcon className='w-6 h-6 text-white' />
 				</motion.button>
-				<h1 className='text-3xl font-bold text-white'>Settings</h1>
 			</div>
 
 			{/* Navigation List */}

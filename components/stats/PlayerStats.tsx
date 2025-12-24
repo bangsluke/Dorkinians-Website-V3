@@ -2550,10 +2550,10 @@ export default function PlayerStats() {
 	};
 
 	const chartContent = (
-		<div className='space-y-4 pb-4'>
+		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 			{/* Key Performance Stats Grid */}
-			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) && (
-				<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) ? (
+				<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
 					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 						{keyPerformanceData.map((item) => {
@@ -2597,10 +2597,10 @@ export default function PlayerStats() {
 						})}
 					</div>
 				</div>
-			)}
+			) : null}
 
 			{/* Seasonal Performance Section */}
-			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				{allSeasonsSelected && (
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
@@ -2703,7 +2703,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Team Performance Section */}
-			<div id='team-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='team-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				{allTeamsSelected && (
 					<div className='flex items-center justify-between mb-2 gap-2'>
 						<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Team Performance</h3>
@@ -2781,7 +2781,7 @@ export default function PlayerStats() {
 
 			{/* Positional Stats Visualization */}
 			{(toNumber(validPlayerData.gk) > 0 || toNumber(validPlayerData.def) > 0 || toNumber(validPlayerData.mid) > 0 || toNumber(validPlayerData.fwd) > 0) && (
-				<div id='positional-stats'>
+				<div id='positional-stats' className='md:break-inside-avoid md:mb-4'>
 				<PositionalStatsVisualization
 					gk={toNumber(validPlayerData.gk)}
 					def={toNumber(validPlayerData.def)}
@@ -2817,7 +2817,7 @@ export default function PlayerStats() {
 				const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 				
 				return (
-					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div id='match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 						<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 						<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -2867,7 +2867,7 @@ export default function PlayerStats() {
 			{/* Game Details Section */}
 			{isLoadingGameDetails ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 						<Skeleton height={20} width="40%" className="mb-4" />
 						<TableSkeleton rows={3} />
 						<TableSkeleton rows={2} />
@@ -2879,7 +2879,7 @@ export default function PlayerStats() {
 					</div>
 				</SkeletonTheme>
 			) : gameDetails && (
-				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div id='game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 					<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 					
 					{/* CompType Table */}
@@ -2996,7 +2996,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Monthly Performance Section */}
-			<div id='monthly-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='monthly-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<div className='flex items-center justify-between mb-2 gap-2'>
 					<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Monthly Performance</h3>
 					<div className='flex-1 max-w-[45%]'>
@@ -3063,7 +3063,7 @@ export default function PlayerStats() {
 			</div>
 
 			{/* Defensive Record Section */}
-			<div id='defensive-record'>
+			<div id='defensive-record' className='md:break-inside-avoid md:mb-4'>
 			{(() => {
 				const concededVal = toNumber(validPlayerData.conceded);
 				const cleanSheetsVal = toNumber(validPlayerData.cleanSheets);
@@ -3091,7 +3091,7 @@ export default function PlayerStats() {
 
 			{/* Distance Travelled Section */}
 			{toNumber(validPlayerData.distance) > 0 && toNumber(validPlayerData.awayGames) > 0 && (
-				<div id='distance-travelled'>
+				<div id='distance-travelled' className='md:break-inside-avoid md:mb-4'>
 					<DistanceTravelledSection
 						distance={toNumber(validPlayerData.distance)}
 						awayGames={toNumber(validPlayerData.awayGames)}
@@ -3101,13 +3101,13 @@ export default function PlayerStats() {
 
 			{/* Opposition Map */}
 			{oppositionMapData.length > 0 && (
-				<div id='opposition-locations'>
+				<div id='opposition-locations' className='md:break-inside-avoid md:mb-4'>
 					<OppositionMap oppositions={oppositionMapData} isLoading={isLoadingOppositionMap} />
 				</div>
 			)}
 
 			{/* Opposition Performance Section */}
-			<div id='opposition-performance'>
+			<div id='opposition-performance' className='md:break-inside-avoid md:mb-4'>
 			{(() => {
 				const hasGoalsOrAssists = toNumber(validPlayerData.goals) > 0 || toNumber(validPlayerData.assists) > 0;
 				const isSingleOppositionSelected = !playerFilters.opposition.allOpposition && playerFilters.opposition.searchTerm !== "";
@@ -3127,7 +3127,7 @@ export default function PlayerStats() {
 
 			{/* Fantasy Points Section */}
 			{toNumber(validPlayerData.fantasyPoints) > 0 && (
-				<div id='fantasy-points'>
+				<div id='fantasy-points' className='md:break-inside-avoid md:mb-4'>
 				<FantasyPointsSection
 					playerName={selectedPlayer || ""}
 					fantasyBreakdown={fantasyBreakdown}
@@ -3239,7 +3239,7 @@ export default function PlayerStats() {
 
 			{/* Penalty Stats Custom Visualization */}
 			{(toNumber(validPlayerData.penaltiesScored) > 0 || toNumber(validPlayerData.penaltiesMissed) > 0 || toNumber(validPlayerData.penaltiesSaved) > 0 || toNumber(validPlayerData.penaltiesConceded) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesScored) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesMissed) > 0 || toNumber(validPlayerData.penaltyShootoutPenaltiesSaved) > 0) && (
-				<div id='penalty-stats'>
+				<div id='penalty-stats' className='md:break-inside-avoid md:mb-4'>
 				<PenaltyStatsVisualization
 					scored={toNumber(validPlayerData.penaltiesScored)}
 					missed={toNumber(validPlayerData.penaltiesMissed)}
@@ -3254,7 +3254,7 @@ export default function PlayerStats() {
 
 			{/* Minutes per Stats Section */}
 			{toNumber(validPlayerData.minutes) > 0 && (
-				<div id='minutes-per-stats'>
+				<div id='minutes-per-stats' className='md:break-inside-avoid md:mb-4'>
 				<MinutesPerStatsSection
 					minutes={toNumber(validPlayerData.minutes)}
 					allGoalsScored={toNumber(validPlayerData.allGoalsScored)}
@@ -3270,7 +3270,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Awards and Achievements Section */}
-			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Awards and Achievements</h3>
 				{isLoadingAwards ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
