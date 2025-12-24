@@ -1383,13 +1383,85 @@ export class ChatbotService {
 			}
 		} else if (data && data.type === "league_table") {
 			// Handle league table data
-			const leagueTableData = (data.data as LeagueTableEntry[]) || [];
-			if (leagueTableData.length === 0) {
-				answer = "No league table data found.";
+			// Check if answer is already provided by query handler
+			if (data.answer) {
+				answer = data.answer as string;
+				const leagueTableData = (data.data as LeagueTableEntry[]) || [];
+				if (leagueTableData.length > 0) {
+					answerValue = leagueTableData[0].position;
+				}
 			} else {
-				const topEntry = leagueTableData[0];
-				answer = `${topEntry.team} is ranked #${topEntry.position} with ${topEntry.points} points.`;
-				answerValue = topEntry.points;
+				// Fallback: generate answer
+				const leagueTableData = (data.data as LeagueTableEntry[]) || [];
+				if (leagueTableData.length === 0) {
+					answer = "No league table data found.";
+				} else {
+					const topEntry = leagueTableData[0];
+					const positionSuffix = topEntry.position === 1 ? "st" : 
+					                       topEntry.position === 2 ? "nd" : 
+					                       topEntry.position === 3 ? "rd" : "th";
+					answer = `${topEntry.team} were ranked ${topEntry.position}${positionSuffix} with ${topEntry.points} points.`;
+					answerValue = topEntry.position;
+				}
+			}
+			
+			// Always display the full league table if available
+			const fullTable = (data.fullTable as LeagueTableEntry[]) || [];
+			if (fullTable.length > 0) {
+				// Transform league table data for visualization
+				const tableData = fullTable.map((entry) => ({
+					Position: entry.position,
+					Team: entry.team,
+					Played: entry.played,
+					Won: entry.won,
+					Drawn: entry.drawn,
+					Lost: entry.lost,
+					"Goals For": entry.goalsFor,
+					"Goals Against": entry.goalsAgainst,
+					"Goal Difference": entry.goalDifference,
+					Points: entry.points,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Position", label: "Pos" },
+							{ key: "Team", label: "Team" },
+							{ key: "Played", label: "P" },
+							{ key: "Won", label: "W" },
+							{ key: "Drawn", label: "D" },
+							{ key: "Lost", label: "L" },
+							{ key: "Goals For", label: "F" },
+							{ key: "Goals Against", label: "A" },
+							{ key: "Goal Difference", label: "GD" },
+							{ key: "Points", label: "Pts" },
+						],
+					},
+				};
+			}
+		} else if (data && data.type === "highest_scoring_game") {
+			// Handle highest scoring game queries
+			const gameData = data.data as {
+				date: string;
+				opposition: string;
+				homeOrAway: string;
+				result: string;
+				dorkiniansGoals: number;
+				conceded: number;
+				totalGoals: number;
+			} | null;
+			
+			if (!gameData) {
+				answer = (data.message as string) || "No highest scoring game found.";
+			} else {
+				const teamName = (data.teamName as string) || "";
+				const season = (data.season as string) || "";
+				const location = gameData.homeOrAway === "Home" ? "at home" : gameData.homeOrAway === "Away" ? "away" : "";
+				const formattedDate = DateUtils.formatDate(gameData.date);
+				answer = `The highest scoring game for the ${teamName} in ${season} was ${gameData.dorkiniansGoals}-${gameData.conceded} ${gameData.result === "W" ? "win" : gameData.result === "D" ? "draw" : "loss"} against ${gameData.opposition}${location ? ` ${location}` : ""} on ${formattedDate} (${gameData.totalGoals} total goals).`;
+				answerValue = gameData.totalGoals;
 			}
 		} else if (data && data.type === "team_stats") {
 			// Handle team statistics queries
