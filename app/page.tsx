@@ -7,6 +7,7 @@ import Header from "@/components/Header";
 import FilterSidebar from "@/components/filters/FilterSidebar";
 import StatsNavigationMenu from "@/components/stats/StatsNavigationMenu";
 import FooterNavigation from "@/components/FooterNavigation";
+import SidebarNavigation from "@/components/SidebarNavigation";
 import StatsContainer from "@/components/StatsContainer";
 import TOTWContainer from "@/components/TOTWContainer";
 import ClubInfoContainer from "@/components/ClubInfoContainer";
@@ -337,7 +338,16 @@ export default function HomePage() {
 	return (
 		<>
 			<div className='min-h-screen'>
-				{/* Header */}
+				{/* Desktop Sidebar Navigation */}
+				<SidebarNavigation 
+					onSettingsClick={handleSettingsClick} 
+					onFilterClick={handleFilterClick} 
+					showFilterIcon={showFilterIcon}
+					onMenuClick={handleMenuClick}
+					showMenuIcon={showMenuIcon}
+				/>
+
+				{/* Mobile Header */}
 				<Header 
 					onSettingsClick={handleSettingsClick} 
 					onFilterClick={handleFilterClick} 
@@ -360,7 +370,7 @@ export default function HomePage() {
 					</div>
 				</main>
 
-				{/* Footer Navigation */}
+				{/* Mobile Footer Navigation */}
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}

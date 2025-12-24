@@ -1168,11 +1168,19 @@ export default function TeamStats() {
 				</div>
 			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<RecentGamesSkeleton />
-						<TopPlayersTableSkeleton />
-						<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<RecentGamesSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+						</div>
 					</div>
 				</SkeletonTheme>
 			) : !teamData ? (
@@ -1185,12 +1193,15 @@ export default function TeamStats() {
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-					{/* Key Performance Stats - Only show in data visualisation mode */}
-					{!isDataTableMode && (
-						<div id='team-key-performance-stats' className='mb-4'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
-								<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
+								{/* Key Performance Stats - Only show in data visualisation mode */}
+								{!isDataTableMode && (
+									<div id='team-key-performance-stats' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+											<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
@@ -1281,23 +1292,19 @@ export default function TeamStats() {
 										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
 									</div>
 								</div>
-							</div>
-						</div>
-					</div>
-					)}
+											</div>
+										</div>
+									</div>
+								)}
 
-					{/* Recent Games Form */}
-					{!isDataTableMode && selectedTeam && apiFilters && (
-						<div id='team-recent-games'>
-							<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
-						</div>
-					)}
-
-					{(() => {
-						const chartContent = (
-							<div className='space-y-4 pb-4'>
+								{/* Recent Games Form */}
+								{!isDataTableMode && selectedTeam && apiFilters && (
+									<div id='team-recent-games' className='md:break-inside-avoid md:mb-4'>
+										<RecentGamesForm teamName={selectedTeam} filters={apiFilters} />
+									</div>
+								)}
 								{/* Top Players Table */}
-								<div id='team-top-players' className='mb-4 flex-shrink-0'>
+								<div id='team-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1418,7 +1425,7 @@ export default function TeamStats() {
 
 								{/* Seasonal Performance Section */}
 								{allSeasonsSelected && (
-									<div id='team-seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-seasonal-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<div className='flex items-center justify-between mb-2 gap-2'>
 											<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
 											<div className='flex-1 max-w-[45%]'>
@@ -1519,7 +1526,7 @@ export default function TeamStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div id='team-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -1568,7 +1575,7 @@ export default function TeamStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -1633,7 +1640,7 @@ export default function TeamStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -1644,7 +1651,7 @@ export default function TeamStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Team Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
@@ -1776,7 +1783,7 @@ export default function TeamStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -1800,7 +1807,7 @@ export default function TeamStats() {
 										</div>
 									</SkeletonTheme>
 								) : uniquePlayerStats && (
-									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='team-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the {selectedTeam || "2s"}: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>
@@ -1888,7 +1895,7 @@ export default function TeamStats() {
 
 								{/* Best Season Finish Section */}
 								{selectedTeam && (
-									<div id='team-best-season-finish'>
+									<div id='team-best-season-finish' className='md:break-inside-avoid md:mb-4'>
 										{isDateRangeFilter ? (
 											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 												<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Best Season Finish</h3>

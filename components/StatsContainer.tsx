@@ -89,8 +89,8 @@ export default function StatsContainer() {
 
 	return (
 		<div className='h-full overflow-hidden'>
-			{/* Stats Sub-Page Dot Indicators */}
-			<div className='flex justify-center space-x-3 pt-2.5 pb-0'>
+			{/* Stats Sub-Page Dot Indicators - Mobile only */}
+			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0'>
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
