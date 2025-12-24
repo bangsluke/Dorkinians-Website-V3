@@ -383,8 +383,8 @@
 		width: 100%;
 	}
 
-	.player-stats-masonry > *,
-	.player-stats-masonry > div {
+	.player-stats-masonry > *:not(.single-column-section),
+	.player-stats-masonry > div:not(.single-column-section) {
 		break-inside: avoid !important;
 		page-break-inside: avoid !important;
 		-webkit-column-break-inside: avoid !important;
@@ -392,6 +392,23 @@
 		width: 100% !important;
 		margin-bottom: 1rem !important;
 		box-sizing: border-box;
+	}
+
+	/* Override column layout for containers with single-column sections */
+	.player-stats-masonry:has(.single-column-section) {
+		display: grid !important;
+		grid-template-columns: repeat(2, 1fr) !important;
+		gap: 1rem !important;
+		column-count: unset !important;
+		column-gap: unset !important;
+	}
+
+	.player-stats-masonry .single-column-section {
+		box-sizing: border-box !important;
+		margin-bottom: 1rem !important;
+		break-inside: avoid !important;
+		page-break-inside: avoid !important;
+		-webkit-column-break-inside: avoid !important;
 	}
 }
 

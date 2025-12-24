@@ -886,6 +886,7 @@ export default function ClubStats() {
 		fetchPositionStats();
 	}, [filtersKey, selectedPositionStat, playerFilters]);
 
+
 	// Handle stat type selection
 	const handleStatTypeSelect = (statType: StatType) => {
 		setSelectedStatType(statType);
@@ -1465,11 +1466,19 @@ export default function ClubStats() {
 
 			{(isLoadingTeamData || appConfig.forceSkeletonView) ? (
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<RadarChartSkeleton />
-						<TopPlayersTableSkeleton />
-						<ChartSkeleton />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<RadarChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
 					</div>
 				</SkeletonTheme>
 			) : !teamData ? (
@@ -1482,13 +1491,15 @@ export default function ClubStats() {
 				<div 
 					className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto overflow-x-hidden'
 					style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-					{/* Key Performance Stats */}
-					{!isDataTableMode && (
-					<div className='md:grid md:grid-cols-2 md:gap-4 md:space-y-0 space-y-4 pb-4'>
-						<div id='club-key-performance-stats' className='mb-4'>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					{(() => {
+						const chartContent = (
+							<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
+								{/* Key Performance Stats */}
+								{!isDataTableMode && (
+									<div id='club-key-performance-stats' className='mb-4 md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
-							<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+							<div className='grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4'>
 								<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 									<div className='flex-shrink-0'>
 										<Image
@@ -1579,18 +1590,18 @@ export default function ClubStats() {
 										<div className='text-white font-bold text-xl md:text-2xl'>{toNumber(teamData.cleanSheets).toLocaleString()}</div>
 									</div>
 								</div>
-							</div>
-						</div>
-					</div>
-					)}
+										</div>
+									</div>
+								</div>
+								)}
 
-					{/* Team Comparison Section */}
+								{/* Team Comparison Section */}
 					{!isDataTableMode && (isLoadingTeamComparison ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 							<RadarChartSkeleton />
 						</SkeletonTheme>
 					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
-						<div id='club-team-comparison' className='mb-4'>
+						<div id='club-team-comparison' className='mb-4 md:break-inside-avoid md:mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
 								{/* Team visibility checkboxes */}
@@ -1703,14 +1714,10 @@ export default function ClubStats() {
 								</div>
 							</div>
 						</div>
-					))}
+									))}
 
-					{/* Top Players Table */}
-					{(() => {
-						const chartContent = (
-							<div className='space-y-4'>
 								{/* Top Players Table */}
-								<div id='club-top-players' className='mb-4 flex-shrink-0'>
+								<div id='club-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1830,14 +1837,12 @@ export default function ClubStats() {
 								</div>
 							</div>
 						);
-						return !isDataTableMode && chartContent;
+						return chartContent;
 					})()}
-					</div>
-					)}
 
 					{/* Seasonal Performance Section */}
 					{!isDataTableMode && allSeasonsSelected && (
-						<div id='club-seasonal-performance' className='mb-4'>
+						<div id='club-seasonal-performance' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<div className='flex items-center justify-between mb-2 gap-2'>
 									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
@@ -1933,7 +1938,7 @@ export default function ClubStats() {
 					{/* Player Distribution Section */}
 					{!isDataTableMode && (isLoadingPlayerDistribution ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-distribution' className='mb-4'>
+							<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<SankeyChartSkeleton />
 								</div>
@@ -2030,7 +2035,7 @@ export default function ClubStats() {
 						};
 						
 						return (
-						<div id='club-player-distribution' className='mb-4'>
+						<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
 								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
@@ -2069,7 +2074,7 @@ export default function ClubStats() {
 					{/* Player Tenure Section */}
 					{!isDataTableMode && (isLoadingPlayerTenure ? (
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-tenure' className='mb-4'>
+							<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 									<Skeleton height={20} width="40%" className="mb-2" />
 									<ChartSkeleton />
@@ -2077,7 +2082,7 @@ export default function ClubStats() {
 							</div>
 						</SkeletonTheme>
 					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
-						<div id='club-player-tenure' className='mb-4'>
+						<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
 								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
@@ -2097,7 +2102,7 @@ export default function ClubStats() {
 
 					{/* Stats Distribution Section */}
 					{!isDataTableMode && (
-					<div id='club-stats-distribution' className='mb-4'>
+					<div id='club-stats-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section' style={{ width: 'calc(50% - 0.5rem)', maxWidth: 'calc(50% - 0.5rem)', display: 'block', boxSizing: 'border-box', marginBottom: '1rem' } as React.CSSProperties}>
 						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
 							<div className='mb-2'>
@@ -2161,7 +2166,7 @@ export default function ClubStats() {
 
 					{(() => {
 						const chartContent = (
-							<div className='space-y-4 pb-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0'>
+							<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 								{/* Win/Draw/Loss Pie Chart */}
 								{pieChartData.length > 0 && (() => {
 									const wins = toNumber(teamData.wins || 0);
@@ -2172,7 +2177,7 @@ export default function ClubStats() {
 									const pointsPerGameFormatted = Math.min(3, Math.max(0, pointsPerGame)).toFixed(1);
 									
 									return (
-									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-match-results' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Match Results</h3>
 										<p className='text-white text-sm mb-2 text-center'>Points per game: {pointsPerGameFormatted}</p>
 										<div className='chart-container -my-2' style={{ touchAction: 'pan-y' }}>
@@ -2225,7 +2230,7 @@ export default function ClubStats() {
 										<GameDetailsTableSkeleton />
 									</SkeletonTheme>
 								) : !isLoadingGameDetails && gameDetails && (
-									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-game-details' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Game Details</h3>
 										
 										{/* CompType Table */}
@@ -2339,7 +2344,7 @@ export default function ClubStats() {
 
 								{/* Big Club Numbers Section */}
 								{teamData && (
-									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-big-club-numbers' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Big Club Numbers</h3>
 										<div className='grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4'>
 											{teamData.totalMinutes && toNumber(teamData.totalMinutes) > 0 && (
@@ -2415,7 +2420,7 @@ export default function ClubStats() {
 
 								{/* Goals Scored vs Conceded Waterfall Chart */}
 								{(toNumber(teamData.goalsScored) > 0 || toNumber(teamData.goalsConceded) > 0) && (
-									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-goals-scored-conceded' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Goals Scored vs Conceded</h3>
 										<div className='chart-container' style={{ touchAction: 'pan-y' }}>
 											<ResponsiveContainer width='100%' height={300}>
@@ -2480,7 +2485,7 @@ export default function ClubStats() {
 
 								{/* Home vs Away Performance Dual Gauge */}
 								{(toNumber(teamData.homeGames) > 0 || toNumber(teamData.awayGames) > 0) && (
-									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-home-away-performance' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Home vs Away Performance</h3>
 										<HomeAwayGauge 
 											homeWinPercentage={toNumber(teamData.homeWinPercentage)} 
@@ -2491,9 +2496,9 @@ export default function ClubStats() {
 
 								{/* Key Team Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
-										<div className='grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4'>
+										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 												<div className='flex-shrink-0'>
 													<Image
@@ -2623,7 +2628,7 @@ export default function ClubStats() {
 								{/* Unique Player Stats Section */}
 								{isLoadingUniqueStats ? (
 									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 											<Skeleton height={20} width="40%" className="mb-2" />
 											<Skeleton height={16} width="60%" className="mb-3" />
 											<div className='overflow-x-auto'>
@@ -2647,7 +2652,7 @@ export default function ClubStats() {
 										</div>
 									</SkeletonTheme>
 								) : !isLoadingUniqueStats && uniquePlayerStats && (
-									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+									<div id='club-unique-player-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Unique Player Stats</h3>
 										<p className='text-white text-sm md:text-base mb-3'>
 											Unique players for the Club: <span className='font-bold'>{toNumber(teamData.numberOfPlayers).toLocaleString()}</span>

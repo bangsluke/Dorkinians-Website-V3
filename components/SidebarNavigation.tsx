@@ -53,11 +53,6 @@ const navigationItems = [
 export default function SidebarNavigation({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false, onMenuClick, showMenuIcon = false }: SidebarNavigationProps) {
 	const { currentMainPage, setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage, currentStatsSubPage, currentTOTWSubPage, currentClubInfoSubPage } = useNavigationStore();
 
-	// Hide sidebar on settings page
-	if (currentMainPage === "settings") {
-		return null;
-	}
-
 	const handleLogoClick = () => {
 		setMainPage("home");
 	};

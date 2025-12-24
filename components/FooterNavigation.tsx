@@ -43,7 +43,7 @@ export default function FooterNavigation() {
 							whileHover={{ scale: 1.05 }}
 							whileTap={{ scale: 0.95 }}>
 							<Icon className={`w-6 h-6 ${isActive ? "text-yellow-400" : ""}`} />
-							<span className={`text-sm font-medium ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
+							<span className={`text-sm font-medium whitespace-nowrap ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
 						</motion.button>
 					);
 				})}
