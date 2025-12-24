@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 
 interface CalendarProps {
@@ -18,12 +20,30 @@ interface GameDate {
 	[key: string]: unknown;
 }
 
+interface WeekValue {
+	weekNumber: number;
+	year: number;
+	value: number;
+}
+
+interface WeekBasedData {
+	weeks: WeekValue[];
+	highlightRange?: {
+		startWeek: number;
+		startYear: number;
+		endWeek: number;
+		endYear: number;
+	};
+}
+
 interface WeekData {
 	weekNumber: number;
 	year: number;
 	startDate: Date;
 	endDate: Date;
 	gameCount: number;
+	value: number;
+	isHighlighted: boolean;
 }
 
 interface MonthLabel {
@@ -77,15 +97,208 @@ function getWeeksInYear(year: number): number {
 	return weekNumDec31 === 53 ? 53 : 52;
 }
 
+// Get full month name from a week's date (using Thursday as reference)
+function getMonthName(weekStartDate: Date): string {
+	const thursday = new Date(weekStartDate);
+	thursday.setDate(weekStartDate.getDate() + 3);
+	const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+	return monthNames[thursday.getMonth()];
+}
+
+// Custom Tooltip Component
+interface TooltipProps {
+	week: WeekData;
+	show: boolean;
+	position: { top: number; left: number };
+}
+
+function Tooltip({ week, show, position }: TooltipProps) {
+	if (!show || typeof document === "undefined") return null;
+
+	const monthName = getMonthName(week.startDate);
+
+	return createPortal(
+		<div
+			className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg pointer-events-none'
+			style={{
+				backgroundColor: "#0f0f0f",
+				top: `${position.top}px`,
+				left: `${position.left}px`,
+			}}>
+			<div className='text-center space-y-1'>
+				<div className='font-semibold'>{week.year}</div>
+				<div>{monthName}</div>
+				<div>Week {week.weekNumber}</div>
+				<div className='font-medium' style={{ color: '#F9ED32' }}>Value: {week.value}</div>
+			</div>
+		</div>,
+		document.body
+	);
+}
+
+// Week Square Component with Tooltip
+interface WeekSquareProps {
+	week: WeekData;
+	maxValue: number;
+	opacity: number;
+}
+
+function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
+	const [showTooltip, setShowTooltip] = useState(false);
+	const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+	const squareRef = useRef<HTMLDivElement>(null);
+	const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+	const updateTooltipPosition = () => {
+		if (!squareRef.current) return;
+
+		const rect = squareRef.current.getBoundingClientRect();
+		const tooltipWidth = 120;
+		const tooltipHeight = 80;
+		const margin = 10;
+
+		// Position above the square by default
+		let top = rect.top + window.scrollY - tooltipHeight - margin;
+		let left = rect.left + window.scrollX + (rect.width / 2) - (tooltipWidth / 2);
+
+		// Adjust if tooltip would go above viewport
+		if (top < window.scrollY + margin) {
+			top = rect.bottom + window.scrollY + margin;
+		}
+
+		// Keep tooltip within viewport horizontally
+		if (left < window.scrollX + margin) {
+			left = window.scrollX + margin;
+		} else if (left + tooltipWidth > window.scrollX + window.innerWidth - margin) {
+			left = window.scrollX + window.innerWidth - tooltipWidth - margin;
+		}
+
+		setTooltipPosition({ top, left });
+	};
+
+	const handleMouseEnter = () => {
+		updateTooltipPosition();
+		timeoutRef.current = setTimeout(() => {
+			setShowTooltip(true);
+		}, 300);
+	};
+
+	const handleMouseLeave = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
+		setShowTooltip(false);
+	};
+
+	const handleTouchStart = () => {
+		updateTooltipPosition();
+		setShowTooltip(true);
+	};
+
+	const handleTouchEnd = () => {
+		setTimeout(() => {
+			setShowTooltip(false);
+		}, 2000);
+	};
+
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
+
+	// Determine background color
+	let backgroundColor: string;
+	if (week.isHighlighted) {
+		// Dorkinians Green with opacity
+		backgroundColor = `rgba(28, 136, 65, ${opacity})`;
+	} else if (week.value > 0) {
+		// Yellow with opacity
+		backgroundColor = `rgba(249, 237, 50, ${opacity})`;
+	} else {
+		// White with transparency
+		backgroundColor = `rgba(255, 255, 255, ${opacity})`;
+	}
+
+	return (
+		<>
+			<div
+				ref={squareRef}
+				className='w-6 h-6 rounded flex items-center justify-center relative cursor-pointer'
+				style={{ backgroundColor }}
+				onMouseEnter={handleMouseEnter}
+				onMouseLeave={handleMouseLeave}
+				onTouchStart={handleTouchStart}
+				onTouchEnd={handleTouchEnd}>
+				<span
+					className='text-xs font-medium'
+					style={{
+						fontSize: '9px',
+						color: week.value > 0 ? '#000000' : 'rgba(255, 255, 255, 0.6)',
+					}}>
+					{week.weekNumber}
+				</span>
+			</div>
+			<Tooltip week={week} show={showTooltip} position={tooltipPosition} />
+		</>
+	);
+}
+
 export default function Calendar({ visualization }: CalendarProps) {
 	if (!visualization) return null;
 
-	// Handle both date range format and array of game dates
+	// Handle week-based format, date range format, and array of game dates
 	let startDate: Date;
 	let endDate: Date;
 	const gameDates = new Set<string>(); // Set of dates that have games
+	let weekBasedData: WeekBasedData | null = null;
+	let highlightRange: WeekBasedData["highlightRange"] = undefined;
 
-	if (Array.isArray(visualization.data) && visualization.data.length > 0) {
+	// Check for new week-based format
+	if (
+		visualization.data &&
+		typeof visualization.data === "object" &&
+		"weeks" in visualization.data &&
+		Array.isArray((visualization.data as WeekBasedData).weeks)
+	) {
+		weekBasedData = visualization.data as WeekBasedData;
+		highlightRange = weekBasedData.highlightRange;
+
+		// Determine date range from weeks
+		const weeks = weekBasedData.weeks;
+		if (weeks.length === 0) {
+			return (
+				<div className='mt-4 p-4 dark-dropdown rounded-lg'>
+					<p className='text-yellow-300'>No valid week data available</p>
+				</div>
+			);
+		}
+
+		// Find earliest and latest weeks
+		let earliestWeek = weeks[0];
+		let latestWeek = weeks[0];
+
+		for (const week of weeks) {
+			const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+			const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+			const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+
+			if (weekStart < earliestStart) {
+				earliestWeek = week;
+			}
+			if (weekStart > latestStart) {
+				latestWeek = week;
+			}
+		}
+
+		startDate = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+		const latestWeekStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+		endDate = new Date(latestWeekStart);
+		endDate.setDate(latestWeekStart.getDate() + 6);
+	} else if (Array.isArray(visualization.data) && visualization.data.length > 0) {
 		// Handle array of game dates (streak data format)
 		const gameData = visualization.data as GameDate[];
 		
@@ -144,18 +357,36 @@ export default function Calendar({ visualization }: CalendarProps) {
 	// Process weeks for each year
 	const yearWeeks: Map<number, WeekData[]> = new Map();
 	const yearGameCounts: Map<number, Map<number, number>> = new Map(); // year -> week -> count
+	const yearWeekValues: Map<number, Map<number, number>> = new Map(); // year -> week -> value (for week-based format)
 
-	// Count games per week
-	for (const dateStr of gameDates) {
-		const date = new Date(dateStr);
-		const year = date.getFullYear();
-		const week = weekNum(date);
-		
-		if (!yearGameCounts.has(year)) {
-			yearGameCounts.set(year, new Map());
+	// Handle week-based data format
+	if (weekBasedData) {
+		for (const week of weekBasedData.weeks) {
+			if (!yearWeekValues.has(week.year)) {
+				yearWeekValues.set(week.year, new Map());
+			}
+			const weekValues = yearWeekValues.get(week.year)!;
+			weekValues.set(week.weekNumber, week.value);
+			// Also set gameCount for backward compatibility with existing rendering logic
+			if (!yearGameCounts.has(week.year)) {
+				yearGameCounts.set(week.year, new Map());
+			}
+			const weekCounts = yearGameCounts.get(week.year)!;
+			weekCounts.set(week.weekNumber, week.value > 0 ? 1 : 0);
 		}
-		const weekCounts = yearGameCounts.get(year)!;
-		weekCounts.set(week, (weekCounts.get(week) || 0) + 1);
+	} else {
+		// Count games per week from dates
+		for (const dateStr of gameDates) {
+			const date = new Date(dateStr);
+			const year = date.getFullYear();
+			const week = weekNum(date);
+			
+			if (!yearGameCounts.has(year)) {
+				yearGameCounts.set(year, new Map());
+			}
+			const weekCounts = yearGameCounts.get(year)!;
+			weekCounts.set(week, (weekCounts.get(week) || 0) + 1);
+		}
 	}
 
 	// Generate all weeks for each year
@@ -163,6 +394,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 		const weeksInYear = getWeeksInYear(year);
 		const weeks: WeekData[] = [];
 		const weekCounts = yearGameCounts.get(year) || new Map();
+		const weekValues = yearWeekValues.get(year) || new Map();
 
 		for (let weekNum = 1; weekNum <= weeksInYear; weekNum++) {
 			const monday = getMondayOfWeek(year, weekNum);
@@ -177,12 +409,36 @@ export default function Calendar({ visualization }: CalendarProps) {
 				continue; // Skip weeks outside the date range
 			}
 
+			// Determine if this week is highlighted
+			let isHighlighted = false;
+			if (highlightRange) {
+				// Check if this week falls within the highlight range
+				if (year === highlightRange.startYear && year === highlightRange.endYear) {
+					// Same year range
+					isHighlighted = weekNum >= highlightRange.startWeek && weekNum <= highlightRange.endWeek;
+				} else if (year === highlightRange.startYear) {
+					// Start year - check if week is >= startWeek
+					isHighlighted = weekNum >= highlightRange.startWeek;
+				} else if (year === highlightRange.endYear) {
+					// End year - check if week is <= endWeek
+					isHighlighted = weekNum <= highlightRange.endWeek;
+				} else if (year > highlightRange.startYear && year < highlightRange.endYear) {
+					// Year is between start and end years
+					isHighlighted = true;
+				}
+			}
+
+			// Get value from week-based data or use gameCount
+			const value = weekValues.has(weekNum) ? weekValues.get(weekNum)! : (weekCounts.get(weekNum) || 0);
+
 			weeks.push({
 				weekNumber: weekNum,
 				year: year,
 				startDate: monday,
 				endDate: sunday,
 				gameCount: weekCounts.get(weekNum) || 0,
+				value: value,
+				isHighlighted: isHighlighted,
 			});
 		}
 
@@ -241,8 +497,8 @@ export default function Calendar({ visualization }: CalendarProps) {
 
 				if (!weeks || weeks.length === 0) return null;
 
-				// Calculate max game count for opacity scaling
-				const maxGameCount = Math.max(...weeks.map((w) => w.gameCount), 1);
+				// Calculate max value for opacity scaling
+				const maxValue = Math.max(...weeks.map((w) => w.value), 1);
 
 				// Group weeks into rows (approximately 10 weeks per row for better visibility)
 				// This can be adjusted based on container width, but 10 is a good default
@@ -305,32 +561,20 @@ export default function Calendar({ visualization }: CalendarProps) {
 										<div className='flex gap-0.5'>
 											{rowWeeks.map((week, idx) => {
 												const globalIdx = startWeekIndex + idx;
-												// Calculate opacity: more games = more opaque (lower transparency)
-												// For weeks with games: opacity ranges from 0.4 (1 game) to 1.0 (max games)
-												// For weeks without games: white with high transparency (0.1)
-												const opacity = week.gameCount > 0
-													? 0.4 + (week.gameCount / maxGameCount) * 0.6
+												// Calculate opacity: more value = more opaque (lower transparency)
+												// For weeks with values: opacity ranges from 0.4 (1 value) to 1.0 (max value)
+												// For weeks without values: white with high transparency (0.1)
+												const opacity = week.value > 0
+													? 0.4 + (week.value / maxValue) * 0.6
 													: 0.1;
 
 												return (
-													<div
+													<WeekSquare
 														key={globalIdx}
-														className='w-6 h-6 rounded flex items-center justify-center relative'
-														style={{
-															backgroundColor: week.gameCount > 0
-																? `rgba(249, 237, 50, ${opacity})` // Yellow with opacity
-																: `rgba(255, 255, 255, ${opacity})`, // White with transparency
-														}}
-														title={`Week ${week.weekNumber}: ${week.startDate.toLocaleDateString()} - ${week.endDate.toLocaleDateString()}${week.gameCount > 0 ? ` (${week.gameCount} game${week.gameCount > 1 ? 's' : ''})` : ''}`}>
-														<span
-															className='text-xs font-medium'
-															style={{
-																fontSize: '9px',
-																color: week.gameCount > 0 ? '#000000' : 'rgba(255, 255, 255, 0.6)',
-															}}>
-															{week.weekNumber}
-														</span>
-													</div>
+														week={week}
+														maxValue={maxValue}
+														opacity={opacity}
+													/>
 												);
 											})}
 										</div>

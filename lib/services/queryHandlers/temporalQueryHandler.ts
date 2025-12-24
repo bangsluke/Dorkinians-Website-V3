@@ -174,12 +174,18 @@ export class TemporalQueryHandler {
 				.map((record: any) => record?.seasonWeek)
 				.filter((sw: string | null | undefined) => sw !== null && sw !== undefined && sw !== "");
 
-			// Extract date data for calendar visualization
+			// Create a map from seasonWeek to date for quick lookup
+			const seasonWeekToDateMap = new Map<string, string>();
 			const dateData = (result || [])
-				.map((record: any) => ({
-					date: record?.date,
-					seasonWeek: record?.seasonWeek,
-				}))
+				.map((record: any) => {
+					if (record?.seasonWeek && record?.date) {
+						seasonWeekToDateMap.set(record.seasonWeek, record.date);
+					}
+					return {
+						date: record?.date,
+						seasonWeek: record?.seasonWeek,
+					};
+				})
 				.filter((item: any) => item.date && item.seasonWeek);
 
 			if (seasonWeeks.length === 0) {
@@ -191,8 +197,52 @@ export class TemporalQueryHandler {
 			const longestStreak = streakResult.count;
 			const streakSequence = streakResult.sequence;
 			
+			// Calculate start and end dates for the streak
+			let streakStartDate: string | null = null;
+			let streakEndDate: string | null = null;
+			let highlightRange: { startWeek: number; startYear: number; endWeek: number; endYear: number } | undefined = undefined;
+
+			if (streakSequence.length > 0) {
+				// Get dates for first and last seasonWeek in the streak
+				const firstSeasonWeek = streakSequence[0];
+				const lastSeasonWeek = streakSequence[streakSequence.length - 1];
+				
+				streakStartDate = seasonWeekToDateMap.get(firstSeasonWeek) || null;
+				streakEndDate = seasonWeekToDateMap.get(lastSeasonWeek) || null;
+
+				// Calculate highlight range for calendar visualization
+				// Using Google Sheets WEEKNUM(date, 2) equivalent: Week starts Monday, Week 1 = week containing January 1st
+				if (streakStartDate && streakEndDate) {
+					const startDate = new Date(streakStartDate);
+					const endDate = new Date(streakEndDate);
+					
+					const getWeekNumber = (date: Date): { year: number; week: number } => {
+						const year = date.getFullYear();
+						const jan1 = new Date(year, 0, 1);
+						const jan1Day = jan1.getDay();
+						const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+						const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+						const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+						return { year, week: weekNumber };
+					};
+
+					const startWeekInfo = getWeekNumber(startDate);
+					const endWeekInfo = getWeekNumber(endDate);
+					
+					highlightRange = {
+						startWeek: startWeekInfo.week,
+						startYear: startWeekInfo.year,
+						endWeek: endWeekInfo.week,
+						endYear: endWeekInfo.year,
+					};
+				}
+			}
+			
 			loggingService.log(`✅ Calculated consecutive weekends streak: ${longestStreak} for player: ${playerName}`, null, "log");
 			loggingService.log(`📊 Longest consecutive streak sequence: ${streakSequence.join(' → ')}`, null, "log");
+			if (streakStartDate && streakEndDate) {
+				loggingService.log(`📅 Streak dates: ${streakStartDate} to ${streakEndDate}`, null, "log");
+			}
 
 			return { 
 				type: "streak", 
@@ -200,7 +250,10 @@ export class TemporalQueryHandler {
 				playerName, 
 				streakType: "consecutive_weekends", 
 				streakCount: longestStreak,
-				streakSequence: streakSequence
+				streakSequence: streakSequence,
+				streakStartDate: streakStartDate,
+				streakEndDate: streakEndDate,
+				highlightRange: highlightRange
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);
