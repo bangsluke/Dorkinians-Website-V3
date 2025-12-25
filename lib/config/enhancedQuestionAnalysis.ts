@@ -162,6 +162,53 @@ export class EnhancedQuestionAnalyzer {
 		return "simple";
 	}
 
+	// Check if any extracted player name partially matches the selected player (userContext)
+	private checkPartialPlayerNameMatch(extractionResult: EntityExtractionResult): string | null {
+		if (!this.userContext) {
+			return null;
+		}
+
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerEntities.length === 0) {
+			return null;
+		}
+
+		const selectedPlayerLower = this.userContext.toLowerCase().trim();
+		
+		// Check if any extracted player name is contained within the selected player name
+		// Use originalText to check the text before fuzzy matching resolved it
+		for (const entity of playerEntities) {
+			// Check originalText first (the text as extracted from the question)
+			const originalText = entity.originalText.toLowerCase().trim();
+			// Remove any "(resolved to: ...)" suffix that might be added during fuzzy matching
+			const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+			
+			// Skip "I" references as they're handled separately
+			if (cleanOriginalText === "i" || cleanOriginalText === "i've" || cleanOriginalText === "me" || cleanOriginalText === "my" || cleanOriginalText === "myself") {
+				continue;
+			}
+			
+			// Check if the original extracted text is contained in the selected player name
+			// Example: "Luke" (originalText) should match "Luke Bangs" (selectedPlayer)
+			if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2) {
+				return this.userContext;
+			}
+			
+			// Also check the resolved value as a fallback (in case originalText wasn't preserved correctly)
+			const entityValue = entity.value.toLowerCase().trim();
+			if (entityValue !== cleanOriginalText) {
+				// Only check if it's different from originalText
+				if (entityValue !== "i" && entityValue !== "i've" && entityValue !== "me" && entityValue !== "my" && entityValue !== "myself") {
+					if (selectedPlayerLower.includes(entityValue) && entityValue.length >= 2) {
+						return this.userContext;
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
 	// Check if clarification is needed based on the number of entities and stat types
 	private checkClarificationNeeded(extractionResult: EntityExtractionResult, complexity: "simple" | "moderate" | "complex"): boolean {
 		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
@@ -191,6 +238,29 @@ export class EnhancedQuestionAnalyzer {
 		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
 		const hasAmbiguousPlayerRef = playerEntities.some((e) => e.value === "I") && this.userContext;
 
+		// Check for ambiguous player names that don't match the selected player
+		// If we have player entities, userContext exists, but none of the player entities match the selected player
+		let hasAmbiguousPlayerName = false;
+		if (playerEntities.length > 0 && this.userContext) {
+			const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+			// If no match found and we have player entities that aren't "I" references, we may need clarification
+			if (!matchedPlayerName) {
+				const nonIPlayerEntities = playerEntities.filter((e) => {
+					// Check originalText (the text before fuzzy matching)
+					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					return originalText !== "i" && 
+						originalText !== "i've" && 
+						originalText !== "me" && 
+						originalText !== "my" && 
+						originalText !== "myself";
+				});
+				// If we have player entities that don't match the selected player, flag for clarification
+				if (nonIPlayerEntities.length > 0) {
+					hasAmbiguousPlayerName = true;
+				}
+			}
+		}
+
 		// Check for missing critical information
 		const hasNoEntities = namedEntities.length === 0;
 		const hasNoStatTypes = extractionResult.statTypes.length === 0;
@@ -208,8 +278,11 @@ export class EnhancedQuestionAnalyzer {
 
 		// FIXED: Only require clarification if BOTH entities AND stat types are missing (not either/or)
 		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
+		// Also require clarification if we have ambiguous player names that don't match the selected player
 		const needsClarification =
-			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || (complexity === "complex" && hasNoEntities && hasNoStatTypes);
+			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
+			(complexity === "complex" && hasNoEntities && hasNoStatTypes) ||
+			hasAmbiguousPlayerName;
 
 		return needsClarification;
 	}
@@ -226,6 +299,30 @@ export class EnhancedQuestionAnalyzer {
 		const teamCount = namedEntities.filter((e) => e.type === "team").length;
 		const oppositionCount = namedEntities.filter((e) => e.type === "opposition").length;
 		const leagueCount = namedEntities.filter((e) => e.type === "league").length;
+
+		// Check for ambiguous player names that don't match the selected player
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerCount > 0 && this.userContext) {
+			const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+			if (!matchedPlayerName) {
+				const nonIPlayerEntities = playerEntities.filter((e) => {
+					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					return originalText !== "i" && 
+						originalText !== "i've" && 
+						originalText !== "me" && 
+						originalText !== "my" && 
+						originalText !== "myself";
+				});
+				if (nonIPlayerEntities.length > 0) {
+					// Use originalText for the clarification message to show what was actually extracted
+					const playerNames = nonIPlayerEntities.map((e) => {
+						const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						return originalText;
+					}).join(", ");
+					return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
+				}
+			}
+		}
 
 		// Check if any single entity type exceeds 3
 		if (playerCount > 3) {
@@ -515,6 +612,10 @@ export class EnhancedQuestionAnalyzer {
 		// Phrases that should not be treated as player names
 		const invalidPlayerNames = ["goal count", "goal stats", "goal stat", "stats", "stat", "count"];
 
+		// Check if any extracted player name partially matches the selected player
+		const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+		let hasMatchedPlayer = false;
+
 		extractionResult.entities.forEach((entity) => {
 			if (entity.type === "player") {
 				const lowerValue = entity.value.toLowerCase();
@@ -524,6 +625,23 @@ export class EnhancedQuestionAnalyzer {
 				}
 				if (entity.value === "I" && this.userContext) {
 					entities.push(this.userContext);
+					hasMatchedPlayer = true;
+				} else if (matchedPlayerName && this.userContext) {
+					// matchedPlayerName is not null, meaning we found a partial match
+					// Use originalText to check the text before fuzzy matching
+					const originalText = entity.originalText.toLowerCase().trim();
+					const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					const selectedPlayerLower = this.userContext.toLowerCase().trim();
+					
+					// If the original extracted text is contained in the selected player name, use the full selected player name
+					// This ensures we use the selected player even if fuzzy matching resolved to a different player
+					if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2 && 
+						cleanOriginalText !== "i" && cleanOriginalText !== "i've" && cleanOriginalText !== "me" && cleanOriginalText !== "my" && cleanOriginalText !== "myself") {
+						entities.push(matchedPlayerName); // Use the matched player name (which is this.userContext)
+						hasMatchedPlayer = true;
+					} else {
+						entities.push(entity.value);
+					}
 				} else {
 					entities.push(entity.value);
 				}
@@ -1329,18 +1447,30 @@ export class EnhancedQuestionAnalyzer {
 		// Pattern to detect "games" questions (e.g., "How many games have I played?")
 		// This should map to "Apps" not "Saves"
 		const gamesPattern = /(?:how\s+many\s+games?|games?\s+(?:have|has|did)\s+.*?\s+(?:played|made|appeared))/i;
+		
+		// Pattern to detect "how many times has X played" questions (e.g., "How many times has Luke played?")
+		// This should map to "Apps" (appearances)
+		const timesPlayedPattern = /(?:how\s+many\s+times|times)\s+(?:has|have|did)\s+.*?\s+played/i;
 
-		if (gamesPattern.test(lowerQuestion) || (lowerQuestion.includes("games") && lowerQuestion.includes("played"))) {
+		if (gamesPattern.test(lowerQuestion) || (lowerQuestion.includes("games") && lowerQuestion.includes("played")) || timesPlayedPattern.test(lowerQuestion)) {
 			// Remove "Saves" if it was incorrectly detected
 			const filteredStats = statTypes.filter((stat) => stat.value !== "Saves" && stat.value !== "Saves Per Appearance");
 
 			// Add "Games" if not already present (which will map to "Apps")
 			const hasGames = filteredStats.some((stat) => stat.value === "Games" || stat.value === "Apps" || stat.value === "Appearances");
 			if (!hasGames) {
+				// Determine the original text based on which pattern matched
+				let originalText = "games";
+				let position = lowerQuestion.indexOf("games");
+				if (timesPlayedPattern.test(lowerQuestion)) {
+					originalText = "times played";
+					position = lowerQuestion.indexOf("times");
+				}
+				
 				filteredStats.push({
 					value: "Games",
-					originalText: "games",
-					position: lowerQuestion.indexOf("games") !== -1 ? lowerQuestion.indexOf("games") : 0,
+					originalText: originalText,
+					position: position !== -1 ? position : 0,
 				});
 			}
 

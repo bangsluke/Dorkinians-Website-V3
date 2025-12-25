@@ -18,6 +18,7 @@ export class PlayerDataQueryHandler {
 		entities: string[],
 		metrics: string[],
 		analysis: EnhancedQuestionAnalysis,
+		userContext?: string,
 	): Promise<Record<string, unknown>> {
 		// Use enhanced analysis data directly
 		const teamEntities = analysis.teamEntities || [];
@@ -381,21 +382,41 @@ export class PlayerDataQueryHandler {
 				return await PlayerDataQueryHandler.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
-			// Resolve player name with fuzzy matching
-			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			// Check if player name matches the selected player (userContext) before fuzzy matching
+			// This preserves the selected player when a partial name was matched earlier
+			let actualPlayerName: string;
+			
+			// Check if the player name matches userContext (case-insensitive)
+			const playerNameNormalized = playerName.toLowerCase().trim();
+			const userContextNormalized = userContext?.toLowerCase().trim();
+			
+			if (userContext && playerNameNormalized === userContextNormalized) {
+				// Player name already matches the selected player, use it directly
+				actualPlayerName = userContext;
+				loggingService.log(`✅ Using selected player directly: ${actualPlayerName} (matched ${playerName})`, null, "log");
+			} else if (userContext && userContextNormalized && userContextNormalized.includes(playerNameNormalized) && playerNameNormalized.length >= 2) {
+				// Player name is a partial match of the selected player (e.g., "Luke" matches "Luke Bangs")
+				// Use the full selected player name
+				actualPlayerName = userContext;
+				loggingService.log(`✅ Using selected player for partial match: ${actualPlayerName} (matched partial ${playerName})`, null, "log");
+			} else {
+				// Resolve player name with fuzzy matching
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 
-			if (!resolvedPlayerName) {
-				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
-				return {
-					type: "player_not_found",
-					data: [],
-					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
-					playerName,
-					metric,
-				};
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+						metric,
+					};
+				}
+
+				actualPlayerName = resolvedPlayerName;
+				loggingService.log(`🔍 Resolved player name via fuzzy matching: ${playerName} → ${actualPlayerName}`, null, "log");
 			}
-
-			const actualPlayerName = resolvedPlayerName;
 
 			// Check for special queries that can use enhanced relationship properties
 			if (metric === "TOTW" || metric === "WEEKLY_TOTW") {

@@ -234,8 +234,38 @@ export class ChatbotService {
 				};
 			}
 
+			// Check for pending clarification and combine with clarification answer if applicable
+			let questionToProcess = context.question;
+			if (context.sessionId) {
+				const pendingClarification = conversationContextManager.getPendingClarification(context.sessionId);
+				if (pendingClarification && this.isClarificationAnswer(context.question)) {
+					// Combine the original question with the clarification answer
+					// Example: "How many times has Luke played?" + "Luke Bangs" → "How many times has Luke Bangs played?"
+					const originalQuestion = pendingClarification.originalQuestion;
+					const clarificationAnswer = context.question.trim();
+					
+					// Try to replace the partial name in the original question with the full name from clarification
+					// Find player entities in the original question and replace with clarification answer
+					const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+					const matches = originalQuestion.match(playerNamePattern);
+					
+					if (matches && matches.length > 0) {
+						// Replace the first player name match with the clarification answer
+						questionToProcess = originalQuestion.replace(matches[0], clarificationAnswer);
+						this.logToBoth(`🔄 Combined question: "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+					} else {
+						// If no clear pattern match, append the clarification answer to the original question
+						questionToProcess = `${originalQuestion.replace(/\?$/, "")} ${clarificationAnswer}?`;
+						this.logToBoth(`🔄 Combined question (fallback): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+					}
+					
+					// Clear the pending clarification
+					conversationContextManager.clearPendingClarification(context.sessionId);
+				}
+			}
+
 			// Analyze the question
-			let analysis = await this.analyzeQuestion(context.question, context.userContext);
+			let analysis = await this.analyzeQuestion(questionToProcess, context.userContext);
 			
 			// Merge conversation context if session ID provided
 			if (context.sessionId) {
@@ -287,12 +317,13 @@ export class ChatbotService {
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
-			// Generate the response
-			const response = await this.generateResponse(context.question, data, analysis);
+			// Generate the response (use original question for response generation, but processed question was used for analysis)
+			const response = await this.generateResponse(questionToProcess, data, analysis);
 
 			// Store in conversation context if session ID provided
+			// Use the processed question (which may be combined with clarification) for history
 			if (context.sessionId) {
-				conversationContextManager.addToHistory(context.sessionId, context.question, analysis);
+				conversationContextManager.addToHistory(context.sessionId, questionToProcess, analysis);
 			}
 
 			// Log unanswered questions (fire-and-forget, non-blocking)
@@ -336,6 +367,32 @@ export class ChatbotService {
 		const enhancedAnalysis = await analyzer.analyze();
 
 		return enhancedAnalysis;
+	}
+
+	// Check if a user response is likely answering a clarification request
+	private isClarificationAnswer(question: string): boolean {
+		const trimmed = question.trim();
+		
+		// Very short responses (likely just a name or short answer)
+		if (trimmed.length < 50) {
+			// Check if it looks like a name (contains capitalized words, no question marks, minimal punctuation)
+			const hasCapitalizedWords = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/.test(trimmed);
+			const hasQuestionMark = trimmed.includes("?");
+			const hasMinimalPunctuation = (trimmed.match(/[.,!?;:]/g) || []).length <= 1;
+			
+			// If it has capitalized words (likely a name), no question mark, and minimal punctuation, it's likely a clarification answer
+			if (hasCapitalizedWords && !hasQuestionMark && hasMinimalPunctuation) {
+				return true;
+			}
+			
+			// Very short responses without question words are likely answers
+			const hasQuestionWords = /\b(what|who|which|when|where|why|how|is|are|can|could|will|would)\b/i.test(trimmed);
+			if (!hasQuestionWords && trimmed.length < 30) {
+				return true;
+			}
+		}
+		
+		return false;
 	}
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
@@ -390,7 +447,7 @@ export class ChatbotService {
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
-				return await PlayerDataQueryHandler.queryPlayerData(entities, metrics, analysis);
+				return await PlayerDataQueryHandler.queryPlayerData(entities, metrics, analysis, userContext);
 			case "team":
 				return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
 			case "club":
@@ -2089,8 +2146,8 @@ export class ChatbotService {
 					const goalLabelPlural = "goals";
 					const goalLabelScored = isGoalsScored ? "Open Play Goals" : "Goals Scored";
 					answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
-					const roundedGoalsScored = this.roundValueByMetric("G", goalsScored);
-					const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded);
+					const roundedGoalsScored = this.roundValueByMetric("G", goalsScored ?? 0);
+					const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded ?? 0);
 					visualization = {
 						type: "NumberCard",
 						data: [
