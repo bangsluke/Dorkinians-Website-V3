@@ -51,6 +51,11 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 	// Find metric key: use prop if available, otherwise try to find by display name
 	let metricKey = propMetricKey;
 	
+	// Map PENALTY_CONVERSION_RATE to PenConversionRate (statObject key)
+	if (metricKey && metricKey.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+		metricKey = "PenConversionRate";
+	}
+	
 	// If metricKey is team-specific, get the base stat key
 	if (metricKey) {
 		const baseKey = getBaseStatKey(metricKey);
@@ -81,6 +86,10 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 					break;
 				}
 			}
+			// Special case: if display name is "Penalty Conversion Rate", map to PenConversionRate
+			if (!metricKey && metricDisplayName && metricDisplayName.toLowerCase().includes("penalty conversion rate")) {
+				metricKey = "PenConversionRate";
+			}
 		}
 	}
 
@@ -88,9 +97,21 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 	const stat = (metricKey && typeof metricKey === 'string' && metricKey.length > 0 && metricKey in statObject) 
 		? statObject[metricKey as keyof typeof statObject] 
 		: undefined;
-	const iconName = stat?.iconName;
+	// Use iconName from dataItem if provided, otherwise fall back to statObject
+	const iconName = (dataItem as any)?.iconName || stat?.iconName;
 	// Use wordedText from data if provided (for custom labels like "Goals" vs "Open Play Goals")
 	const wordedText = (dataItem as any)?.wordedText || stat?.wordedText || metricDisplayName || "statistic";
+
+	// Format value based on stat format
+	let formattedValue: string | number = value;
+	if (stat && stat.statFormat === "Percentage") {
+		// Format percentage with % sign and correct decimal places
+		const decimalPlaces = stat.numberDecimalPlaces || 0;
+		const numValue = typeof value === "number" ? value : Number(value);
+		if (!isNaN(numValue)) {
+			formattedValue = numValue.toFixed(decimalPlaces) + "%";
+		}
+	}
 
 	// Build icon path
 	const iconPath = iconName ? `/stat-icons/${iconName}.svg` : null;
@@ -116,7 +137,7 @@ export default function NumberCard({ visualization, metricKey: propMetricKey }: 
 
 			{/* Value */}
 			<div className='text-3xl font-bold text-yellow-300 flex-shrink-0'>
-				{value}
+				{formattedValue}
 			</div>
 
 			{/* Summary text */}

@@ -36,6 +36,7 @@ export class PlayerQueryBuilder {
 			"FTP",
 			"POINTS",
 			"FANTASYPOINTS",
+			"PENALTY_CONVERSION_RATE", // Needs MatchDetail to calculate from penaltiesScored and penaltiesMissed
 		];
 
 		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
@@ -107,6 +108,8 @@ export class PlayerQueryBuilder {
 				return "coalesce(p.penaltiesConceded, 0)";
 			case "PSV":
 				return "coalesce(p.penaltiesSaved, 0)";
+			case "PENALTY_CONVERSION_RATE":
+				return "coalesce(p.penaltyConversionRate, 0.0)";
 			case "DIST":
 				return "coalesce(p.distance, 0)";
 			case "GK":
@@ -174,6 +177,13 @@ export class PlayerQueryBuilder {
 				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
 			case "AWAYWINS":
 				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
+			case "PENALTY_CONVERSION_RATE":
+				return `
+				CASE 
+					WHEN (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0))) > 0 
+					THEN toFloat(sum(coalesce(md.penaltiesScored, 0))) / (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0))) * 100.0
+					ELSE 0.0 
+				END as value`;
 			case "GK":
 				return "coalesce(count(md), 0) as value";
 			case "DEF":
@@ -432,7 +442,15 @@ export class PlayerQueryBuilder {
 					})
 					.filter(Boolean);
 				if (locationFilters.length > 0) {
-					whereConditions.push(`(${locationFilters.join(" OR ")})`);
+					// Use single condition if only one location, otherwise join with OR
+					if (locationFilters.length === 1) {
+						const singleFilter = locationFilters[0];
+						if (singleFilter) {
+							whereConditions.push(singleFilter);
+						}
+					} else {
+						whereConditions.push(`(${locationFilters.join(" OR ")})`);
+					}
 				}
 			}
 		}
@@ -556,8 +574,13 @@ export class PlayerQueryBuilder {
 		const hasDirectionalLocation = locations.some((loc) => loc.type === "home" || loc.type === "away");
 		const shouldKeepLocationFilters = metricHandlesLocation || (hasExplicitLocation && hasDirectionalLocation);
 		
+		// CRITICAL: For goals queries (G, ALLGSC, OPENPLAYGOALS) with explicit location filters, always keep them
+		const isGoalsQuery = metricUpper === "G" || metricUpper === "ALLGSC" || metricUpper === "OPENPLAYGOALS";
+		const hasLocationFilter = whereConditions.some((condition) => condition.includes("f.homeOrAway"));
+		
 		// For team-specific metrics, never keep location filters (isTeamSpecificAppearanceOrGoals already declared above)
-		if (!shouldKeepLocationFilters || isTeamSpecificMetric || isTeamSpecificAppearanceOrGoals) {
+		// Exception: Keep location filters for goals queries even if shouldKeepLocationFilters is false
+		if ((!shouldKeepLocationFilters && !(isGoalsQuery && hasLocationFilter)) || isTeamSpecificMetric || isTeamSpecificAppearanceOrGoals) {
 			return whereConditions.filter((condition) => !condition.includes("f.homeOrAway"));
 		}
 
@@ -1048,7 +1071,12 @@ export class PlayerQueryBuilder {
 		const oppositionEntities = analysis.oppositionEntities || [];
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
-		const needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
+		const hasLocationFilter = locations.some((loc) => loc.type === "home" || loc.type === "away");
+		let needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
+		// CRITICAL: Force MatchDetail join when location filters are present (needed for f.homeOrAway filtering)
+		if (hasLocationFilter && !needsMatchDetail) {
+			needsMatchDetail = true;
+		}
 		const isTeamSpecificMetric = !!(metric.match(/^\d+sApps$/i) || 
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
 			metric.match(/^\d+sGoals$/i) ||

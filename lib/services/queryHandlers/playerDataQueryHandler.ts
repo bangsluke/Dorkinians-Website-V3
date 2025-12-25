@@ -8,6 +8,7 @@ import { QueryExecutionUtils } from "../chatbotUtils/queryExecutionUtils";
 import { loggingService } from "../loggingService";
 import { RelationshipQueryHandler } from "./relationshipQueryHandler";
 import { AwardsQueryHandler } from "./awardsQueryHandler";
+import { ChatbotService } from "../chatbotService";
 
 export class PlayerDataQueryHandler {
 	/**
@@ -425,16 +426,16 @@ export class PlayerDataQueryHandler {
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
 
 			try {
-				// Store query for debugging
-				const lastExecutedQueries: string[] = [];
-				lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
-				lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
+				// Store query for debugging - add to chatbotService for client visibility
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
 
 				// Log copyable queries for debugging
 				const readyToExecuteQuery = query
 					.replace(/\$playerName/g, `'${actualPlayerName}'`)
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
-				lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
 				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
 					playerName: actualPlayerName,
@@ -682,6 +683,112 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in team-specific query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying team-specific data" };
+		}
+	}
+
+	/**
+	 * Query how many leagues a player has won (seasons where their team finished 1st)
+	 * Uses the same approach as Club Achievements API - gets winning teams from JSON files,
+	 * then checks if player played for those teams in those seasons
+	 * Excludes current season as it hasn't finished yet
+	 */
+	static async queryPlayerLeagueWinsCount(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying league wins count for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		try {
+			// Import league table service functions
+			const { getAvailableSeasons, getSeasonDataFromJSON, normalizeSeasonFormat } = await import("../leagueTableService");
+			const { TeamMappingUtils } = await import("../chatbotUtils/teamMappingUtils");
+
+			// Get current season from SiteDetail
+			const currentSeasonQuery = `
+				MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+				RETURN sd.currentSeason as currentSeason
+				LIMIT 1
+			`;
+			const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+			const currentSeason = seasonResult && seasonResult.length > 0 ? seasonResult[0].currentSeason : null;
+
+			// Get all club achievements (winning teams/seasons) from JSON files
+			const seasons = await getAvailableSeasons();
+			const winningTeams: Array<{ team: string; season: string }> = [];
+
+			for (const season of seasons) {
+				// Skip current season
+				const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+				if (currentSeason && normalizedSeason === currentSeason) {
+					continue;
+				}
+
+				const seasonData = await getSeasonDataFromJSON(season);
+				if (!seasonData) continue;
+
+				// Iterate through all teams in this season
+				for (const [teamKey, teamData] of Object.entries(seasonData.teams)) {
+					if (!teamData || !teamData.table || teamData.table.length === 0) continue;
+
+					// Find Dorkinians entry in this team's table
+					const dorkiniansEntry = teamData.table.find((entry) =>
+						entry.team.toLowerCase().includes('dorkinians'),
+					);
+
+					// Check if Dorkinians finished in 1st place
+					if (dorkiniansEntry && dorkiniansEntry.position === 1) {
+						winningTeams.push({
+							team: teamKey,
+							season: normalizedSeason,
+						});
+					}
+				}
+			}
+
+			if (winningTeams.length === 0) {
+				return { type: "league_wins_count", count: 0, playerName };
+			}
+
+			// Check which winning teams/seasons the player participated in
+			// Map team keys to database format (e.g., "1s" -> "1st XI")
+			const playerWins: string[] = [];
+			
+			for (const { team, season } of winningTeams) {
+				const mappedTeam = TeamMappingUtils.mapTeamName(team);
+				
+				// Query if player played for this team in this season (League games only)
+				const playerQuery = `
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+					WHERE md.team = $team 
+						AND f.season = $season 
+						AND f.compType = "League"
+					RETURN count(md) as appearances
+					LIMIT 1
+				`;
+
+				const result = await neo4jService.executeQuery(playerQuery, {
+					graphLabel,
+					playerName,
+					team: mappedTeam,
+					season,
+				});
+
+				const appearances = result && result.length > 0 && result[0].appearances !== undefined
+					? (typeof result[0].appearances === 'number'
+						? result[0].appearances
+						: (result[0].appearances?.low || 0) + (result[0].appearances?.high || 0) * 4294967296)
+					: 0;
+
+				// If player made at least one appearance for this winning team, count it
+				if (appearances > 0) {
+					playerWins.push(`${team} - ${season}`);
+				}
+			}
+
+			const count = playerWins.length;
+			return { type: "league_wins_count", count, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in league wins count query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying league wins count data" };
 		}
 	}
 }

@@ -374,6 +374,19 @@ export class ChatbotService {
 				}
 			}
 
+			// Check if this is a leagues won count question (e.g., "How many leagues have I won?")
+			const isLeaguesWonQuestion = type === "player" && 
+				(question.includes("how many leagues") || question.includes("how many league")) &&
+				(question.includes("won") || question.includes("have") || question.includes("i"));
+
+			if (isLeaguesWonQuestion) {
+				// Use entities first, fallback to userContext
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await PlayerDataQueryHandler.queryPlayerLeagueWinsCount(playerName);
+				}
+			}
+
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
@@ -951,11 +964,7 @@ export class ChatbotService {
 	private async queryMilestoneData(entities: string[], _metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
 		const lowerQuestion = (analysis.question || "").toLowerCase();
 		
-		// Extract milestone number from question (e.g., "100", "50", "25")
-		const milestoneMatch = lowerQuestion.match(/\b(\d+)\s*(?:goal|app|appearance|assist|mom|milestone)/);
-		const milestoneNumber = milestoneMatch ? parseInt(milestoneMatch[1], 10) : null;
-		
-		// Determine stat type from question
+		// Determine stat type from question first (before extracting milestone number)
 		let statType: string | null = null;
 		if (lowerQuestion.includes("goal")) {
 			statType = "Goals";
@@ -967,18 +976,22 @@ export class ChatbotService {
 			statType = "MoMs";
 		}
 		
-		// If milestone number not found, try to extract from "next X milestone" pattern
+		// Extract milestone number from question (e.g., "100", "50", "25")
+		// Try pattern: digit followed by stat type keyword
+		const milestoneMatch = lowerQuestion.match(/\b(\d+)\s*(?:goal|app|appearance|assist|mom|milestone)/);
+		let milestoneNumber = milestoneMatch ? parseInt(milestoneMatch[1], 10) : null;
+		
+		// If milestone number not found, try to extract from "next X" pattern (X can be before or after "next")
 		if (!milestoneNumber) {
+			// Try "next X" pattern
 			const nextMilestoneMatch = lowerQuestion.match(/next\s+(\d+)/);
 			if (nextMilestoneMatch) {
-				const extractedMilestone = parseInt(nextMilestoneMatch[1], 10);
-				if (!isNaN(extractedMilestone)) {
-					// Use extracted milestone, but still need to determine stat type
-					if (!statType) {
-						// Default to Goals if not specified
-						statType = "Goals";
-					}
-					return await this.fetchMilestoneData(extractedMilestone, statType);
+				milestoneNumber = parseInt(nextMilestoneMatch[1], 10);
+			} else {
+				// Try "X milestone next" pattern (number before "milestone" with "next" at end)
+				const milestoneNextMatch = lowerQuestion.match(/\b(\d+)\s*(?:goal|app|appearance|assist|mom|milestone).*next/);
+				if (milestoneNextMatch) {
+					milestoneNumber = parseInt(milestoneNextMatch[1], 10);
 				}
 			}
 		}
@@ -988,13 +1001,19 @@ export class ChatbotService {
 			return await this.fetchMilestoneData(milestoneNumber, statType);
 		}
 		
+		// If we have milestone but no stat type, try to infer from context or default to Goals
+		if (milestoneNumber && !statType) {
+			statType = "Goals"; // Default to Goals if not specified
+			return await this.fetchMilestoneData(milestoneNumber, statType);
+		}
+		
 		// Fallback: try to find closest to any milestone for the detected stat type
 		if (statType) {
 			// Try common milestones: 10, 25, 50, 100, 150, 200, 250, 300
 			const commonMilestones = [300, 250, 200, 150, 100, 50, 25, 10];
 			for (const milestone of commonMilestones) {
 				const result = await this.fetchMilestoneData(milestone, statType);
-				if (result && result.type === "milestone" && result.playerName) {
+				if (result && result.type === "milestone" && result.players && Array.isArray(result.players) && result.players.length > 0) {
 					return result;
 				}
 			}
@@ -1005,58 +1024,120 @@ export class ChatbotService {
 	
 	private async fetchMilestoneData(milestone: number, statType: string): Promise<Record<string, unknown>> {
 		try {
-			const response = await fetch("/api/milestones");
-			if (!response.ok) {
-				this.logToBoth(`❌ Error fetching milestones: ${response.statusText}`, null, "error");
-				return { type: "error", data: [], error: "Failed to fetch milestone data" };
+			// Map stat type label to database field name
+			const statTypeToField: { [key: string]: string } = {
+				"Goals": "goals",
+				"Assists": "assists",
+				"Apps": "appearances",
+				"MoMs": "mom",
+			};
+			
+			const statField = statTypeToField[statType];
+			if (!statField) {
+				return { type: "error", data: [], error: `Invalid stat type: ${statType}` };
 			}
 			
-			const data = await response.json();
-			const closestToMilestone = data.closestToMilestone || [];
-			
-			// Find the entry matching the requested milestone and stat type
-			const key = `${statType}-${milestone}`;
-			const entry = closestToMilestone.find((e: { playerName: string; statType: string; milestone: number }) => 
-				e.statType === statType && e.milestone === milestone
-			);
-			
-			if (entry) {
-				return {
-					type: "milestone",
-					playerName: entry.playerName,
-					statType: entry.statType,
-					milestone: entry.milestone,
-					currentValue: entry.currentValue,
-					distanceFromMilestone: entry.distanceFromMilestone,
-				};
+			// Connect to Neo4j
+			const connected = await neo4jService.connect();
+			if (!connected) {
+				return { type: "error", data: [], error: "Database connection failed" };
 			}
 			
-			// If exact match not found, find closest player for this stat type regardless of milestone
-			const statTypeEntries = closestToMilestone.filter((e: { statType: string }) => e.statType === statType);
-			if (statTypeEntries.length > 0) {
-				// Sort by distance from milestone (ascending) and milestone (descending)
-				statTypeEntries.sort((a: { distanceFromMilestone: number; milestone: number }, b: { distanceFromMilestone: number; milestone: number }) => {
-					if (a.distanceFromMilestone !== b.distanceFromMilestone) {
-						return a.distanceFromMilestone - b.distanceFromMilestone;
-					}
-					return b.milestone - a.milestone;
-				});
+			const graphLabel = neo4jService.getGraphLabel();
+			
+			// Build query based on stat type (Cypher doesn't support parameterized CASE values)
+			let aggregationExpression: string;
+			if (statField === "goals") {
+				aggregationExpression = "reduce(total = 0, md in matchDetails | total + coalesce(md.goals, 0))";
+			} else if (statField === "assists") {
+				aggregationExpression = "reduce(total = 0, md in matchDetails | total + coalesce(md.assists, 0))";
+			} else if (statField === "appearances") {
+				aggregationExpression = "size(matchDetails)";
+			} else if (statField === "mom") {
+				aggregationExpression = "reduce(total = 0, md in matchDetails | total + coalesce(md.mom, 0))";
+			} else {
+				return { type: "error", data: [], error: `Unsupported stat field: ${statField}` };
+			}
+			
+			// Query all players with their stats, filter for those close to the milestone
+			// We want players who haven't reached the milestone yet and are within a reasonable distance
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel})
+				WHERE p.allowOnSite = true
+				MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WITH p, md
+				ORDER BY md.date ASC
+				WITH p,
+					collect(md) as matchDetails
+				WITH p,
+					${aggregationExpression} as currentValue
+				WHERE currentValue < $milestone
+				WITH p.playerName as playerName, currentValue, ($milestone - currentValue) as distanceFromMilestone
+				ORDER BY distanceFromMilestone ASC, currentValue DESC
+				LIMIT 5
+				RETURN playerName, currentValue, distanceFromMilestone
+			`;
+			
+			const params = {
+				graphLabel,
+				milestone,
+			};
+			
+			this.lastExecutedQueries.push(`MILESTONE_QUERY: ${query}`);
+			this.lastExecutedQueries.push(`MILESTONE_PARAMS: ${JSON.stringify(params)}`);
+			
+			const result = await neo4jService.runQuery(query, params);
+			
+			// Convert Neo4j Integer to JavaScript number
+			const toNumber = (value: any): number => {
+				if (value === null || value === undefined) return 0;
+				if (typeof value === "number") return value;
+				if (typeof value === "object" && "toNumber" in value) {
+					return (value as { toNumber: () => number }).toNumber();
+				}
+				const num = parseInt(String(value), 10);
+				return isNaN(num) ? 0 : num;
+			};
+			
+			const players: Array<{
+				playerName: string;
+				statType: string;
+				milestone: number;
+				currentValue: number;
+				distanceFromMilestone: number;
+			}> = [];
+			
+			for (const record of result.records) {
+				const playerName = String(record.get("playerName") || "");
+				if (!playerName || playerName.trim() === "") continue;
 				
-				const closest = statTypeEntries[0];
-				return {
-					type: "milestone",
-					playerName: closest.playerName,
-					statType: closest.statType,
-					milestone: closest.milestone,
-					currentValue: closest.currentValue,
-					distanceFromMilestone: closest.distanceFromMilestone,
-				};
+				const currentValue = toNumber(record.get("currentValue"));
+				const distanceFromMilestone = toNumber(record.get("distanceFromMilestone"));
+				
+				players.push({
+					playerName,
+					statType,
+					milestone,
+					currentValue,
+					distanceFromMilestone,
+				});
 			}
 			
-			return { type: "error", data: [], error: `No player found close to ${milestone} ${statType} milestone` };
+			if (players.length === 0) {
+				return { type: "error", data: [], error: `No player found close to ${milestone} ${statType} milestone` };
+			}
+			
+			return {
+				type: "milestone",
+				players: players,
+				statType: statType,
+				milestone: milestone,
+			};
 		} catch (error) {
-			this.logToBoth(`❌ Error in milestone query:`, error, "error");
-			return { type: "error", data: [], error: "Error querying milestone data" };
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			this.logToBoth(`❌ Error in milestone query: ${errorMessage}`, error, "error");
+			this.logToBoth(`❌ Error stack: ${error instanceof Error ? error.stack : "No stack trace"}`, null, "error");
+			return { type: "error", data: [], error: `Error querying milestone data: ${errorMessage}` };
 		}
 	}
 
@@ -1334,6 +1415,50 @@ export class ChatbotService {
 	}
 
 	// Duplicate query builder methods removed - now handled by PlayerQueryBuilder
+
+	/**
+	 * Helper function to map metric key to statObject key
+	 */
+	private mapMetricToStatObjectKey(metric: string): string {
+		// Map PENALTY_CONVERSION_RATE to PenConversionRate (statObject key)
+		if (metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+			return "PenConversionRate";
+		}
+		return findMetricByAlias(metric)?.key || metric;
+	}
+
+	/**
+	 * Helper function to round a value based on statObject configuration
+	 */
+	private roundValueByMetric(metric: string, value: number): number {
+		const statObjectKey = this.mapMetricToStatObjectKey(metric);
+		const metricConfig = statObject[statObjectKey as keyof typeof statObject];
+		
+		if (metricConfig && typeof metricConfig === "object" && "numberDecimalPlaces" in metricConfig) {
+			const decimalPlaces = metricConfig.numberDecimalPlaces || 0;
+			// Round to specified decimal places
+			const multiplier = Math.pow(10, decimalPlaces);
+			return Math.round(value * multiplier) / multiplier;
+		}
+		
+		// Default to integer rounding if no config found
+		return Math.round(value);
+	}
+
+	/**
+	 * Helper function to get icon name with fallback to goals scored icon
+	 */
+	private getIconNameForMetric(metric: string, defaultIcon?: string): string {
+		const statObjectKey = this.mapMetricToStatObjectKey(metric);
+		const metricConfig = statObject[statObjectKey as keyof typeof statObject];
+		
+		if (metricConfig && typeof metricConfig === "object" && metricConfig.iconName) {
+			return metricConfig.iconName;
+		}
+		
+		// Fallback to provided default or goals scored icon
+		return defaultIcon || statObject.G?.iconName || "Goals-Icon";
+	}
 
 	private async generateResponse(
 		question: string,
@@ -1808,7 +1933,11 @@ export class ChatbotService {
 			
 			visualization = {
 				type: "NumberCard",
-				data: [{ wordedText: "double gameweeks", value: count }],
+				data: [{ 
+					wordedText: "double gameweeks", 
+					value: count,
+					iconName: this.getIconNameForMetric("APP")
+				}],
 				config: {
 					title: "double gameweeks",
 					type: "bar",
@@ -1816,27 +1945,47 @@ export class ChatbotService {
 			};
 		} else if (data && data.type === "milestone") {
 			// Handle milestone queries
-			const playerName = (data.playerName as string) || "";
+			const players = (data.players as Array<{ playerName: string; statType: string; milestone: number; currentValue: number; distanceFromMilestone: number }>) || [];
 			const statType = (data.statType as string) || "";
 			const milestone = (data.milestone as number) || 0;
-			const currentValue = (data.currentValue as number) || 0;
-			const distanceFromMilestone = (data.distanceFromMilestone as number) || 0;
 			
-			if (!playerName) {
+			if (players.length === 0) {
 				answer = "I couldn't find any player close to that milestone.";
 			} else {
-				answer = `${playerName} is closest to reaching the ${milestone} ${statType} milestone, currently on ${currentValue} ${statType} (${distanceFromMilestone} ${distanceFromMilestone === 1 ? "away" : "away"}).`;
-				answerValue = currentValue;
+				// Create table data with top 5 players
+				const tableData = players.map((player) => ({
+					"Player Name": player.playerName,
+					"Current Value": player.currentValue,
+					"Milestone": player.milestone,
+					"Distance From Milestone": player.distanceFromMilestone,
+				}));
+				
+				// Format answer text
+				if (players.length === 1) {
+					const player = players[0];
+					answer = `${player.playerName} is closest to reaching the ${milestone} ${statType} milestone, currently on ${player.currentValue} ${statType} (${player.distanceFromMilestone} ${player.distanceFromMilestone === 1 ? "away" : "away"}).`;
+				} else {
+					const topPlayer = players[0];
+					answer = `Here are the top ${players.length} players closest to the ${milestone} ${statType} milestone. ${topPlayer.playerName} is closest, currently on ${topPlayer.currentValue} ${statType} (${topPlayer.distanceFromMilestone} ${topPlayer.distanceFromMilestone === 1 ? "away" : "away"}).`;
+				}
+				
+				// Set answerValue to top player's name (ranked 1st)
+				answerValue = players[0]?.playerName || "";
+				
+				// Create Table visualization
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player Name", label: "Player Name" },
+							{ key: "Current Value", label: "Current Value" },
+							{ key: "Milestone", label: "Milestone" },
+							{ key: "Distance From Milestone", label: "Distance From Milestone" },
+						],
+					},
+				};
 			}
-			
-			visualization = {
-				type: "NumberCard",
-				data: [{ name: `${milestone} ${statType} Milestone`, value: currentValue }],
-				config: {
-					title: `${milestone} ${statType} Milestone`,
-					type: "bar",
-				},
-			};
 		} else if (data && data.type === "totw_count") {
 			// Handle TOTW count queries
 			const playerName = (data.playerName as string) || "You";
@@ -1854,7 +2003,11 @@ export class ChatbotService {
 			
 			visualization = {
 				type: "NumberCard",
-				data: [{ name: periodLabel, value: count }],
+				data: [{ 
+					name: periodLabel, 
+					value: count,
+					iconName: this.getIconNameForMetric("TOTW")
+				}],
 				config: {
 					title: periodLabel,
 					type: "bar",
@@ -1873,9 +2026,14 @@ export class ChatbotService {
 				answerValue = Math.round(highestScore);
 			}
 			
+			const roundedScore = Math.round(highestScore);
 			visualization = {
 				type: "NumberCard",
-				data: [{ name: "Highest Weekly Score", value: Math.round(highestScore) }],
+				data: [{ 
+					name: "Highest Weekly Score", 
+					value: roundedScore,
+					iconName: this.getIconNameForMetric("FTP")
+				}],
 				config: {
 					title: "Highest Weekly Score",
 					type: "bar",
@@ -1908,9 +2066,14 @@ export class ChatbotService {
 					
 					// Return NumberCard for team goals in season
 					if (season) {
+						const roundedGoals = this.roundValueByMetric("G", goalsScored || 0);
 						visualization = {
 							type: "NumberCard",
-							data: [{ name: "Goals Scored", value: goalsScored || 0 }],
+							data: [{ 
+								name: "Goals Scored", 
+								value: roundedGoals,
+								iconName: this.getIconNameForMetric("G")
+							}],
 							config: {
 								title: `${teamName} - Goals in ${season}`,
 								type: "bar",
@@ -1926,11 +2089,21 @@ export class ChatbotService {
 					const goalLabelPlural = "goals";
 					const goalLabelScored = isGoalsScored ? "Open Play Goals" : "Goals Scored";
 					answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+					const roundedGoalsScored = this.roundValueByMetric("G", goalsScored);
+					const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded);
 					visualization = {
 						type: "NumberCard",
 						data: [
-							{ name: goalLabelScored, value: goalsScored },
-							{ name: "Goals Conceded", value: goalsConceded },
+							{ 
+								name: goalLabelScored, 
+								value: roundedGoalsScored,
+								iconName: this.getIconNameForMetric("G")
+							},
+							{ 
+								name: "Goals Conceded", 
+								value: roundedGoalsConceded,
+								iconName: this.getIconNameForMetric("C")
+							},
 						],
 						config: {
 							title: `${teamName} - Goals Statistics`,
@@ -1950,7 +2123,8 @@ export class ChatbotService {
 				const topTeam = teamData[0];
 				const direction = isFewest ? "fewest" : "most";
 				answer = `The ${topTeam.team} have conceded the ${direction} goals in history with ${topTeam.goalsConceded} ${topTeam.goalsConceded === 1 ? "goal" : "goals"} conceded.`;
-				answerValue = topTeam.goalsConceded;
+				// Set answerValue to team name for Record type extraction
+				answerValue = topTeam.team;
 				
 				// Create table with all teams sorted by goals conceded
 				const tableData = teamData.map((team) => ({
@@ -1984,9 +2158,40 @@ export class ChatbotService {
 			
 			visualization = {
 				type: "NumberCard",
-				data: [{ name: "awards", value: count, wordedText: "club awards" }],
+				data: [{ 
+					name: "awards", 
+					value: count, 
+					wordedText: "club awards",
+					iconName: this.getIconNameForMetric("AWARDS")
+				}],
 				config: {
 					title: "Awards Won",
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "league_wins_count") {
+			// Handle league wins count queries
+			const playerName = (data.playerName as string) || "You";
+			const count = (data.count as number) || 0;
+			
+			if (count === 0) {
+				answer = `${playerName} has not won any leagues.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName} has won ${count} ${count === 1 ? "league" : "leagues"}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "leagues", 
+					value: count, 
+					wordedText: "leagues won",
+					iconName: this.getIconNameForMetric("LEAGUE_WINS")
+				}],
+				config: {
+					title: "Leagues Won",
 					type: "bar",
 				},
 			};
@@ -2004,7 +2209,11 @@ export class ChatbotService {
 				answer = `${numberOfPlayers} ${numberOfPlayers === 1 ? "player has" : "players have"} played for the club.`;
 				visualization = {
 					type: "NumberCard",
-					data: [{ name: "Total Players", value: numberOfPlayers }],
+					data: [{ 
+						name: "Total Players", 
+						value: numberOfPlayers,
+						iconName: this.getIconNameForMetric("APP")
+					}],
 					config: {
 						title: "Club Statistics - Total Players",
 						type: "bar",
@@ -2013,9 +2222,14 @@ export class ChatbotService {
 			} else if (isGoalsScored) {
 				answerValue = goalsScored;
 				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"}.`;
+				const roundedGoals = this.roundValueByMetric("G", goalsScored);
 				visualization = {
 					type: "NumberCard",
-					data: [{ name: "Goals Scored", value: goalsScored }],
+					data: [{ 
+						name: "Goals Scored", 
+						value: roundedGoals,
+						iconName: this.getIconNameForMetric("G")
+					}],
 					config: {
 						title: "Club Statistics - Goals Scored",
 						type: "bar",
@@ -2024,9 +2238,14 @@ export class ChatbotService {
 			} else if (isGoalsConceded) {
 				answerValue = goalsConceded;
 				answer = `Dorkinians have conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				const roundedGoals = this.roundValueByMetric("C", goalsConceded);
 				visualization = {
 					type: "NumberCard",
-					data: [{ name: "Goals Conceded", value: goalsConceded }],
+					data: [{ 
+						name: "Goals Conceded", 
+						value: roundedGoals,
+						iconName: this.getIconNameForMetric("C")
+					}],
 					config: {
 						title: "Club Statistics - Goals Conceded",
 						type: "bar",
@@ -2036,11 +2255,21 @@ export class ChatbotService {
 				// Default: show both goals - use goalsScored as primary value
 				answerValue = goalsScored;
 				answer = `Dorkinians have scored ${goalsScored} ${goalsScored === 1 ? "goal" : "goals"} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
+				const roundedGoalsScored = this.roundValueByMetric("G", goalsScored);
+				const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded);
 				visualization = {
 					type: "NumberCard",
 					data: [
-						{ name: "Goals Scored", value: goalsScored },
-						{ name: "Goals Conceded", value: goalsConceded },
+						{ 
+							name: "Goals Scored", 
+							value: roundedGoalsScored,
+							iconName: this.getIconNameForMetric("G")
+						},
+						{ 
+							name: "Goals Conceded", 
+							value: roundedGoalsConceded,
+							iconName: this.getIconNameForMetric("C")
+						},
 					],
 					config: {
 						title: "Club Statistics - Goals",
@@ -2316,19 +2545,31 @@ export class ChatbotService {
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
 							
 							answer = `${playerName}'s most prolific season was ${mostProlific.season} with ${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}.`;
-							answerValue = mostProlific.goals;
+							answerValue = mostProlific.season;
 							
-							// Create Record visualization with all seasons
+							// Sort by goals descending, then by season for tie-breaking
+							const sortedData = [...transformedData].sort((a, b) => {
+								if (b.goals !== a.goals) {
+									return b.goals - a.goals;
+								}
+								// If goals are equal, sort by season descending (most recent first)
+								return b.season.localeCompare(a.season);
+							});
+							
+							// Create Table visualization with all seasons sorted by goals
+							const tableData = sortedData.map((item) => ({
+								Season: item.season,
+								Goals: item.goals,
+							}));
+							
 							visualization = {
-								type: "Record",
-								data: transformedData.map((item) => ({
-									name: item.season,
-									value: item.goals,
-									isHighest: item.season === mostProlific.season,
-								})),
+								type: "Table",
+								data: tableData,
 								config: {
-									title: `${playerName} - Goals per Season`,
-									type: "bar",
+									columns: [
+										{ key: "Season", label: "Season" },
+										{ key: "Goals", label: "Goals" },
+									],
 								},
 							};
 						}
@@ -2369,8 +2610,60 @@ export class ChatbotService {
 					const value = playerData[0]?.value;
 
 					if (value !== undefined && value !== null) {
-						answerValue = value as number;
+						// Round answerValue for penalty conversion rate to 1 decimal place
+						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+							answerValue = this.roundValueByMetric(metric, value as number);
+						} else {
+							answerValue = value as number;
+						}
 						answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+						
+						// Create NumberCard visualization for penalty conversion rate
+						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+							const statObjectKey = this.mapMetricToStatObjectKey(metric);
+							const metricConfig = statObject[statObjectKey as keyof typeof statObject];
+							// Use penalty conversion rate icon (PenaltyConversionRate-Icon)
+							const iconName = metricConfig?.iconName || this.getIconNameForMetric(metric);
+							const displayName = metricConfig?.displayText || "Penalty Conversion Rate";
+							const roundedValue = this.roundValueByMetric(metric, value as number);
+							
+							visualization = {
+								type: "NumberCard",
+								data: [{ 
+									name: displayName, 
+									value: roundedValue,
+									iconName: iconName
+								}],
+								config: {
+									title: displayName,
+									type: "bar",
+								},
+							};
+						}
+						// Create NumberCard visualization for away goals
+						else if (metric && metric.toUpperCase() === "G") {
+							const locations = analysis.extractionResult?.locations || [];
+							const hasAwayLocation = locations.some((loc) => loc.type === "away");
+							
+							if (hasAwayLocation) {
+								const iconName = this.getIconNameForMetric(metric);
+								const displayName = "Away Goals";
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: displayName, 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: displayName,
+										type: "bar",
+									},
+								};
+							}
+						}
 					} else {
 						answer = "No data found for your query.";
 					}

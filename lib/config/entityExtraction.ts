@@ -1630,18 +1630,46 @@ export class EntityExtractor {
 	private extractLocations(): LocationInfo[] {
 		const locations: LocationInfo[] = [];
 
+		// CRITICAL: Extract longer phrases first to avoid conflicts (e.g., "away from home" should take priority over "home")
+		// Sort pseudonyms by length (longest first) to ensure longer phrases are matched before shorter ones
+		const sortedPseudonyms: Array<{ key: string; pseudonym: string }> = [];
 		Object.entries(LOCATION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
-				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
-				const matches = this.findMatches(regex);
-				matches.forEach((match) => {
+				sortedPseudonyms.push({ key, pseudonym });
+			});
+		});
+		sortedPseudonyms.sort((a, b) => b.pseudonym.length - a.pseudonym.length);
+
+		const matchedPositions = new Set<number>();
+
+		// Match longer phrases first
+		sortedPseudonyms.forEach(({ key, pseudonym }) => {
+			const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+			const matches = this.findMatches(regex);
+			matches.forEach((match) => {
+				// Check if this position overlaps with an already matched longer phrase
+				const positionOverlaps = Array.from(matchedPositions).some((pos) => {
+					const matchStart = match.position;
+					const matchEnd = match.position + match.text.length;
+					const existingStart = pos;
+					const existingEnd = pos + 50; // Approximate length for existing match
+					return (matchStart >= existingStart && matchStart < existingEnd) ||
+						(matchEnd > existingStart && matchEnd <= existingEnd) ||
+						(matchStart <= existingStart && matchEnd >= existingEnd);
+				});
+
+				if (!positionOverlaps) {
 					locations.push({
 						value: key,
 						type: key === "Pixham" ? "ground" : (key as any),
 						originalText: match.text,
 						position: match.position,
 					});
-				});
+					// Mark this position range as matched
+					for (let i = match.position; i < match.position + match.text.length; i++) {
+						matchedPositions.add(i);
+					}
+				}
 			});
 		});
 

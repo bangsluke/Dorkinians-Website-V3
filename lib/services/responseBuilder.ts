@@ -84,6 +84,16 @@ export class ResponseBuilder {
 			return `${playerName} has won ${formattedValue} of away games.`;
 		}
 
+		// Special handling for PENALTY_CONVERSION_RATE - format as percentage
+		if (metric === "PENALTY_CONVERSION_RATE" || metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue)) {
+				// Value is already a percentage (0-100) from database, format with % sign
+				const percentageValue = numericValue.toFixed(1);
+				return `${playerName} has a penalty conversion rate of ${percentageValue}%.`;
+			}
+		}
+
 		// Special handling for CperAPP - check for zero and return appropriate zero stat response (must be before general zero check)
 		if (metric === "CperAPP" || metric.toUpperCase() === "CPERAPP") {
 			const numericValue = typeof value === "number" ? value : Number(value);

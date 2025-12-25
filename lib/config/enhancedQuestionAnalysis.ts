@@ -349,7 +349,24 @@ export class EnhancedQuestionAnalyzer {
 			return "double_game";
 		}
 
-		// Check for player-specific queries (but not if it's a streak question)
+		// Check for milestone questions (who will reach next X milestone, closest to X goals/apps/assists/moms)
+		// This must be checked BEFORE player entity check to avoid misclassification
+		if (
+			(lowerQuestion.includes("who will reach") || lowerQuestion.includes("who is closest") || lowerQuestion.includes("closest to")) &&
+			(lowerQuestion.includes("milestone") || lowerQuestion.includes("goal") || lowerQuestion.includes("app") || lowerQuestion.includes("appearance") || lowerQuestion.includes("assist") || lowerQuestion.includes("mom"))
+		) {
+			return "milestone";
+		}
+
+		// Check for milestone questions with "next" pattern
+		if (
+			lowerQuestion.includes("next") &&
+			(lowerQuestion.includes("milestone") || (lowerQuestion.includes("goal") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("app") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("assist") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("mom") && /\d+/.test(lowerQuestion)))
+		) {
+			return "milestone";
+		}
+
+		// Check for player-specific queries (but not if it's a streak, milestone, or other special question)
 		if (hasPlayerEntities) {
 			return "player";
 		}
@@ -374,22 +391,6 @@ export class EnhancedQuestionAnalyzer {
 		// Check for percentage queries
 		if (lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) {
 			return "player";
-		}
-
-		// Check for milestone questions (who will reach next X milestone, closest to X goals/apps/assists/moms)
-		if (
-			(lowerQuestion.includes("who will reach") || lowerQuestion.includes("who is closest") || lowerQuestion.includes("closest to")) &&
-			(lowerQuestion.includes("milestone") || lowerQuestion.includes("goals") || lowerQuestion.includes("apps") || lowerQuestion.includes("appearances") || lowerQuestion.includes("assists") || lowerQuestion.includes("moms") || lowerQuestion.includes("mom"))
-		) {
-			return "milestone";
-		}
-
-		// Check for milestone questions with "next" pattern
-		if (
-			lowerQuestion.includes("next") &&
-			(lowerQuestion.includes("milestone") || (lowerQuestion.includes("goal") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("app") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("assist") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("mom") && /\d+/.test(lowerQuestion)))
-		) {
-			return "milestone";
 		}
 
 		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
@@ -556,8 +557,11 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
 		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(homeAwayGamesCorrectedStats);
 
+		// CRITICAL FIX: Detect penalty conversion rate queries (must run before other penalty corrections)
+		const penaltyConversionCorrectedStats = this.correctPenaltyConversionRateQueries(teamAppearanceCorrectedStats);
+
 		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
-		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
+		const correctedStatTypes = this.correctPenaltyPhrases(penaltyConversionCorrectedStats);
 
 		// CRITICAL FIX: Detect most prolific season queries
 		const prolificCorrectedStats = this.correctMostProlificSeasonQueries(correctedStatTypes);
@@ -644,6 +648,7 @@ export class EnhancedQuestionAnalyzer {
 					"Penalties Missed Per Appearance",
 					"Penalties Conceded Per Appearance",
 					"Penalties Saved Per Appearance",
+					"Penalty Conversion Rate", // More specific than general penalty stats
 					"Distance Travelled",
 					"Home Games % Won",
 					"Away Games % Won",
@@ -743,6 +748,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Missed Per Appearance", // More specific than general penalties missed
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
+			"Penalty Conversion Rate", // More specific than general penalty stats - must be before "Penalties Scored"
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Home Games % Won",
@@ -840,6 +846,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Missed": "PM",
 			"Penalties Conceded": "PCO",
 			"Penalties Saved": "PSV",
+			"Penalty Conversion Rate": "PENALTY_CONVERSION_RATE",
 
 			// Position stats
 			"Goalkeeper Appearances": "GK",
@@ -1614,8 +1621,49 @@ export class EnhancedQuestionAnalyzer {
 		return statTypes;
 	}
 
+	/**
+	 * Corrects penalty conversion rate queries - maps to "Penalty Conversion Rate" instead of "Penalties Scored"
+	 */
+	private correctPenaltyConversionRateQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for penalty conversion rate queries - require "conversion rate" together for specificity
+		const hasPenalty = lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties");
+		const hasConversionRate = lowerQuestion.includes("conversion rate") || 
+			(lowerQuestion.includes("conversion") && lowerQuestion.includes("rate"));
+
+		if (hasPenalty && hasConversionRate) {
+			// Remove ALL penalty-related mappings to ensure clean slate
+			const filteredStats = statTypes.filter(
+				(stat) => !["Penalties Scored", "PSC", "Penalties Missed", "PM", "Penalties Conceded", "PCO", 
+					"Penalties Saved", "PSV", "Home", "Score", "Goals Conceded"].includes(stat.value)
+			);
+
+			// Add correct "Penalty Conversion Rate" mapping
+			filteredStats.push({
+				value: "Penalty Conversion Rate",
+				originalText: "penalty conversion rate",
+				position: lowerQuestion.indexOf("conversion") !== -1 ? lowerQuestion.indexOf("conversion") : lowerQuestion.indexOf("penalty"),
+			});
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
 	private correctPenaltyPhrases(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
+
+		// CRITICAL: Skip penalty phrases correction if this is a conversion rate query
+		// This prevents "penalties scored" from overriding "penalty conversion rate"
+		if (
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) &&
+			(lowerQuestion.includes("conversion rate") || lowerQuestion.includes("conversion") || lowerQuestion.includes("rate"))
+		) {
+			// This is a conversion rate query, don't apply penalty phrase corrections
+			return statTypes;
+		}
 
 		// Check for penalty phrases that were incorrectly broken down
 		if (lowerQuestion.includes("penalties") && lowerQuestion.includes("scored")) {
