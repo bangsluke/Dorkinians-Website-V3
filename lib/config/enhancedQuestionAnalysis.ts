@@ -71,7 +71,8 @@ export class EnhancedQuestionAnalyzer {
 		const requiresClarification = this.checkClarificationNeeded(extractionResult, complexity);
 
 		// Determine question type based on extracted entities and content
-		const type = this.determineQuestionType(extractionResult);
+		// If clarification is needed, set type to "clarification_needed" instead of determining the actual type
+		const type = requiresClarification ? "clarification_needed" : this.determineQuestionType(extractionResult);
 
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);
@@ -319,6 +320,15 @@ export class EnhancedQuestionAnalyzer {
 						const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
 						return originalText;
 					}).join(", ");
+					// Check if it's a single first name (likely needs surname clarification)
+					const isSingleFirstName = nonIPlayerEntities.length === 1 && 
+						!playerNames.includes(" ") && 
+						playerNames.length > 0 && 
+						playerNames.length < 15; // Reasonable first name length
+					
+					if (isSingleFirstName) {
+						return `Please clarify which ${playerNames} you are asking about.`;
+					}
 					return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
 				}
 			}

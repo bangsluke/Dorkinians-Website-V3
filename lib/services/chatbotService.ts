@@ -241,22 +241,67 @@ export class ChatbotService {
 				if (pendingClarification && this.isClarificationAnswer(context.question)) {
 					// Combine the original question with the clarification answer
 					// Example: "How many times has Luke played?" + "Luke Bangs" → "How many times has Luke Bangs played?"
+					// Example: "How many times has Oli played?" + "Goddard" → "How many times has Oli Goddard played?"
 					const originalQuestion = pendingClarification.originalQuestion;
 					const clarificationAnswer = context.question.trim();
 					
-					// Try to replace the partial name in the original question with the full name from clarification
-					// Find player entities in the original question and replace with clarification answer
-					const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
-					const matches = originalQuestion.match(playerNamePattern);
+					// Check if the clarification answer is a single word (likely a surname to combine with first name)
+					const isSingleWord = !clarificationAnswer.includes(" ") && clarificationAnswer.length > 0;
 					
-					if (matches && matches.length > 0) {
-						// Replace the first player name match with the clarification answer
-						questionToProcess = originalQuestion.replace(matches[0], clarificationAnswer);
-						this.logToBoth(`🔄 Combined question: "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+					if (isSingleWord) {
+						// Try to find a first name in the original question and combine with the surname
+						// Pattern to find capitalized words that might be first names
+						const firstNamePattern = /\b([A-Z][a-z]+)\b/g;
+						const firstNameMatches = originalQuestion.match(firstNamePattern);
+						
+						if (firstNameMatches && firstNameMatches.length > 0) {
+							// Find the first name that appears before common question words
+							const questionWords = ["has", "have", "did", "does", "is", "are", "was", "were", "played", "scored", "got"];
+							let firstNameToReplace = null;
+							
+							for (const match of firstNameMatches) {
+								const matchIndex = originalQuestion.indexOf(match);
+								const afterMatch = originalQuestion.substring(matchIndex + match.length).toLowerCase();
+								// Check if this name appears before question words (likely the player name)
+								if (questionWords.some(word => afterMatch.includes(word))) {
+									firstNameToReplace = match;
+									break;
+								}
+							}
+							
+							if (firstNameToReplace) {
+								// Combine first name with surname: "Oli" + "Goddard" = "Oli Goddard"
+								const fullName = `${firstNameToReplace} ${clarificationAnswer}`;
+								questionToProcess = originalQuestion.replace(firstNameToReplace, fullName);
+								this.logToBoth(`🔄 Combined question (first name + surname): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+							} else {
+								// Fallback: try to replace the first capitalized word
+								questionToProcess = originalQuestion.replace(firstNameMatches[0], `${firstNameMatches[0]} ${clarificationAnswer}`);
+								this.logToBoth(`🔄 Combined question (fallback first name): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+							}
+						} else {
+							// No first name found, try standard replacement
+							const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+							const matches = originalQuestion.match(playerNamePattern);
+							if (matches && matches.length > 0) {
+								questionToProcess = originalQuestion.replace(matches[0], `${matches[0]} ${clarificationAnswer}`);
+								this.logToBoth(`🔄 Combined question (append surname): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+							}
+						}
 					} else {
-						// If no clear pattern match, append the clarification answer to the original question
-						questionToProcess = `${originalQuestion.replace(/\?$/, "")} ${clarificationAnswer}?`;
-						this.logToBoth(`🔄 Combined question (fallback): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+						// Multi-word answer (full name), replace the partial name
+						const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
+						const matches = originalQuestion.match(playerNamePattern);
+						
+						if (matches && matches.length > 0) {
+							// Replace the first player name match with the clarification answer
+							questionToProcess = originalQuestion.replace(matches[0], clarificationAnswer);
+							this.logToBoth(`🔄 Combined question: "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+						} else {
+							// If no clear pattern match, append the clarification answer to the original question
+							questionToProcess = `${originalQuestion.replace(/\?$/, "")} ${clarificationAnswer}?`;
+							this.logToBoth(`🔄 Combined question (fallback): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
+						}
 					}
 					
 					// Clear the pending clarification
@@ -282,11 +327,13 @@ export class ChatbotService {
 					return {
 						answer: fallbackResponse,
 						sources: [],
+						answerValue: "Clarification needed",
 					};
 				}
 				return {
 					answer: analysis.message || "Please clarify your question.",
 					sources: [],
+					answerValue: "Clarification needed",
 				};
 			}
 
