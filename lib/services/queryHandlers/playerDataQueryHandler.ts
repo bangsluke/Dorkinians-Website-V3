@@ -278,17 +278,85 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
 		}
 
+		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
+		const hasOppositionQuery = oppositionEntities.length > 0 && (
+			questionLower.includes("against") ||
+			questionLower.includes("vs") ||
+			questionLower.includes("versus") ||
+			questionLower.includes("opposition")
+		);
+
+		if (hasOppositionQuery && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			const oppositionName = oppositionEntities[0];
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			// Check for specific question types
+			if (questionLower.includes("win rate") || questionLower.includes("record")) {
+				loggingService.log(`🔍 Querying win rate against opposition: ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryWinRateAgainstOpposition(oppositionName, resolvedPlayerName);
+			} else if (questionLower.includes("distance") || questionLower.includes("far") || questionLower.includes("travel")) {
+				loggingService.log(`🔍 Querying distance to opposition: ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryDistanceToOpposition(oppositionName);
+			} else {
+				// Default: query player stats against opposition
+				const metric = metrics.length > 0 ? metrics[0] : undefined;
+				loggingService.log(`🔍 Querying player stats against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerStatsAgainstOpposition(resolvedPlayerName, oppositionName, metric);
+			}
+		}
+
 		// Check for "opposition most" or "played against the most" questions
 		const isOppositionMostQuestion = 
 			(questionLower.includes("opposition") && questionLower.includes("most")) ||
 			(questionLower.includes("opposition") && questionLower.includes("played against")) ||
 			(questionLower.includes("played against") && questionLower.includes("most")) ||
-			(questionLower.includes("what opposition") && questionLower.includes("most"));
+			(questionLower.includes("what opposition") && questionLower.includes("most")) ||
+			(questionLower.includes("which opposition") && questionLower.includes("most"));
 
 		loggingService.log(`🔍 Checking for "opposition most" question. Question: "${questionLower}", isOppositionMostQuestion: ${isOppositionMostQuestion}`, null, "log");
 
 		// If this is an "opposition most" question, handle it specially
-		if (isOppositionMostQuestion && entities.length > 0) {
+		if (isOppositionMostQuestion) {
+			const playerName = entities.length > 0 ? entities[0] : undefined;
+			if (playerName) {
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+			} else {
+				// No player specified, query overall most played against
+				loggingService.log(`🔍 Querying most played against opposition (overall)`, null, "log");
+				return await RelationshipQueryHandler.queryMostPlayedAgainstOpposition();
+			}
+		}
+
+		// Check for penalty shootout questions
+		const isPenaltyShootoutQuestion = 
+			(questionLower.includes("penalty shootout") || questionLower.includes("penalties shootout")) &&
+			(questionLower.includes("scored") || questionLower.includes("missed") || questionLower.includes("saved") || questionLower.includes("record") || questionLower.includes("conversion"));
+
+		if (isPenaltyShootoutQuestion && entities.length > 0) {
 			const playerName = entities[0];
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 			
@@ -302,8 +370,8 @@ export class PlayerDataQueryHandler {
 				};
 			}
 			
-			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
-			return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+			loggingService.log(`🔍 Querying penalty shootout stats for ${resolvedPlayerName}`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltyShootoutStats(resolvedPlayerName);
 		}
 
 		// Check for "penalties taken" questions
@@ -332,6 +400,49 @@ export class PlayerDataQueryHandler {
 			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPenaltiesTaken`, null, "log");
 			return await PlayerDataQueryHandler.queryPenaltiesTaken(resolvedPlayerName);
+		}
+
+		// Check for season comparison questions
+		const isSeasonComparisonQuestion = 
+			(questionLower.includes("compare") && questionLower.includes("season")) ||
+			(questionLower.includes("vs") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
+			(questionLower.includes("versus") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
+			(questionLower.includes("best season") || questionLower.includes("worst season"));
+
+		if (isSeasonComparisonQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			// Extract seasons from question
+			const seasonMatches = questionLower.match(/(\d{4})[\/\-](\d{2,4})/g);
+			const seasons: string[] = [];
+			if (seasonMatches) {
+				seasonMatches.forEach(match => {
+					const normalized = match.replace("-", "/");
+					if (normalized.match(/\d{4}\/\d{4}/)) {
+						// Full year format: 2018/2019 -> 2018/19
+						const parts = normalized.split("/");
+						const shortEnd = parts[1].substring(2);
+						seasons.push(`${parts[0]}/${shortEnd}`);
+					} else {
+						seasons.push(normalized);
+					}
+				});
+			}
+
+			const metric = metrics.length > 0 ? metrics[0] : "G";
+			loggingService.log(`🔍 Querying season comparison for ${resolvedPlayerName}, seasons: ${seasons.join(", ")}, metric: ${metric}`, null, "log");
+			return await PlayerDataQueryHandler.querySeasonComparison(resolvedPlayerName, seasons, metric);
 		}
 
 		// Check for "penalty record" questions
@@ -609,6 +720,62 @@ export class PlayerDataQueryHandler {
 	}
 
 	/**
+	 * Query penalty shootout stats for a player
+	 */
+	static async queryPenaltyShootoutStats(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalty shootout stats for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltyShootoutPenaltiesScored, 0)) as penaltyShootoutScored,
+				sum(coalesce(md.penaltyShootoutPenaltiesMissed, 0)) as penaltyShootoutMissed,
+				sum(coalesce(md.penaltyShootoutPenaltiesSaved, 0)) as penaltyShootoutSaved
+			RETURN p.playerName as playerName, 
+				penaltyShootoutScored,
+				penaltyShootoutMissed,
+				penaltyShootoutSaved,
+				(penaltyShootoutScored + penaltyShootoutMissed) as totalPenaltyShootoutTaken,
+				CASE 
+					WHEN (penaltyShootoutScored + penaltyShootoutMissed) > 0 
+					THEN round(100.0 * penaltyShootoutScored / (penaltyShootoutScored + penaltyShootoutMissed) * 100) / 100.0
+					ELSE 0.0 
+				END as penaltyShootoutConversionRate
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalty_shootout_stats", 
+					data: row, 
+					playerName,
+					penaltyShootoutScored: row.penaltyShootoutScored || 0,
+					penaltyShootoutMissed: row.penaltyShootoutMissed || 0,
+					penaltyShootoutSaved: row.penaltyShootoutSaved || 0,
+					totalPenaltyShootoutTaken: row.totalPenaltyShootoutTaken || 0,
+					penaltyShootoutConversionRate: row.penaltyShootoutConversionRate || 0.0
+				};
+			}
+			return { 
+				type: "penalty_shootout_stats", 
+				data: { playerName, penaltyShootoutScored: 0, penaltyShootoutMissed: 0, penaltyShootoutSaved: 0, totalPenaltyShootoutTaken: 0, penaltyShootoutConversionRate: 0.0 }, 
+				playerName,
+				penaltyShootoutScored: 0,
+				penaltyShootoutMissed: 0,
+				penaltyShootoutSaved: 0,
+				totalPenaltyShootoutTaken: 0,
+				penaltyShootoutConversionRate: 0.0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalty shootout stats query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalty shootout stats data" };
+		}
+	}
+
+	/**
 	 * Query penalty record for a player (returns both penaltiesScored and penaltiesMissed)
 	 */
 	static async queryPenaltyRecord(playerName: string): Promise<Record<string, unknown>> {
@@ -655,6 +822,51 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in penalty record query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying penalty record data" };
+		}
+	}
+
+	/**
+	 * Query season comparison for a player
+	 */
+	static async querySeasonComparison(playerName: string, seasons: string[], metric: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying season comparison for player: ${playerName}, seasons: ${seasons.join(", ")}, metric: ${metric}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Build query to get stats for each season
+		const returnClause = PlayerQueryBuilder.getMatchDetailReturnClause(metric);
+		const aggregationMatch = returnClause.match(/^(.+?)\s+as\s+value$/i);
+		const aggregation = aggregationMatch ? aggregationMatch[1] : "count(md)";
+
+		let query = "";
+		if (seasons.length > 0) {
+			// Compare specific seasons
+			const seasonFilters = seasons.map(s => `f.season = "${s}"`).join(" OR ");
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE (${seasonFilters}) AND f.season IS NOT NULL AND f.season <> ""
+				WITH p, f.season as season, ${aggregation} as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, value
+			`;
+		} else {
+			// Get all seasons
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE f.season IS NOT NULL AND f.season <> ""
+				WITH p, f.season as season, ${aggregation} as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, value
+			`;
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			return { type: "season_comparison", data: result, playerName, seasons, metric };
+		} catch (error) {
+			loggingService.log(`❌ Error in season comparison query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying season comparison data" };
 		}
 	}
 

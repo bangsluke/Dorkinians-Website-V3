@@ -93,6 +93,37 @@ export class ClubDataQueryHandler {
 				}
 			}
 
+			// Check for team comparison queries
+			const isTeamComparisonQuery = 
+				question.includes("compare") && question.includes("team") ||
+				question.includes("all teams") && (question.includes("record") || question.includes("stats") || question.includes("goals"));
+
+			if (isTeamComparisonQuery) {
+				const teamComparisonQuery = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})
+					WHERE f.team IS NOT NULL 
+					  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+					WITH f.team as team,
+					     count(DISTINCT f) as gamesPlayed,
+					     sum(coalesce(f.dorkiniansGoals, 0)) as goalsScored,
+					     sum(coalesce(f.conceded, 0)) as goalsConceded,
+					     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+					     sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+					     sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+					WITH team, gamesPlayed, goalsScored, goalsConceded, wins, draws, losses,
+					     goalsScored - goalsConceded as goalDifference,
+					     CASE WHEN gamesPlayed > 0 THEN round(100.0 * wins / gamesPlayed * 100) / 100.0 ELSE 0.0 END as winRate
+					RETURN team, gamesPlayed, goalsScored, goalsConceded, wins, draws, losses, goalDifference, winRate
+					ORDER BY team
+				`;
+
+				const teamComparisonResult = await neo4jService.executeQuery(teamComparisonQuery, params);
+				return {
+					type: "team_comparison",
+					data: teamComparisonResult || [],
+				};
+			}
+
 			return {
 				type: "club_stats",
 				goalsScored,

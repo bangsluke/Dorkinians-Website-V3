@@ -197,6 +197,43 @@ export class TeamDataQueryHandler {
 			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 		}
 
+		// Check for win rate queries
+		const isWinRateQuery = question.includes("win rate") || question.includes("win percentage");
+		
+		if (isWinRateQuery) {
+			const winRateQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE ${whereConditions.join(" AND ")}
+				WITH count(DISTINCT f) as totalGames,
+				     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+				     sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+				     sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+				RETURN totalGames, wins, draws, losses,
+				       CASE WHEN totalGames > 0 THEN round(100.0 * wins / totalGames * 100) / 100.0 ELSE 0.0 END as winRate
+			`;
+
+			try {
+				const result = await neo4jService.executeQuery(winRateQuery, params);
+				if (result && result.length > 0) {
+					const stats = result[0];
+					return {
+						type: "team_win_rate",
+						teamName,
+						totalGames: stats.totalGames || 0,
+						wins: stats.wins || 0,
+						draws: stats.draws || 0,
+						losses: stats.losses || 0,
+						winRate: stats.winRate || 0.0,
+						season: season || undefined,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
+					};
+				}
+			} catch (error) {
+				loggingService.log(`❌ Error in win rate query:`, error, "error");
+			}
+		}
+
 		// Build query based on what metric is being asked about
 		let query = "";
 		if (detectedMetric && metricField) {

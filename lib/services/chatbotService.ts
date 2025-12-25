@@ -27,6 +27,7 @@ import { RankingQueryHandler } from "./queryHandlers/rankingQueryHandler";
 import { TemporalQueryHandler } from "./queryHandlers/temporalQueryHandler";
 import { LeagueTableQueryHandler } from "./queryHandlers/leagueTableQueryHandler";
 import { AwardsQueryHandler } from "./queryHandlers/awardsQueryHandler";
+import { RelationshipQueryHandler } from "./queryHandlers/relationshipQueryHandler";
 import type { ChatbotResponse, QuestionContext, ProcessingDetails, PlayerData, TeamData, StreakData, CoPlayerData, OpponentData, RankingData } from "./types/chatbotTypes";
 
 // Re-export types for use in route handlers and components
@@ -488,6 +489,41 @@ export class ChatbotService {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 				if (playerName) {
 					return await PlayerDataQueryHandler.queryPlayerLeagueWinsCount(playerName);
+				}
+			}
+
+			// Check for historical award queries
+			const isHistoricalAwardQuestion = 
+				(question.includes("who won") && question.includes("award")) ||
+				(question.includes("award") && (question.includes("season") || question.includes("won"))) ||
+				(question.includes("historical award") || question.includes("award history"));
+
+			if (isHistoricalAwardQuestion && entities.length > 0) {
+				const extractionResult = analysis.extractionResult;
+				const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+				const awardName = entities.find(e => !playerEntities.includes(e)) || entities[0];
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2,4})/);
+				const season = seasonMatch ? seasonMatch[0].replace("-", "/") : undefined;
+				return await AwardsQueryHandler.queryHistoricalAwardWinner(awardName, season);
+			}
+
+			// Check for distance/location queries
+			const isDistanceQuery = 
+				question.includes("distance") || question.includes("far") || question.includes("travel") ||
+				question.includes("furthest") || question.includes("furthest opposition");
+
+			if (isDistanceQuery) {
+				const extractionResult = analysis.extractionResult;
+				const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+				if (question.includes("furthest") && !entities.some(e => playerEntities.includes(e))) {
+					return await RelationshipQueryHandler.queryFurthestOpposition();
+				} else if (entities.length > 0 && playerEntities.length > 0 && playerEntities.includes(entities[0])) {
+					const playerName = entities[0];
+					const seasonMatch = question.match(/(\d{4})[\/\-](\d{2,4})/);
+					const season = seasonMatch ? seasonMatch[0].replace("-", "/") : undefined;
+					return await RelationshipQueryHandler.queryPlayerDistanceTraveled(playerName, season);
+				} else if (analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
+					return await RelationshipQueryHandler.queryDistanceToOpposition(analysis.oppositionEntities[0]);
 				}
 			}
 

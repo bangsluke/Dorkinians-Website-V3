@@ -26,6 +26,40 @@ export class FixtureDataQueryHandler {
 		if (isHighestScoringGameQuery) {
 			return await this.queryHighestScoringGame(entities, analysis);
 		}
+
+		// Check for opponent own goals queries
+		const isOpponentOwnGoalsQuery = 
+			question.includes("opponent own goals") ||
+			question.includes("oppo own goals") ||
+			question.includes("own goals") && question.includes("opponent");
+		
+		if (isOpponentOwnGoalsQuery) {
+			return await this.queryGamesWithOpponentOwnGoals(entities, analysis);
+		}
+
+		// Check for biggest win queries
+		const isBiggestWinQuery = 
+			question.includes("biggest win") ||
+			question.includes("largest win") ||
+			question.includes("biggest margin") ||
+			(question.includes("biggest") && question.includes("win"));
+		
+		if (isBiggestWinQuery) {
+			return await this.queryBiggestWin(entities, analysis);
+		}
+
+		// Check for games where player scored queries
+		const isGamesWhereScoredQuery = 
+			(question.includes("games") || question.includes("matches")) &&
+			(question.includes("scored") || question.includes("goal")) &&
+			analysis?.entities?.some(e => e.type === "player");
+		
+		if (isGamesWhereScoredQuery && analysis?.entities) {
+			const playerEntity = analysis.entities.find(e => e.type === "player");
+			if (playerEntity) {
+				return await this.queryGamesWherePlayerScored(playerEntity.value, analysis);
+			}
+		}
 		
 		// Extract team name from entities or analysis
 		let teamName = "";
@@ -138,6 +172,144 @@ export class FixtureDataQueryHandler {
 				data: [],
 				error: error instanceof Error ? error.message : String(error),
 			};
+		}
+	}
+
+	/**
+	 * Query games with opponent own goals
+	 */
+	static async queryGamesWithOpponentOwnGoals(
+		entities: string[],
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		const question = analysis?.question?.toLowerCase() || "";
+		
+		// Extract team name from entities or analysis
+		let teamName = "";
+		if (analysis?.teamEntities && analysis.teamEntities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+		} else if (entities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(entities[0]);
+		}
+
+		const params: Record<string, unknown> = { graphLabel };
+		if (teamName) {
+			params.team = teamName;
+		}
+
+		let query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.oppoOwnGoals > 0
+		`;
+		if (teamName) {
+			query += ` AND f.team = $team`;
+		}
+		query += `
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded,
+			       f.oppoOwnGoals as oppoOwnGoals
+			ORDER BY f.date DESC
+			LIMIT 20
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			return { type: "opponent_own_goals", data: result, teamName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWithOpponentOwnGoals:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query biggest win (largest goal difference)
+	 */
+	static async queryBiggestWin(
+		entities: string[],
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Extract team name from entities or analysis
+		let teamName = "";
+		if (analysis?.teamEntities && analysis.teamEntities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+		} else if (entities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(entities[0]);
+		}
+
+		const params: Record<string, unknown> = { graphLabel };
+		if (teamName) {
+			params.team = teamName;
+		}
+
+		let query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.result = 'W' AND f.dorkiniansGoals IS NOT NULL AND f.conceded IS NOT NULL
+		`;
+		if (teamName) {
+			query += ` AND f.team = $team`;
+		}
+		query += `
+			WITH f, f.dorkiniansGoals - f.conceded as goalDifference
+			ORDER BY goalDifference DESC, f.dorkiniansGoals DESC
+			LIMIT 1
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded,
+			       goalDifference
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			if (result && result.length > 0) {
+				return { type: "biggest_win", data: result[0], teamName };
+			}
+			return { type: "biggest_win", data: null, teamName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryBiggestWin:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query games where a player scored
+	 */
+	static async queryGamesWherePlayerScored(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE (md.goals > 0 OR md.penaltiesScored > 0)
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded,
+			       md.goals as playerGoals,
+			       md.penaltiesScored as playerPenaltiesScored
+			ORDER BY f.date DESC
+			LIMIT 50
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			return { type: "games_where_scored", data: result, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerScored:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 

@@ -515,6 +515,17 @@ export class PlayerQueryBuilder {
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 		}
 
+		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		// Use exact match (=) instead of CONTAINS as per schema requirements
+		if (analysis.competitions && analysis.competitions.length > 0 && 
+			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
+			!metric.match(/^\d+sApps$/i) &&
+			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
+			!metric.match(/^\d+sGoals$/i)) {
+			const competitionFilters = analysis.competitions.map((comp) => `f.competition = '${comp}'`);
+			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
+		}
+
 		// Add result filter if specified (but not for team-specific metrics - they don't need Fixture)
 		if (analysis.results && analysis.results.length > 0 && !isTeamSpecificMetric) {
 			const resultFilters = analysis.results

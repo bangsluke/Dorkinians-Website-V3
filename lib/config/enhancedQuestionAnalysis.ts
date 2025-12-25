@@ -524,6 +524,32 @@ export class EnhancedQuestionAnalyzer {
 			return "ranking";
 		}
 
+		// Check for competition-specific queries (cup vs league, etc.)
+		const hasCompetitionTypes = extractionResult.competitionTypes.length > 0;
+		const hasCompetitions = extractionResult.competitions.length > 0;
+		if (
+			(hasCompetitionTypes || hasCompetitions) &&
+			(lowerQuestion.includes("in") || lowerQuestion.includes("cup") || lowerQuestion.includes("league") || lowerQuestion.includes("friendly"))
+		) {
+			// If it's a player question with competition filter, keep it as player type
+			if (hasPlayerEntities) {
+				return "player";
+			}
+			// Otherwise, could be team/club question
+		}
+
+		// Check for result-based queries (goals in wins, win rate, etc.)
+		const hasResults = extractionResult.results.length > 0;
+		if (
+			hasResults &&
+			(lowerQuestion.includes("in") || lowerQuestion.includes("win") || lowerQuestion.includes("draw") || lowerQuestion.includes("loss") || lowerQuestion.includes("won") || lowerQuestion.includes("lost"))
+		) {
+			// If it's a player question with result filter, keep it as player type
+			if (hasPlayerEntities) {
+				return "player";
+			}
+		}
+
 		// Check for comparison queries (most, least, highest, etc.)
 		if (
 			lowerQuestion.includes("most") ||
@@ -538,6 +564,21 @@ export class EnhancedQuestionAnalyzer {
 			lowerQuestion.includes("conversion rate")
 		) {
 			return "comparison";
+		}
+
+		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
+		// This must be checked BEFORE general team queries to avoid false positives
+		const hasOppositionEntities = extractionResult.entities.some((e) => e.type === "opposition");
+		if (
+			hasOppositionEntities &&
+			((lowerQuestion.includes("against") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record") || lowerQuestion.includes("played"))) ||
+				(lowerQuestion.includes("vs") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("versus") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("opposition") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("win rate") && lowerQuestion.includes("against")) ||
+				(lowerQuestion.includes("record") && lowerQuestion.includes("against")))
+		) {
+			return "player"; // Route to player handler for opposition-specific player stats
 		}
 
 		// Check for opposition name queries (who did [team] play, opposition queries)
