@@ -288,6 +288,62 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
 		}
 
+		// Check for "how many times" + opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
+		// Try to extract opposition name from question if not in entities
+		let extractedOppositionName = "";
+		if (oppositionEntities.length > 0) {
+			extractedOppositionName = oppositionEntities[0];
+		} else {
+			// Fallback: try to extract capitalized team name from question
+			// Pattern: "how many times have I played [Team Name]?"
+			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+			if (oppositionMatch && oppositionMatch[1]) {
+				extractedOppositionName = oppositionMatch[1];
+				loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+			}
+		}
+
+		const isOppositionAppearanceQuery = 
+			extractedOppositionName.length > 0 && 
+			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
+			(questionLower.includes("played") || questionLower.includes("play")) &&
+			!questionLower.includes("goals") &&
+			!questionLower.includes("scored");
+
+		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
+
+		if (isOppositionAppearanceQuery) {
+			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			let playerName = "";
+			if (userContext) {
+				playerName = userContext;
+			} else if (entities.length > 0) {
+				playerName = entities[0];
+			} else {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			const oppositionName = extractedOppositionName;
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying appearances against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
+			return await PlayerDataQueryHandler.queryOppositionAppearances(resolvedPlayerName, oppositionName);
+		}
+
 		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
 		const hasOppositionQuery = oppositionEntities.length > 0 && (
 			questionLower.includes("against") ||
@@ -1032,6 +1088,45 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in league wins count query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying league wins count data" };
+		}
+	}
+
+	/**
+	 * Query how many times a player has played against a specific opposition
+	 * Counts MatchDetail nodes connected to the player, filtered by OppositionDetails
+	 */
+	static async queryOppositionAppearances(playerName: string, oppositionName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying appearances against opposition: ${playerName} vs ${oppositionName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query to count MatchDetail nodes where player played against the opposition
+		// Uses CONTAINS for partial matching (e.g., "Old Hamptonians" matches "Old Hamptonians 2nd")
+		// Verifies OppositionDetails nodes exist with matching opposition name
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE toLower(f.opposition) CONTAINS toLower($oppositionName)
+				AND EXISTS {
+					MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+					WHERE toLower(od.opposition) CONTAINS toLower($oppositionName)
+				}
+			RETURN count(md) as appearances
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
+			const appearances = result && result.length > 0 ? (result[0].appearances || 0) : 0;
+			
+			return { 
+				type: "player_opposition_appearances", 
+				data: [{ appearances }], 
+				playerName, 
+				oppositionName,
+				appearances 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in opposition appearances query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying opposition appearances" };
 		}
 	}
 }

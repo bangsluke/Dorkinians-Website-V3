@@ -468,9 +468,11 @@ export class PlayerQueryBuilder {
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
 		// Filter through OppositionDetails nodes as per schema requirements
+		// Use CONTAINS for partial matching (e.g., "Old Hamptonians" matches "Old Hamptonians 2nd")
 		// Note: OppositionDetails node is matched in buildPlayerQuery, so we only need to link Fixture to it
 		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
-			whereConditions.push(`f.opposition = od.opposition`);
+			const oppositionName = oppositionEntities[0];
+			whereConditions.push(`toLower(od.opposition) CONTAINS toLower('${oppositionName}') AND toLower(f.opposition) CONTAINS toLower('${oppositionName}')`);
 		}
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -506,23 +508,17 @@ export class PlayerQueryBuilder {
 
 		// Add competition filter if specified (but not for team-specific appearance or goals queries)
 		// Use exact match (=) instead of CONTAINS as per schema requirements
+		// This applies to goals queries (G) and other metrics that need Fixture data
 		if (analysis.competitions && analysis.competitions.length > 0 && 
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
 			!metric.match(/^\d+sApps$/i) &&
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
 			!metric.match(/^\d+sGoals$/i)) {
-			const competitionFilters = analysis.competitions.map((comp) => `f.competition = '${comp}'`);
-			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
-		}
-
-		// Add competition filter if specified (but not for team-specific appearance or goals queries)
-		// Use exact match (=) instead of CONTAINS as per schema requirements
-		if (analysis.competitions && analysis.competitions.length > 0 && 
-			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
-			!metric.match(/^\d+sApps$/i) &&
-			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
-			!metric.match(/^\d+sGoals$/i)) {
-			const competitionFilters = analysis.competitions.map((comp) => `f.competition = '${comp}'`);
+			// Map competition names from pseudonyms to actual database values
+			const competitionFilters = analysis.competitions.map((comp) => {
+				// Use the competition name as-is (already mapped by extractCompetitions)
+				return `f.competition = '${comp}'`;
+			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 		}
 
@@ -1084,8 +1080,17 @@ export class PlayerQueryBuilder {
 		const locations = analysis.extractionResult?.locations || [];
 		const hasLocationFilter = locations.some((loc) => loc.type === "home" || loc.type === "away");
 		let needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
-		// CRITICAL: Force MatchDetail join when location filters are present (needed for f.homeOrAway filtering)
-		if (hasLocationFilter && !needsMatchDetail) {
+		// CRITICAL: Force MatchDetail join when filters requiring Fixture are present
+		// (competition, competition type, opposition, time range, location, result filters)
+		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
+		const hasCompetitionTypeFilter = analysis.competitionTypes && analysis.competitionTypes.length > 0;
+		const hasOppositionFilter = oppositionEntities.length > 0;
+		const hasTimeRangeFilter = timeRange !== undefined;
+		const hasResultFilter = analysis.results && analysis.results.length > 0;
+		const hasFiltersRequiringMatchDetail = hasLocationFilter || hasCompetitionFilter || hasCompetitionTypeFilter || 
+			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter;
+		
+		if (hasFiltersRequiringMatchDetail && !needsMatchDetail) {
 			needsMatchDetail = true;
 		}
 		const isTeamSpecificMetric = !!(metric.match(/^\d+sApps$/i) || 
@@ -1142,7 +1147,8 @@ export class PlayerQueryBuilder {
 					query = `
 						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-						MATCH (od:OppositionDetails {opposition: '${oppositionName}'})
+						MATCH (od:OppositionDetails)
+						WHERE toLower(od.opposition) CONTAINS toLower('${oppositionName}')
 					`;
 				} else {
 					query = `

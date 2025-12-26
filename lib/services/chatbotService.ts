@@ -1790,6 +1790,27 @@ export class ChatbotService {
 					answerValue = uniqueOppositions.length === 1 ? uniqueOppositions[0] : oppList;
 				}
 			}
+		} else if (data && data.type === "player_opposition_appearances") {
+			// Handle opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
+			const playerName = (data.playerName as string) || "";
+			const oppositionName = (data.oppositionName as string) || "";
+			const appearances = (data.appearances as number) || 0;
+			
+			answerValue = appearances;
+			answer = `${playerName} has played against ${oppositionName} ${appearances} ${appearances === 1 ? "time" : "times"}.`;
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Appearances", 
+					value: appearances,
+					iconName: this.getIconNameForMetric("APP")
+				}],
+				config: {
+					title: `${playerName} - Appearances vs ${oppositionName}`,
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "games_played_together") {
 			// Handle games played together data (specific player pair) - check early before other data.data checks
 			console.log(`🔍 [RESPONSE_GEN] games_played_together data:`, data);
@@ -2907,7 +2928,20 @@ export class ChatbotService {
 						} else {
 							answerValue = value as number;
 						}
-						answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+						
+						// Check for competition filter to customize answer text
+						const competitions = analysis.competitions || [];
+						const hasCompetitionFilter = competitions.length > 0;
+						
+						if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
+							// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
+							const competitionName = competitions[0];
+							const goalCount = value as number;
+							const goalText = goalCount === 1 ? "goal" : "goals";
+							answer = `${playerName} has scored ${goalCount} ${goalText} in the ${competitionName}.`;
+						} else {
+							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+						}
 						
 						// Create NumberCard visualization for penalty conversion rate
 						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
@@ -2931,7 +2965,7 @@ export class ChatbotService {
 								},
 							};
 						}
-						// Create NumberCard visualization for away goals
+						// Create NumberCard visualization for goals queries with competition or location filters
 						else if (metric && metric.toUpperCase() === "G") {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
@@ -2950,6 +2984,25 @@ export class ChatbotService {
 									}],
 									config: {
 										title: displayName,
+										type: "bar",
+									},
+								};
+							} else if (hasCompetitionFilter) {
+								// Generate NumberCard for goals in specific competition (e.g., "Premier")
+								// NumberCard should show just "goals" as the name
+								const iconName = this.getIconNameForMetric(metric);
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: "goals",
+										wordedText: "goals", 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - Goals in ${competitions[0]}`,
 										type: "bar",
 									},
 								};
