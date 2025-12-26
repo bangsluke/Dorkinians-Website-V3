@@ -279,11 +279,11 @@ export class EnhancedQuestionAnalyzer {
 
 		// FIXED: Only require clarification if BOTH entities AND stat types are missing (not either/or)
 		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
-		// Also require clarification if we have ambiguous player names that don't match the selected player
+		// Note: Player name mismatch clarification is now handled post-query (see ChatbotService.generateResponse)
+		// to allow queries to attempt first before asking for clarification
 		const needsClarification =
 			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
-			(complexity === "complex" && hasNoEntities && hasNoStatTypes) ||
-			hasAmbiguousPlayerName;
+			(complexity === "complex" && hasNoEntities && hasNoStatTypes);
 
 		return needsClarification;
 	}

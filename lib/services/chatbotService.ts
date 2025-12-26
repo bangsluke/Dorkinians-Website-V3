@@ -366,7 +366,8 @@ export class ChatbotService {
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
 			// Generate the response (use original question for response generation, but processed question was used for analysis)
-			const response = await this.generateResponse(questionToProcess, data, analysis);
+			// Pass userContext so it can be used for post-query clarification checks
+			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext);
 
 			// Store in conversation context if session ID provided
 			// Use the processed question (which may be combined with clarification) for history
@@ -415,6 +416,80 @@ export class ChatbotService {
 		const enhancedAnalysis = await analyzer.analyze();
 
 		return enhancedAnalysis;
+	}
+
+	// Check if clarification is needed after a query fails
+	// This is called when the query returns "I couldn't find relevant information" to see if
+	// a player name mismatch might be the issue
+	private checkPostQueryClarificationNeeded(
+		analysis: EnhancedQuestionAnalysis,
+		userContext?: string,
+	): string | null {
+		if (!userContext) {
+			return null;
+		}
+
+		const extractionResult = analysis.extractionResult;
+		if (!extractionResult) {
+			return null;
+		}
+
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerEntities.length === 0) {
+			return null;
+		}
+
+		const selectedPlayerLower = userContext.toLowerCase().trim();
+
+		// Check if any extracted player name partially matches the selected player
+		// Use originalText to check the text before fuzzy matching resolved it
+		for (const entity of playerEntities) {
+			const originalText = entity.originalText.toLowerCase().trim();
+			const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+
+			// Skip "I" references as they're handled separately
+			if (cleanOriginalText === "i" || cleanOriginalText === "i've" || cleanOriginalText === "me" || cleanOriginalText === "my" || cleanOriginalText === "myself") {
+				continue;
+			}
+
+			// Check if the original extracted text is contained in the selected player name
+			// If it matches, no clarification needed
+			if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2) {
+				return null; // Partial match found, no clarification needed
+			}
+		}
+
+		// No match found - check if we have non-I player entities that don't match
+		const nonIPlayerEntities = playerEntities.filter((e) => {
+			const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+			return originalText !== "i" && 
+				originalText !== "i've" && 
+				originalText !== "me" && 
+				originalText !== "my" && 
+				originalText !== "myself";
+		});
+
+		if (nonIPlayerEntities.length > 0) {
+			// Use originalText for the clarification message to show what was actually extracted
+			const playerNames = nonIPlayerEntities.map((e) => {
+				const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+				return originalText;
+			}).join(", ");
+
+			// Check if it's a single first name (likely needs surname clarification)
+			const isSingleFirstName = nonIPlayerEntities.length === 1 && 
+				!playerNames.includes(" ") && 
+				playerNames.length > 0 && 
+				playerNames.length < 15; // Reasonable first name length
+
+			if (isSingleFirstName) {
+				return `Please clarify which ${playerNames} you are asking about.`;
+			}
+
+			return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${userContext}". Please provide the full player name you're asking about, or confirm if you meant "${userContext}".`;
+		}
+
+		return null;
 	}
 
 	// Check if a user response is likely answering a clarification request
@@ -1604,6 +1679,7 @@ export class ChatbotService {
 		question: string,
 		data: Record<string, unknown> | null,
 		analysis: EnhancedQuestionAnalysis,
+		userContext?: string,
 	): Promise<ChatbotResponse> {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
@@ -2825,6 +2901,14 @@ export class ChatbotService {
 		} else {
 			// Fallback for unknown data types
 			answer = "I couldn't find relevant information for your question.";
+			
+			// Check if clarification might help (e.g., player name mismatch)
+			// This is done post-query to allow queries to attempt first
+			const clarificationMessage = this.checkPostQueryClarificationNeeded(analysis, userContext);
+			if (clarificationMessage) {
+				answer = clarificationMessage;
+				answerValue = "Clarification needed";
+			}
 		}
 
 		return {
