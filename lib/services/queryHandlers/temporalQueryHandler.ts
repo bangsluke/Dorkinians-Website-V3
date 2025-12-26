@@ -106,8 +106,12 @@ export class TemporalQueryHandler {
 			(metrics.some(m => m.toLowerCase() === "clean_sheets" || m.toLowerCase() === "cls") && (question.includes("in a row") || question.includes("consecutive")));
 
 		// Check if this is a goal involvement streak question
-		const isGoalInvolvementStreak = question.includes("goal involvement") && (question.includes("consecutive") || question.includes("in a row") || question.includes("scored") || question.includes("assisted")) ||
-			((question.includes("scored") || question.includes("assisted")) && (question.includes("consecutive") || question.includes("in a row")));
+		// Enhanced detection to catch variations like "consecutive games have I scored/assisted/had a goal involvement"
+		const isGoalInvolvementStreak = 
+			((question.includes("goal involvement") || question.includes("goals involvement")) && (question.includes("consecutive") || question.includes("in a row") || question.includes("scored") || question.includes("assisted"))) ||
+			((question.includes("scored") || question.includes("assisted")) && (question.includes("consecutive") || question.includes("in a row"))) ||
+			(question.includes("consecutive games") && (question.includes("scored") || question.includes("assisted") || question.includes("goal involvement") || question.includes("goals involvement"))) ||
+			(question.includes("consecutive") && question.includes("games") && (question.includes("scored") || question.includes("assisted") || question.includes("goal involvement") || question.includes("goals involvement")));
 
 		if (isCleanSheetStreak) {
 			return await TemporalQueryHandler.queryConsecutiveCleanSheetsStreak(playerName);

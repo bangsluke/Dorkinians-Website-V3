@@ -320,6 +320,32 @@ export class ChatbotService {
 			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
 
+			// Check for streak questions BEFORE clarification check
+			// These questions might be flagged for clarification but should be handled as streak queries
+			const questionLower = questionToProcess.toLowerCase();
+			
+			// Check for consecutive weekends questions
+			const isConsecutiveWeekendsQuestion = 
+				(questionLower.includes("consecutive") && (questionLower.includes("weekend") || questionLower.includes("weekends"))) ||
+				(questionLower.includes("longest") && questionLower.includes("consecutive") && (questionLower.includes("weekend") || questionLower.includes("weekends")));
+			
+			// Check for consecutive goal involvement questions
+			const isConsecutiveGoalInvolvementQuestion = 
+				(questionLower.includes("consecutive") && questionLower.includes("games") && 
+				 (questionLower.includes("scored") || questionLower.includes("assisted") || 
+				  questionLower.includes("goal involvement") || questionLower.includes("goals involvement"))) ||
+				(questionLower.includes("how many") && questionLower.includes("consecutive") && 
+				 (questionLower.includes("scored") || questionLower.includes("assisted") || 
+				  questionLower.includes("goal involvement") || questionLower.includes("goals involvement")));
+
+			// If this is a streak question, override clarification and set type to streak
+			if ((isConsecutiveWeekendsQuestion || isConsecutiveGoalInvolvementQuestion) && context.userContext) {
+				analysis.type = "streak";
+				analysis.requiresClarification = false;
+				analysis.entities = [context.userContext];
+				this.logToBoth(`🔍 Overriding clarification for streak question, using userContext: ${context.userContext}`, null, "log");
+			}
+
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
 				// Try to provide a better fallback response
@@ -599,6 +625,23 @@ export class ChatbotService {
 					return await RelationshipQueryHandler.queryPlayerDistanceTraveled(playerName, season);
 				} else if (analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
 					return await RelationshipQueryHandler.queryDistanceToOpposition(analysis.oppositionEntities[0]);
+				}
+			}
+
+			// Check for consecutive goal involvement questions - ensure they're routed to streak handler
+			// This catches questions that might be misclassified as "player" type
+			const isConsecutiveGoalInvolvementQuestion = 
+				(question.includes("consecutive") && question.includes("games") && 
+				 (question.includes("scored") || question.includes("assisted") || 
+				  question.includes("goal involvement") || question.includes("goals involvement"))) ||
+				(question.includes("how many") && question.includes("consecutive") && 
+				 (question.includes("scored") || question.includes("assisted") || 
+				  question.includes("goal involvement") || question.includes("goals involvement")));
+
+			if (isConsecutiveGoalInvolvementQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
 				}
 			}
 
@@ -2359,6 +2402,38 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "most_played_with") {
+			// Handle most played with queries
+			const playerName = (data.playerName as string) || "You";
+			const teamName = data.teamName as string | undefined;
+			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number }>) || [];
+			
+			if (resultData.length === 0) {
+				const teamContext = teamName ? ` for the ${teamName}` : "";
+				answer = `${playerName} haven't played with any teammates${teamContext}.`;
+			} else {
+				const topPlayer = resultData[0];
+				const teamContext = teamName ? ` whilst playing for the ${teamName}` : "";
+				answer = `${playerName} have played the most games with ${topPlayer.teammateName}${teamContext}, with ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
+				answerValue = topPlayer.teammateName;
+				
+				// Create table with top 3 players
+				const tableData = resultData.map((item) => ({
+					Player: item.teammateName,
+					Games: item.gamesTogether,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Games", label: "Games" },
+						],
+					},
+				};
+			}
 		} else if (data && data.type === "awards_count") {
 			// Handle awards count queries
 			const playerName = (data.playerName as string) || "You";
@@ -2900,14 +2975,19 @@ export class ChatbotService {
 			}
 		} else {
 			// Fallback for unknown data types
-			answer = "I couldn't find relevant information for your question.";
-			
-			// Check if clarification might help (e.g., player name mismatch)
-			// This is done post-query to allow queries to attempt first
-			const clarificationMessage = this.checkPostQueryClarificationNeeded(analysis, userContext);
-			if (clarificationMessage) {
-				answer = clarificationMessage;
-				answerValue = "Clarification needed";
+			// Don't check for clarification if we have streak data (it should have been handled above)
+			if (data && data.type === "streak") {
+				answer = "I couldn't process the streak data for your question.";
+			} else {
+				answer = "I couldn't find relevant information for your question.";
+				
+				// Check if clarification might help (e.g., player name mismatch)
+				// This is done post-query to allow queries to attempt first
+				const clarificationMessage = this.checkPostQueryClarificationNeeded(analysis, userContext);
+				if (clarificationMessage) {
+					answer = clarificationMessage;
+					answerValue = "Clarification needed";
+				}
 			}
 		}
 

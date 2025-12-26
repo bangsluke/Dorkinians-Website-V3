@@ -196,6 +196,16 @@ export class PlayerDataQueryHandler {
 			const timeFrames = analysis.extractionResult?.timeFrames || [];
 			const question = analysis.question || "";
 			
+			// Fallback: Extract team name directly from question text if not found in team entities
+			// This handles patterns like "whilst playing in the 3s" or "while playing for the 3s"
+			if (!teamName) {
+				const teamMatch = question.match(/\b(?:in|for|with)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i);
+				if (teamMatch) {
+					teamName = TeamMappingUtils.mapTeamName(teamMatch[1]);
+					loggingService.log(`🔍 Team filter detected from question text: ${teamName}`, null, "log");
+				}
+			}
+			
 			let season: string | null = null;
 			const seasonFrame = timeFrames.find(tf => tf.type === "season");
 			if (seasonFrame) {
