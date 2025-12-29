@@ -346,6 +346,24 @@ export class ChatbotService {
 				this.logToBoth(`🔍 Overriding clarification for streak question, using userContext: ${context.userContext}`, null, "log");
 			}
 
+			// Check for "most prolific season" questions - override clarification if userContext exists
+			const isMostProlificSeasonQuestion = 
+				questionLower.includes("most prolific season") || questionLower.includes("prolific season");
+			
+			if (isMostProlificSeasonQuestion && context.userContext) {
+				analysis.type = "player";
+				analysis.requiresClarification = false;
+				// Ensure entities array has the userContext
+				if (analysis.entities.length === 0) {
+					analysis.entities = [context.userContext];
+				}
+				// Ensure metrics array has MostProlificSeason
+				if (!analysis.metrics.includes("MostProlificSeason")) {
+					analysis.metrics = ["MostProlificSeason"];
+				}
+				this.logToBoth(`🔍 Overriding clarification for most prolific season question, using userContext: ${context.userContext}`, null, "log");
+			}
+
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
 				// Try to provide a better fallback response
@@ -642,6 +660,25 @@ export class ChatbotService {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 				if (playerName) {
 					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
+			// Check for "most prolific season" questions - route to player handler
+			// This check must happen before the switch statement to ensure proper routing
+			const isMostProlificSeasonQuestion = 
+				(question.includes("most prolific season") || question.includes("prolific season")) &&
+				(question.includes("what") || question.includes("which") || question.includes("my") || question.includes("your"));
+
+			if (isMostProlificSeasonQuestion) {
+				// Ensure this is routed to player handler with proper context
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName || userContext) {
+					// Force route to player handler by ensuring entities array has the player
+					const playerEntities = playerName ? [playerName] : (userContext ? [userContext] : []);
+					this.lastProcessingSteps.push(`Detected most prolific season question, routing to PlayerDataQueryHandler with player: ${playerEntities[0] || userContext}`);
+					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["MostProlificSeason"], analysis, userContext);
+				} else {
+					this.lastProcessingSteps.push(`Most prolific season question detected but no player context available`);
 				}
 			}
 
@@ -2196,7 +2233,7 @@ export class ChatbotService {
 				const location = gameData.homeOrAway === "Home" ? "at home" : gameData.homeOrAway === "Away" ? "away" : "";
 				const formattedDate = DateUtils.formatDate(gameData.date);
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
-				answerValue = gameData.totalGoals;
+				answerValue = answer;
 			}
 		} else if (data && data.type === "double_game") {
 			// Handle double game weeks queries
@@ -2840,50 +2877,52 @@ export class ChatbotService {
 				else if (metric && metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 					if (questionLower.includes("most prolific season") || questionLower.includes("prolific season")) {
 						// Check if we have array data (multiple seasons) from the query
-						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
-						
-						// Transform data to ensure we have season and value
-						const transformedData = seasonsData
-							.map((item) => {
-								// Handle both { season: "2019/20", value: 15 } and { value: "2019/20" } formats
-								const season = item.season || (typeof item.value === "string" ? item.value : "");
-								const goals = typeof item.value === "number" ? item.value : (item.goals as number) || 0;
-								return { season, goals };
-							})
-							.filter((item) => item.season && item.goals !== undefined);
-						
-						if (transformedData.length > 0) {
+						if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+							const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+							
+							// Transform data to ensure we have season and value
+							const transformedData = seasonsData
+								.map((item) => {
+									// Handle both { season: "2019/20", value: 15 } and { value: "2019/20" } formats
+									const season = item.season || (typeof item.value === "string" ? item.value : "");
+									const goals = typeof item.value === "number" ? item.value : (item.goals as number) || 0;
+									return { season, goals };
+								})
+								.filter((item) => item.season && item.goals !== undefined);
+							
+							if (transformedData.length > 0) {
 							// Find the season with the most goals
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
 							
 							answer = `${playerName}'s most prolific season was ${mostProlific.season} with ${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}.`;
 							answerValue = mostProlific.season;
 							
-							// Sort by goals descending, then by season for tie-breaking
+							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
-								if (b.goals !== a.goals) {
-									return b.goals - a.goals;
-								}
-								// If goals are equal, sort by season descending (most recent first)
-								return b.season.localeCompare(a.season);
+								return a.season.localeCompare(b.season);
 							});
 							
-							// Create Table visualization with all seasons sorted by goals
-							const tableData = sortedData.map((item) => ({
-								Season: item.season,
-								Goals: item.goals,
-							}));
+							// Find the maximum goals for highlighting
+							const maxGoals = Math.max(...sortedData.map((item) => item.goals));
 							
+							// Create Record visualization (bar chart) with all seasons
 							visualization = {
-								type: "Table",
-								data: tableData,
+								type: "Record",
+								data: sortedData.map((item) => ({
+									name: item.season,
+									value: item.goals,
+									isHighest: item.goals === maxGoals,
+								})),
 								config: {
-									columns: [
-										{ key: "Season", label: "Season" },
-										{ key: "Goals", label: "Goals" },
-									],
+									title: `${playerName} - Goals per Season`,
+									type: "bar",
 								},
 							};
+							} else {
+								answer = `${playerName} has no season data available.`;
+							}
+						} else {
+							answer = `${playerName} has no season data available.`;
 						}
 					}
 				}

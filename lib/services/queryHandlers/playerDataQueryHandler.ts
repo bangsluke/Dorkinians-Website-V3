@@ -468,6 +468,77 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryPenaltiesTaken(resolvedPlayerName);
 		}
 
+		// Check for "most prolific season" questions
+		const isMostProlificSeasonQuestion = 
+			(questionLower.includes("most prolific season") || questionLower.includes("prolific season")) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your"));
+
+		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			let playerName = "";
+			if (userContext) {
+				playerName = userContext;
+			} else if (entities.length > 0) {
+				playerName = entities[0];
+			} else {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying most prolific season for ${resolvedPlayerName}`, null, "log");
+			// Use MostProlificSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostProlificSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_PROLIFIC_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostProlificSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most prolific season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for season comparison questions
 		const isSeasonComparisonQuestion = 
 			(questionLower.includes("compare") && questionLower.includes("season")) ||

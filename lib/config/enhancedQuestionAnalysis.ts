@@ -41,18 +41,42 @@ export class EnhancedQuestionAnalyzer {
 	async analyze(): Promise<EnhancedQuestionAnalysis> {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		
+		// Early detection: Check for "most prolific season" pattern and add to statTypes if found
+		// This must happen before the early exit check to ensure the question is properly recognized
+		const lowerQuestion = this.question.toLowerCase();
+		const isMostProlificSeasonQuestion = 
+			lowerQuestion.includes("most") && 
+			lowerQuestion.includes("prolific") && 
+			lowerQuestion.includes("season");
+		
+		if (isMostProlificSeasonQuestion) {
+			// Check if "Most Prolific Season" is already in statTypes
+			const hasMostProlificSeason = extractionResult.statTypes.some(
+				(stat) => stat.value === "Most Prolific Season"
+			);
+			
+			if (!hasMostProlificSeason) {
+				// Add "Most Prolific Season" to statTypes early so it passes the early exit check
+				extractionResult.statTypes.push({
+					value: "Most Prolific Season",
+					originalText: "most prolific season",
+					position: lowerQuestion.indexOf("most"),
+				});
+			}
+		}
+		
 		// Early exit: Check if this is clearly an invalid query before further processing
 		// This check happens after extraction but before expensive operations like complexity assessment
 		const namedEntities = extractionResult.entities.filter(
 			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
 		);
-		const lowerQuestion = this.question.toLowerCase();
 		const isRankingQuestion =
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
 		
 		// Early exit if no entities, no stat types, and not a ranking question
 		// Return immediately to avoid unnecessary processing
+		// Exception: "most prolific season" questions with userContext don't need entities
 		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0 && !isRankingQuestion) {
 			return {
 				type: "clarification_needed",
@@ -271,6 +295,21 @@ export class EnhancedQuestionAnalyzer {
 		const isRankingQuestion =
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
+
+		// Check for "most prolific season" questions - these are valid with userContext even without entities
+		const isMostProlificSeasonQuestion = 
+			lowerQuestion.includes("most") && 
+			lowerQuestion.includes("prolific") && 
+			lowerQuestion.includes("season");
+		
+		// Don't require entities for "most prolific season" questions if userContext exists
+		if (isMostProlificSeasonQuestion && this.userContext && hasNoStatTypes) {
+			return true; // Still need stat types
+		}
+		
+		if (isMostProlificSeasonQuestion && this.userContext) {
+			return false; // "most prolific season" with userContext doesn't need clarification
+		}
 
 		// Don't require entities for ranking questions
 		if (isRankingQuestion && hasNoStatTypes) {
@@ -677,6 +716,10 @@ export class EnhancedQuestionAnalyzer {
 				if (entity.value === "I" && this.userContext) {
 					entities.push(this.userContext);
 					hasMatchedPlayer = true;
+				} else if (entity.value === "I" && !this.userContext) {
+					// Skip "I" references when userContext is missing - they can't be resolved
+					// This prevents "I" from being added to entities when userContext is not available
+					return;
 				} else if (matchedPlayerName && this.userContext) {
 					// matchedPlayerName is not null, meaning we found a partial match
 					// Use originalText to check the text before fuzzy matching

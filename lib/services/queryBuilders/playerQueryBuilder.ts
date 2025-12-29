@@ -33,6 +33,7 @@ export class PlayerQueryBuilder {
 			"DIST",
 			"MOSTSCOREDFORTEAM",
 			"MOSTPLAYEDFORTEAM",
+			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
 			"FTP",
 			"POINTS",
 			"FANTASYPOINTS",
@@ -866,9 +867,10 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			// Query MatchDetails to get goals per season for chart display
+			// Includes regular goals and penalties, but excludes penalty shootout penalties
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WHERE f.season IS NOT NULL AND f.season <> ""
 				WITH p, f.season as season, 
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
