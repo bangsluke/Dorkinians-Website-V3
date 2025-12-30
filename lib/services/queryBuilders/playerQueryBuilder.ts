@@ -21,6 +21,12 @@ export class PlayerQueryBuilder {
 			"HOMEGAMES%WON",
 			"AWAYGAMES%WON",
 			"GAMES%WON",
+			"HOMEGAMES%LOST",
+			"AWAYGAMES%LOST",
+			"GAMES%LOST",
+			"HOMEGAMES%DRAWN",
+			"AWAYGAMES%DRAWN",
+			"GAMES%DRAWN",
 			"MPERG",
 			"MPERCLS",
 			"FTPPERAPP",
@@ -382,6 +388,19 @@ export class PlayerQueryBuilder {
 			whereConditions.push(`toUpper(f.team) IN [${teamNames}]`);
 		}
 
+		// Add team exclusion filter if specified (for "not playing for" patterns)
+		if (analysis.teamExclusions && analysis.teamExclusions.length > 0) {
+			const teamExclusions = analysis.teamExclusions || [];
+			const mappedExcludedTeamNames = teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+			
+			// For player performance metrics, exclude based on md.team (where individual player team is stored)
+			// For team-specific metrics that don't use MatchDetail, we still use md.team for consistency
+			// The exclusion means "not playing for team X", which refers to the team in MatchDetail
+			for (const excludedTeam of mappedExcludedTeamNames) {
+				whereConditions.push(`toUpper(md.team) <> toUpper('${excludedTeam}')`);
+			}
+		}
+
 		// Add team-specific appearance filter if metric is team-specific (1sApps, 2sApps, etc.)
 		if (metric.match(/^\d+sApps$/i)) {
 			const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
@@ -599,6 +618,9 @@ export class PlayerQueryBuilder {
 	 * Build special case queries that need custom query structures
 	 */
 	static buildSpecialCaseQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string | null {
+		// Normalize metric to uppercase for consistent comparison
+		const metricUpper = metric.toUpperCase();
+		
 		if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
@@ -824,7 +846,7 @@ export class PlayerQueryBuilder {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === "HOMEGAMES%WON") {
+		} else if (metricUpper === "HOMEGAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -836,9 +858,10 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN homeGames > 0 THEN 100.0 * homeWins / homeGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					homeGames as totalGames
 			`;
-		} else if (metric.toUpperCase() === "AWAYGAMES%WON") {
+		} else if (metricUpper === "AWAYGAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -850,9 +873,10 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					awayGames as totalGames
 			`;
-		} else if (metric.toUpperCase() === "GAMES%WON") {
+		} else if (metricUpper === "GAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -863,7 +887,96 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN totalGames > 0 THEN 100.0 * totalWins / totalGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					totalGames as totalGames
+			`;
+		} else if (metricUpper === "HOMEGAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Home'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as homeLosses,
+					count(md) as homeGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN homeGames > 0 THEN 100.0 * homeLosses / homeGames
+						ELSE 0.0 
+					END as value,
+					homeGames as totalGames
+			`;
+		} else if (metricUpper === "AWAYGAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Away'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as awayLosses,
+					count(md) as awayGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN awayGames > 0 THEN 100.0 * awayLosses / awayGames
+						ELSE 0.0 
+					END as value,
+					awayGames as totalGames
+			`;
+		} else if (metricUpper === "GAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as totalLosses,
+					count(md) as totalGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGames > 0 THEN 100.0 * totalLosses / totalGames
+						ELSE 0.0 
+					END as value,
+					totalGames as totalGames
+			`;
+		} else if (metricUpper === "HOMEGAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Home'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as homeDraws,
+					count(md) as homeGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN homeGames > 0 THEN 100.0 * homeDraws / homeGames
+						ELSE 0.0 
+					END as value,
+					homeGames as totalGames
+			`;
+		} else if (metricUpper === "AWAYGAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Away'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as awayDraws,
+					count(md) as awayGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN awayGames > 0 THEN 100.0 * awayDraws / awayGames
+						ELSE 0.0 
+					END as value,
+					awayGames as totalGames
+			`;
+		} else if (metricUpper === "GAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as totalDraws,
+					count(md) as totalGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGames > 0 THEN 100.0 * totalDraws / totalGames
+						ELSE 0.0 
+					END as value,
+					totalGames as totalGames
 			`;
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			// Query MatchDetails to get goals per season for chart display
@@ -1178,8 +1291,10 @@ export class PlayerQueryBuilder {
 
 			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
 			// (we'll filter in WITH clause instead to ensure we always return a row)
+			// BUT skip this if team exclusions are present (exclusions mean we want all teams except the excluded ones)
+			const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
 			let teamNameForWithClause = "";
-			if ((isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+			if (!hasTeamExclusions && (isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
 				if (metric.match(/^\d+sApps$/i)) {
 					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
 					if (teamNumber) {
@@ -1207,7 +1322,8 @@ export class PlayerQueryBuilder {
 			}
 
 			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WHERE clause or WITH clause
-			if (isTeamSpecificMetric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
+			// BUT skip team-specific pattern when exclusions are present (exclusions mean we want all teams except excluded ones)
+			if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
 				let teamName = "";
 				if (metric.match(/^\d+sGoals$/i)) {
@@ -1234,11 +1350,22 @@ export class PlayerQueryBuilder {
 					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
 				}
 			} else if (isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
-				if (teamNameForWithClause) {
+				// Check if we have team exclusions - if so, don't use team-specific pattern
+				const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
+				
+				if (teamNameForWithClause && !hasTeamExclusions) {
 					// Use WITH clause to aggregate and filter by team
 					// Ensure we always return a row even when there are no MatchDetail records
 					query += ` WITH p, collect(md) as matchDetails`;
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
+				} else if (hasTeamExclusions) {
+					// When exclusions are present, use regular aggregation with exclusion filter
+					const mappedExcludedTeamNames = analysis.teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND (${exclusionConditions})] END as filteredDetails`;
 					query += ` WITH p, size(filteredDetails) as appearanceCount`;
 					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
 				} else {

@@ -1076,6 +1076,17 @@ export default function AdminPanel() {
 				</a>
 			</div>
 
+			{/* League Table Scraper Link */}
+			<div className='mb-6 text-center'>
+				<a
+					href='https://dashboard.scraperapi.com/home'
+					target='_blank'
+					rel='noopener noreferrer'
+					className='inline-block px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors bg-blue-400 hover:bg-blue-500'>
+					See League Table Scraper
+				</a>
+			</div>
+
 					{/* How the Database Seeding Process Works - Collapsible */}
 					<div className='mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg'>
 				<button

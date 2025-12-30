@@ -35,9 +35,27 @@ export class PlayerDataQueryHandler {
 			);
 		}
 
-		// Check if we have entities (player names) to query
-		if (entities.length === 0) {
-			return { type: "no_context", data: [], message: "No player context provided" };
+		// Filter out invalid entities (team numbers, etc.)
+		const validEntities = entities.filter((entity) => {
+			const lowerEntity = entity.toLowerCase();
+			// Skip team numbers (3s, 3rd, etc.)
+			return !lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/);
+		});
+
+		// Check if we have valid entities (player names) to query
+		// If no valid entities but we have userContext, use that instead
+		if (validEntities.length === 0) {
+			if (userContext) {
+				// Use userContext as the player name - this handles cases where team numbers were incorrectly extracted
+				loggingService.log(`🔍 No valid entities found, using userContext: ${userContext}`, null, "log");
+				// Replace entities array with userContext for the rest of the function
+				entities = [userContext];
+			} else {
+				return { type: "no_context", data: [], message: "No player context provided" };
+			}
+		} else {
+			// Use valid entities (filtered to remove team numbers)
+			entities = validEntities;
 		}
 
 		// Check for "played with" or "most played with" questions
@@ -51,6 +69,178 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
+
+		// Check if this is a "goals whilst playing together" question (2+ entities, goals metric, "playing together" phrases)
+		// This must be checked BEFORE isSpecificPlayerPairQuestion to handle goals queries correctly
+		// Check for goals in question text (more reliable than relying on extracted metrics)
+		const hasGoalsMetric = questionLower.includes("goals") || questionLower.includes("goal");
+		
+		// Check for "playing together" phrases
+		const hasPlayingTogetherPhrases = 
+			questionLower.includes("playing together") ||
+			questionLower.includes("whilst playing together") ||
+			questionLower.includes("while playing together") ||
+			questionLower.includes("got together") ||
+			questionLower.includes("scored together") ||
+			(questionLower.includes("together") && (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("got")));
+		
+		// Check for player entities - use extractionResult for more accurate detection
+		const playerEntities = analysis.extractionResult?.entities?.filter(e => e.type === "player") || [];
+		const hasTwoPlayerEntities = playerEntities.length >= 2 || entities.length >= 2;
+		
+		// Also check if userContext is set and we have at least one other player entity
+		const hasUserContextAndOneEntity = userContext && (playerEntities.length >= 1 || entities.length >= 1);
+		
+		// Also try to extract player names directly from question text as fallback
+		// Pattern: "How many goals have [Player1] and [Player2] got..."
+		const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+		const playerNameMatch = (analysis.question || "").match(playerNamePattern);
+		const hasPlayerNamesInQuestion = !!playerNameMatch;
+		
+		const isGoalsTogetherQuestion = 
+			hasGoalsMetric &&
+			hasPlayingTogetherPhrases &&
+			(hasTwoPlayerEntities || hasUserContextAndOneEntity || hasPlayerNamesInQuestion);
+
+		loggingService.log(`🔍 Checking for "goals whilst playing together" question. Question: "${questionLower}", hasGoalsMetric: ${hasGoalsMetric}, hasPlayingTogetherPhrases: ${hasPlayingTogetherPhrases}, playerEntities: ${playerEntities.length}, entities: ${entities.length}, hasUserContext: ${!!userContext}, isGoalsTogetherQuestion: ${isGoalsTogetherQuestion}`, null, "log");
+
+		// If this is a "goals whilst playing together" question, handle it specially
+		if (isGoalsTogetherQuestion) {
+			// Helper function to trim player names at verb boundaries
+			const trimPlayerName = (name: string): string => {
+				if (!name) return name;
+				// Common stop words that indicate the end of a player name
+				const stopWords = /\s+(got|have|has|playing|whilst|while|together|for|with|in|at|on|by|from|to|when|where|what|which|who|how|and|or|but)\b/i;
+				const match = name.match(stopWords);
+				if (match && match.index !== undefined) {
+					return name.substring(0, match.index).trim();
+				}
+				return name.trim();
+			};
+
+			// Determine player names - use userContext if available, otherwise use entities
+			let playerName1: string | undefined;
+			let playerName2: string | undefined;
+			
+			// Try to extract from question text first (most reliable for this pattern)
+			// Match full names (greedy) - first name stops at "and", second name will be trimmed if it includes verbs
+			// Pattern: "have/has [Name1] and [Name2] [optional verb]"
+			const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+			const playerNameMatch = (analysis.question || "").match(playerNamePattern);
+			
+			if (playerNameMatch && playerNameMatch.length >= 3) {
+				// Extract from question text and trim at verb boundaries
+				playerName1 = trimPlayerName(playerNameMatch[1]);
+				playerName2 = trimPlayerName(playerNameMatch[2]);
+			} else if (userContext && (playerEntities.length >= 1 || entities.length >= 1)) {
+				// User context is set, use it as first player
+				playerName1 = userContext;
+				playerName2 = trimPlayerName(playerEntities.length > 0 ? playerEntities[0].value : entities[0]);
+			} else if (playerEntities.length >= 2) {
+				// Use player entities from extraction
+				playerName1 = trimPlayerName(playerEntities[0].value);
+				playerName2 = trimPlayerName(playerEntities[1].value);
+			} else if (entities.length >= 2) {
+				// Fallback to legacy entities
+				playerName1 = trimPlayerName(entities[0]);
+				playerName2 = trimPlayerName(entities[1]);
+			}
+			
+			// Only proceed if we have both player names
+			if (playerName1 && playerName2) {
+				const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
+				const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
+				
+				if (!resolvedPlayerName1) {
+					loggingService.log(`❌ Player not found: ${playerName1}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName1}". Please check the spelling or try a different player name.`,
+						playerName: playerName1,
+					};
+				}
+				
+				if (!resolvedPlayerName2) {
+					loggingService.log(`❌ Player not found: ${playerName2}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName2}". Please check the spelling or try a different player name.`,
+						playerName: playerName2,
+					};
+				}
+				
+				// Extract team name if present in team entities
+				let teamName: string | undefined = undefined;
+				if (teamEntities.length > 0) {
+					teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+					loggingService.log(`🔍 Team filter detected: ${teamName}`, null, "log");
+				}
+				
+				// Extract season and date range filters
+				const timeFrames = analysis.extractionResult?.timeFrames || [];
+				const question = analysis.question || "";
+				
+				// Extract season from timeFrames or question
+				let season: string | null = null;
+				const seasonFrame = timeFrames.find(tf => tf.type === "season");
+				if (seasonFrame) {
+					season = seasonFrame.value;
+					season = season.replace("-", "/");
+				} else {
+					const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+					}
+				}
+				
+				// Extract date range from timeRange or question
+				let startDate: string | null = null;
+				let endDate: string | null = null;
+				
+				if (timeRange && typeof timeRange === "string" && timeRange.includes(" to ")) {
+					const dateRange = timeRange.split(" to ");
+					if (dateRange.length === 2) {
+						startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					}
+				}
+				
+				if (!startDate || !endDate) {
+					const rangeFrame = timeFrames.find(tf => tf.type === "range");
+					if (rangeFrame && rangeFrame.value.includes(" to ")) {
+						const dateRange = rangeFrame.value.split(" to ");
+						if (dateRange.length === 2) {
+							startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+							endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+						}
+					}
+				}
+				
+				if (!startDate || !endDate) {
+					const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+					if (betweenDateMatch) {
+						startDate = DateUtils.convertDateFormat(betweenDateMatch[1]);
+						endDate = DateUtils.convertDateFormat(betweenDateMatch[2]);
+					} else {
+						const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+						if (betweenYearMatch) {
+							const startYear = parseInt(betweenYearMatch[1], 10);
+							const endYear = parseInt(betweenYearMatch[2], 10);
+							startDate = `${startYear}-01-01`;
+							endDate = `${endYear}-12-31`;
+						}
+					}
+				}
+				
+				loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGoalsScoredTogether`, null, "log");
+				return await RelationshipQueryHandler.queryGoalsScoredTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+			} else {
+				// Not enough entities found, continue to normal flow
+				loggingService.log(`⚠️ Not enough player entities found for goals together question, continuing to normal flow`, null, "warn");
+			}
+		}
 
 		// Check if this is a "how many games/appearances with [specific player]" question (2+ entities)
 		const hasHowMany = questionLower.includes("how many") || questionLower.includes("how much");
@@ -295,22 +485,34 @@ export class PlayerDataQueryHandler {
 			extractedOppositionName = oppositionEntities[0];
 		} else {
 			// Fallback: try to extract capitalized team name from question
-			// Pattern: "how many times have I played [Team Name]?"
-			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
+			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
+			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 			if (oppositionMatch && oppositionMatch[1]) {
-				extractedOppositionName = oppositionMatch[1];
-				loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				const potentialOpposition = oppositionMatch[1];
+				// Skip if it's a team number (3s, 3rd, etc.) or if it's followed by "for" (team context)
+				const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+				if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+				    !afterMatch?.toLowerCase().startsWith("for") &&
+				    !afterMatch?.toLowerCase().startsWith("the")) {
+					extractedOppositionName = potentialOpposition;
+					loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				}
 			}
 		}
 
+		// Check for team exclusions - if present, don't treat as opposition query
+		const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
+		
 		const isOppositionAppearanceQuery = 
+			!hasTeamExclusions &&
 			extractedOppositionName.length > 0 && 
 			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
 			!questionLower.includes("scored");
 
-		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
+		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
 
 		if (isOppositionAppearanceQuery) {
 			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
@@ -345,7 +547,8 @@ export class PlayerDataQueryHandler {
 		}
 
 		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
-		const hasOppositionQuery = oppositionEntities.length > 0 && (
+		// Skip if team exclusions are present (exclusions only apply to player queries, not opposition queries)
+		const hasOppositionQuery = !hasTeamExclusions && oppositionEntities.length > 0 && (
 			questionLower.includes("against") ||
 			questionLower.includes("vs") ||
 			questionLower.includes("versus") ||
@@ -621,6 +824,18 @@ export class PlayerDataQueryHandler {
 				normalizedMetric = "AwayGames%Won";
 			} else if (originalMetric === "Games % Won") {
 				normalizedMetric = "Games%Won";
+			} else if (originalMetric === "Home Games % Lost") {
+				normalizedMetric = "HomeGames%Lost";
+			} else if (originalMetric === "Away Games % Lost") {
+				normalizedMetric = "AwayGames%Lost";
+			} else if (originalMetric === "Games % Lost") {
+				normalizedMetric = "Games%Lost";
+			} else if (originalMetric === "Home Games % Drawn") {
+				normalizedMetric = "HomeGames%Drawn";
+			} else if (originalMetric === "Away Games % Drawn") {
+				normalizedMetric = "AwayGames%Drawn";
+			} else if (originalMetric === "Games % Drawn") {
+				normalizedMetric = "Games%Drawn";
 			}
 
 			const metric = normalizedMetric.toUpperCase();
@@ -1198,6 +1413,60 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in opposition appearances query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying opposition appearances" };
+		}
+	}
+
+	/**
+	 * Query home vs away games comparison for a player
+	 * Counts fixtures where homeOrAway = "Home" vs "Away" for all fixtures the player has played in
+	 */
+	static async queryHomeAwayGamesComparison(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying home/away games comparison for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query to count home and away games for the player
+		// Uses DISTINCT to count unique fixtures (in case player has multiple MatchDetail records for same fixture)
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WITH DISTINCT f
+			RETURN 
+				sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
+				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			
+			if (!result || result.length === 0) {
+				return {
+					type: "home_away_comparison",
+					playerName,
+					homeGames: 0,
+					awayGames: 0,
+				};
+			}
+
+			const homeGames = result[0].homeGames || 0;
+			const awayGames = result[0].awayGames || 0;
+
+			// Handle Neo4j Integer objects
+			const homeGamesCount = typeof homeGames === "object" && "toNumber" in homeGames 
+				? (homeGames as { toNumber: () => number }).toNumber() 
+				: Number(homeGames) || 0;
+			const awayGamesCount = typeof awayGames === "object" && "toNumber" in awayGames 
+				? (awayGames as { toNumber: () => number }).toNumber() 
+				: Number(awayGames) || 0;
+
+			return {
+				type: "home_away_comparison",
+				playerName,
+				homeGames: homeGamesCount,
+				awayGames: awayGamesCount,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying home/away games comparison" };
 		}
 	}
 }
