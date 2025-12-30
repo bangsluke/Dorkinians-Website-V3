@@ -99,9 +99,7 @@ export class ChatbotService {
 		loggingService.logMinimal(message, data, level);
 	}
 
-	/**
-	 * Execute a query with optional profiling for slow queries
-	 */
+	// Execute a query with optional profiling for slow queries
 	private async executeQueryWithProfiling(
 		query: string,
 		params: Record<string, unknown> = {},
@@ -179,7 +177,6 @@ export class ChatbotService {
 		return (mentionsClubTeams && mentionsPlayed) || (genericHowManyTeams && mentionsPlayed);
 	}
 
-
 	async processQuestion(context: QuestionContext): Promise<ChatbotResponse> {
 		// Clear debug tracking for new question
 		this.lastQuestionAnalysis = null;
@@ -250,8 +247,7 @@ export class ChatbotService {
 					const isSingleWord = !clarificationAnswer.includes(" ") && clarificationAnswer.length > 0;
 					
 					if (isSingleWord) {
-						// Try to find a first name in the original question and combine with the surname
-						// Pattern to find capitalized words that might be first names
+						// Try to find a first name in the original question and combine with the surname - Pattern to find capitalized words that might be first names
 						const firstNamePattern = /\b([A-Z][a-z]+)\b/g;
 						const firstNameMatches = originalQuestion.match(firstNamePattern);
 						
@@ -320,8 +316,7 @@ export class ChatbotService {
 			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
 
-			// Check for streak questions BEFORE clarification check
-			// These questions might be flagged for clarification but should be handled as streak queries
+			// Check for streak questions BEFORE clarification check - These questions might be flagged for clarification but should be handled as streak queries
 			const questionLower = questionToProcess.toLowerCase();
 			
 			// Check for consecutive weekends questions
@@ -332,11 +327,11 @@ export class ChatbotService {
 			// Check for consecutive goal involvement questions
 			const isConsecutiveGoalInvolvementQuestion = 
 				(questionLower.includes("consecutive") && questionLower.includes("games") && 
-				 (questionLower.includes("scored") || questionLower.includes("assisted") || 
-				  questionLower.includes("goal involvement") || questionLower.includes("goals involvement"))) ||
+				(questionLower.includes("scored") || questionLower.includes("assisted") || 
+				questionLower.includes("goal involvement") || questionLower.includes("goals involvement"))) ||
 				(questionLower.includes("how many") && questionLower.includes("consecutive") && 
-				 (questionLower.includes("scored") || questionLower.includes("assisted") || 
-				  questionLower.includes("goal involvement") || questionLower.includes("goals involvement")));
+				(questionLower.includes("scored") || questionLower.includes("assisted") || 
+				questionLower.includes("goal involvement") || questionLower.includes("goals involvement")));
 
 			// If this is a streak question, override clarification and set type to streak
 			if ((isConsecutiveWeekendsQuestion || isConsecutiveGoalInvolvementQuestion) && context.userContext) {
@@ -409,12 +404,10 @@ export class ChatbotService {
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
-			// Generate the response (use original question for response generation, but processed question was used for analysis)
-			// Pass userContext so it can be used for post-query clarification checks
+			// Generate the response (use original question for response generation, but processed question was used for analysis) - Pass userContext so it can be used for post-query clarification checks
 			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext);
 
-			// Store in conversation context if session ID provided
-			// Use the processed question (which may be combined with clarification) for history
+			// Store in conversation context if session ID provided - Use the processed question (which may be combined with clarification) for history
 			if (context.sessionId) {
 				conversationContextManager.addToHistory(context.sessionId, questionToProcess, analysis);
 			}
@@ -462,9 +455,7 @@ export class ChatbotService {
 		return enhancedAnalysis;
 	}
 
-	// Check if clarification is needed after a query fails
-	// This is called when the query returns "I couldn't find relevant information" to see if
-	// a player name mismatch might be the issue
+	// Check if clarification is needed after a query fails - This is called when the query returns "I couldn't find relevant information" to see if a player name mismatch might be the issue
 	private checkPostQueryClarificationNeeded(
 		analysis: EnhancedQuestionAnalysis,
 		userContext?: string,
@@ -485,8 +476,7 @@ export class ChatbotService {
 
 		const selectedPlayerLower = userContext.toLowerCase().trim();
 
-		// Check if any extracted player name partially matches the selected player
-		// Use originalText to check the text before fuzzy matching resolved it
+		// Check if any extracted player name partially matches the selected player - Use originalText to check the text before fuzzy matching resolved it
 		for (const entity of playerEntities) {
 			const originalText = entity.originalText.toLowerCase().trim();
 			const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
@@ -496,8 +486,7 @@ export class ChatbotService {
 				continue;
 			}
 
-			// Check if the original extracted text is contained in the selected player name
-			// If it matches, no clarification needed
+			// Check if the original extracted text is contained in the selected player name - If it matches, no clarification needed
 			if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2) {
 				return null; // Partial match found, no clarification needed
 			}
@@ -574,8 +563,7 @@ export class ChatbotService {
 				return null;
 			}
 
-			// Check if this is a "which team has fewest/most goals conceded" question
-			// This needs to be checked before player routing to avoid misclassification
+			// Check if this is a "which team has fewest/most goals conceded" question - This needs to be checked before player routing to avoid misclassification
 			const isTeamConcededRankingQuestion = 
 				(question.includes("which team") || question.includes("what team")) &&
 				(question.includes("fewest") || question.includes("most") || question.includes("least") || question.includes("highest")) &&
@@ -646,15 +634,14 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for consecutive goal involvement questions - ensure they're routed to streak handler
-			// This catches questions that might be misclassified as "player" type
+			// Check for consecutive goal involvement questions - ensure they're routed to streak handler - This catches questions that might be misclassified as "player" type
 			const isConsecutiveGoalInvolvementQuestion = 
 				(question.includes("consecutive") && question.includes("games") && 
-				 (question.includes("scored") || question.includes("assisted") || 
-				  question.includes("goal involvement") || question.includes("goals involvement"))) ||
+				(question.includes("scored") || question.includes("assisted") || 
+				question.includes("goal involvement") || question.includes("goals involvement"))) ||
 				(question.includes("how many") && question.includes("consecutive") && 
-				 (question.includes("scored") || question.includes("assisted") || 
-				  question.includes("goal involvement") || question.includes("goals involvement")));
+				(question.includes("scored") || question.includes("assisted") || 
+				question.includes("goal involvement") || question.includes("goals involvement")));
 
 			if (isConsecutiveGoalInvolvementQuestion) {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
@@ -663,8 +650,7 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for "most prolific season" questions - route to player handler
-			// This check must happen before the switch statement to ensure proper routing
+			// Check for "most prolific season" questions - route to player handler - This check must happen before the switch statement to ensure proper routing
 			const isMostProlificSeasonQuestion = 
 				(question.includes("most prolific season") || question.includes("prolific season")) &&
 				(question.includes("what") || question.includes("which") || question.includes("my") || question.includes("your"));
@@ -698,20 +684,20 @@ export class ChatbotService {
 				return await TemporalQueryHandler.queryStreakData(entities, metrics, analysis);
 			case "temporal":
 				return await TemporalQueryHandler.queryTemporalData(entities, metrics, analysis.timeRange);
-		case "double_game":
-			return await this.queryDoubleGameData(entities, metrics);
-		case "milestone":
-			return await this.queryMilestoneData(entities, metrics, analysis);
-		case "ranking":
-			return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
-		case "league_table":
-			return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis);
-		case "general":
-			return await this.queryGeneralData();
-		default:
-			this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
-			return { type: "unknown", data: [], message: "Unknown question type" };
-		}
+			case "double_game":
+				return await this.queryDoubleGameData(entities, metrics);
+			case "milestone":
+				return await this.queryMilestoneData(entities, metrics, analysis);
+			case "ranking":
+				return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
+			case "league_table":
+				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis);
+			case "general":
+				return await this.queryGeneralData();
+			default:
+				this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
+				return { type: "unknown", data: [], message: "Unknown question type" };
+			}
 		} catch (error) {
 			this.logToBoth(`❌ Error in queryRelevantData:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
@@ -720,7 +706,6 @@ export class ChatbotService {
 
 
 	// queryTeamData removed - now handled by TeamDataQueryHandler
-
 	private async queryTeamData_DELETED(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
 		this.logToBoth(`🔍 queryTeamData called with entities: ${entities}, metrics: ${metrics}`, null, "log");
 
@@ -768,13 +753,11 @@ export class ChatbotService {
 			"PSV": "penaltiesSaved",
 		};
 
-		// Find the primary metric from question text keywords FIRST (most reliable)
-		// Then fall back to extracted metrics if no keywords found
+		// Find the primary metric from question text keywords FIRST (most reliable) - Then fall back to extracted metrics if no keywords found
 		let detectedMetric: string | null = null;
 		let metricField: string | null = null;
 		
-		// Check question text for explicit metric keywords first (highest priority)
-		// This ensures "red cards" is detected even if extraction incorrectly identifies "G"
+		// Check question text for explicit metric keywords first (highest priority) - This ensures "red cards" is detected even if extraction incorrectly identifies "G"
 		const questionLower = question.toLowerCase();
 		if (questionLower.includes("red card") || questionLower.includes("reds")) {
 			detectedMetric = "R";
@@ -925,8 +908,7 @@ export class ChatbotService {
 			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 		}
 
-		// Build query based on what metric is being asked about
-		// Prioritize detected metric over goals
+		// Build query based on what metric is being asked about - Prioritize detected metric over goals
 		let query = "";
 		if (detectedMetric && metricField) {
 			// Query MatchDetail for the detected metric
@@ -1022,8 +1004,7 @@ export class ChatbotService {
 
 		const question = analysis.question?.toLowerCase() || "";
 		
-		// Determine what metric is being asked about
-		// Check for "conceded" first to avoid false positives
+		// Determine what metric is being asked about - Check for "conceded" first to avoid false positives
 		const isGoalsConceded = question.includes("conceded");
 		const isGoalsScored = question.includes("scored") || (question.includes("goals") && !isGoalsConceded);
 		const isPlayerCount = question.includes("players") || question.includes("played for");
@@ -1271,8 +1252,7 @@ export class ChatbotService {
 			statType = "MoMs";
 		}
 		
-		// Extract milestone number from question (e.g., "100", "50", "25")
-		// Try pattern: digit followed by stat type keyword
+		// Extract milestone number from question (e.g., "100", "50", "25") - Try pattern: digit followed by stat type keyword
 		const milestoneMatch = lowerQuestion.match(/\b(\d+)\s*(?:goal|app|appearance|assist|mom|milestone)/);
 		let milestoneNumber = milestoneMatch ? parseInt(milestoneMatch[1], 10) : null;
 		
@@ -1354,8 +1334,7 @@ export class ChatbotService {
 				return { type: "error", data: [], error: `Unsupported stat field: ${statField}` };
 			}
 			
-			// Query all players with their stats, filter for those close to the milestone
-			// We want players who haven't reached the milestone yet and are within a reasonable distance
+			// Query all players with their stats, filter for those close to the milestone - We want players who haven't reached the milestone yet and are within a reasonable distance
 			const query = `
 				MATCH (p:Player {graphLabel: $graphLabel})
 				WHERE p.allowOnSite = true
@@ -1463,16 +1442,16 @@ export class ChatbotService {
 			const isTeamHighestQuery = 
 				teamEntities.length > 0 &&
 				(question.includes("highest position") ||
-				 question.includes("best position") ||
-				 question.includes("best finish") ||
-				 (question.includes("highest") && (question.includes("position") || question.includes("finish"))));
+				question.includes("best position") ||
+				question.includes("best finish") ||
+				(question.includes("highest") && (question.includes("position") || question.includes("finish"))));
 			
 			const isTeamLowestQuery = 
 				teamEntities.length > 0 &&
 				(question.includes("lowest position") ||
-				 question.includes("worst position") ||
-				 question.includes("worst finish") ||
-				 (question.includes("lowest") && (question.includes("position") || question.includes("finish"))));
+				question.includes("worst position") ||
+				question.includes("worst finish") ||
+				(question.includes("lowest") && (question.includes("position") || question.includes("finish"))));
 			
 			// Handle team-specific highest position query
 			if (isTeamHighestQuery) {
@@ -1711,9 +1690,7 @@ export class ChatbotService {
 
 	// Duplicate query builder methods removed - now handled by PlayerQueryBuilder
 
-	/**
-	 * Helper function to map metric key to statObject key
-	 */
+	// Helper function to map metric key to statObject key
 	private mapMetricToStatObjectKey(metric: string): string {
 		// Map PENALTY_CONVERSION_RATE to PenConversionRate (statObject key)
 		if (metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
@@ -1722,9 +1699,7 @@ export class ChatbotService {
 		return findMetricByAlias(metric)?.key || metric;
 	}
 
-	/**
-	 * Helper function to round a value based on statObject configuration
-	 */
+	// Helper function to round a value based on statObject configuration
 	private roundValueByMetric(metric: string, value: number): number {
 		const statObjectKey = this.mapMetricToStatObjectKey(metric);
 		const metricConfig = statObject[statObjectKey as keyof typeof statObject];
@@ -1740,9 +1715,7 @@ export class ChatbotService {
 		return Math.round(value);
 	}
 
-	/**
-	 * Helper function to get icon name with fallback to goals scored icon
-	 */
+	// Helper function to get icon name with fallback to goals scored icon
 	private getIconNameForMetric(metric: string, defaultIcon?: string): string {
 		const statObjectKey = this.mapMetricToStatObjectKey(metric);
 		const metricConfig = statObject[statObjectKey as keyof typeof statObject];
@@ -1972,8 +1945,7 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
 				}
 
-				// Build Calendar visualization for consecutive weekends
-				// Convert date array to week-based format with highlightRange
+				// Build Calendar visualization for consecutive weekends - Convert date array to week-based format with highlightRange
 				if (streakData.length > 0) {
 					// Helper function to calculate week number (matching Calendar.tsx weekNum function)
 					const weekNum = (date: Date): number => {
@@ -2064,8 +2036,7 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
 				}
 
-				// Build Calendar visualization for consecutive clean sheets/goal involvement
-				// Convert date array to week-based format with highlightRange
+				// Build Calendar visualization for consecutive clean sheets/goal involvement - Convert date array to week-based format with highlightRange
 				if (streakData.length > 0) {
 					// Helper function to calculate week number (matching Calendar.tsx weekNum function)
 					const weekNum = (date: Date): number => {

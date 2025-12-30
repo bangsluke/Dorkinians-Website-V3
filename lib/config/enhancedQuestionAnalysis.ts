@@ -91,8 +91,16 @@ export class EnhancedQuestionAnalyzer {
 			};
 		}
 		
-		const complexity = this.assessComplexity(extractionResult);
-		const requiresClarification = this.checkClarificationNeeded(extractionResult, complexity);
+		// CRITICAL: Apply stat type corrections BEFORE checking clarification
+		// This prevents false positives from duplicate or incorrect stat type extractions
+		const correctedStatTypes = this.applyStatTypeCorrections(extractionResult.statTypes);
+		const correctedExtractionResult = {
+			...extractionResult,
+			statTypes: correctedStatTypes
+		};
+		
+		const complexity = this.assessComplexity(correctedExtractionResult);
+		const requiresClarification = this.checkClarificationNeeded(correctedExtractionResult, complexity);
 
 		// Determine question type based on extracted entities and content
 		// If clarification is needed, set type to "clarification_needed" instead of determining the actual type
@@ -320,9 +328,11 @@ export class EnhancedQuestionAnalyzer {
 		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
 		// Note: Player name mismatch clarification is now handled post-query (see ChatbotService.generateResponse)
 		// to allow queries to attempt first before asking for clarification
+		// CRITICAL FIX: If "I" is the only player entity and userContext exists, don't require clarification
 		const needsClarification =
 			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
-			(complexity === "complex" && hasNoEntities && hasNoStatTypes);
+			(complexity === "complex" && hasNoEntities && hasNoStatTypes) ||
+			(hasAmbiguousPlayerName && !hasAmbiguousPlayerRef); // Don't require clarification if "I" + userContext exists
 
 		return needsClarification;
 	}
@@ -752,19 +762,18 @@ export class EnhancedQuestionAnalyzer {
 		return entities;
 	}
 
-	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
-		// Check cache first (cache key based on question and stat types)
-		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
-		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
-		if (cached) {
-			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
-		}
-
+	/**
+	 * Applies all stat type corrections - extracted for reuse before clarification check
+	 */
+	private applyStatTypeCorrections(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
-		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
+		const gamesCorrectedStats = this.correctGamesQueries(statTypes);
+
+		// CRITICAL FIX: Detect goals queries with location filters (e.g., "away from home") and remove Home/Away stat types
+		const locationGoalsCorrectedStats = this.correctLocationGoalsQueries(gamesCorrectedStats);
 
 		// CRITICAL FIX: Detect home/away games queries and convert Home/Away to Home Games/Away Games
-		const homeAwayGamesCorrectedStats = this.correctHomeAwayGamesQueries(gamesCorrectedStats);
+		const homeAwayGamesCorrectedStats = this.correctHomeAwayGamesQueries(locationGoalsCorrectedStats);
 
 		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
 		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(homeAwayGamesCorrectedStats);
@@ -805,14 +814,29 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "most appearances for team" queries
 		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
 
-	// CRITICAL FIX: Detect "most scored for team" queries
-	const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
+		// CRITICAL FIX: Detect "most scored for team" queries
+		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
-	// Apply additional metric correction patterns with caching
-	const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
+		// Apply additional metric correction patterns (without caching for clarification check)
+		const cacheKey = `${this.question.toLowerCase()}:${statTypes.map(s => s.value).join(',')}`;
+		const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
 
-	// Convert extracted stat types to legacy format with priority handling
-	const statTypes = fullyCorrectedStats.map((stat) => stat.value);
+		return fullyCorrectedStats;
+	}
+
+	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// Check cache first (cache key based on question and stat types)
+		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
+		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
+		if (cached) {
+			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
+		}
+
+		// Use the shared correction method
+		const fullyCorrectedStats = this.applyStatTypeCorrections(extractionResult.statTypes);
+
+		// Convert extracted stat types to legacy format with priority handling
+		const statTypes = fullyCorrectedStats.map((stat) => stat.value);
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -1621,6 +1645,40 @@ export class EnhancedQuestionAnalyzer {
 			}
 
 			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects goals queries with location filters - removes Home/Away stat types when location is specified
+	 * Example: "How many goals have I scored away from home?" should only have "Goals" stat type, not "Away" and "Home"
+	 */
+	private correctLocationGoalsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check if question asks about goals with location phrases
+		const hasGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("scored") || lowerQuestion.includes("goal");
+		const hasLocationPhrase = 
+			lowerQuestion.includes("away from home") ||
+			lowerQuestion.includes("on the road") ||
+			lowerQuestion.includes("at home") ||
+			lowerQuestion.includes("home game") ||
+			lowerQuestion.includes("away game");
+
+		if (hasGoals && hasLocationPhrase) {
+			// Filter out "Home" and "Away" stat types (they should be locations, not stat types)
+			const filteredStats = statTypes.filter((stat) => 
+				stat.value !== "Home" && stat.value !== "Away"
+			);
+
+			// Deduplicate "Goals" entries - keep only one
+			const goalsStats = filteredStats.filter((stat) => stat.value === "Goals");
+			const nonGoalsStats = filteredStats.filter((stat) => stat.value !== "Goals");
+			
+			const result = goalsStats.length > 0 ? [goalsStats[0], ...nonGoalsStats] : filteredStats;
+
+			return result;
 		}
 
 		return statTypes;
