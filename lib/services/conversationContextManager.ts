@@ -90,6 +90,18 @@ export class ConversationContextManager {
 	}
 
 	/**
+	 * Set pending clarification for a session
+	 */
+	public setPendingClarification(sessionId: string, originalQuestion: string, clarificationMessage?: string): void {
+		const context = this.getContext(sessionId);
+		context.pendingClarification = {
+			originalQuestion,
+			clarificationType: clarificationMessage || "general",
+			timestamp: new Date(),
+		};
+	}
+
+	/**
 	 * Clear pending clarification for a session
 	 */
 	public clearPendingClarification(sessionId: string): void {

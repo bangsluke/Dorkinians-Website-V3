@@ -1248,10 +1248,15 @@ export class EntityExtractor {
 					(e.value.toLowerCase().includes(match.text.toLowerCase()) || match.text.toLowerCase().includes(e.value.toLowerCase())),
 			);
 
+			// Skip team numbers in various formats (3s, 3rd, etc.)
+			const isTeamNumber = match.text.match(/^\d+(st|nd|rd|th)?$/) || 
+			                     match.text.match(/^\d+s$/) ||
+			                     extractedTeamNames.has(match.text.toLowerCase());
+
 			if (
 				!commonWords.includes(match.text.toLowerCase()) &&
 				!knownPlayers.includes(match.text) &&
-				!match.text.match(/^\d+(st|nd|rd|th)?$/) && // Skip team numbers like "3s", "4th"
+				!isTeamNumber && // Skip team numbers like "3s", "4th", "3rd"
 				!isPlayerEntity
 			) {
 				// Skip if it's already a player entity
@@ -2067,6 +2072,9 @@ export class EntityExtractor {
 			const combinedPlayers: Array<{ text: string; position: number }> = [];
 			const sortedPlayers = players.sort((a, b) => a.position - b.position);
 
+			// Common verbs that indicate the end of a player name
+			const verbBoundaryWords = /\b(got|have|has|playing|whilst|while|together|for|with|in|at|on|by|from|to|when|where|what|which|who|how|and|or|but|scored|got|achieved|made|did|does|do)\b/i;
+
 			for (let i = 0; i < sortedPlayers.length; i++) {
 				const currentPlayer = sortedPlayers[i];
 				let combinedName = currentPlayer.text;
@@ -2077,17 +2085,29 @@ export class EntityExtractor {
 					const nextPlayer = sortedPlayers[j];
 					const distance = nextPlayer.position - (currentPlayer.position + currentPlayer.text.length);
 
-					// If the next player is within 1 word distance, combine them
-					if (distance <= 1) {
+					// Check if there's a verb boundary between current and next player
+					const textBetween = this.question.substring(
+						currentPlayer.position + currentPlayer.text.length,
+						nextPlayer.position
+					).toLowerCase().trim();
+
+					// If the next player is within 1 word distance AND no verb boundary exists, combine them
+					if (distance <= 1 && !verbBoundaryWords.test(textBetween)) {
 						combinedName += " " + nextPlayer.text;
 						i = j; // Skip the next player since we've combined it
 					} else {
-						break; // No more adjacent players
+						break; // No more adjacent players or verb boundary detected
 					}
 				}
 
+				// Trim the combined name at verb boundaries
+				const verbMatch = combinedName.match(verbBoundaryWords);
+				const trimmedName = verbMatch && verbMatch.index !== undefined
+					? combinedName.substring(0, verbMatch.index).trim()
+					: combinedName.trim();
+
 				combinedPlayers.push({
-					text: combinedName,
+					text: trimmedName,
 					position: combinedPosition,
 				});
 			}

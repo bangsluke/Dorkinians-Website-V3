@@ -197,6 +197,22 @@ export class ResponseBuilder {
 			response += ` for the ${teamName}`;
 		}
 
+		// Add team exclusion context if present
+		if (analysis.teamExclusions && analysis.teamExclusions.length > 0) {
+			const excludedTeam = TeamMappingUtils.mapTeamName(analysis.teamExclusions[0]);
+			// Convert to display format (e.g., "3rd XI" -> "3s")
+			const excludedTeamDisplay = excludedTeam
+				.replace("1st XI", "1s")
+				.replace("2nd XI", "2s")
+				.replace("3rd XI", "3s")
+				.replace("4th XI", "4s")
+				.replace("5th XI", "5s")
+				.replace("6th XI", "6s")
+				.replace("7th XI", "7s")
+				.replace("8th XI", "8s");
+			response += ` when not playing for the ${excludedTeamDisplay}`;
+		}
+
 		// Add location context if present
 		const locations = (analysis.extractionResult && analysis.extractionResult.locations) || [];
 		if (locations && locations.length > 0) {

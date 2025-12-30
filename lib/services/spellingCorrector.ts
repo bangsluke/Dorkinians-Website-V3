@@ -136,6 +136,19 @@ export class SpellingCorrector {
 			"count",
 			"total",
 			"number",
+			// Add result-related terms to prevent incorrect corrections
+			"won",
+			"win",
+			"wins",
+			"winning",
+			"lost",
+			"lose",
+			"loses",
+			"losing",
+			"drawn",
+			"draw",
+			"draws",
+			"drawing",
 		];
 
 		commonTerms.forEach((term) => this.dictionary.add(term.toLowerCase()));
