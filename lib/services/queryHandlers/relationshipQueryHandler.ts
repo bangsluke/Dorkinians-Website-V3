@@ -440,7 +440,7 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			RETURN count(DISTINCT f) as gamesTogether
 		`;
-
+		
 		const queryParams: Record<string, string> = {
 			playerName1,
 			playerName2,
@@ -500,6 +500,115 @@ export class RelationshipQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in games played together query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying games played together data" };
+		}
+	}
+
+	/**
+	 * Query goals scored together for two specific players (sum of goals + penaltiesScored from both players in fixtures where they played together)
+	 */
+	static async queryGoalsScoredTogether(
+		playerName1: string,
+		playerName2: string,
+		teamName?: string,
+		season?: string | null,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<Record<string, unknown>> {
+		const timeContext = [
+			teamName ? `team: ${teamName}` : null,
+			season ? `season: ${season}` : null,
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+		].filter(Boolean).join(", ");
+		
+		loggingService.log(`🔍 Querying goals scored together for players: ${playerName1} and ${playerName2}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const whereConditions: string[] = [
+			"p1.playerName = $playerName1",
+			"p2.playerName = $playerName2",
+			"p1 <> p2"
+		];
+		
+		if (teamName) {
+			whereConditions.push("md1.team = $teamName", "md2.team = $teamName");
+		}
+		
+		if (season) {
+			whereConditions.push("f.season = $season");
+		}
+		
+		if (startDate && endDate) {
+			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
+		}
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel, playerName: $playerName1})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel, playerName: $playerName2})-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
+			WHERE ${whereConditions.join(" AND ")}
+			RETURN sum(coalesce(md1.goals, 0) + coalesce(md1.penaltiesScored, 0) + coalesce(md2.goals, 0) + coalesce(md2.penaltiesScored, 0)) as totalGoals
+		`;
+		
+		const queryParams: Record<string, string> = {
+			playerName1,
+			playerName2,
+			graphLabel
+		};
+		if (teamName) {
+			queryParams.teamName = teamName;
+		}
+		if (season) {
+			queryParams.season = season;
+		}
+		if (startDate && endDate) {
+			queryParams.startDate = startDate;
+			queryParams.endDate = endDate;
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Extract the total goals from the result
+			let totalGoals = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "totalGoals" in record) {
+					let goals = record.totalGoals;
+					
+					// Handle Neo4j Integer objects
+					if (goals !== null && goals !== undefined) {
+						if (typeof goals === "number") {
+							totalGoals = goals;
+						} else if (typeof goals === "object") {
+							if ("toNumber" in goals && typeof goals.toNumber === "function") {
+								totalGoals = (goals as { toNumber: () => number }).toNumber();
+							} else if ("low" in goals && "high" in goals) {
+								const neo4jInt = goals as { low?: number; high?: number };
+								totalGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								totalGoals = Number(goals) || 0;
+							}
+						} else {
+							totalGoals = Number(goals) || 0;
+						}
+					}
+				}
+			}
+			
+			return {
+				type: "goals_scored_together",
+				data: totalGoals,
+				playerName1,
+				playerName2,
+				teamName,
+				season,
+				startDate,
+				endDate
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in goals scored together query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying goals scored together data" };
 		}
 	}
 }

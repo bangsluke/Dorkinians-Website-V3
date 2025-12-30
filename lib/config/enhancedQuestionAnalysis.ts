@@ -132,33 +132,7 @@ export class EnhancedQuestionAnalyzer {
 			}
 		}
 		
-		// Early exit: Check if this is clearly an invalid query before further processing
-		// This check happens after extraction but before expensive operations like complexity assessment
-		const namedEntities = extractionResult.entities.filter(
-			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
-		);
-		const isRankingQuestion =
-			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
-			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
-		
-		// Early exit if no entities, no stat types, and not a ranking question
-		// Return immediately to avoid unnecessary processing
-		// Exception: "most prolific season" questions with userContext don't need entities
-		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0 && !isRankingQuestion) {
-			return {
-				type: "clarification_needed",
-				entities: [],
-				metrics: [],
-				extractionResult,
-				complexity: "simple",
-				requiresClarification: true,
-				clarificationMessage: "I need more information to help you. Please specify both who/what you're asking about AND what statistic you want to know. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'",
-				question: this.question,
-				confidence: 0.2,
-			};
-		}
-		
-		// CRITICAL: Apply stat type corrections BEFORE checking clarification
+		// CRITICAL: Apply stat type corrections
 		// This prevents false positives from duplicate or incorrect stat type extractions
 		const correctedStatTypes = this.applyStatTypeCorrections(extractionResult.statTypes);
 		const correctedExtractionResult = {
@@ -167,11 +141,13 @@ export class EnhancedQuestionAnalyzer {
 		};
 		
 		const complexity = this.assessComplexity(correctedExtractionResult);
-		const requiresClarification = this.checkClarificationNeeded(correctedExtractionResult, complexity);
+		
+		// Don't set clarification at analysis time - let queries run first
+		// Clarification will be requested only if queries return no data
+		const requiresClarification = false;
 
 		// Determine question type based on extracted entities and content
-		// If clarification is needed, set type to "clarification_needed" instead of determining the actual type
-		const type = requiresClarification ? "clarification_needed" : this.determineQuestionType(extractionResult);
+		const type = this.determineQuestionType(extractionResult);
 
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);

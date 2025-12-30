@@ -52,6 +52,164 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
 
+		// Check if this is a "goals whilst playing together" question (2+ entities, goals metric, "playing together" phrases)
+		// This must be checked BEFORE isSpecificPlayerPairQuestion to handle goals queries correctly
+		// Check for goals in question text (more reliable than relying on extracted metrics)
+		const hasGoalsMetric = questionLower.includes("goals") || questionLower.includes("goal");
+		
+		// Check for "playing together" phrases
+		const hasPlayingTogetherPhrases = 
+			questionLower.includes("playing together") ||
+			questionLower.includes("whilst playing together") ||
+			questionLower.includes("while playing together") ||
+			questionLower.includes("got together") ||
+			questionLower.includes("scored together") ||
+			(questionLower.includes("together") && (questionLower.includes("goals") || questionLower.includes("scored") || questionLower.includes("got")));
+		
+		// Check for player entities - use extractionResult for more accurate detection
+		const playerEntities = analysis.extractionResult?.entities?.filter(e => e.type === "player") || [];
+		const hasTwoPlayerEntities = playerEntities.length >= 2 || entities.length >= 2;
+		
+		// Also check if userContext is set and we have at least one other player entity
+		const hasUserContextAndOneEntity = userContext && (playerEntities.length >= 1 || entities.length >= 1);
+		
+		// Also try to extract player names directly from question text as fallback
+		// Pattern: "How many goals have [Player1] and [Player2] got..."
+		const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+		const playerNameMatch = question.match(playerNamePattern);
+		const hasPlayerNamesInQuestion = !!playerNameMatch;
+		
+		const isGoalsTogetherQuestion = 
+			hasGoalsMetric &&
+			hasPlayingTogetherPhrases &&
+			(hasTwoPlayerEntities || hasUserContextAndOneEntity || hasPlayerNamesInQuestion);
+
+		loggingService.log(`🔍 Checking for "goals whilst playing together" question. Question: "${questionLower}", hasGoalsMetric: ${hasGoalsMetric}, hasPlayingTogetherPhrases: ${hasPlayingTogetherPhrases}, playerEntities: ${playerEntities.length}, entities: ${entities.length}, hasUserContext: ${!!userContext}, isGoalsTogetherQuestion: ${isGoalsTogetherQuestion}`, null, "log");
+
+		// If this is a "goals whilst playing together" question, handle it specially
+		if (isGoalsTogetherQuestion) {
+			// Determine player names - use userContext if available, otherwise use entities
+			let playerName1: string | undefined;
+			let playerName2: string | undefined;
+			
+			// Try to extract from question text first (most reliable for this pattern)
+			const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+			const playerNameMatch = question.match(playerNamePattern);
+			
+			if (playerNameMatch && playerNameMatch.length >= 3) {
+				// Extract from question text
+				playerName1 = playerNameMatch[1].trim();
+				playerName2 = playerNameMatch[2].trim();
+			} else if (userContext && (playerEntities.length >= 1 || entities.length >= 1)) {
+				// User context is set, use it as first player
+				playerName1 = userContext;
+				playerName2 = playerEntities.length > 0 ? playerEntities[0].value : entities[0];
+			} else if (playerEntities.length >= 2) {
+				// Use player entities from extraction
+				playerName1 = playerEntities[0].value;
+				playerName2 = playerEntities[1].value;
+			} else if (entities.length >= 2) {
+				// Fallback to legacy entities
+				playerName1 = entities[0];
+				playerName2 = entities[1];
+			}
+			
+			// Only proceed if we have both player names
+			if (playerName1 && playerName2) {
+				const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
+				const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
+				
+				if (!resolvedPlayerName1) {
+					loggingService.log(`❌ Player not found: ${playerName1}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName1}". Please check the spelling or try a different player name.`,
+						playerName: playerName1,
+					};
+				}
+				
+				if (!resolvedPlayerName2) {
+					loggingService.log(`❌ Player not found: ${playerName2}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName2}". Please check the spelling or try a different player name.`,
+						playerName: playerName2,
+					};
+				}
+				
+				// Extract team name if present in team entities
+				let teamName: string | undefined = undefined;
+				if (teamEntities.length > 0) {
+					teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+					loggingService.log(`🔍 Team filter detected: ${teamName}`, null, "log");
+				}
+				
+				// Extract season and date range filters
+				const timeFrames = analysis.extractionResult?.timeFrames || [];
+				const question = analysis.question || "";
+				
+				// Extract season from timeFrames or question
+				let season: string | null = null;
+				const seasonFrame = timeFrames.find(tf => tf.type === "season");
+				if (seasonFrame) {
+					season = seasonFrame.value;
+					season = season.replace("-", "/");
+				} else {
+					const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+					}
+				}
+				
+				// Extract date range from timeRange or question
+				let startDate: string | null = null;
+				let endDate: string | null = null;
+				
+				if (timeRange && typeof timeRange === "string" && timeRange.includes(" to ")) {
+					const dateRange = timeRange.split(" to ");
+					if (dateRange.length === 2) {
+						startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					}
+				}
+				
+				if (!startDate || !endDate) {
+					const rangeFrame = timeFrames.find(tf => tf.type === "range");
+					if (rangeFrame && rangeFrame.value.includes(" to ")) {
+						const dateRange = rangeFrame.value.split(" to ");
+						if (dateRange.length === 2) {
+							startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+							endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+						}
+					}
+				}
+				
+				if (!startDate || !endDate) {
+					const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
+					if (betweenDateMatch) {
+						startDate = DateUtils.convertDateFormat(betweenDateMatch[1]);
+						endDate = DateUtils.convertDateFormat(betweenDateMatch[2]);
+					} else {
+						const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+						if (betweenYearMatch) {
+							const startYear = parseInt(betweenYearMatch[1], 10);
+							const endYear = parseInt(betweenYearMatch[2], 10);
+							startDate = `${startYear}-01-01`;
+							endDate = `${endYear}-12-31`;
+						}
+					}
+				}
+				
+				loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGoalsScoredTogether`, null, "log");
+				return await RelationshipQueryHandler.queryGoalsScoredTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+			} else {
+				// Not enough entities found, continue to normal flow
+				loggingService.log(`⚠️ Not enough player entities found for goals together question, continuing to normal flow`, null, "warn");
+			}
+		}
+
 		// Check if this is a "how many games/appearances with [specific player]" question (2+ entities)
 		const hasHowMany = questionLower.includes("how many") || questionLower.includes("how much");
 		const hasWith = questionLower.includes("with");

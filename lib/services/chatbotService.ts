@@ -232,79 +232,8 @@ export class ChatbotService {
 				};
 			}
 
-			// Check for pending clarification and combine with clarification answer if applicable
-			let questionToProcess = context.question;
-			if (context.sessionId) {
-				const pendingClarification = conversationContextManager.getPendingClarification(context.sessionId);
-				if (pendingClarification && this.isClarificationAnswer(context.question)) {
-					// Combine the original question with the clarification answer
-					// Example: "How many times has Luke played?" + "Luke Bangs" → "How many times has Luke Bangs played?"
-					// Example: "How many times has Oli played?" + "Goddard" → "How many times has Oli Goddard played?"
-					const originalQuestion = pendingClarification.originalQuestion;
-					const clarificationAnswer = context.question.trim();
-					
-					// Check if the clarification answer is a single word (likely a surname to combine with first name)
-					const isSingleWord = !clarificationAnswer.includes(" ") && clarificationAnswer.length > 0;
-					
-					if (isSingleWord) {
-						// Try to find a first name in the original question and combine with the surname - Pattern to find capitalized words that might be first names
-						const firstNamePattern = /\b([A-Z][a-z]+)\b/g;
-						const firstNameMatches = originalQuestion.match(firstNamePattern);
-						
-						if (firstNameMatches && firstNameMatches.length > 0) {
-							// Find the first name that appears before common question words
-							const questionWords = ["has", "have", "did", "does", "is", "are", "was", "were", "played", "scored", "got"];
-							let firstNameToReplace = null;
-							
-							for (const match of firstNameMatches) {
-								const matchIndex = originalQuestion.indexOf(match);
-								const afterMatch = originalQuestion.substring(matchIndex + match.length).toLowerCase();
-								// Check if this name appears before question words (likely the player name)
-								if (questionWords.some(word => afterMatch.includes(word))) {
-									firstNameToReplace = match;
-									break;
-								}
-							}
-							
-							if (firstNameToReplace) {
-								// Combine first name with surname: "Oli" + "Goddard" = "Oli Goddard"
-								const fullName = `${firstNameToReplace} ${clarificationAnswer}`;
-								questionToProcess = originalQuestion.replace(firstNameToReplace, fullName);
-								this.logToBoth(`🔄 Combined question (first name + surname): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
-							} else {
-								// Fallback: try to replace the first capitalized word
-								questionToProcess = originalQuestion.replace(firstNameMatches[0], `${firstNameMatches[0]} ${clarificationAnswer}`);
-								this.logToBoth(`🔄 Combined question (fallback first name): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
-							}
-						} else {
-							// No first name found, try standard replacement
-							const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
-							const matches = originalQuestion.match(playerNamePattern);
-							if (matches && matches.length > 0) {
-								questionToProcess = originalQuestion.replace(matches[0], `${matches[0]} ${clarificationAnswer}`);
-								this.logToBoth(`🔄 Combined question (append surname): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
-							}
-						}
-					} else {
-						// Multi-word answer (full name), replace the partial name
-						const playerNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g;
-						const matches = originalQuestion.match(playerNamePattern);
-						
-						if (matches && matches.length > 0) {
-							// Replace the first player name match with the clarification answer
-							questionToProcess = originalQuestion.replace(matches[0], clarificationAnswer);
-							this.logToBoth(`🔄 Combined question: "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
-						} else {
-							// If no clear pattern match, append the clarification answer to the original question
-							questionToProcess = `${originalQuestion.replace(/\?$/, "")} ${clarificationAnswer}?`;
-							this.logToBoth(`🔄 Combined question (fallback): "${originalQuestion}" + "${clarificationAnswer}" → "${questionToProcess}"`, null, "log");
-						}
-					}
-					
-					// Clear the pending clarification
-					conversationContextManager.clearPendingClarification(context.sessionId);
-				}
-			}
+			// Use the question directly (removed clarification handling that combined questions)
+			const questionToProcess = context.question;
 
 			// Analyze the question
 			let analysis = await this.analyzeQuestion(questionToProcess, context.userContext);
@@ -333,51 +262,8 @@ export class ChatbotService {
 				(questionLower.includes("scored") || questionLower.includes("assisted") || 
 				questionLower.includes("goal involvement") || questionLower.includes("goals involvement")));
 
-			// If this is a streak question, override clarification and set type to streak
-			if ((isConsecutiveWeekendsQuestion || isConsecutiveGoalInvolvementQuestion) && context.userContext) {
-				analysis.type = "streak";
-				analysis.requiresClarification = false;
-				analysis.entities = [context.userContext];
-				this.logToBoth(`🔍 Overriding clarification for streak question, using userContext: ${context.userContext}`, null, "log");
-			}
-
-			// Check for "most prolific season" questions - override clarification if userContext exists
-			const isMostProlificSeasonQuestion = 
-				questionLower.includes("most prolific season") || questionLower.includes("prolific season");
-			
-			if (isMostProlificSeasonQuestion && context.userContext) {
-				analysis.type = "player";
-				analysis.requiresClarification = false;
-				// Ensure entities array has the userContext
-				if (analysis.entities.length === 0) {
-					analysis.entities = [context.userContext];
-				}
-				// Ensure metrics array has MostProlificSeason
-				if (!analysis.metrics.includes("MostProlificSeason")) {
-					analysis.metrics = ["MostProlificSeason"];
-				}
-				this.logToBoth(`🔍 Overriding clarification for most prolific season question, using userContext: ${context.userContext}`, null, "log");
-			}
-
-			// Check for home/away games comparison questions and override clarification if userContext is available
-			const isHomeAwayComparisonQuestion = 
-				(questionLower.includes("more home or away") || questionLower.includes("more away or home")) ||
-				(questionLower.includes("played more") && questionLower.includes("home") && questionLower.includes("away")) ||
-				(questionLower.includes("home or away") && (questionLower.includes("more") || questionLower.includes("played"))) ||
-				(questionLower.includes("have i played") && questionLower.includes("home") && questionLower.includes("away")) ||
-				(questionLower.includes("have you played") && questionLower.includes("home") && questionLower.includes("away"));
-			
-			if (isHomeAwayComparisonQuestion && context.userContext) {
-				analysis.type = "player";
-				analysis.requiresClarification = false;
-				// Ensure entities array has the userContext
-				if (analysis.entities.length === 0) {
-					analysis.entities = [context.userContext];
-				}
-				this.logToBoth(`🔍 Overriding clarification for home/away comparison question, using userContext: ${context.userContext}`, null, "log");
-			}
-
-			// Handle clarification needed case
+			// Handle clarification needed case (only set if explicitly needed, not pre-emptively)
+			// Note: Clarification will be requested post-query if no data is found
 			if (analysis.type === "clarification_needed") {
 				// Try to provide a better fallback response
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
@@ -422,8 +308,8 @@ export class ChatbotService {
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
-			// Generate the response (use original question for response generation, but processed question was used for analysis) - Pass userContext so it can be used for post-query clarification checks
-			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext);
+			// Generate the response (use original question for response generation, but processed question was used for analysis) - Pass userContext and sessionId so it can be used for post-query clarification checks
+			const response = await this.generateResponse(questionToProcess, data, analysis, context.userContext, context.sessionId);
 
 			// Store in conversation context if session ID provided - Use the processed question (which may be combined with clarification) for history
 			if (context.sessionId) {
@@ -541,32 +427,6 @@ export class ChatbotService {
 		}
 
 		return null;
-	}
-
-	// Check if a user response is likely answering a clarification request
-	private isClarificationAnswer(question: string): boolean {
-		const trimmed = question.trim();
-		
-		// Very short responses (likely just a name or short answer)
-		if (trimmed.length < 50) {
-			// Check if it looks like a name (contains capitalized words, no question marks, minimal punctuation)
-			const hasCapitalizedWords = /\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/.test(trimmed);
-			const hasQuestionMark = trimmed.includes("?");
-			const hasMinimalPunctuation = (trimmed.match(/[.,!?;:]/g) || []).length <= 1;
-			
-			// If it has capitalized words (likely a name), no question mark, and minimal punctuation, it's likely a clarification answer
-			if (hasCapitalizedWords && !hasQuestionMark && hasMinimalPunctuation) {
-				return true;
-			}
-			
-			// Very short responses without question words are likely answers
-			const hasQuestionWords = /\b(what|who|which|when|where|why|how|is|are|can|could|will|would)\b/i.test(trimmed);
-			if (!hasQuestionWords && trimmed.length < 30) {
-				return true;
-			}
-		}
-		
-		return false;
 	}
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
@@ -1770,6 +1630,7 @@ export class ChatbotService {
 		data: Record<string, unknown> | null,
 		analysis: EnhancedQuestionAnalysis,
 		userContext?: string,
+		sessionId?: string,
 	): Promise<ChatbotResponse> {
 		this.logToBoth(`🔍 generateResponse called with:`, {
 			question,
@@ -1782,6 +1643,26 @@ export class ChatbotService {
 		let visualization: ChatbotResponse['visualization'] = undefined;
 		let answerValue: number | string | null = null;
 		const sources = ResponseBuilder.extractSources(data, analysis);
+
+		// Helper function to check if answer indicates no data/failure
+		const isNoDataAnswer = (ans: string): boolean => {
+			const noDataPatterns = [
+				"I couldn't find relevant information",
+				"No data found",
+				"couldn't find any",
+				"no information",
+				"no data",
+				"doesn't exist in the database",
+				"didn't match any records"
+			];
+			return noDataPatterns.some(pattern => ans.toLowerCase().includes(pattern.toLowerCase()));
+		};
+
+		// Check if data is empty or indicates no results
+		const hasNoData = !data || 
+			data.type === "error" ||
+			(Array.isArray(data.data) && data.data.length === 0) ||
+			(data.data === null || data.data === undefined);
 
 		// Enhanced error handling with specific error messages
 		if (!data) {
@@ -1957,6 +1838,68 @@ export class ChatbotService {
 				}
 				answer = `${playerName1} and ${playerName2} have played together ${gamesTogether} ${gamesTogether === 1 ? "time" : "times"}${contextMessage}.`;
 				answerValue = gamesTogether;
+			}
+		} else if (data && data.type === "goals_scored_together") {
+			// Handle goals scored together data (specific player pair)
+			console.log(`🔍 [RESPONSE_GEN] goals_scored_together data:`, data);
+			console.log(`🔍 [RESPONSE_GEN] data.data:`, data.data, `Type:`, typeof data.data);
+			
+			const playerName1 = data.playerName1 as string;
+			const playerName2 = data.playerName2 as string;
+			const teamName = (data.teamName as string) || undefined;
+			const season = (data.season as string) || undefined;
+			const startDate = (data.startDate as string) || undefined;
+			const endDate = (data.endDate as string) || undefined;
+			
+			let totalGoals = 0;
+			if (typeof data.data === "number") {
+				totalGoals = data.data;
+				console.log(`🔍 [RESPONSE_GEN] Extracted number directly:`, totalGoals);
+			} else if (data.data !== null && data.data !== undefined) {
+				if (typeof data.data === "object") {
+					// Handle Neo4j Integer objects
+					if ("toNumber" in data.data && typeof data.data.toNumber === "function") {
+						totalGoals = (data.data as { toNumber: () => number }).toNumber();
+						console.log(`🔍 [RESPONSE_GEN] Extracted via toNumber():`, totalGoals);
+					} else if ("low" in data.data && "high" in data.data) {
+						const neo4jInt = data.data as { low?: number; high?: number };
+						totalGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via low/high:`, totalGoals);
+					} else {
+						totalGoals = Number(data.data) || 0;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via Number():`, totalGoals);
+					}
+				} else {
+					totalGoals = Number(data.data) || 0;
+					console.log(`🔍 [RESPONSE_GEN] Extracted via Number() (non-object):`, totalGoals);
+				}
+			}
+
+			if (totalGoals === 0) {
+				let contextMessage = "";
+				if (teamName) {
+					contextMessage = ` for the ${teamName}`;
+				}
+				if (season) {
+					contextMessage += season ? ` in ${season}` : "";
+				}
+				if (startDate && endDate) {
+					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+				}
+				answer = `${playerName1} and ${playerName2} have not scored any goals together${contextMessage}.`;
+			} else {
+				let contextMessage = "";
+				if (teamName) {
+					contextMessage = ` for the ${teamName}`;
+				}
+				if (season) {
+					contextMessage += season ? ` in ${season}` : "";
+				}
+				if (startDate && endDate) {
+					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+				}
+				answer = `${playerName1} and ${playerName2} have scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} together${contextMessage}.`;
+				answerValue = totalGoals;
 			}
 		} else if (data && data.type === "co_players") {
 			// Handle co-players data
@@ -3265,6 +3208,65 @@ export class ChatbotService {
 					answer = clarificationMessage;
 					answerValue = "Clarification needed";
 				}
+			}
+		}
+
+		// UNIVERSAL CLARIFICATION CHECK: Always request clarification when a failed answer is detected
+		// This applies to ALL question types, not just specific ones
+		// Exclude specific error types that have their own messages (player_not_found, team_not_found, database errors, etc.)
+		const isFailedAnswer = isNoDataAnswer(answer);
+		const shouldAskForClarification = isFailedAnswer &&
+			data?.type !== "player_not_found" &&
+			data?.type !== "team_not_found" &&
+			data?.type !== "no_context" &&
+			data?.type !== "error" &&
+			!answer.includes("Database connection error") &&
+			!answer.includes("Database error");
+
+		if (shouldAskForClarification) {
+			// Generate a contextual clarification message based on question type and extracted entities
+			let clarificationMessage = "I need more information to help you. ";
+			
+			// Check what's missing from the question
+			const hasPlayerEntity = analysis.entities.some(e => {
+				const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
+				return playerEntities.length > 0;
+			});
+			const hasTeamEntity = analysis.teamEntities && analysis.teamEntities.length > 0;
+			const hasMetric = analysis.metrics.length > 0;
+			const hasOppositionEntity = analysis.oppositionEntities && analysis.oppositionEntities.length > 0;
+
+			if (!hasPlayerEntity && !hasTeamEntity && !hasOppositionEntity) {
+				clarificationMessage += "Please specify who or what you're asking about (e.g., a player name, team, or opposition). ";
+			}
+			
+			if (!hasMetric) {
+				clarificationMessage += "Please specify what statistic you want to know (e.g., goals, appearances, assists). ";
+			}
+
+			if (hasPlayerEntity && hasMetric) {
+				// Has both but still failed - might be a name mismatch or data issue
+				clarificationMessage = "I couldn't find data for your question. Please check the player name spelling, or try rephrasing your question with more specific details.";
+			} else if (hasTeamEntity && hasMetric) {
+				clarificationMessage = "I couldn't find data for your question. Please check the team name (e.g., '1st XI', '2nd XI', '3rd XI') or try rephrasing your question.";
+			} else if (hasOppositionEntity && hasMetric) {
+				clarificationMessage = "I couldn't find data for your question. Please check the opposition name spelling or try rephrasing your question.";
+			} else {
+				// Generic clarification
+				clarificationMessage += "For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+			}
+
+			answer = clarificationMessage;
+			answerValue = "Clarification needed";
+			
+			// Set pending clarification if we have a session ID
+			if (sessionId) {
+				conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage);
+			}
+		} else {
+			// Clear pending clarification if we successfully answered
+			if (sessionId && !isFailedAnswer) {
+				conversationContextManager.clearPendingClarification(sessionId);
 			}
 		}
 
