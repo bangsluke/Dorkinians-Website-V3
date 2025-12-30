@@ -31,7 +31,7 @@
 		"@googlemaps/markerclusterer": "^2.6.2",
 		"@headlessui/react": "^1.7.17",
 		"@heroicons/react": "^2.2.0",
-		"@netlify/plugin-nextjs": "^5.14.7",
+		"@netlify/plugin-nextjs": "^5.15.1",
 		"@nivo/sankey": "^0.99.0",
 		"@types/node": "^20.19.15",
 		"@types/nodemailer": "^7.0.4",
