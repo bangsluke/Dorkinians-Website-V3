@@ -237,6 +237,519 @@ export class AwardsQueryHandler {
 			return { type: "error", data: [], error: "Error querying all award winners data" };
 		}
 	}
+
+	/**
+	 * Query PlayersOfTheMonth by month and year
+	 */
+	static async queryPlayersOfTheMonthByDate(month: string, year: number): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying PlayersOfTheMonth for ${month} ${year}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const monthNames = [
+			"January", "February", "March", "April", "May", "June",
+			"July", "August", "September", "October", "November", "December"
+		];
+		
+		const monthIndex = monthNames.findIndex((m) => m.toLowerCase() === month.toLowerCase());
+		if (monthIndex === -1) {
+			return { type: "error", data: [], error: `Invalid month name: ${month}` };
+		}
+		
+		const monthNum = String(monthIndex + 1).padStart(2, "0");
+		
+		// Query PlayersOfTheMonth node matching the month and year
+		// Return explicit properties to ensure we can access them correctly
+		const query = `
+			MATCH (pm:PlayersOfTheMonth {graphLabel: $graphLabel})
+			WHERE pm.date IS NOT NULL
+			WITH pm, pm.date as dateStr
+			WHERE dateStr CONTAINS '-' OR dateStr CONTAINS '/' OR dateStr CONTAINS ','
+			WITH pm, 
+			     CASE 
+			       WHEN dateStr CONTAINS 'T' THEN substring(dateStr, 0, size(dateStr) - size(split(dateStr, 'T')[1]) - 1)
+			       ELSE dateStr
+			     END as dateOnly
+			WITH pm, dateOnly,
+			     CASE 
+			       WHEN dateOnly CONTAINS '-' THEN split(dateOnly, '-')[0]
+			       WHEN dateOnly CONTAINS '/' THEN split(dateOnly, '/')[0]
+			       WHEN dateOnly CONTAINS ',' THEN 
+			         CASE 
+			           WHEN dateOnly CONTAINS ' ' THEN split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 1]
+			           ELSE ''
+			         END
+			       ELSE ''
+			     END as yearPart,
+			     CASE 
+			       WHEN dateOnly CONTAINS '-' THEN split(dateOnly, '-')[1]
+			       WHEN dateOnly CONTAINS '/' THEN split(dateOnly, '/')[1]
+			       WHEN dateOnly CONTAINS ',' THEN 
+			         CASE 
+			           WHEN dateOnly CONTAINS ' ' THEN 
+			             CASE 
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'jan' THEN '01'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'feb' THEN '02'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'mar' THEN '03'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'apr' THEN '04'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'may' THEN '05'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'jun' THEN '06'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'jul' THEN '07'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'aug' THEN '08'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'sep' THEN '09'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'oct' THEN '10'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'nov' THEN '11'
+			               WHEN toLower(split(dateOnly, ' ')[size(split(dateOnly, ' ')) - 3]) CONTAINS 'dec' THEN '12'
+			               ELSE ''
+			             END
+			           ELSE ''
+			         END
+			       ELSE ''
+			     END as monthPart
+			WHERE (yearPart = $yearStr OR yearPart = $yearStrShort) AND monthPart = $monthNum
+			RETURN pm.player1Name as player1Name,
+			       COALESCE(pm.player1Score, 0) as player1Score,
+			       pm.player2Name as player2Name,
+			       COALESCE(pm.player2Score, 0) as player2Score,
+			       pm.player3Name as player3Name,
+			       COALESCE(pm.player3Score, 0) as player3Score,
+			       pm.player4Name as player4Name,
+			       COALESCE(pm.player4Score, 0) as player4Score,
+			       pm.player5Name as player5Name,
+			       COALESCE(pm.player5Score, 0) as player5Score,
+			       pm.season as season,
+			       pm.date as date
+			LIMIT 1
+		`;
+		
+		const yearStr = String(year);
+		const yearStrShort = String(year).slice(-2);
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, yearStr, yearStrShort, monthNum });
+			
+			if (!result || result.length === 0) {
+				// Try alternative approach: fetch all and filter in JavaScript
+				// Try alternative approach: fetch all and filter in JavaScript
+				const allQuery = `
+					MATCH (pm:PlayersOfTheMonth {graphLabel: $graphLabel})
+					WHERE pm.date IS NOT NULL
+					RETURN pm.player1Name as player1Name,
+					       COALESCE(pm.player1Score, 0) as player1Score,
+					       pm.player2Name as player2Name,
+					       COALESCE(pm.player2Score, 0) as player2Score,
+					       pm.player3Name as player3Name,
+					       COALESCE(pm.player3Score, 0) as player3Score,
+					       pm.player4Name as player4Name,
+					       COALESCE(pm.player4Score, 0) as player4Score,
+					       pm.player5Name as player5Name,
+					       COALESCE(pm.player5Score, 0) as player5Score,
+					       pm.season as season,
+					       pm.date as date
+				`;
+				
+				const allResult = await neo4jService.executeQuery(allQuery, { graphLabel });
+				
+				// Handle Neo4j Integer types for scores
+				const getScore = (value: any): number => {
+					if (value === null || value === undefined) return 0;
+					if (typeof value === 'number') return value;
+					// Handle Neo4j Integer objects
+					if (value && typeof value === 'object') {
+						if (typeof value.toNumber === 'function') {
+							return value.toNumber();
+						}
+						if (value.low !== undefined || value.high !== undefined) {
+							return (value.low || 0) + (value.high || 0) * 4294967296;
+						}
+					}
+					const num = Number(value);
+					return isNaN(num) ? 0 : num;
+				};
+				
+				const matchingRecord = allResult.find((record: any) => {
+					const dateValue = record.date;
+					if (!dateValue) return false;
+					
+					let dateStr = String(dateValue);
+					let date: Date;
+					
+					if (dateStr.includes("T")) {
+						date = new Date(dateStr);
+					} else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+						date = new Date(dateStr + "T00:00:00");
+					} else {
+						date = new Date(dateStr);
+					}
+					
+					if (isNaN(date.getTime())) return false;
+					return date.getMonth() === monthIndex && date.getFullYear() === year;
+				});
+				
+				if (!matchingRecord) {
+					return { type: "potm_by_date", data: null, month, year, error: "No PlayersOfTheMonth data found for the specified month and year" };
+				}
+				
+				const season = matchingRecord.season || "";
+				const seasonMonth = `${season}-${month}`;
+				
+				// Helper to calculate FTP score from MatchDetail if score is missing
+				const calculateFtpScore = async (playerName: string): Promise<number> => {
+					if (!playerName) return 0;
+					
+					const ftpQuery = `
+						MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonMonth: $seasonMonth})
+						RETURN sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore
+					`;
+					
+					try {
+						const ftpResult = await neo4jService.executeQuery(ftpQuery, { graphLabel, playerName, seasonMonth });
+						if (ftpResult && ftpResult.length > 0) {
+							const score = ftpResult[0].totalFtpScore;
+							if (score !== null && score !== undefined) {
+								if (typeof score === 'number') return score;
+								if (score && typeof score === 'object') {
+									if (typeof score.toNumber === 'function') return score.toNumber();
+									if (score.low !== undefined || score.high !== undefined) {
+										return (score.low || 0) + (score.high || 0) * 4294967296;
+									}
+								}
+								return Number(score) || 0;
+							}
+						}
+					} catch (error) {
+						loggingService.log(`❌ Error calculating FTP score for ${playerName}:`, error, "error");
+					}
+					return 0;
+				};
+				
+				// Get scores from the node first
+				let player1Score = getScore(matchingRecord.player1Score);
+				let player2Score = getScore(matchingRecord.player2Score);
+				let player3Score = getScore(matchingRecord.player3Score);
+				let player4Score = getScore(matchingRecord.player4Score);
+				let player5Score = getScore(matchingRecord.player5Score);
+				
+				// If scores are 0, calculate from MatchDetail (fallback)
+				if (player1Score === 0 && matchingRecord.player1Name) {
+					player1Score = await calculateFtpScore(matchingRecord.player1Name);
+				}
+				if (player2Score === 0 && matchingRecord.player2Name) {
+					player2Score = await calculateFtpScore(matchingRecord.player2Name);
+				}
+				if (player3Score === 0 && matchingRecord.player3Name) {
+					player3Score = await calculateFtpScore(matchingRecord.player3Name);
+				}
+				if (player4Score === 0 && matchingRecord.player4Name) {
+					player4Score = await calculateFtpScore(matchingRecord.player4Name);
+				}
+				if (player5Score === 0 && matchingRecord.player5Name) {
+					player5Score = await calculateFtpScore(matchingRecord.player5Name);
+				}
+				
+				// Round scores to 0 decimal places
+				return {
+					type: "potm_by_date",
+					data: {
+						player1Name: matchingRecord.player1Name || null,
+						player1Score: Math.round(player1Score),
+						player2Name: matchingRecord.player2Name || null,
+						player2Score: Math.round(player2Score),
+						player3Name: matchingRecord.player3Name || null,
+						player3Score: Math.round(player3Score),
+						player4Name: matchingRecord.player4Name || null,
+						player4Score: Math.round(player4Score),
+						player5Name: matchingRecord.player5Name || null,
+						player5Score: Math.round(player5Score),
+					},
+					month,
+					year,
+				};
+			}
+			
+			// executeQuery returns array of objects with the returned properties directly
+			const firstResult = result[0];
+			const season = firstResult?.season || "";
+			
+			// Handle Neo4j Integer types for scores
+			const getScore = (value: any): number => {
+				if (value === null || value === undefined) return 0;
+				if (typeof value === 'number') return value;
+				// Handle Neo4j Integer objects
+				if (value && typeof value === 'object') {
+					if (typeof value.toNumber === 'function') {
+						return value.toNumber();
+					}
+					if (value.low !== undefined || value.high !== undefined) {
+						return (value.low || 0) + (value.high || 0) * 4294967296;
+					}
+				}
+				const num = Number(value);
+				return isNaN(num) ? 0 : num;
+			};
+			
+			// If scores are 0 or null, calculate them from MatchDetail nodes
+			// Format: season-month (e.g., "2022/23-January")
+			const seasonMonth = `${season}-${month}`;
+			
+			// Helper to calculate FTP score from MatchDetail if score is missing
+			const calculateFtpScore = async (playerName: string): Promise<number> => {
+				if (!playerName) return 0;
+				
+				const ftpQuery = `
+					MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonMonth: $seasonMonth})
+					RETURN sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore
+				`;
+				
+				try {
+					const ftpResult = await neo4jService.executeQuery(ftpQuery, { graphLabel, playerName, seasonMonth });
+					if (ftpResult && ftpResult.length > 0) {
+						const score = ftpResult[0].totalFtpScore;
+						if (score !== null && score !== undefined) {
+							if (typeof score === 'number') return score;
+							if (score && typeof score === 'object') {
+								if (typeof score.toNumber === 'function') return score.toNumber();
+								if (score.low !== undefined || score.high !== undefined) {
+									return (score.low || 0) + (score.high || 0) * 4294967296;
+								}
+							}
+							return Number(score) || 0;
+						}
+					}
+				} catch (error) {
+					loggingService.log(`❌ Error calculating FTP score for ${playerName}:`, error, "error");
+				}
+				return 0;
+			};
+			
+			// Get scores from the node first
+			let player1Score = getScore(firstResult?.player1Score);
+			let player2Score = getScore(firstResult?.player2Score);
+			let player3Score = getScore(firstResult?.player3Score);
+			let player4Score = getScore(firstResult?.player4Score);
+			let player5Score = getScore(firstResult?.player5Score);
+			
+			// If scores are 0, calculate from MatchDetail (fallback)
+			// This handles cases where scores aren't stored in the PlayersOfTheMonth node
+			if (player1Score === 0 && firstResult?.player1Name) {
+				player1Score = await calculateFtpScore(firstResult.player1Name);
+			}
+			if (player2Score === 0 && firstResult?.player2Name) {
+				player2Score = await calculateFtpScore(firstResult.player2Name);
+			}
+			if (player3Score === 0 && firstResult?.player3Name) {
+				player3Score = await calculateFtpScore(firstResult.player3Name);
+			}
+			if (player4Score === 0 && firstResult?.player4Name) {
+				player4Score = await calculateFtpScore(firstResult.player4Name);
+			}
+			if (player5Score === 0 && firstResult?.player5Name) {
+				player5Score = await calculateFtpScore(firstResult.player5Name);
+			}
+			
+			// Round scores to 0 decimal places
+			return {
+				type: "potm_by_date",
+				data: {
+					player1Name: firstResult?.player1Name || null,
+					player1Score: Math.round(player1Score),
+					player2Name: firstResult?.player2Name || null,
+					player2Score: Math.round(player2Score),
+					player3Name: firstResult?.player3Name || null,
+					player3Score: Math.round(player3Score),
+					player4Name: firstResult?.player4Name || null,
+					player4Score: Math.round(player4Score),
+					player5Name: firstResult?.player5Name || null,
+					player5Score: Math.round(player5Score),
+				},
+				month,
+				year,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in PlayersOfTheMonth by date query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying PlayersOfTheMonth data" };
+		}
+	}
+
+	/**
+	 * Query WeeklyTOTW by month, year, and week
+	 */
+	static async queryWeeklyTOTWByDate(month: string, year: number, weekNumber?: number): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying WeeklyTOTW for ${month} ${year}${weekNumber ? ` week ${weekNumber}` : " (first week)"}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const monthNames = [
+			"January", "February", "March", "April", "May", "June",
+			"July", "August", "September", "October", "November", "December"
+		];
+		
+		const monthIndex = monthNames.findIndex((m) => m.toLowerCase() === month.toLowerCase());
+		if (monthIndex === -1) {
+			return { type: "error", data: [], error: `Invalid month name: ${month}` };
+		}
+		
+		// Calculate first week of month: first 7 days
+		const firstDayOfMonth = new Date(year, monthIndex, 1);
+		const lastDayOfFirstWeek = new Date(year, monthIndex, 7);
+		
+		// Query WeeklyTOTW nodes and find the one in the first week of the month
+		const query = `
+			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel})
+			WHERE wt.dateLookup IS NOT NULL OR wt.date IS NOT NULL
+			RETURN wt
+			ORDER BY wt.season, wt.week
+		`;
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			
+			if (!result || result.length === 0) {
+				return { type: "totw_by_date", data: null, month, year, week: weekNumber || 1, error: "No WeeklyTOTW data found" };
+			}
+			
+			// Find the WeeklyTOTW node for the first week of the specified month/year
+			let matchingTOTW: any = null;
+			
+			for (const record of result) {
+				// executeQuery returns objects with properties directly
+				const wt = record.wt || record;
+				const properties = wt?.properties || wt;
+				const dateLookup = properties?.dateLookup || properties?.date;
+				
+				if (!dateLookup) continue;
+				
+				let date: Date;
+				const dateStr = String(dateLookup);
+				
+				if (dateStr.includes("T")) {
+					date = new Date(dateStr);
+				} else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+					date = new Date(dateStr + "T00:00:00");
+				} else {
+					date = new Date(dateStr);
+				}
+				
+				if (isNaN(date.getTime())) continue;
+				
+				// Check if date is in the first week of the specified month/year
+				if (date.getFullYear() === year && date.getMonth() === monthIndex) {
+					const dayOfMonth = date.getDate();
+					if (dayOfMonth <= 7) {
+						matchingTOTW = properties;
+						break;
+					}
+				}
+			}
+			
+			if (!matchingTOTW) {
+				return { type: "totw_by_date", data: null, month, year, week: weekNumber || 1, error: "No WeeklyTOTW data found for the first week of the specified month and year" };
+			}
+			
+			// Extract players based on bestFormation
+			const bestFormation = matchingTOTW.bestFormation || "";
+			const season = matchingTOTW.season || "";
+			const week = matchingTOTW.week || weekNumber || 1;
+			const seasonWeek = `${season}-${week}`;
+			
+			// Parse bestFormation to determine which positions to include
+			// Format is typically "DEF-MID-FWD" (e.g., "4-4-2")
+			let numDef = 4; // Default
+			let numMid = 4; // Default
+			let numFwd = 2; // Default
+			
+			if (bestFormation) {
+				const formationParts = bestFormation.split("-");
+				if (formationParts.length >= 3) {
+					numDef = parseInt(formationParts[0], 10) || 4;
+					numMid = parseInt(formationParts[1], 10) || 4;
+					numFwd = parseInt(formationParts[2], 10) || 2;
+				} else if (formationParts.length === 2) {
+					// Handle formats like "4-4" (assume 2 forwards)
+					numDef = parseInt(formationParts[0], 10) || 4;
+					numMid = parseInt(formationParts[1], 10) || 4;
+					numFwd = 2;
+				}
+			}
+			
+			// Clamp values to valid ranges
+			numDef = Math.max(0, Math.min(5, numDef));
+			numMid = Math.max(0, Math.min(5, numMid));
+			numFwd = Math.max(0, Math.min(3, numFwd));
+			
+			// Get all players from the formation
+			const players: Array<{ playerName: string; position: string; points: number }> = [];
+			
+			// Build position fields based on bestFormation
+			const positionFields: Array<{ field: string; position: string }> = [];
+			
+			// Always include goalkeeper
+			positionFields.push({ field: "gk1", position: "GK" });
+			
+			// Add defenders based on formation
+			for (let i = 1; i <= numDef; i++) {
+				positionFields.push({ field: `def${i}`, position: "DEF" });
+			}
+			
+			// Add midfielders based on formation
+			for (let i = 1; i <= numMid; i++) {
+				positionFields.push({ field: `mid${i}`, position: "MID" });
+			}
+			
+			// Add forwards based on formation
+			for (let i = 1; i <= numFwd; i++) {
+				positionFields.push({ field: `fwd${i}`, position: "FWD" });
+			}
+			
+			for (const { field, position } of positionFields) {
+				const playerName = matchingTOTW[field];
+				if (playerName && String(playerName).trim() !== "") {
+					// Query FTP score for this player for this week
+					const ftpQuery = `
+						MATCH (md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonWeek: $seasonWeek})
+						RETURN sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore
+					`;
+					
+					try {
+						const ftpResult = await neo4jService.executeQuery(ftpQuery, { graphLabel, playerName, seasonWeek });
+						const ftpScore = ftpResult && ftpResult.length > 0 && ftpResult[0].totalFtpScore !== undefined
+							? (typeof ftpResult[0].totalFtpScore === 'number' 
+								? ftpResult[0].totalFtpScore 
+								: (ftpResult[0].totalFtpScore?.low || 0) + (ftpResult[0].totalFtpScore?.high || 0) * 4294967296)
+							: 0;
+						
+						// Round points to 0 decimal places
+						players.push({
+							playerName: String(playerName),
+							position: position,
+							points: Math.round(ftpScore),
+						});
+					} catch (error) {
+						loggingService.log(`❌ Error querying FTP score for ${playerName}:`, error, "error");
+						players.push({
+							playerName: String(playerName),
+							position: position,
+							points: 0,
+						});
+					}
+				}
+			}
+			
+			return {
+				type: "totw_by_date",
+				data: {
+					players: players,
+					bestFormation: bestFormation,
+					season: season,
+					week: week,
+				},
+				month,
+				year,
+				week: week,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in WeeklyTOTW by date query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying WeeklyTOTW data" };
+		}
+	}
 }
 
 export const awardsQueryHandler = new AwardsQueryHandler();

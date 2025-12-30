@@ -388,6 +388,19 @@ export class PlayerQueryBuilder {
 			whereConditions.push(`toUpper(f.team) IN [${teamNames}]`);
 		}
 
+		// Add team exclusion filter if specified (for "not playing for" patterns)
+		if (analysis.teamExclusions && analysis.teamExclusions.length > 0) {
+			const teamExclusions = analysis.teamExclusions || [];
+			const mappedExcludedTeamNames = teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+			
+			// For player performance metrics, exclude based on md.team (where individual player team is stored)
+			// For team-specific metrics that don't use MatchDetail, we still use md.team for consistency
+			// The exclusion means "not playing for team X", which refers to the team in MatchDetail
+			for (const excludedTeam of mappedExcludedTeamNames) {
+				whereConditions.push(`toUpper(md.team) <> toUpper('${excludedTeam}')`);
+			}
+		}
+
 		// Add team-specific appearance filter if metric is team-specific (1sApps, 2sApps, etc.)
 		if (metric.match(/^\d+sApps$/i)) {
 			const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
@@ -1278,8 +1291,10 @@ export class PlayerQueryBuilder {
 
 			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
 			// (we'll filter in WITH clause instead to ensure we always return a row)
+			// BUT skip this if team exclusions are present (exclusions mean we want all teams except the excluded ones)
+			const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
 			let teamNameForWithClause = "";
-			if ((isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+			if (!hasTeamExclusions && (isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
 				if (metric.match(/^\d+sApps$/i)) {
 					const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
 					if (teamNumber) {
@@ -1307,7 +1322,8 @@ export class PlayerQueryBuilder {
 			}
 
 			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WHERE clause or WITH clause
-			if (isTeamSpecificMetric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
+			// BUT skip team-specific pattern when exclusions are present (exclusions mean we want all teams except excluded ones)
+			if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
 				let teamName = "";
 				if (metric.match(/^\d+sGoals$/i)) {
@@ -1334,11 +1350,22 @@ export class PlayerQueryBuilder {
 					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
 				}
 			} else if (isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
-				if (teamNameForWithClause) {
+				// Check if we have team exclusions - if so, don't use team-specific pattern
+				const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
+				
+				if (teamNameForWithClause && !hasTeamExclusions) {
 					// Use WITH clause to aggregate and filter by team
 					// Ensure we always return a row even when there are no MatchDetail records
 					query += ` WITH p, collect(md) as matchDetails`;
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
+				} else if (hasTeamExclusions) {
+					// When exclusions are present, use regular aggregation with exclusion filter
+					const mappedExcludedTeamNames = analysis.teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND (${exclusionConditions})] END as filteredDetails`;
 					query += ` WITH p, size(filteredDetails) as appearanceCount`;
 					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
 				} else {

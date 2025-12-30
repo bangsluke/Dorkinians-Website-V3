@@ -565,6 +565,82 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "top player in [month] [year]" questions
+			const isTopPlayerInMonthQuestion = 
+				(question.includes("top player") || question.includes("who was") || question.includes("who is")) &&
+				(question.includes("january") || question.includes("february") || question.includes("march") || 
+				 question.includes("april") || question.includes("may") || question.includes("june") ||
+				 question.includes("july") || question.includes("august") || question.includes("september") ||
+				 question.includes("october") || question.includes("november") || question.includes("december")) &&
+				question.match(/\d{4}/); // Contains a 4-digit year
+
+			if (isTopPlayerInMonthQuestion) {
+				const monthNames = [
+					"january", "february", "march", "april", "may", "june",
+					"july", "august", "september", "october", "november", "december"
+				];
+				
+				let month = "";
+				for (const monthName of monthNames) {
+					if (question.includes(monthName)) {
+						month = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+						break;
+					}
+				}
+				
+				const yearMatch = question.match(/\b(\d{4})\b/);
+				const year = yearMatch ? parseInt(yearMatch[1], 10) : null;
+				
+				if (month && year) {
+					this.lastProcessingSteps.push(`Detected top player in month question, routing to AwardsQueryHandler with month: ${month}, year: ${year}`);
+					return await AwardsQueryHandler.queryPlayersOfTheMonthByDate(month, year);
+				}
+			}
+
+			// Check for "TOTW in [week] of [month] [year]" questions
+			const isTOTWInWeekQuestion = 
+				(question.includes("totw") || question.includes("team of the week")) &&
+				(question.includes("first week") || question.includes("week") || question.includes("made totw")) &&
+				(question.includes("january") || question.includes("february") || question.includes("march") || 
+				 question.includes("april") || question.includes("may") || question.includes("june") ||
+				 question.includes("july") || question.includes("august") || question.includes("september") ||
+				 question.includes("october") || question.includes("november") || question.includes("december")) &&
+				question.match(/\d{4}/); // Contains a 4-digit year
+
+			if (isTOTWInWeekQuestion) {
+				const monthNames = [
+					"january", "february", "march", "april", "may", "june",
+					"july", "august", "september", "october", "november", "december"
+				];
+				
+				let month = "";
+				for (const monthName of monthNames) {
+					if (question.includes(monthName)) {
+						month = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+						break;
+					}
+				}
+				
+				const yearMatch = question.match(/\b(\d{4})\b/);
+				const year = yearMatch ? parseInt(yearMatch[1], 10) : null;
+				
+				// Extract week number if specified, otherwise default to first week
+				let weekNumber: number | undefined = undefined;
+				if (question.includes("first week")) {
+					weekNumber = 1;
+				} else {
+					const weekMatch = question.match(/\b(\d+)(?:st|nd|rd|th)?\s+week/i);
+					if (weekMatch) {
+						weekNumber = parseInt(weekMatch[1], 10);
+					}
+				}
+				
+				if (month && year) {
+					this.lastProcessingSteps.push(`Detected TOTW in week question, routing to AwardsQueryHandler with month: ${month}, year: ${year}, week: ${weekNumber || "first"}`);
+					return await AwardsQueryHandler.queryWeeklyTOTWByDate(month, year, weekNumber);
+				}
+			}
+
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
@@ -1886,7 +1962,7 @@ export class ChatbotService {
 				if (startDate && endDate) {
 					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
 				}
-				answer = `${playerName1} and ${playerName2} have not scored any goals together${contextMessage}.`;
+				answer = `${playerName1} and ${playerName2} have not scored any goals whilst playing together${contextMessage}.`;
 			} else {
 				let contextMessage = "";
 				if (teamName) {
@@ -1898,7 +1974,7 @@ export class ChatbotService {
 				if (startDate && endDate) {
 					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
 				}
-				answer = `${playerName1} and ${playerName2} have scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} together${contextMessage}.`;
+				answer = `${playerName1} and ${playerName2} have scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} whilst playing together${contextMessage}.`;
 				answerValue = totalGoals;
 			}
 		} else if (data && data.type === "co_players") {
@@ -2507,6 +2583,104 @@ export class ChatbotService {
 					type: "bar",
 				},
 			};
+		} else if (data && data.type === "potm_by_date") {
+			// Handle PlayersOfTheMonth by date queries
+			const month = (data.month as string) || "";
+			const year = (data.year as number) || 0;
+			const potmData = data.data as {
+				player1Name?: string | null;
+				player1Score?: number | null;
+				player2Name?: string | null;
+				player2Score?: number | null;
+				player3Name?: string | null;
+				player3Score?: number | null;
+				player4Name?: string | null;
+				player4Score?: number | null;
+				player5Name?: string | null;
+				player5Score?: number | null;
+			} | null;
+			
+			if (!potmData || !potmData.player1Name) {
+				answer = `I couldn't find Players of the Month data for ${month} ${year}.`;
+			} else {
+				const topPlayer = potmData.player1Name;
+				answer = `The top player in ${month} ${year} was ${topPlayer}.`;
+				answerValue = topPlayer;
+				
+				// Create table with top 5 players
+				const tableData = [];
+				for (let i = 1; i <= 5; i++) {
+					const playerName = potmData[`player${i}Name` as keyof typeof potmData] as string | null | undefined;
+					const playerScore = potmData[`player${i}Score` as keyof typeof potmData] as number | null | undefined;
+					if (playerName) {
+						// Handle null/undefined scores - if score is null, try to get it from the data object directly
+						let score = playerScore;
+						if (score === null || score === undefined) {
+							// Score might be 0 or null in database - check if it's actually 0 vs null
+							score = 0;
+						}
+						tableData.push({
+							Rank: i,
+							Player: playerName,
+							Score: score,
+						});
+					}
+				}
+				
+				if (tableData.length > 0) {
+					visualization = {
+						type: "Table",
+						data: tableData,
+						config: {
+							columns: [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: "Score", label: "Score" },
+							],
+						},
+					};
+				}
+			}
+		} else if (data && data.type === "totw_by_date") {
+			// Handle WeeklyTOTW by date queries
+			const month = (data.month as string) || "";
+			const year = (data.year as number) || 0;
+			const week = (data.week as number) || 1;
+			const totwData = data.data as {
+				players?: Array<{ playerName: string; position: string; points: number }>;
+				bestFormation?: string;
+				season?: string;
+			} | null;
+			
+			if (!totwData || !totwData.players || totwData.players.length === 0) {
+				answer = `I couldn't find Team of the Week data for the first week of ${month} ${year}.`;
+			} else {
+				const weekText = week === 1 ? "first week" : `week ${week}`;
+				answer = `The following players made TOTW in the ${weekText} of ${month} ${year}:`;
+				
+				// Set answerValue to all player names separated by ", "
+				const playerNames = totwData.players.map(player => player.playerName);
+				answerValue = playerNames.join(", ");
+				
+				// Create table with players, positions, and points
+				const tableData = totwData.players.map((player) => ({
+					Player: player.playerName,
+					Position: player.position,
+					Points: player.points,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Position", label: "Position" },
+							{ key: "Points", label: "Points" },
+						],
+					},
+				};
+			}
 		} else if (data && data.type === "league_wins_count") {
 			// Handle league wins count queries
 			const playerName = (data.playerName as string) || "You";

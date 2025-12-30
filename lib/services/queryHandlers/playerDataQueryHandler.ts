@@ -35,9 +35,27 @@ export class PlayerDataQueryHandler {
 			);
 		}
 
-		// Check if we have entities (player names) to query
-		if (entities.length === 0) {
-			return { type: "no_context", data: [], message: "No player context provided" };
+		// Filter out invalid entities (team numbers, etc.)
+		const validEntities = entities.filter((entity) => {
+			const lowerEntity = entity.toLowerCase();
+			// Skip team numbers (3s, 3rd, etc.)
+			return !lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/);
+		});
+
+		// Check if we have valid entities (player names) to query
+		// If no valid entities but we have userContext, use that instead
+		if (validEntities.length === 0) {
+			if (userContext) {
+				// Use userContext as the player name - this handles cases where team numbers were incorrectly extracted
+				loggingService.log(`🔍 No valid entities found, using userContext: ${userContext}`, null, "log");
+				// Replace entities array with userContext for the rest of the function
+				entities = [userContext];
+			} else {
+				return { type: "no_context", data: [], message: "No player context provided" };
+			}
+		} else {
+			// Use valid entities (filtered to remove team numbers)
+			entities = validEntities;
 		}
 
 		// Check for "played with" or "most played with" questions
@@ -88,30 +106,44 @@ export class PlayerDataQueryHandler {
 
 		// If this is a "goals whilst playing together" question, handle it specially
 		if (isGoalsTogetherQuestion) {
+			// Helper function to trim player names at verb boundaries
+			const trimPlayerName = (name: string): string => {
+				if (!name) return name;
+				// Common stop words that indicate the end of a player name
+				const stopWords = /\s+(got|have|has|playing|whilst|while|together|for|with|in|at|on|by|from|to|when|where|what|which|who|how|and|or|but)\b/i;
+				const match = name.match(stopWords);
+				if (match && match.index !== undefined) {
+					return name.substring(0, match.index).trim();
+				}
+				return name.trim();
+			};
+
 			// Determine player names - use userContext if available, otherwise use entities
 			let playerName1: string | undefined;
 			let playerName2: string | undefined;
 			
 			// Try to extract from question text first (most reliable for this pattern)
+			// Match full names (greedy) - first name stops at "and", second name will be trimmed if it includes verbs
+			// Pattern: "have/has [Name1] and [Name2] [optional verb]"
 			const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
 			const playerNameMatch = (analysis.question || "").match(playerNamePattern);
 			
 			if (playerNameMatch && playerNameMatch.length >= 3) {
-				// Extract from question text
-				playerName1 = playerNameMatch[1].trim();
-				playerName2 = playerNameMatch[2].trim();
+				// Extract from question text and trim at verb boundaries
+				playerName1 = trimPlayerName(playerNameMatch[1]);
+				playerName2 = trimPlayerName(playerNameMatch[2]);
 			} else if (userContext && (playerEntities.length >= 1 || entities.length >= 1)) {
 				// User context is set, use it as first player
 				playerName1 = userContext;
-				playerName2 = playerEntities.length > 0 ? playerEntities[0].value : entities[0];
+				playerName2 = trimPlayerName(playerEntities.length > 0 ? playerEntities[0].value : entities[0]);
 			} else if (playerEntities.length >= 2) {
 				// Use player entities from extraction
-				playerName1 = playerEntities[0].value;
-				playerName2 = playerEntities[1].value;
+				playerName1 = trimPlayerName(playerEntities[0].value);
+				playerName2 = trimPlayerName(playerEntities[1].value);
 			} else if (entities.length >= 2) {
 				// Fallback to legacy entities
-				playerName1 = entities[0];
-				playerName2 = entities[1];
+				playerName1 = trimPlayerName(entities[0]);
+				playerName2 = trimPlayerName(entities[1]);
 			}
 			
 			// Only proceed if we have both player names
@@ -453,22 +485,34 @@ export class PlayerDataQueryHandler {
 			extractedOppositionName = oppositionEntities[0];
 		} else {
 			// Fallback: try to extract capitalized team name from question
-			// Pattern: "how many times have I played [Team Name]?"
-			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
+			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
+			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 			if (oppositionMatch && oppositionMatch[1]) {
-				extractedOppositionName = oppositionMatch[1];
-				loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				const potentialOpposition = oppositionMatch[1];
+				// Skip if it's a team number (3s, 3rd, etc.) or if it's followed by "for" (team context)
+				const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+				if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+				    !afterMatch?.toLowerCase().startsWith("for") &&
+				    !afterMatch?.toLowerCase().startsWith("the")) {
+					extractedOppositionName = potentialOpposition;
+					loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				}
 			}
 		}
 
+		// Check for team exclusions - if present, don't treat as opposition query
+		const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
+		
 		const isOppositionAppearanceQuery = 
+			!hasTeamExclusions &&
 			extractedOppositionName.length > 0 && 
 			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
 			!questionLower.includes("scored");
 
-		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
+		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
 
 		if (isOppositionAppearanceQuery) {
 			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
@@ -503,7 +547,8 @@ export class PlayerDataQueryHandler {
 		}
 
 		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
-		const hasOppositionQuery = oppositionEntities.length > 0 && (
+		// Skip if team exclusions are present (exclusions only apply to player queries, not opposition queries)
+		const hasOppositionQuery = !hasTeamExclusions && oppositionEntities.length > 0 && (
 			questionLower.includes("against") ||
 			questionLower.includes("vs") ||
 			questionLower.includes("versus") ||

@@ -7,6 +7,7 @@ export interface EnhancedQuestionAnalysis {
 	metrics: string[];
 	timeRange?: string;
 	teamEntities?: string[];
+	teamExclusions?: string[]; // Teams to exclude (e.g., "not playing for the 3s")
 	oppositionEntities?: string[];
 	competitionTypes?: string[];
 	competitions?: string[];
@@ -158,11 +159,39 @@ export class EnhancedQuestionAnalyzer {
 		// Extract time range for backward compatibility
 		const timeRange = this.extractLegacyTimeRange(extractionResult);
 
-		// Extract team entities for team-specific queries
-		const teamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
+		// Extract team exclusions for "not playing for" patterns FIRST (before team entities)
+		// This ensures excluded teams are not treated as regular team entities
+		const teamExclusions: string[] = [];
+		const exclusionPatterns = [
+			/\b(?:not|excluding|except)\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+			/\bwhen\s+not\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+		];
+		
+		for (const pattern of exclusionPatterns) {
+			const match = lowerQuestion.match(pattern);
+			if (match && match[1]) {
+				teamExclusions.push(match[1]);
+			}
+		}
+
+		// Extract team entities for team-specific queries, but exclude teams that are in exclusions
+		const allTeamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
+		const teamEntities = allTeamEntities.filter((team) => {
+			// Remove teams that are in exclusions (normalize for comparison)
+			const normalizedTeam = team.toLowerCase();
+			return !teamExclusions.some((excluded) => {
+				const normalizedExcluded = excluded.toLowerCase();
+				// Check if the team matches the excluded team (handle variations like "3s" vs "3rd")
+				return normalizedTeam === normalizedExcluded || 
+				       normalizedTeam.includes(normalizedExcluded) || 
+				       normalizedExcluded.includes(normalizedTeam);
+			});
+		});
 
 		// Extract opposition entities for opposition-specific queries
-		const oppositionEntities = extractionResult.entities.filter((e) => e.type === "opposition").map((e) => e.value);
+		// But exclude them if team exclusions are present (exclusions indicate player queries, not opposition queries)
+		const allOppositionEntities = extractionResult.entities.filter((e) => e.type === "opposition").map((e) => e.value);
+		const oppositionEntities = teamExclusions.length > 0 ? [] : allOppositionEntities;
 
 		// Extract competition types for competition-specific queries
 		const competitionTypes = extractionResult.competitionTypes.map((ct) => ct.value);
@@ -193,6 +222,7 @@ export class EnhancedQuestionAnalyzer {
 			metrics,
 			timeRange,
 			teamEntities,
+			teamExclusions: teamExclusions.length > 0 ? teamExclusions : undefined,
 			oppositionEntities,
 			competitionTypes,
 			competitions,
@@ -570,8 +600,17 @@ export class EnhancedQuestionAnalyzer {
 			return "milestone";
 		}
 
+		// Check for team exclusion patterns - if present, this should be a player query
+		// (exclusions only make sense for player queries, not team queries)
+		const hasExclusionPattern = 
+			lowerQuestion.includes("not playing for") ||
+			lowerQuestion.includes("when not") ||
+			lowerQuestion.includes("excluding") ||
+			lowerQuestion.includes("except for");
+		
 		// Check for player-specific queries (but not if it's a streak, milestone, or other special question)
-		if (hasPlayerEntities) {
+		// Also prioritize player type if exclusion patterns are detected
+		if (hasPlayerEntities || hasExclusionPattern) {
 			return "player";
 		}
 
@@ -769,6 +808,10 @@ export class EnhancedQuestionAnalyzer {
 				const lowerValue = entity.value.toLowerCase();
 				// Skip if this is an invalid player name (likely a mis-extracted phrase)
 				if (invalidPlayerNames.includes(lowerValue)) {
+					return;
+				}
+				// Skip if this is a team number (3s, 3rd, etc.) - these should never be player entities
+				if (lowerValue.match(/^\d+(st|nd|rd|th|s)?$/)) {
 					return;
 				}
 				if (entity.value === "I" && this.userContext) {
