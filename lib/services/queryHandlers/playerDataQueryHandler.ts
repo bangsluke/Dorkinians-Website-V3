@@ -76,7 +76,7 @@ export class PlayerDataQueryHandler {
 		// Also try to extract player names directly from question text as fallback
 		// Pattern: "How many goals have [Player1] and [Player2] got..."
 		const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
-		const playerNameMatch = question.match(playerNamePattern);
+		const playerNameMatch = (analysis.question || "").match(playerNamePattern);
 		const hasPlayerNamesInQuestion = !!playerNameMatch;
 		
 		const isGoalsTogetherQuestion = 
@@ -94,7 +94,7 @@ export class PlayerDataQueryHandler {
 			
 			// Try to extract from question text first (most reliable for this pattern)
 			const playerNamePattern = /(?:have|has)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+and\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
-			const playerNameMatch = question.match(playerNamePattern);
+			const playerNameMatch = (analysis.question || "").match(playerNamePattern);
 			
 			if (playerNameMatch && playerNameMatch.length >= 3) {
 				// Extract from question text
