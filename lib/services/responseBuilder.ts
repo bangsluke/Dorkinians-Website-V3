@@ -68,6 +68,12 @@ export class ResponseBuilder {
 		const formattedValue = FormattingUtils.formatValueByMetric(resolvedMetricForDisplay, value as number);
 		const verb = getAppropriateVerb(metric, value as number);
 
+		// Special handling for MostPlayedForTeam/TEAM_ANALYSIS - value is a team name string
+		if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
+			const teamName = typeof value === "string" ? value : String(value);
+			return `${playerName} has played for the ${teamName} most.`;
+		}
+
 		// Special handling for GPERAPP - always include numeric value for test extraction
 		if (metric === "GperAPP" || metric.toUpperCase() === "GPERAPP") {
 			return `${playerName} averages ${formattedValue} goals per appearance.`;
@@ -76,6 +82,16 @@ export class ResponseBuilder {
 		// Special handling for AwayGames%Won - always include numeric value for test extraction
 		if (metric === "AwayGames%Won" || metric.toUpperCase() === "AWAYGAMES%WON") {
 			return `${playerName} has won ${formattedValue} of away games.`;
+		}
+
+		// Special handling for PENALTY_CONVERSION_RATE - format as percentage
+		if (metric === "PENALTY_CONVERSION_RATE" || metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue)) {
+				// Value is already a percentage (0-100) from database, format with % sign
+				const percentageValue = numericValue.toFixed(1);
+				return `${playerName} has a penalty conversion rate of ${percentageValue}%.`;
+			}
 		}
 
 		// Special handling for CperAPP - check for zero and return appropriate zero stat response (must be before general zero check)

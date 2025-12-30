@@ -33,9 +33,11 @@ export class PlayerQueryBuilder {
 			"DIST",
 			"MOSTSCOREDFORTEAM",
 			"MOSTPLAYEDFORTEAM",
+			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
 			"FTP",
 			"POINTS",
 			"FANTASYPOINTS",
+			"PENALTY_CONVERSION_RATE", // Needs MatchDetail to calculate from penaltiesScored and penaltiesMissed
 		];
 
 		// Check if it's a team-specific appearance metric (1sApps, 2sApps, etc.)
@@ -107,6 +109,8 @@ export class PlayerQueryBuilder {
 				return "coalesce(p.penaltiesConceded, 0)";
 			case "PSV":
 				return "coalesce(p.penaltiesSaved, 0)";
+			case "PENALTY_CONVERSION_RATE":
+				return "coalesce(p.penaltyConversionRate, 0.0)";
 			case "DIST":
 				return "coalesce(p.distance, 0)";
 			case "GK":
@@ -174,6 +178,13 @@ export class PlayerQueryBuilder {
 				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
 			case "AWAYWINS":
 				return "sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['W', 'WIN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'W') THEN 1 ELSE 0 END) as value";
+			case "PENALTY_CONVERSION_RATE":
+				return `
+				CASE 
+					WHEN (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0))) > 0 
+					THEN toFloat(sum(coalesce(md.penaltiesScored, 0))) / (sum(coalesce(md.penaltiesScored, 0)) + sum(coalesce(md.penaltiesMissed, 0))) * 100.0
+					ELSE 0.0 
+				END as value`;
 			case "GK":
 				return "coalesce(count(md), 0) as value";
 			case "DEF":
@@ -432,7 +443,15 @@ export class PlayerQueryBuilder {
 					})
 					.filter(Boolean);
 				if (locationFilters.length > 0) {
-					whereConditions.push(`(${locationFilters.join(" OR ")})`);
+					// Use single condition if only one location, otherwise join with OR
+					if (locationFilters.length === 1) {
+						const singleFilter = locationFilters[0];
+						if (singleFilter) {
+							whereConditions.push(singleFilter);
+						}
+					} else {
+						whereConditions.push(`(${locationFilters.join(" OR ")})`);
+					}
 				}
 			}
 		}
@@ -449,9 +468,12 @@ export class PlayerQueryBuilder {
 		// - Player has games but 0 wins (query returns value=0)
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
+		// Filter through OppositionDetails nodes as per schema requirements
+		// Use CONTAINS for partial matching (e.g., "Old Hamptonians" matches "Old Hamptonians 2nd")
+		// Note: OppositionDetails node is matched in buildPlayerQuery, so we only need to link Fixture to it
 		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
 			const oppositionName = oppositionEntities[0];
-			whereConditions.push(`f.opposition = '${oppositionName}'`);
+			whereConditions.push(`toLower(od.opposition) CONTAINS toLower('${oppositionName}') AND toLower(f.opposition) CONTAINS toLower('${oppositionName}')`);
 		}
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -486,12 +508,18 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		// Use exact match (=) instead of CONTAINS as per schema requirements
+		// This applies to goals queries (G) and other metrics that need Fixture data
 		if (analysis.competitions && analysis.competitions.length > 0 && 
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
 			!metric.match(/^\d+sApps$/i) &&
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
 			!metric.match(/^\d+sGoals$/i)) {
-			const competitionFilters = analysis.competitions.map((comp) => `f.competition CONTAINS '${comp}'`);
+			// Map competition names from pseudonyms to actual database values
+			const competitionFilters = analysis.competitions.map((comp) => {
+				// Use the competition name as-is (already mapped by extractCompetitions)
+				return `f.competition = '${comp}'`;
+			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
 		}
 
@@ -554,8 +582,13 @@ export class PlayerQueryBuilder {
 		const hasDirectionalLocation = locations.some((loc) => loc.type === "home" || loc.type === "away");
 		const shouldKeepLocationFilters = metricHandlesLocation || (hasExplicitLocation && hasDirectionalLocation);
 		
+		// CRITICAL: For goals queries (G, ALLGSC, OPENPLAYGOALS) with explicit location filters, always keep them
+		const isGoalsQuery = metricUpper === "G" || metricUpper === "ALLGSC" || metricUpper === "OPENPLAYGOALS";
+		const hasLocationFilter = whereConditions.some((condition) => condition.includes("f.homeOrAway"));
+		
 		// For team-specific metrics, never keep location filters (isTeamSpecificAppearanceOrGoals already declared above)
-		if (!shouldKeepLocationFilters || isTeamSpecificMetric || isTeamSpecificAppearanceOrGoals) {
+		// Exception: Keep location filters for goals queries even if shouldKeepLocationFilters is false
+		if ((!shouldKeepLocationFilters && !(isGoalsQuery && hasLocationFilter)) || isTeamSpecificMetric || isTeamSpecificAppearanceOrGoals) {
 			return whereConditions.filter((condition) => !condition.includes("f.homeOrAway"));
 		}
 
@@ -834,9 +867,10 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			// Query MatchDetails to get goals per season for chart display
+			// Includes regular goals and penalties, but excludes penalty shootout penalties
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WHERE f.season IS NOT NULL AND f.season <> ""
 				WITH p, f.season as season, 
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
@@ -847,15 +881,15 @@ export class PlayerQueryBuilder {
 		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
 			if (TeamMappingUtils.isTeamCountQuestion(analysis.question)) {
 				return `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
 					WITH p, collect(DISTINCT md.team) as teams
 					RETURN p.playerName as playerName, size(teams) as value
 				`;
 			} else {
-				// Query for most played for team
+				// Query for all teams played for with counts - return all teams, not just the top one
 				return `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					WHERE md.team IS NOT NULL
 					WITH p, md.team as team, count(md) as appearances, 
 						sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
@@ -873,8 +907,7 @@ export class PlayerQueryBuilder {
 							ELSE 9
 						END as teamOrder
 					ORDER BY appearances DESC, teamOrder ASC
-					LIMIT 1
-					RETURN p.playerName as playerName, team as value
+					RETURN p.playerName as playerName, team as value, appearances, teamOrder
 				`;
 			}
 		} else if (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor") {
@@ -1047,7 +1080,21 @@ export class PlayerQueryBuilder {
 		const oppositionEntities = analysis.oppositionEntities || [];
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
-		const needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
+		const hasLocationFilter = locations.some((loc) => loc.type === "home" || loc.type === "away");
+		let needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
+		// CRITICAL: Force MatchDetail join when filters requiring Fixture are present
+		// (competition, competition type, opposition, time range, location, result filters)
+		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
+		const hasCompetitionTypeFilter = analysis.competitionTypes && analysis.competitionTypes.length > 0;
+		const hasOppositionFilter = oppositionEntities.length > 0;
+		const hasTimeRangeFilter = timeRange !== undefined;
+		const hasResultFilter = analysis.results && analysis.results.length > 0;
+		const hasFiltersRequiringMatchDetail = hasLocationFilter || hasCompetitionFilter || hasCompetitionTypeFilter || 
+			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter;
+		
+		if (hasFiltersRequiringMatchDetail && !needsMatchDetail) {
+			needsMatchDetail = true;
+		}
 		const isTeamSpecificMetric = !!(metric.match(/^\d+sApps$/i) || 
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
 			metric.match(/^\d+sGoals$/i) ||
@@ -1096,10 +1143,21 @@ export class PlayerQueryBuilder {
 			// Use MatchDetail join query with simplified path pattern
 			if (needsFixture) {
 				// Use explicit path pattern to ensure we only count the player's own MatchDetail records
-				query = `
-					MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-					MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				`;
+				// Add OppositionDetails MATCH when opposition filter is present
+				if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
+					const oppositionName = oppositionEntities[0];
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+						MATCH (od:OppositionDetails)
+						WHERE toLower(od.opposition) CONTAINS toLower('${oppositionName}')
+					`;
+				} else {
+					query = `
+						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+					`;
+				}
 			} else {
 				// Use simple MatchDetail query for queries that don't need fixture data
 				// For team-specific or position metrics, use OPTIONAL MATCH to ensure we always return a row

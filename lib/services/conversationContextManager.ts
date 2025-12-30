@@ -12,6 +12,11 @@ export interface ConversationContext {
 	sessionId?: string;
 	lastQuestion?: ConversationHistory;
 	history: ConversationHistory[];
+	pendingClarification?: {
+		originalQuestion: string;
+		clarificationType: string;
+		timestamp: Date;
+	};
 }
 
 export class ConversationContextManager {
@@ -62,6 +67,34 @@ export class ConversationContextManager {
 		if (context.history.length > this.MAX_HISTORY) {
 			context.history = context.history.slice(-this.MAX_HISTORY);
 		}
+
+		// Store pending clarification if analysis requires clarification
+		if (analysis.requiresClarification && analysis.type === "clarification_needed") {
+			context.pendingClarification = {
+				originalQuestion: question,
+				clarificationType: analysis.clarificationMessage || "general",
+				timestamp: new Date(),
+			};
+		} else {
+			// Clear pending clarification when a non-clarification question is successfully processed
+			context.pendingClarification = undefined;
+		}
+	}
+
+	/**
+	 * Get pending clarification for a session
+	 */
+	public getPendingClarification(sessionId: string): { originalQuestion: string; clarificationType: string; timestamp: Date } | undefined {
+		const context = this.getContext(sessionId);
+		return context.pendingClarification;
+	}
+
+	/**
+	 * Clear pending clarification for a session
+	 */
+	public clearPendingClarification(sessionId: string): void {
+		const context = this.getContext(sessionId);
+		context.pendingClarification = undefined;
 	}
 
 	/**

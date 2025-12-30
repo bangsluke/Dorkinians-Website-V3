@@ -53,6 +53,34 @@ export class RelationshipQueryHandler {
 	}
 
 	/**
+	 * Query players who have played with the most different teammates
+	 */
+	static async queryMostDifferentTeammates(limit: number = 10): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying players with most different teammates`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE p1 <> p2
+			WITH p1, collect(DISTINCT p2.playerName) as teammates
+			RETURN p1.playerName as playerName, size(teammates) as teammateCount
+			ORDER BY teammateCount DESC
+			LIMIT $limit
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, limit });
+			return { type: "most_different_teammates", data: result };
+		} catch (error) {
+			loggingService.log(`❌ Error in most different teammates query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying most different teammates data" };
+		}
+	}
+
+	/**
 	 * Query most played with for a player
 	 */
 	static async queryMostPlayedWith(
@@ -126,6 +154,243 @@ export class RelationshipQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in most played with query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying most played with data" };
+		}
+	}
+
+	/**
+	 * Query player stats against a specific opposition
+	 */
+	static async queryPlayerStatsAgainstOpposition(
+		playerName: string,
+		oppositionName: string,
+		metric?: string
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying player stats against opposition: ${playerName} vs ${oppositionName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Build query based on metric
+		let returnClause = "";
+		if (metric === "goals" || metric === "G") {
+			returnClause = `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as goals,
+				count(md) as appearances,
+				count(DISTINCT f) as gamesPlayed
+			`;
+		} else if (metric === "assists" || metric === "A") {
+			returnClause = `
+				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as assists,
+				count(md) as appearances,
+				count(DISTINCT f) as gamesPlayed
+			`;
+		} else if (metric === "appearances" || metric === "APP") {
+			returnClause = `
+				count(md) as appearances,
+				count(DISTINCT f) as gamesPlayed
+			`;
+		} else {
+			// Default: return comprehensive stats
+			returnClause = `
+				coalesce(sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END), 0) + 
+				coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END), 0) as goals,
+				coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END), 0) as assists,
+				count(md) as appearances,
+				count(DISTINCT f) as gamesPlayed,
+				sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+				sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+				sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+			`;
+		}
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE toLower(trim(f.opposition)) = toLower(trim($oppositionName))
+			RETURN ${returnClause}
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
+			if (result && result.length > 0) {
+				return { type: "opposition_stats", data: result[0], playerName, oppositionName, metric };
+			}
+			return { type: "opposition_stats", data: null, playerName, oppositionName, metric };
+		} catch (error) {
+			loggingService.log(`❌ Error in player stats against opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying player stats against opposition" };
+		}
+	}
+
+	/**
+	 * Query distance traveled to play against an opposition
+	 */
+	static async queryDistanceToOpposition(oppositionName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying distance to opposition: ${oppositionName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (od:OppositionDetails {graphLabel: $graphLabel, opposition: $oppositionName})
+			RETURN od.opposition as opposition,
+			       od.distanceMiles as distanceMiles,
+			       od.address as address,
+			       od.latitude as latitude,
+			       od.longitude as longitude
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { oppositionName, graphLabel });
+			if (result && result.length > 0) {
+				return { type: "opposition_distance", data: result[0] };
+			}
+			return { type: "opposition_distance", data: null };
+		} catch (error) {
+			loggingService.log(`❌ Error in distance to opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying distance to opposition" };
+		}
+	}
+
+	/**
+	 * Query most played against opposition
+	 */
+	static async queryMostPlayedAgainstOpposition(playerName?: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying most played against opposition${playerName ? ` for player: ${playerName}` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		let query = "";
+		if (playerName) {
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE f.opposition IS NOT NULL AND f.opposition <> ""
+				WITH f.opposition as opposition, count(DISTINCT f) as gamesPlayed
+				ORDER BY gamesPlayed DESC
+				LIMIT 10
+				RETURN opposition, gamesPlayed
+			`;
+		} else {
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE f.opposition IS NOT NULL AND f.opposition <> ""
+				WITH f.opposition as opposition, count(DISTINCT f) as gamesPlayed
+				ORDER BY gamesPlayed DESC
+				LIMIT 10
+				RETURN opposition, gamesPlayed
+			`;
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, playerName ? { playerName, graphLabel } : { graphLabel });
+			return { type: "most_played_against", data: result, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in most played against opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying most played against opposition" };
+		}
+	}
+
+	/**
+	 * Query win rate against an opposition
+	 */
+	static async queryWinRateAgainstOpposition(oppositionName: string, playerName?: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying win rate against opposition: ${oppositionName}${playerName ? ` for player: ${playerName}` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		let query = "";
+		if (playerName) {
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE toLower(trim(f.opposition)) = toLower(trim($oppositionName))
+				WITH count(DISTINCT f) as totalGames,
+				     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+				     sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+				     sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+				RETURN totalGames, wins, draws, losses,
+				       CASE WHEN totalGames > 0 THEN round(100.0 * wins / totalGames * 100) / 100 ELSE 0.0 END as winRate
+			`;
+		} else {
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE toLower(trim(f.opposition)) = toLower(trim($oppositionName))
+				WITH count(DISTINCT f) as totalGames,
+				     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+				     sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+				     sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+				RETURN totalGames, wins, draws, losses,
+				       CASE WHEN totalGames > 0 THEN round(100.0 * wins / totalGames * 100) / 100 ELSE 0.0 END as winRate
+			`;
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, playerName ? { playerName, oppositionName, graphLabel } : { oppositionName, graphLabel });
+			if (result && result.length > 0) {
+				return { type: "win_rate_against", data: result[0], oppositionName, playerName };
+			}
+			return { type: "win_rate_against", data: null, oppositionName, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in win rate against opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying win rate against opposition" };
+		}
+	}
+
+	/**
+	 * Query distance traveled by a player
+	 */
+	static async queryPlayerDistanceTraveled(playerName: string, season?: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying distance traveled for player: ${playerName}${season ? ` in season ${season}` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		let query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+			WHERE f.opposition = od.opposition AND f.homeOrAway = 'Away'
+		`;
+		
+		if (season) {
+			query += ` AND f.season = $season`;
+		}
+		
+		query += `
+			WITH p, sum(coalesce(od.distanceMiles, 0)) as totalDistance, count(DISTINCT f) as awayGames
+			RETURN p.playerName as playerName, totalDistance, awayGames,
+			       CASE WHEN awayGames > 0 THEN round(100.0 * totalDistance / awayGames) / 100.0 ELSE 0.0 END as averageDistance
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, season ? { playerName, season, graphLabel } : { playerName, graphLabel });
+			if (result && result.length > 0) {
+				return { type: "distance_traveled", data: result[0], playerName, season };
+			}
+			return { type: "distance_traveled", data: { totalDistance: 0, awayGames: 0, averageDistance: 0 }, playerName, season };
+		} catch (error) {
+			loggingService.log(`❌ Error in distance traveled query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying distance traveled data" };
+		}
+	}
+
+	/**
+	 * Query furthest opposition
+	 */
+	static async queryFurthestOpposition(): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying furthest opposition`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+			WHERE od.distanceMiles IS NOT NULL AND od.distanceMiles > 0
+			RETURN od.opposition as opposition,
+			       od.distanceMiles as distanceMiles,
+			       od.address as address
+			ORDER BY od.distanceMiles DESC
+			LIMIT 10
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			return { type: "furthest_opposition", data: result };
+		} catch (error) {
+			loggingService.log(`❌ Error in furthest opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying furthest opposition data" };
 		}
 	}
 
