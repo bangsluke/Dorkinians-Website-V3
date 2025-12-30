@@ -514,7 +514,7 @@ export class PlayerDataQueryHandler {
 					graphLabel: neo4jService.getGraphLabel(),
 				});
 
-				if (!result || result.length === 0) {
+				if (!result || !Array.isArray(result) || result.length === 0) {
 					return {
 						type: "specific_player",
 						playerName: resolvedPlayerName,

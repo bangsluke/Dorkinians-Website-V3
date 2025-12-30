@@ -52,10 +52,10 @@ export class FixtureDataQueryHandler {
 		const isGamesWhereScoredQuery = 
 			(question.includes("games") || question.includes("matches")) &&
 			(question.includes("scored") || question.includes("goal")) &&
-			analysis?.entities?.some(e => e.type === "player");
+			analysis?.extractionResult?.entities?.some(e => e.type === "player");
 		
-		if (isGamesWhereScoredQuery && analysis?.entities) {
-			const playerEntity = analysis.entities.find(e => e.type === "player");
+		if (isGamesWhereScoredQuery && analysis?.extractionResult?.entities) {
+			const playerEntity = analysis.extractionResult.entities.find(e => e.type === "player");
 			if (playerEntity) {
 				return await this.queryGamesWherePlayerScored(playerEntity.value, analysis);
 			}
