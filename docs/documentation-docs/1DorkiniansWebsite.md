@@ -19,6 +19,7 @@ slug: /projects/dorkinians-website
 - [Quick Links](#quick-links)
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
+- [Database](#database)
 - [Main Features](#main-features)
 - [Navigation](#navigation)
 - [Documentation Pages](#documentation-pages)
@@ -39,6 +40,14 @@ The app is designed to work seamlessly on mobile devices and can be installed as
 :::
 
 > [Back to Table of Contents](#table-of-contents)
+
+## Database
+
+The database is a Neo4j Aura instance that is used to store the data for the app, containing Player, Team, Fixture, and MatchDetail nodes, with over 23,000 nodes and 100,000 relationships.
+
+![Database Visualisation](https://i.postimg.cc/gjYNp0kc/visualisation_(2).png)
+
+![Database Visualisation Zoomed](https://i.postimg.cc/RhMXm0VF/visualisation_(1).png)
 
 ## Main Features
 

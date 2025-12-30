@@ -447,6 +447,12 @@ export default function ChatbotInterface() {
 						initial={{ opacity: 0, y: 10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}>
+						{/* Question */}
+						<div className='mb-3 md:mb-4'>
+							<h3 className='font-semibold text-white mb-2 text-base'>Question:</h3>
+							<p className='text-white text-base'>{response.debug?.question}</p>
+						</div>
+
 						{/* Answer */}
 						<div className='mb-3 md:mb-4'>
 							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>

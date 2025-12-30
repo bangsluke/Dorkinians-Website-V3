@@ -209,6 +209,36 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"pen saved",
 		"penalties.*saved",
 	],
+	"Penalties Scored in Penalty Shootout": [
+		"penalties scored in penalty shootout",
+		"penalty scored in penalty shootout",
+		"penalty shootout scored",
+		"penalty shootout goals",
+		"ps scored",
+		"shootout penalty scored",
+		"penalty shootout conversion",
+		"ps-psc",
+	],
+	"Penalties Missed in Penalty Shootout": [
+		"penalties missed in penalty shootout",
+		"penalty missed in penalty shootout",
+		"penalty shootout missed",
+		"ps missed",
+		"shootout penalty missed",
+		"penalty shootout failure",
+		"ps failure",
+		"ps-pm",
+	],
+	"Penalties Saved in Penalty Shootout": [
+		"penalties saved in penalty shootout",
+		"penalty saved in penalty shootout",
+		"penalty shootout saved",
+		"ps saved",
+		"shootout penalty saved",
+		"penalty shootout stop",
+		"ps stop",
+		"ps-psv",
+	],
 	"Goal Involvements": ["goal involvements", "goal involvement", "goals and assists", "contributions"],
 	"Man of the Match": ["man of the match", "player of the match", "best player", "mom", "moms"],
 	"Double Game Weeks": ["double game weeks", "double games", "dgw", "double weeks"],
@@ -1630,18 +1660,46 @@ export class EntityExtractor {
 	private extractLocations(): LocationInfo[] {
 		const locations: LocationInfo[] = [];
 
+		// CRITICAL: Extract longer phrases first to avoid conflicts (e.g., "away from home" should take priority over "home")
+		// Sort pseudonyms by length (longest first) to ensure longer phrases are matched before shorter ones
+		const sortedPseudonyms: Array<{ key: string; pseudonym: string }> = [];
 		Object.entries(LOCATION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
-				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
-				const matches = this.findMatches(regex);
-				matches.forEach((match) => {
+				sortedPseudonyms.push({ key, pseudonym });
+			});
+		});
+		sortedPseudonyms.sort((a, b) => b.pseudonym.length - a.pseudonym.length);
+
+		const matchedPositions = new Set<number>();
+
+		// Match longer phrases first
+		sortedPseudonyms.forEach(({ key, pseudonym }) => {
+			const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+			const matches = this.findMatches(regex);
+			matches.forEach((match) => {
+				// Check if this position overlaps with an already matched longer phrase
+				const positionOverlaps = Array.from(matchedPositions).some((pos) => {
+					const matchStart = match.position;
+					const matchEnd = match.position + match.text.length;
+					const existingStart = pos;
+					const existingEnd = pos + 50; // Approximate length for existing match
+					return (matchStart >= existingStart && matchStart < existingEnd) ||
+						(matchEnd > existingStart && matchEnd <= existingEnd) ||
+						(matchStart <= existingStart && matchEnd >= existingEnd);
+				});
+
+				if (!positionOverlaps) {
 					locations.push({
 						value: key,
 						type: key === "Pixham" ? "ground" : (key as any),
 						originalText: match.text,
 						position: match.position,
 					});
-				});
+					// Mark this position range as matched
+					for (let i = match.position; i < match.position + match.text.length; i++) {
+						matchedPositions.add(i);
+					}
+				}
 			});
 		});
 

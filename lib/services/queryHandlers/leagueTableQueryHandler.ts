@@ -198,13 +198,17 @@ export class LeagueTableQueryHandler {
 				const positionSuffix = teamData.position === 1 ? "st" : teamData.position === 2 ? "nd" : teamData.position === 3 ? "rd" : "th";
 				const division = seasonData?.teams[teamName]?.division || "";
 				
+				// Find the Dorkinians team entry to get the correct team name (e.g., "Dorkinians II" instead of "2s")
+				const dorkiniansEntry = fullTable.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+				const teamDisplayName = dorkiniansEntry?.team || teamData.team || teamName;
+				
 				return {
 					type: "league_table",
 					data: [teamData],
 					fullTable: fullTable,
 					season: normalizedSeason,
 					division: division,
-					answer: `The ${teamName} finished in ${teamData.position}${positionSuffix} position in the league in ${season}, with ${teamData.points} points from ${teamData.played} games (${teamData.won} wins, ${teamData.drawn} draws, ${teamData.lost} losses).`,
+					answer: `${teamDisplayName} were ranked ${teamData.position}${positionSuffix} with ${teamData.points} points.`,
 				};
 			}
 

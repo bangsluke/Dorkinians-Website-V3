@@ -41,18 +41,42 @@ export class EnhancedQuestionAnalyzer {
 	async analyze(): Promise<EnhancedQuestionAnalysis> {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		
+		// Early detection: Check for "most prolific season" pattern and add to statTypes if found
+		// This must happen before the early exit check to ensure the question is properly recognized
+		const lowerQuestion = this.question.toLowerCase();
+		const isMostProlificSeasonQuestion = 
+			lowerQuestion.includes("most") && 
+			lowerQuestion.includes("prolific") && 
+			lowerQuestion.includes("season");
+		
+		if (isMostProlificSeasonQuestion) {
+			// Check if "Most Prolific Season" is already in statTypes
+			const hasMostProlificSeason = extractionResult.statTypes.some(
+				(stat) => stat.value === "Most Prolific Season"
+			);
+			
+			if (!hasMostProlificSeason) {
+				// Add "Most Prolific Season" to statTypes early so it passes the early exit check
+				extractionResult.statTypes.push({
+					value: "Most Prolific Season",
+					originalText: "most prolific season",
+					position: lowerQuestion.indexOf("most"),
+				});
+			}
+		}
+		
 		// Early exit: Check if this is clearly an invalid query before further processing
 		// This check happens after extraction but before expensive operations like complexity assessment
 		const namedEntities = extractionResult.entities.filter(
 			(e) => e.type === "player" || e.type === "team" || e.type === "opposition" || e.type === "league",
 		);
-		const lowerQuestion = this.question.toLowerCase();
 		const isRankingQuestion =
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
 		
 		// Early exit if no entities, no stat types, and not a ranking question
 		// Return immediately to avoid unnecessary processing
+		// Exception: "most prolific season" questions with userContext don't need entities
 		if (namedEntities.length === 0 && extractionResult.statTypes.length === 0 && !isRankingQuestion) {
 			return {
 				type: "clarification_needed",
@@ -67,11 +91,20 @@ export class EnhancedQuestionAnalyzer {
 			};
 		}
 		
-		const complexity = this.assessComplexity(extractionResult);
-		const requiresClarification = this.checkClarificationNeeded(extractionResult, complexity);
+		// CRITICAL: Apply stat type corrections BEFORE checking clarification
+		// This prevents false positives from duplicate or incorrect stat type extractions
+		const correctedStatTypes = this.applyStatTypeCorrections(extractionResult.statTypes);
+		const correctedExtractionResult = {
+			...extractionResult,
+			statTypes: correctedStatTypes
+		};
+		
+		const complexity = this.assessComplexity(correctedExtractionResult);
+		const requiresClarification = this.checkClarificationNeeded(correctedExtractionResult, complexity);
 
 		// Determine question type based on extracted entities and content
-		const type = this.determineQuestionType(extractionResult);
+		// If clarification is needed, set type to "clarification_needed" instead of determining the actual type
+		const type = requiresClarification ? "clarification_needed" : this.determineQuestionType(extractionResult);
 
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);
@@ -162,6 +195,53 @@ export class EnhancedQuestionAnalyzer {
 		return "simple";
 	}
 
+	// Check if any extracted player name partially matches the selected player (userContext)
+	private checkPartialPlayerNameMatch(extractionResult: EntityExtractionResult): string | null {
+		if (!this.userContext) {
+			return null;
+		}
+
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerEntities.length === 0) {
+			return null;
+		}
+
+		const selectedPlayerLower = this.userContext.toLowerCase().trim();
+		
+		// Check if any extracted player name is contained within the selected player name
+		// Use originalText to check the text before fuzzy matching resolved it
+		for (const entity of playerEntities) {
+			// Check originalText first (the text as extracted from the question)
+			const originalText = entity.originalText.toLowerCase().trim();
+			// Remove any "(resolved to: ...)" suffix that might be added during fuzzy matching
+			const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+			
+			// Skip "I" references as they're handled separately
+			if (cleanOriginalText === "i" || cleanOriginalText === "i've" || cleanOriginalText === "me" || cleanOriginalText === "my" || cleanOriginalText === "myself") {
+				continue;
+			}
+			
+			// Check if the original extracted text is contained in the selected player name
+			// Example: "Luke" (originalText) should match "Luke Bangs" (selectedPlayer)
+			if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2) {
+				return this.userContext;
+			}
+			
+			// Also check the resolved value as a fallback (in case originalText wasn't preserved correctly)
+			const entityValue = entity.value.toLowerCase().trim();
+			if (entityValue !== cleanOriginalText) {
+				// Only check if it's different from originalText
+				if (entityValue !== "i" && entityValue !== "i've" && entityValue !== "me" && entityValue !== "my" && entityValue !== "myself") {
+					if (selectedPlayerLower.includes(entityValue) && entityValue.length >= 2) {
+						return this.userContext;
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
 	// Check if clarification is needed based on the number of entities and stat types
 	private checkClarificationNeeded(extractionResult: EntityExtractionResult, complexity: "simple" | "moderate" | "complex"): boolean {
 		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
@@ -191,6 +271,29 @@ export class EnhancedQuestionAnalyzer {
 		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
 		const hasAmbiguousPlayerRef = playerEntities.some((e) => e.value === "I") && this.userContext;
 
+		// Check for ambiguous player names that don't match the selected player
+		// If we have player entities, userContext exists, but none of the player entities match the selected player
+		let hasAmbiguousPlayerName = false;
+		if (playerEntities.length > 0 && this.userContext) {
+			const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+			// If no match found and we have player entities that aren't "I" references, we may need clarification
+			if (!matchedPlayerName) {
+				const nonIPlayerEntities = playerEntities.filter((e) => {
+					// Check originalText (the text before fuzzy matching)
+					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					return originalText !== "i" && 
+						originalText !== "i've" && 
+						originalText !== "me" && 
+						originalText !== "my" && 
+						originalText !== "myself";
+				});
+				// If we have player entities that don't match the selected player, flag for clarification
+				if (nonIPlayerEntities.length > 0) {
+					hasAmbiguousPlayerName = true;
+				}
+			}
+		}
+
 		// Check for missing critical information
 		const hasNoEntities = namedEntities.length === 0;
 		const hasNoStatTypes = extractionResult.statTypes.length === 0;
@@ -201,6 +304,21 @@ export class EnhancedQuestionAnalyzer {
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
 
+		// Check for "most prolific season" questions - these are valid with userContext even without entities
+		const isMostProlificSeasonQuestion = 
+			lowerQuestion.includes("most") && 
+			lowerQuestion.includes("prolific") && 
+			lowerQuestion.includes("season");
+		
+		// Don't require entities for "most prolific season" questions if userContext exists
+		if (isMostProlificSeasonQuestion && this.userContext && hasNoStatTypes) {
+			return true; // Still need stat types
+		}
+		
+		if (isMostProlificSeasonQuestion && this.userContext) {
+			return false; // "most prolific season" with userContext doesn't need clarification
+		}
+
 		// Don't require entities for ranking questions
 		if (isRankingQuestion && hasNoStatTypes) {
 			return true; // Still need stat types
@@ -208,8 +326,13 @@ export class EnhancedQuestionAnalyzer {
 
 		// FIXED: Only require clarification if BOTH entities AND stat types are missing (not either/or)
 		// This allows valid questions like "How many goals has Luke Bangs scored from open play?" to proceed
+		// Note: Player name mismatch clarification is now handled post-query (see ChatbotService.generateResponse)
+		// to allow queries to attempt first before asking for clarification
+		// CRITICAL FIX: If "I" is the only player entity and userContext exists, don't require clarification
 		const needsClarification =
-			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || (complexity === "complex" && hasNoEntities && hasNoStatTypes);
+			(hasNoEntities && hasNoStatTypes && !isRankingQuestion) || 
+			(complexity === "complex" && hasNoEntities && hasNoStatTypes) ||
+			(hasAmbiguousPlayerName && !hasAmbiguousPlayerRef); // Don't require clarification if "I" + userContext exists
 
 		return needsClarification;
 	}
@@ -226,6 +349,39 @@ export class EnhancedQuestionAnalyzer {
 		const teamCount = namedEntities.filter((e) => e.type === "team").length;
 		const oppositionCount = namedEntities.filter((e) => e.type === "opposition").length;
 		const leagueCount = namedEntities.filter((e) => e.type === "league").length;
+
+		// Check for ambiguous player names that don't match the selected player
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerCount > 0 && this.userContext) {
+			const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+			if (!matchedPlayerName) {
+				const nonIPlayerEntities = playerEntities.filter((e) => {
+					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					return originalText !== "i" && 
+						originalText !== "i've" && 
+						originalText !== "me" && 
+						originalText !== "my" && 
+						originalText !== "myself";
+				});
+				if (nonIPlayerEntities.length > 0) {
+					// Use originalText for the clarification message to show what was actually extracted
+					const playerNames = nonIPlayerEntities.map((e) => {
+						const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						return originalText;
+					}).join(", ");
+					// Check if it's a single first name (likely needs surname clarification)
+					const isSingleFirstName = nonIPlayerEntities.length === 1 && 
+						!playerNames.includes(" ") && 
+						playerNames.length > 0 && 
+						playerNames.length < 15; // Reasonable first name length
+					
+					if (isSingleFirstName) {
+						return `Please clarify which ${playerNames} you are asking about.`;
+					}
+					return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
+				}
+			}
+		}
 
 		// Check if any single entity type exceeds 3
 		if (playerCount > 3) {
@@ -334,7 +490,39 @@ export class EnhancedQuestionAnalyzer {
 			return "league_table";
 		}
 
-		// Check for player-specific queries (but not if it's a streak question)
+		// Check for highest scoring game queries (before player check)
+		if (
+			lowerQuestion.includes("highest scoring game") ||
+			(lowerQuestion.includes("highest scoring") && lowerQuestion.includes("game")) ||
+			(lowerQuestion.includes("most goals") && lowerQuestion.includes("game")) ||
+			(lowerQuestion.includes("highest total") && lowerQuestion.includes("game"))
+		) {
+			return "fixture";
+		}
+
+		// Check for double game weeks queries (before player check)
+		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
+			return "double_game";
+		}
+
+		// Check for milestone questions (who will reach next X milestone, closest to X goals/apps/assists/moms)
+		// This must be checked BEFORE player entity check to avoid misclassification
+		if (
+			(lowerQuestion.includes("who will reach") || lowerQuestion.includes("who is closest") || lowerQuestion.includes("closest to")) &&
+			(lowerQuestion.includes("milestone") || lowerQuestion.includes("goal") || lowerQuestion.includes("app") || lowerQuestion.includes("appearance") || lowerQuestion.includes("assist") || lowerQuestion.includes("mom"))
+		) {
+			return "milestone";
+		}
+
+		// Check for milestone questions with "next" pattern
+		if (
+			lowerQuestion.includes("next") &&
+			(lowerQuestion.includes("milestone") || (lowerQuestion.includes("goal") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("app") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("assist") && /\d+/.test(lowerQuestion)) || (lowerQuestion.includes("mom") && /\d+/.test(lowerQuestion)))
+		) {
+			return "milestone";
+		}
+
+		// Check for player-specific queries (but not if it's a streak, milestone, or other special question)
 		if (hasPlayerEntities) {
 			return "player";
 		}
@@ -361,16 +549,54 @@ export class EnhancedQuestionAnalyzer {
 			return "player";
 		}
 
-		if (lowerQuestion.includes("double game") || lowerQuestion.includes("double game week")) {
-			return "double_game";
+		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
+		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
+			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+		) {
+			return "club";
 		}
 
-		// Check for ranking queries (which player/team has the highest/most...)
+		// Check for ranking queries (which player/team has the highest/most/fewest/least...)
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
-			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"))
+			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest"))
 		) {
+			// If it's asking about teams specifically, route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+				return "club";
+			}
 			return "ranking";
+		}
+
+		// Check for competition-specific queries (cup vs league, etc.)
+		const hasCompetitionTypes = extractionResult.competitionTypes.length > 0;
+		const hasCompetitions = extractionResult.competitions.length > 0;
+		if (
+			(hasCompetitionTypes || hasCompetitions) &&
+			(lowerQuestion.includes("in") || lowerQuestion.includes("cup") || lowerQuestion.includes("league") || lowerQuestion.includes("friendly"))
+		) {
+			// If it's a player question with competition filter, keep it as player type
+			if (hasPlayerEntities) {
+				return "player";
+			}
+			// Otherwise, could be team/club question
+		}
+
+		// Check for result-based queries (goals in wins, win rate, etc.)
+		const hasResults = extractionResult.results.length > 0;
+		if (
+			hasResults &&
+			(lowerQuestion.includes("in") || lowerQuestion.includes("win") || lowerQuestion.includes("draw") || lowerQuestion.includes("loss") || lowerQuestion.includes("won") || lowerQuestion.includes("lost"))
+		) {
+			// If it's a player question with result filter, keep it as player type
+			if (hasPlayerEntities) {
+				return "player";
+			}
 		}
 
 		// Check for comparison queries (most, least, highest, etc.)
@@ -387,6 +613,21 @@ export class EnhancedQuestionAnalyzer {
 			lowerQuestion.includes("conversion rate")
 		) {
 			return "comparison";
+		}
+
+		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
+		// This must be checked BEFORE general team queries to avoid false positives
+		const hasOppositionEntities = extractionResult.entities.some((e) => e.type === "opposition");
+		if (
+			hasOppositionEntities &&
+			((lowerQuestion.includes("against") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record") || lowerQuestion.includes("played"))) ||
+				(lowerQuestion.includes("vs") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("versus") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("opposition") && (lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("record"))) ||
+				(lowerQuestion.includes("win rate") && lowerQuestion.includes("against")) ||
+				(lowerQuestion.includes("record") && lowerQuestion.includes("against")))
+		) {
+			return "player"; // Route to player handler for opposition-specific player stats
 		}
 
 		// Check for opposition name queries (who did [team] play, opposition queries)
@@ -471,6 +712,10 @@ export class EnhancedQuestionAnalyzer {
 		// Phrases that should not be treated as player names
 		const invalidPlayerNames = ["goal count", "goal stats", "goal stat", "stats", "stat", "count"];
 
+		// Check if any extracted player name partially matches the selected player
+		const matchedPlayerName = this.checkPartialPlayerNameMatch(extractionResult);
+		let hasMatchedPlayer = false;
+
 		extractionResult.entities.forEach((entity) => {
 			if (entity.type === "player") {
 				const lowerValue = entity.value.toLowerCase();
@@ -480,6 +725,27 @@ export class EnhancedQuestionAnalyzer {
 				}
 				if (entity.value === "I" && this.userContext) {
 					entities.push(this.userContext);
+					hasMatchedPlayer = true;
+				} else if (entity.value === "I" && !this.userContext) {
+					// Skip "I" references when userContext is missing - they can't be resolved
+					// This prevents "I" from being added to entities when userContext is not available
+					return;
+				} else if (matchedPlayerName && this.userContext) {
+					// matchedPlayerName is not null, meaning we found a partial match
+					// Use originalText to check the text before fuzzy matching
+					const originalText = entity.originalText.toLowerCase().trim();
+					const cleanOriginalText = originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					const selectedPlayerLower = this.userContext.toLowerCase().trim();
+					
+					// If the original extracted text is contained in the selected player name, use the full selected player name
+					// This ensures we use the selected player even if fuzzy matching resolved to a different player
+					if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2 && 
+						cleanOriginalText !== "i" && cleanOriginalText !== "i've" && cleanOriginalText !== "me" && cleanOriginalText !== "my" && cleanOriginalText !== "myself") {
+						entities.push(matchedPlayerName); // Use the matched player name (which is this.userContext)
+						hasMatchedPlayer = true;
+					} else {
+						entities.push(entity.value);
+					}
 				} else {
 					entities.push(entity.value);
 				}
@@ -496,25 +762,27 @@ export class EnhancedQuestionAnalyzer {
 		return entities;
 	}
 
-	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
-		// Check cache first (cache key based on question and stat types)
-		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
-		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
-		if (cached) {
-			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
-		}
-
+	/**
+	 * Applies all stat type corrections - extracted for reuse before clarification check
+	 */
+	private applyStatTypeCorrections(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		// CRITICAL FIX: Detect "games" questions and map to "Apps" (HIGHEST PRIORITY)
-		const gamesCorrectedStats = this.correctGamesQueries(extractionResult.statTypes);
+		const gamesCorrectedStats = this.correctGamesQueries(statTypes);
+
+		// CRITICAL FIX: Detect goals queries with location filters (e.g., "away from home") and remove Home/Away stat types
+		const locationGoalsCorrectedStats = this.correctLocationGoalsQueries(gamesCorrectedStats);
 
 		// CRITICAL FIX: Detect home/away games queries and convert Home/Away to Home Games/Away Games
-		const homeAwayGamesCorrectedStats = this.correctHomeAwayGamesQueries(gamesCorrectedStats);
+		const homeAwayGamesCorrectedStats = this.correctHomeAwayGamesQueries(locationGoalsCorrectedStats);
 
 		// CRITICAL FIX: Detect team-specific appearance queries (HIGHEST PRIORITY)
 		const teamAppearanceCorrectedStats = this.correctTeamSpecificAppearanceQueries(homeAwayGamesCorrectedStats);
 
+		// CRITICAL FIX: Detect penalty conversion rate queries (must run before other penalty corrections)
+		const penaltyConversionCorrectedStats = this.correctPenaltyConversionRateQueries(teamAppearanceCorrectedStats);
+
 		// CRITICAL FIX: Detect penalty phrases that were incorrectly broken down
-		const correctedStatTypes = this.correctPenaltyPhrases(teamAppearanceCorrectedStats);
+		const correctedStatTypes = this.correctPenaltyPhrases(penaltyConversionCorrectedStats);
 
 		// CRITICAL FIX: Detect most prolific season queries
 		const prolificCorrectedStats = this.correctMostProlificSeasonQueries(correctedStatTypes);
@@ -546,14 +814,29 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "most appearances for team" queries
 		const mostAppearancesCorrectedStats = this.correctMostAppearancesForTeamQueries(percentageCorrectedStats);
 
-	// CRITICAL FIX: Detect "most scored for team" queries
-	const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
+		// CRITICAL FIX: Detect "most scored for team" queries
+		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
-	// Apply additional metric correction patterns with caching
-	const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
+		// Apply additional metric correction patterns (without caching for clarification check)
+		const cacheKey = `${this.question.toLowerCase()}:${statTypes.map(s => s.value).join(',')}`;
+		const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
 
-	// Convert extracted stat types to legacy format with priority handling
-	const statTypes = fullyCorrectedStats.map((stat) => stat.value);
+		return fullyCorrectedStats;
+	}
+
+	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
+		// Check cache first (cache key based on question and stat types)
+		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
+		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
+		if (cached) {
+			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
+		}
+
+		// Use the shared correction method
+		const fullyCorrectedStats = this.applyStatTypeCorrections(extractionResult.statTypes);
+
+		// Convert extracted stat types to legacy format with priority handling
+		const statTypes = fullyCorrectedStats.map((stat) => stat.value);
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -601,6 +884,7 @@ export class EnhancedQuestionAnalyzer {
 					"Penalties Missed Per Appearance",
 					"Penalties Conceded Per Appearance",
 					"Penalties Saved Per Appearance",
+					"Penalty Conversion Rate", // More specific than general penalty stats
 					"Distance Travelled",
 					"Home Games % Won",
 					"Away Games % Won",
@@ -700,6 +984,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Missed Per Appearance", // More specific than general penalties missed
 			"Penalties Conceded Per Appearance", // More specific than general penalties conceded
 			"Penalties Saved Per Appearance", // More specific than general penalties saved
+			"Penalty Conversion Rate", // More specific than general penalty stats - must be before "Penalties Scored"
 			"Distance Travelled", // More specific - distance/travel queries (HIGH PRIORITY)
 			"Fantasy Points", // More specific - fantasy points queries (HIGH PRIORITY)
 			"Home Games % Won",
@@ -797,6 +1082,7 @@ export class EnhancedQuestionAnalyzer {
 			"Penalties Missed": "PM",
 			"Penalties Conceded": "PCO",
 			"Penalties Saved": "PSV",
+			"Penalty Conversion Rate": "PENALTY_CONVERSION_RATE",
 
 			// Position stats
 			"Goalkeeper Appearances": "GK",
@@ -1279,18 +1565,30 @@ export class EnhancedQuestionAnalyzer {
 		// Pattern to detect "games" questions (e.g., "How many games have I played?")
 		// This should map to "Apps" not "Saves"
 		const gamesPattern = /(?:how\s+many\s+games?|games?\s+(?:have|has|did)\s+.*?\s+(?:played|made|appeared))/i;
+		
+		// Pattern to detect "how many times has X played" questions (e.g., "How many times has Luke played?")
+		// This should map to "Apps" (appearances)
+		const timesPlayedPattern = /(?:how\s+many\s+times|times)\s+(?:has|have|did)\s+.*?\s+played/i;
 
-		if (gamesPattern.test(lowerQuestion) || (lowerQuestion.includes("games") && lowerQuestion.includes("played"))) {
+		if (gamesPattern.test(lowerQuestion) || (lowerQuestion.includes("games") && lowerQuestion.includes("played")) || timesPlayedPattern.test(lowerQuestion)) {
 			// Remove "Saves" if it was incorrectly detected
 			const filteredStats = statTypes.filter((stat) => stat.value !== "Saves" && stat.value !== "Saves Per Appearance");
 
 			// Add "Games" if not already present (which will map to "Apps")
 			const hasGames = filteredStats.some((stat) => stat.value === "Games" || stat.value === "Apps" || stat.value === "Appearances");
 			if (!hasGames) {
+				// Determine the original text based on which pattern matched
+				let originalText = "games";
+				let position = lowerQuestion.indexOf("games");
+				if (timesPlayedPattern.test(lowerQuestion)) {
+					originalText = "times played";
+					position = lowerQuestion.indexOf("times");
+				}
+				
 				filteredStats.push({
 					value: "Games",
-					originalText: "games",
-					position: lowerQuestion.indexOf("games") !== -1 ? lowerQuestion.indexOf("games") : 0,
+					originalText: originalText,
+					position: position !== -1 ? position : 0,
 				});
 			}
 
@@ -1347,6 +1645,40 @@ export class EnhancedQuestionAnalyzer {
 			}
 
 			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects goals queries with location filters - removes Home/Away stat types when location is specified
+	 * Example: "How many goals have I scored away from home?" should only have "Goals" stat type, not "Away" and "Home"
+	 */
+	private correctLocationGoalsQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check if question asks about goals with location phrases
+		const hasGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("scored") || lowerQuestion.includes("goal");
+		const hasLocationPhrase = 
+			lowerQuestion.includes("away from home") ||
+			lowerQuestion.includes("on the road") ||
+			lowerQuestion.includes("at home") ||
+			lowerQuestion.includes("home game") ||
+			lowerQuestion.includes("away game");
+
+		if (hasGoals && hasLocationPhrase) {
+			// Filter out "Home" and "Away" stat types (they should be locations, not stat types)
+			const filteredStats = statTypes.filter((stat) => 
+				stat.value !== "Home" && stat.value !== "Away"
+			);
+
+			// Deduplicate "Goals" entries - keep only one
+			const goalsStats = filteredStats.filter((stat) => stat.value === "Goals");
+			const nonGoalsStats = filteredStats.filter((stat) => stat.value !== "Goals");
+			
+			const result = goalsStats.length > 0 ? [goalsStats[0], ...nonGoalsStats] : filteredStats;
+
+			return result;
 		}
 
 		return statTypes;
@@ -1571,8 +1903,49 @@ export class EnhancedQuestionAnalyzer {
 		return statTypes;
 	}
 
+	/**
+	 * Corrects penalty conversion rate queries - maps to "Penalty Conversion Rate" instead of "Penalties Scored"
+	 */
+	private correctPenaltyConversionRateQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check for penalty conversion rate queries - require "conversion rate" together for specificity
+		const hasPenalty = lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties");
+		const hasConversionRate = lowerQuestion.includes("conversion rate") || 
+			(lowerQuestion.includes("conversion") && lowerQuestion.includes("rate"));
+
+		if (hasPenalty && hasConversionRate) {
+			// Remove ALL penalty-related mappings to ensure clean slate
+			const filteredStats = statTypes.filter(
+				(stat) => !["Penalties Scored", "PSC", "Penalties Missed", "PM", "Penalties Conceded", "PCO", 
+					"Penalties Saved", "PSV", "Home", "Score", "Goals Conceded"].includes(stat.value)
+			);
+
+			// Add correct "Penalty Conversion Rate" mapping
+			filteredStats.push({
+				value: "Penalty Conversion Rate",
+				originalText: "penalty conversion rate",
+				position: lowerQuestion.indexOf("conversion") !== -1 ? lowerQuestion.indexOf("conversion") : lowerQuestion.indexOf("penalty"),
+			});
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
 	private correctPenaltyPhrases(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
+
+		// CRITICAL: Skip penalty phrases correction if this is a conversion rate query
+		// This prevents "penalties scored" from overriding "penalty conversion rate"
+		if (
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) &&
+			(lowerQuestion.includes("conversion rate") || lowerQuestion.includes("conversion") || lowerQuestion.includes("rate"))
+		) {
+			// This is a conversion rate query, don't apply penalty phrase corrections
+			return statTypes;
+		}
 
 		// Check for penalty phrases that were incorrectly broken down
 		if (lowerQuestion.includes("penalties") && lowerQuestion.includes("scored")) {

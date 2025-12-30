@@ -8,6 +8,7 @@ import { QueryExecutionUtils } from "../chatbotUtils/queryExecutionUtils";
 import { loggingService } from "../loggingService";
 import { RelationshipQueryHandler } from "./relationshipQueryHandler";
 import { AwardsQueryHandler } from "./awardsQueryHandler";
+import { ChatbotService } from "../chatbotService";
 
 export class PlayerDataQueryHandler {
 	/**
@@ -17,6 +18,7 @@ export class PlayerDataQueryHandler {
 		entities: string[],
 		metrics: string[],
 		analysis: EnhancedQuestionAnalysis,
+		userContext?: string,
 	): Promise<Record<string, unknown>> {
 		// Use enhanced analysis data directly
 		const teamEntities = analysis.teamEntities || [];
@@ -194,6 +196,16 @@ export class PlayerDataQueryHandler {
 			const timeFrames = analysis.extractionResult?.timeFrames || [];
 			const question = analysis.question || "";
 			
+			// Fallback: Extract team name directly from question text if not found in team entities
+			// This handles patterns like "whilst playing in the 3s" or "while playing for the 3s"
+			if (!teamName) {
+				const teamMatch = question.match(/\b(?:in|for|with)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i);
+				if (teamMatch) {
+					teamName = TeamMappingUtils.mapTeamName(teamMatch[1]);
+					loggingService.log(`🔍 Team filter detected from question text: ${teamName}`, null, "log");
+				}
+			}
+			
 			let season: string | null = null;
 			const seasonFrame = timeFrames.find(tf => tf.type === "season");
 			if (seasonFrame) {
@@ -248,17 +260,17 @@ export class PlayerDataQueryHandler {
 			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
 		}
 
-		// Check for "opposition most" or "played against the most" questions
-		const isOppositionMostQuestion = 
-			(questionLower.includes("opposition") && questionLower.includes("most")) ||
-			(questionLower.includes("opposition") && questionLower.includes("played against")) ||
-			(questionLower.includes("played against") && questionLower.includes("most")) ||
-			(questionLower.includes("what opposition") && questionLower.includes("most"));
+		// Check for "highest score in a week" questions
+		const isHighestWeeklyScoreQuestion = 
+			(questionLower.includes("highest score") && questionLower.includes("week")) ||
+			(questionLower.includes("highest") && questionLower.includes("score") && questionLower.includes("week")) ||
+			(questionLower.includes("best score") && questionLower.includes("week")) ||
+			(questionLower.includes("most points") && questionLower.includes("week"));
 
-		loggingService.log(`🔍 Checking for "opposition most" question. Question: "${questionLower}", isOppositionMostQuestion: ${isOppositionMostQuestion}`, null, "log");
+		loggingService.log(`🔍 Checking for "highest weekly score" question. Question: "${questionLower}", isHighestWeeklyScoreQuestion: ${isHighestWeeklyScoreQuestion}`, null, "log");
 
-		// If this is an "opposition most" question, handle it specially
-		if (isOppositionMostQuestion && entities.length > 0) {
+		// If this is a "highest weekly score" question, handle it specially
+		if (isHighestWeeklyScoreQuestion && entities.length > 0) {
 			const playerName = entities[0];
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 			
@@ -272,8 +284,328 @@ export class PlayerDataQueryHandler {
 				};
 			}
 			
-			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
-			return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryHighestWeeklyScore`, null, "log");
+			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
+		}
+
+		// Check for "how many times" + opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
+		// Try to extract opposition name from question if not in entities
+		let extractedOppositionName = "";
+		if (oppositionEntities.length > 0) {
+			extractedOppositionName = oppositionEntities[0];
+		} else {
+			// Fallback: try to extract capitalized team name from question
+			// Pattern: "how many times have I played [Team Name]?"
+			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+			if (oppositionMatch && oppositionMatch[1]) {
+				extractedOppositionName = oppositionMatch[1];
+				loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+			}
+		}
+
+		const isOppositionAppearanceQuery = 
+			extractedOppositionName.length > 0 && 
+			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
+			(questionLower.includes("played") || questionLower.includes("play")) &&
+			!questionLower.includes("goals") &&
+			!questionLower.includes("scored");
+
+		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
+
+		if (isOppositionAppearanceQuery) {
+			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			let playerName = "";
+			if (userContext) {
+				playerName = userContext;
+			} else if (entities.length > 0) {
+				playerName = entities[0];
+			} else {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			const oppositionName = extractedOppositionName;
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying appearances against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
+			return await PlayerDataQueryHandler.queryOppositionAppearances(resolvedPlayerName, oppositionName);
+		}
+
+		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
+		const hasOppositionQuery = oppositionEntities.length > 0 && (
+			questionLower.includes("against") ||
+			questionLower.includes("vs") ||
+			questionLower.includes("versus") ||
+			questionLower.includes("opposition")
+		);
+
+		if (hasOppositionQuery && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			const oppositionName = oppositionEntities[0];
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			// Check for specific question types
+			if (questionLower.includes("win rate") || questionLower.includes("record")) {
+				loggingService.log(`🔍 Querying win rate against opposition: ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryWinRateAgainstOpposition(oppositionName, resolvedPlayerName);
+			} else if (questionLower.includes("distance") || questionLower.includes("far") || questionLower.includes("travel")) {
+				loggingService.log(`🔍 Querying distance to opposition: ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryDistanceToOpposition(oppositionName);
+			} else {
+				// Default: query player stats against opposition
+				const metric = metrics.length > 0 ? metrics[0] : undefined;
+				loggingService.log(`🔍 Querying player stats against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerStatsAgainstOpposition(resolvedPlayerName, oppositionName, metric);
+			}
+		}
+
+		// Check for "opposition most" or "played against the most" questions
+		const isOppositionMostQuestion = 
+			(questionLower.includes("opposition") && questionLower.includes("most")) ||
+			(questionLower.includes("opposition") && questionLower.includes("played against")) ||
+			(questionLower.includes("played against") && questionLower.includes("most")) ||
+			(questionLower.includes("what opposition") && questionLower.includes("most")) ||
+			(questionLower.includes("which opposition") && questionLower.includes("most"));
+
+		loggingService.log(`🔍 Checking for "opposition most" question. Question: "${questionLower}", isOppositionMostQuestion: ${isOppositionMostQuestion}`, null, "log");
+
+		// If this is an "opposition most" question, handle it specially
+		if (isOppositionMostQuestion) {
+			const playerName = entities.length > 0 ? entities[0] : undefined;
+			if (playerName) {
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+			} else {
+				// No player specified, query overall most played against
+				loggingService.log(`🔍 Querying most played against opposition (overall)`, null, "log");
+				return await RelationshipQueryHandler.queryMostPlayedAgainstOpposition();
+			}
+		}
+
+		// Check for penalty shootout questions
+		const isPenaltyShootoutQuestion = 
+			(questionLower.includes("penalty shootout") || questionLower.includes("penalties shootout")) &&
+			(questionLower.includes("scored") || questionLower.includes("missed") || questionLower.includes("saved") || questionLower.includes("record") || questionLower.includes("conversion"));
+
+		if (isPenaltyShootoutQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Querying penalty shootout stats for ${resolvedPlayerName}`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltyShootoutStats(resolvedPlayerName);
+		}
+
+		// Check for "penalties taken" questions
+		const isPenaltiesTakenQuestion = 
+			(questionLower.includes("how many") && questionLower.includes("penalties") && questionLower.includes("taken")) ||
+			(questionLower.includes("how many") && questionLower.includes("penalty") && questionLower.includes("taken")) ||
+			(questionLower.includes("penalties") && questionLower.includes("taken")) ||
+			(questionLower.includes("penalty") && questionLower.includes("taken"));
+
+		loggingService.log(`🔍 Checking for "penalties taken" question. Question: "${questionLower}", isPenaltiesTakenQuestion: ${isPenaltiesTakenQuestion}`, null, "log");
+
+		// If this is a "penalties taken" question, handle it specially
+		if (isPenaltiesTakenQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPenaltiesTaken`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltiesTaken(resolvedPlayerName);
+		}
+
+		// Check for "most prolific season" questions
+		const isMostProlificSeasonQuestion = 
+			(questionLower.includes("most prolific season") || questionLower.includes("prolific season")) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your"));
+
+		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			let playerName = "";
+			if (userContext) {
+				playerName = userContext;
+			} else if (entities.length > 0) {
+				playerName = entities[0];
+			} else {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying most prolific season for ${resolvedPlayerName}`, null, "log");
+			// Use MostProlificSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostProlificSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_PROLIFIC_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostProlificSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most prolific season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// Check for season comparison questions
+		const isSeasonComparisonQuestion = 
+			(questionLower.includes("compare") && questionLower.includes("season")) ||
+			(questionLower.includes("vs") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
+			(questionLower.includes("versus") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
+			(questionLower.includes("best season") || questionLower.includes("worst season"));
+
+		if (isSeasonComparisonQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			// Extract seasons from question
+			const seasonMatches = questionLower.match(/(\d{4})[\/\-](\d{2,4})/g);
+			const seasons: string[] = [];
+			if (seasonMatches) {
+				seasonMatches.forEach(match => {
+					const normalized = match.replace("-", "/");
+					if (normalized.match(/\d{4}\/\d{4}/)) {
+						// Full year format: 2018/2019 -> 2018/19
+						const parts = normalized.split("/");
+						const shortEnd = parts[1].substring(2);
+						seasons.push(`${parts[0]}/${shortEnd}`);
+					} else {
+						seasons.push(normalized);
+					}
+				});
+			}
+
+			const metric = metrics.length > 0 ? metrics[0] : "G";
+			loggingService.log(`🔍 Querying season comparison for ${resolvedPlayerName}, seasons: ${seasons.join(", ")}, metric: ${metric}`, null, "log");
+			return await PlayerDataQueryHandler.querySeasonComparison(resolvedPlayerName, seasons, metric);
+		}
+
+		// Check for "penalty record" questions
+		const isPenaltyRecordQuestion = 
+			questionLower.includes("penalty record") ||
+			(questionLower.includes("penalty") && questionLower.includes("record"));
+
+		loggingService.log(`🔍 Checking for "penalty record" question. Question: "${questionLower}", isPenaltyRecordQuestion: ${isPenaltyRecordQuestion}`, null, "log");
+
+		// If this is a "penalty record" question, handle it specially
+		if (isPenaltyRecordQuestion && entities.length > 0) {
+			const playerName = entities[0];
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+			
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPenaltyRecord`, null, "log");
+			return await PlayerDataQueryHandler.queryPenaltyRecord(resolvedPlayerName);
 		}
 
 		// If we have a specific player name and metrics, query their stats
@@ -298,29 +630,49 @@ export class PlayerDataQueryHandler {
 				return await PlayerDataQueryHandler.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
-			// Resolve player name with fuzzy matching
-			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			// Check if player name matches the selected player (userContext) before fuzzy matching
+			// This preserves the selected player when a partial name was matched earlier
+			let actualPlayerName: string;
+			
+			// Check if the player name matches userContext (case-insensitive)
+			const playerNameNormalized = playerName.toLowerCase().trim();
+			const userContextNormalized = userContext?.toLowerCase().trim();
+			
+			if (userContext && playerNameNormalized === userContextNormalized) {
+				// Player name already matches the selected player, use it directly
+				actualPlayerName = userContext;
+				loggingService.log(`✅ Using selected player directly: ${actualPlayerName} (matched ${playerName})`, null, "log");
+			} else if (userContext && userContextNormalized && userContextNormalized.includes(playerNameNormalized) && playerNameNormalized.length >= 2) {
+				// Player name is a partial match of the selected player (e.g., "Luke" matches "Luke Bangs")
+				// Use the full selected player name
+				actualPlayerName = userContext;
+				loggingService.log(`✅ Using selected player for partial match: ${actualPlayerName} (matched partial ${playerName})`, null, "log");
+			} else {
+				// Resolve player name with fuzzy matching
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 
-			if (!resolvedPlayerName) {
-				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
-				return {
-					type: "player_not_found",
-					data: [],
-					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
-					playerName,
-					metric,
-				};
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+						metric,
+					};
+				}
+
+				actualPlayerName = resolvedPlayerName;
+				loggingService.log(`🔍 Resolved player name via fuzzy matching: ${playerName} → ${actualPlayerName}`, null, "log");
 			}
-
-			const actualPlayerName = resolvedPlayerName;
 
 			// Check for special queries that can use enhanced relationship properties
 			if (metric === "TOTW" || metric === "WEEKLY_TOTW") {
-				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "weekly", analysis.question);
 			}
 
 			if (metric === "SEASON_TOTW") {
-				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season");
+				return await AwardsQueryHandler.queryPlayerTOTWData(actualPlayerName, "season", analysis.question);
 			}
 
 			if (metric === "POTM" || metric === "PLAYER_OF_THE_MONTH") {
@@ -343,16 +695,16 @@ export class PlayerDataQueryHandler {
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
 
 			try {
-				// Store query for debugging
-				const lastExecutedQueries: string[] = [];
-				lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
-				lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName })}`);
+				// Store query for debugging - add to chatbotService for client visibility
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
 
 				// Log copyable queries for debugging
 				const readyToExecuteQuery = query
 					.replace(/\$playerName/g, `'${actualPlayerName}'`)
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
-				lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
 				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
 					playerName: actualPlayerName,
@@ -429,6 +781,233 @@ export class PlayerDataQueryHandler {
 	}
 
 	/**
+	 * Query highest weekly score for a player
+	 */
+	static async queryHighestWeeklyScore(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying highest weekly score for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.seasonWeek IS NOT NULL AND md.fantasyPoints IS NOT NULL
+			WITH md.seasonWeek as seasonWeek, sum(md.fantasyPoints) as weeklyPoints
+			RETURN max(weeklyPoints) as highestWeeklyScore
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const highestScore = result && result.length > 0 && result[0].highestWeeklyScore !== undefined 
+				? (typeof result[0].highestWeeklyScore === 'number' 
+					? result[0].highestWeeklyScore 
+					: (result[0].highestWeeklyScore?.low || 0) + (result[0].highestWeeklyScore?.high || 0) * 4294967296)
+				: 0;
+			return { type: "highest_weekly_score", highestScore, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in highest weekly score query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying highest weekly score data" };
+		}
+	}
+
+	/**
+	 * Query penalties taken for a player (penaltiesScored + penaltiesMissed)
+	 */
+	static async queryPenaltiesTaken(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalties taken for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
+				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed
+			RETURN p.playerName as playerName, 
+				(penaltiesScored + penaltiesMissed) as value,
+				penaltiesScored,
+				penaltiesMissed
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalties_taken", 
+					data: [{ 
+						playerName: row.playerName, 
+						value: row.value || 0,
+						penaltiesScored: row.penaltiesScored || 0,
+						penaltiesMissed: row.penaltiesMissed || 0
+					}], 
+					playerName,
+					penaltiesScored: row.penaltiesScored || 0,
+					penaltiesMissed: row.penaltiesMissed || 0
+				};
+			}
+			return { 
+				type: "penalties_taken", 
+				data: [{ playerName, value: 0, penaltiesScored: 0, penaltiesMissed: 0 }], 
+				playerName,
+				penaltiesScored: 0,
+				penaltiesMissed: 0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalties taken query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalties taken data" };
+		}
+	}
+
+	/**
+	 * Query penalty shootout stats for a player
+	 */
+	static async queryPenaltyShootoutStats(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalty shootout stats for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltyShootoutPenaltiesScored, 0)) as penaltyShootoutScored,
+				sum(coalesce(md.penaltyShootoutPenaltiesMissed, 0)) as penaltyShootoutMissed,
+				sum(coalesce(md.penaltyShootoutPenaltiesSaved, 0)) as penaltyShootoutSaved
+			RETURN p.playerName as playerName, 
+				penaltyShootoutScored,
+				penaltyShootoutMissed,
+				penaltyShootoutSaved,
+				(penaltyShootoutScored + penaltyShootoutMissed) as totalPenaltyShootoutTaken,
+				CASE 
+					WHEN (penaltyShootoutScored + penaltyShootoutMissed) > 0 
+					THEN round(100.0 * penaltyShootoutScored / (penaltyShootoutScored + penaltyShootoutMissed) * 100) / 100.0
+					ELSE 0.0 
+				END as penaltyShootoutConversionRate
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalty_shootout_stats", 
+					data: row, 
+					playerName,
+					penaltyShootoutScored: row.penaltyShootoutScored || 0,
+					penaltyShootoutMissed: row.penaltyShootoutMissed || 0,
+					penaltyShootoutSaved: row.penaltyShootoutSaved || 0,
+					totalPenaltyShootoutTaken: row.totalPenaltyShootoutTaken || 0,
+					penaltyShootoutConversionRate: row.penaltyShootoutConversionRate || 0.0
+				};
+			}
+			return { 
+				type: "penalty_shootout_stats", 
+				data: { playerName, penaltyShootoutScored: 0, penaltyShootoutMissed: 0, penaltyShootoutSaved: 0, totalPenaltyShootoutTaken: 0, penaltyShootoutConversionRate: 0.0 }, 
+				playerName,
+				penaltyShootoutScored: 0,
+				penaltyShootoutMissed: 0,
+				penaltyShootoutSaved: 0,
+				totalPenaltyShootoutTaken: 0,
+				penaltyShootoutConversionRate: 0.0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalty shootout stats query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalty shootout stats data" };
+		}
+	}
+
+	/**
+	 * Query penalty record for a player (returns both penaltiesScored and penaltiesMissed)
+	 */
+	static async queryPenaltyRecord(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying penalty record for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH p, 
+				sum(coalesce(md.penaltiesScored, 0)) as penaltiesScored,
+				sum(coalesce(md.penaltiesMissed, 0)) as penaltiesMissed
+			RETURN p.playerName as playerName, 
+				penaltiesScored,
+				penaltiesMissed,
+				(penaltiesScored + penaltiesMissed) as totalPenalties
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			if (result && result.length > 0) {
+				const row = result[0];
+				return { 
+					type: "penalty_record", 
+					data: [{ 
+						playerName: row.playerName, 
+						penaltiesScored: row.penaltiesScored || 0,
+						penaltiesMissed: row.penaltiesMissed || 0,
+						totalPenalties: row.totalPenalties || 0
+					}], 
+					playerName,
+					penaltiesScored: row.penaltiesScored || 0,
+					penaltiesMissed: row.penaltiesMissed || 0,
+					totalPenalties: row.totalPenalties || 0
+				};
+			}
+			return { 
+				type: "penalty_record", 
+				data: [{ playerName, penaltiesScored: 0, penaltiesMissed: 0, totalPenalties: 0 }], 
+				playerName,
+				penaltiesScored: 0,
+				penaltiesMissed: 0,
+				totalPenalties: 0
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in penalty record query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying penalty record data" };
+		}
+	}
+
+	/**
+	 * Query season comparison for a player
+	 */
+	static async querySeasonComparison(playerName: string, seasons: string[], metric: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying season comparison for player: ${playerName}, seasons: ${seasons.join(", ")}, metric: ${metric}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Build query to get stats for each season
+		const returnClause = PlayerQueryBuilder.getMatchDetailReturnClause(metric);
+		const aggregationMatch = returnClause.match(/^(.+?)\s+as\s+value$/i);
+		const aggregation = aggregationMatch ? aggregationMatch[1] : "count(md)";
+
+		let query = "";
+		if (seasons.length > 0) {
+			// Compare specific seasons
+			const seasonFilters = seasons.map(s => `f.season = "${s}"`).join(" OR ");
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE (${seasonFilters}) AND f.season IS NOT NULL AND f.season <> ""
+				WITH p, f.season as season, ${aggregation} as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, value
+			`;
+		} else {
+			// Get all seasons
+			query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE f.season IS NOT NULL AND f.season <> ""
+				WITH p, f.season as season, ${aggregation} as value
+				ORDER BY season ASC
+				RETURN p.playerName as playerName, season, value
+			`;
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			return { type: "season_comparison", data: result, playerName, seasons, metric };
+		} catch (error) {
+			loggingService.log(`❌ Error in season comparison query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying season comparison data" };
+		}
+	}
+
+	/**
 	 * Query team-specific player data
 	 */
 	static async queryTeamSpecificPlayerData(teamName: string, metric: string): Promise<Record<string, unknown>> {
@@ -474,6 +1053,151 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in team-specific query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying team-specific data" };
+		}
+	}
+
+	/**
+	 * Query how many leagues a player has won (seasons where their team finished 1st)
+	 * Uses the same approach as Club Achievements API - gets winning teams from JSON files,
+	 * then checks if player played for those teams in those seasons
+	 * Excludes current season as it hasn't finished yet
+	 */
+	static async queryPlayerLeagueWinsCount(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying league wins count for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		try {
+			// Import league table service functions
+			const { getAvailableSeasons, getSeasonDataFromJSON, normalizeSeasonFormat } = await import("../leagueTableService");
+			const { TeamMappingUtils } = await import("../chatbotUtils/teamMappingUtils");
+
+			// Get current season from SiteDetail
+			const currentSeasonQuery = `
+				MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+				RETURN sd.currentSeason as currentSeason
+				LIMIT 1
+			`;
+			const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+			const currentSeason = seasonResult && seasonResult.length > 0 ? seasonResult[0].currentSeason : null;
+
+			// Get all club achievements (winning teams/seasons) from JSON files
+			const seasons = await getAvailableSeasons();
+			const winningTeams: Array<{ team: string; season: string }> = [];
+
+			for (const season of seasons) {
+				// Skip current season
+				const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+				if (currentSeason && normalizedSeason === currentSeason) {
+					continue;
+				}
+
+				const seasonData = await getSeasonDataFromJSON(season);
+				if (!seasonData) continue;
+
+				// Iterate through all teams in this season
+				for (const [teamKey, teamData] of Object.entries(seasonData.teams)) {
+					if (!teamData || !teamData.table || teamData.table.length === 0) continue;
+
+					// Find Dorkinians entry in this team's table
+					const dorkiniansEntry = teamData.table.find((entry) =>
+						entry.team.toLowerCase().includes('dorkinians'),
+					);
+
+					// Check if Dorkinians finished in 1st place
+					if (dorkiniansEntry && dorkiniansEntry.position === 1) {
+						winningTeams.push({
+							team: teamKey,
+							season: normalizedSeason,
+						});
+					}
+				}
+			}
+
+			if (winningTeams.length === 0) {
+				return { type: "league_wins_count", count: 0, playerName };
+			}
+
+			// Check which winning teams/seasons the player participated in
+			// Map team keys to database format (e.g., "1s" -> "1st XI")
+			const playerWins: string[] = [];
+			
+			for (const { team, season } of winningTeams) {
+				const mappedTeam = TeamMappingUtils.mapTeamName(team);
+				
+				// Query if player played for this team in this season (League games only)
+				const playerQuery = `
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+					WHERE md.team = $team 
+						AND f.season = $season 
+						AND f.compType = "League"
+					RETURN count(md) as appearances
+					LIMIT 1
+				`;
+
+				const result = await neo4jService.executeQuery(playerQuery, {
+					graphLabel,
+					playerName,
+					team: mappedTeam,
+					season,
+				});
+
+				const appearances = result && result.length > 0 && result[0].appearances !== undefined
+					? (typeof result[0].appearances === 'number'
+						? result[0].appearances
+						: (result[0].appearances?.low || 0) + (result[0].appearances?.high || 0) * 4294967296)
+					: 0;
+
+				// If player made at least one appearance for this winning team, count it
+				if (appearances > 0) {
+					playerWins.push(`${team} - ${season}`);
+				}
+			}
+
+			const count = playerWins.length;
+			return { type: "league_wins_count", count, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in league wins count query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying league wins count data" };
+		}
+	}
+
+	/**
+	 * Query how many times a player has played against a specific opposition
+	 * Counts MatchDetail nodes connected to the player, filtered by OppositionDetails
+	 */
+	static async queryOppositionAppearances(playerName: string, oppositionName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying appearances against opposition: ${playerName} vs ${oppositionName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query to count MatchDetail nodes where player played against the opposition
+		// Uses CONTAINS for partial matching (e.g., "Old Hamptonians" matches "Old Hamptonians 2nd")
+		// Verifies OppositionDetails nodes exist with matching opposition name
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE toLower(f.opposition) CONTAINS toLower($oppositionName)
+				AND EXISTS {
+					MATCH (od:OppositionDetails {graphLabel: $graphLabel})
+					WHERE toLower(od.opposition) CONTAINS toLower($oppositionName)
+				}
+			RETURN count(md) as appearances
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
+			const appearances = result && result.length > 0 ? (result[0].appearances || 0) : 0;
+			
+			return { 
+				type: "player_opposition_appearances", 
+				data: [{ appearances }], 
+				playerName, 
+				oppositionName,
+				appearances 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in opposition appearances query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying opposition appearances" };
 		}
 	}
 }

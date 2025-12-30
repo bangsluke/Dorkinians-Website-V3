@@ -103,6 +103,10 @@ export class TeamDataQueryHandler {
 		                        question.includes("openplay") ||
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
 		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
+		
+		// Check if this is a team goals query (team goals, not player goals)
+		// This happens when asking "How many goals did the 2nd team score during the 2017/18 season?"
+		const isTeamGoalsQuery = isGoalsScored && !question.includes("player") && !question.includes("for");
 
 		// Extract season and date range filters
 		const timeRange = analysis.timeRange;
@@ -193,6 +197,43 @@ export class TeamDataQueryHandler {
 			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 		}
 
+		// Check for win rate queries
+		const isWinRateQuery = question.includes("win rate") || question.includes("win percentage");
+		
+		if (isWinRateQuery) {
+			const winRateQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE ${whereConditions.join(" AND ")}
+				WITH count(DISTINCT f) as totalGames,
+				     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins,
+				     sum(CASE WHEN f.result = 'D' THEN 1 ELSE 0 END) as draws,
+				     sum(CASE WHEN f.result = 'L' THEN 1 ELSE 0 END) as losses
+				RETURN totalGames, wins, draws, losses,
+				       CASE WHEN totalGames > 0 THEN round(100.0 * wins / totalGames * 100) / 100.0 ELSE 0.0 END as winRate
+			`;
+
+			try {
+				const result = await neo4jService.executeQuery(winRateQuery, params);
+				if (result && result.length > 0) {
+					const stats = result[0];
+					return {
+						type: "team_win_rate",
+						teamName,
+						totalGames: stats.totalGames || 0,
+						wins: stats.wins || 0,
+						draws: stats.draws || 0,
+						losses: stats.losses || 0,
+						winRate: stats.winRate || 0.0,
+						season: season || undefined,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
+					};
+				}
+			} catch (error) {
+				loggingService.log(`❌ Error in win rate query:`, error, "error");
+			}
+		}
+
 		// Build query based on what metric is being asked about
 		let query = "";
 		if (detectedMetric && metricField) {
@@ -213,6 +254,16 @@ export class TeamDataQueryHandler {
 						count(DISTINCT f) as gamesPlayed
 				`;
 			}
+		} else if (isTeamGoalsQuery && season) {
+			// Team goals query for a specific season - query Fixture nodes directly
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel, team: $teamName})
+				WHERE (f.season = $season OR f.season = $normalizedSeason)
+				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					count(f) as gamesPlayed
+			`;
 		} else {
 			query = `
 				MATCH (f:Fixture {graphLabel: $graphLabel})
@@ -242,6 +293,16 @@ export class TeamDataQueryHandler {
 						startDate: startDate || undefined,
 						endDate: endDate || undefined,
 					};
+				} else if (isTeamGoalsQuery && season) {
+					// Return team goals for specific season
+					return {
+						type: "team_stats",
+						teamName,
+						goalsScored: teamStats.goalsScored || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						isGoalsScored: true,
+						season: season,
+					};
 				} else {
 					return {
 						type: "team_stats",
@@ -267,6 +328,15 @@ export class TeamDataQueryHandler {
 					season: season || undefined,
 					startDate: startDate || undefined,
 					endDate: endDate || undefined,
+				};
+			} else if (isTeamGoalsQuery && season) {
+				return { 
+					type: "team_stats", 
+					teamName, 
+					goalsScored: 0, 
+					gamesPlayed: 0, 
+					isGoalsScored: true,
+					season: season,
 				};
 			} else {
 				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };

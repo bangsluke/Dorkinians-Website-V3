@@ -131,6 +131,7 @@ export type QuestionType =
 	| "general"
 	| "ranking"
 	| "league_table"
+	| "milestone"
 	| "clarification_needed";
 
 export const questionTypes: Record<
@@ -201,6 +202,12 @@ export const questionTypes: Record<
 		description: "Questions about league positions and standings",
 		hasVisualization: true,
 		visualizationType: "Table",
+	},
+	milestone: {
+		displayName: "Milestone Queries",
+		description: "Questions about players closest to reaching milestones",
+		hasVisualization: true,
+		visualizationType: "NumberCard",
 	},
 	clarification_needed: {
 		displayName: "Clarification Required",
