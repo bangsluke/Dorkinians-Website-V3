@@ -54,7 +54,7 @@ export default function DevClearStorageFAB() {
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}
 						className="fixed bottom-32 right-4 md:right-8 z-[61]">
 						<motion.div
-							className="bg-dorkinians-blue rounded-lg shadow-lg border border-white/20 p-4 flex items-center space-x-3">
+							className="bg-dorkinians-green rounded-lg shadow-lg border border-white/20 p-4 flex items-center space-x-3">
 							<div className="p-2 rounded-full bg-dorkinians-yellow/20">
 								<CheckIcon className="w-5 h-5 text-dorkinians-yellow" />
 							</div>

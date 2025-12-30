@@ -64,6 +64,73 @@ export class EnhancedQuestionAnalyzer {
 				});
 			}
 		}
+
+		// Early detection: Check for percentage queries and add to statTypes if found
+		// This must happen before the early exit check to ensure the question is properly recognized
+		const isPercentageQuestion = 
+			lowerQuestion.includes("percentage") || 
+			lowerQuestion.includes("percent") || 
+			lowerQuestion.includes("%");
+		
+		if (isPercentageQuestion && (lowerQuestion.includes("games") || lowerQuestion.includes("game"))) {
+			// Check if a percentage stat type is already in statTypes
+			const hasPercentageStat = extractionResult.statTypes.some(
+				(stat) => stat.value.includes("%") || stat.value.includes("Percentage")
+			);
+			
+			if (!hasPercentageStat) {
+				// Determine which percentage metric to add based on context
+				let percentageStatValue = "";
+				let percentageStatText = "";
+				
+				if (lowerQuestion.includes("home games")) {
+					if (lowerQuestion.includes("won") || lowerQuestion.includes("win")) {
+						percentageStatValue = "Home Games % Won";
+						percentageStatText = "percentage of home games won";
+					} else if (lowerQuestion.includes("lost") || lowerQuestion.includes("lose")) {
+						percentageStatValue = "Home Games % Lost";
+						percentageStatText = "percentage of home games lost";
+					} else if (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw")) {
+						percentageStatValue = "Home Games % Drawn";
+						percentageStatText = "percentage of home games drawn";
+					}
+				} else if (lowerQuestion.includes("away games")) {
+					if (lowerQuestion.includes("won") || lowerQuestion.includes("win")) {
+						percentageStatValue = "Away Games % Won";
+						percentageStatText = "percentage of away games won";
+					} else if (lowerQuestion.includes("lost") || lowerQuestion.includes("lose")) {
+						percentageStatValue = "Away Games % Lost";
+						percentageStatText = "percentage of away games lost";
+					} else if (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw")) {
+						percentageStatValue = "Away Games % Drawn";
+						percentageStatText = "percentage of away games drawn";
+					}
+				} else if (lowerQuestion.includes("games") || lowerQuestion.includes("game")) {
+					if (lowerQuestion.includes("won") || lowerQuestion.includes("win")) {
+						percentageStatValue = "Games % Won";
+						percentageStatText = "percentage of games won";
+					} else if (lowerQuestion.includes("lost") || lowerQuestion.includes("lose")) {
+						percentageStatValue = "Games % Lost";
+						percentageStatText = "percentage of games lost";
+					} else if (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw")) {
+						percentageStatValue = "Games % Drawn";
+						percentageStatText = "percentage of games drawn";
+					}
+				}
+				
+				if (percentageStatValue) {
+					extractionResult.statTypes.push({
+						value: percentageStatValue,
+						originalText: percentageStatText,
+						position: lowerQuestion.indexOf("percentage") >= 0 
+							? lowerQuestion.indexOf("percentage")
+							: (lowerQuestion.indexOf("percent") >= 0 
+								? lowerQuestion.indexOf("percent")
+								: lowerQuestion.indexOf("%")),
+					});
+				}
+			}
+		}
 		
 		// Early exit: Check if this is clearly an invalid query before further processing
 		// This check happens after extraction but before expensive operations like complexity assessment
@@ -128,7 +195,12 @@ export class EnhancedQuestionAnalyzer {
 		const competitions = extractionResult.competitions.map((c) => c.value);
 
 		// Extract results for result-specific queries
-		const results = extractionResult.results.map((r) => r.value);
+		// BUT: Exclude results if this is a percentage query (percentage queries handle results internally)
+		// Reuse lowerQuestion from earlier in the method
+		const isPercentageQueryForResults = 
+			(lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) &&
+			(lowerQuestion.includes("games") || lowerQuestion.includes("game"));
+		const results = isPercentageQueryForResults ? [] : extractionResult.results.map((r) => r.value);
 
 		// Extract opponent own goals flag
 		const opponentOwnGoals = extractionResult.opponentOwnGoals;
@@ -829,6 +901,29 @@ export class EnhancedQuestionAnalyzer {
 		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
 		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
 		if (cached) {
+			// Apply priority logic even when returning from cache
+			const cachedStatTypes = cached.map((stat) => stat.value);
+			// Use the same priority order as the main logic - include all percentage variations
+			const percentagePriorityOrder = [
+				"Home Games % Won",
+				"Away Games % Won",
+				"Games % Won",
+				"Home Games % Lost",
+				"Away Games % Lost",
+				"Games % Lost",
+				"Home Games % Drawn",
+				"Away Games % Drawn",
+				"Games % Drawn",
+			];
+			
+			// Find the highest priority percentage stat type in the cached results
+			for (const priorityType of percentagePriorityOrder) {
+				if (cachedStatTypes.includes(priorityType)) {
+					return [this.mapStatTypeToKey(priorityType)];
+				}
+			}
+			
+			// Fallback: return all cached stats mapped to keys (original behavior)
 			return cached.map((stat) => this.mapStatTypeToKey(stat.value));
 		}
 
@@ -889,6 +984,12 @@ export class EnhancedQuestionAnalyzer {
 					"Home Games % Won",
 					"Away Games % Won",
 					"Games % Won",
+					"Home Games % Lost",
+					"Away Games % Lost",
+					"Games % Lost",
+					"Home Games % Drawn",
+					"Away Games % Drawn",
+					"Games % Drawn",
 					"Home Wins",
 					"Away Wins",
 					"Home Games", // Location-specific games (higher priority than general Apps/Games)
@@ -990,6 +1091,12 @@ export class EnhancedQuestionAnalyzer {
 			"Home Games % Won",
 			"Away Games % Won",
 			"Games % Won",
+			"Home Games % Lost",
+			"Away Games % Lost",
+			"Games % Lost",
+			"Home Games % Drawn",
+			"Away Games % Drawn",
+			"Games % Drawn",
 			"Home Wins",
 			"Away Wins",
 			"Home Games", // Location-specific games (higher priority than general Apps/Games)
@@ -1105,6 +1212,12 @@ export class EnhancedQuestionAnalyzer {
 			"Home Games % Won": "HomeGames%Won",
 			"Away Games % Won": "AwayGames%Won",
 			"Games % Won": "Games%Won",
+			"Home Games % Lost": "HomeGames%Lost",
+			"Away Games % Lost": "AwayGames%Lost",
+			"Games % Lost": "Games%Lost",
+			"Home Games % Drawn": "HomeGames%Drawn",
+			"Away Games % Drawn": "AwayGames%Drawn",
+			"Games % Drawn": "Games%Drawn",
 
 			// Team-specific stats (keep the full format for proper response generation)
 			// "1st XI Apps": "1sApps",  // Commented out to preserve full format
@@ -2309,27 +2422,75 @@ export class EnhancedQuestionAnalyzer {
 		// Check for percentage queries and map to correct metrics
 		if (lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) {
 			// Remove any existing stat types that might be incorrect
-			const filteredStats = statTypes.filter((stat) => !["Home", "Away", "Games", "Wins"].includes(stat.value));
+			const filteredStats = statTypes.filter((stat) => !["Home", "Away", "Games", "Wins", "Losses", "Draws"].includes(stat.value));
 
-			// Add correct percentage metric based on context
-			if (lowerQuestion.includes("home games") && lowerQuestion.includes("won")) {
-				filteredStats.push({
-					value: "Home Games % Won",
-					originalText: "percentage of home games won",
-					position: lowerQuestion.indexOf("percentage") || lowerQuestion.indexOf("percent") || lowerQuestion.indexOf("%"),
-				});
-			} else if (lowerQuestion.includes("away games") && lowerQuestion.includes("won")) {
-				filteredStats.push({
-					value: "Away Games % Won",
-					originalText: "percentage of away games won",
-					position: lowerQuestion.indexOf("percentage") || lowerQuestion.indexOf("percent") || lowerQuestion.indexOf("%"),
-				});
-			} else if (lowerQuestion.includes("games") && lowerQuestion.includes("won")) {
-				filteredStats.push({
-					value: "Games % Won",
-					originalText: "percentage of games won",
-					position: lowerQuestion.indexOf("percentage") || lowerQuestion.indexOf("percent") || lowerQuestion.indexOf("%"),
-				});
+			// Check if a percentage stat type already exists (added during early detection)
+			const hasPercentageStat = filteredStats.some(
+				(stat) => stat.value.includes("%") || stat.value.includes("Percentage")
+			);
+
+			// Only add if it doesn't already exist
+			if (!hasPercentageStat) {
+				// Check for "won" results
+				if (lowerQuestion.includes("home games") && (lowerQuestion.includes("won") || lowerQuestion.includes("win"))) {
+					filteredStats.push({
+						value: "Home Games % Won",
+						originalText: "percentage of home games won",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("away games") && (lowerQuestion.includes("won") || lowerQuestion.includes("win"))) {
+					filteredStats.push({
+						value: "Away Games % Won",
+						originalText: "percentage of away games won",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("games") && (lowerQuestion.includes("won") || lowerQuestion.includes("win"))) {
+					filteredStats.push({
+						value: "Games % Won",
+						originalText: "percentage of games won",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				}
+				// Check for "lost" results (handles both "lost" and "lose")
+				else if (lowerQuestion.includes("home games") && (lowerQuestion.includes("lost") || lowerQuestion.includes("lose"))) {
+					filteredStats.push({
+						value: "Home Games % Lost",
+						originalText: "percentage of home games lost",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("away games") && (lowerQuestion.includes("lost") || lowerQuestion.includes("lose"))) {
+					filteredStats.push({
+						value: "Away Games % Lost",
+						originalText: "percentage of away games lost",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("games") && (lowerQuestion.includes("lost") || lowerQuestion.includes("lose"))) {
+					filteredStats.push({
+						value: "Games % Lost",
+						originalText: "percentage of games lost",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				}
+				// Check for "drawn" results (handles both "drawn" and "draw")
+				else if (lowerQuestion.includes("home games") && (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw"))) {
+					filteredStats.push({
+						value: "Home Games % Drawn",
+						originalText: "percentage of home games drawn",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("away games") && (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw"))) {
+					filteredStats.push({
+						value: "Away Games % Drawn",
+						originalText: "percentage of away games drawn",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				} else if (lowerQuestion.includes("games") && (lowerQuestion.includes("drawn") || lowerQuestion.includes("draw"))) {
+					filteredStats.push({
+						value: "Games % Drawn",
+						originalText: "percentage of games drawn",
+						position: lowerQuestion.indexOf("percentage") >= 0 ? lowerQuestion.indexOf("percentage") : (lowerQuestion.indexOf("percent") >= 0 ? lowerQuestion.indexOf("percent") : lowerQuestion.indexOf("%")),
+					});
+				}
 			}
 
 			return filteredStats;

@@ -2834,6 +2834,54 @@ export class ChatbotService {
 					} else {
 						answer = `${playerNameStr} has not played an away game`;
 					}
+				} else if (metricStr.toUpperCase() === "HOMEGAMES%LOST" || metricStr === "HomeGames%Lost" || metricStr === "Home Games % Lost") {
+					// For home games percentage lost queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played a home game`;
+					}
+				} else if (metricStr.toUpperCase() === "AWAYGAMES%LOST" || metricStr === "AwayGames%Lost" || metricStr === "Away Games % Lost") {
+					// For away games percentage lost queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played an away game`;
+					}
+				} else if (metricStr.toUpperCase() === "GAMES%LOST" || metricStr === "Games%Lost" || metricStr === "Games % Lost") {
+					// For games percentage lost queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played any games`;
+					}
+				} else if (metricStr.toUpperCase() === "HOMEGAMES%DRAWN" || metricStr === "HomeGames%Drawn" || metricStr === "Home Games % Drawn") {
+					// For home games percentage drawn queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played a home game`;
+					}
+				} else if (metricStr.toUpperCase() === "AWAYGAMES%DRAWN" || metricStr === "AwayGames%Drawn" || metricStr === "Away Games % Drawn") {
+					// For away games percentage drawn queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played an away game`;
+					}
+				} else if (metricStr.toUpperCase() === "GAMES%DRAWN" || metricStr === "Games%Drawn" || metricStr === "Games % Drawn") {
+					// For games percentage drawn queries
+					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
+					if (zeroResponse) {
+						answer = zeroResponse;
+					} else {
+						answer = `${playerNameStr} has not played any games`;
+					}
 				}
 			}
 			// Check if this is a MatchDetail query that failed - try Player node fallback
@@ -3005,27 +3053,118 @@ export class ChatbotService {
 				else {
 					const playerData = data.data as PlayerData[];
 					const value = playerData[0]?.value;
+					const totalGames = (playerData[0] as any)?.totalGames;
 
 					if (value !== undefined && value !== null) {
+						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
+						const isPercentageQuery = metric && (
+							metric.toUpperCase().includes("HOMEGAMES%") ||
+							metric.toUpperCase().includes("AWAYGAMES%") ||
+							metric.toUpperCase().includes("GAMES%")
+						);
+
+						if (isPercentageQuery && totalGames !== undefined) {
+							// Format percentage with 1 decimal place
+							const percentageValue = typeof value === "number" ? value : Number(value);
+							const formattedPercentage = percentageValue.toFixed(1);
+							answerValue = percentageValue;
+
+							// Determine the result type and location
+							const metricUpper = metric.toUpperCase();
+							const isHome = metricUpper.includes("HOMEGAMES");
+							const isAway = metricUpper.includes("AWAYGAMES");
+							const isWon = metricUpper.includes("%WON");
+							const isLost = metricUpper.includes("%LOST");
+							const isDrawn = metricUpper.includes("%DRAWN");
+
+							const location = isHome ? "home" : isAway ? "away" : "";
+							const result = isWon ? "won" : isLost ? "lost" : isDrawn ? "drawn" : "";
+							const gameText = totalGames === 1 ? "game" : "games";
+
+							// Build response text: "Luke Bangs has won 40.5% of the 78 away games he has played"
+							const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
+							if (location) {
+								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${location} ${gameText} ${pronoun} has played.`;
+							} else {
+								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${gameText} ${pronoun} has played.`;
+							}
+
+							// Create NumberCard visualization
+							// Determine icon name based on location (use same icon for all result types for home/away)
+							let iconName: string;
+							if (isAway) {
+								// Use PercentageAwayGamesWon-Icon for all away games percentage queries (won/lost/drawn)
+								iconName = "PercentageAwayGamesWon-Icon";
+							} else if (isHome) {
+								// Use PercentageHomeGamesWon-Icon for all home games percentage queries (won/lost/drawn)
+								iconName = "PercentageHomeGamesWon-Icon";
+							} else {
+								// General games percentage - use result-specific icons
+								if (isWon) {
+									iconName = "PercentageGamesWon-Icon";
+								} else if (isLost) {
+									iconName = "PercentageGamesLost-Icon";
+								} else {
+									iconName = "PercentageGamesDrawn-Icon";
+								}
+							}
+							// Format display name as "% of [location] games [result]" for NumberCard
+							const displayName = isAway 
+								? (isWon ? "% of away games won" : isLost ? "% of away games lost" : "% of away games drawn")
+								: isHome
+								? (isWon ? "% of home games won" : isLost ? "% of home games lost" : "% of home games drawn")
+								: (isWon ? "% of games won" : isLost ? "% of games lost" : "% of games drawn");
+
+							// Format value to 1 decimal place for NumberCard display
+							const formattedValue = parseFloat(percentageValue.toFixed(1));
+
+							visualization = {
+								type: "NumberCard",
+								data: [{
+									name: displayName,
+									value: formattedValue,
+									metric: metric,
+									iconName: iconName
+								}],
+								config: {
+									title: displayName,
+									type: "bar",
+								},
+							};
+						}
 						// Round answerValue for penalty conversion rate to 1 decimal place
-						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 							answerValue = this.roundValueByMetric(metric, value as number);
+							
+							// Check for competition filter to customize answer text
+							const competitions = analysis.competitions || [];
+							const hasCompetitionFilter = competitions.length > 0;
+							
+							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
+								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
+								const competitionName = competitions[0];
+								const goalCount = value as number;
+								const goalText = goalCount === 1 ? "goal" : "goals";
+								answer = `${playerName} has scored ${goalCount} ${goalText} in the ${competitionName}.`;
+							} else {
+								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+							}
 						} else {
 							answerValue = value as number;
-						}
-						
-						// Check for competition filter to customize answer text
-						const competitions = analysis.competitions || [];
-						const hasCompetitionFilter = competitions.length > 0;
-						
-						if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
-							// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
-							const competitionName = competitions[0];
-							const goalCount = value as number;
-							const goalText = goalCount === 1 ? "goal" : "goals";
-							answer = `${playerName} has scored ${goalCount} ${goalText} in the ${competitionName}.`;
-						} else {
-							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+							
+							// Check for competition filter to customize answer text
+							const competitions = analysis.competitions || [];
+							const hasCompetitionFilter = competitions.length > 0;
+							
+							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
+								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
+								const competitionName = competitions[0];
+								const goalCount = value as number;
+								const goalText = goalCount === 1 ? "goal" : "goals";
+								answer = `${playerName} has scored ${goalCount} ${goalText} in the ${competitionName}.`;
+							} else {
+								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+							}
 						}
 						
 						// Create NumberCard visualization for penalty conversion rate

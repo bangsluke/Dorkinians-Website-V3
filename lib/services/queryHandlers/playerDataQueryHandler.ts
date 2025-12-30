@@ -621,6 +621,18 @@ export class PlayerDataQueryHandler {
 				normalizedMetric = "AwayGames%Won";
 			} else if (originalMetric === "Games % Won") {
 				normalizedMetric = "Games%Won";
+			} else if (originalMetric === "Home Games % Lost") {
+				normalizedMetric = "HomeGames%Lost";
+			} else if (originalMetric === "Away Games % Lost") {
+				normalizedMetric = "AwayGames%Lost";
+			} else if (originalMetric === "Games % Lost") {
+				normalizedMetric = "Games%Lost";
+			} else if (originalMetric === "Home Games % Drawn") {
+				normalizedMetric = "HomeGames%Drawn";
+			} else if (originalMetric === "Away Games % Drawn") {
+				normalizedMetric = "AwayGames%Drawn";
+			} else if (originalMetric === "Games % Drawn") {
+				normalizedMetric = "Games%Drawn";
 			}
 
 			const metric = normalizedMetric.toUpperCase();

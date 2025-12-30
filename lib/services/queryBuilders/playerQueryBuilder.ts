@@ -21,6 +21,12 @@ export class PlayerQueryBuilder {
 			"HOMEGAMES%WON",
 			"AWAYGAMES%WON",
 			"GAMES%WON",
+			"HOMEGAMES%LOST",
+			"AWAYGAMES%LOST",
+			"GAMES%LOST",
+			"HOMEGAMES%DRAWN",
+			"AWAYGAMES%DRAWN",
+			"GAMES%DRAWN",
 			"MPERG",
 			"MPERCLS",
 			"FTPPERAPP",
@@ -599,6 +605,9 @@ export class PlayerQueryBuilder {
 	 * Build special case queries that need custom query structures
 	 */
 	static buildSpecialCaseQuery(_playerName: string, metric: string, analysis: EnhancedQuestionAnalysis): string | null {
+		// Normalize metric to uppercase for consistent comparison
+		const metricUpper = metric.toUpperCase();
+		
 		if (metric === "MOSTCOMMONPOSITION" || metric === "MostCommonPosition") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
@@ -824,7 +833,7 @@ export class PlayerQueryBuilder {
 						ELSE 0.0 
 					END as value
 			`;
-		} else if (metric.toUpperCase() === "HOMEGAMES%WON") {
+		} else if (metricUpper === "HOMEGAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -836,9 +845,10 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN homeGames > 0 THEN 100.0 * homeWins / homeGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					homeGames as totalGames
 			`;
-		} else if (metric.toUpperCase() === "AWAYGAMES%WON") {
+		} else if (metricUpper === "AWAYGAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -850,9 +860,10 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					awayGames as totalGames
 			`;
-		} else if (metric.toUpperCase() === "GAMES%WON") {
+		} else if (metricUpper === "GAMES%WON") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
@@ -863,7 +874,96 @@ export class PlayerQueryBuilder {
 					CASE 
 						WHEN totalGames > 0 THEN 100.0 * totalWins / totalGames
 						ELSE 0.0 
-					END as value
+					END as value,
+					totalGames as totalGames
+			`;
+		} else if (metricUpper === "HOMEGAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Home'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as homeLosses,
+					count(md) as homeGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN homeGames > 0 THEN 100.0 * homeLosses / homeGames
+						ELSE 0.0 
+					END as value,
+					homeGames as totalGames
+			`;
+		} else if (metricUpper === "AWAYGAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Away'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as awayLosses,
+					count(md) as awayGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN awayGames > 0 THEN 100.0 * awayLosses / awayGames
+						ELSE 0.0 
+					END as value,
+					awayGames as totalGames
+			`;
+		} else if (metricUpper === "GAMES%LOST") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['L', 'LOSS', 'LOSE'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'L') THEN 1 ELSE 0 END) as totalLosses,
+					count(md) as totalGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGames > 0 THEN 100.0 * totalLosses / totalGames
+						ELSE 0.0 
+					END as value,
+					totalGames as totalGames
+			`;
+		} else if (metricUpper === "HOMEGAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Home'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as homeDraws,
+					count(md) as homeGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN homeGames > 0 THEN 100.0 * homeDraws / homeGames
+						ELSE 0.0 
+					END as value,
+					homeGames as totalGames
+			`;
+		} else if (metricUpper === "AWAYGAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WHERE f.homeOrAway = 'Away'
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as awayDraws,
+					count(md) as awayGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN awayGames > 0 THEN 100.0 * awayDraws / awayGames
+						ELSE 0.0 
+					END as value,
+					awayGames as totalGames
+			`;
+		} else if (metricUpper === "GAMES%DRAWN") {
+			return `
+				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+				WITH p, 
+					sum(CASE WHEN toUpper(coalesce(f.result, '')) IN ['D', 'DRAW', 'DRAWN'] OR (f.fullResult IS NOT NULL AND toUpper(f.fullResult) STARTS WITH 'D') THEN 1 ELSE 0 END) as totalDraws,
+					count(md) as totalGames
+				RETURN p.playerName as playerName, 
+					CASE 
+						WHEN totalGames > 0 THEN 100.0 * totalDraws / totalGames
+						ELSE 0.0 
+					END as value,
+					totalGames as totalGames
 			`;
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			// Query MatchDetails to get goals per season for chart display
