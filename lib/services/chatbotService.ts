@@ -359,6 +359,24 @@ export class ChatbotService {
 				this.logToBoth(`🔍 Overriding clarification for most prolific season question, using userContext: ${context.userContext}`, null, "log");
 			}
 
+			// Check for home/away games comparison questions and override clarification if userContext is available
+			const isHomeAwayComparisonQuestion = 
+				(questionLower.includes("more home or away") || questionLower.includes("more away or home")) ||
+				(questionLower.includes("played more") && questionLower.includes("home") && questionLower.includes("away")) ||
+				(questionLower.includes("home or away") && (questionLower.includes("more") || questionLower.includes("played"))) ||
+				(questionLower.includes("have i played") && questionLower.includes("home") && questionLower.includes("away")) ||
+				(questionLower.includes("have you played") && questionLower.includes("home") && questionLower.includes("away"));
+			
+			if (isHomeAwayComparisonQuestion && context.userContext) {
+				analysis.type = "player";
+				analysis.requiresClarification = false;
+				// Ensure entities array has the userContext
+				if (analysis.entities.length === 0) {
+					analysis.entities = [context.userContext];
+				}
+				this.logToBoth(`🔍 Overriding clarification for home/away comparison question, using userContext: ${context.userContext}`, null, "log");
+			}
+
 			// Handle clarification needed case
 			if (analysis.type === "clarification_needed") {
 				// Try to provide a better fallback response
@@ -647,6 +665,25 @@ export class ChatbotService {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 				if (playerName) {
 					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
+			// Check for home/away games comparison questions (e.g., "Have I played more home or away games?")
+			const isHomeAwayComparisonQuestion = 
+				(question.includes("more home or away") || question.includes("more away or home")) ||
+				(question.includes("played more") && question.includes("home") && question.includes("away")) ||
+				(question.includes("home or away") && (question.includes("more") || question.includes("played"))) ||
+				(question.includes("have i played") && question.includes("home") && question.includes("away")) ||
+				(question.includes("have you played") && question.includes("home") && question.includes("away"));
+
+			if (isHomeAwayComparisonQuestion) {
+				// Use entities first, fallback to userContext
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected home/away games comparison question, routing to PlayerDataQueryHandler with player: ${playerName}`);
+					return await PlayerDataQueryHandler.queryHomeAwayGamesComparison(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Home/away comparison question detected but no player context available`);
 				}
 			}
 
@@ -1819,6 +1856,44 @@ export class ChatbotService {
 				config: {
 					title: `${playerName} - Appearances vs ${oppositionName}`,
 					type: "bar",
+				},
+			};
+		} else if (data && data.type === "home_away_comparison") {
+			// Handle home/away games comparison queries (e.g., "Have I played more home or away games?")
+			const playerName = (data.playerName as string) || "";
+			const homeGames = (data.homeGames as number) || 0;
+			const awayGames = (data.awayGames as number) || 0;
+			const totalGames = homeGames + awayGames;
+
+			if (totalGames === 0) {
+				answer = `${playerName} has not played any games.`;
+				answerValue = 0;
+			} else {
+				// Generate natural language answer comparing the counts
+				if (homeGames > awayGames) {
+					answer = `${playerName} has played more home games (${homeGames}) than away games (${awayGames}).`;
+				} else if (awayGames > homeGames) {
+					answer = `${playerName} has played more away games (${awayGames}) than home games (${homeGames}).`;
+				} else {
+					answer = `${playerName} has played an equal number of home games (${homeGames}) and away games (${awayGames}).`;
+				}
+				answerValue = homeGames > awayGames ? homeGames : awayGames;
+			}
+
+			// Create table visualization
+			const tableData = [
+				{ Location: "Home", Games: homeGames },
+				{ Location: "Away", Games: awayGames },
+			];
+
+			visualization = {
+				type: "Table",
+				data: tableData,
+				config: {
+					columns: [
+						{ key: "Location", label: "Location" },
+						{ key: "Games", label: "Games" },
+					],
 				},
 			};
 		} else if (data && data.type === "games_played_together") {

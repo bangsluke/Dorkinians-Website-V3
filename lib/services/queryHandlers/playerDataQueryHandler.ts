@@ -1200,4 +1200,58 @@ export class PlayerDataQueryHandler {
 			return { type: "error", data: [], error: "Error querying opposition appearances" };
 		}
 	}
+
+	/**
+	 * Query home vs away games comparison for a player
+	 * Counts fixtures where homeOrAway = "Home" vs "Away" for all fixtures the player has played in
+	 */
+	static async queryHomeAwayGamesComparison(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying home/away games comparison for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query to count home and away games for the player
+		// Uses DISTINCT to count unique fixtures (in case player has multiple MatchDetail records for same fixture)
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WITH DISTINCT f
+			RETURN 
+				sum(CASE WHEN f.homeOrAway = "Home" THEN 1 ELSE 0 END) as homeGames,
+				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			
+			if (!result || result.length === 0) {
+				return {
+					type: "home_away_comparison",
+					playerName,
+					homeGames: 0,
+					awayGames: 0,
+				};
+			}
+
+			const homeGames = result[0].homeGames || 0;
+			const awayGames = result[0].awayGames || 0;
+
+			// Handle Neo4j Integer objects
+			const homeGamesCount = typeof homeGames === "object" && "toNumber" in homeGames 
+				? (homeGames as { toNumber: () => number }).toNumber() 
+				: Number(homeGames) || 0;
+			const awayGamesCount = typeof awayGames === "object" && "toNumber" in awayGames 
+				? (awayGames as { toNumber: () => number }).toNumber() 
+				: Number(awayGames) || 0;
+
+			return {
+				type: "home_away_comparison",
+				playerName,
+				homeGames: homeGamesCount,
+				awayGames: awayGamesCount,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying home/away games comparison" };
+		}
+	}
 }
