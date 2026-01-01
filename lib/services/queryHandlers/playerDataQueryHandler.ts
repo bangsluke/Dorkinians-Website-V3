@@ -817,16 +817,22 @@ export class PlayerDataQueryHandler {
 			const originalMetric = metrics[0] || "";
 
 			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
-			// This ensures "assists" is detected even if analysis incorrectly identifies team-specific metrics
+			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
 			const questionLower = (analysis.question?.toLowerCase() || "").trim();
 			let detectedMetricFromQuestion: string | null = null;
-			if (questionLower.includes("assist")) {
+			if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+				// Handle typo "yelow" as well as correct "yellow"
+				detectedMetricFromQuestion = "Y";
+			} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
+				detectedMetricFromQuestion = "R";
+			} else if (questionLower.includes("assist")) {
 				detectedMetricFromQuestion = "A";
 			} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
 				detectedMetricFromQuestion = "G";
 			} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
-				// Only detect appearances if assists/goals are NOT mentioned
-				if (!questionLower.includes("assist") && !questionLower.includes("goal")) {
+				// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+				if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
+					!questionLower.includes("yellow") && !questionLower.includes("red card")) {
 					detectedMetricFromQuestion = "APP";
 				}
 			}

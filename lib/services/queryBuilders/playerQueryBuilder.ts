@@ -201,6 +201,10 @@ export class PlayerQueryBuilder {
 				return "coalesce(count(md), 0) as value";
 			case "A":
 				return "coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = '' THEN 0 ELSE md.assists END), 0) as value";
+			case "Y":
+				return "coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = '' THEN 0 ELSE md.yellowCards END), 0) as value";
+			case "R":
+				return "coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = '' THEN 0 ELSE md.redCards END), 0) as value";
 			case "DIST":
 				return "coalesce(sum(md.distance), 0) as value";
 			case "FTP":
