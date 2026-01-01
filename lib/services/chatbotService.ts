@@ -2043,6 +2043,36 @@ export class ChatbotService {
 				answer = `You have played against ${topOpponent.opponent} ${topOpponent.gamesPlayed} ${topOpponent.gamesPlayed === 1 ? "time" : "times"}.`;
 				answerValue = topOpponent.gamesPlayed;
 			}
+		} else if (data && data.type === "opposition_goals") {
+			// Handle goals against opposition data
+			const playerName = (data.playerName as string) || "";
+			const oppositionGoals = (data.data as Array<{ opposition: string; goalsScored: number }>) || [];
+			
+			if (oppositionGoals.length === 0) {
+				answer = "You have not scored any goals against any opposition.";
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionGoals[0];
+				answer = `You have scored the most goals against ${topOpposition.opposition} with ${topOpposition.goalsScored} ${topOpposition.goalsScored === 1 ? "goal" : "goals"}.`;
+				answerValue = topOpposition.goalsScored;
+				
+				// Format data for table visualization
+				const tableData = oppositionGoals.map((item) => ({
+					Opposition: item.opposition,
+					"Goals Scored": item.goalsScored,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Goals Scored", label: "Goals Scored" },
+						],
+					},
+				};
+			}
 		} else if (data && data.type === "streak") {
 			// Handle streak data
 			const streakType = (data.streakType as string) || "goals";

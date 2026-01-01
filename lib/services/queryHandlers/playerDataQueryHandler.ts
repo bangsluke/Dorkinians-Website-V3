@@ -594,6 +594,53 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "goals against opposition" questions (must come before general opposition most check)
+		const isOppositionGoalsQuestion = 
+			(questionLower.includes("opposition") && questionLower.includes("goals") && questionLower.includes("most")) ||
+			(questionLower.includes("scored") && questionLower.includes("most") && questionLower.includes("goals") && questionLower.includes("against")) ||
+			(questionLower.includes("most goals") && questionLower.includes("against")) ||
+			(questionLower.includes("what opposition") && questionLower.includes("scored") && questionLower.includes("goals")) ||
+			(questionLower.includes("which opposition") && questionLower.includes("scored") && questionLower.includes("goals"));
+
+		loggingService.log(`🔍 Checking for "opposition goals" question. Question: "${questionLower}", isOppositionGoalsQuestion: ${isOppositionGoalsQuestion}`, null, "log");
+
+		// If this is a "goals against opposition" question, handle it specially
+		if (isOppositionGoalsQuestion) {
+			const playerName = entities.length > 0 ? entities[0] : undefined;
+			if (playerName) {
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerGoalsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerGoalsAgainstOpposition(resolvedPlayerName);
+			} else if (userContext) {
+				// Use userContext if no player entity found
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(userContext);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${userContext}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${userContext}". Please check the spelling or try a different player name.`,
+						playerName: userContext,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name from context: ${resolvedPlayerName}, calling queryPlayerGoalsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerGoalsAgainstOpposition(resolvedPlayerName);
+			}
+		}
+
 		// Check for "opposition most" or "played against the most" questions
 		const isOppositionMostQuestion = 
 			(questionLower.includes("opposition") && questionLower.includes("most")) ||
