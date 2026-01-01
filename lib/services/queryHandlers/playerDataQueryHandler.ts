@@ -816,8 +816,26 @@ export class PlayerDataQueryHandler {
 			const playerName = entities[0];
 			const originalMetric = metrics[0] || "";
 
+			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
+			// This ensures "assists" is detected even if analysis incorrectly identifies team-specific metrics
+			const questionLower = (analysis.question?.toLowerCase() || "").trim();
+			let detectedMetricFromQuestion: string | null = null;
+			if (questionLower.includes("assist")) {
+				detectedMetricFromQuestion = "A";
+			} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
+				detectedMetricFromQuestion = "G";
+			} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+				// Only detect appearances if assists/goals are NOT mentioned
+				if (!questionLower.includes("assist") && !questionLower.includes("goal")) {
+					detectedMetricFromQuestion = "APP";
+				}
+			}
+			
+			// Use detected metric from question if available, otherwise use extracted metric
+			const metricToUse = detectedMetricFromQuestion || originalMetric;
+
 			// Normalize metric names before uppercase conversion
-			let normalizedMetric = originalMetric;
+			let normalizedMetric = metricToUse;
 			if (originalMetric === "Home Games % Won") {
 				normalizedMetric = "HomeGames%Won";
 			} else if (originalMetric === "Away Games % Won") {
@@ -912,10 +930,8 @@ export class PlayerDataQueryHandler {
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
 				const chatbotService = ChatbotService.getInstance();
-				chatbotService.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
-				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
-
-				// Log copyable queries for debugging
+				
+				// Create query with real values for client console display
 				const readyToExecuteQuery = query
 					.replace(/\$playerName/g, `'${actualPlayerName}'`)
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
@@ -952,7 +968,7 @@ export class PlayerDataQueryHandler {
 						type: "specific_player", 
 						data: [{ playerName: actualPlayerName, value: 0 }], 
 						playerName: actualPlayerName, 
-						metric: originalMetric, 
+						metric: metricToUse, 
 						cypherQuery: query 
 					};
 				}
@@ -961,7 +977,9 @@ export class PlayerDataQueryHandler {
 					loggingService.log(`❌ No results found for ${actualPlayerName} with metric ${metric}`, null, "warn");
 				}
 
-				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: originalMetric, cypherQuery: query };
+				// Use metricToUse (the corrected metric) instead of originalMetric for response generation
+				// This ensures the response text uses the correct metric name (e.g., "assists" instead of "3rd team appearances")
+				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: metricToUse, cypherQuery: query };
 			} catch (error) {
 				loggingService.log(`❌ Error in player query:`, error, "error");
 				let errorMessage = "Error querying player data";

@@ -2440,7 +2440,31 @@ export class ChatbotService {
 				// Single metric query (e.g., appearances, assists, etc.)
 				answerValue = value;
 				const metricDisplayName = getMetricDisplayName(metric, value);
-				answer = `The ${teamName} have ${metricDisplayName.toLowerCase()} ${FormattingUtils.formatValueByMetric(metric, value)}.`;
+				
+				// For games/appearances queries, use gamesPlayed if available, otherwise use value
+				if ((metric.toUpperCase() === "APP" || metricField === "appearances") && gamesPlayed !== undefined) {
+					answerValue = gamesPlayed;
+					const gameText = gamesPlayed === 1 ? "game" : "games";
+					const seasonText = season ? ` in the ${season} season` : "";
+					answer = `The ${teamName} played ${gamesPlayed} ${gameText}${seasonText}.`;
+					
+					// Create NumberCard for games count
+					visualization = {
+						type: "NumberCard",
+						data: [{ 
+							name: "Games Played",
+							wordedText: "games",
+							value: gamesPlayed,
+							iconName: this.getIconNameForMetric("APP")
+						}],
+						config: {
+							title: `${teamName} - Games Played${season ? ` (${season})` : ""}`,
+							type: "bar",
+						},
+					};
+				} else {
+					answer = `The ${teamName} have ${metricDisplayName.toLowerCase()} ${FormattingUtils.formatValueByMetric(metric, value)}.`;
+				}
 			} else if (goalsScored !== undefined || goalsConceded !== undefined) {
 				// Goals query
 				if (isGoalsScored) {
@@ -3346,6 +3370,36 @@ export class ChatbotService {
 									},
 								};
 							}
+						}
+						// Create NumberCard visualization for assists queries with team exclusions
+						else if (metric && metric.toUpperCase() === "A" && analysis.teamExclusions && analysis.teamExclusions.length > 0) {
+							const iconName = this.getIconNameForMetric(metric);
+							const roundedValue = this.roundValueByMetric(metric, value as number);
+							const excludedTeam = TeamMappingUtils.mapTeamName(analysis.teamExclusions[0]);
+							// Convert to display format (e.g., "3rd XI -> 3s")
+							const excludedTeamDisplay = excludedTeam
+								.replace("1st XI", "1s")
+								.replace("2nd XI", "2s")
+								.replace("3rd XI", "3s")
+								.replace("4th XI", "4s")
+								.replace("5th XI", "5s")
+								.replace("6th XI", "6s")
+								.replace("7th XI", "7s")
+								.replace("8th XI", "8s");
+							
+							visualization = {
+								type: "NumberCard",
+								data: [{ 
+									name: "Assists",
+									wordedText: "assists", 
+									value: roundedValue,
+									iconName: iconName
+								}],
+								config: {
+									title: `${playerName} - Assists (excluding ${excludedTeamDisplay})`,
+									type: "bar",
+								},
+							};
 						}
 					} else {
 						answer = "No data found for your query.";
