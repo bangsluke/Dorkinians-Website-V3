@@ -1829,12 +1829,14 @@ export class ChatbotService {
 				// Generate natural language answer comparing the counts
 				if (homeGames > awayGames) {
 					answer = `${playerName} has played more home games (${homeGames}) than away games (${awayGames}).`;
+					answerValue = "Home";
 				} else if (awayGames > homeGames) {
 					answer = `${playerName} has played more away games (${awayGames}) than home games (${homeGames}).`;
+					answerValue = "Away";
 				} else {
 					answer = `${playerName} has played an equal number of home games (${homeGames}) and away games (${awayGames}).`;
+					answerValue = "Equal";
 				}
-				answerValue = homeGames > awayGames ? homeGames : awayGames;
 			}
 
 			// Create table visualization
@@ -3172,6 +3174,10 @@ export class ChatbotService {
 					const value = playerData[0]?.value;
 					const totalGames = (playerData[0] as any)?.totalGames;
 
+					// Define competition filter variables at higher scope for use in multiple branches
+					const competitions = analysis.competitions || [];
+					const hasCompetitionFilter = competitions.length > 0;
+
 					if (value !== undefined && value !== null) {
 						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
 						const isPercentageQuery = metric && (
@@ -3253,10 +3259,6 @@ export class ChatbotService {
 						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 							answerValue = this.roundValueByMetric(metric, value as number);
 							
-							// Check for competition filter to customize answer text
-							const competitions = analysis.competitions || [];
-							const hasCompetitionFilter = competitions.length > 0;
-							
 							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
 								const competitionName = competitions[0];
@@ -3268,10 +3270,6 @@ export class ChatbotService {
 							}
 						} else {
 							answerValue = value as number;
-							
-							// Check for competition filter to customize answer text
-							const competitions = analysis.competitions || [];
-							const hasCompetitionFilter = competitions.length > 0;
 							
 							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"

@@ -1435,6 +1435,15 @@ export class PlayerDataQueryHandler {
 				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
 		`;
 
+		// Store query for debugging
+		const chatbotService = ChatbotService.getInstance();
+		chatbotService.lastExecutedQueries.push(`HOME_AWAY_COMPARISON: ${query}`);
+		chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName, graphLabel })}`);
+
+		// Log copyable query for debugging
+		const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`).replace(/\$playerName/g, `'${playerName}'`);
+		chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			
@@ -1444,6 +1453,7 @@ export class PlayerDataQueryHandler {
 					playerName,
 					homeGames: 0,
 					awayGames: 0,
+					cypherQuery: query,
 				};
 			}
 
@@ -1463,6 +1473,7 @@ export class PlayerDataQueryHandler {
 				playerName,
 				homeGames: homeGamesCount,
 				awayGames: awayGamesCount,
+				cypherQuery: query,
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");
