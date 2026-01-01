@@ -50,6 +50,15 @@ export class DateUtils {
 	}
 
 	/**
+	 * Convert "since [YEAR]" to first date after that year
+	 * e.g., "since 2020" → "2021-01-01"
+	 */
+	static convertSinceYearToDate(year: number): string {
+		const nextYear = year + 1;
+		return `${nextYear}-01-01`;
+	}
+
+	/**
 	 * Calculate weekend dates for a given year and ordinal
 	 */
 	static calculateWeekendDates(year: number, ordinal: number = 1): { startDate: string; endDate: string } {

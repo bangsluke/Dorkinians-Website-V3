@@ -1,5 +1,6 @@
 import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from "./entityExtraction";
 import { QuestionType } from "../../config/config";
+import { DateUtils } from "../services/chatbotUtils/dateUtils";
 
 export interface EnhancedQuestionAnalysis {
 	type: QuestionType;
@@ -2579,7 +2580,24 @@ export class EnhancedQuestionAnalyzer {
 			console.log("🔍 Time frames extracted:", extractionResult.timeFrames);
 		}
 
-		// Look for range type first (e.g., "20/03/2022 to 21/10/24")
+		// Look for "since" type first (e.g., "since 2020")
+		const sinceFrame = extractionResult.timeFrames.find((tf) => tf.type === "since");
+		if (sinceFrame) {
+			const year = parseInt(sinceFrame.value, 10);
+			if (!isNaN(year)) {
+				const startDate = DateUtils.convertSinceYearToDate(year);
+				// Format as DD/MM/YYYY for legacy format
+				const formattedDate = DateUtils.formatDate(startDate);
+				if (process.env.DEBUG_MODE === "true") {
+					console.log("🔍 Using since time frame:", sinceFrame.value, "→", formattedDate);
+				}
+				// Return in format that can be parsed as date range: "01/01/2021 to [future date]"
+				// For "since" queries, we only need the start date, end date will be handled in query builder
+				return formattedDate;
+			}
+		}
+
+		// Look for range type (e.g., "20/03/2022 to 21/10/24")
 		const rangeFrame = extractionResult.timeFrames.find((tf) => tf.type === "range" && tf.value.includes(" to "));
 		if (rangeFrame) {
 			if (process.env.DEBUG_MODE === "true") {

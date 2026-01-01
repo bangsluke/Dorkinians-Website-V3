@@ -335,6 +335,9 @@ export class ChatbotService {
 		} catch (error) {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
+			if (error instanceof Error && error.stack) {
+				this.logToBoth(`❌ Error stack: ${error.stack}`, null, "error");
+			}
 
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
@@ -343,10 +346,27 @@ export class ChatbotService {
 				analysis: this.lastQuestionAnalysis || undefined,
 			});
 
+			// Get processing details even on error so we can see what happened
+			const processingDetails = await this.getProcessingDetails();
+
 			return {
 				answer: errorMessage,
 				sources: [],
 				cypherQuery: "N/A",
+				debug: {
+					question: context.question,
+					userContext: context.userContext,
+					timestamp: new Date().toISOString(),
+					serverLogs: this.lastExecutedQueries.join("\n"),
+					processingDetails: {
+						questionAnalysis: processingDetails.questionAnalysis,
+						cypherQueries: processingDetails.cypherQueries,
+						processingSteps: processingDetails.processingSteps,
+						queryBreakdown: processingDetails.queryBreakdown,
+						error: error instanceof Error ? error.message : String(error),
+						errorStack: error instanceof Error ? error.stack : undefined,
+					},
+				},
 			};
 		}
 	}
@@ -1800,21 +1820,45 @@ export class ChatbotService {
 			const oppositionName = (data.oppositionName as string) || "";
 			const appearances = (data.appearances as number) || 0;
 			
-			answerValue = appearances;
-			answer = `${playerName} has played against ${oppositionName} ${appearances} ${appearances === 1 ? "time" : "times"}.`;
-			
-			visualization = {
-				type: "NumberCard",
-				data: [{ 
-					name: "Appearances", 
-					value: appearances,
-					iconName: this.getIconNameForMetric("APP")
-				}],
-				config: {
-					title: `${playerName} - Appearances vs ${oppositionName}`,
-					type: "bar",
-				},
-			};
+			// If oppositionName is empty or looks like a date keyword, this was incorrectly routed
+			// Fall back to regular appearance query handling
+			if (!oppositionName || oppositionName.trim() === "" || ["since", "before", "after", "until", "from"].includes(oppositionName.toLowerCase())) {
+				// This should have been a regular appearance query, not opposition
+				// Re-route to specific_player handling
+				const metric = analysis.metrics[0] || "APP";
+				const value = appearances;
+				answerValue = value;
+				answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "Appearances", 
+						value: value,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: `${playerName} - Appearances`,
+						type: "bar",
+					},
+				};
+			} else {
+				answerValue = appearances;
+				answer = `${playerName} has played against ${oppositionName} ${appearances} ${appearances === 1 ? "time" : "times"}.`;
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "Appearances", 
+						value: appearances,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: `${playerName} - Appearances vs ${oppositionName}`,
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.type === "home_away_comparison") {
 			// Handle home/away games comparison queries (e.g., "Have I played more home or away games?")
 			const playerName = (data.playerName as string) || "";
@@ -3400,6 +3444,30 @@ export class ChatbotService {
 									type: "bar",
 								},
 							};
+						}
+						// Create NumberCard visualization for appearance queries (APP) with date filters
+						else if (metric && metric.toUpperCase() === "APP") {
+							const timeFrames = analysis.extractionResult?.timeFrames || [];
+							const hasDateFilter = timeFrames.some((tf) => tf.type === "since" || tf.type === "range");
+							
+							if (hasDateFilter || analysis.timeRange) {
+								const iconName = this.getIconNameForMetric(metric);
+								const displayName = "Appearances";
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: displayName, 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - ${displayName}`,
+										type: "bar",
+									},
+								};
+							}
 						}
 					} else {
 						answer = "No data found for your query.";

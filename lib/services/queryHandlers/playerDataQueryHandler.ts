@@ -487,16 +487,25 @@ export class PlayerDataQueryHandler {
 			// Fallback: try to extract capitalized team name from question
 			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
 			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
-			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-			if (oppositionMatch && oppositionMatch[1]) {
-				const potentialOpposition = oppositionMatch[1];
-				// Skip if it's a team number (3s, 3rd, etc.) or if it's followed by "for" (team context)
-				const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
-				if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
-				    !afterMatch?.toLowerCase().startsWith("for") &&
-				    !afterMatch?.toLowerCase().startsWith("the")) {
-					extractedOppositionName = potentialOpposition;
-					loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+			// CRITICAL: Skip if question contains "since" or date patterns (these are date queries, not opposition queries)
+			const hasDatePattern = questionLower.includes("since") || 
+			                       questionLower.includes("between") ||
+			                       questionLower.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+			
+			if (!hasDatePattern) {
+				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+				if (oppositionMatch && oppositionMatch[1]) {
+					const potentialOpposition = oppositionMatch[1];
+					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+					    !isDateKeyword &&
+					    !afterMatch?.toLowerCase().startsWith("for") &&
+					    !afterMatch?.toLowerCase().startsWith("the")) {
+						extractedOppositionName = potentialOpposition;
+						loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+					}
 				}
 			}
 		}

@@ -367,6 +367,7 @@ export class PlayerQueryBuilder {
 		oppositionEntities: string[],
 		timeRange: string | undefined,
 		locations: Array<{ type: string; value: string }>,
+		needsFixture: boolean = false,
 	): string[] {
 		const whereConditions: string[] = [];
 		const metricUpper = metric.toUpperCase();
@@ -509,11 +510,35 @@ export class PlayerQueryBuilder {
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
 		if (timeRange && !isTeamSpecificMetric) {
-			const dateRange = timeRange.split(" to ");
-			if (dateRange.length === 2) {
-				const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-				const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
-				whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
+			// Check if we have a "since" type timeFrame in extractionResult (check this FIRST before timeRange is converted)
+			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
+			
+			// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
+			// For other queries that need fixture data, use f.date
+			const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
+			const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
+			
+			if (sinceFrame) {
+				// Handle "since [YEAR]" pattern - convert to first date after that year
+				const year = parseInt(sinceFrame.value, 10);
+				if (!isNaN(year)) {
+					const startDate = DateUtils.convertSinceYearToDate(year);
+					whereConditions.push(`${dateField} >= '${startDate}'`);
+				}
+			} else {
+				// Check if this is a date range or single date
+				const dateRange = timeRange.split(" to ");
+				
+				if (dateRange.length === 2) {
+					// Handle date range (between X and Y)
+					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+					const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+				} else if (dateRange.length === 1) {
+					// Single date (could be from "since" pattern that was converted, or a single date query)
+					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+					whereConditions.push(`${dateField} >= '${startDate}'`);
+				}
 			}
 		}
 
@@ -1306,7 +1331,7 @@ export class PlayerQueryBuilder {
 			}
 
 			// Build WHERE conditions using helper method (pre-computed and optimized)
-			let whereConditions = PlayerQueryBuilder.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+			let whereConditions = PlayerQueryBuilder.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations, needsFixture);
 
 			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
 			// (we'll filter in WITH clause instead to ensure we always return a row)

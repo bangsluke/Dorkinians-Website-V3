@@ -66,7 +66,7 @@ export class ResponseBuilder {
 		// Get the metric display name
 		const metricName = getMetricDisplayName(resolvedMetricForDisplay, value as number);
 		const formattedValue = FormattingUtils.formatValueByMetric(resolvedMetricForDisplay, value as number);
-		const verb = getAppropriateVerb(metric, value as number);
+		let verb = getAppropriateVerb(metric, value as number);
 
 		// Special handling for MostPlayedForTeam/TEAM_ANALYSIS - value is a team name string
 		if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
@@ -188,6 +188,19 @@ export class ResponseBuilder {
 			finalMetricName = finalMetricName.toLowerCase().replace("open play ", "").replace("openplay ", "");
 		}
 
+		// Special handling for red cards - match question phrasing for "sent off"
+		const isRedCardMetric = resolvedMetricForDisplay === "R" || resolvedMetricForDisplay.toUpperCase() === "REDCARDS";
+		const mentionsSentOff = questionLower.includes("sent off") || questionLower.includes("been sent off");
+		
+		if (isRedCardMetric && mentionsSentOff) {
+			// Use "been sent off" phrasing to match the question
+			verb = "been sent off";
+			// Adjust metric name to avoid redundancy
+			if (finalMetricName.toLowerCase().includes("red card")) {
+				finalMetricName = "times";
+			}
+		}
+
 		// Start with the basic response
 		let response = `${playerName} has ${verb} ${formattedValue} ${finalMetricName}`;
 
@@ -224,8 +237,35 @@ export class ResponseBuilder {
 			}
 		}
 
-		// Add time range context if present (but ignore placeholder values)
-		if (analysis.timeRange && analysis.timeRange !== "between_dates" && analysis.timeRange.trim() !== "") {
+		// Add date context for "since" or "between" queries
+		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		const sinceFrame = timeFrames.find((tf) => tf.type === "since");
+		const rangeFrame = timeFrames.find((tf) => tf.type === "range");
+		
+		let dateContextAdded = false;
+		
+		if (sinceFrame) {
+			// Handle "since [YEAR]" pattern
+			const year = parseInt(sinceFrame.value, 10);
+			if (!isNaN(year)) {
+				const startDate = DateUtils.convertSinceYearToDate(year);
+				const formattedDate = DateUtils.formatDate(startDate);
+				response += ` since ${formattedDate}`;
+				dateContextAdded = true;
+			}
+		} else if (rangeFrame && rangeFrame.value.includes(" to ")) {
+			// Handle "between X and Y" date range
+			const dateRange = rangeFrame.value.split(" to ");
+			if (dateRange.length === 2) {
+				const formattedStart = DateUtils.formatDate(DateUtils.convertDateFormat(dateRange[0].trim()));
+				const formattedEnd = DateUtils.formatDate(DateUtils.convertDateFormat(dateRange[1].trim()));
+				response += ` between ${formattedStart} and ${formattedEnd}`;
+				dateContextAdded = true;
+			}
+		}
+
+		// Add time range context if present (but ignore placeholder values and skip if we already added date context)
+		if (!dateContextAdded && analysis.timeRange && analysis.timeRange !== "between_dates" && analysis.timeRange.trim() !== "") {
 			if (analysis.timeRange.includes(" to ")) {
 				const formattedTimeRange = DateUtils.formatTimeRange(analysis.timeRange);
 				response += ` between ${formattedTimeRange}`;
