@@ -68,7 +68,7 @@ export interface LocationInfo {
 
 export interface TimeFrameInfo {
 	value: string;
-	type: "date" | "season" | "weekend" | "gameweek" | "consecutive" | "range" | "ordinal_weekend" | "since";
+	type: "date" | "season" | "weekend" | "gameweek" | "consecutive" | "range" | "ordinal_weekend" | "since" | "before";
 	originalText: string;
 	position: number;
 }
@@ -1713,16 +1713,48 @@ export class EntityExtractor {
 
 	private extractTimeFrames(): TimeFrameInfo[] {
 		const timeFrames: TimeFrameInfo[] = [];
+		const matchedPositions = new Set<number>();
 
-		// Extract season references
+		// Extract "before [SEASON]" patterns first (e.g., "before the 2020/21 season", "before 2020/21")
+		// This must come before general season extraction to avoid double-matching
+		const beforeSeasonRegex = /\bbefore\s+(?:the\s+)?(20\d{2}[/-]?\d{2}|20\d{2}\s*[/-]\s*20\d{2})\b/gi;
+		let beforeSeasonMatch;
+		while ((beforeSeasonMatch = beforeSeasonRegex.exec(this.question)) !== null) {
+			const seasonValue = beforeSeasonMatch[1];
+			const seasonPosition = beforeSeasonMatch.index + beforeSeasonMatch[0].indexOf(seasonValue);
+			// Mark all character positions of this season as matched
+			for (let i = seasonPosition; i < seasonPosition + seasonValue.length; i++) {
+				matchedPositions.add(i);
+			}
+			timeFrames.push({
+				value: seasonValue,
+				type: "before",
+				originalText: beforeSeasonMatch[0],
+				position: seasonPosition,
+			});
+		}
+
+		// Extract season references (but exclude those already matched as "before")
 		const seasonMatches = this.findMatches(/\b(20\d{2}[/-]?\d{2}|20\d{2}\s*[/-]\s*20\d{2})\b/g);
 		seasonMatches.forEach((match) => {
-			timeFrames.push({
-				value: match.text,
-				type: "season",
-				originalText: match.text,
-				position: match.position,
-			});
+			// Check if any character of this season match was already matched as "before"
+			let isBeforeSeason = false;
+			for (let i = match.position; i < match.position + match.text.length; i++) {
+				if (matchedPositions.has(i)) {
+					isBeforeSeason = true;
+					break;
+				}
+			}
+			
+			if (!isBeforeSeason) {
+				// Regular season (not matched as "before")
+				timeFrames.push({
+					value: match.text,
+					type: "season",
+					originalText: match.text,
+					position: match.position,
+				});
+			}
 		});
 
 		// Extract date references (including date ranges)

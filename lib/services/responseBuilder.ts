@@ -237,14 +237,32 @@ export class ResponseBuilder {
 			}
 		}
 
-		// Add date context for "since" or "between" queries
+		// Add date context for "before", "since", or "between" queries
 		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		const beforeFrame = timeFrames.find((tf) => tf.type === "before");
 		const sinceFrame = timeFrames.find((tf) => tf.type === "since");
 		const rangeFrame = timeFrames.find((tf) => tf.type === "range");
 		
 		let dateContextAdded = false;
 		
-		if (sinceFrame) {
+		if (beforeFrame) {
+			// Handle "before [SEASON]" pattern
+			const seasonValue = beforeFrame.value;
+			// Check if it's a season format (e.g., "2020/21" or "2020-21")
+			const seasonMatch = seasonValue.match(/(\d{4})[\/\-](\d{2})/);
+			if (seasonMatch) {
+				// Format as "before the 2020/21 season"
+				response += ` before the ${seasonValue} season`;
+				dateContextAdded = true;
+			} else {
+				// Try to parse as a year
+				const year = parseInt(seasonValue, 10);
+				if (!isNaN(year)) {
+					response += ` before ${year}`;
+					dateContextAdded = true;
+				}
+			}
+		} else if (sinceFrame) {
 			// Handle "since [YEAR]" pattern
 			const year = parseInt(sinceFrame.value, 10);
 			if (!isNaN(year)) {

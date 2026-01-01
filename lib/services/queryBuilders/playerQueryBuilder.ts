@@ -510,7 +510,10 @@ export class PlayerQueryBuilder {
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
 		if (timeRange && !isTeamSpecificMetric) {
-			// Check if we have a "since" type timeFrame in extractionResult (check this FIRST before timeRange is converted)
+			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
+			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
+			
+			// Check if we have a "since" type timeFrame in extractionResult
 			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
 			
 			// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
@@ -518,7 +521,22 @@ export class PlayerQueryBuilder {
 			const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
 			const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
 			
-			if (sinceFrame) {
+			if (beforeFrame) {
+				// Handle "before [SEASON]" pattern - convert season to start date and use < operator
+				const seasonValue = beforeFrame.value;
+				// Check if it's a season format (e.g., "2020/21" or "2020-21")
+				const seasonMatch = seasonValue.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					const seasonStartDate = DateUtils.convertSeasonToStartDate(seasonValue);
+					whereConditions.push(`${dateField} < '${seasonStartDate}'`);
+				} else {
+					// Try to parse as a year and use January 1st of that year
+					const year = parseInt(seasonValue, 10);
+					if (!isNaN(year)) {
+						whereConditions.push(`${dateField} < '${year}-01-01'`);
+					}
+				}
+			} else if (sinceFrame) {
 				// Handle "since [YEAR]" pattern - convert to first date after that year
 				const year = parseInt(sinceFrame.value, 10);
 				if (!isNaN(year)) {
@@ -1271,10 +1289,10 @@ export class PlayerQueryBuilder {
 
 		// For team-specific metrics (appearances/goals for specific teams), we don't need fixtures
 		// Team filtering is done on md.team property, not f.team
-		let needsFixture = isTeamSpecificMetric ? false :
+		let needsFixture: boolean = isTeamSpecificMetric ? false :
 			(teamEntities.length > 0) ||
 			(locations.length > 0 && !fixtureDependentMetrics.has(metricUpper)) ||
-			timeRange ||
+			(timeRange !== undefined && timeRange !== "") ||
 			oppositionEntities.length > 0 ||
 			fixtureDependentMetrics.has(metricUpper) ||
 			(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
@@ -1425,7 +1443,7 @@ export class PlayerQueryBuilder {
 					// When exclusions are present for team-specific appearances, use regular aggregation with exclusion filter
 					// This path is ONLY for team-specific appearance metrics (3sApps, etc.), not for other metrics like assists
 					// The metric.match check ensures we only use this path for actual team-specific appearances
-					const mappedExcludedTeamNames = analysis.teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+					const mappedExcludedTeamNames = (analysis.teamExclusions || []).map((team) => TeamMappingUtils.mapTeamName(team));
 					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
 					query += ` WITH p, collect(md) as matchDetails`;
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND (${exclusionConditions})] END as filteredDetails`;
