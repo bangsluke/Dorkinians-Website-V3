@@ -952,12 +952,14 @@ export class EnhancedQuestionAnalyzer {
 				if (lowerValue.match(/^\d+(st|nd|rd|th|s)?$/)) {
 					return;
 				}
-				if (entity.value === "I" && this.userContext) {
+				// Handle first-person pronouns - normalize to userContext if available
+				const isFirstPersonPronoun = lowerValue === "i" || lowerValue === "my" || lowerValue === "me" || lowerValue === "myself" || lowerValue === "i've";
+				if (isFirstPersonPronoun && this.userContext) {
 					entities.push(this.userContext);
 					hasMatchedPlayer = true;
-				} else if (entity.value === "I" && !this.userContext) {
-					// Skip "I" references when userContext is missing - they can't be resolved
-					// This prevents "I" from being added to entities when userContext is not available
+				} else if (isFirstPersonPronoun && !this.userContext) {
+					// Skip first-person pronoun references when userContext is missing - they can't be resolved
+					// This prevents "I", "my", etc. from being added to entities when userContext is not available
 					return;
 				} else if (matchedPlayerName && this.userContext) {
 					// matchedPlayerName is not null, meaning we found a partial match

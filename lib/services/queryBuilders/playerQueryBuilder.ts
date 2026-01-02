@@ -951,10 +951,10 @@ export class PlayerQueryBuilder {
 				WITH p, awayWins, homeGames, awayGames, (homeGames + awayGames) as totalGames
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN totalGames > 0 THEN round(100.0 * awayWins / totalGames)
+						WHEN awayGames > 0 THEN round(100.0 * awayWins / awayGames)
 						ELSE 0 
 					END as value,
-					totalGames as totalGames
+					awayGames as totalGames
 			`;
 		} else if (metricUpper === "GAMES%WON") {
 			return `

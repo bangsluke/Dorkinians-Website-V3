@@ -646,7 +646,11 @@ export class ChatbotService {
 			if (isMostProlificSeasonQuestion) {
 				// Ensure this is routed to player handler with proper context
 				// Prioritize explicit player entities from question over userContext
-				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => e.type === "player" && e.value.toLowerCase() !== "i") || [];
+				// Filter out all first-person pronouns (I, my, me, myself, i've)
+				const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => 
+					e.type === "player" && !firstPersonPronouns.includes(e.value.toLowerCase())
+				) || [];
 				let playerName = "";
 				if (playerEntitiesFromQuestion.length > 0) {
 					// Explicit player name mentioned in question takes priority
@@ -687,6 +691,10 @@ export class ChatbotService {
 					if (!playerName) {
 						if (entities.length > 0) {
 							playerName = entities[0];
+							// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+							if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+								playerName = userContext;
+							}
 						} else if (userContext) {
 							playerName = userContext;
 						}

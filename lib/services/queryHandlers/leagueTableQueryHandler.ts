@@ -371,14 +371,15 @@ export class LeagueTableQueryHandler {
 				if (neo4jSeasonData) {
 					loggingService.log(`🔍 Found Neo4j data for season ${normalizedSeason} with ${Object.keys(neo4jSeasonData.teams).length} teams`, null, "log");
 					for (const [teamKey, teamData] of Object.entries(neo4jSeasonData.teams)) {
-						if (!teamData || !teamData.table) continue;
-						const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+						if (!teamData || typeof teamData !== 'object' || !('table' in teamData) || !Array.isArray(teamData.table)) continue;
+						const teamDataTyped = teamData as { table: any[]; division?: string; url?: string; lastUpdated?: string };
+						const dorkiniansEntry = teamDataTyped.table.find((entry: { team?: string; [key: string]: any }) => entry.team?.toLowerCase().includes("dorkinians"));
 						if (dorkiniansEntry) {
 							loggingService.log(`🔍 Found ${teamKey} in Neo4j: goalsAgainst=${dorkiniansEntry.goalsAgainst}`, null, "log");
 							if (dorkiniansEntry.goalsAgainst < minGoalsAgainst) {
 								minGoalsAgainst = dorkiniansEntry.goalsAgainst;
 								bestTeam = teamKey;
-								bestTeamData = { entry: dorkiniansEntry, fullTable: teamData.table, division: teamData.division };
+								bestTeamData = { entry: dorkiniansEntry, fullTable: teamDataTyped.table, division: teamDataTyped.division };
 							}
 						}
 					}

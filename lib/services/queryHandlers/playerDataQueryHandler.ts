@@ -903,8 +903,12 @@ export class PlayerDataQueryHandler {
 		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
 			// Resolve player name - prioritize explicit player entities from question over userContext
 			let playerName = "";
-			// Check for explicit player entities (not "I" references) in the question
-			const playerEntities = analysis.extractionResult?.entities?.filter(e => e.type === "player" && e.value.toLowerCase() !== "i") || [];
+			// Check for explicit player entities (not first-person pronouns) in the question
+			// Filter out all first-person pronouns (I, my, me, myself, i've)
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => 
+				e.type === "player" && !firstPersonPronouns.includes(e.value.toLowerCase())
+			) || [];
 			if (playerEntities.length > 0) {
 				// Explicit player name mentioned in question takes priority
 				playerName = playerEntities[0].value;
@@ -944,6 +948,10 @@ export class PlayerDataQueryHandler {
 				if (!playerName) {
 					if (entities.length > 0) {
 						playerName = entities[0];
+						// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
 					} else if (userContext) {
 						playerName = userContext;
 					}
