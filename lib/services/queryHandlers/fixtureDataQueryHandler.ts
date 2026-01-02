@@ -61,8 +61,8 @@ export class FixtureDataQueryHandler {
 			let year: number | null = null;
 			const timeFrames = analysis.extractionResult?.timeFrames || [];
 			
-			// Try to extract year from timeFrames
-			const yearFrame = timeFrames.find(tf => tf.type === "year");
+			// Try to extract year from timeFrames (check if any frame value matches a year pattern)
+			const yearFrame = timeFrames.find(tf => /^\d{4}$/.test(tf.value) && parseInt(tf.value, 10) >= 2000 && parseInt(tf.value, 10) <= 2100);
 			if (yearFrame) {
 				year = parseInt(yearFrame.value, 10);
 			} else {
