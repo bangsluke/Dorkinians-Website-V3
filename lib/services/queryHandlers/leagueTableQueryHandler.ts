@@ -9,6 +9,7 @@ export class LeagueTableQueryHandler {
 		entities: string[],
 		_metrics: string[],
 		analysis: EnhancedQuestionAnalysis,
+		userContext?: string,
 	): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 queryLeagueTableData called with entities: ${entities}`, null, "log");
 
@@ -55,6 +56,7 @@ export class LeagueTableQueryHandler {
 					season: result.position.season,
 					division: result.division,
 					answer: `The ${teamName}'s highest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+					position: result.position.position,
 				};
 			}
 			
@@ -81,6 +83,7 @@ export class LeagueTableQueryHandler {
 					season: result.position.season,
 					division: result.division,
 					answer: `The ${teamName}'s lowest league finish was ${result.position.position}${positionSuffix} position in ${result.position.season} (${result.division}). They finished with ${result.position.points} points from ${result.position.played} games (${result.position.won} wins, ${result.position.drawn} draws, ${result.position.lost} losses).`,
+					position: result.position.position,
 				};
 			}
 			
@@ -93,8 +96,18 @@ export class LeagueTableQueryHandler {
 				(question.includes("my") && question.includes("highest") && (question.includes("finish") || question.includes("position")));
 			
 			if (isHighestFinishQuery) {
-				const { getHighestLeagueFinish, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
-				const bestFinish = await getHighestLeagueFinish();
+				const { getPlayerHighestLeagueFinish, getHighestLeagueFinish, getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
+				
+				// If userContext is provided, find player-specific highest finish
+				let bestFinish;
+				if (userContext) {
+					bestFinish = await getPlayerHighestLeagueFinish(userContext);
+				}
+				
+				// Fallback to club-wide highest finish if no player context or player-specific query failed
+				if (!bestFinish) {
+					bestFinish = await getHighestLeagueFinish();
+				}
 				
 				if (!bestFinish) {
 					return {
@@ -118,6 +131,9 @@ export class LeagueTableQueryHandler {
 				}
 				
 				const positionSuffix = bestFinish.position === 1 ? "st" : bestFinish.position === 2 ? "nd" : bestFinish.position === 3 ? "rd" : "th";
+				const answerText = userContext 
+					? `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`
+					: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`;
 				
 				return {
 					type: "league_table",
@@ -125,26 +141,33 @@ export class LeagueTableQueryHandler {
 					fullTable: fullTable,
 					season: bestFinish.season,
 					division: bestFinish.division,
-					answer: `Your highest league finish was ${bestFinish.position}${positionSuffix} position with the ${bestFinish.team} in ${bestFinish.season} (${bestFinish.division}). They finished with ${bestFinish.points} points from ${bestFinish.played} games (${bestFinish.won} wins, ${bestFinish.drawn} draws, ${bestFinish.lost} losses).`,
+					answer: answerText,
+					position: bestFinish.position,
 				};
 			}
 			
 			// Find team entity (1s, 2s, 3s, etc.)
 			let teamName = "";
+			// Helper function to convert team format to "5s" format
+			const normalizeTeamName = (teamStr: string): string => {
+				if (teamStr.includes("st") || teamStr.includes("nd") || teamStr.includes("rd") || teamStr.includes("th")) {
+					const num = teamStr.match(/\d+/)?.[0];
+					if (num) {
+						return `${num}s`;
+					}
+				}
+				return teamStr;
+			};
+			
 			if (teamEntities.length > 0) {
-				teamName = teamEntities[0];
+				// Convert team entity to "5s" format if needed
+				teamName = normalizeTeamName(teamEntities[0]);
 			} else {
-				const teamMatch = question.match(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/);
+				// Enhanced regex to handle "5th XI", "5th team", "5th", "5s", etc.
+				const teamMatch = question.match(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)(?:\s+(?:xi|team))?\b/i);
 				if (teamMatch) {
 					const teamStr = teamMatch[1];
-					if (teamStr.includes("st") || teamStr.includes("nd") || teamStr.includes("rd") || teamStr.includes("th")) {
-						const num = teamStr.match(/\d+/)?.[0];
-						if (num) {
-							teamName = `${num}s`;
-						}
-					} else {
-						teamName = teamStr;
-					}
+					teamName = normalizeTeamName(teamStr);
 				}
 			}
 
@@ -170,6 +193,12 @@ export class LeagueTableQueryHandler {
 					message: "I need to know which team you're asking about. Please specify (e.g., 1s, 2s, 3s, etc.)",
 				};
 			}
+
+			// Check for goal difference queries
+			const isGoalDifferenceQuery = 
+				question.includes("goal difference") ||
+				question.includes("goal diff") ||
+				(question.includes("goal") && question.includes("difference"));
 
 			const { getTeamSeasonData, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
 			
@@ -202,6 +231,28 @@ export class LeagueTableQueryHandler {
 				const dorkiniansEntry = fullTable.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
 				const teamDisplayName = dorkiniansEntry?.team || teamData.team || teamName;
 				
+				// Handle goal difference query
+				if (isGoalDifferenceQuery) {
+					const goalDiff = teamData.goalDifference;
+					const goalDiffSign = goalDiff >= 0 ? "+" : "";
+					// Format team name to "4th XI" format
+					const teamNum = teamName.replace('s', '');
+					const ordinalMap: { [key: string]: string } = {
+						'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+						'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+					};
+					const ordinalTeam = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : teamDisplayName;
+					return {
+						type: "league_table",
+						data: [teamData],
+						fullTable: fullTable,
+						season: normalizedSeason,
+						division: division,
+						answer: `The ${ordinalTeam} had a goal difference of ${goalDiffSign}${goalDiff} in the ${normalizedSeason} season.`,
+						goalDifference: goalDiff,
+					};
+				}
+				
 				return {
 					type: "league_table",
 					data: [teamData],
@@ -209,6 +260,7 @@ export class LeagueTableQueryHandler {
 					season: normalizedSeason,
 					division: division,
 					answer: `${teamDisplayName} were ranked ${teamData.position}${positionSuffix} with ${teamData.points} points.`,
+					position: teamData.position,
 				};
 			}
 
@@ -245,6 +297,28 @@ export class LeagueTableQueryHandler {
 			const fullTable = teamData.table || [];
 			const division = teamData.division || "";
 			
+			// Handle goal difference query for current season
+			if (isGoalDifferenceQuery) {
+				const goalDiff = dorkiniansEntry.goalDifference;
+				const goalDiffSign = goalDiff >= 0 ? "+" : "";
+				// Format team name to "4th XI" format
+				const teamNum = teamName.replace('s', '');
+				const ordinalMap: { [key: string]: string } = {
+					'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+					'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+				};
+				const ordinalTeam = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : teamName;
+				return {
+					type: "league_table",
+					data: [dorkiniansEntry],
+					fullTable: fullTable,
+					season: currentSeasonData.season,
+					division: division,
+					answer: `The ${ordinalTeam} currently have a goal difference of ${goalDiffSign}${goalDiff} in the ${currentSeasonData.season} season.`,
+					goalDifference: goalDiff,
+				};
+			}
+			
 			return {
 				type: "league_table",
 				data: [dorkiniansEntry],
@@ -252,6 +326,7 @@ export class LeagueTableQueryHandler {
 				season: currentSeasonData.season,
 				division: division,
 				answer: `The ${teamName} are currently in ${dorkiniansEntry.position}${positionSuffix} position in the league for ${currentSeasonData.season}, with ${dorkiniansEntry.points} points from ${dorkiniansEntry.played} games (${dorkiniansEntry.won} wins, ${dorkiniansEntry.drawn} draws, ${dorkiniansEntry.lost} losses).`,
+				position: dorkiniansEntry.position,
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in queryLeagueTableData:`, error, "error");

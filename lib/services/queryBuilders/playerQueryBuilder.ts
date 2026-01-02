@@ -564,7 +564,8 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add competition type filter if specified (but not for team-specific metrics - they don't need Fixture)
-		if (analysis.competitionTypes && analysis.competitionTypes.length > 0 && !isTeamSpecificMetric) {
+		// Also ensure needsFixture is true to guarantee Fixture join has happened
+		if (analysis.competitionTypes && analysis.competitionTypes.length > 0 && !isTeamSpecificMetric && needsFixture) {
 			const compTypeFilters = analysis.competitionTypes
 				.map((compType) => {
 					switch (compType.toLowerCase()) {
@@ -1040,9 +1041,21 @@ export class PlayerQueryBuilder {
 			// Query MatchDetails to get goals per season for chart display
 			// Includes regular goals and penalties, but excludes penalty shootout penalties
 			// Use md.season directly since MatchDetail has a season property
+			// Check if team filtering is needed (e.g., "most goals for the 2s")
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				// Map team entity to normalized team name (e.g., "2s" -> "2nd XI")
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				// Escape single quotes in team name for Cypher query
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
 			return `
 				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-				WHERE md.season IS NOT NULL AND md.season <> ""
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
 				WITH p, md.season as season, 
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
 					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals

@@ -609,6 +609,16 @@ export class EnhancedQuestionAnalyzer {
 			return "league_table";
 		}
 
+		// Check for goal difference queries (must be before general league table check)
+		if (
+			hasTeamEntities &&
+			(lowerQuestion.includes("goal difference") ||
+				lowerQuestion.includes("goals difference") ||
+				lowerQuestion.includes("goal diff"))
+		) {
+			return "league_table";
+		}
+
 		// Check for league table/position queries BEFORE temporal queries
 		// This ensures questions like "Where did the 2s finish in 2017/18?" are classified correctly
 		// Check for team entities AND finish/position keywords, even if timeframes are present

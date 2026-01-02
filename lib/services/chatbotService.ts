@@ -723,7 +723,7 @@ export class ChatbotService {
 			case "ranking":
 				return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
 			case "league_table":
-				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis);
+				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis, userContext);
 			case "general":
 				return await this.queryGeneralData();
 			default:
@@ -2441,9 +2441,24 @@ export class ChatbotService {
 			// Check if answer is already provided by query handler
 			if (data.answer) {
 				answer = data.answer as string;
-				const leagueTableData = (data.data as LeagueTableEntry[]) || [];
-				if (leagueTableData.length > 0) {
-					answerValue = leagueTableData[0].position;
+				// For goal difference queries, set answerValue to the goal difference
+				if (data.goalDifference !== undefined) {
+					answerValue = data.goalDifference as number;
+				} else if (data.position !== undefined) {
+					// For position queries, set answerValue to the ordinal position string (e.g., "4th")
+					const position = data.position as number;
+					const positionSuffix = position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
+					answerValue = `${position}${positionSuffix}`;
+				} else {
+					// Fallback: try to extract position from data array
+					const leagueTableData = (data.data as LeagueTableEntry[]) || [];
+					if (leagueTableData.length > 0 && leagueTableData[0].position !== undefined) {
+						const position = leagueTableData[0].position;
+						const positionSuffix = position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
+						answerValue = `${position}${positionSuffix}`;
+					} else {
+						answerValue = undefined;
+					}
 				}
 			} else {
 				// Fallback: generate answer
@@ -2456,7 +2471,8 @@ export class ChatbotService {
 					                       topEntry.position === 2 ? "nd" : 
 					                       topEntry.position === 3 ? "rd" : "th";
 					answer = `${topEntry.team} were ranked ${topEntry.position}${positionSuffix} with ${topEntry.points} points.`;
-					answerValue = topEntry.position;
+					// Set answerValue to the ordinal position string (e.g., "4th")
+					answerValue = `${topEntry.position}${positionSuffix}`;
 				}
 			}
 			
@@ -3383,6 +3399,9 @@ export class ChatbotService {
 							// Find the season with the most goals
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
 							
+							// Check if team filter is present (team-specific season goals query)
+							const hasTeamFilter = analysis.teamEntities && analysis.teamEntities.length > 0;
+							
 							// Use wording that matches the user's question
 							const isHighestScoring = questionLower.includes("highest scoring season") || 
 								(questionLower.includes("highest") && questionLower.includes("scoring") && questionLower.includes("season"));
@@ -3408,19 +3427,39 @@ export class ChatbotService {
 							// Find the maximum goals for highlighting
 							const maxGoals = Math.max(...sortedData.map((item) => item.goals));
 							
-							// Create Record visualization (bar chart) with all seasons
-							visualization = {
-								type: "Record",
-								data: sortedData.map((item) => ({
-									name: item.season,
-									value: item.goals,
-									isHighest: item.goals === maxGoals,
-								})),
-								config: {
-									title: `${playerName} - Goals per Season`,
-									type: "bar",
-								},
-							};
+							// If team filter is present, show Table visualization; otherwise show Record (bar chart)
+							if (hasTeamFilter) {
+								// Create Table visualization with all seasons for team-specific queries
+								const tableData = sortedData.map((item) => ({
+									Season: item.season,
+									Goals: item.goals,
+								}));
+								
+								visualization = {
+									type: "Table",
+									data: tableData,
+									config: {
+										columns: [
+											{ key: "Season", label: "Season" },
+											{ key: "Goals", label: "Goals" },
+										],
+									},
+								};
+							} else {
+								// Create Record visualization (bar chart) with all seasons
+								visualization = {
+									type: "Record",
+									data: sortedData.map((item) => ({
+										name: item.season,
+										value: item.goals,
+										isHighest: item.goals === maxGoals,
+									})),
+									config: {
+										title: `${playerName} - Goals per Season`,
+										type: "bar",
+									},
+								};
+							}
 							} else {
 								answer = `${playerName} has no season data available.`;
 							}
@@ -3467,6 +3506,8 @@ export class ChatbotService {
 					// Define competition filter variables at higher scope for use in multiple branches
 					const competitions = analysis.competitions || [];
 					const hasCompetitionFilter = competitions.length > 0;
+					const competitionTypes = analysis.competitionTypes || [];
+					const hasCompetitionTypeFilter = competitionTypes.length > 0;
 
 					if (value !== undefined && value !== null) {
 						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
@@ -3548,16 +3589,7 @@ export class ChatbotService {
 						// Round answerValue for penalty conversion rate to 1 decimal place
 						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 							answerValue = this.roundValueByMetric(metric, value as number);
-							
-							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
-								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
-								const competitionName = competitions[0];
-								const goalCount = value as number;
-								const goalText = goalCount === 1 ? "goal" : "goals";
-								answer = `${playerName} has scored ${goalCount} ${goalText} in the ${competitionName}.`;
-							} else {
-								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
-							}
+							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 						} else {
 							answerValue = value as number;
 							
@@ -3605,6 +3637,13 @@ export class ChatbotService {
 									const goalText = goalCount === 1 ? "goal" : "goals";
 									answer = `${playerName} has scored ${goalCount} ${goalText} for the ${teamDisplayName}.`;
 								}
+							} else if (hasCompetitionTypeFilter && metric && metric.toUpperCase() === "G") {
+								// Custom answer format for goals with competition type: "Luke Bangs has scored 4 goals in cup competitions."
+								const competitionType = competitionTypes[0];
+								const competitionTypeDisplay = competitionType.charAt(0).toUpperCase() + competitionType.slice(1).toLowerCase();
+								const goalCount = value as number;
+								const goalText = goalCount === 1 ? "goal" : "goals";
+								answer = `${playerName} has scored ${goalCount} ${goalText} in ${competitionTypeDisplay} competitions.`;
 							} else if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
 								const competitionName = competitions[0];
@@ -3687,6 +3726,26 @@ export class ChatbotService {
 									}],
 									config: {
 										title: `${playerName} - Goals for the ${teamDisplayName}`,
+										type: "bar",
+									},
+								};
+							} else if (hasCompetitionTypeFilter) {
+								// Generate NumberCard for goals in competition type (e.g., "Cup", "League")
+								const competitionType = competitionTypes[0];
+								const competitionTypeDisplay = competitionType.charAt(0).toUpperCase() + competitionType.slice(1).toLowerCase();
+								const iconName = this.getIconNameForMetric(metric);
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: "goals",
+										wordedText: "goals", 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - Goals in ${competitionTypeDisplay} Competitions`,
 										type: "bar",
 									},
 								};

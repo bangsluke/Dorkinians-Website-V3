@@ -1016,8 +1016,8 @@ export const TIME_FRAME_PSEUDONYMS = {
 
 // Competition type pseudonyms
 export const COMPETITION_TYPE_PSEUDONYMS = {
-	league: ["league", "leagues", "league games", "league matches"],
-	cup: ["cup", "cups", "cup games", "cup matches", "cup competition", "cup competitions"],
+	league: ["league", "leagues", "league games", "league matches", "league competitions only", "league competition only"],
+	cup: ["cup", "cups", "cup games", "cup matches", "cup competition", "cup competitions", "cup competitions only", "cup competition only"],
 	friendly: ["friendly", "friendlies", "friendly games", "friendly matches", "friendly competition", "friendly competitions"],
 };
 
