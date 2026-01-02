@@ -556,17 +556,29 @@ export class PlayerQueryBuilder {
 				}
 			} else {
 				// Check if this is a date range or single date
-				const dateRange = timeRange.split(" to ");
+				// First try to get from timeRange, then fallback to timeFrames
+				let dateRangeValue = timeRange;
+				if (!dateRangeValue) {
+					// Fallback: check timeFrames for range type
+					const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range" && tf.value.includes(" to "));
+					if (rangeFrame) {
+						dateRangeValue = rangeFrame.value;
+					}
+				}
 				
-				if (dateRange.length === 2) {
-					// Handle date range (between X and Y)
-					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-					const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
-					whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
-				} else if (dateRange.length === 1) {
-					// Single date (could be from "since" pattern that was converted, or a single date query)
-					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-					whereConditions.push(`${dateField} >= '${startDate}'`);
+				if (dateRangeValue) {
+					const dateRange = dateRangeValue.split(" to ");
+					
+					if (dateRange.length === 2) {
+						// Handle date range (between X and Y)
+						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+						whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+					} else if (dateRange.length === 1) {
+						// Single date (could be from "since" pattern that was converted, or a single date query)
+						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						whereConditions.push(`${dateField} >= '${startDate}'`);
+					}
 				}
 			}
 		}

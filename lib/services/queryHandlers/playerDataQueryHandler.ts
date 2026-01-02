@@ -783,13 +783,56 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("when") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
 
 		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
-			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			// Resolve player name - prioritize explicit player entities from question over userContext
 			let playerName = "";
-			if (userContext) {
-				playerName = userContext;
-			} else if (entities.length > 0) {
-				playerName = entities[0];
+			// Check for explicit player entities (not "I" references) in the question
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => e.type === "player" && e.value.toLowerCase() !== "i") || [];
+			if (playerEntities.length > 0) {
+				// Explicit player name mentioned in question takes priority
+				playerName = playerEntities[0].value;
 			} else {
+				// Always try to extract player name directly from question text
+				// This handles cases where entity extraction failed but name is in question
+				const questionText = analysis.question || "";
+				const playerNamePatterns = [
+					// Pattern 1: "did [Name] score" or "did [Name] scored" - handles both correct and incorrect grammar
+					/(?:did|does|has|have)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:score|scored|get|got)/i,
+					// Pattern 2: "which season did [Name]" - handles both correct and incorrect grammar
+					/(?:which|what)\s+season\s+did\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:score|scored|get|got)/i,
+					// Pattern 3: "[Name] scored the most" - name before verb
+					/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:score|scored|get|got)\s+(?:the\s+)?most/i,
+				];
+				
+				for (const pattern of playerNamePatterns) {
+					const match = questionText.match(pattern);
+					if (match && match[1]) {
+						let extractedName = match[1].trim();
+						// Trim at common stop words that indicate end of name
+						const stopWords = /\s+(score|scored|get|got|for|the|most|goals|goal|in|at|on|with|when|where|which|what|how|did|does|has|have)\b/i;
+						const stopMatch = extractedName.match(stopWords);
+						if (stopMatch && stopMatch.index !== undefined) {
+							extractedName = extractedName.substring(0, stopMatch.index).trim();
+						}
+						// Filter out common words that might be captured
+						if (extractedName && !["Which", "What", "When", "Where", "How", "Season", "Did", "Does", "Has", "Have"].includes(extractedName)) {
+							playerName = extractedName;
+							loggingService.log(`🔍 Extracted player name from question text: ${playerName}`, null, "log");
+							break;
+						}
+					}
+				}
+				
+				// Only fall back to entities/userContext if no name extracted from question
+				if (!playerName) {
+					if (entities.length > 0) {
+						playerName = entities[0];
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+			}
+			
+			if (!playerName) {
 				return {
 					type: "no_context",
 					data: [],

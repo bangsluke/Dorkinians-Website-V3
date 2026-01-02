@@ -1,25 +1,40 @@
 export class DateUtils {
 	/**
 	 * Convert date format from DD/MM/YYYY or DD/MM/YY to YYYY-MM-DD
+	 * Also handles DD-MM-YYYY and DD-MM-YY formats
 	 */
 	static convertDateFormat(dateStr: string): string {
-		const parts = dateStr.split("/");
+		// Handle both "/" and "-" delimiters
+		const parts = dateStr.split(/[\/\-]/);
 		if (parts.length === 3) {
 			let day = parts[0].padStart(2, "0");
 			let month = parts[1].padStart(2, "0");
 			let year = parts[2];
 
-			// Handle 2-digit years
+			// Handle 2-digit years (assume 20xx for years 00-99)
 			if (year.length === 2) {
 				const currentYear = new Date().getFullYear();
 				const century = Math.floor(currentYear / 100) * 100;
-				const yearNum = parseInt(year);
-				year = (century + yearNum).toString();
+				const yearNum = parseInt(year, 10);
+				if (!isNaN(yearNum)) {
+					year = (century + yearNum).toString();
+				}
 			}
 
-			return `${year}-${month}-${day}`;
+			// Validate date components
+			const dayNum = parseInt(day, 10);
+			const monthNum = parseInt(month, 10);
+			const yearNum = parseInt(year, 10);
+
+			// Basic validation: day 1-31, month 1-12, year reasonable (1900-2100)
+			if (!isNaN(dayNum) && !isNaN(monthNum) && !isNaN(yearNum) &&
+				dayNum >= 1 && dayNum <= 31 &&
+				monthNum >= 1 && monthNum <= 12 &&
+				yearNum >= 1900 && yearNum <= 2100) {
+				return `${year}-${month}-${day}`;
+			}
 		}
-		return dateStr; // Return as-is if format not recognized
+		return dateStr; // Return as-is if format not recognized or invalid
 	}
 
 	/**
