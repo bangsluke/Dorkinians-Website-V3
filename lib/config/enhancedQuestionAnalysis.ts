@@ -1,6 +1,7 @@
 import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from "./entityExtraction";
 import { QuestionType } from "../../config/config";
 import { DateUtils } from "../services/chatbotUtils/dateUtils";
+import { TeamMappingUtils } from "../services/chatbotUtils/teamMappingUtils";
 
 export interface EnhancedQuestionAnalysis {
 	type: QuestionType;
@@ -200,6 +201,10 @@ export class EnhancedQuestionAnalyzer {
 		const exclusionPatterns = [
 			/\b(?:not|excluding|except)\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
 			/\bwhen\s+not\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+			// More flexible pattern to catch variations like "got when not playing for the 3s"
+			/\b(?:got|has|have|had)\s+.*?\s+when\s+not\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+			// Pattern for "not for the 3s" (without "playing")
+			/\b(?:not|excluding|except)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
 		];
 		
 		for (const pattern of exclusionPatterns) {
@@ -212,14 +217,12 @@ export class EnhancedQuestionAnalyzer {
 		// Extract team entities for team-specific queries, but exclude teams that are in exclusions
 		const allTeamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
 		const teamEntities = allTeamEntities.filter((team) => {
-			// Remove teams that are in exclusions (normalize for comparison)
-			const normalizedTeam = team.toLowerCase();
+			// Remove teams that are in exclusions (normalize for comparison using TeamMappingUtils)
+			const mappedTeam = TeamMappingUtils.mapTeamName(team);
 			return !teamExclusions.some((excluded) => {
-				const normalizedExcluded = excluded.toLowerCase();
-				// Check if the team matches the excluded team (handle variations like "3s" vs "3rd")
-				return normalizedTeam === normalizedExcluded || 
-				       normalizedTeam.includes(normalizedExcluded) || 
-				       normalizedExcluded.includes(normalizedTeam);
+				const mappedExcluded = TeamMappingUtils.mapTeamName(excluded);
+				// Check if the mapped team names match (handles variations like "3s" vs "3rd" -> both map to "3rd XI")
+				return mappedTeam === mappedExcluded;
 			});
 		});
 
@@ -609,6 +612,35 @@ export class EnhancedQuestionAnalyzer {
 			return "league_table";
 		}
 
+		// Check for "which season did [team] concede the most goals" queries
+		if (
+			hasTeamEntities &&
+			(lowerQuestion.includes("which season") || lowerQuestion.includes("what season")) &&
+			lowerQuestion.includes("concede") &&
+			(lowerQuestion.includes("most goals") || lowerQuestion.includes("most") && lowerQuestion.includes("goals"))
+		) {
+			return "league_table";
+		}
+
+		// Check for "which team had the best defensive record" queries
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("best defensive record") || 
+			 (lowerQuestion.includes("best") && lowerQuestion.includes("defensive") && lowerQuestion.includes("record")))
+		) {
+			return "league_table";
+		}
+
+		// Check for goal difference queries (must be before general league table check)
+		if (
+			hasTeamEntities &&
+			(lowerQuestion.includes("goal difference") ||
+				lowerQuestion.includes("goals difference") ||
+				lowerQuestion.includes("goal diff"))
+		) {
+			return "league_table";
+		}
+
 		// Check for league table/position queries BEFORE temporal queries
 		// This ensures questions like "Where did the 2s finish in 2017/18?" are classified correctly
 		// Check for team entities AND finish/position keywords, even if timeframes are present
@@ -798,23 +830,50 @@ export class EnhancedQuestionAnalyzer {
 
 		// Check for opposition name queries (who did [team] play, opposition queries)
 		// This must be checked BEFORE general team queries to avoid false positives
+		// CRITICAL: Exclude player stat questions (e.g., "did [player] get...playing") from fixture queries
+		const isPlayerStatQuestion = hasPlayerEntities && (
+			lowerQuestion.includes("get") || 
+			lowerQuestion.includes("got") || 
+			lowerQuestion.includes("scored") || 
+			lowerQuestion.includes("goals") ||
+			lowerQuestion.includes("assists") ||
+			lowerQuestion.includes("how many")
+		);
+		
 		if (
 			hasTeamEntities &&
+			!isPlayerStatQuestion &&
 			((lowerQuestion.includes("who did") && (lowerQuestion.includes("play") || lowerQuestion.includes("played"))) ||
 				(lowerQuestion.includes("who") && lowerQuestion.includes("play") && (lowerQuestion.includes("against") || lowerQuestion.includes("opposition"))) ||
 				(lowerQuestion.includes("opposition") && (lowerQuestion.includes("play") || lowerQuestion.includes("played"))) ||
-				(lowerQuestion.includes("did") && lowerQuestion.includes("play") && hasTeamEntities))
+				(lowerQuestion.includes("did") && lowerQuestion.includes("play") && !lowerQuestion.includes("get") && !lowerQuestion.includes("got")))
 		) {
 			return "fixture";
 		}
 
 		// Check for general team queries (without league position context)
+		// BUT: If there are player entities AND the question asks about a player's stats (has...got, did...get, scored, etc.),
+		// prioritize player query over team query
+		// CRITICAL: Also check for player stat phrases even without extracted player entities (e.g., misspelled names)
+		const hasPlayerStatPhrases = 
+			(lowerQuestion.includes("has") && (lowerQuestion.includes("got") || lowerQuestion.includes("scored") || lowerQuestion.includes("assists") || lowerQuestion.includes("goals"))) ||
+			(lowerQuestion.includes("did") && (lowerQuestion.includes("get") || lowerQuestion.includes("got") || lowerQuestion.includes("scored"))) ||
+			lowerQuestion.includes("scored") ||
+			lowerQuestion.includes("got") ||
+			(lowerQuestion.includes("how many") && (lowerQuestion.includes("goals") || lowerQuestion.includes("assists") || lowerQuestion.includes("appearances") || lowerQuestion.includes("yellow") || lowerQuestion.includes("red") || lowerQuestion.includes("mom")));
+		
+		// Check if question contains a potential player name pattern (even if not extracted)
+		// This helps catch misspelled names like "Kieran MCkrell" that might not be extracted
+		const hasPotentialPlayerName = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
+		
 		if (
 			hasTeamEntities &&
 			!lowerQuestion.includes("finish") &&
 			!lowerQuestion.includes("position") &&
 			!lowerQuestion.includes("table") &&
-			!lowerQuestion.includes("league")
+			!lowerQuestion.includes("league") &&
+			!(hasPlayerEntities && hasPlayerStatPhrases) &&
+			!(hasPotentialPlayerName && hasPlayerStatPhrases) // Also prioritize if there's a potential player name + stat phrases
 		) {
 			return "team";
 		}
@@ -893,12 +952,14 @@ export class EnhancedQuestionAnalyzer {
 				if (lowerValue.match(/^\d+(st|nd|rd|th|s)?$/)) {
 					return;
 				}
-				if (entity.value === "I" && this.userContext) {
+				// Handle first-person pronouns - normalize to userContext if available
+				const isFirstPersonPronoun = lowerValue === "i" || lowerValue === "my" || lowerValue === "me" || lowerValue === "myself" || lowerValue === "i've";
+				if (isFirstPersonPronoun && this.userContext) {
 					entities.push(this.userContext);
 					hasMatchedPlayer = true;
-				} else if (entity.value === "I" && !this.userContext) {
-					// Skip "I" references when userContext is missing - they can't be resolved
-					// This prevents "I" from being added to entities when userContext is not available
+				} else if (isFirstPersonPronoun && !this.userContext) {
+					// Skip first-person pronoun references when userContext is missing - they can't be resolved
+					// This prevents "I", "my", etc. from being added to entities when userContext is not available
 					return;
 				} else if (matchedPlayerName && this.userContext) {
 					// matchedPlayerName is not null, meaning we found a partial match
@@ -987,9 +1048,15 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect "most scored for team" queries
 		const mostScoredForTeamCorrectedStats = this.correctMostScoredForTeamQueries(mostAppearancesCorrectedStats);
 
+		// CRITICAL FIX: Prioritize "Goals" over "Assists" when "goals" is explicitly mentioned (both have "got" as pseudonym)
+		const goalsAssistsCorrectedStats = this.correctGoalsAssistsConfusion(mostScoredForTeamCorrectedStats);
+
+		// CRITICAL FIX: Remove "Saves" when "Goals" is explicitly mentioned (both have "got" as pseudonym)
+		const goalsSavesCorrectedStats = this.correctGoalsSavesConfusion(goalsAssistsCorrectedStats);
+
 		// Apply additional metric correction patterns (without caching for clarification check)
 		const cacheKey = `${this.question.toLowerCase()}:${statTypes.map(s => s.value).join(',')}`;
-		const fullyCorrectedStats = this.applyMetricCorrections(mostScoredForTeamCorrectedStats, cacheKey);
+		const fullyCorrectedStats = this.applyMetricCorrections(goalsSavesCorrectedStats, cacheKey);
 
 		return fullyCorrectedStats;
 	}
@@ -1029,7 +1096,17 @@ export class EnhancedQuestionAnalyzer {
 		const fullyCorrectedStats = this.applyStatTypeCorrections(extractionResult.statTypes);
 
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = fullyCorrectedStats.map((stat) => stat.value);
+		let statTypes = fullyCorrectedStats.map((stat) => stat.value);
+
+		// CRITICAL FIX: Filter out non-percentage home/away games stats if percentage versions exist
+		const hasPercentageGamesStat = statTypes.some((stat) => 
+			stat.includes("Games %") || stat.includes("Games%")
+		);
+		if (hasPercentageGamesStat) {
+			statTypes = statTypes.filter((stat) => 
+				stat !== "Home Games" && stat !== "Away Games" && stat !== "Home" && stat !== "Away"
+			);
+		}
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -1729,14 +1806,35 @@ export class EnhancedQuestionAnalyzer {
 		}
 
 		// Pattern 6: Short year format with slash (18/19, 19/20, 20/21, 21/22, etc.)
+		// BUT: Exclude if it's part of a date (DD/MM/YYYY or MM/DD/YYYY format)
 		const shortYearSlashMatch = question.match(/(\d{2})\/(\d{2})/);
 		if (shortYearSlashMatch) {
-			const startYear = shortYearSlashMatch[1];
-			const endYear = shortYearSlashMatch[2];
-			// Check if it's already a 4-digit year (length check), not just if it starts with "20"
-			const fullStartYear = startYear.length === 4 ? startYear : `20${startYear}`;
-			// Keep end year as 2-digit format for season notation (YYYY/YY)
-			return `${fullStartYear}/${endYear}`;
+			const matchIndex = shortYearSlashMatch.index || 0;
+			const matchText = shortYearSlashMatch[0];
+			
+			// Check if this is part of a date pattern (DD/MM/YYYY or MM/DD/YYYY)
+			// Look for date patterns around this match (before or after)
+			const beforeText = question.substring(Math.max(0, matchIndex - 10), matchIndex);
+			const afterText = question.substring(matchIndex + matchText.length, Math.min(question.length, matchIndex + matchText.length + 10));
+			const isPartOfDate = 
+				// Check if followed by another date component (like "/2022" or "/24")
+				/\/\d{2,4}/.test(afterText) ||
+				// Check if preceded by a date component (like "20/" or "03/")
+				/\d{1,2}\//.test(beforeText);
+			
+			// Also check if the second number is > 12 (months can't be > 12, so this is likely a season)
+			// But if it's clearly a date format (has 3 parts), exclude it
+			const endYearNum = parseInt(shortYearSlashMatch[2], 10);
+			const isLikelyDate = isPartOfDate && (endYearNum <= 12 || /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(question.substring(Math.max(0, matchIndex - 5), matchIndex + matchText.length + 5)));
+			
+			if (!isLikelyDate) {
+				const startYear = shortYearSlashMatch[1];
+				const endYear = shortYearSlashMatch[2];
+				// Check if it's already a 4-digit year (length check), not just if it starts with "20"
+				const fullStartYear = startYear.length === 4 ? startYear : `20${startYear}`;
+				// Keep end year as 2-digit format for season notation (YYYY/YY)
+				return `${fullStartYear}/${endYear}`;
+			}
 		}
 
 		return null;
@@ -1815,6 +1913,14 @@ export class EnhancedQuestionAnalyzer {
 	private correctHomeAwayGamesQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
+		// Skip if this is a percentage query - percentage stats should take precedence
+		const hasPercentageStat = statTypes.some(
+			(stat) => stat.value.includes("%") || stat.value.includes("Percentage")
+		);
+		if (hasPercentageStat) {
+			return statTypes;
+		}
+
 		// Patterns to detect home games queries
 		const homeGamesPatterns = [
 			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
@@ -1890,6 +1996,52 @@ export class EnhancedQuestionAnalyzer {
 			const result = goalsStats.length > 0 ? [goalsStats[0], ...nonGoalsStats] : filteredStats;
 
 			return result;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects Goals/Assists confusion - prioritizes "Goals" over "Assists" when "goals" is explicitly mentioned
+	 * Both have "got" as a pseudonym, so "got" can incorrectly match "Assists" when the question is about goals
+	 */
+	private correctGoalsAssistsConfusion(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check if question explicitly mentions "goals" or "goal"
+		const hasExplicitGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("goal");
+		
+		// Check if both "Goals" and "Assists" are in the stat types
+		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
+		const hasAssists = statTypes.some((stat) => stat.value === "Assists");
+
+		// If goals is explicitly mentioned and both are present, remove "Assists"
+		// (Assists was likely matched from "got" which is a pseudonym for both)
+		if (hasExplicitGoals && hasGoals && hasAssists) {
+			return statTypes.filter((stat) => stat.value !== "Assists");
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects Goals/Saves confusion - removes "Saves" when "Goals" is explicitly mentioned
+	 * Both have "got" as a pseudonym, so "got" can incorrectly match "Saves" when the question is about goals
+	 */
+	private correctGoalsSavesConfusion(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Check if question explicitly mentions "goals" or "goal"
+		const hasExplicitGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("goal");
+		
+		// Check if both "Goals" and "Saves" are in the stat types
+		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
+		const hasSaves = statTypes.some((stat) => stat.value === "Saves");
+
+		// If goals is explicitly mentioned and both are present, remove "Saves"
+		// (Saves was likely matched from "got" which is a pseudonym for both)
+		if (hasExplicitGoals && hasGoals && hasSaves) {
+			return statTypes.filter((stat) => stat.value !== "Saves" && stat.value !== "Saves Per Appearance");
 		}
 
 		return statTypes;
@@ -2737,10 +2889,25 @@ export class EnhancedQuestionAnalyzer {
 			return rangeFrame.value;
 		}
 
-		// Fallback to first time frame if no range found
+		// Fallback to first time frame if no range found, but only if it's a valid date format
 		if (extractionResult.timeFrames.length > 0) {
-			console.log("🔍 Using first time frame:", extractionResult.timeFrames[0].value);
-			return extractionResult.timeFrames[0].value;
+			const firstFrame = extractionResult.timeFrames[0];
+			// Only return if it's a valid date format (not a pseudonym key like "between_dates")
+			const isValidDateValue = firstFrame.value && 
+				firstFrame.value !== "between_dates" && 
+				firstFrame.value !== "before" && 
+				firstFrame.value !== "since" &&
+				(firstFrame.value.includes(" to ") || 
+				 firstFrame.value.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || 
+				 firstFrame.value.match(/^\d{4}[\/\-]\d{2,4}$/) ||
+				 firstFrame.value.match(/^\d{4}$/));
+			
+			if (isValidDateValue) {
+				if (process.env.DEBUG_MODE === "true") {
+					console.log("🔍 Using first time frame:", firstFrame.value);
+				}
+				return firstFrame.value;
+			}
 		}
 		return undefined;
 	}

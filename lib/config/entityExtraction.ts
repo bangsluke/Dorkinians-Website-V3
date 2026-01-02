@@ -996,8 +996,8 @@ export const NEGATIVE_CLAUSE_PSEUDONYMS = {
 
 // Location pseudonyms
 export const LOCATION_PSEUDONYMS = {
-	home: ["home", "at home", "home ground", "our ground", "pixham"],
-	away: ["away", "away from home", "on the road", "away ground", "their ground"],
+	home: ["home", "at home", "home ground", "our ground", "pixham", "whilst playing at home", "while playing at home", "whilst at home", "while at home", "playing at home"],
+	away: ["away", "away from home", "on the road", "away ground", "their ground", "whilst playing away", "while playing away", "whilst away", "while away", "playing away"],
 	Pixham: ["pixham", "home ground", "our ground", "the ground"],
 };
 
@@ -1016,8 +1016,8 @@ export const TIME_FRAME_PSEUDONYMS = {
 
 // Competition type pseudonyms
 export const COMPETITION_TYPE_PSEUDONYMS = {
-	league: ["league", "leagues", "league games", "league matches"],
-	cup: ["cup", "cups", "cup games", "cup matches", "cup competition", "cup competitions"],
+	league: ["league", "leagues", "league games", "league matches", "league competitions only", "league competition only"],
+	cup: ["cup", "cups", "cup games", "cup matches", "cup competition", "cup competitions", "cup competitions only", "cup competition only"],
 	friendly: ["friendly", "friendlies", "friendly games", "friendly matches", "friendly competition", "friendly competitions"],
 };
 
@@ -1149,9 +1149,13 @@ export class EntityExtractor {
 		});
 
 		// Extract player names using compromise NLP for better accuracy
-		// Only extract if we have player context ("I" reference) or no team entities were found
-		// This prevents team patterns from being misclassified as player names
-		if (hasPlayerContext || extractedTeamNames.size === 0) {
+		// Allow extraction if we have player context ("I" reference), no team entities were found,
+		// OR if there's a clear player name pattern (e.g., "Luk Bangs", "Luke Bangs", "Kieran MCkrell")
+		// This prevents team patterns from being misclassified as player names while still allowing
+		// player names to be extracted when team entities are present
+		// Updated pattern to handle names with multiple capitals (e.g., "McKrell", "O'Brien")
+		const hasClearPlayerNamePattern = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
+		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern) {
 			const playerNames = this.extractPlayerNamesWithNLP(extractedTeamNames);
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
@@ -1691,7 +1695,17 @@ export class EntityExtractor {
 
 		// Match longer phrases first
 		sortedPseudonyms.forEach(({ key, pseudonym }) => {
-			const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+			// For multi-word phrases, use a more flexible regex that doesn't require strict word boundaries
+			// This allows matching phrases like "whilst playing at home" even if there are other words nearby
+			const hasSpaces = pseudonym.includes(" ");
+			let regex;
+			if (hasSpaces) {
+				// For multi-word phrases, escape special chars and allow flexible matching
+				regex = new RegExp(pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+			} else {
+				// For single words, use word boundaries
+				regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
+			}
 			const matches = this.findMatches(regex);
 			matches.forEach((match) => {
 				// Check if this position overlaps with an already matched longer phrase
@@ -1747,6 +1761,8 @@ export class EntityExtractor {
 		}
 
 		// Extract season references (but exclude those already matched as "before")
+		// Enhanced regex to avoid matching dates: require 4-digit year (20xx) and 2-digit season (00-99)
+		// Exclude patterns that look like dates (DD/MM/YYYY or MM/DD/YYYY format)
 		const seasonMatches = this.findMatches(/\b(20\d{2}[/-]?\d{2}|20\d{2}\s*[/-]\s*20\d{2})\b/g);
 		seasonMatches.forEach((match) => {
 			// Check if any character of this season match was already matched as "before"
@@ -1758,8 +1774,14 @@ export class EntityExtractor {
 				}
 			}
 			
-			if (!isBeforeSeason) {
-				// Regular season (not matched as "before")
+			// Check if this looks like a date (DD/MM/YYYY or MM/DD/YYYY) rather than a season
+			// Seasons are typically YYYY/YY or YYYY-YY format, not DD/MM/YYYY
+			const matchText = match.text;
+			const isLikelyDate = /^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/.test(matchText) && 
+				!matchText.match(/^20\d{2}[\/\-]\d{2}$/); // Exclude if it's clearly a season format (2020/21)
+			
+			if (!isBeforeSeason && !isLikelyDate) {
+				// Regular season (not matched as "before" and not a date)
 				timeFrames.push({
 					value: match.text,
 					type: "season",
@@ -1783,7 +1805,9 @@ export class EntityExtractor {
 		});
 
 		// Extract date ranges (between X and Y)
-		const dateRangeRegex = /\bbetween\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s+and\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/gi;
+		// Enhanced regex to handle complex phrases like "whilst playing at home between X and Y"
+		// Also handles different date formats (DD/MM/YYYY, DD/MM/YY, DD-MM-YYYY, DD-MM-YY)
+		const dateRangeRegex = /\b(?:between|from)\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\s+(?:and|to)\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b/gi;
 		let dateRangeMatch;
 		while ((dateRangeMatch = dateRangeRegex.exec(this.question)) !== null) {
 			timeFrames.push({
