@@ -2628,7 +2628,7 @@ export class ChatbotService {
 						const positionSuffix = position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
 						answerValue = `${position}${positionSuffix}`;
 					} else {
-						answerValue = undefined;
+						answerValue = null;
 					}
 				}
 			} else {
@@ -3801,15 +3801,10 @@ export class ChatbotService {
 								dateRangeText = `between the dates ${DateUtils.formatDate(startDate.trim())} and ${DateUtils.formatDate(endDate.trim())}`;
 							} else {
 								const rangeFrame = timeFrames.find(tf => tf.type === "range");
-								if (rangeFrame) {
-									// Check if rangeFrame has separate startDate/endDate properties
-									if (rangeFrame.startDate && rangeFrame.endDate) {
-										dateRangeText = `between the dates ${DateUtils.formatDate(rangeFrame.startDate)} and ${DateUtils.formatDate(rangeFrame.endDate)}`;
-									} else if (rangeFrame.value && rangeFrame.value.includes(" to ")) {
-										// Fallback: extract from value property
-										const [startDate, endDate] = rangeFrame.value.split(" to ");
-										dateRangeText = `between the dates ${DateUtils.formatDate(startDate.trim())} and ${DateUtils.formatDate(endDate.trim())}`;
-									}
+								if (rangeFrame && rangeFrame.value && rangeFrame.value.includes(" to ")) {
+									// Extract from value property
+									const [startDate, endDate] = rangeFrame.value.split(" to ");
+									dateRangeText = `between the dates ${DateUtils.formatDate(startDate.trim())} and ${DateUtils.formatDate(endDate.trim())}`;
 								} else if (timeRange && !timeRange.includes(" to ")) {
 									// Single date (could be from "since"/"after" pattern that was converted)
 									// Check if question mentions "after" or "since"
@@ -4544,7 +4539,7 @@ export class ChatbotService {
 			const hasCompetitionEntity = (analysis.extractionResult?.competitions && analysis.extractionResult.competitions.length > 0) || false;
 
 			// Determine question type from analysis
-			const questionType = analysis.questionType || "";
+			const questionType = analysis.type || "";
 			const questionLower = (analysis.question || "").toLowerCase();
 
 			// Build specific clarification message based on what's missing
@@ -4570,7 +4565,7 @@ export class ChatbotService {
 					if (!hasTeamEntity) {
 						missingParts.push("Which team are you asking about? (e.g., '1st XI', '2nd XI', '3rd XI', or '1s', '2s', '3s')");
 					}
-				} else if (questionType === "opposition" || questionLower.includes("against") || questionLower.includes("versus") || questionLower.includes("vs")) {
+				} else if (questionLower.includes("against") || questionLower.includes("versus") || questionLower.includes("vs")) {
 					if (!hasOppositionEntity) {
 						missingParts.push("Which opposition team are you asking about?");
 					}
