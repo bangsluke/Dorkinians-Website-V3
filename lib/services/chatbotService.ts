@@ -579,6 +579,18 @@ export class ChatbotService {
 				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
 			}
 
+			// Check for "which season did [team] concede the most goals" - route to league table handler BEFORE player handler
+			const isTeamSeasonConcedeQuery = 
+				analysis.teamEntities && analysis.teamEntities.length > 0 &&
+				(question.includes("which season") || question.includes("what season")) &&
+				question.includes("concede") &&
+				(question.includes("most goals") || (question.includes("most") && question.includes("goals")));
+			
+			if (isTeamSeasonConcedeQuery) {
+				this.lastProcessingSteps.push(`Detected team season concede query, routing to LeagueTableQueryHandler`);
+				return await LeagueTableQueryHandler.queryLeagueTableData(analysis.teamEntities || [], [], analysis, userContext);
+			}
+
 			// Check for "most prolific season", "highest scoring season", or "season I scored the most goals" questions - route to player handler - This check must happen before the switch statement to ensure proper routing
 			const questionLower = question.toLowerCase();
 			// Helper function to detect various patterns
@@ -586,6 +598,10 @@ export class ChatbotService {
 				const lower = q.toLowerCase();
 				// Exclude "game" questions - these should be handled by fixture handler
 				if (lower.includes("game") && (lower.includes("highest scoring") || lower.includes("most goals"))) {
+					return false;
+				}
+				// Exclude "concede" questions - these should be handled by league table handler
+				if (lower.includes("concede") && (lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
 					return false;
 				}
 				// Pattern 1: "most prolific season" or "highest scoring season"

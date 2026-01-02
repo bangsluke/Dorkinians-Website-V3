@@ -1,4 +1,5 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
+import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
 
 export class LeagueTableQueryHandler {
@@ -17,6 +18,439 @@ export class LeagueTableQueryHandler {
 			// Extract team name and season from entities and question
 			const question = analysis.question?.toLowerCase() || "";
 			const teamEntities = analysis.teamEntities || [];
+			
+			// Check for "which season did [team] concede the most goals" query
+			const isTeamSeasonMostConcededQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("which season") || question.includes("what season")) &&
+				question.includes("concede") &&
+				(question.includes("most goals") || (question.includes("most") && question.includes("goals")));
+			
+			if (isTeamSeasonMostConcededQuery) {
+				const teamName = teamEntities[0];
+				const normalizedTeamName = teamName.includes("st") || teamName.includes("nd") || teamName.includes("rd") || teamName.includes("th") 
+					? teamName.match(/\d+/)?.[0] + "s" 
+					: teamName;
+				
+				// Query Neo4j for all seasons for this team, find the one with max goalsAgainst
+				const graphLabel = neo4jService.getGraphLabel();
+				const connected = await neo4jService.connect();
+				if (!connected) {
+					return {
+						type: "error",
+						data: [],
+						error: "Neo4j connection failed",
+					};
+				}
+				
+				// First, try to get from Neo4j (current season and recent seasons)
+				const neo4jQuery = `
+					MATCH (lt:LeagueTable {graphLabel: $graphLabel, teamName: $teamName})
+					WHERE lt.goalsAgainst IS NOT NULL
+					WITH lt.season as season, lt.goalsAgainst as goalsAgainst
+					ORDER BY goalsAgainst DESC
+					LIMIT 1
+					RETURN season, goalsAgainst
+				`;
+				
+				const neo4jResult = await neo4jService.executeQuery(neo4jQuery, { graphLabel, teamName: normalizedTeamName });
+				
+				// Also check JSON files for historical seasons
+				const { getAllHistoricalPositions, getSeasonDataFromJSON, normalizeSeasonFormat } = await import("../leagueTableService");
+				const allPositions = await getAllHistoricalPositions();
+				const teamPositions = allPositions.filter((pos) => pos.team === normalizedTeamName);
+				
+				let maxSeason: string | null = null;
+				let maxGoalsAgainst = 0;
+				
+				// Compare Neo4j result with JSON results
+				if (neo4jResult && neo4jResult.length > 0) {
+					const neo4jGoalsAgainst = neo4jResult[0].goalsAgainst || 0;
+					if (neo4jGoalsAgainst > maxGoalsAgainst) {
+						maxGoalsAgainst = neo4jGoalsAgainst;
+						maxSeason = normalizeSeasonFormat(neo4jResult[0].season, 'slash');
+					}
+				}
+				
+				// Check JSON positions
+				for (const pos of teamPositions) {
+					if (pos.goalsAgainst > maxGoalsAgainst) {
+						maxGoalsAgainst = pos.goalsAgainst;
+						maxSeason = pos.season;
+					}
+				}
+				
+				if (!maxSeason) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find league table data for the ${normalizedTeamName} to determine which season they conceded the most goals.`,
+					};
+				}
+				
+				// Get full league table for that season
+				const normalizedSeason = normalizeSeasonFormat(maxSeason, 'hyphen');
+				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
+				const fullTable = seasonData?.teams[normalizedTeamName]?.table || [];
+				const division = seasonData?.teams[normalizedTeamName]?.division || "";
+				
+				// Find the Dorkinians team entry
+				const dorkiniansEntry = fullTable.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+				
+				if (!dorkiniansEntry) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find the ${normalizedTeamName} league table for ${maxSeason}.`,
+					};
+				}
+				
+				// Format team name
+				const teamNum = normalizedTeamName.replace('s', '');
+				const ordinalMap: { [key: string]: string } = {
+					'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+					'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+				};
+				const ordinalTeam = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : normalizedTeamName;
+				
+				return {
+					type: "league_table",
+					data: [dorkiniansEntry],
+					fullTable: fullTable,
+					season: maxSeason,
+					division: division,
+					answer: `The ${ordinalTeam} conceded the most goals in the ${maxSeason} season, with ${maxGoalsAgainst} goals against.`,
+					goalsAgainst: maxGoalsAgainst,
+				};
+			}
+			
+			// Check for "which team had the best defensive record in [season]" query
+			const isBestDefensiveRecordQuery = 
+				(question.includes("which team") || question.includes("what team")) &&
+				(question.includes("best defensive record") || 
+				 (question.includes("best") && question.includes("defensive") && question.includes("record")));
+			
+			if (isBestDefensiveRecordQuery) {
+				// Extract season from question
+				let season: string | null = null;
+				const seasonMatch = question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2})\b/);
+				if (seasonMatch) {
+					season = seasonMatch[1].replace("-", "/");
+				} else {
+					const timeFrames = analysis.extractionResult?.timeFrames || [];
+					const seasonFrame = timeFrames.find(tf => tf.type === "season");
+					if (seasonFrame) {
+						season = seasonFrame.value.replace("-", "/");
+					}
+				}
+				
+				if (!season) {
+					return {
+						type: "no_season",
+						data: [],
+						message: "I need to know which season you're asking about. Please specify (e.g., 2019/20).",
+					};
+				}
+				
+				const { getSeasonDataFromJSON, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
+				const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+				
+				// Get all teams for this season from JSON and Neo4j
+				const seasonData = await getSeasonDataFromJSON(normalizeSeasonFormat(season, 'hyphen'));
+				
+				// Also query Neo4j for this specific season (not just current season)
+				const graphLabel = neo4jService.getGraphLabel();
+				const connected = await neo4jService.connect();
+				let neo4jSeasonData: any = null;
+				
+				if (connected) {
+					// Query Neo4j for the specific season (try both slash and hyphen formats)
+					const seasonHyphen = normalizeSeasonFormat(season, 'hyphen');
+					loggingService.log(`🔍 Querying Neo4j for season: ${normalizedSeason} or ${seasonHyphen}`, null, "log");
+					
+					// Try multiple season format variations
+					const seasonVariations = [
+						normalizedSeason,  // 2019/20
+						seasonHyphen,      // 2019-20
+						'2019/20',
+						'2019-20',
+						'2019/2020',
+						'2019-2020'
+					];
+					
+					// First, let's check what seasons are available in Neo4j
+					const availableSeasonsQuery = `
+						MATCH (lt:LeagueTable {graphLabel: $graphLabel})
+						WHERE lt.season IS NOT NULL
+						WITH DISTINCT lt.season as season
+						RETURN season
+						ORDER BY season DESC
+					`;
+					try {
+						const availableSeasons = await neo4jService.executeQuery(availableSeasonsQuery, { graphLabel });
+						const seasonList = availableSeasons?.map((s: any) => s.season) || [];
+						loggingService.log(`🔍 Available seasons in Neo4j:`, seasonList, "log");
+						
+						// Also check if any Dorkinians data exists at all
+						const dorkiniansCheckQuery = `
+							MATCH (lt:LeagueTable {graphLabel: $graphLabel})
+							WHERE lt.team CONTAINS 'Dorkinians'
+							WITH DISTINCT lt.season as season, count(lt) as count
+							RETURN season, count
+							ORDER BY season DESC
+							LIMIT 10
+						`;
+						try {
+							const dorkiniansSeasons = await neo4jService.executeQuery(dorkiniansCheckQuery, { graphLabel });
+							const dorkiniansSeasonList = dorkiniansSeasons?.map((s: any) => ({season: s.season, count: s.count})) || [];
+						} catch (error) {
+							// Error checking Dorkinians seasons - continue
+						}
+					} catch (error) {
+						loggingService.log(`⚠️ Error checking available seasons:`, error, "warn");
+					}
+					
+					const neo4jQuery = `
+						MATCH (lt:LeagueTable {graphLabel: $graphLabel})
+						WHERE lt.season IN $seasonVariations
+						  AND lt.team CONTAINS 'Dorkinians'
+						  AND lt.goalsAgainst IS NOT NULL
+						WITH lt.teamName as teamName, 
+							lt.division as division, 
+							lt.lastUpdated as lastUpdated, 
+							lt.url as url,
+							head(collect(DISTINCT lt.season)) as actualSeason,
+							collect({
+								position: lt.position,
+								team: lt.team,
+								played: lt.played,
+								won: lt.won,
+								drawn: lt.drawn,
+								lost: lt.lost,
+								goalsFor: lt.goalsFor,
+								goalsAgainst: lt.goalsAgainst,
+								goalDifference: lt.goalDifference,
+								points: lt.points
+							}) as entries
+						WITH teamName, 
+							COALESCE(division, '') as division,
+							lastUpdated,
+							url,
+							actualSeason,
+							entries
+						RETURN 
+							actualSeason as season,
+							teamName,
+							CASE WHEN division IS NULL OR division = '' THEN '' ELSE division END as division,
+							url,
+							lastUpdated,
+							entries
+						ORDER BY teamName
+					`;
+					
+					try {
+						const result = await neo4jService.runQuery(neo4jQuery, { graphLabel, seasonVariations: seasonVariations });
+						
+						loggingService.log(`🔍 Neo4j query returned ${result.records.length} records for season ${normalizedSeason}`, null, "log");
+						
+						if (result.records.length > 0) {
+							// Convert Neo4j result to SeasonLeagueData format
+							const teams: { [key: string]: any } = {};
+							let seasonLastUpdated: string | undefined = undefined;
+							
+							for (const record of result.records) {
+								const teamName = record.get('teamName');
+								const entries = record.get('entries') || [];
+								const divisionRaw = record.get('division');
+								const url = record.get('url') || '';
+								const lastUpdated = record.get('lastUpdated');
+								
+								const division = divisionRaw ? String(divisionRaw).trim() : '';
+								
+								if (!seasonLastUpdated && lastUpdated) {
+									seasonLastUpdated = lastUpdated.toString();
+								}
+								
+								if (teamName && entries.length > 0) {
+									// Convert team name to key (e.g., "1st XI" -> "1s")
+									const teamNameToKey = (teamName: string): string => {
+										const teamNameLower = teamName.toLowerCase().trim();
+										const mapping: { [key: string]: string } = {
+											'1st xi': '1s',
+											'2nd xi': '2s',
+											'3rd xi': '3s',
+											'4th xi': '4s',
+											'5th xi': '5s',
+											'6th xi': '6s',
+											'7th xi': '7s',
+											'8th xi': '8s',
+										};
+										return mapping[teamNameLower] || teamName;
+									};
+									
+									const teamKey = teamNameToKey(teamName);
+									teams[teamKey] = {
+										division: division,
+										url: url || '',
+										lastUpdated: lastUpdated ? lastUpdated.toString() : undefined,
+										table: entries.map((entry: any) => ({
+											position: entry.position?.toNumber?.() ?? entry.position ?? 0,
+											team: entry.team ?? '',
+											played: entry.played?.toNumber?.() ?? entry.played ?? 0,
+											won: entry.won?.toNumber?.() ?? entry.won ?? 0,
+											drawn: entry.drawn?.toNumber?.() ?? entry.drawn ?? 0,
+											lost: entry.lost?.toNumber?.() ?? entry.lost ?? 0,
+											goalsFor: entry.goalsFor?.toNumber?.() ?? entry.goalsFor ?? 0,
+											goalsAgainst: entry.goalsAgainst?.toNumber?.() ?? entry.goalsAgainst ?? 0,
+											goalDifference: entry.goalDifference?.toNumber?.() ?? entry.goalDifference ?? 0,
+											points: entry.points?.toNumber?.() ?? entry.points ?? 0,
+										})),
+									};
+								}
+							}
+							
+							if (Object.keys(teams).length > 0) {
+								neo4jSeasonData = {
+									season: normalizedSeason,
+									lastUpdated: seasonLastUpdated,
+									teams: teams,
+								};
+							}
+						}
+					} catch (error) {
+						loggingService.log(`⚠️ Error querying Neo4j for season ${normalizedSeason}:`, error, "warn");
+					}
+				} else {
+					loggingService.log(`⚠️ Neo4j connection failed`, null, "warn");
+				}
+				
+				// Also check current season from Neo4j if it matches
+				const currentSeasonData = await getCurrentSeasonDataFromNeo4j();
+				
+				let bestTeam: string | null = null;
+				let minGoalsAgainst = Infinity;
+				let bestTeamData: any = null;
+				
+				// Check JSON data
+				if (seasonData) {
+					loggingService.log(`🔍 Found JSON data for season ${normalizedSeason} with ${Object.keys(seasonData.teams).length} teams`, null, "log");
+					for (const [teamKey, teamData] of Object.entries(seasonData.teams)) {
+						if (!teamData || !teamData.table) continue;
+						const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+						if (dorkiniansEntry) {
+							loggingService.log(`🔍 Found ${teamKey}: goalsAgainst=${dorkiniansEntry.goalsAgainst}`, null, "log");
+							if (dorkiniansEntry.goalsAgainst < minGoalsAgainst) {
+								minGoalsAgainst = dorkiniansEntry.goalsAgainst;
+								bestTeam = teamKey;
+								bestTeamData = { entry: dorkiniansEntry, fullTable: teamData.table, division: teamData.division };
+							}
+						}
+					}
+				} else {
+					loggingService.log(`⚠️ No JSON data found for season ${normalizedSeason}`, null, "warn");
+				}
+				
+				// Check current season data if it matches the requested season
+				if (currentSeasonData && currentSeasonData.season === normalizedSeason) {
+					loggingService.log(`🔍 Found current season data matching ${normalizedSeason} with ${Object.keys(currentSeasonData.teams).length} teams`, null, "log");
+					for (const [teamKey, teamData] of Object.entries(currentSeasonData.teams)) {
+						if (!teamData || !teamData.table) continue;
+						const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+						if (dorkiniansEntry) {
+							loggingService.log(`🔍 Found ${teamKey} in current season: goalsAgainst=${dorkiniansEntry.goalsAgainst}`, null, "log");
+							if (dorkiniansEntry.goalsAgainst < minGoalsAgainst) {
+								minGoalsAgainst = dorkiniansEntry.goalsAgainst;
+								bestTeam = teamKey;
+								bestTeamData = { entry: dorkiniansEntry, fullTable: teamData.table, division: teamData.division };
+							}
+						}
+					}
+				}
+				
+				// Check Neo4j data for the specific season
+				if (neo4jSeasonData) {
+					loggingService.log(`🔍 Found Neo4j data for season ${normalizedSeason} with ${Object.keys(neo4jSeasonData.teams).length} teams`, null, "log");
+					for (const [teamKey, teamData] of Object.entries(neo4jSeasonData.teams)) {
+						if (!teamData || !teamData.table) continue;
+						const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+						if (dorkiniansEntry) {
+							loggingService.log(`🔍 Found ${teamKey} in Neo4j: goalsAgainst=${dorkiniansEntry.goalsAgainst}`, null, "log");
+							if (dorkiniansEntry.goalsAgainst < minGoalsAgainst) {
+								minGoalsAgainst = dorkiniansEntry.goalsAgainst;
+								bestTeam = teamKey;
+								bestTeamData = { entry: dorkiniansEntry, fullTable: teamData.table, division: teamData.division };
+							}
+						}
+					}
+				} else {
+					loggingService.log(`⚠️ No Neo4j data found for season ${normalizedSeason}`, null, "warn");
+				}
+				
+				// Check current season from Neo4j if it matches
+				if (currentSeasonData && normalizeSeasonFormat(currentSeasonData.season, 'slash') === normalizedSeason) {
+					for (const [teamKey, teamData] of Object.entries(currentSeasonData.teams)) {
+						if (!teamData || !teamData.table) continue;
+						const dorkiniansEntry = teamData.table.find((entry) => entry.team.toLowerCase().includes("dorkinians"));
+						if (dorkiniansEntry && dorkiniansEntry.goalsAgainst < minGoalsAgainst) {
+							minGoalsAgainst = dorkiniansEntry.goalsAgainst;
+							bestTeam = teamKey;
+							bestTeamData = { entry: dorkiniansEntry, fullTable: teamData.table, division: teamData.division };
+						}
+					}
+				}
+				
+				if (!bestTeam || !bestTeamData) {
+					loggingService.log(`❌ No best team found. Checked JSON: ${!!seasonData}, Neo4j: ${!!neo4jSeasonData}, Current: ${!!currentSeasonData}`, null, "warn");
+					
+					// Provide more specific error message based on what was checked
+					let errorMessage = `I couldn't find league table data for Dorkinians teams in the ${season} season.`;
+					if (!seasonData && !neo4jSeasonData) {
+						errorMessage = `I couldn't find league table data for the ${season} season. The data may not be available in the system.`;
+					}
+					
+					return {
+						type: "not_found",
+						data: [],
+						message: errorMessage,
+					};
+				}
+				
+				loggingService.log(`✅ Best defensive record: ${bestTeam} with ${minGoalsAgainst} goals against`, null, "log");
+				
+				// Extract "1st XI" format from team name or convert from teamKey
+				let teamDisplayName = "1st XI";
+				const teamNameFromEntry = bestTeamData.entry.team || "";
+				
+				// Try to extract "Xst XI", "Xnd XI", "Xrd XI", or "Xth XI" from the team name
+				const teamNameMatch = teamNameFromEntry.match(/\b(\d+)(?:st|nd|rd|th)\s+XI\b/i);
+				if (teamNameMatch) {
+					const num = teamNameMatch[1];
+					const ordinalMap: { [key: string]: string } = {
+						'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+						'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+					};
+					teamDisplayName = ordinalMap[num] ? `${ordinalMap[num]} XI` : `${num}th XI`;
+				} else {
+					// Convert from teamKey (e.g., "1s" -> "1st XI")
+					const teamNum = bestTeam.replace('s', '');
+					const ordinalMap: { [key: string]: string } = {
+						'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+						'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+					};
+					teamDisplayName = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : `${teamNum}th XI`;
+				}
+				
+				return {
+					type: "league_table",
+					data: [bestTeamData.entry],
+					fullTable: bestTeamData.fullTable,
+					season: normalizedSeason,
+					division: bestTeamData.division,
+					answer: `The ${teamDisplayName} had the best defensive record in the ${normalizedSeason} season, conceding only ${minGoalsAgainst} goals.`,
+					answerValue: teamDisplayName,
+					goalsAgainst: minGoalsAgainst,
+				};
+			}
 			
 			// Check for team-specific highest/lowest position queries
 			const isTeamHighestQuery = 

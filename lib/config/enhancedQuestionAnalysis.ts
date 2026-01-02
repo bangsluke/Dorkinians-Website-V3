@@ -612,6 +612,25 @@ export class EnhancedQuestionAnalyzer {
 			return "league_table";
 		}
 
+		// Check for "which season did [team] concede the most goals" queries
+		if (
+			hasTeamEntities &&
+			(lowerQuestion.includes("which season") || lowerQuestion.includes("what season")) &&
+			lowerQuestion.includes("concede") &&
+			(lowerQuestion.includes("most goals") || lowerQuestion.includes("most") && lowerQuestion.includes("goals"))
+		) {
+			return "league_table";
+		}
+
+		// Check for "which team had the best defensive record" queries
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("best defensive record") || 
+			 (lowerQuestion.includes("best") && lowerQuestion.includes("defensive") && lowerQuestion.includes("record")))
+		) {
+			return "league_table";
+		}
+
 		// Check for goal difference queries (must be before general league table check)
 		if (
 			hasTeamEntities &&
