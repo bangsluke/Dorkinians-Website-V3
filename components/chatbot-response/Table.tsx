@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 
 interface TableProps {
@@ -9,15 +9,25 @@ interface TableProps {
 
 export default function Table({ visualization }: TableProps) {
 	const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+	const [isExpanded, setIsExpanded] = useState(false);
+	const previousDataRef = useRef<unknown>(null);
 
 	if (!visualization) return null;
+
+	// Reset expanded state when visualization data changes (new question asked)
+	useEffect(() => {
+		if (visualization.data !== previousDataRef.current) {
+			setIsExpanded(false);
+			previousDataRef.current = visualization.data;
+		}
+	}, [visualization.data]);
 
 	// Extract columns and data
 	const columns = visualization.config && "columns" in visualization.config
 		? (visualization.config.columns as Array<string | { key: string; label: string }>)
 		: [];
 
-	const data = Array.isArray(visualization.data) ? visualization.data : [];
+	const allData = Array.isArray(visualization.data) ? visualization.data : [];
 
 	// Helper to get column key and label
 	const getColumnInfo = (col: string | { key: string; label: string }) => {
@@ -30,11 +40,11 @@ export default function Table({ visualization }: TableProps) {
 	// Get all unique column keys from data if columns not provided
 	const dataColumns = columns.length > 0
 		? columns
-		: data.length > 0
-			? Object.keys(data[0] as Record<string, unknown>).map((key) => ({ key, label: key }))
+		: allData.length > 0
+			? Object.keys(allData[0] as Record<string, unknown>).map((key) => ({ key, label: key }))
 			: [];
 
-	if (dataColumns.length === 0 || data.length === 0) {
+	if (dataColumns.length === 0 || allData.length === 0) {
 		return (
 			<div className='mt-4 p-4 dark-dropdown rounded-lg'>
 				<p className='text-yellow-300'>No data available</p>
@@ -50,6 +60,33 @@ export default function Table({ visualization }: TableProps) {
 		const { key } = getColumnInfo(col);
 		return key === "Position" || key === "position";
 	});
+	
+	// Check if table is expandable (not a league table and has expandable config)
+	const config = visualization.config || {};
+	const hasInitialDisplayLimit = "initialDisplayLimit" in config;
+	const hasExpandableLimit = "expandableLimit" in config;
+	
+	// Table is expandable if:
+	// 1. Not a league table
+	// 2. Has initial display limit config
+	// 3. Has more data than the initial display limit
+	const isExpandable = !isLeagueTable && 
+		hasInitialDisplayLimit &&
+		allData.length > (config.initialDisplayLimit as number);
+	
+	// Always use initialDisplayLimit if provided, even if not expandable
+	const initialDisplayLimit = hasInitialDisplayLimit 
+		? (config.initialDisplayLimit as number) 
+		: allData.length;
+	const expandableLimit = hasExpandableLimit
+		? (config.expandableLimit as number) 
+		: allData.length;
+	
+	// Determine which data to display
+	// If initialDisplayLimit is set, respect it even if not expandable
+	const displayData = hasInitialDisplayLimit && !isExpanded 
+		? allData.slice(0, initialDisplayLimit)
+		: allData;
 
 	// Helper to check if a team is Dorkinians
 	const isDorkiniansTeam = (teamName: string | unknown): boolean => {
@@ -84,7 +121,7 @@ export default function Table({ visualization }: TableProps) {
 					</tr>
 				</thead>
 				<tbody>
-					{data.map((row: any, rowIndex: number) => {
+					{displayData.map((row: any, rowIndex: number) => {
 						const teamName = row["Team"] || row["team"] || "";
 						const isDorkinians = isLeagueTable && isDorkiniansTeam(teamName);
 						return (
@@ -125,6 +162,19 @@ export default function Table({ visualization }: TableProps) {
 					})}
 				</tbody>
 			</table>
+			
+			{/* Expandable button - only show for non-league tables that are expandable */}
+			{isExpandable && !isExpanded && allData.length > initialDisplayLimit && (
+				<div className='mt-3 text-center'>
+					<button
+						onClick={() => setIsExpanded(true)}
+						className='text-yellow-300 hover:text-yellow-200 underline text-sm md:text-base transition-colors cursor-pointer'>
+						{allData.length <= expandableLimit 
+							? `Show all ${allData.length}` 
+							: `Show the top ${expandableLimit}`}
+					</button>
+				</div>
+			)}
 		</div>
 	);
 }

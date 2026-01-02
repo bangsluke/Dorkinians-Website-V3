@@ -2284,16 +2284,117 @@ export class ChatbotService {
 		} else if (data && data.type === "ranking") {
 			// Handle ranking data
 			const rankingData = (data.data as RankingData[]) || [];
+			const fullRankingData = (data.fullData as RankingData[]) || rankingData;
+			const metric = (data.metric as string) || "G";
+			const requestedLimit = (data.requestedLimit as number) || 5;
+			const expandableLimit = (data.expandableLimit as number) || requestedLimit;
+			const isWorstPenaltyRecord = (data.isWorstPenaltyRecord as boolean) || false;
+			const isBestPenaltyRecord = (data.isBestPenaltyRecord as boolean) || false;
+			const isPenaltyRecord = isWorstPenaltyRecord || isBestPenaltyRecord;
+			
 			if (rankingData.length === 0) {
 				answer = "No ranking data found.";
 			} else {
 				const topRanking = rankingData[0];
+				const metricDisplayName = isPenaltyRecord ? "Conversion" : getMetricDisplayName(metric, topRanking.value);
+				
+				// Check if table is expandable (has more data than requestedLimit)
+				// Table is expandable if there are more results than the initial display limit
+				const isExpandable = fullRankingData.length > requestedLimit;
+				
 				if (topRanking.playerName) {
-					answer = `${topRanking.playerName} is ranked #1 with ${FormattingUtils.formatValueByMetric((data.metric as string) || "G", topRanking.value)}.`;
-					answerValue = topRanking.value;
+					// Check if team filter is present
+					const teamEntities = analysis.teamEntities || [];
+					const hasTeamFilter = teamEntities.length > 0;
+					let teamText = "";
+					if (hasTeamFilter) {
+						const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+						const teamDisplayName = teamName
+							.replace("1st XI", "1s")
+							.replace("2nd XI", "2s")
+							.replace("3rd XI", "3s")
+							.replace("4th XI", "4s")
+							.replace("5th XI", "5s")
+							.replace("6th XI", "6s")
+							.replace("7th XI", "7s")
+							.replace("8th XI", "8s");
+						teamText = ` for the ${teamDisplayName}`;
+					}
+					
+					// Show initial limit in answer (for worst/best penalty record, show actual count up to 5)
+					const displayCount = isPenaltyRecord ? Math.min(rankingData.length, 5) : Math.min(rankingData.length, requestedLimit);
+					answer = `Here are the top ${displayCount} players${teamText}:`;
+					answerValue = topRanking.playerName || topRanking.teamName || "";
+					
+					// Create table visualization with full data (for expansion), but mark initial display limit
+					const fullTableData = fullRankingData.map((item, index) => {
+						if (isPenaltyRecord) {
+							// Format conversion rate as percentage (value is 0-1, convert to 0-100)
+							const conversionRate = typeof item.value === "number" ? item.value : parseFloat(String(item.value || 0));
+							const percentage = (conversionRate * 100).toFixed(1);
+							// Calculate total penalties taken (penaltiesScored + penaltiesMissed)
+							const penaltiesScored = (item as any).penaltiesScored || 0;
+							const penaltiesMissed = (item as any).penaltiesMissed || 0;
+							const totalPenalties = penaltiesScored + penaltiesMissed;
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								Penalties: totalPenalties,
+								Conversion: `${percentage}%`,
+							};
+						} else {
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+							};
+						}
+					});
+					
+					visualization = {
+						type: "Table",
+						data: fullTableData,
+						config: {
+							columns: isPenaltyRecord ? [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: "Penalties", label: "Penalties" },
+								{ key: "Conversion", label: "Conversion" },
+							] : [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: metricDisplayName, label: metricDisplayName },
+							],
+							initialDisplayLimit: isPenaltyRecord ? Math.min(requestedLimit, 5) : requestedLimit,
+							expandableLimit: expandableLimit,
+							isExpandable: isExpandable,
+						},
+					};
 				} else if (topRanking.teamName) {
-					answer = `${topRanking.teamName} is ranked #1 with ${FormattingUtils.formatValueByMetric((data.metric as string) || "G", topRanking.value)}.`;
-					answerValue = topRanking.value;
+					answer = `${topRanking.teamName} is ranked #1 with ${FormattingUtils.formatValueByMetric(metric, topRanking.value)}.`;
+					answerValue = topRanking.teamName || "";
+					
+					// Create table visualization for team rankings
+					const fullTableData = fullRankingData.map((item, index) => ({
+						Rank: index + 1,
+						Team: item.teamName || "Unknown",
+						[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+					}));
+					
+					visualization = {
+						type: "Table",
+						data: fullTableData,
+						config: {
+							columns: [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Team", label: "Team" },
+								{ key: metricDisplayName, label: metricDisplayName },
+							],
+							initialDisplayLimit: requestedLimit,
+							expandableLimit: expandableLimit,
+							isExpandable: isExpandable,
+						},
+					};
 				}
 			}
 		} else if (data && data.type === "league_table") {
@@ -3369,7 +3470,51 @@ export class ChatbotService {
 						} else {
 							answerValue = value as number;
 							
-							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
+							// Check for team filter with goals query (scoring record questions)
+							const teamEntities = analysis.teamEntities || [];
+							const hasTeamFilter = teamEntities.length > 0;
+							const isGoalsQuery = metric && metric.toUpperCase() === "G";
+							
+							if (hasTeamFilter && isGoalsQuery) {
+								// Query appearances for this team to include in response
+								const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+								const teamDisplayName = teamName
+									.replace("1st XI", "1s")
+									.replace("2nd XI", "2s")
+									.replace("3rd XI", "3s")
+									.replace("4th XI", "4s")
+									.replace("5th XI", "5s")
+									.replace("6th XI", "6s")
+									.replace("7th XI", "7s")
+									.replace("8th XI", "8s");
+								
+								try {
+									const graphLabel = neo4jService.getGraphLabel();
+									const appearancesQuery = `
+										MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+										WHERE md.team = $teamName
+										RETURN count(md) as appearances
+									`;
+									const appearancesResult = await neo4jService.executeQuery(appearancesQuery, {
+										graphLabel,
+										playerName,
+										teamName,
+									});
+									const appearances = appearancesResult && appearancesResult.length > 0 
+										? (appearancesResult[0].appearances || 0) 
+										: 0;
+									
+									const goalCount = value as number;
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									const appearanceText = appearances === 1 ? "appearance" : "appearances";
+									answer = `${playerName} has scored ${goalCount} ${goalText} in ${appearances} ${appearanceText} for the ${teamDisplayName}.`;
+								} catch (error) {
+									// Fallback to standard response if appearances query fails
+									const goalCount = value as number;
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									answer = `${playerName} has scored ${goalCount} ${goalText} for the ${teamDisplayName}.`;
+								}
+							} else if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
 								const competitionName = competitions[0];
 								const goalCount = value as number;
@@ -3402,10 +3547,12 @@ export class ChatbotService {
 								},
 							};
 						}
-						// Create NumberCard visualization for goals queries with competition or location filters
+						// Create NumberCard visualization for goals queries with competition, location, or team filters
 						else if (metric && metric.toUpperCase() === "G") {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
+							const teamEntities = analysis.teamEntities || [];
+							const hasTeamFilter = teamEntities.length > 0;
 							
 							if (hasAwayLocation) {
 								const iconName = this.getIconNameForMetric(metric);
@@ -3421,6 +3568,34 @@ export class ChatbotService {
 									}],
 									config: {
 										title: displayName,
+										type: "bar",
+									},
+								};
+							} else if (hasTeamFilter) {
+								// Generate NumberCard for team-specific goals (scoring record queries)
+								const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+								const teamDisplayName = teamName
+									.replace("1st XI", "1s")
+									.replace("2nd XI", "2s")
+									.replace("3rd XI", "3s")
+									.replace("4th XI", "4s")
+									.replace("5th XI", "5s")
+									.replace("6th XI", "6s")
+									.replace("7th XI", "7s")
+									.replace("8th XI", "8s");
+								const iconName = this.getIconNameForMetric(metric);
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: "goals",
+										wordedText: "goals", 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - Goals for the ${teamDisplayName}`,
 										type: "bar",
 									},
 								};

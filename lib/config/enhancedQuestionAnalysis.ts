@@ -648,16 +648,26 @@ export class EnhancedQuestionAnalyzer {
 			return "club";
 		}
 
-		// Check for ranking queries (which player/team has the highest/most/fewest/least...)
+		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
+		// Special case: "worst penalty record" questions should be routed to ranking handler
+		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
+			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
+		
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
-			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest"))
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
 		) {
 			// If it's asking about teams specifically, route to club handler
 			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
 				return "club";
 			}
+			return "ranking";
+		}
+		
+		// Also check for "worst penalty record" questions that might not have "which" or "who"
+		if (isWorstPenaltyRecord) {
 			return "ranking";
 		}
 

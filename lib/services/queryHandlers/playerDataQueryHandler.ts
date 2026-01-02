@@ -61,6 +61,18 @@ export class PlayerDataQueryHandler {
 		// Check for "played with" or "most played with" questions
 		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
 		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+		
+		// Check for "scoring record" questions - map to goals metric
+		const isScoringRecordQuestion = 
+			questionLower.includes("scoring record") &&
+			(teamEntities.length > 0 || questionLower.match(/\b(?:for|in|with)\s+(?:the\s+)?(\d+)(?:st|nd|rd|th|s)\b/i));
+		
+		if (isScoringRecordQuestion) {
+			// Override metrics to "G" (goals) for scoring record questions
+			metrics = ["G"];
+			loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+		}
+		
 		const isPlayedWithQuestion = 
 			questionLower.includes("played with") ||
 			questionLower.includes("played most") ||
