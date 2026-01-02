@@ -926,20 +926,32 @@ export class PlayerDataQueryHandler {
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
 			const questionLower = (analysis.question?.toLowerCase() || "").trim();
 			let detectedMetricFromQuestion: string | null = null;
-			if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
-				// Handle typo "yelow" as well as correct "yellow"
-				detectedMetricFromQuestion = "Y";
-			} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
-				detectedMetricFromQuestion = "R";
-			} else if (questionLower.includes("assist")) {
-				detectedMetricFromQuestion = "A";
-			} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
-				detectedMetricFromQuestion = "G";
-			} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
-				// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
-				if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
-					!questionLower.includes("yellow") && !questionLower.includes("red card")) {
-					detectedMetricFromQuestion = "APP";
+
+			// CRITICAL: Check if originalMetric is already a percentage metric - if so, don't override it
+			const isPercentageMetric = originalMetric && (
+				originalMetric.includes("%") || 
+				originalMetric.includes("Percentage") ||
+				originalMetric.includes("Games % Won") ||
+				originalMetric.includes("Games % Lost") ||
+				originalMetric.includes("Games % Drawn")
+			);
+
+			if (!isPercentageMetric) {
+				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+					// Handle typo "yelow" as well as correct "yellow"
+					detectedMetricFromQuestion = "Y";
+				} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
+					detectedMetricFromQuestion = "R";
+				} else if (questionLower.includes("assist")) {
+					detectedMetricFromQuestion = "A";
+				} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
+					detectedMetricFromQuestion = "G";
+				} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+					// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
+						!questionLower.includes("yellow") && !questionLower.includes("red card")) {
+						detectedMetricFromQuestion = "APP";
+					}
 				}
 			}
 			
@@ -948,23 +960,23 @@ export class PlayerDataQueryHandler {
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;
-			if (originalMetric === "Home Games % Won") {
+			if (metricToUse === "Home Games % Won") {
 				normalizedMetric = "HomeGames%Won";
-			} else if (originalMetric === "Away Games % Won") {
+			} else if (metricToUse === "Away Games % Won") {
 				normalizedMetric = "AwayGames%Won";
-			} else if (originalMetric === "Games % Won") {
+			} else if (metricToUse === "Games % Won") {
 				normalizedMetric = "Games%Won";
-			} else if (originalMetric === "Home Games % Lost") {
+			} else if (metricToUse === "Home Games % Lost") {
 				normalizedMetric = "HomeGames%Lost";
-			} else if (originalMetric === "Away Games % Lost") {
+			} else if (metricToUse === "Away Games % Lost") {
 				normalizedMetric = "AwayGames%Lost";
-			} else if (originalMetric === "Games % Lost") {
+			} else if (metricToUse === "Games % Lost") {
 				normalizedMetric = "Games%Lost";
-			} else if (originalMetric === "Home Games % Drawn") {
+			} else if (metricToUse === "Home Games % Drawn") {
 				normalizedMetric = "HomeGames%Drawn";
-			} else if (originalMetric === "Away Games % Drawn") {
+			} else if (metricToUse === "Away Games % Drawn") {
 				normalizedMetric = "AwayGames%Drawn";
-			} else if (originalMetric === "Games % Drawn") {
+			} else if (metricToUse === "Games % Drawn") {
 				normalizedMetric = "Games%Drawn";
 			}
 

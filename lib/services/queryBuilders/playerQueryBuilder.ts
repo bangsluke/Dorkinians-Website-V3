@@ -389,8 +389,9 @@ export class PlayerQueryBuilder {
 		const hasExplicitLocation = explicitLocationKeywords.some((keyword) => questionLower.includes(keyword));
 
 		// Add team filter if specified (but skip if we have a team-specific metric - those use md.team instead)
+		// CRITICAL: Skip team filter if team exclusions are present (exclusions mean we want all teams except excluded ones)
 		// For player queries, use md.team (player's team in that match) instead of f.team (fixture team)
-		if (teamEntities.length > 0 && !isTeamSpecificMetric) {
+		if (teamEntities.length > 0 && !isTeamSpecificMetric && !(analysis.teamExclusions && analysis.teamExclusions.length > 0)) {
 			const mappedTeamNames = teamEntities.map((team) => TeamMappingUtils.mapTeamName(team));
 			const teamNames = mappedTeamNames.map((team) => `toUpper('${team}')`).join(", ");
 			// Use md.team for player queries (where player's team is stored), f.team for team stats queries
@@ -929,18 +930,19 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metricUpper === "AWAYGAMES%WON") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WHERE f.homeOrAway = 'Away'
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins,
-					count(md) as awayGames
+					sum(CASE WHEN f.homeOrAway = 'Away' AND f.result = 'W' THEN 1 ELSE 0 END) as awayWins,
+					sum(CASE WHEN f.homeOrAway = 'Home' THEN 1 ELSE 0 END) as homeGames,
+					sum(CASE WHEN f.homeOrAway = 'Away' THEN 1 ELSE 0 END) as awayGames
+				WITH p, awayWins, homeGames, awayGames, (homeGames + awayGames) as totalGames
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
-						ELSE 0.0 
+						WHEN totalGames > 0 THEN round(100.0 * awayWins / totalGames)
+						ELSE 0 
 					END as value,
-					awayGames as totalGames
+					totalGames as totalGames
 			`;
 		} else if (metricUpper === "GAMES%WON") {
 			return `

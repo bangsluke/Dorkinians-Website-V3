@@ -1,6 +1,7 @@
 import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from "./entityExtraction";
 import { QuestionType } from "../../config/config";
 import { DateUtils } from "../services/chatbotUtils/dateUtils";
+import { TeamMappingUtils } from "../services/chatbotUtils/teamMappingUtils";
 
 export interface EnhancedQuestionAnalysis {
 	type: QuestionType;
@@ -200,6 +201,10 @@ export class EnhancedQuestionAnalyzer {
 		const exclusionPatterns = [
 			/\b(?:not|excluding|except)\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
 			/\bwhen\s+not\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+			// More flexible pattern to catch variations like "got when not playing for the 3s"
+			/\b(?:got|has|have|had)\s+.*?\s+when\s+not\s+(?:playing\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
+			// Pattern for "not for the 3s" (without "playing")
+			/\b(?:not|excluding|except)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i,
 		];
 		
 		for (const pattern of exclusionPatterns) {
@@ -212,14 +217,12 @@ export class EnhancedQuestionAnalyzer {
 		// Extract team entities for team-specific queries, but exclude teams that are in exclusions
 		const allTeamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
 		const teamEntities = allTeamEntities.filter((team) => {
-			// Remove teams that are in exclusions (normalize for comparison)
-			const normalizedTeam = team.toLowerCase();
+			// Remove teams that are in exclusions (normalize for comparison using TeamMappingUtils)
+			const mappedTeam = TeamMappingUtils.mapTeamName(team);
 			return !teamExclusions.some((excluded) => {
-				const normalizedExcluded = excluded.toLowerCase();
-				// Check if the team matches the excluded team (handle variations like "3s" vs "3rd")
-				return normalizedTeam === normalizedExcluded || 
-				       normalizedTeam.includes(normalizedExcluded) || 
-				       normalizedExcluded.includes(normalizedTeam);
+				const mappedExcluded = TeamMappingUtils.mapTeamName(excluded);
+				// Check if the mapped team names match (handles variations like "3s" vs "3rd" -> both map to "3rd XI")
+				return mappedTeam === mappedExcluded;
 			});
 		});
 
@@ -1039,7 +1042,17 @@ export class EnhancedQuestionAnalyzer {
 		const fullyCorrectedStats = this.applyStatTypeCorrections(extractionResult.statTypes);
 
 		// Convert extracted stat types to legacy format with priority handling
-		const statTypes = fullyCorrectedStats.map((stat) => stat.value);
+		let statTypes = fullyCorrectedStats.map((stat) => stat.value);
+
+		// CRITICAL FIX: Filter out non-percentage home/away games stats if percentage versions exist
+		const hasPercentageGamesStat = statTypes.some((stat) => 
+			stat.includes("Games %") || stat.includes("Games%")
+		);
+		if (hasPercentageGamesStat) {
+			statTypes = statTypes.filter((stat) => 
+				stat !== "Home Games" && stat !== "Away Games" && stat !== "Home" && stat !== "Away"
+			);
+		}
 
 		// CRITICAL FIX: Filter out Home/Away metrics when question asks for total games/appearances without location qualifier
 		const lowerQuestion = this.question.toLowerCase();
@@ -1824,6 +1837,14 @@ export class EnhancedQuestionAnalyzer {
 	 */
 	private correctHomeAwayGamesQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
+
+		// Skip if this is a percentage query - percentage stats should take precedence
+		const hasPercentageStat = statTypes.some(
+			(stat) => stat.value.includes("%") || stat.value.includes("Percentage")
+		);
+		if (hasPercentageStat) {
+			return statTypes;
+		}
 
 		// Patterns to detect home games queries
 		const homeGamesPatterns = [
