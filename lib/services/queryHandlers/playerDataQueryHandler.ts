@@ -61,6 +61,18 @@ export class PlayerDataQueryHandler {
 		// Check for "played with" or "most played with" questions
 		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
 		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+		
+		// Check for "scoring record" questions - map to goals metric
+		const isScoringRecordQuestion = 
+			questionLower.includes("scoring record") &&
+			(teamEntities.length > 0 || questionLower.match(/\b(?:for|in|with)\s+(?:the\s+)?(\d+)(?:st|nd|rd|th|s)\b/i));
+		
+		if (isScoringRecordQuestion) {
+			// Override metrics to "G" (goals) for scoring record questions
+			metrics = ["G"];
+			loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+		}
+		
 		const isPlayedWithQuestion = 
 			questionLower.includes("played with") ||
 			questionLower.includes("played most") ||
@@ -487,16 +499,25 @@ export class PlayerDataQueryHandler {
 			// Fallback: try to extract capitalized team name from question
 			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
 			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
-			const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-			if (oppositionMatch && oppositionMatch[1]) {
-				const potentialOpposition = oppositionMatch[1];
-				// Skip if it's a team number (3s, 3rd, etc.) or if it's followed by "for" (team context)
-				const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
-				if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
-				    !afterMatch?.toLowerCase().startsWith("for") &&
-				    !afterMatch?.toLowerCase().startsWith("the")) {
-					extractedOppositionName = potentialOpposition;
-					loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+			// CRITICAL: Skip if question contains "since" or date patterns (these are date queries, not opposition queries)
+			const hasDatePattern = questionLower.includes("since") || 
+			                       questionLower.includes("between") ||
+			                       questionLower.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+			
+			if (!hasDatePattern) {
+				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+				if (oppositionMatch && oppositionMatch[1]) {
+					const potentialOpposition = oppositionMatch[1];
+					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+					    !isDateKeyword &&
+					    !afterMatch?.toLowerCase().startsWith("for") &&
+					    !afterMatch?.toLowerCase().startsWith("the")) {
+						extractedOppositionName = potentialOpposition;
+						loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+					}
 				}
 			}
 		}
@@ -582,6 +603,53 @@ export class PlayerDataQueryHandler {
 				const metric = metrics.length > 0 ? metrics[0] : undefined;
 				loggingService.log(`🔍 Querying player stats against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
 				return await RelationshipQueryHandler.queryPlayerStatsAgainstOpposition(resolvedPlayerName, oppositionName, metric);
+			}
+		}
+
+		// Check for "goals against opposition" questions (must come before general opposition most check)
+		const isOppositionGoalsQuestion = 
+			(questionLower.includes("opposition") && questionLower.includes("goals") && questionLower.includes("most")) ||
+			(questionLower.includes("scored") && questionLower.includes("most") && questionLower.includes("goals") && questionLower.includes("against")) ||
+			(questionLower.includes("most goals") && questionLower.includes("against")) ||
+			(questionLower.includes("what opposition") && questionLower.includes("scored") && questionLower.includes("goals")) ||
+			(questionLower.includes("which opposition") && questionLower.includes("scored") && questionLower.includes("goals"));
+
+		loggingService.log(`🔍 Checking for "opposition goals" question. Question: "${questionLower}", isOppositionGoalsQuestion: ${isOppositionGoalsQuestion}`, null, "log");
+
+		// If this is a "goals against opposition" question, handle it specially
+		if (isOppositionGoalsQuestion) {
+			const playerName = entities.length > 0 ? entities[0] : undefined;
+			if (playerName) {
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerGoalsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerGoalsAgainstOpposition(resolvedPlayerName);
+			} else if (userContext) {
+				// Use userContext if no player entity found
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(userContext);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${userContext}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${userContext}". Please check the spelling or try a different player name.`,
+						playerName: userContext,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name from context: ${resolvedPlayerName}, calling queryPlayerGoalsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerGoalsAgainstOpposition(resolvedPlayerName);
 			}
 		}
 
@@ -816,8 +884,32 @@ export class PlayerDataQueryHandler {
 			const playerName = entities[0];
 			const originalMetric = metrics[0] || "";
 
+			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
+			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
+			const questionLower = (analysis.question?.toLowerCase() || "").trim();
+			let detectedMetricFromQuestion: string | null = null;
+			if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+				// Handle typo "yelow" as well as correct "yellow"
+				detectedMetricFromQuestion = "Y";
+			} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
+				detectedMetricFromQuestion = "R";
+			} else if (questionLower.includes("assist")) {
+				detectedMetricFromQuestion = "A";
+			} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
+				detectedMetricFromQuestion = "G";
+			} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+				// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+				if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
+					!questionLower.includes("yellow") && !questionLower.includes("red card")) {
+					detectedMetricFromQuestion = "APP";
+				}
+			}
+			
+			// Use detected metric from question if available, otherwise use extracted metric
+			const metricToUse = detectedMetricFromQuestion || originalMetric;
+
 			// Normalize metric names before uppercase conversion
-			let normalizedMetric = originalMetric;
+			let normalizedMetric = metricToUse;
 			if (originalMetric === "Home Games % Won") {
 				normalizedMetric = "HomeGames%Won";
 			} else if (originalMetric === "Away Games % Won") {
@@ -912,10 +1004,8 @@ export class PlayerDataQueryHandler {
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
 				const chatbotService = ChatbotService.getInstance();
-				chatbotService.lastExecutedQueries.push(`PLAYER_DATA: ${query}`);
-				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: actualPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
-
-				// Log copyable queries for debugging
+				
+				// Create query with real values for client console display
 				const readyToExecuteQuery = query
 					.replace(/\$playerName/g, `'${actualPlayerName}'`)
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
@@ -952,7 +1042,7 @@ export class PlayerDataQueryHandler {
 						type: "specific_player", 
 						data: [{ playerName: actualPlayerName, value: 0 }], 
 						playerName: actualPlayerName, 
-						metric: originalMetric, 
+						metric: metricToUse, 
 						cypherQuery: query 
 					};
 				}
@@ -961,7 +1051,9 @@ export class PlayerDataQueryHandler {
 					loggingService.log(`❌ No results found for ${actualPlayerName} with metric ${metric}`, null, "warn");
 				}
 
-				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: originalMetric, cypherQuery: query };
+				// Use metricToUse (the corrected metric) instead of originalMetric for response generation
+				// This ensures the response text uses the correct metric name (e.g., "assists" instead of "3rd team appearances")
+				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: metricToUse, cypherQuery: query };
 			} catch (error) {
 				loggingService.log(`❌ Error in player query:`, error, "error");
 				let errorMessage = "Error querying player data";
@@ -1435,6 +1527,15 @@ export class PlayerDataQueryHandler {
 				sum(CASE WHEN f.homeOrAway = "Away" THEN 1 ELSE 0 END) as awayGames
 		`;
 
+		// Store query for debugging
+		const chatbotService = ChatbotService.getInstance();
+		chatbotService.lastExecutedQueries.push(`HOME_AWAY_COMPARISON: ${query}`);
+		chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName, graphLabel })}`);
+
+		// Log copyable query for debugging
+		const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`).replace(/\$playerName/g, `'${playerName}'`);
+		chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			
@@ -1444,6 +1545,7 @@ export class PlayerDataQueryHandler {
 					playerName,
 					homeGames: 0,
 					awayGames: 0,
+					cypherQuery: query,
 				};
 			}
 
@@ -1463,6 +1565,7 @@ export class PlayerDataQueryHandler {
 				playerName,
 				homeGames: homeGamesCount,
 				awayGames: awayGamesCount,
+				cypherQuery: query,
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");

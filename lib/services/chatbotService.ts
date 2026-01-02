@@ -335,6 +335,9 @@ export class ChatbotService {
 		} catch (error) {
 			// Essential error logging
 			this.logToBoth(`❌ Error: ${error instanceof Error ? error.message : String(error)} | Question: ${context.question}`, null, "error");
+			if (error instanceof Error && error.stack) {
+				this.logToBoth(`❌ Error stack: ${error.stack}`, null, "error");
+			}
 
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
@@ -343,10 +346,27 @@ export class ChatbotService {
 				analysis: this.lastQuestionAnalysis || undefined,
 			});
 
+			// Get processing details even on error so we can see what happened
+			const processingDetails = await this.getProcessingDetails();
+
 			return {
 				answer: errorMessage,
 				sources: [],
 				cypherQuery: "N/A",
+				debug: {
+					question: context.question,
+					userContext: context.userContext,
+					timestamp: new Date().toISOString(),
+					serverLogs: this.lastExecutedQueries.join("\n"),
+					processingDetails: {
+						questionAnalysis: processingDetails.questionAnalysis,
+						cypherQueries: processingDetails.cypherQueries,
+						processingSteps: processingDetails.processingSteps,
+						queryBreakdown: processingDetails.queryBreakdown,
+						error: error instanceof Error ? error.message : String(error),
+						errorStack: error instanceof Error ? error.stack : undefined,
+					},
+				},
 			};
 		}
 	}
@@ -1800,21 +1820,45 @@ export class ChatbotService {
 			const oppositionName = (data.oppositionName as string) || "";
 			const appearances = (data.appearances as number) || 0;
 			
-			answerValue = appearances;
-			answer = `${playerName} has played against ${oppositionName} ${appearances} ${appearances === 1 ? "time" : "times"}.`;
-			
-			visualization = {
-				type: "NumberCard",
-				data: [{ 
-					name: "Appearances", 
-					value: appearances,
-					iconName: this.getIconNameForMetric("APP")
-				}],
-				config: {
-					title: `${playerName} - Appearances vs ${oppositionName}`,
-					type: "bar",
-				},
-			};
+			// If oppositionName is empty or looks like a date keyword, this was incorrectly routed
+			// Fall back to regular appearance query handling
+			if (!oppositionName || oppositionName.trim() === "" || ["since", "before", "after", "until", "from"].includes(oppositionName.toLowerCase())) {
+				// This should have been a regular appearance query, not opposition
+				// Re-route to specific_player handling
+				const metric = analysis.metrics[0] || "APP";
+				const value = appearances;
+				answerValue = value;
+				answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "Appearances", 
+						value: value,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: `${playerName} - Appearances`,
+						type: "bar",
+					},
+				};
+			} else {
+				answerValue = appearances;
+				answer = `${playerName} has played against ${oppositionName} ${appearances} ${appearances === 1 ? "time" : "times"}.`;
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "Appearances", 
+						value: appearances,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: `${playerName} - Appearances vs ${oppositionName}`,
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.type === "home_away_comparison") {
 			// Handle home/away games comparison queries (e.g., "Have I played more home or away games?")
 			const playerName = (data.playerName as string) || "";
@@ -1829,12 +1873,14 @@ export class ChatbotService {
 				// Generate natural language answer comparing the counts
 				if (homeGames > awayGames) {
 					answer = `${playerName} has played more home games (${homeGames}) than away games (${awayGames}).`;
+					answerValue = "Home";
 				} else if (awayGames > homeGames) {
 					answer = `${playerName} has played more away games (${awayGames}) than home games (${homeGames}).`;
+					answerValue = "Away";
 				} else {
 					answer = `${playerName} has played an equal number of home games (${homeGames}) and away games (${awayGames}).`;
+					answerValue = "Equal";
 				}
-				answerValue = homeGames > awayGames ? homeGames : awayGames;
 			}
 
 			// Create table visualization
@@ -1996,6 +2042,36 @@ export class ChatbotService {
 				const topOpponent = opponents[0];
 				answer = `You have played against ${topOpponent.opponent} ${topOpponent.gamesPlayed} ${topOpponent.gamesPlayed === 1 ? "time" : "times"}.`;
 				answerValue = topOpponent.gamesPlayed;
+			}
+		} else if (data && data.type === "opposition_goals") {
+			// Handle goals against opposition data
+			const playerName = (data.playerName as string) || "";
+			const oppositionGoals = (data.data as Array<{ opposition: string; goalsScored: number }>) || [];
+			
+			if (oppositionGoals.length === 0) {
+				answer = "You have not scored any goals against any opposition.";
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionGoals[0];
+				answer = `You have scored the most goals against ${topOpposition.opposition} with ${topOpposition.goalsScored} ${topOpposition.goalsScored === 1 ? "goal" : "goals"}.`;
+				answerValue = topOpposition.goalsScored;
+				
+				// Format data for table visualization
+				const tableData = oppositionGoals.map((item) => ({
+					Opposition: item.opposition,
+					"Goals Scored": item.goalsScored,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Goals Scored", label: "Goals Scored" },
+						],
+					},
+				};
 			}
 		} else if (data && data.type === "streak") {
 			// Handle streak data
@@ -2208,16 +2284,117 @@ export class ChatbotService {
 		} else if (data && data.type === "ranking") {
 			// Handle ranking data
 			const rankingData = (data.data as RankingData[]) || [];
+			const fullRankingData = (data.fullData as RankingData[]) || rankingData;
+			const metric = (data.metric as string) || "G";
+			const requestedLimit = (data.requestedLimit as number) || 5;
+			const expandableLimit = (data.expandableLimit as number) || requestedLimit;
+			const isWorstPenaltyRecord = (data.isWorstPenaltyRecord as boolean) || false;
+			const isBestPenaltyRecord = (data.isBestPenaltyRecord as boolean) || false;
+			const isPenaltyRecord = isWorstPenaltyRecord || isBestPenaltyRecord;
+			
 			if (rankingData.length === 0) {
 				answer = "No ranking data found.";
 			} else {
 				const topRanking = rankingData[0];
+				const metricDisplayName = isPenaltyRecord ? "Conversion" : getMetricDisplayName(metric, topRanking.value);
+				
+				// Check if table is expandable (has more data than requestedLimit)
+				// Table is expandable if there are more results than the initial display limit
+				const isExpandable = fullRankingData.length > requestedLimit;
+				
 				if (topRanking.playerName) {
-					answer = `${topRanking.playerName} is ranked #1 with ${FormattingUtils.formatValueByMetric((data.metric as string) || "G", topRanking.value)}.`;
-					answerValue = topRanking.value;
+					// Check if team filter is present
+					const teamEntities = analysis.teamEntities || [];
+					const hasTeamFilter = teamEntities.length > 0;
+					let teamText = "";
+					if (hasTeamFilter) {
+						const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+						const teamDisplayName = teamName
+							.replace("1st XI", "1s")
+							.replace("2nd XI", "2s")
+							.replace("3rd XI", "3s")
+							.replace("4th XI", "4s")
+							.replace("5th XI", "5s")
+							.replace("6th XI", "6s")
+							.replace("7th XI", "7s")
+							.replace("8th XI", "8s");
+						teamText = ` for the ${teamDisplayName}`;
+					}
+					
+					// Show initial limit in answer (for worst/best penalty record, show actual count up to 5)
+					const displayCount = isPenaltyRecord ? Math.min(rankingData.length, 5) : Math.min(rankingData.length, requestedLimit);
+					answer = `Here are the top ${displayCount} players${teamText}:`;
+					answerValue = topRanking.playerName || topRanking.teamName || "";
+					
+					// Create table visualization with full data (for expansion), but mark initial display limit
+					const fullTableData = fullRankingData.map((item, index) => {
+						if (isPenaltyRecord) {
+							// Format conversion rate as percentage (value is 0-1, convert to 0-100)
+							const conversionRate = typeof item.value === "number" ? item.value : parseFloat(String(item.value || 0));
+							const percentage = (conversionRate * 100).toFixed(1);
+							// Calculate total penalties taken (penaltiesScored + penaltiesMissed)
+							const penaltiesScored = (item as any).penaltiesScored || 0;
+							const penaltiesMissed = (item as any).penaltiesMissed || 0;
+							const totalPenalties = penaltiesScored + penaltiesMissed;
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								Penalties: totalPenalties,
+								Conversion: `${percentage}%`,
+							};
+						} else {
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+							};
+						}
+					});
+					
+					visualization = {
+						type: "Table",
+						data: fullTableData,
+						config: {
+							columns: isPenaltyRecord ? [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: "Penalties", label: "Penalties" },
+								{ key: "Conversion", label: "Conversion" },
+							] : [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: metricDisplayName, label: metricDisplayName },
+							],
+							initialDisplayLimit: isPenaltyRecord ? Math.min(requestedLimit, 5) : requestedLimit,
+							expandableLimit: expandableLimit,
+							isExpandable: isExpandable,
+						},
+					};
 				} else if (topRanking.teamName) {
-					answer = `${topRanking.teamName} is ranked #1 with ${FormattingUtils.formatValueByMetric((data.metric as string) || "G", topRanking.value)}.`;
-					answerValue = topRanking.value;
+					answer = `${topRanking.teamName} is ranked #1 with ${FormattingUtils.formatValueByMetric(metric, topRanking.value)}.`;
+					answerValue = topRanking.teamName || "";
+					
+					// Create table visualization for team rankings
+					const fullTableData = fullRankingData.map((item, index) => ({
+						Rank: index + 1,
+						Team: item.teamName || "Unknown",
+						[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+					}));
+					
+					visualization = {
+						type: "Table",
+						data: fullTableData,
+						config: {
+							columns: [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Team", label: "Team" },
+								{ key: metricDisplayName, label: metricDisplayName },
+							],
+							initialDisplayLimit: requestedLimit,
+							expandableLimit: expandableLimit,
+							isExpandable: isExpandable,
+						},
+					};
 				}
 			}
 		} else if (data && data.type === "league_table") {
@@ -2438,7 +2615,31 @@ export class ChatbotService {
 				// Single metric query (e.g., appearances, assists, etc.)
 				answerValue = value;
 				const metricDisplayName = getMetricDisplayName(metric, value);
-				answer = `The ${teamName} have ${metricDisplayName.toLowerCase()} ${FormattingUtils.formatValueByMetric(metric, value)}.`;
+				
+				// For games/appearances queries, use gamesPlayed if available, otherwise use value
+				if ((metric.toUpperCase() === "APP" || metricField === "appearances") && gamesPlayed !== undefined) {
+					answerValue = gamesPlayed;
+					const gameText = gamesPlayed === 1 ? "game" : "games";
+					const seasonText = season ? ` in the ${season} season` : "";
+					answer = `The ${teamName} played ${gamesPlayed} ${gameText}${seasonText}.`;
+					
+					// Create NumberCard for games count
+					visualization = {
+						type: "NumberCard",
+						data: [{ 
+							name: "Games Played",
+							wordedText: "games",
+							value: gamesPlayed,
+							iconName: this.getIconNameForMetric("APP")
+						}],
+						config: {
+							title: `${teamName} - Games Played${season ? ` (${season})` : ""}`,
+							type: "bar",
+						},
+					};
+				} else {
+					answer = `The ${teamName} have ${metricDisplayName.toLowerCase()} ${FormattingUtils.formatValueByMetric(metric, value)}.`;
+				}
 			} else if (goalsScored !== undefined || goalsConceded !== undefined) {
 				// Goals query
 				if (isGoalsScored) {
@@ -3172,6 +3373,10 @@ export class ChatbotService {
 					const value = playerData[0]?.value;
 					const totalGames = (playerData[0] as any)?.totalGames;
 
+					// Define competition filter variables at higher scope for use in multiple branches
+					const competitions = analysis.competitions || [];
+					const hasCompetitionFilter = competitions.length > 0;
+
 					if (value !== undefined && value !== null) {
 						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
 						const isPercentageQuery = metric && (
@@ -3253,10 +3458,6 @@ export class ChatbotService {
 						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 							answerValue = this.roundValueByMetric(metric, value as number);
 							
-							// Check for competition filter to customize answer text
-							const competitions = analysis.competitions || [];
-							const hasCompetitionFilter = competitions.length > 0;
-							
 							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
 								const competitionName = competitions[0];
@@ -3269,11 +3470,51 @@ export class ChatbotService {
 						} else {
 							answerValue = value as number;
 							
-							// Check for competition filter to customize answer text
-							const competitions = analysis.competitions || [];
-							const hasCompetitionFilter = competitions.length > 0;
+							// Check for team filter with goals query (scoring record questions)
+							const teamEntities = analysis.teamEntities || [];
+							const hasTeamFilter = teamEntities.length > 0;
+							const isGoalsQuery = metric && metric.toUpperCase() === "G";
 							
-							if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
+							if (hasTeamFilter && isGoalsQuery) {
+								// Query appearances for this team to include in response
+								const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+								const teamDisplayName = teamName
+									.replace("1st XI", "1s")
+									.replace("2nd XI", "2s")
+									.replace("3rd XI", "3s")
+									.replace("4th XI", "4s")
+									.replace("5th XI", "5s")
+									.replace("6th XI", "6s")
+									.replace("7th XI", "7s")
+									.replace("8th XI", "8s");
+								
+								try {
+									const graphLabel = neo4jService.getGraphLabel();
+									const appearancesQuery = `
+										MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+										WHERE md.team = $teamName
+										RETURN count(md) as appearances
+									`;
+									const appearancesResult = await neo4jService.executeQuery(appearancesQuery, {
+										graphLabel,
+										playerName,
+										teamName,
+									});
+									const appearances = appearancesResult && appearancesResult.length > 0 
+										? (appearancesResult[0].appearances || 0) 
+										: 0;
+									
+									const goalCount = value as number;
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									const appearanceText = appearances === 1 ? "appearance" : "appearances";
+									answer = `${playerName} has scored ${goalCount} ${goalText} in ${appearances} ${appearanceText} for the ${teamDisplayName}.`;
+								} catch (error) {
+									// Fallback to standard response if appearances query fails
+									const goalCount = value as number;
+									const goalText = goalCount === 1 ? "goal" : "goals";
+									answer = `${playerName} has scored ${goalCount} ${goalText} for the ${teamDisplayName}.`;
+								}
+							} else if (hasCompetitionFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition: "Oli Goddard has scored 5 goals in the Premier"
 								const competitionName = competitions[0];
 								const goalCount = value as number;
@@ -3306,10 +3547,12 @@ export class ChatbotService {
 								},
 							};
 						}
-						// Create NumberCard visualization for goals queries with competition or location filters
+						// Create NumberCard visualization for goals queries with competition, location, or team filters
 						else if (metric && metric.toUpperCase() === "G") {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
+							const teamEntities = analysis.teamEntities || [];
+							const hasTeamFilter = teamEntities.length > 0;
 							
 							if (hasAwayLocation) {
 								const iconName = this.getIconNameForMetric(metric);
@@ -3325,6 +3568,34 @@ export class ChatbotService {
 									}],
 									config: {
 										title: displayName,
+										type: "bar",
+									},
+								};
+							} else if (hasTeamFilter) {
+								// Generate NumberCard for team-specific goals (scoring record queries)
+								const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+								const teamDisplayName = teamName
+									.replace("1st XI", "1s")
+									.replace("2nd XI", "2s")
+									.replace("3rd XI", "3s")
+									.replace("4th XI", "4s")
+									.replace("5th XI", "5s")
+									.replace("6th XI", "6s")
+									.replace("7th XI", "7s")
+									.replace("8th XI", "8s");
+								const iconName = this.getIconNameForMetric(metric);
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: "goals",
+										wordedText: "goals", 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - Goals for the ${teamDisplayName}`,
 										type: "bar",
 									},
 								};
@@ -3344,6 +3615,60 @@ export class ChatbotService {
 									}],
 									config: {
 										title: `${playerName} - Goals in ${competitions[0]}`,
+										type: "bar",
+									},
+								};
+							}
+						}
+						// Create NumberCard visualization for assists queries with team exclusions
+						else if (metric && metric.toUpperCase() === "A" && analysis.teamExclusions && analysis.teamExclusions.length > 0) {
+							const iconName = this.getIconNameForMetric(metric);
+							const roundedValue = this.roundValueByMetric(metric, value as number);
+							const excludedTeam = TeamMappingUtils.mapTeamName(analysis.teamExclusions[0]);
+							// Convert to display format (e.g., "3rd XI -> 3s")
+							const excludedTeamDisplay = excludedTeam
+								.replace("1st XI", "1s")
+								.replace("2nd XI", "2s")
+								.replace("3rd XI", "3s")
+								.replace("4th XI", "4s")
+								.replace("5th XI", "5s")
+								.replace("6th XI", "6s")
+								.replace("7th XI", "7s")
+								.replace("8th XI", "8s");
+							
+							visualization = {
+								type: "NumberCard",
+								data: [{ 
+									name: "Assists",
+									wordedText: "assists", 
+									value: roundedValue,
+									iconName: iconName
+								}],
+								config: {
+									title: `${playerName} - Assists (excluding ${excludedTeamDisplay})`,
+									type: "bar",
+								},
+							};
+						}
+						// Create NumberCard visualization for appearance queries (APP) with date filters
+						else if (metric && metric.toUpperCase() === "APP") {
+							const timeFrames = analysis.extractionResult?.timeFrames || [];
+							const hasDateFilter = timeFrames.some((tf) => tf.type === "since" || tf.type === "range");
+							
+							if (hasDateFilter || analysis.timeRange) {
+								const iconName = this.getIconNameForMetric(metric);
+								const displayName = "Appearances";
+								const roundedValue = this.roundValueByMetric(metric, value as number);
+								
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: displayName, 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - ${displayName}`,
 										type: "bar",
 									},
 								};
