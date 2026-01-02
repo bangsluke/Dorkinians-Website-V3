@@ -548,6 +548,43 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "most consecutive games played" question (across all players)
+			// This should match questions asking "which/what player has the most" not "my/his/her consecutive games"
+			const isMostConsecutiveGamesQuestion = 
+				(question.includes("most consecutive games") || 
+				 question.includes("player has the most consecutive games") ||
+				 (question.includes("longest consecutive streak") && question.includes("games"))) &&
+				// Must be asking about "which/what player" or "who has", not personal questions
+				(question.includes("what player") || question.includes("which player") || 
+				 question.includes("who has") || question.includes("player has") ||
+				 question.startsWith("what") || question.startsWith("which")) &&
+				// Exclude personal questions
+				!question.includes("my") && !question.includes("your") && 
+				!question.includes("i've") && !question.includes("you've") &&
+				!question.includes("have i") && !question.includes("have you") &&
+				!question.includes("my longest") && !question.includes("your longest");
+
+			if (isMostConsecutiveGamesQuestion) {
+				this.lastProcessingSteps.push(`Detected most consecutive games question, routing to TemporalQueryHandler`);
+				return await TemporalQueryHandler.queryMostConsecutiveGamesPlayed();
+			}
+
+			// Check for "how many players have I played with" question
+			const isTeammatesCountQuestion = 
+				(question.includes("how many players") && question.includes("played with")) ||
+				(question.includes("how many teammates")) ||
+				(question.includes("how many people") && question.includes("played with"));
+
+			if (isTeammatesCountQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected teammates count question, routing to RelationshipQueryHandler with player: ${playerName}`);
+					return await RelationshipQueryHandler.queryTeammatesCount(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Teammates count question detected but no player context available`);
+				}
+			}
+
 			// Check for home/away games comparison questions (e.g., "Have I played more home or away games?")
 			const isHomeAwayComparisonQuestion = 
 				(question.includes("more home or away") || question.includes("more away or home")) ||
@@ -2464,6 +2501,56 @@ export class ChatbotService {
 					answerValue = streakLength;
 				}
 			}
+		} else if (data && data.type === "most_consecutive_games") {
+			// Handle most consecutive games played query
+			const allData = (data.data as Array<{ playerName: string; streakCount: number }>) || [];
+			const top5Data = (data.top5Data as Array<{ playerName: string; streakCount: number }>) || allData.slice(0, 5);
+			
+			if (allData.length === 0) {
+				answer = "No consecutive games data found.";
+				answerValue = null;
+			} else {
+				const topPlayer = allData[0];
+				answer = `The player with the most consecutive games played is ${topPlayer.playerName} with ${topPlayer.streakCount} ${topPlayer.streakCount === 1 ? "game" : "games"}.`;
+				answerValue = topPlayer.playerName;
+				
+				// Format data for table visualization
+				const tableData = allData.map((item) => ({
+					Player: item.playerName,
+					"Consecutive Games": item.streakCount,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Consecutive Games", label: "Consecutive Games" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type === "teammates_count") {
+			// Handle teammates count query
+			const playerName = (data.playerName as string) || "You";
+			const countData = (data.data as Array<{ count: number }>) || [];
+			const count = countData.length > 0 ? countData[0].count : 0;
+			
+			answer = `${playerName === "You" ? "You have" : `${playerName} has`} played with ${count} different ${count === 1 ? "player" : "players"}.`;
+			answerValue = count;
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{
+					value: count,
+					wordedText: "Players Played With",
+					iconName: "APP"
+				}],
+			};
 		} else if (data && data.type === "comparison") {
 			// Handle comparison data
 			const comparisonData = (data.data as PlayerData[]) || [];

@@ -824,4 +824,91 @@ export class TemporalQueryHandler {
 			sequence: longestStreakSequence.map((s) => s.original),
 		};
 	}
+
+	/**
+	 * Query most consecutive games played across all players
+	 * Returns top 10 players with longest consecutive game streaks
+	 */
+	static async queryMostConsecutiveGamesPlayed(): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying most consecutive games played across all players`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Query all players with their seasonWeek values (same approach as consecutive weekends)
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, allowOnSite: true})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0 AND md.seasonWeek IS NOT NULL AND md.seasonWeek <> ""
+			WITH p, collect(DISTINCT md.seasonWeek) as seasonWeeks
+			WHERE size(seasonWeeks) > 0
+			RETURN p.playerName as playerName, seasonWeeks
+			ORDER BY p.playerName
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No players with games found`, null, "warn");
+				return { 
+					type: "most_consecutive_games", 
+					data: [],
+					top5Data: []
+				};
+			}
+
+			// Calculate consecutive streak for each player using seasonWeek (same logic as consecutive weekends)
+			const playerStreaks: Array<{ playerName: string; streakCount: number }> = [];
+
+			for (const record of result) {
+				const playerName = record?.playerName;
+				const seasonWeeks = (record?.seasonWeeks || []) as string[];
+
+				if (!playerName || seasonWeeks.length === 0) {
+					continue;
+				}
+
+				// Filter out null/empty seasonWeeks
+				const validSeasonWeeks = seasonWeeks.filter((sw: string | null | undefined) => sw !== null && sw !== undefined && sw !== "");
+
+				if (validSeasonWeeks.length === 0) {
+					continue;
+				}
+
+				// Use the same calculateConsecutiveWeeks logic as consecutive weekends
+				const streakResult = TemporalQueryHandler.calculateConsecutiveWeeks(validSeasonWeeks);
+				const longestStreak = streakResult.count;
+
+				playerStreaks.push({
+					playerName,
+					streakCount: longestStreak
+				});
+			}
+
+			// Sort by streak count descending
+			playerStreaks.sort((a, b) => b.streakCount - a.streakCount);
+
+			// Get top 10
+			const top10 = playerStreaks.slice(0, 10);
+			const top5 = playerStreaks.slice(0, 5);
+
+			loggingService.log(`✅ Calculated consecutive games streaks for ${playerStreaks.length} players`, null, "log");
+			if (top10.length > 0) {
+				loggingService.log(`📊 Top player: ${top10[0].playerName} with ${top10[0].streakCount} consecutive games`, null, "log");
+			}
+
+			return {
+				type: "most_consecutive_games",
+				data: top10,
+				top5Data: top5
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in most consecutive games query: ${errorMessage}`, error, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: `Error querying most consecutive games data: ${errorMessage}` 
+			};
+		}
+	}
 }
