@@ -1935,6 +1935,39 @@ export class ChatbotService {
 					answerValue = uniqueOppositions.length === 1 ? uniqueOppositions[0] : oppList;
 				}
 			}
+		} else if (data && data.isHatTrickQuery === true) {
+			// Handle hat-trick queries
+			const count = Array.isArray(data.data) && data.data.length > 0 
+				? (data.data[0] as any).value 
+				: 0;
+			const year = data.year as number | undefined;
+			const playerName = data.playerName as string | undefined;
+			
+			if (playerName) {
+				// Player-specific hat-trick query
+				answer = `${playerName} has scored ${count} hat-trick${count === 1 ? '' : 's'}.`;
+			} else if (year) {
+				// Year-wide hat-trick query
+				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'} in ${year}.`;
+			} else {
+				// Generic hat-trick query
+				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'}.`;
+			}
+			
+			answerValue = count;
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "hattricks", 
+					wordedText: "hattricks",
+					value: count,
+					iconName: this.getIconNameForMetric("G")
+				}],
+				config: {
+					title: year ? `Hat-tricks in ${year}` : (playerName ? `${playerName}'s Hat-tricks` : "Hat-tricks"),
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "player_opposition_appearances") {
 			// Handle opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
 			const playerName = (data.playerName as string) || "";

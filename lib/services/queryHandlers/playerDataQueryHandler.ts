@@ -9,6 +9,7 @@ import { loggingService } from "../loggingService";
 import { RelationshipQueryHandler } from "./relationshipQueryHandler";
 import { AwardsQueryHandler } from "./awardsQueryHandler";
 import { ChatbotService } from "../chatbotService";
+import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
 export class PlayerDataQueryHandler {
 	/**
@@ -42,6 +43,39 @@ export class PlayerDataQueryHandler {
 			return !lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/);
 		});
 
+		// Check for "played with" or "most played with" questions
+		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
+		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+
+		// Check for year-wide hat-trick questions FIRST (before entity processing)
+		// This prevents "hat‑tricks" from being treated as a player entity
+		const hatTrickPatternEarly = /hat[- ]?trick/i;
+		const isHatTrickQuestionEarly = hatTrickPatternEarly.test(questionLower) && 
+			(questionLower.includes("how many") || questionLower.includes("count"));
+		
+		if (isHatTrickQuestionEarly) {
+			const hasYear = questionLower.match(/\b(20\d{2})\b/) || 
+				analysis.extractionResult?.timeFrames?.some(tf => {
+					const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+					return yearMatch !== null;
+				});
+			const hasYearWidePhrases = questionLower.includes("across all teams") || 
+				questionLower.includes("across all team") ||
+				questionLower.includes("across all") ||
+				questionLower.includes("all teams") ||
+				questionLower.includes("all team");
+			const hasPlayerMention = questionLower.includes("has ") || 
+				questionLower.includes("have ") || 
+				questionLower.includes(" i ") || 
+				questionLower.match(/\bi\b/);
+			const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention);
+
+			if (isYearWideQuestion) {
+				loggingService.log(`🔍 Detected year-wide hat-trick question, routing to FixtureDataQueryHandler. hasYear: ${!!hasYear}, hasYearWidePhrases: ${hasYearWidePhrases}, hasPlayerMention: ${hasPlayerMention}`, null, "log");
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+		}
+
 		// Check if we have valid entities (player names) to query
 		// If no valid entities but we have userContext, use that instead
 		if (validEntities.length === 0) {
@@ -57,10 +91,6 @@ export class PlayerDataQueryHandler {
 			// Use valid entities (filtered to remove team numbers)
 			entities = validEntities;
 		}
-
-		// Check for "played with" or "most played with" questions
-		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
-		const questionLower = (analysis.question?.toLowerCase() || "").trim();
 		
 		// Check for "scoring record" questions - map to goals metric
 		const isScoringRecordQuestion = 
@@ -488,6 +518,94 @@ export class PlayerDataQueryHandler {
 			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryHighestWeeklyScore`, null, "log");
 			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
+		}
+
+		// Check for hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
+		// Note: Year-wide hat-trick questions are already handled earlier in the function
+		const hatTrickPattern = /hat[- ]?trick/i;
+		const isHatTrickQuestion = hatTrickPattern.test(questionLower) && 
+			(questionLower.includes("how many") || questionLower.includes("count"));
+
+		loggingService.log(`🔍 Checking for "hat-trick" question. Question: "${questionLower}", isHatTrickQuestion: ${isHatTrickQuestion}`, null, "log");
+
+		// If this is a hat-trick question (and not year-wide, which was already handled), handle it specially
+		if (isHatTrickQuestion) {
+			// Resolve player name - prioritize player entities from question over userContext
+			// This allows questions like "How many hat tricks has Oli Goddard scored?" to use Oli Goddard
+			// while "How many hat tricks have I scored?" will use userContext
+			let playerName: string | undefined;
+			
+			// First, try to extract player name directly from question text
+			// This handles cases where entity extraction might pick up "tricks" instead of the player name
+			const questionText = analysis.question || "";
+			const playerNamePatterns = [
+				// Pattern 1: "has [Name] scored" or "have [Name] scored"
+				/(?:has|have)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:scored|score)/i,
+				// Pattern 2: "[Name] has scored" or "[Name] have scored"
+				/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:has|have)\s+(?:scored|score)/i,
+			];
+			
+			for (const pattern of playerNamePatterns) {
+				const match = questionText.match(pattern);
+				if (match && match[1]) {
+					let extractedName = match[1].trim();
+					// Filter out common words that might be captured
+					if (extractedName && !["Hat", "Trick", "Tricks", "What", "Which", "How", "Many"].includes(extractedName)) {
+						playerName = extractedName;
+						loggingService.log(`🔍 Extracted player name from hat-trick question text: ${playerName}`, null, "log");
+						break;
+					}
+				}
+			}
+			
+			// If no name extracted from text, check entities
+			if (!playerName) {
+				// Filter out non-player entities (like "tricks")
+				const playerEntities = analysis.extractionResult?.entities?.filter(e => 
+					e.type === "player" && 
+					e.value.toLowerCase() !== "i" &&
+					!["tricks", "trick"].includes(e.value.toLowerCase())
+				) || [];
+				
+				if (playerEntities.length > 0) {
+					playerName = playerEntities[0].value;
+				} else if (entities.length > 0) {
+					// Filter out "tricks" from legacy entities
+					const validEntities = entities.filter(e => !["tricks", "trick"].includes(e.toLowerCase()));
+					if (validEntities.length > 0) {
+						playerName = validEntities[0];
+					}
+				}
+			}
+			
+			// Only use userContext if no player entity was found (for "I" questions)
+			if (!playerName && userContext) {
+				playerName = userContext;
+			}
+
+			if (!playerName) {
+				loggingService.log(`❌ No player context found for hat-trick question`, null, "warn");
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or select a player first.",
+				};
+			}
+
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerHatTricks`, null, "log");
+			return await PlayerDataQueryHandler.queryPlayerHatTricks(resolvedPlayerName, analysis);
 		}
 
 		// Check for "how many times" + opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
@@ -1663,6 +1781,43 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying home/away games comparison" };
+		}
+	}
+
+	/**
+	 * Query hat-tricks for a player (matches where player scored 3+ goals including penalties)
+	 */
+	static async queryPlayerHatTricks(
+		playerName: string,
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying hat-tricks for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE toLower(trim(p.playerName)) = toLower(trim($playerName))
+				AND (coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3
+			RETURN count(md) as value
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const count = result && result.length > 0 && result[0].value !== undefined
+				? (typeof result[0].value === 'number' 
+					? result[0].value 
+					: (result[0].value?.low || 0) + (result[0].value?.high || 0) * 4294967296)
+				: 0;
+			
+			return { 
+				type: "hattrick_count", 
+				data: [{ value: count }], 
+				isHatTrickQuery: true,
+				playerName 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in player hat-tricks query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying player hat-tricks data" };
 		}
 	}
 }

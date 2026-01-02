@@ -39,6 +39,48 @@ export class FixtureDataQueryHandler {
 			return await this.queryHighestScoringGame(entities, analysis);
 		}
 
+		// Check for year-wide hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
+		const hatTrickPattern = /hat[- ]?trick/i;
+		const hasYear = question.match(/\b(20\d{2})\b/) || analysis?.extractionResult?.timeFrames?.some(tf => {
+			// Check if timeFrame value contains a year
+			const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+			return yearMatch !== null;
+		});
+		const hasYearWidePhrases = question.includes("across all teams") || 
+			question.includes("across all") ||
+			question.includes("all teams");
+		const hasPlayerMention = question.includes("has ") || question.includes("have ") || 
+			question.includes(" i ") || question.includes(" i?");
+		const isYearHatTrickQuestion = hatTrickPattern.test(question) && 
+			(question.includes("how many") || question.includes("count")) &&
+			hasYear &&
+			(hasYearWidePhrases || !hasPlayerMention);
+
+		if (isYearHatTrickQuestion && analysis) {
+			// Extract year from timeFrames or question text
+			let year: number | null = null;
+			const timeFrames = analysis.extractionResult?.timeFrames || [];
+			
+			// Try to extract year from timeFrames
+			const yearFrame = timeFrames.find(tf => tf.type === "year");
+			if (yearFrame) {
+				year = parseInt(yearFrame.value, 10);
+			} else {
+				// Try to extract year from question text (e.g., "2022", "in 2022")
+				const yearMatch = analysis.question?.match(/\b(20\d{2})\b/);
+				if (yearMatch) {
+					year = parseInt(yearMatch[1], 10);
+				}
+			}
+
+			if (year && !isNaN(year) && year >= 2000 && year <= 2100) {
+				loggingService.log(`🔍 Detected year-wide hat-trick question for year: ${year}`, null, "log");
+				return await this.queryYearHatTricks(year, analysis);
+			} else {
+				loggingService.log(`⚠️ Could not extract valid year from hat-trick question`, null, "warn");
+			}
+		}
+
 		// Check for opponent own goals queries
 		const isOpponentOwnGoalsQuery = 
 			question.includes("opponent own goals") ||
@@ -522,6 +564,44 @@ export class FixtureDataQueryHandler {
 				data: [],
 				error: error instanceof Error ? error.message : String(error),
 			};
+		}
+	}
+
+	/**
+	 * Query year-wide hat-tricks (count distinct matches in a year where any player scored 3+ goals including penalties)
+	 */
+	static async queryYearHatTricks(
+		year: number,
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying year-wide hat-tricks for year: ${year}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE date(md.date).year = $year
+				AND (coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3
+			RETURN count(DISTINCT f) as value
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { year, graphLabel });
+			const count = result && result.length > 0 && result[0].value !== undefined
+				? (typeof result[0].value === 'number' 
+					? result[0].value 
+					: (result[0].value?.low || 0) + (result[0].value?.high || 0) * 4294967296)
+				: 0;
+			
+			return { 
+				type: "hattrick_count", 
+				data: [{ value: count }], 
+				isHatTrickQuery: true,
+				year 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in year-wide hat-tricks query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying year-wide hat-tricks data" };
 		}
 	}
 }
