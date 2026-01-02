@@ -389,8 +389,9 @@ export class PlayerQueryBuilder {
 		const hasExplicitLocation = explicitLocationKeywords.some((keyword) => questionLower.includes(keyword));
 
 		// Add team filter if specified (but skip if we have a team-specific metric - those use md.team instead)
+		// CRITICAL: Skip team filter if team exclusions are present (exclusions mean we want all teams except excluded ones)
 		// For player queries, use md.team (player's team in that match) instead of f.team (fixture team)
-		if (teamEntities.length > 0 && !isTeamSpecificMetric) {
+		if (teamEntities.length > 0 && !isTeamSpecificMetric && !(analysis.teamExclusions && analysis.teamExclusions.length > 0)) {
 			const mappedTeamNames = teamEntities.map((team) => TeamMappingUtils.mapTeamName(team));
 			const teamNames = mappedTeamNames.map((team) => `toUpper('${team}')`).join(", ");
 			// Use md.team for player queries (where player's team is stored), f.team for team stats queries
@@ -512,7 +513,14 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
-		if (timeRange && !isTeamSpecificMetric) {
+		// Validate timeRange - ignore if it's not a valid date format (e.g., "between_dates" pseudonym key)
+		const isValidTimeRange = timeRange && 
+			timeRange !== "between_dates" && 
+			timeRange !== "before" && 
+			timeRange !== "since" &&
+			(timeRange.includes(" to ") || timeRange.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || timeRange.match(/^\d{4}[\/\-]\d{2,4}$/));
+		
+		if (isValidTimeRange && !isTeamSpecificMetric) {
 			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
 			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
 			
@@ -548,23 +556,36 @@ export class PlayerQueryBuilder {
 				}
 			} else {
 				// Check if this is a date range or single date
-				const dateRange = timeRange.split(" to ");
+				// First try to get from timeRange, then fallback to timeFrames
+				let dateRangeValue = timeRange;
+				if (!dateRangeValue) {
+					// Fallback: check timeFrames for range type
+					const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range" && tf.value.includes(" to "));
+					if (rangeFrame) {
+						dateRangeValue = rangeFrame.value;
+					}
+				}
 				
-				if (dateRange.length === 2) {
-					// Handle date range (between X and Y)
-					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-					const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
-					whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
-				} else if (dateRange.length === 1) {
-					// Single date (could be from "since" pattern that was converted, or a single date query)
-					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-					whereConditions.push(`${dateField} >= '${startDate}'`);
+				if (dateRangeValue) {
+					const dateRange = dateRangeValue.split(" to ");
+					
+					if (dateRange.length === 2) {
+						// Handle date range (between X and Y)
+						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+						whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+					} else if (dateRange.length === 1) {
+						// Single date (could be from "since" pattern that was converted, or a single date query)
+						const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						whereConditions.push(`${dateField} >= '${startDate}'`);
+					}
 				}
 			}
 		}
 
 		// Add competition type filter if specified (but not for team-specific metrics - they don't need Fixture)
-		if (analysis.competitionTypes && analysis.competitionTypes.length > 0 && !isTeamSpecificMetric) {
+		// Also ensure needsFixture is true to guarantee Fixture join has happened
+		if (analysis.competitionTypes && analysis.competitionTypes.length > 0 && !isTeamSpecificMetric && needsFixture) {
 			const compTypeFilters = analysis.competitionTypes
 				.map((compType) => {
 					switch (compType.toLowerCase()) {
@@ -921,16 +942,17 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metricUpper === "AWAYGAMES%WON") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WHERE f.homeOrAway = 'Away'
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
 				WITH p, 
-					sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as awayWins,
-					count(md) as awayGames
+					sum(CASE WHEN f.homeOrAway = 'Away' AND f.result = 'W' THEN 1 ELSE 0 END) as awayWins,
+					sum(CASE WHEN f.homeOrAway = 'Home' THEN 1 ELSE 0 END) as homeGames,
+					sum(CASE WHEN f.homeOrAway = 'Away' THEN 1 ELSE 0 END) as awayGames
+				WITH p, awayWins, homeGames, awayGames, (homeGames + awayGames) as totalGames
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
-						ELSE 0.0 
+						WHEN awayGames > 0 THEN round(100.0 * awayWins / awayGames)
+						ELSE 0 
 					END as value,
 					awayGames as totalGames
 			`;
@@ -1040,9 +1062,21 @@ export class PlayerQueryBuilder {
 			// Query MatchDetails to get goals per season for chart display
 			// Includes regular goals and penalties, but excludes penalty shootout penalties
 			// Use md.season directly since MatchDetail has a season property
+			// Check if team filtering is needed (e.g., "most goals for the 2s")
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				// Map team entity to normalized team name (e.g., "2s" -> "2nd XI")
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				// Escape single quotes in team name for Cypher query
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
 			return `
 				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-				WHERE md.season IS NOT NULL AND md.season <> ""
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
 				WITH p, md.season as season, 
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
 					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals

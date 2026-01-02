@@ -414,6 +414,103 @@ export async function getHighestLeagueFinish(): Promise<HistoricalPositionEntry 
 }
 
 /**
+ * Get the highest (best) league finish for a specific player across all teams/seasons they've played for
+ * Queries Neo4j to find all teams and seasons the player has played for, then finds their best league position
+ */
+export async function getPlayerHighestLeagueFinish(playerName: string): Promise<HistoricalPositionEntry | null> {
+	try {
+		const connected = await neo4jService.connect();
+		if (!connected) {
+			console.error('Neo4j connection failed');
+			return null;
+		}
+
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Query to find all distinct team/season combinations the player has played for
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.team IS NOT NULL AND md.season IS NOT NULL
+			WITH DISTINCT md.team as team, md.season as season
+			RETURN team, season
+			ORDER BY season DESC, team
+		`;
+		
+		const result = await neo4jService.runQuery(query, { graphLabel, playerName });
+		
+		if (result.records.length === 0) {
+			return null;
+		}
+		
+		// Convert team names to team keys (e.g., "1st XI" -> "1s")
+		const teamNameToKey = (teamName: string): string => {
+			const teamNameLower = teamName.toLowerCase().trim();
+			const mapping: { [key: string]: string } = {
+				'1st xi': '1s',
+				'2nd xi': '2s',
+				'3rd xi': '3s',
+				'4th xi': '4s',
+				'5th xi': '5s',
+				'6th xi': '6s',
+				'7th xi': '7s',
+				'8th xi': '8s',
+			};
+			return mapping[teamNameLower] || teamName;
+		};
+		
+		// Collect all positions for teams/seasons the player has played for
+		const playerPositions: HistoricalPositionEntry[] = [];
+		
+		for (const record of result.records) {
+			const team = record.get('team');
+			const season = record.get('season');
+			const teamKey = teamNameToKey(team);
+			
+			// Get league position for this team/season
+			const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+			const teamData = await getTeamSeasonData(teamKey, normalizedSeason);
+			
+			if (teamData) {
+				// Get full season data to get division
+				const jsonSeasonFormat = normalizeSeasonFormat(season, 'hyphen');
+				const seasonData = await getSeasonDataFromJSON(jsonSeasonFormat);
+				const division = seasonData?.teams[teamKey]?.division || '';
+				
+				playerPositions.push({
+					team: teamKey,
+					season: normalizedSeason,
+					position: teamData.position,
+					played: teamData.played,
+					won: teamData.won,
+					drawn: teamData.drawn,
+					lost: teamData.lost,
+					goalsFor: teamData.goalsFor,
+					goalsAgainst: teamData.goalsAgainst,
+					goalDifference: teamData.goalDifference,
+					points: teamData.points,
+					division: division,
+				});
+			}
+		}
+		
+		if (playerPositions.length === 0) {
+			return null;
+		}
+		
+		// Find the best position (lowest number = highest finish)
+		const bestPosition = playerPositions.reduce((best, current) => {
+			return current.position < best.position ? current : best;
+		});
+		
+		return bestPosition;
+	} catch (error) {
+		console.error(`Error fetching player highest league finish for ${playerName}:`, error);
+		return null;
+	}
+}
+
+/**
  * Get the highest (best) league finish for a specific team across all seasons
  * Returns the position entry with full league table data for that season
  */

@@ -9,6 +9,7 @@ import { loggingService } from "../loggingService";
 import { RelationshipQueryHandler } from "./relationshipQueryHandler";
 import { AwardsQueryHandler } from "./awardsQueryHandler";
 import { ChatbotService } from "../chatbotService";
+import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
 export class PlayerDataQueryHandler {
 	/**
@@ -42,6 +43,39 @@ export class PlayerDataQueryHandler {
 			return !lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/);
 		});
 
+		// Check for "played with" or "most played with" questions
+		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
+		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+
+		// Check for year-wide hat-trick questions FIRST (before entity processing)
+		// This prevents "hat‑tricks" from being treated as a player entity
+		const hatTrickPatternEarly = /hat[- ]?trick/i;
+		const isHatTrickQuestionEarly = hatTrickPatternEarly.test(questionLower) && 
+			(questionLower.includes("how many") || questionLower.includes("count"));
+		
+		if (isHatTrickQuestionEarly) {
+			const hasYear = questionLower.match(/\b(20\d{2})\b/) || 
+				analysis.extractionResult?.timeFrames?.some(tf => {
+					const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+					return yearMatch !== null;
+				});
+			const hasYearWidePhrases = questionLower.includes("across all teams") || 
+				questionLower.includes("across all team") ||
+				questionLower.includes("across all") ||
+				questionLower.includes("all teams") ||
+				questionLower.includes("all team");
+			const hasPlayerMention = questionLower.includes("has ") || 
+				questionLower.includes("have ") || 
+				questionLower.includes(" i ") || 
+				questionLower.match(/\bi\b/);
+			const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention);
+
+			if (isYearWideQuestion) {
+				loggingService.log(`🔍 Detected year-wide hat-trick question, routing to FixtureDataQueryHandler. hasYear: ${!!hasYear}, hasYearWidePhrases: ${hasYearWidePhrases}, hasPlayerMention: ${hasPlayerMention}`, null, "log");
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+		}
+
 		// Check if we have valid entities (player names) to query
 		// If no valid entities but we have userContext, use that instead
 		if (validEntities.length === 0) {
@@ -57,10 +91,6 @@ export class PlayerDataQueryHandler {
 			// Use valid entities (filtered to remove team numbers)
 			entities = validEntities;
 		}
-
-		// Check for "played with" or "most played with" questions
-		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
-		const questionLower = (analysis.question?.toLowerCase() || "").trim();
 		
 		// Check for "scoring record" questions - map to goals metric
 		const isScoringRecordQuestion = 
@@ -490,6 +520,94 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryHighestWeeklyScore(resolvedPlayerName);
 		}
 
+		// Check for hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
+		// Note: Year-wide hat-trick questions are already handled earlier in the function
+		const hatTrickPattern = /hat[- ]?trick/i;
+		const isHatTrickQuestion = hatTrickPattern.test(questionLower) && 
+			(questionLower.includes("how many") || questionLower.includes("count"));
+
+		loggingService.log(`🔍 Checking for "hat-trick" question. Question: "${questionLower}", isHatTrickQuestion: ${isHatTrickQuestion}`, null, "log");
+
+		// If this is a hat-trick question (and not year-wide, which was already handled), handle it specially
+		if (isHatTrickQuestion) {
+			// Resolve player name - prioritize player entities from question over userContext
+			// This allows questions like "How many hat tricks has Oli Goddard scored?" to use Oli Goddard
+			// while "How many hat tricks have I scored?" will use userContext
+			let playerName: string | undefined;
+			
+			// First, try to extract player name directly from question text
+			// This handles cases where entity extraction might pick up "tricks" instead of the player name
+			const questionText = analysis.question || "";
+			const playerNamePatterns = [
+				// Pattern 1: "has [Name] scored" or "have [Name] scored"
+				/(?:has|have)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:scored|score)/i,
+				// Pattern 2: "[Name] has scored" or "[Name] have scored"
+				/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:has|have)\s+(?:scored|score)/i,
+			];
+			
+			for (const pattern of playerNamePatterns) {
+				const match = questionText.match(pattern);
+				if (match && match[1]) {
+					let extractedName = match[1].trim();
+					// Filter out common words that might be captured
+					if (extractedName && !["Hat", "Trick", "Tricks", "What", "Which", "How", "Many"].includes(extractedName)) {
+						playerName = extractedName;
+						loggingService.log(`🔍 Extracted player name from hat-trick question text: ${playerName}`, null, "log");
+						break;
+					}
+				}
+			}
+			
+			// If no name extracted from text, check entities
+			if (!playerName) {
+				// Filter out non-player entities (like "tricks")
+				const playerEntities = analysis.extractionResult?.entities?.filter(e => 
+					e.type === "player" && 
+					e.value.toLowerCase() !== "i" &&
+					!["tricks", "trick"].includes(e.value.toLowerCase())
+				) || [];
+				
+				if (playerEntities.length > 0) {
+					playerName = playerEntities[0].value;
+				} else if (entities.length > 0) {
+					// Filter out "tricks" from legacy entities
+					const validEntities = entities.filter(e => !["tricks", "trick"].includes(e.toLowerCase()));
+					if (validEntities.length > 0) {
+						playerName = validEntities[0];
+					}
+				}
+			}
+			
+			// Only use userContext if no player entity was found (for "I" questions)
+			if (!playerName && userContext) {
+				playerName = userContext;
+			}
+
+			if (!playerName) {
+				loggingService.log(`❌ No player context found for hat-trick question`, null, "warn");
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or select a player first.",
+				};
+			}
+
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerHatTricks`, null, "log");
+			return await PlayerDataQueryHandler.queryPlayerHatTricks(resolvedPlayerName, analysis);
+		}
+
 		// Check for "how many times" + opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
 		// Try to extract opposition name from question if not in entities
 		let extractedOppositionName = "";
@@ -783,13 +901,47 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("when") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
 
 		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
-			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
+			// Resolve player name - prioritize explicit player entities from question over userContext
 			let playerName = "";
-			if (userContext) {
-				playerName = userContext;
-			} else if (entities.length > 0) {
-				playerName = entities[0];
+			// Check for explicit player entities (not first-person pronouns) in the question
+			// Filter out all first-person pronouns (I, my, me, myself, i've)
+			// Also filter out invalid player names that contain "season", "scoring", etc.
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "scoring", "prolific", "highest", "most"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				// Filter out first-person pronouns
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				// Filter out invalid player names that contain season/scoring related words
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				// Explicit player name mentioned in question takes priority
+				playerName = playerEntities[0].value;
 			} else {
+				// Skip regex extraction for most prolific season questions - they use first-person pronouns
+				// and should rely on userContext instead of trying to extract names from question text
+				// The regex patterns can incorrectly match parts of the question like "scoring season"
+				// For most prolific season questions, we should never extract player names from question text
+				// when using first-person pronouns - just skip to using entities/userContext
+				
+				// Only fall back to entities/userContext if no name extracted from question
+				if (!playerName) {
+					if (entities.length > 0) {
+						playerName = entities[0];
+						// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+			}
+			
+			if (!playerName) {
 				return {
 					type: "no_context",
 					data: [],
@@ -926,20 +1078,32 @@ export class PlayerDataQueryHandler {
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
 			const questionLower = (analysis.question?.toLowerCase() || "").trim();
 			let detectedMetricFromQuestion: string | null = null;
-			if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
-				// Handle typo "yelow" as well as correct "yellow"
-				detectedMetricFromQuestion = "Y";
-			} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
-				detectedMetricFromQuestion = "R";
-			} else if (questionLower.includes("assist")) {
-				detectedMetricFromQuestion = "A";
-			} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
-				detectedMetricFromQuestion = "G";
-			} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
-				// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
-				if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
-					!questionLower.includes("yellow") && !questionLower.includes("red card")) {
-					detectedMetricFromQuestion = "APP";
+
+			// CRITICAL: Check if originalMetric is already a percentage metric - if so, don't override it
+			const isPercentageMetric = originalMetric && (
+				originalMetric.includes("%") || 
+				originalMetric.includes("Percentage") ||
+				originalMetric.includes("Games % Won") ||
+				originalMetric.includes("Games % Lost") ||
+				originalMetric.includes("Games % Drawn")
+			);
+
+			if (!isPercentageMetric) {
+				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+					// Handle typo "yelow" as well as correct "yellow"
+					detectedMetricFromQuestion = "Y";
+				} else if (questionLower.includes("red card") || questionLower.includes("reds")) {
+					detectedMetricFromQuestion = "R";
+				} else if (questionLower.includes("assist")) {
+					detectedMetricFromQuestion = "A";
+				} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
+					detectedMetricFromQuestion = "G";
+				} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+					// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
+						!questionLower.includes("yellow") && !questionLower.includes("red card")) {
+						detectedMetricFromQuestion = "APP";
+					}
 				}
 			}
 			
@@ -948,23 +1112,23 @@ export class PlayerDataQueryHandler {
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;
-			if (originalMetric === "Home Games % Won") {
+			if (metricToUse === "Home Games % Won") {
 				normalizedMetric = "HomeGames%Won";
-			} else if (originalMetric === "Away Games % Won") {
+			} else if (metricToUse === "Away Games % Won") {
 				normalizedMetric = "AwayGames%Won";
-			} else if (originalMetric === "Games % Won") {
+			} else if (metricToUse === "Games % Won") {
 				normalizedMetric = "Games%Won";
-			} else if (originalMetric === "Home Games % Lost") {
+			} else if (metricToUse === "Home Games % Lost") {
 				normalizedMetric = "HomeGames%Lost";
-			} else if (originalMetric === "Away Games % Lost") {
+			} else if (metricToUse === "Away Games % Lost") {
 				normalizedMetric = "AwayGames%Lost";
-			} else if (originalMetric === "Games % Lost") {
+			} else if (metricToUse === "Games % Lost") {
 				normalizedMetric = "Games%Lost";
-			} else if (originalMetric === "Home Games % Drawn") {
+			} else if (metricToUse === "Home Games % Drawn") {
 				normalizedMetric = "HomeGames%Drawn";
-			} else if (originalMetric === "Away Games % Drawn") {
+			} else if (metricToUse === "Away Games % Drawn") {
 				normalizedMetric = "AwayGames%Drawn";
-			} else if (originalMetric === "Games % Drawn") {
+			} else if (metricToUse === "Games % Drawn") {
 				normalizedMetric = "Games%Drawn";
 			}
 
@@ -1608,6 +1772,43 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in home/away games comparison query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying home/away games comparison" };
+		}
+	}
+
+	/**
+	 * Query hat-tricks for a player (matches where player scored 3+ goals including penalties)
+	 */
+	static async queryPlayerHatTricks(
+		playerName: string,
+		analysis: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying hat-tricks for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE toLower(trim(p.playerName)) = toLower(trim($playerName))
+				AND (coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3
+			RETURN count(md) as value
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const count = result && result.length > 0 && result[0].value !== undefined
+				? (typeof result[0].value === 'number' 
+					? result[0].value 
+					: (result[0].value?.low || 0) + (result[0].value?.high || 0) * 4294967296)
+				: 0;
+			
+			return { 
+				type: "hattrick_count", 
+				data: [{ value: count }], 
+				isHatTrickQuery: true,
+				playerName 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in player hat-tricks query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying player hat-tricks data" };
 		}
 	}
 }
