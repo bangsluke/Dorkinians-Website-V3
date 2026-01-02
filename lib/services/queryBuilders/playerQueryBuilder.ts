@@ -389,10 +389,13 @@ export class PlayerQueryBuilder {
 		const hasExplicitLocation = explicitLocationKeywords.some((keyword) => questionLower.includes(keyword));
 
 		// Add team filter if specified (but skip if we have a team-specific metric - those use md.team instead)
+		// For player queries, use md.team (player's team in that match) instead of f.team (fixture team)
 		if (teamEntities.length > 0 && !isTeamSpecificMetric) {
 			const mappedTeamNames = teamEntities.map((team) => TeamMappingUtils.mapTeamName(team));
 			const teamNames = mappedTeamNames.map((team) => `toUpper('${team}')`).join(", ");
-			whereConditions.push(`toUpper(f.team) IN [${teamNames}]`);
+			// Use md.team for player queries (where player's team is stored), f.team for team stats queries
+			// Since this is in buildPlayerQuery, we always use md.team
+			whereConditions.push(`toUpper(md.team) IN [${teamNames}]`);
 		}
 
 		// Add team exclusion filter if specified (for "not playing for" patterns)
@@ -1036,15 +1039,15 @@ export class PlayerQueryBuilder {
 		} else if (metric.toUpperCase() === "MOSTPROLIFICSEASON") {
 			// Query MatchDetails to get goals per season for chart display
 			// Includes regular goals and penalties, but excludes penalty shootout penalties
+			// Use md.season directly since MatchDetail has a season property
 			return `
 				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WHERE f.season IS NOT NULL AND f.season <> ""
-				WITH p, f.season as season, 
+				WHERE md.season IS NOT NULL AND md.season <> ""
+				WITH p, md.season as season, 
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
 					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals
-				ORDER BY season ASC
 				RETURN p.playerName as playerName, season, goals as value
+				ORDER BY season ASC
 			`;
 		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
 			if (TeamMappingUtils.isTeamCountQuestion(analysis.question)) {
@@ -1244,7 +1247,16 @@ export class PlayerQueryBuilder {
 		}
 
 		// Determine query structure requirements
-		const teamEntities = analysis.teamEntities || [];
+		let teamEntities = analysis.teamEntities || [];
+		// If no team entities but question mentions a team (e.g., "scoring record for the 5s"), try to extract it
+		if (teamEntities.length === 0 && analysis.question) {
+			const questionLower = analysis.question.toLowerCase();
+			const teamMatch = questionLower.match(/\b(?:for|in|with)\s+(?:the\s+)?(\d+)(?:st|nd|rd|th|s)\b/i);
+			if (teamMatch) {
+				const teamNum = teamMatch[1];
+				teamEntities = [`${teamNum}s`];
+			}
+		}
 		const oppositionEntities = analysis.oppositionEntities || [];
 		const timeRange = analysis.timeRange;
 		const locations = analysis.extractionResult?.locations || [];
@@ -1253,14 +1265,18 @@ export class PlayerQueryBuilder {
 		// CRITICAL: Force MatchDetail join when filters requiring Fixture are present
 		// (competition, competition type, opposition, time range, location, result filters)
 		// ALSO: Force MatchDetail when team exclusions are present (need to filter by md.team)
+		// ALSO: Force MatchDetail when team entities are present for goals queries (need to filter by md.team for scoring record questions)
 		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
 		const hasCompetitionTypeFilter = analysis.competitionTypes && analysis.competitionTypes.length > 0;
 		const hasOppositionFilter = oppositionEntities.length > 0;
 		const hasTimeRangeFilter = timeRange !== undefined;
 		const hasResultFilter = analysis.results && analysis.results.length > 0;
 		const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
+		const metricUpper = metric.toUpperCase();
+		const isGoalsQuery = metricUpper === "G";
+		const hasTeamFilterForGoals = teamEntities.length > 0 && isGoalsQuery;
 		const hasFiltersRequiringMatchDetail = hasLocationFilter || hasCompetitionFilter || hasCompetitionTypeFilter || 
-			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter || hasTeamExclusions;
+			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter || hasTeamExclusions || hasTeamFilterForGoals;
 		
 		if (hasFiltersRequiringMatchDetail && !needsMatchDetail) {
 			needsMatchDetail = true;
@@ -1269,7 +1285,6 @@ export class PlayerQueryBuilder {
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
 			metric.match(/^\d+sGoals$/i) ||
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
-		const metricUpper = metric.toUpperCase();
 		const isPositionMetric = ["GK", "DEF", "MID", "FWD"].includes(metricUpper);
 		// CRITICAL: If a player is involved (which is always the case in buildPlayerQuery), 
 		// we should NEVER use team-specific metric paths - those are for team stats queries only
@@ -1289,8 +1304,10 @@ export class PlayerQueryBuilder {
 
 		// For team-specific metrics (appearances/goals for specific teams), we don't need fixtures
 		// Team filtering is done on md.team property, not f.team
+		// For goals queries with team entities (scoring record questions), we also don't need fixtures - filter by md.team
+		const isGoalsQueryWithTeamFilter = isGoalsQuery && teamEntities.length > 0;
 		let needsFixture: boolean = isTeamSpecificMetric ? false :
-			(teamEntities.length > 0) ||
+			(isGoalsQueryWithTeamFilter ? false : (teamEntities.length > 0)) ||
 			(locations.length > 0 && !fixtureDependentMetrics.has(metricUpper)) ||
 			(timeRange !== undefined && timeRange !== "") ||
 			oppositionEntities.length > 0 ||
@@ -1309,7 +1326,7 @@ export class PlayerQueryBuilder {
 		if (!needsMatchDetail) {
 			// Use direct Player node query (no MatchDetail join needed)
 			query = `
-				MATCH (p:Player {playerName: $playerName})
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
 				RETURN p.playerName as playerName, ${PlayerQueryBuilder.getPlayerNodeReturnClause(metric)} as value
 			`;
 		} else {
@@ -1320,15 +1337,15 @@ export class PlayerQueryBuilder {
 				if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
 					const oppositionName = oppositionEntities[0];
 					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-						MATCH (od:OppositionDetails)
+						MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+						MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+						MATCH (od:OppositionDetails {graphLabel: $graphLabel})
 						WHERE toLower(od.opposition) CONTAINS toLower('${oppositionName}')
 					`;
 				} else {
 					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-						MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
+						MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+						MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 					`;
 				}
 			} else {
@@ -1336,14 +1353,15 @@ export class PlayerQueryBuilder {
 				// For team-specific or position metrics, use OPTIONAL MATCH to ensure we always return a row
 				// BUT: Don't use OPTIONAL MATCH when team exclusions are present (exclusions work better with regular MATCH)
 				// ALSO: Don't use OPTIONAL MATCH for non-team-specific metrics with exclusions (like assists)
-				if ((isTeamSpecificMetric || isPositionMetric) && !hasTeamExclusions) {
+				// ALSO: Don't use OPTIONAL MATCH for goals queries with team filter (scoring record questions) - need regular MATCH to filter correctly
+				if ((isTeamSpecificMetric || isPositionMetric) && !hasTeamExclusions && !hasTeamFilterForGoals) {
 					query = `
-						MATCH (p:Player {playerName: $playerName})
-						OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+						OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					`;
 				} else {
 					query = `
-						MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+						MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 					`;
 				}
 			}

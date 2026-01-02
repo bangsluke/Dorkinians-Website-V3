@@ -739,10 +739,48 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryPenaltiesTaken(resolvedPlayerName);
 		}
 
-		// Check for "most prolific season" questions
+		// Check for "most prolific season", "highest scoring season", or "season I scored the most goals" questions (same question, different wording)
+		// Helper function to detect various patterns
+		const detectMostGoalsSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern 1: "most prolific season" or "highest scoring season"
+			if ((lower.includes("most prolific season") || 
+				 lower.includes("prolific season") ||
+				 lower.includes("highest scoring season") ||
+				 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+				return true;
+			}
+			// Pattern 2: "season I scored the most goals" / "season I scored most goals"
+			if (lower.includes("season") && lower.includes("scored") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 3: "season did I score the most goals" / "season did I score most goals"
+			if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 4: "when did I score the most goals" / "when did I score most goals"
+			if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 5: "season with the most goals" / "season with most goals"
+			if (lower.includes("season") && lower.includes("with") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 6: "which season" + "most goals" / "what season" + "most goals"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			return false;
+		};
+		
 		const isMostProlificSeasonQuestion = 
-			(questionLower.includes("most prolific season") || questionLower.includes("prolific season")) &&
-			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your"));
+			detectMostGoalsSeasonPattern(questionLower) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("when") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
 
 		if (isMostProlificSeasonQuestion && (entities.length > 0 || userContext)) {
 			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
