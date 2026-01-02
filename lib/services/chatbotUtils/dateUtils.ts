@@ -50,6 +50,15 @@ export class DateUtils {
 	}
 
 	/**
+	 * Convert "since [YEAR]" to first date after that year
+	 * e.g., "since 2020" → "2021-01-01"
+	 */
+	static convertSinceYearToDate(year: number): string {
+		const nextYear = year + 1;
+		return `${nextYear}-01-01`;
+	}
+
+	/**
 	 * Calculate weekend dates for a given year and ordinal
 	 */
 	static calculateWeekendDates(year: number, ordinal: number = 1): { startDate: string; endDate: string } {
@@ -77,5 +86,29 @@ export class DateUtils {
 			startDate: formatDate(weekendStart),
 			endDate: formatDate(weekendEnd),
 		};
+	}
+
+	/**
+	 * Convert season string (e.g., "2020/21") to season start date (e.g., "2020-09-01")
+	 * Seasons typically start on September 1st of the first year
+	 */
+	static convertSeasonToStartDate(season: string): string {
+		// Handle formats like "2020/21" or "2020-21"
+		const seasonMatch = season.match(/(\d{4})[\/\-](\d{2})/);
+		if (seasonMatch) {
+			const startYear = parseInt(seasonMatch[1], 10);
+			// Season starts on September 1st of the first year
+			return `${startYear}-09-01`;
+		}
+		
+		// If format not recognized, try to extract year from the beginning
+		const yearMatch = season.match(/^(\d{4})/);
+		if (yearMatch) {
+			const startYear = parseInt(yearMatch[1], 10);
+			return `${startYear}-09-01`;
+		}
+		
+		// Fallback: return as-is (shouldn't happen with valid season strings)
+		return season;
 	}
 }

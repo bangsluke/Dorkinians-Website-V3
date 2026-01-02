@@ -199,6 +199,12 @@ export class PlayerQueryBuilder {
 				return "coalesce(count(md), 0) as value";
 			case "FWD":
 				return "coalesce(count(md), 0) as value";
+			case "A":
+				return "coalesce(sum(CASE WHEN md.assists IS NULL OR md.assists = '' THEN 0 ELSE md.assists END), 0) as value";
+			case "Y":
+				return "coalesce(sum(CASE WHEN md.yellowCards IS NULL OR md.yellowCards = '' THEN 0 ELSE md.yellowCards END), 0) as value";
+			case "R":
+				return "coalesce(sum(CASE WHEN md.redCards IS NULL OR md.redCards = '' THEN 0 ELSE md.redCards END), 0) as value";
 			case "DIST":
 				return "coalesce(sum(md.distance), 0) as value";
 			case "FTP":
@@ -361,6 +367,7 @@ export class PlayerQueryBuilder {
 		oppositionEntities: string[],
 		timeRange: string | undefined,
 		locations: Array<{ type: string; value: string }>,
+		needsFixture: boolean = false,
 	): string[] {
 		const whereConditions: string[] = [];
 		const metricUpper = metric.toUpperCase();
@@ -391,18 +398,23 @@ export class PlayerQueryBuilder {
 		// Add team exclusion filter if specified (for "not playing for" patterns)
 		if (analysis.teamExclusions && analysis.teamExclusions.length > 0) {
 			const teamExclusions = analysis.teamExclusions || [];
-			const mappedExcludedTeamNames = teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+			// Remove duplicates before mapping to avoid duplicate WHERE conditions
+			const uniqueTeamExclusions = [...new Set(teamExclusions)];
+			const mappedExcludedTeamNames = uniqueTeamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+			// Remove duplicates from mapped names as well (in case mapping produces duplicates)
+			const uniqueMappedExcludedTeamNames = [...new Set(mappedExcludedTeamNames)];
 			
 			// For player performance metrics, exclude based on md.team (where individual player team is stored)
 			// For team-specific metrics that don't use MatchDetail, we still use md.team for consistency
 			// The exclusion means "not playing for team X", which refers to the team in MatchDetail
-			for (const excludedTeam of mappedExcludedTeamNames) {
+			for (const excludedTeam of uniqueMappedExcludedTeamNames) {
 				whereConditions.push(`toUpper(md.team) <> toUpper('${excludedTeam}')`);
 			}
 		}
 
 		// Add team-specific appearance filter if metric is team-specific (1sApps, 2sApps, etc.)
-		if (metric.match(/^\d+sApps$/i)) {
+		// BUT skip if team exclusions are present (exclusions mean we want all teams except excluded ones)
+		if (metric.match(/^\d+sApps$/i) && !(analysis.teamExclusions && analysis.teamExclusions.length > 0)) {
 			const teamNumber = metric.match(/^(\d+)sApps$/i)?.[1];
 			if (teamNumber) {
 				const teamName = TeamMappingUtils.mapTeamName(`${teamNumber}s`);
@@ -411,7 +423,8 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add team-specific appearance filter if metric is team-specific (1st XI Apps, 2nd XI Apps, etc.)
-		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+		// BUT skip if team exclusions are present (exclusions mean we want all teams except excluded ones)
+		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && !(analysis.teamExclusions && analysis.teamExclusions.length > 0)) {
 			const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i);
 			if (teamMatch) {
 				const teamName = teamMatch[1] + " XI";
@@ -497,11 +510,53 @@ export class PlayerQueryBuilder {
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
 		if (timeRange && !isTeamSpecificMetric) {
-			const dateRange = timeRange.split(" to ");
-			if (dateRange.length === 2) {
-				const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
-				const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
-				whereConditions.push(`f.date >= '${startDate}' AND f.date <= '${endDate}'`);
+			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
+			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
+			
+			// Check if we have a "since" type timeFrame in extractionResult
+			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
+			
+			// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
+			// For other queries that need fixture data, use f.date
+			const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
+			const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
+			
+			if (beforeFrame) {
+				// Handle "before [SEASON]" pattern - convert season to start date and use < operator
+				const seasonValue = beforeFrame.value;
+				// Check if it's a season format (e.g., "2020/21" or "2020-21")
+				const seasonMatch = seasonValue.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					const seasonStartDate = DateUtils.convertSeasonToStartDate(seasonValue);
+					whereConditions.push(`${dateField} < '${seasonStartDate}'`);
+				} else {
+					// Try to parse as a year and use January 1st of that year
+					const year = parseInt(seasonValue, 10);
+					if (!isNaN(year)) {
+						whereConditions.push(`${dateField} < '${year}-01-01'`);
+					}
+				}
+			} else if (sinceFrame) {
+				// Handle "since [YEAR]" pattern - convert to first date after that year
+				const year = parseInt(sinceFrame.value, 10);
+				if (!isNaN(year)) {
+					const startDate = DateUtils.convertSinceYearToDate(year);
+					whereConditions.push(`${dateField} >= '${startDate}'`);
+				}
+			} else {
+				// Check if this is a date range or single date
+				const dateRange = timeRange.split(" to ");
+				
+				if (dateRange.length === 2) {
+					// Handle date range (between X and Y)
+					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+					const endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+				} else if (dateRange.length === 1) {
+					// Single date (could be from "since" pattern that was converted, or a single date query)
+					const startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+					whereConditions.push(`${dateField} >= '${startDate}'`);
+				}
 			}
 		}
 
@@ -1197,13 +1252,15 @@ export class PlayerQueryBuilder {
 		let needsMatchDetail = PlayerQueryBuilder.metricNeedsMatchDetail(metric);
 		// CRITICAL: Force MatchDetail join when filters requiring Fixture are present
 		// (competition, competition type, opposition, time range, location, result filters)
+		// ALSO: Force MatchDetail when team exclusions are present (need to filter by md.team)
 		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
 		const hasCompetitionTypeFilter = analysis.competitionTypes && analysis.competitionTypes.length > 0;
 		const hasOppositionFilter = oppositionEntities.length > 0;
 		const hasTimeRangeFilter = timeRange !== undefined;
 		const hasResultFilter = analysis.results && analysis.results.length > 0;
+		const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
 		const hasFiltersRequiringMatchDetail = hasLocationFilter || hasCompetitionFilter || hasCompetitionTypeFilter || 
-			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter;
+			hasOppositionFilter || hasTimeRangeFilter || hasResultFilter || hasTeamExclusions;
 		
 		if (hasFiltersRequiringMatchDetail && !needsMatchDetail) {
 			needsMatchDetail = true;
@@ -1214,6 +1271,9 @@ export class PlayerQueryBuilder {
 			metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i));
 		const metricUpper = metric.toUpperCase();
 		const isPositionMetric = ["GK", "DEF", "MID", "FWD"].includes(metricUpper);
+		// CRITICAL: If a player is involved (which is always the case in buildPlayerQuery), 
+		// we should NEVER use team-specific metric paths - those are for team stats queries only
+		const hasPlayerEntity = _playerName && _playerName.trim().length > 0;
 		const fixtureDependentMetrics = new Set([
 			"HOME",
 			"AWAY",
@@ -1229,10 +1289,10 @@ export class PlayerQueryBuilder {
 
 		// For team-specific metrics (appearances/goals for specific teams), we don't need fixtures
 		// Team filtering is done on md.team property, not f.team
-		let needsFixture = isTeamSpecificMetric ? false :
+		let needsFixture: boolean = isTeamSpecificMetric ? false :
 			(teamEntities.length > 0) ||
 			(locations.length > 0 && !fixtureDependentMetrics.has(metricUpper)) ||
-			timeRange ||
+			(timeRange !== undefined && timeRange !== "") ||
 			oppositionEntities.length > 0 ||
 			fixtureDependentMetrics.has(metricUpper) ||
 			(analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
@@ -1274,7 +1334,9 @@ export class PlayerQueryBuilder {
 			} else {
 				// Use simple MatchDetail query for queries that don't need fixture data
 				// For team-specific or position metrics, use OPTIONAL MATCH to ensure we always return a row
-				if (isTeamSpecificMetric || isPositionMetric) {
+				// BUT: Don't use OPTIONAL MATCH when team exclusions are present (exclusions work better with regular MATCH)
+				// ALSO: Don't use OPTIONAL MATCH for non-team-specific metrics with exclusions (like assists)
+				if ((isTeamSpecificMetric || isPositionMetric) && !hasTeamExclusions) {
 					query = `
 						MATCH (p:Player {playerName: $playerName})
 						OPTIONAL MATCH (p)-[:PLAYED_IN]->(md:MatchDetail)
@@ -1287,12 +1349,11 @@ export class PlayerQueryBuilder {
 			}
 
 			// Build WHERE conditions using helper method (pre-computed and optimized)
-			let whereConditions = PlayerQueryBuilder.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations);
+			let whereConditions = PlayerQueryBuilder.buildWhereConditions(metric, analysis, isTeamSpecificMetric, teamEntities, oppositionEntities, timeRange, locations, needsFixture);
 
 			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
 			// (we'll filter in WITH clause instead to ensure we always return a row)
 			// BUT skip this if team exclusions are present (exclusions mean we want all teams except the excluded ones)
-			const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
 			let teamNameForWithClause = "";
 			if (!hasTeamExclusions && (isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
 				if (metric.match(/^\d+sApps$/i)) {
@@ -1321,9 +1382,26 @@ export class PlayerQueryBuilder {
 				query += ` WHERE ${optimizedConditions.join(" AND ")}`;
 			}
 
-			// For team-specific metrics with OPTIONAL MATCH, we need to filter by team in the WHERE clause or WITH clause
-			// BUT skip team-specific pattern when exclusions are present (exclusions mean we want all teams except excluded ones)
-			if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
+			// Handle non-team-specific metrics with team exclusions FIRST (e.g., assists, goals)
+			// This must come before the team-specific metric check to ensure correct routing
+			// CRITICAL: Check this FIRST before any team-specific metric checks
+			// Also explicitly check that metric is NOT a team-specific appearances metric
+			const isTeamSpecificAppsMetric = !!(metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i));
+			// CRITICAL: If a player is involved, NEVER use team-specific metric paths - those are for team stats only
+			// For player queries, always use standard aggregation with the appropriate return clause
+			if (hasPlayerEntity && hasTeamExclusions) {
+				// For player queries with team exclusions (e.g., assists, goals), use regular aggregation
+				// The exclusion filter is already in WHERE conditions, so just use the standard return clause
+				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+			} else if (hasTeamExclusions && !isTeamSpecificMetric && !isTeamSpecificAppsMetric) {
+				// For non-team-specific metrics with team exclusions (e.g., assists, goals), use regular aggregation
+				// The exclusion filter is already in WHERE conditions, so just use the standard return clause
+				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+			} else if (hasPlayerEntity && !hasTeamExclusions) {
+				// For player queries without exclusions, use standard return clause
+				// Skip team-specific metric paths entirely for player queries
+				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+			} else if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
 				let teamName = "";
 				if (metric.match(/^\d+sGoals$/i)) {
@@ -1349,10 +1427,11 @@ export class PlayerQueryBuilder {
 				} else {
 					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
 				}
-			} else if (isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+			} else if (!hasPlayerEntity && isTeamSpecificMetric && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
 				// Check if we have team exclusions - if so, don't use team-specific pattern
-				const hasTeamExclusions = analysis.teamExclusions && analysis.teamExclusions.length > 0;
-				
+				// BUT: Only enter this block if the metric actually matches team-specific appearances pattern
+				// CRITICAL: NEVER use team-specific metric paths for player queries - those are for team stats only
+				// This prevents non-team-specific metrics (like assists) from entering this path
 				if (teamNameForWithClause && !hasTeamExclusions) {
 					// Use WITH clause to aggregate and filter by team
 					// Ensure we always return a row even when there are no MatchDetail records
@@ -1360,9 +1439,11 @@ export class PlayerQueryBuilder {
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
 					query += ` WITH p, size(filteredDetails) as appearanceCount`;
 					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
-				} else if (hasTeamExclusions) {
-					// When exclusions are present, use regular aggregation with exclusion filter
-					const mappedExcludedTeamNames = analysis.teamExclusions.map((team) => TeamMappingUtils.mapTeamName(team));
+				} else if (hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+					// When exclusions are present for team-specific appearances, use regular aggregation with exclusion filter
+					// This path is ONLY for team-specific appearance metrics (3sApps, etc.), not for other metrics like assists
+					// The metric.match check ensures we only use this path for actual team-specific appearances
+					const mappedExcludedTeamNames = (analysis.teamExclusions || []).map((team) => TeamMappingUtils.mapTeamName(team));
 					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
 					query += ` WITH p, collect(md) as matchDetails`;
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND (${exclusionConditions})] END as filteredDetails`;

@@ -3,6 +3,7 @@ import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
+import { TeamDataQueryHandler } from "./teamDataQueryHandler";
 
 export class FixtureDataQueryHandler {
 	/**
@@ -10,11 +11,22 @@ export class FixtureDataQueryHandler {
 	 */
 	static async queryFixtureData(
 		entities: string[],
-		_metrics: string[],
+		metrics: string[],
 		analysis?: EnhancedQuestionAnalysis,
 	): Promise<Record<string, unknown>> {
 		const graphLabel = neo4jService.getGraphLabel();
 		const question = analysis?.question?.toLowerCase() || "";
+		
+		// Check if this is a "how many games" query for a team - route to TeamDataQueryHandler
+		const isTeamGamesCountQuery = 
+			(question.includes("how many games") || question.includes("how many game")) &&
+			(question.includes("play") || question.includes("played")) &&
+			(analysis?.teamEntities && analysis.teamEntities.length > 0 || entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)));
+		
+		if (isTeamGamesCountQuery && analysis) {
+			loggingService.log(`🔍 Detected team games count query, routing to TeamDataQueryHandler`, null, "log");
+			return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
+		}
 		
 		// Check if this is a highest scoring game query
 		const isHighestScoringGameQuery = 

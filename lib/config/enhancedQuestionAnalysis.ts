@@ -1,5 +1,6 @@
 import { EntityExtractor, EntityExtractionResult, StatTypeInfo } from "./entityExtraction";
 import { QuestionType } from "../../config/config";
+import { DateUtils } from "../services/chatbotUtils/dateUtils";
 
 export interface EnhancedQuestionAnalysis {
 	type: QuestionType;
@@ -647,16 +648,26 @@ export class EnhancedQuestionAnalyzer {
 			return "club";
 		}
 
-		// Check for ranking queries (which player/team has the highest/most/fewest/least...)
+		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
+		// Special case: "worst penalty record" questions should be routed to ranking handler
+		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
+			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
+		
 		if (
 			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
-			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest"))
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
 		) {
 			// If it's asking about teams specifically, route to club handler
 			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
 				return "club";
 			}
+			return "ranking";
+		}
+		
+		// Also check for "worst penalty record" questions that might not have "which" or "who"
+		if (isWorstPenaltyRecord) {
 			return "ranking";
 		}
 
@@ -2579,7 +2590,24 @@ export class EnhancedQuestionAnalyzer {
 			console.log("🔍 Time frames extracted:", extractionResult.timeFrames);
 		}
 
-		// Look for range type first (e.g., "20/03/2022 to 21/10/24")
+		// Look for "since" type first (e.g., "since 2020")
+		const sinceFrame = extractionResult.timeFrames.find((tf) => tf.type === "since");
+		if (sinceFrame) {
+			const year = parseInt(sinceFrame.value, 10);
+			if (!isNaN(year)) {
+				const startDate = DateUtils.convertSinceYearToDate(year);
+				// Format as DD/MM/YYYY for legacy format
+				const formattedDate = DateUtils.formatDate(startDate);
+				if (process.env.DEBUG_MODE === "true") {
+					console.log("🔍 Using since time frame:", sinceFrame.value, "→", formattedDate);
+				}
+				// Return in format that can be parsed as date range: "01/01/2021 to [future date]"
+				// For "since" queries, we only need the start date, end date will be handled in query builder
+				return formattedDate;
+			}
+		}
+
+		// Look for range type (e.g., "20/03/2022 to 21/10/24")
 		const rangeFrame = extractionResult.timeFrames.find((tf) => tf.type === "range" && tf.value.includes(" to "));
 		if (rangeFrame) {
 			if (process.env.DEBUG_MODE === "true") {

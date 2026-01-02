@@ -53,6 +53,33 @@ export class RelationshipQueryHandler {
 	}
 
 	/**
+	 * Query goals scored against each opposition for a player
+	 */
+	static async queryPlayerGoalsAgainstOpposition(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying goals against opposition for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		const query = `
+			MATCH (p:Player {playerName: $playerName, graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.opposition IS NOT NULL AND f.opposition <> ""
+			WITH f.opposition as opposition,
+			     sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as goalsScored
+			WHERE goalsScored > 0
+			ORDER BY goalsScored DESC
+			LIMIT 10
+			RETURN opposition, goalsScored
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			return { type: "opposition_goals", data: result, playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in goals against opposition query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying goals against opposition data" };
+		}
+	}
+
+	/**
 	 * Query players who have played with the most different teammates
 	 */
 	static async queryMostDifferentTeammates(limit: number = 10): Promise<Record<string, unknown>> {
