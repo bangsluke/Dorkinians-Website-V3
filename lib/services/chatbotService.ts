@@ -2180,13 +2180,35 @@ export class ChatbotService {
 			}
 		} else if (data && data.type === "opponents") {
 			// Handle opponents data
-			const opponents = (data.data as OpponentData[]) || [];
+			// Extract opponents array from nested structure: data.data is [{opponents: [...], totalOpponents: ...}]
+			const rawData = (data.data as Array<{ opponents?: OpponentData[]; totalOpponents?: number }>) || [];
+			const opponents = (rawData[0]?.opponents as OpponentData[]) || [];
 			if (opponents.length === 0) {
 				answer = "No opponents found.";
 			} else {
 				const topOpponent = opponents[0];
 				answer = `You have played against ${topOpponent.opponent} ${topOpponent.gamesPlayed} ${topOpponent.gamesPlayed === 1 ? "time" : "times"}.`;
-				answerValue = topOpponent.gamesPlayed;
+				answerValue = topOpponent.opponent;
+				
+				// Create table visualization with top 5 (expandable to 10)
+				const tableData = opponents.slice(0, 10).map((item) => ({
+					Opposition: item.opponent,
+					"Games Played": item.gamesPlayed,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Games Played", label: "Games Played" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
 			}
 		} else if (data && data.type === "opposition_goals") {
 			// Handle goals against opposition data
@@ -2214,6 +2236,39 @@ export class ChatbotService {
 						columns: [
 							{ key: "Opposition", label: "Opposition" },
 							{ key: "Goals Scored", label: "Goals Scored" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type === "most_played_against") {
+			// Handle most played against opposition data
+			const playerName = (data.playerName as string) || "You";
+			const oppositionData = (data.data as Array<{ opposition: string; gamesPlayed: number }>) || [];
+			
+			if (oppositionData.length === 0) {
+				answer = `${playerName} have not played against any opposition.`;
+				answerValue = null;
+			} else {
+				const topOpposition = oppositionData[0];
+				answer = `${playerName} have played against ${topOpposition.opposition} the most, with ${topOpposition.gamesPlayed} ${topOpposition.gamesPlayed === 1 ? "game" : "games"}.`;
+				answerValue = topOpposition.opposition;
+				
+				// Format data for table visualization
+				const tableData = oppositionData.map((item) => ({
+					Opposition: item.opposition,
+					"Games Played": item.gamesPlayed,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Games Played", label: "Games Played" },
 						],
 						initialDisplayLimit: 5,
 						expandableLimit: 10,
@@ -2550,11 +2605,18 @@ export class ChatbotService {
 			// Check if answer is already provided by query handler
 			if (data.answer) {
 				answer = data.answer as string;
-				// For goal difference queries, set answerValue to the goal difference
-				if (data.goalDifference !== undefined) {
+				// Priority 1: Check if answerValue is explicitly set by query handler
+				if (data.answerValue !== undefined && data.answerValue !== null) {
+					answerValue = data.answerValue as string | number;
+				} else if (data.season !== undefined && data.season !== null && 
+					(question.toLowerCase().includes("which season") || question.toLowerCase().includes("what season"))) {
+					// Priority 2: For "which season" queries, use the season value
+					answerValue = data.season as string;
+				} else if (data.goalDifference !== undefined) {
+					// Priority 3: For goal difference queries, set answerValue to the goal difference
 					answerValue = data.goalDifference as number;
 				} else if (data.position !== undefined) {
-					// For position queries, set answerValue to the ordinal position string (e.g., "4th")
+					// Priority 4: For position queries, set answerValue to the ordinal position string (e.g., "4th")
 					const position = data.position as number;
 					const positionSuffix = position === 1 ? "st" : position === 2 ? "nd" : position === 3 ? "rd" : "th";
 					answerValue = `${position}${positionSuffix}`;

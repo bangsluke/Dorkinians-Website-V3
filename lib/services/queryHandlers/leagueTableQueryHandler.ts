@@ -120,6 +120,7 @@ export class LeagueTableQueryHandler {
 					season: maxSeason,
 					division: division,
 					answer: `The ${ordinalTeam} conceded the most goals in the ${maxSeason} season, with ${maxGoalsAgainst} goals against.`,
+					answerValue: maxSeason,
 					goalsAgainst: maxGoalsAgainst,
 				};
 			}
