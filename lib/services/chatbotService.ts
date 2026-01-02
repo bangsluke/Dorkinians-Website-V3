@@ -567,10 +567,49 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for "most prolific season" questions - route to player handler - This check must happen before the switch statement to ensure proper routing
+			// Check for "most prolific season", "highest scoring season", or "season I scored the most goals" questions - route to player handler - This check must happen before the switch statement to ensure proper routing
+			const questionLower = question.toLowerCase();
+			// Helper function to detect various patterns
+			const detectMostGoalsSeasonPattern = (q: string): boolean => {
+				const lower = q.toLowerCase();
+				// Pattern 1: "most prolific season" or "highest scoring season"
+				if ((lower.includes("most prolific season") || 
+					 lower.includes("prolific season") ||
+					 lower.includes("highest scoring season") ||
+					 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+					return true;
+				}
+				// Pattern 2: "season I scored the most goals" / "season I scored most goals"
+				if (lower.includes("season") && lower.includes("scored") && 
+					(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+					return true;
+				}
+				// Pattern 3: "season did I score the most goals" / "season did I score most goals"
+				if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+					(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+					return true;
+				}
+				// Pattern 4: "when did I score the most goals" / "when did I score most goals"
+				if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+					(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+					return true;
+				}
+				// Pattern 5: "season with the most goals" / "season with most goals"
+				if (lower.includes("season") && lower.includes("with") && 
+					(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+					return true;
+				}
+				// Pattern 6: "which season" + "most goals" / "what season" + "most goals"
+				if ((lower.includes("which season") || lower.includes("what season")) && 
+					(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+					return true;
+				}
+				return false;
+			};
+			
 			const isMostProlificSeasonQuestion = 
-				(question.includes("most prolific season") || question.includes("prolific season")) &&
-				(question.includes("what") || question.includes("which") || question.includes("my") || question.includes("your"));
+				detectMostGoalsSeasonPattern(question) &&
+				(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("when") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
 
 			if (isMostProlificSeasonQuestion) {
 				// Ensure this is routed to player handler with proper context
@@ -3287,7 +3326,45 @@ export class ChatbotService {
 				}
 				// Handle MOSTPROLIFICSEASON BEFORE extracting first data item (needs full array)
 				else if (metric && metric.toUpperCase() === "MOSTPROLIFICSEASON") {
-					if (questionLower.includes("most prolific season") || questionLower.includes("prolific season")) {
+					// Helper function to detect various patterns for most goals season questions
+					const detectMostGoalsSeasonPattern = (q: string): boolean => {
+						const lower = q.toLowerCase();
+						// Pattern 1: "most prolific season" or "highest scoring season"
+						if ((lower.includes("most prolific season") || 
+							 lower.includes("prolific season") ||
+							 lower.includes("highest scoring season") ||
+							 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+							return true;
+						}
+						// Pattern 2: "season I scored the most goals" / "season I scored most goals"
+						if (lower.includes("season") && lower.includes("scored") && 
+							(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+							return true;
+						}
+						// Pattern 3: "season did I score the most goals" / "season did I score most goals"
+						if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+							(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+							return true;
+						}
+						// Pattern 4: "when did I score the most goals" / "when did I score most goals"
+						if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+							(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+							return true;
+						}
+						// Pattern 5: "season with the most goals" / "season with most goals"
+						if (lower.includes("season") && lower.includes("with") && 
+							(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+							return true;
+						}
+						// Pattern 6: "which season" + "most goals" / "what season" + "most goals"
+						if ((lower.includes("which season") || lower.includes("what season")) && 
+							(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+							return true;
+						}
+						return false;
+					};
+					
+					if (detectMostGoalsSeasonPattern(questionLower)) {
 						// Check if we have array data (multiple seasons) from the query
 						if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 							const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
@@ -3306,7 +3383,21 @@ export class ChatbotService {
 							// Find the season with the most goals
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
 							
-							answer = `${playerName}'s most prolific season was ${mostProlific.season} with ${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}.`;
+							// Use wording that matches the user's question
+							const isHighestScoring = questionLower.includes("highest scoring season") || 
+								(questionLower.includes("highest") && questionLower.includes("scoring") && questionLower.includes("season"));
+							const isSeasonScoredMostGoals = (questionLower.includes("season") && questionLower.includes("scored") && questionLower.includes("most goals")) ||
+								(questionLower.includes("season") && questionLower.includes("did") && questionLower.includes("score") && questionLower.includes("most goals")) ||
+								(questionLower.includes("when") && questionLower.includes("did") && questionLower.includes("score") && questionLower.includes("most goals"));
+							
+							let seasonDescription = "most prolific season";
+							if (isHighestScoring) {
+								seasonDescription = "highest scoring season";
+							} else if (isSeasonScoredMostGoals) {
+								seasonDescription = "season you scored the most goals";
+							}
+							
+							answer = `${playerName}'s ${seasonDescription} was ${mostProlific.season} with ${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}.`;
 							answerValue = mostProlific.season;
 							
 							// Sort by season ascending for chronological display

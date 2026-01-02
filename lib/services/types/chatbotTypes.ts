@@ -22,6 +22,8 @@ export interface ChatbotResponse {
 			cypherQueries?: string[];
 			processingSteps?: string[];
 			queryBreakdown?: Record<string, unknown> | null;
+			error?: string;
+			errorStack?: string;
 		};
 	};
 }
