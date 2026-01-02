@@ -43,13 +43,47 @@ export class EnhancedQuestionAnalyzer {
 	async analyze(): Promise<EnhancedQuestionAnalysis> {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		
-		// Early detection: Check for "most prolific season" pattern and add to statTypes if found
+		// Early detection: Check for "most prolific season", "highest scoring season", or "season I scored the most goals" pattern and add to statTypes if found
 		// This must happen before the early exit check to ensure the question is properly recognized
 		const lowerQuestion = this.question.toLowerCase();
-		const isMostProlificSeasonQuestion = 
-			lowerQuestion.includes("most") && 
-			lowerQuestion.includes("prolific") && 
-			lowerQuestion.includes("season");
+		const detectMostGoalsSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern 1: "most prolific season" or "highest scoring season"
+			if ((lower.includes("most prolific season") || 
+				 lower.includes("prolific season") ||
+				 lower.includes("highest scoring season") ||
+				 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+				return true;
+			}
+			// Pattern 2: "season I scored the most goals" / "season I scored most goals"
+			if (lower.includes("season") && lower.includes("scored") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 3: "season did I score the most goals" / "season did I score most goals"
+			if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 4: "when did I score the most goals" / "when did I score most goals"
+			if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 5: "season with the most goals" / "season with most goals"
+			if (lower.includes("season") && lower.includes("with") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 6: "which season" + "most goals" / "what season" + "most goals"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			return false;
+		};
+		
+		const isMostProlificSeasonQuestion = detectMostGoalsSeasonPattern(lowerQuestion);
 		
 		if (isMostProlificSeasonQuestion) {
 			// Check if "Most Prolific Season" is already in statTypes
@@ -384,12 +418,46 @@ export class EnhancedQuestionAnalyzer {
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top"));
 
 		// Check for "most prolific season" questions - these are valid with userContext even without entities
-		const isMostProlificSeasonQuestion = 
-			lowerQuestion.includes("most") && 
-			lowerQuestion.includes("prolific") && 
-			lowerQuestion.includes("season");
+		const detectMostGoalsSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern 1: "most prolific season" or "highest scoring season"
+			if ((lower.includes("most prolific season") || 
+				 lower.includes("prolific season") ||
+				 lower.includes("highest scoring season") ||
+				 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+				return true;
+			}
+			// Pattern 2: "season I scored the most goals" / "season I scored most goals"
+			if (lower.includes("season") && lower.includes("scored") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 3: "season did I score the most goals" / "season did I score most goals"
+			if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 4: "when did I score the most goals" / "when did I score most goals"
+			if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 5: "season with the most goals" / "season with most goals"
+			if (lower.includes("season") && lower.includes("with") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			// Pattern 6: "which season" + "most goals" / "what season" + "most goals"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				return true;
+			}
+			return false;
+		};
 		
-		// Don't require entities for "most prolific season" questions if userContext exists
+		const isMostProlificSeasonQuestion = detectMostGoalsSeasonPattern(lowerQuestion);
+		
+		// Don't require entities for "most prolific season", "highest scoring season", or "season I scored the most goals" questions if userContext exists
 		if (isMostProlificSeasonQuestion && this.userContext && hasNoStatTypes) {
 			return true; // Still need stat types
 		}
@@ -2028,16 +2096,69 @@ export class EnhancedQuestionAnalyzer {
 	private correctMostProlificSeasonQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check for most prolific season phrases that were incorrectly broken down
-		if (lowerQuestion.includes("most") && lowerQuestion.includes("prolific") && lowerQuestion.includes("season")) {
+		// Helper function to detect various patterns
+		const detectMostGoalsSeasonPattern = (q: string): { detected: boolean; originalText: string; position: number } => {
+			const lower = q.toLowerCase();
+			// Pattern 1: "most prolific season"
+			if (lower.includes("most prolific season")) {
+				return { detected: true, originalText: "most prolific season", position: lower.indexOf("most prolific season") };
+			}
+			// Pattern 2: "highest scoring season"
+			if (lower.includes("highest scoring season")) {
+				return { detected: true, originalText: "highest scoring season", position: lower.indexOf("highest scoring season") };
+			}
+			// Pattern 3: "season I scored the most goals" / "season I scored most goals"
+			if (lower.includes("season") && lower.includes("scored") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				const pos = Math.max(lower.indexOf("season"), lower.indexOf("scored"), lower.indexOf("most"));
+				return { detected: true, originalText: "season I scored the most goals", position: pos };
+			}
+			// Pattern 4: "season did I score the most goals" / "season did I score most goals"
+			if (lower.includes("season") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				const pos = Math.max(lower.indexOf("season"), lower.indexOf("did"), lower.indexOf("most"));
+				return { detected: true, originalText: "season did I score the most goals", position: pos };
+			}
+			// Pattern 5: "when did I score the most goals" / "when did I score most goals"
+			if (lower.includes("when") && lower.includes("did") && lower.includes("score") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				const pos = Math.max(lower.indexOf("when"), lower.indexOf("did"), lower.indexOf("most"));
+				return { detected: true, originalText: "when did I score the most goals", position: pos };
+			}
+			// Pattern 6: "season with the most goals" / "season with most goals"
+			if (lower.includes("season") && lower.includes("with") && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				const pos = Math.max(lower.indexOf("season"), lower.indexOf("with"), lower.indexOf("most"));
+				return { detected: true, originalText: "season with the most goals", position: pos };
+			}
+			// Pattern 7: "which season" + "most goals" / "what season" + "most goals"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				(lower.includes("most goals") || (lower.includes("most") && lower.includes("goals")))) {
+				const pos = lower.includes("which season") ? lower.indexOf("which season") : lower.indexOf("what season");
+				return { detected: true, originalText: "which season most goals", position: pos };
+			}
+			// Pattern 8: "prolific season" (without "most")
+			if (lower.includes("prolific") && lower.includes("season")) {
+				return { detected: true, originalText: "prolific season", position: lower.indexOf("prolific") };
+			}
+			// Pattern 9: "highest" + "scoring" + "season" (separate words)
+			if (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")) {
+				return { detected: true, originalText: "highest scoring season", position: lower.indexOf("highest") };
+			}
+			return { detected: false, originalText: "", position: -1 };
+		};
+
+		const pattern = detectMostGoalsSeasonPattern(lowerQuestion);
+		
+		if (pattern.detected) {
 			// Remove incorrect "Goals", "G", "Season" mappings
 			const filteredStats = statTypes.filter((stat) => !["Goals", "G", "Season", "Season Analysis"].includes(stat.value));
 
-			// Add correct "Most Prolific Season" mapping
+			// Add correct "Most Prolific Season" mapping (same for all variations)
 			filteredStats.push({
 				value: "Most Prolific Season",
-				originalText: "most prolific season",
-				position: lowerQuestion.indexOf("most"),
+				originalText: pattern.originalText,
+				position: pattern.position,
 			});
 
 			return filteredStats;
