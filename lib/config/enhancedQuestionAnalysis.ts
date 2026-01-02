@@ -2747,10 +2747,25 @@ export class EnhancedQuestionAnalyzer {
 			return rangeFrame.value;
 		}
 
-		// Fallback to first time frame if no range found
+		// Fallback to first time frame if no range found, but only if it's a valid date format
 		if (extractionResult.timeFrames.length > 0) {
-			console.log("🔍 Using first time frame:", extractionResult.timeFrames[0].value);
-			return extractionResult.timeFrames[0].value;
+			const firstFrame = extractionResult.timeFrames[0];
+			// Only return if it's a valid date format (not a pseudonym key like "between_dates")
+			const isValidDateValue = firstFrame.value && 
+				firstFrame.value !== "between_dates" && 
+				firstFrame.value !== "before" && 
+				firstFrame.value !== "since" &&
+				(firstFrame.value.includes(" to ") || 
+				 firstFrame.value.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || 
+				 firstFrame.value.match(/^\d{4}[\/\-]\d{2,4}$/) ||
+				 firstFrame.value.match(/^\d{4}$/));
+			
+			if (isValidDateValue) {
+				if (process.env.DEBUG_MODE === "true") {
+					console.log("🔍 Using first time frame:", firstFrame.value);
+				}
+				return firstFrame.value;
+			}
 		}
 		return undefined;
 	}

@@ -512,7 +512,14 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add time range filter if specified (but not for team-specific metrics - they don't need Fixture)
-		if (timeRange && !isTeamSpecificMetric) {
+		// Validate timeRange - ignore if it's not a valid date format (e.g., "between_dates" pseudonym key)
+		const isValidTimeRange = timeRange && 
+			timeRange !== "between_dates" && 
+			timeRange !== "before" && 
+			timeRange !== "since" &&
+			(timeRange.includes(" to ") || timeRange.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || timeRange.match(/^\d{4}[\/\-]\d{2,4}$/));
+		
+		if (isValidTimeRange && !isTeamSpecificMetric) {
 			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
 			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
 			

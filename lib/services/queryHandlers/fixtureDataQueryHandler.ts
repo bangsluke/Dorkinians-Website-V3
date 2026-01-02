@@ -340,21 +340,56 @@ export class FixtureDataQueryHandler {
 		let teamName = "";
 		if (analysis?.teamEntities && analysis.teamEntities.length > 0) {
 			teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
-		} else if (entities.length > 0) {
-			teamName = TeamMappingUtils.mapTeamName(entities[0]);
-		} else {
-			// Try to extract from question text
-			const teamMatch = question.match(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/);
+			loggingService.log(`🔍 Found team from teamEntities: ${teamName}`, null, "log");
+		} else if (analysis?.extractionResult?.entities) {
+			// Check extraction result for team entities
+			const teamEntities = analysis.extractionResult.entities.filter(e => e.type === "team");
+			if (teamEntities.length > 0) {
+				teamName = TeamMappingUtils.mapTeamName(teamEntities[0].value);
+				loggingService.log(`🔍 Found team from extractionResult entities: ${teamName}`, null, "log");
+			}
+		}
+		
+		if (!teamName && entities.length > 0) {
+			// Check if entities contain team references
+			for (const entity of entities) {
+				const mappedTeam = TeamMappingUtils.mapTeamName(entity);
+				if (mappedTeam !== entity) {
+					// If mapping changed the value, it's likely a team
+					teamName = mappedTeam;
+					loggingService.log(`🔍 Found team from entities array: ${teamName}`, null, "log");
+					break;
+				}
+			}
+		}
+		
+		if (!teamName) {
+			// Try to extract from question text with improved regex
+			// Match team patterns in various contexts: "the 1s", "1s had", "1s'", etc.
+			const teamMatch = question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|xi|had|have|has))?\b/i);
 			if (teamMatch) {
 				const teamStr = teamMatch[1];
+				// Handle ordinal formats (1st, 2nd, etc.)
 				if (teamStr.includes("st") || teamStr.includes("nd") || teamStr.includes("rd") || teamStr.includes("th")) {
 					const num = teamStr.match(/\d+/)?.[0];
 					if (num) {
 						teamName = TeamMappingUtils.mapTeamName(`${num}s`);
 					}
+				} else if (teamStr.match(/^(first|second|third|fourth|fifth|sixth|seventh|eighth)$/i)) {
+					// Handle word formats (first, second, etc.)
+					const wordToNum: { [key: string]: string } = {
+						first: "1s", second: "2s", third: "3s", fourth: "4s",
+						fifth: "5s", sixth: "6s", seventh: "7s", eighth: "8s"
+					};
+					const numStr = wordToNum[teamStr.toLowerCase()];
+					if (numStr) {
+						teamName = TeamMappingUtils.mapTeamName(numStr);
+					}
 				} else {
+					// Direct format (1s, 2s, etc.)
 					teamName = TeamMappingUtils.mapTeamName(teamStr);
 				}
+				loggingService.log(`🔍 Found team from question text: ${teamName}`, null, "log");
 			}
 		}
 		

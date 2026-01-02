@@ -567,16 +567,32 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "highest scoring game" queries FIRST - these should route to fixture handler, not player handler
+			const isHighestScoringGameQuery = 
+				question.includes("highest scoring game") ||
+				(question.includes("highest scoring") && question.includes("game")) ||
+				(question.includes("most goals") && question.includes("game")) ||
+				(question.includes("highest total") && question.includes("game"));
+
+			if (isHighestScoringGameQuery) {
+				this.lastProcessingSteps.push(`Detected highest scoring game question, routing to FixtureDataQueryHandler`);
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+
 			// Check for "most prolific season", "highest scoring season", or "season I scored the most goals" questions - route to player handler - This check must happen before the switch statement to ensure proper routing
 			const questionLower = question.toLowerCase();
 			// Helper function to detect various patterns
 			const detectMostGoalsSeasonPattern = (q: string): boolean => {
 				const lower = q.toLowerCase();
+				// Exclude "game" questions - these should be handled by fixture handler
+				if (lower.includes("game") && (lower.includes("highest scoring") || lower.includes("most goals"))) {
+					return false;
+				}
 				// Pattern 1: "most prolific season" or "highest scoring season"
 				if ((lower.includes("most prolific season") || 
 					 lower.includes("prolific season") ||
 					 lower.includes("highest scoring season") ||
-					 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season")))) {
+					 (lower.includes("highest") && lower.includes("scoring") && lower.includes("season") && !lower.includes("game")))) {
 					return true;
 				}
 				// Pattern 2: "season I scored the most goals" / "season I scored most goals"
@@ -3874,35 +3890,81 @@ export class ChatbotService {
 
 		if (shouldAskForClarification) {
 			// Generate a contextual clarification message based on question type and extracted entities
-			let clarificationMessage = "I need more information to help you. ";
-			
 			// Check what's missing from the question
-			const hasPlayerEntity = analysis.entities.some(e => {
-				const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
-				return playerEntities.length > 0;
-			});
+			const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
+			const hasPlayerEntity = playerEntities.length > 0;
 			const hasTeamEntity = analysis.teamEntities && analysis.teamEntities.length > 0;
 			const hasMetric = analysis.metrics.length > 0;
 			const hasOppositionEntity = analysis.oppositionEntities && analysis.oppositionEntities.length > 0;
+			const hasSeasonEntity = analysis.extractionResult?.timeFrames?.some(tf => tf.type === "season") || false;
+			const hasLocationEntity = (analysis.extractionResult?.locations && analysis.extractionResult.locations.length > 0) || false;
+			const hasCompetitionEntity = (analysis.extractionResult?.competitions && analysis.extractionResult.competitions.length > 0) || false;
 
-			if (!hasPlayerEntity && !hasTeamEntity && !hasOppositionEntity) {
-				clarificationMessage += "Please specify who or what you're asking about (e.g., a player name, team, or opposition). ";
-			}
-			
-			if (!hasMetric) {
-				clarificationMessage += "Please specify what statistic you want to know (e.g., goals, appearances, assists). ";
-			}
+			// Determine question type from analysis
+			const questionType = analysis.questionType || "";
+			const questionLower = (analysis.question || "").toLowerCase();
 
+			// Build specific clarification message based on what's missing
+			let clarificationMessage = "";
+
+			// If we have entities but still failed, provide specific guidance
 			if (hasPlayerEntity && hasMetric) {
-				// Has both but still failed - might be a name mismatch or data issue
 				clarificationMessage = "I couldn't find data for your question. Please check the player name spelling, or try rephrasing your question with more specific details.";
 			} else if (hasTeamEntity && hasMetric) {
 				clarificationMessage = "I couldn't find data for your question. Please check the team name (e.g., '1st XI', '2nd XI', '3rd XI') or try rephrasing your question.";
 			} else if (hasOppositionEntity && hasMetric) {
 				clarificationMessage = "I couldn't find data for your question. Please check the opposition name spelling or try rephrasing your question.";
 			} else {
-				// Generic clarification
-				clarificationMessage += "For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+				// Build message based on what's missing
+				const missingParts: string[] = [];
+
+				// Check for missing entity types based on question context
+				if (questionType === "player" || questionLower.includes("player") || questionLower.includes("i ") || questionLower.includes("i've") || questionLower.includes("my ")) {
+					if (!hasPlayerEntity) {
+						missingParts.push("Which player are you asking about? Please provide a player name.");
+					}
+				} else if (questionType === "team" || questionLower.includes("team") || questionLower.includes("xi") || questionLower.match(/\b(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i)) {
+					if (!hasTeamEntity) {
+						missingParts.push("Which team are you asking about? (e.g., '1st XI', '2nd XI', '3rd XI', or '1s', '2s', '3s')");
+					}
+				} else if (questionType === "opposition" || questionLower.includes("against") || questionLower.includes("versus") || questionLower.includes("vs")) {
+					if (!hasOppositionEntity) {
+						missingParts.push("Which opposition team are you asking about?");
+					}
+				} else {
+					// Generic entity check
+					if (!hasPlayerEntity && !hasTeamEntity && !hasOppositionEntity) {
+						missingParts.push("Please specify who or what you're asking about (e.g., a player name, team, or opposition).");
+					}
+				}
+
+				// Check for missing metric
+				if (!hasMetric) {
+					missingParts.push("What statistic would you like to know? (e.g., goals, appearances, assists, wins, losses)");
+				}
+
+				// Check for missing season if question seems season-specific
+				if ((questionLower.includes("season") || questionLower.match(/\d{4}[\-\/]\d{2,4}/)) && !hasSeasonEntity) {
+					missingParts.push("Which season are you asking about? (e.g., '2020-2021' or '2020/21')");
+				}
+
+				// Check for missing location if question seems location-specific
+				if ((questionLower.includes("home") || questionLower.includes("away") || questionLower.includes("location")) && !hasLocationEntity) {
+					missingParts.push("Are you asking about home or away games?");
+				}
+
+				// Check for missing competition if question seems competition-specific
+				if ((questionLower.includes("league") || questionLower.includes("cup") || questionLower.includes("competition")) && !hasCompetitionEntity) {
+					missingParts.push("Which competition are you asking about? (e.g., League, Cup, Friendly)");
+				}
+
+				// Build final message
+				if (missingParts.length > 0) {
+					clarificationMessage = "I need more information to help you. " + missingParts.join(" ");
+				} else {
+					// Fallback generic message
+					clarificationMessage = "I couldn't find data for your question. Please try rephrasing with more specific details. For example: 'How many goals has Luke Bangs scored?' or 'What are the 3rd XI stats?'";
+				}
 			}
 
 			answer = clarificationMessage;
