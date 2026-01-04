@@ -532,6 +532,30 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "no goal involvement" streak questions - route to streak handler
+			// Handle variations: "longest run", "longest streak", "lowest run" (likely typo/normalization issue)
+			// Handle variations: "goal involvement", "goal involvements", "goals goal involvements"
+			const isNoGoalInvolvementStreakQuestion = 
+				(question.includes("longest run") || question.includes("longest streak") || question.includes("lowest run") || question.includes("run of games")) &&
+				(question.includes("no goal involvement") || question.includes("no goal involvements") || 
+				 question.includes("no goals goal involvements") || question.includes("no goals goal involvement") ||
+				 question.includes("without goal involvement") || question.includes("without goal involvements") ||
+				 (question.includes("goal involvement") && (question.includes("no") || question.includes("without"))) ||
+				 (question.includes("goals goal involvements") && (question.includes("no") || question.includes("without"))));
+
+			// Check for positive goal involvement streak questions (longest run WITH goal involvements)
+			const isGoalInvolvementStreakQuestion = 
+				(question.includes("longest run") || question.includes("longest streak") || question.includes("run of games")) &&
+				(question.includes("goal involvement") || question.includes("goal involvements")) &&
+				!question.includes("no") && !question.includes("without");
+
+			if (isNoGoalInvolvementStreakQuestion || isGoalInvolvementStreakQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
 			// Check for consecutive goal involvement questions - ensure they're routed to streak handler - This catches questions that might be misclassified as "player" type
 			const isConsecutiveGoalInvolvementQuestion = 
 				(question.includes("consecutive") && question.includes("games") && 
@@ -545,6 +569,103 @@ export class ChatbotService {
 				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 				if (playerName) {
 					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
+			// Check for hat-trick questions (year-wide, team-specific, or date-filtered) BEFORE routing to handlers
+			// This prevents "hat‑tricks" from being treated as a player entity
+			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+			const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
+			const isHatTrickQuestion = hatTrickPattern.test(question) && 
+				(question.includes("how many") || question.includes("count"));
+			
+			if (isHatTrickQuestion) {
+				const hasYear = question.match(/\b(20\d{2})\b/) || 
+					analysis.extractionResult?.timeFrames?.some(tf => {
+						const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+						return yearMatch !== null;
+					});
+				const hasYearWidePhrases = question.includes("across all teams") || 
+					question.includes("across all team") ||
+					question.includes("across all") ||
+					question.includes("all teams") ||
+					question.includes("all team");
+				const hasPlayerMention = question.includes("has ") || 
+					question.includes("have ") || 
+					question.includes(" i ") || 
+					question.match(/\bi\b/);
+				const hasTeamFilter = (analysis.teamEntities && analysis.teamEntities.length > 0) ||
+					question.match(/\b(?:by|for)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i);
+				const hasDateFilter = question.includes("after ") || 
+					question.includes("before ") ||
+					question.includes("since ") ||
+					question.includes("between ") ||
+					analysis.extractionResult?.timeFrames?.some(tf => 
+						tf.type === "since" || tf.type === "before" || tf.type === "range"
+					);
+				
+				// Year-wide question: has year AND (year-wide phrases OR no player mention) AND no team filter
+				const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention) && !hasTeamFilter;
+				// Team-specific or date-filtered question: hat-trick question with team filter or date filter
+				const isFilteredHatTrickQuestion = (hasTeamFilter || hasDateFilter || hasYear) && !hasPlayerMention;
+
+				if (isYearWideQuestion || isFilteredHatTrickQuestion) {
+					this.lastProcessingSteps.push(`Detected hat-trick question with filters, routing to FixtureDataQueryHandler`);
+					return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+				}
+			}
+
+			// Check for "most consecutive games played" question (across all players)
+			// This should match questions asking "which/what player has the most" not "my/his/her consecutive games"
+			const isMostConsecutiveGamesQuestion = 
+				(question.includes("most consecutive games") || 
+				 question.includes("player has the most consecutive games") ||
+				 (question.includes("longest consecutive streak") && question.includes("games"))) &&
+				// Must be asking about "which/what player" or "who has", not personal questions
+				(question.includes("what player") || question.includes("which player") || 
+				 question.includes("who has") || question.includes("player has") ||
+				 question.startsWith("what") || question.startsWith("which")) &&
+				// Exclude personal questions
+				!question.includes("my") && !question.includes("your") && 
+				!question.includes("i've") && !question.includes("you've") &&
+				!question.includes("have i") && !question.includes("have you") &&
+				!question.includes("my longest") && !question.includes("your longest");
+
+			if (isMostConsecutiveGamesQuestion) {
+				this.lastProcessingSteps.push(`Detected most consecutive games question, routing to TemporalQueryHandler`);
+				return await TemporalQueryHandler.queryMostConsecutiveGamesPlayed();
+			}
+
+			// Check for "how many players have I played with" question (handles both singular and plural)
+			const isTeammatesCountQuestion = 
+				((question.includes("how many players") || question.includes("how many player")) && question.includes("played with")) ||
+				(question.includes("how many teammates")) ||
+				(question.includes("how many people") && question.includes("played with"));
+
+			if (isTeammatesCountQuestion) {
+				// Check if this is a personal question (I, me, my)
+				const isPersonalQuestion = question.includes(" i ") || question.includes(" i?") || question.includes(" i've") || 
+					question.includes(" have i ") || question.includes(" have you ") || question.startsWith("how many");
+				
+				// Filter out generic words from entities
+				const genericWords = ["player", "players", "teammate", "teammates", "people", "person"];
+				const validEntities = entities.filter(e => !genericWords.includes(e.toLowerCase()));
+				
+				// For personal questions, prioritize userContext; otherwise use valid entities
+				let playerName = "";
+				if (isPersonalQuestion && userContext) {
+					playerName = userContext;
+				} else if (validEntities.length > 0) {
+					playerName = validEntities[0];
+				} else if (userContext) {
+					playerName = userContext;
+				}
+				
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected teammates count question, routing to RelationshipQueryHandler with player: ${playerName}`);
+					return await RelationshipQueryHandler.queryTeammatesCount(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Teammates count question detected but no player context available`);
 				}
 			}
 
@@ -567,7 +688,21 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for "highest scoring game" queries FIRST - these should route to fixture handler, not player handler
+			// Check for "highest individual player goals in one game" queries FIRST - these should route to fixture handler
+			// This must be checked BEFORE highest scoring game query to avoid misrouting
+			const isHighestPlayerGoalsInGameQuery = 
+				(question.includes("highest number of goals") && question.includes("player") && question.includes("scored")) ||
+				(question.includes("highest goals") && question.includes("player") && (question.includes("scored") || question.includes("one game"))) ||
+				(question.includes("most goals") && question.includes("player") && question.includes("one game")) ||
+				(question.includes("most goals") && question.includes("player") && question.includes("scored") && question.includes("game")) ||
+				(question.includes("highest goals") && question.includes("one game") && question.includes("player"));
+
+			if (isHighestPlayerGoalsInGameQuery) {
+				this.lastProcessingSteps.push(`Detected highest individual player goals in one game question, routing to FixtureDataQueryHandler`);
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+
+			// Check for "highest scoring game" queries - these should route to fixture handler, not player handler
 			const isHighestScoringGameQuery = 
 				question.includes("highest scoring game") ||
 				(question.includes("highest scoring") && question.includes("game")) ||
@@ -768,6 +903,16 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Detected TOTW in week question, routing to AwardsQueryHandler with month: ${month}, year: ${year}, week: ${weekNumber || "first"}`);
 					return await AwardsQueryHandler.queryWeeklyTOTWByDate(month, year, weekNumber);
 				}
+			}
+
+			// Check for unbeaten run queries (e.g., "What was the longest unbeaten run the 1s had between 2015 and 2020?")
+			const isUnbeatenRunQuestion = 
+				(question.includes("unbeaten run") || question.includes("longest unbeaten")) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)));
+
+			if (isUnbeatenRunQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected unbeaten run question, routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis);
 			}
 
 		// Delegate to query handlers
@@ -1928,37 +2073,146 @@ export class ChatbotService {
 			}
 		} else if (data && data.isHatTrickQuery === true) {
 			// Handle hat-trick queries
-			const count = Array.isArray(data.data) && data.data.length > 0 
-				? (data.data[0] as any).value 
-				: 0;
 			const year = data.year as number | undefined;
 			const playerName = data.playerName as string | undefined;
+			const isYearWide = data.isYearWideHatTrickQuery === true;
 			
 			if (playerName) {
 				// Player-specific hat-trick query
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `${playerName} has scored ${count} hat-trick${count === 1 ? '' : 's'}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: `${playerName}'s Hat-tricks`,
+						type: "bar",
+					},
+				};
+			} else if (isYearWide) {
+				// Year-wide or filtered hat-trick query - show table of players
+				const playerData = Array.isArray(data.data) ? data.data : [];
+				const totalCount = (data.totalCount as number) || playerData.reduce((sum: number, p: any) => sum + (p.hatTrickCount || 0), 0);
+				const year = data.year as number | undefined;
+				const teamName = data.teamName as string | undefined;
+				const startDate = data.startDate as string | undefined;
+				const endDate = data.endDate as string | undefined;
+				
+				// Build answer text based on filters
+				let answerText = "";
+				if (playerData.length === 0) {
+					if (teamName) {
+						answerText = `There were no hat-tricks scored by the ${teamName}`;
+					} else if (year) {
+						answerText = `There were no hat-tricks scored in ${year}`;
+					} else {
+						answerText = `There were no hat-tricks scored`;
+					}
+					if (startDate || endDate) {
+						if (startDate && endDate) {
+							answerText += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+						} else if (startDate) {
+							answerText += ` after ${DateUtils.formatDate(startDate)}`;
+						} else if (endDate) {
+							answerText += ` before ${DateUtils.formatDate(endDate)}`;
+						}
+					} else if (year) {
+						answerText += `.`;
+					} else {
+						answerText += `.`;
+					}
+					answer = answerText;
+					answerValue = 0;
+				} else {
+					if (teamName) {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored by the ${teamName}`;
+					} else if (year) {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored across all teams in ${year}`;
+					} else {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored`;
+					}
+					if (startDate || endDate) {
+						if (startDate && endDate) {
+							answerText += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+						} else if (startDate) {
+							answerText += ` after ${DateUtils.formatDate(startDate)}`;
+						} else if (endDate) {
+							answerText += ` before ${DateUtils.formatDate(endDate)}`;
+						}
+					}
+					answerText += `.`;
+					answer = answerText;
+					answerValue = totalCount;
+					
+					// Create table visualization
+					const tableData = playerData.map((player: any) => ({
+						Player: player.playerName || "Unknown",
+						"Hat-tricks": player.hatTrickCount || 0,
+					}));
+					
+					visualization = {
+						type: "Table",
+						data: tableData,
+						config: {
+							columns: [
+								{ key: "Player", label: "Player" },
+								{ key: "Hat-tricks", label: "Hat-tricks" },
+							],
+							initialDisplayLimit: Math.min(playerData.length, 10),
+							expandableLimit: playerData.length,
+							isExpandable: playerData.length > 10,
+						},
+					};
+				}
 			} else if (year) {
-				// Year-wide hat-trick query
+				// Fallback for year-wide without player data
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'} in ${year}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: `Hat-tricks in ${year}`,
+						type: "bar",
+					},
+				};
 			} else {
 				// Generic hat-trick query
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: "Hat-tricks",
+						type: "bar",
+					},
+				};
 			}
-			
-			answerValue = count;
-			visualization = {
-				type: "NumberCard",
-				data: [{ 
-					name: "hattricks", 
-					wordedText: "hattricks",
-					value: count,
-					iconName: this.getIconNameForMetric("G")
-				}],
-				config: {
-					title: year ? `Hat-tricks in ${year}` : (playerName ? `${playerName}'s Hat-tricks` : "Hat-tricks"),
-					type: "bar",
-				},
-			};
 		} else if (data && data.type === "player_opposition_appearances") {
 			// Handle opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
 			const playerName = (data.playerName as string) || "";
@@ -2288,6 +2542,8 @@ export class ChatbotService {
 				const streakStartDate = (data.streakStartDate as string) || null;
 				const streakEndDate = (data.streakEndDate as string) || null;
 				const highlightRange = (data.highlightRange as { startWeek: number; startYear: number; endWeek: number; endYear: number }) || undefined;
+				const allFixtureDatesFromQuery = (data.allFixtureDates as string[]) || [];
+				const streakDates = (data.streakDates as string[]) || [];
 				
 				if (streakCount === 0) {
 					answer = "You haven't played any consecutive weekends.";
@@ -2354,16 +2610,75 @@ export class ChatbotService {
 						value: w.value,
 					}));
 
+					// Calculate full calendar date range from weeks (for filtering fixture dates)
+					// This ensures we only show fixtures within the calendar range
+					let calendarStartDate: string | null = null;
+					let calendarEndDate: string | null = null;
+					if (weeks.length > 0) {
+						// Helper to get Monday of a week
+						const getMondayOfWeek = (year: number, weekNumber: number): Date => {
+							const jan1 = new Date(year, 0, 1);
+							const jan1Day = jan1.getDay();
+							const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+							const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+							const monday = new Date(jan1);
+							monday.setDate(jan1.getDate() + daysToAdd);
+							return monday;
+						};
+
+						// Find earliest and latest weeks
+						let earliestWeek = weeks[0];
+						let latestWeek = weeks[0];
+						for (const week of weeks) {
+							const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+							const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+							const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+							if (weekStart < earliestStart) {
+								earliestWeek = week;
+							}
+							if (weekStart > latestStart) {
+								latestWeek = week;
+							}
+						}
+
+						const earliestMonday = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+						const latestMonday = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+						const latestSunday = new Date(latestMonday);
+						latestSunday.setDate(latestMonday.getDate() + 6);
+
+						// Format dates as YYYY-MM-DD
+						calendarStartDate = earliestMonday.toISOString().split('T')[0];
+						calendarEndDate = latestSunday.toISOString().split('T')[0];
+					}
+
+					// Use fixture dates from query handler to ensure consistency with streak calculation
+					// Filter to only include dates within the calendar date range
+					let allFixtureDates: string[] = [];
+					if (allFixtureDatesFromQuery.length > 0 && calendarStartDate && calendarEndDate) {
+						const startDateObj = new Date(calendarStartDate);
+						const endDateObj = new Date(calendarEndDate);
+						allFixtureDates = allFixtureDatesFromQuery.filter(dateStr => {
+							const date = new Date(dateStr);
+							return date >= startDateObj && date <= endDateObj;
+						});
+					} else if (allFixtureDatesFromQuery.length > 0) {
+						// If no calendar date range, use all fixture dates from query
+						allFixtureDates = allFixtureDatesFromQuery;
+					}
+
 					visualization = {
 						type: "Calendar",
 						data: {
 							weeks: weeks,
 							highlightRange: highlightRange,
+							allFixtureDates: allFixtureDates,
+							streakSequence: streakSequence,
+							streakDates: streakDates,
 						},
 					};
 				}
-			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement") {
-				// Handle consecutive clean sheets and goal involvement streaks with calendar visualization
+			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement" || streakType === "longest_no_goal_involvement") {
+				// Handle consecutive clean sheets, goal involvement streaks, and no goal involvement streaks with calendar visualization
 				const streakCount = (data.streakCount as number) || 0;
 				const streakSequence = (data.streakSequence as string[]) || [];
 				const streakData = (data.data as Array<{ date: string; [key: string]: any }>) || [];
@@ -2374,6 +2689,8 @@ export class ChatbotService {
 				if (streakCount === 0) {
 					if (streakType === "consecutive_clean_sheets") {
 						answer = "You haven't had any consecutive clean sheets.";
+					} else if (streakType === "longest_no_goal_involvement") {
+						answer = "You've had goal involvements in all your games.";
 					} else {
 						answer = "You haven't had any consecutive games with goal involvement.";
 					}
@@ -2390,6 +2707,8 @@ export class ChatbotService {
 					
 					if (streakType === "consecutive_clean_sheets") {
 						answer = `Your longest consecutive clean sheet streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					} else if (streakType === "longest_no_goal_involvement") {
+						answer = `Your longest run of games without goal involvements is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					} else {
 						answer = `Your longest consecutive goal involvement streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					}
@@ -2409,7 +2728,7 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
 				}
 
-				// Build Calendar visualization for consecutive clean sheets/goal involvement - Convert date array to week-based format with highlightRange
+				// Build Calendar visualization for consecutive clean sheets/goal involvement/no goal involvement - Convert date array to week-based format with highlightRange
 				if (streakData.length > 0) {
 					// Helper function to calculate week number (matching Calendar.tsx weekNum function)
 					const weekNum = (date: Date): number => {
@@ -2421,8 +2740,17 @@ export class ChatbotService {
 						return Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
 					};
 
-					// Group dates by year and week
-					const weekMap = new Map<string, { year: number; weekNumber: number; value: number }>();
+					// Determine if we should show goal involvements
+					const showGoalInvolvements = streakType === "longest_no_goal_involvement" || streakType === "consecutive_goal_involvement";
+					
+					// Group dates by year and week, tracking goal involvements and game counts
+					const weekMap = new Map<string, { 
+						year: number; 
+						weekNumber: number; 
+						value: number; 
+						goalInvolvements: number;
+						gameCount: number;
+					}>();
 					
 					for (const item of streakData) {
 						if (item.date) {
@@ -2432,24 +2760,120 @@ export class ChatbotService {
 							const key = `${year}-${week}`;
 							
 							if (!weekMap.has(key)) {
-								weekMap.set(key, { year, weekNumber: week, value: 0 });
+								weekMap.set(key, { year, weekNumber: week, value: 0, goalInvolvements: 0, gameCount: 0 });
 							}
-							weekMap.get(key)!.value += 1;
+							
+							const weekEntry = weekMap.get(key)!;
+							
+							// Calculate goal involvements for this game
+							const goals = (item.goals as number) || 0;
+							const assists = (item.assists as number) || 0;
+							const penaltiesScored = (item.penaltiesScored as number) || 0;
+							const goalInvolvements = goals + assists + penaltiesScored;
+							
+							// Track goal involvements and game count
+							weekEntry.goalInvolvements += goalInvolvements;
+							weekEntry.gameCount += 1;
+							
+							// For longest_no_goal_involvement and consecutive_goal_involvement, use goal involvement count
+							// For other streak types (like consecutive_weekends), count number of games
+							if (showGoalInvolvements) {
+								weekEntry.value = weekEntry.goalInvolvements;
+							} else {
+								weekEntry.value = weekEntry.gameCount;
+							}
 						}
 					}
 
-					// Convert to week-based format
+					// Convert to week-based format with goal involvement data
 					const weeks = Array.from(weekMap.values()).map(w => ({
 						weekNumber: w.weekNumber,
 						year: w.year,
 						value: w.value,
+						goalInvolvements: showGoalInvolvements ? w.goalInvolvements : undefined,
+						gameCount: w.gameCount,
 					}));
+
+					// Calculate full calendar date range from weeks (for fixture query)
+					// This ensures we query fixtures for the entire calendar range, not just the streak
+					let calendarStartDate: string | null = null;
+					let calendarEndDate: string | null = null;
+					if (weeks.length > 0) {
+						// Helper to get Monday of a week
+						const getMondayOfWeek = (year: number, weekNumber: number): Date => {
+							const jan1 = new Date(year, 0, 1);
+							const jan1Day = jan1.getDay();
+							const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+							const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+							const monday = new Date(jan1);
+							monday.setDate(jan1.getDate() + daysToAdd);
+							return monday;
+						};
+
+						// Find earliest and latest weeks
+						let earliestWeek = weeks[0];
+						let latestWeek = weeks[0];
+						for (const week of weeks) {
+							const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+							const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+							const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+							if (weekStart < earliestStart) {
+								earliestWeek = week;
+							}
+							if (weekStart > latestStart) {
+								latestWeek = week;
+							}
+						}
+
+						const earliestMonday = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+						const latestMonday = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+						const latestSunday = new Date(latestMonday);
+						latestSunday.setDate(latestMonday.getDate() + 6);
+
+						// Format dates as YYYY-MM-DD
+						calendarStartDate = earliestMonday.toISOString().split('T')[0];
+						calendarEndDate = latestSunday.toISOString().split('T')[0];
+					}
+
+					// Query all fixtures for the full calendar date range to determine weekends with no games
+					let allFixtureDates: string[] = [];
+					if (calendarStartDate && calendarEndDate) {
+						try {
+							const graphLabel = neo4jService.getGraphLabel();
+							const fixtureQuery = `
+								MATCH (f:Fixture {graphLabel: $graphLabel})
+								WHERE f.date >= $startDate AND f.date <= $endDate
+								  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+								RETURN DISTINCT f.date as date
+								ORDER BY f.date ASC
+							`;
+							const fixtureResult = await neo4jService.executeQuery(fixtureQuery, {
+								graphLabel,
+								startDate: calendarStartDate,
+								endDate: calendarEndDate,
+							});
+							allFixtureDates = (fixtureResult || []).map((record: any) => {
+								const date = record?.date;
+								if (date) {
+									// Normalize date to YYYY-MM-DD format
+									const d = new Date(date);
+									return d.toISOString().split('T')[0];
+								}
+								return null;
+							}).filter((d: string | null): d is string => d !== null);
+						} catch (error) {
+							loggingService.log(`⚠️ Error querying fixtures for calendar: ${error}`, null, "warn");
+						}
+					}
 
 					visualization = {
 						type: "Calendar",
 						data: {
 							weeks: weeks,
 							highlightRange: highlightRange,
+							allFixtureDates: allFixtureDates,
+							streakType: streakType, // Pass streak type for styling (red for negative streaks)
+							showGoalInvolvements: showGoalInvolvements, // Flag to show goal involvements vs apps
 						},
 					};
 				}
@@ -2464,6 +2888,81 @@ export class ChatbotService {
 					answerValue = streakLength;
 				}
 			}
+		} else if (data && data.type === "most_consecutive_games") {
+			// Handle most consecutive games played query
+			const allData = (data.data as Array<{ playerName: string; streakCount: number }>) || [];
+			const top5Data = (data.top5Data as Array<{ playerName: string; streakCount: number }>) || allData.slice(0, 5);
+			
+			if (allData.length === 0) {
+				answer = "No consecutive games data found.";
+				answerValue = null;
+			} else {
+				const topPlayer = allData[0];
+				answer = `The player with the most consecutive games played is ${topPlayer.playerName} with ${topPlayer.streakCount} ${topPlayer.streakCount === 1 ? "game" : "games"}.`;
+				answerValue = topPlayer.playerName;
+				
+				// Format data for table visualization
+				const tableData = allData.map((item) => ({
+					Player: item.playerName,
+					"Consecutive Games": item.streakCount,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Consecutive Games", label: "Consecutive Games" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type === "teammates_count") {
+			// Handle teammates count query
+			const playerName = (data.playerName as string) || "You";
+			const countData = (data.data as Array<{ count: number }>) || [];
+			const count = countData.length > 0 ? countData[0].count : 0;
+			
+			answer = `${playerName === "You" ? "You have" : `${playerName} has`} played with ${count} different ${count === 1 ? "player" : "players"}.`;
+			answerValue = count;
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{
+					value: count,
+					wordedText: "teammates played with",
+					iconName: "Teammates-Icon",
+					metric: "TEAM"
+				}],
+			};
+		} else if (data && data.type === "longest_unbeaten_run") {
+			// Handle longest unbeaten run query
+			const teamName = (data.teamName as string) || "";
+			const count = (data.count as number) || 0;
+			const dateRange = data.dateRange as { start: string; end: string } | undefined;
+			
+			if (count === 0) {
+				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
+				answer = `The ${teamName} had no unbeaten runs${dateRangeText}.`;
+				answerValue = 0;
+			} else {
+				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
+				answer = `The ${teamName} had a longest unbeaten run of ${count} consecutive ${count === 1 ? "win" : "wins"}${dateRangeText}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{
+					value: count,
+					wordedText: "consecutive wins",
+					iconName: this.getIconNameForMetric("TeamWins")
+				}],
+			};
 		} else if (data && data.type === "comparison") {
 			// Handle comparison data
 			const comparisonData = (data.data as PlayerData[]) || [];
@@ -2530,6 +3029,7 @@ export class ChatbotService {
 					answerValue = topRanking.playerName || topRanking.teamName || "";
 					
 					// Create table visualization with full data (for expansion), but mark initial display limit
+					const isGperAPPQuestion = metric.toUpperCase() === "GPERAPP";
 					const fullTableData = fullRankingData.map((item, index) => {
 						if (isPenaltyRecord) {
 							// Format conversion rate as percentage (value is 0-1, convert to 0-100)
@@ -2545,6 +3045,15 @@ export class ChatbotService {
 								Penalties: totalPenalties,
 								Conversion: `${percentage}%`,
 							};
+						} else if (isGperAPPQuestion) {
+							// For GperAPP, include Appearances column
+							const appearances = (item as any).appearances || 0;
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+								Appearances: appearances,
+							};
 						} else {
 							return {
 								Rank: index + 1,
@@ -2553,6 +3062,22 @@ export class ChatbotService {
 							};
 						}
 					});
+					
+					// Format metric display name with proper capitalization for GperAPP
+					// Title case with common words (per, of, the, etc.) in lowercase
+					const formattedMetricDisplayName = isGperAPPQuestion 
+						? (() => {
+							const commonWords = ['per', 'of', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by'];
+							return metricDisplayName.split(' ').map((word, index) => {
+								const lowerWord = word.toLowerCase();
+								// Always capitalize first word, otherwise lowercase common words
+								if (index === 0 || !commonWords.includes(lowerWord)) {
+									return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+								}
+								return lowerWord;
+							}).join(' ');
+						})()
+						: metricDisplayName;
 					
 					visualization = {
 						type: "Table",
@@ -2563,6 +3088,11 @@ export class ChatbotService {
 								{ key: "Player", label: "Player" },
 								{ key: "Penalties", label: "Penalties" },
 								{ key: "Conversion", label: "Conversion" },
+							] : isGperAPPQuestion ? [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: metricDisplayName, label: formattedMetricDisplayName },
+								{ key: "Appearances", label: "Appearances" },
 							] : [
 								{ key: "Rank", label: "Rank" },
 								{ key: "Player", label: "Player" },
@@ -2702,6 +3232,54 @@ export class ChatbotService {
 				const formattedDate = DateUtils.formatDate(gameData.date);
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = answer;
+			}
+		} else if (data && data.type === "highest_player_goals_in_game") {
+			// Handle highest individual player goals in one game queries
+			const playerGameDataArray = (data.data as Array<{
+				playerName: string;
+				goals: number;
+				date: string;
+				opposition: string;
+				team: string;
+				homeOrAway: string;
+				result: string;
+			}>) || [];
+			
+			if (playerGameDataArray.length === 0) {
+				answer = (data.message as string) || "No match data found for highest individual goals in one game.";
+			} else {
+				const topRecord = playerGameDataArray[0];
+				const location = topRecord.homeOrAway === "Home" ? "at home" : topRecord.homeOrAway === "Away" ? "away" : "";
+				const formattedDate = DateUtils.formatDate(topRecord.date);
+				const goalText = topRecord.goals === 1 ? "goal" : "goals";
+				answer = `${topRecord.playerName} scored ${topRecord.goals} ${goalText} for the ${topRecord.team} ${location} against ${topRecord.opposition} on the ${formattedDate}`;
+				answerValue = topRecord.goals;
+				
+				// Create table with top 5 (expandable to 10)
+				const tableData = playerGameDataArray.map((item) => ({
+					Player: item.playerName,
+					Goals: item.goals,
+					Team: item.team,
+					Opposition: item.opposition,
+					Date: DateUtils.formatDate(item.date),
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Goals", label: "Goals" },
+							{ key: "Team", label: "Team" },
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Date", label: "Date" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
 			}
 		} else if (data && data.type === "double_game") {
 			// Handle double game weeks queries
@@ -2956,6 +3534,7 @@ export class ChatbotService {
 			// Handle most played with queries
 			const playerName = (data.playerName as string) || "You";
 			const teamName = data.teamName as string | undefined;
+			const season = data.season as string | undefined;
 			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number }>) || [];
 			
 			if (resultData.length === 0) {
@@ -2963,11 +3542,12 @@ export class ChatbotService {
 				answer = `${playerName} haven't played with any teammates${teamContext}.`;
 			} else {
 				const topPlayer = resultData[0];
+				const seasonContext = season ? ` in the ${season}` : "";
 				const teamContext = teamName ? ` whilst playing for the ${teamName}` : "";
-				answer = `${playerName} have played the most games with ${topPlayer.teammateName}${teamContext}, with ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
+				answer = `${playerName} played the most games with ${topPlayer.teammateName}${seasonContext}${teamContext}, in ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
 				answerValue = topPlayer.teammateName;
 				
-				// Create table with top 3 players
+				// Create table with top 10 players
 				const tableData = resultData.map((item) => ({
 					Player: item.teammateName,
 					Games: item.gamesTogether,
@@ -2981,6 +3561,8 @@ export class ChatbotService {
 							{ key: "Player", label: "Player" },
 							{ key: "Games", label: "Games" },
 						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
 					},
 				};
 			}
@@ -4759,7 +5341,7 @@ export class ChatbotService {
 		}
 		
 		if (season) {
-			whereConditions.push("f.season = $season");
+			whereConditions.push("f.season = $season", "md1.season = $season", "md2.season = $season");
 		}
 		
 		if (startDate && endDate) {
@@ -4774,7 +5356,7 @@ export class ChatbotService {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 3
+			LIMIT 10
 			RETURN teammateName, gamesTogether
 		`;
 

@@ -54,12 +54,12 @@ export default function DevClearStorageFAB() {
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}
 						className="fixed bottom-32 right-4 md:right-8 z-[61]">
 						<motion.div
-							className="bg-dorkinians-green rounded-lg shadow-lg border border-white/20 p-4 flex items-center space-x-3">
-							<div className="p-2 rounded-full bg-dorkinians-yellow/20">
-								<CheckIcon className="w-5 h-5 text-dorkinians-yellow" />
+							className="bg-dorkinians-yellow rounded-lg shadow-lg border border-white/20 p-4 flex items-center space-x-3">
+							<div className="p-2 rounded-full bg-dorkinians-green/10">
+								<CheckIcon className="w-5 h-5 text-dorkinians-green" />
 							</div>
 							<div>
-								<p className="text-white font-semibold text-sm">Local storage cleared</p>
+								<p className="text-black font-semibold text-sm">Local storage cleared</p>
 							</div>
 						</motion.div>
 					</motion.div>

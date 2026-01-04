@@ -59,10 +59,10 @@ export class RankingQueryHandler {
 			
 			if (moreThanMatch || orMoreMatch || playedMoreThanMatch) {
 				const threshold = parseInt((moreThanMatch || orMoreMatch || playedMoreThanMatch)![1]);
-				// "more than 5" means > 5, so minAppearances = 6
+				// "more than 5" means > 5, so minAppearances = 5 (since we use appearances > $minAppearances)
 				// "at least 5" means >= 5, so minAppearances = 5
 				if (moreThanMatch || playedMoreThanMatch) {
-					minAppearances = threshold + 1;
+					minAppearances = threshold;
 				} else {
 					minAppearances = threshold;
 				}

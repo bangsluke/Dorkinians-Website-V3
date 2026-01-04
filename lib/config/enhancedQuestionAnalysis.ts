@@ -701,6 +701,55 @@ export class EnhancedQuestionAnalyzer {
 			return "milestone";
 		}
 
+		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
+		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
+			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+		) {
+			return "club";
+		}
+
+		// Check for "played with" or "opposition most" questions - these should be player type, not ranking
+		// This must be checked BEFORE the ranking check to avoid misclassification
+		const isPlayedWithQuestion = 
+			lowerQuestion.includes("played with") ||
+			lowerQuestion.includes("play with") ||
+			(lowerQuestion.includes("which player") && lowerQuestion.includes("played") && (lowerQuestion.includes("most") || lowerQuestion.includes("with"))) ||
+			(lowerQuestion.includes("who") && lowerQuestion.includes("played") && lowerQuestion.includes("most") && lowerQuestion.includes("with")) ||
+			(lowerQuestion.includes("which opposition") && lowerQuestion.includes("most")) ||
+			(lowerQuestion.includes("opposition") && lowerQuestion.includes("most") && lowerQuestion.includes("played"));
+		
+		if (isPlayedWithQuestion) {
+			return "player";
+		}
+		
+		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
+		// CRITICAL: This must be checked BEFORE player entity check to avoid misclassification
+		// Special case: "worst penalty record" questions should be routed to ranking handler
+		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
+			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
+		
+		if (
+			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
+			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
+		) {
+			// If it's asking about teams specifically, route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+				return "club";
+			}
+			return "ranking";
+		}
+		
+		// Also check for "worst penalty record" questions that might not have "which" or "who"
+		if (isWorstPenaltyRecord) {
+			return "ranking";
+		}
+
 		// Check for team exclusion patterns - if present, this should be a player query
 		// (exclusions only make sense for player queries, not team queries)
 		const hasExclusionPattern = 
@@ -709,7 +758,7 @@ export class EnhancedQuestionAnalyzer {
 			lowerQuestion.includes("excluding") ||
 			lowerQuestion.includes("except for");
 		
-		// Check for player-specific queries (but not if it's a streak, milestone, or other special question)
+		// Check for player-specific queries (but not if it's a streak, milestone, ranking, or other special question)
 		// Also prioritize player type if exclusion patterns are detected
 		if (hasPlayerEntities || hasExclusionPattern) {
 			return "player";
@@ -735,40 +784,6 @@ export class EnhancedQuestionAnalyzer {
 		// Check for percentage queries
 		if (lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) {
 			return "player";
-		}
-
-		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
-		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
-		if (
-			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
-			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
-			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
-			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
-		) {
-			return "club";
-		}
-
-		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
-		// Special case: "worst penalty record" questions should be routed to ranking handler
-		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
-			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
-			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
-		
-		if (
-			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
-			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
-			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
-		) {
-			// If it's asking about teams specifically, route to club handler
-			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
-				return "club";
-			}
-			return "ranking";
-		}
-		
-		// Also check for "worst penalty record" questions that might not have "which" or "who"
-		if (isWorstPenaltyRecord) {
-			return "ranking";
 		}
 
 		// Check for competition-specific queries (cup vs league, etc.)
@@ -2008,11 +2023,20 @@ export class EnhancedQuestionAnalyzer {
 	private correctGoalsAssistsConfusion(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check if question explicitly mentions "goals" or "goal"
-		const hasExplicitGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("goal");
+		// CRITICAL FIX: If "goal involvements" is present, remove "Goals" to prevent "goals goal involvements"
+		const hasGoalInvolvements = statTypes.some((stat) => stat.value === "Goal Involvements" || stat.value === "goal involvements");
+		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
+		
+		if (hasGoalInvolvements && hasGoals) {
+			// Remove "Goals" when "Goal Involvements" is present to prevent duplication
+			return statTypes.filter((stat) => stat.value !== "Goals");
+		}
+
+		// Check if question explicitly mentions "goals" or "goal" (but not "goal involvements")
+		const hasExplicitGoals = (lowerQuestion.includes("goals") || lowerQuestion.includes("goal")) && 
+			!lowerQuestion.includes("goal involvements") && !lowerQuestion.includes("goal involvement");
 		
 		// Check if both "Goals" and "Assists" are in the stat types
-		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
 		const hasAssists = statTypes.some((stat) => stat.value === "Assists");
 
 		// If goals is explicitly mentioned and both are present, remove "Assists"
