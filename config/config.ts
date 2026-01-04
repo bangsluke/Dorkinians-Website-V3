@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.21",
+	version: "1.1.22",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -33,12 +33,6 @@ export const homepageQuestions: HomepageQuestion[] = [
 		category: "player",
 	},
 	{
-		id: "fantasy-points",
-		question: "What is my total Fantasy Points count?",
-		description: "Check your total Fantasy Points count",
-		category: "player",
-	},
-	{
 		id: "most-played-with",
 		question: "Who have I played the most games with?",
 		description: "See which players you've appeared with most often",
@@ -48,6 +42,12 @@ export const homepageQuestions: HomepageQuestion[] = [
 		id: "most-opposition",
 		question: "What opposition have I played against the most?",
 		description: "See which teams you've faced most frequently",
+		category: "player",
+	},
+	{
+		id: "longest-streak",
+		question: "What's the longest consecutive streak of weekends that I've played in a row?",
+		description: "See how many consecutive weekends you've played in a row",
 		category: "player",
 	},
 	{

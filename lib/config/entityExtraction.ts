@@ -1116,6 +1116,15 @@ export class EntityExtractor {
 		const entities: EntityInfo[] = [];
 		let position = 0;
 
+		// Helper function to check if a term is a hattrick-related term
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const isHatTrickTerm = (text: string): boolean => {
+			const normalized = text.toLowerCase().trim();
+			// Match hat, followed by optional dash (any Unicode dash) or space, followed by trick(s)
+			// Includes: regular hyphen (-), non-breaking hyphen (\u2011), en dash (\u2013), em dash (\u2014), and space
+			return /^hat[-\u2011\u2013\u2014 ]?trick/i.test(normalized);
+		};
+
 		// Extract "I" references
 		const iMatches = this.findMatches(/\b(i|i've|me|my|myself)\b/gi);
 		iMatches.forEach((match) => {
@@ -1160,7 +1169,9 @@ export class EntityExtractor {
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
 				const normalizedName = player.text.toLowerCase();
-				if (!addedPlayers.has(normalizedName)) {
+			// Filter out hattrick terms from player entity extraction
+			const isHatTrick = isHatTrickTerm(player.text);
+			if (!addedPlayers.has(normalizedName) && !isHatTrick) {
 					addedPlayers.add(normalizedName);
 					entities.push({
 						value: player.text,

@@ -133,7 +133,7 @@ export class RelationshipQueryHandler {
 		}
 		
 		if (season) {
-			whereConditions.push("f.season = $season");
+			whereConditions.push("f.season = $season", "md1.season = $season", "md2.season = $season");
 		}
 		
 		if (startDate && endDate) {
@@ -148,7 +148,7 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 3
+			LIMIT 10
 			RETURN teammateName, gamesTogether
 		`;
 
@@ -636,6 +636,40 @@ export class RelationshipQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in goals scored together query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying goals scored together data" };
+		}
+	}
+
+	/**
+	 * Query count of unique teammates for a player
+	 * Counts distinct players who played in the same fixtures
+	 */
+	static async queryTeammatesCount(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying teammates count for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (other:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE other.playerName <> p.playerName
+			RETURN count(DISTINCT other.playerName) as count
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			const count = result && result.length > 0 ? (result[0]?.count || 0) : 0;
+			
+			loggingService.log(`✅ Found ${count} unique teammates for player: ${playerName}`, null, "log");
+			
+			return { 
+				type: "teammates_count", 
+				data: [{ count }],
+				playerName
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in teammates count query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying teammates count data" };
 		}
 	}
 }
