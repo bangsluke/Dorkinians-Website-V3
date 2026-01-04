@@ -2955,6 +2955,7 @@ export class ChatbotService {
 					answerValue = topRanking.playerName || topRanking.teamName || "";
 					
 					// Create table visualization with full data (for expansion), but mark initial display limit
+					const isGperAPPQuestion = metric.toUpperCase() === "GPERAPP";
 					const fullTableData = fullRankingData.map((item, index) => {
 						if (isPenaltyRecord) {
 							// Format conversion rate as percentage (value is 0-1, convert to 0-100)
@@ -2970,6 +2971,15 @@ export class ChatbotService {
 								Penalties: totalPenalties,
 								Conversion: `${percentage}%`,
 							};
+						} else if (isGperAPPQuestion) {
+							// For GperAPP, include Appearances column
+							const appearances = (item as any).appearances || 0;
+							return {
+								Rank: index + 1,
+								Player: item.playerName || item.teamName || "Unknown",
+								[metricDisplayName]: FormattingUtils.formatValueByMetric(metric, item.value),
+								Appearances: appearances,
+							};
 						} else {
 							return {
 								Rank: index + 1,
@@ -2978,6 +2988,22 @@ export class ChatbotService {
 							};
 						}
 					});
+					
+					// Format metric display name with proper capitalization for GperAPP
+					// Title case with common words (per, of, the, etc.) in lowercase
+					const formattedMetricDisplayName = isGperAPPQuestion 
+						? (() => {
+							const commonWords = ['per', 'of', 'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by'];
+							return metricDisplayName.split(' ').map((word, index) => {
+								const lowerWord = word.toLowerCase();
+								// Always capitalize first word, otherwise lowercase common words
+								if (index === 0 || !commonWords.includes(lowerWord)) {
+									return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+								}
+								return lowerWord;
+							}).join(' ');
+						})()
+						: metricDisplayName;
 					
 					visualization = {
 						type: "Table",
@@ -2988,6 +3014,11 @@ export class ChatbotService {
 								{ key: "Player", label: "Player" },
 								{ key: "Penalties", label: "Penalties" },
 								{ key: "Conversion", label: "Conversion" },
+							] : isGperAPPQuestion ? [
+								{ key: "Rank", label: "Rank" },
+								{ key: "Player", label: "Player" },
+								{ key: metricDisplayName, label: formattedMetricDisplayName },
+								{ key: "Appearances", label: "Appearances" },
 							] : [
 								{ key: "Rank", label: "Rank" },
 								{ key: "Player", label: "Player" },
