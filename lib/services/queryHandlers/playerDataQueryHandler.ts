@@ -36,20 +36,25 @@ export class PlayerDataQueryHandler {
 			);
 		}
 
-		// Filter out invalid entities (team numbers, etc.)
+		// Filter out invalid entities (team numbers, hattrick terms, etc.)
 		const validEntities = entities.filter((entity) => {
 			const lowerEntity = entity.toLowerCase();
 			// Skip team numbers (3s, 3rd, etc.)
-			return !lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/);
+			if (lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/)) return false;
+			// Skip hattrick terms (hattrick, hat-trick, hat trick, etc.)
+			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) return false;
+			return true;
 		});
 
 		// Check for "played with" or "most played with" questions
 		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
 		const questionLower = (analysis.question?.toLowerCase() || "").trim();
 
-		// Check for year-wide hat-trick questions FIRST (before entity processing)
+		// Check for hat-trick questions (year-wide, team-specific, or date-filtered) FIRST (before entity processing)
 		// This prevents "hat‑tricks" from being treated as a player entity
-		const hatTrickPatternEarly = /hat[- ]?trick/i;
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const hatTrickPatternEarly = /hat[-\u2011\u2013\u2014 ]?trick/i;
 		const isHatTrickQuestionEarly = hatTrickPatternEarly.test(questionLower) && 
 			(questionLower.includes("how many") || questionLower.includes("count"));
 		
@@ -68,10 +73,23 @@ export class PlayerDataQueryHandler {
 				questionLower.includes("have ") || 
 				questionLower.includes(" i ") || 
 				questionLower.match(/\bi\b/);
-			const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention);
+			const hasTeamFilter = (teamEntities.length > 0) ||
+				questionLower.match(/\b(?:by|for)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i);
+			const hasDateFilter = questionLower.includes("after ") || 
+				questionLower.includes("before ") ||
+				questionLower.includes("since ") ||
+				questionLower.includes("between ") ||
+				analysis.extractionResult?.timeFrames?.some(tf => 
+					tf.type === "since" || tf.type === "before" || tf.type === "range"
+				);
+			
+			// Year-wide question: has year AND (year-wide phrases OR no player mention) AND no team filter
+			const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention) && !hasTeamFilter;
+			// Team-specific or date-filtered question: hat-trick question with team filter or date filter
+			const isFilteredHatTrickQuestion = (hasTeamFilter || hasDateFilter || hasYear) && !hasPlayerMention;
 
-			if (isYearWideQuestion) {
-				loggingService.log(`🔍 Detected year-wide hat-trick question, routing to FixtureDataQueryHandler. hasYear: ${!!hasYear}, hasYearWidePhrases: ${hasYearWidePhrases}, hasPlayerMention: ${hasPlayerMention}`, null, "log");
+			if (isYearWideQuestion || isFilteredHatTrickQuestion) {
+				loggingService.log(`🔍 Detected hat-trick question with filters, routing to FixtureDataQueryHandler. hasYear: ${!!hasYear}, hasTeamFilter: ${hasTeamFilter}, hasDateFilter: ${hasDateFilter}, hasPlayerMention: ${hasPlayerMention}`, null, "log");
 				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
 			}
 		}
@@ -527,7 +545,8 @@ export class PlayerDataQueryHandler {
 
 		// Check for hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
 		// Note: Year-wide hat-trick questions are already handled earlier in the function
-		const hatTrickPattern = /hat[- ]?trick/i;
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
 		const isHatTrickQuestion = hatTrickPattern.test(questionLower) && 
 			(questionLower.includes("how many") || questionLower.includes("count"));
 
@@ -535,57 +554,78 @@ export class PlayerDataQueryHandler {
 
 		// If this is a hat-trick question (and not year-wide, which was already handled), handle it specially
 		if (isHatTrickQuestion) {
-			// Resolve player name - prioritize player entities from question over userContext
+			// Resolve player name - prioritize "I" detection for userContext, then explicit player names
 			// This allows questions like "How many hat tricks has Oli Goddard scored?" to use Oli Goddard
 			// while "How many hat tricks have I scored?" will use userContext
 			let playerName: string | undefined;
 			
-			// First, try to extract player name directly from question text
-			// This handles cases where entity extraction might pick up "tricks" instead of the player name
-			const questionText = analysis.question || "";
-			const playerNamePatterns = [
-				// Pattern 1: "has [Name] scored" or "have [Name] scored"
-				/(?:has|have)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:scored|score)/i,
-				// Pattern 2: "[Name] has scored" or "[Name] have scored"
-				/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:has|have)\s+(?:scored|score)/i,
-			];
+			// First, check if question contains "I" or first-person pronouns - use userContext immediately
+			const hasFirstPerson = questionLower.includes(" i ") || 
+			                       questionLower.match(/\bi\b/) ||
+			                       questionLower.includes("have i") ||
+			                       questionLower.includes("has i") ||
+			                       analysis.extractionResult?.entities?.some(e => 
+			                         e.type === "player" && e.value.toLowerCase() === "i"
+			                       ) ||
+			                       entities.some(e => e.toLowerCase() === "i");
 			
-			for (const pattern of playerNamePatterns) {
-				const match = questionText.match(pattern);
-				if (match && match[1]) {
-					let extractedName = match[1].trim();
-					// Filter out common words that might be captured
-					if (extractedName && !["Hat", "Trick", "Tricks", "What", "Which", "How", "Many"].includes(extractedName)) {
-						playerName = extractedName;
-						loggingService.log(`🔍 Extracted player name from hat-trick question text: ${playerName}`, null, "log");
-						break;
-					}
-				}
-			}
-			
-			// If no name extracted from text, check entities
-			if (!playerName) {
-				// Filter out non-player entities (like "tricks")
-				const playerEntities = analysis.extractionResult?.entities?.filter(e => 
-					e.type === "player" && 
-					e.value.toLowerCase() !== "i" &&
-					!["tricks", "trick"].includes(e.value.toLowerCase())
-				) || [];
-				
-				if (playerEntities.length > 0) {
-					playerName = playerEntities[0].value;
-				} else if (entities.length > 0) {
-					// Filter out "tricks" from legacy entities
-					const validEntities = entities.filter(e => !["tricks", "trick"].includes(e.toLowerCase()));
-					if (validEntities.length > 0) {
-						playerName = validEntities[0];
-					}
-				}
-			}
-			
-			// Only use userContext if no player entity was found (for "I" questions)
-			if (!playerName && userContext) {
+			if (hasFirstPerson && userContext) {
 				playerName = userContext;
+				loggingService.log(`🔍 Detected "I" in hat-trick question, using userContext: ${playerName}`, null, "log");
+			} else {
+				// Try to extract player name directly from question text
+				// This handles cases where entity extraction might pick up "tricks" instead of the player name
+				const questionText = analysis.question || "";
+				const playerNamePatterns = [
+					// Pattern 1: "has [Name] scored" or "have [Name] scored"
+					/(?:has|have)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:scored|score)/i,
+					// Pattern 2: "[Name] has scored" or "[Name] have scored"
+					/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:has|have)\s+(?:scored|score)/i,
+				];
+				
+				for (const pattern of playerNamePatterns) {
+					const match = questionText.match(pattern);
+					if (match && match[1]) {
+						let extractedName = match[1].trim();
+						// Filter out common words that might be captured
+						if (extractedName && !["Hat", "Trick", "Tricks", "What", "Which", "How", "Many"].includes(extractedName)) {
+							playerName = extractedName;
+							loggingService.log(`🔍 Extracted player name from hat-trick question text: ${playerName}`, null, "log");
+							break;
+						}
+					}
+				}
+				
+				// If no name extracted from text, check entities (filter out hattrick terms and "I")
+				if (!playerName) {
+					// Filter out non-player entities (like "tricks", "hattrick", etc.)
+					// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+					const playerEntities = analysis.extractionResult?.entities?.filter(e => 
+						e.type === "player" && 
+						e.value.toLowerCase() !== "i" &&
+						!["tricks", "trick"].includes(e.value.toLowerCase()) &&
+						!/^hat[-\u2011\u2013\u2014 ]?trick/i.test(e.value.toLowerCase())
+					) || [];
+					
+					if (playerEntities.length > 0) {
+						playerName = playerEntities[0].value;
+					} else if (validEntities.length > 0) {
+						// Filter out hattrick terms from valid entities (already filtered, but double-check)
+						// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+						const filteredEntities = validEntities.filter(e => 
+							!/^hat[-\u2011\u2013\u2014 ]?trick/i.test(e.toLowerCase()) &&
+							!["tricks", "trick"].includes(e.toLowerCase())
+						);
+						if (filteredEntities.length > 0) {
+							playerName = filteredEntities[0];
+						}
+					}
+				}
+				
+				// Fallback to userContext if no player entity was found
+				if (!playerName && userContext) {
+					playerName = userContext;
+				}
 			}
 
 			if (!playerName) {

@@ -548,6 +548,49 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for hat-trick questions (year-wide, team-specific, or date-filtered) BEFORE routing to handlers
+			// This prevents "hat‑tricks" from being treated as a player entity
+			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+			const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
+			const isHatTrickQuestion = hatTrickPattern.test(question) && 
+				(question.includes("how many") || question.includes("count"));
+			
+			if (isHatTrickQuestion) {
+				const hasYear = question.match(/\b(20\d{2})\b/) || 
+					analysis.extractionResult?.timeFrames?.some(tf => {
+						const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+						return yearMatch !== null;
+					});
+				const hasYearWidePhrases = question.includes("across all teams") || 
+					question.includes("across all team") ||
+					question.includes("across all") ||
+					question.includes("all teams") ||
+					question.includes("all team");
+				const hasPlayerMention = question.includes("has ") || 
+					question.includes("have ") || 
+					question.includes(" i ") || 
+					question.match(/\bi\b/);
+				const hasTeamFilter = (analysis.teamEntities && analysis.teamEntities.length > 0) ||
+					question.match(/\b(?:by|for)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i);
+				const hasDateFilter = question.includes("after ") || 
+					question.includes("before ") ||
+					question.includes("since ") ||
+					question.includes("between ") ||
+					analysis.extractionResult?.timeFrames?.some(tf => 
+						tf.type === "since" || tf.type === "before" || tf.type === "range"
+					);
+				
+				// Year-wide question: has year AND (year-wide phrases OR no player mention) AND no team filter
+				const isYearWideQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention) && !hasTeamFilter;
+				// Team-specific or date-filtered question: hat-trick question with team filter or date filter
+				const isFilteredHatTrickQuestion = (hasTeamFilter || hasDateFilter || hasYear) && !hasPlayerMention;
+
+				if (isYearWideQuestion || isFilteredHatTrickQuestion) {
+					this.lastProcessingSteps.push(`Detected hat-trick question with filters, routing to FixtureDataQueryHandler`);
+					return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+				}
+			}
+
 			// Check for "most consecutive games played" question (across all players)
 			// This should match questions asking "which/what player has the most" not "my/his/her consecutive games"
 			const isMostConsecutiveGamesQuestion = 
@@ -1992,37 +2035,146 @@ export class ChatbotService {
 			}
 		} else if (data && data.isHatTrickQuery === true) {
 			// Handle hat-trick queries
-			const count = Array.isArray(data.data) && data.data.length > 0 
-				? (data.data[0] as any).value 
-				: 0;
 			const year = data.year as number | undefined;
 			const playerName = data.playerName as string | undefined;
+			const isYearWide = data.isYearWideHatTrickQuery === true;
 			
 			if (playerName) {
 				// Player-specific hat-trick query
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `${playerName} has scored ${count} hat-trick${count === 1 ? '' : 's'}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: `${playerName}'s Hat-tricks`,
+						type: "bar",
+					},
+				};
+			} else if (isYearWide) {
+				// Year-wide or filtered hat-trick query - show table of players
+				const playerData = Array.isArray(data.data) ? data.data : [];
+				const totalCount = (data.totalCount as number) || playerData.reduce((sum: number, p: any) => sum + (p.hatTrickCount || 0), 0);
+				const year = data.year as number | undefined;
+				const teamName = data.teamName as string | undefined;
+				const startDate = data.startDate as string | undefined;
+				const endDate = data.endDate as string | undefined;
+				
+				// Build answer text based on filters
+				let answerText = "";
+				if (playerData.length === 0) {
+					if (teamName) {
+						answerText = `There were no hat-tricks scored by the ${teamName}`;
+					} else if (year) {
+						answerText = `There were no hat-tricks scored in ${year}`;
+					} else {
+						answerText = `There were no hat-tricks scored`;
+					}
+					if (startDate || endDate) {
+						if (startDate && endDate) {
+							answerText += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+						} else if (startDate) {
+							answerText += ` after ${DateUtils.formatDate(startDate)}`;
+						} else if (endDate) {
+							answerText += ` before ${DateUtils.formatDate(endDate)}`;
+						}
+					} else if (year) {
+						answerText += `.`;
+					} else {
+						answerText += `.`;
+					}
+					answer = answerText;
+					answerValue = 0;
+				} else {
+					if (teamName) {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored by the ${teamName}`;
+					} else if (year) {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored across all teams in ${year}`;
+					} else {
+						answerText = `There ${totalCount === 1 ? 'was' : 'were'} ${totalCount} hat-trick${totalCount === 1 ? '' : 's'} scored`;
+					}
+					if (startDate || endDate) {
+						if (startDate && endDate) {
+							answerText += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+						} else if (startDate) {
+							answerText += ` after ${DateUtils.formatDate(startDate)}`;
+						} else if (endDate) {
+							answerText += ` before ${DateUtils.formatDate(endDate)}`;
+						}
+					}
+					answerText += `.`;
+					answer = answerText;
+					answerValue = totalCount;
+					
+					// Create table visualization
+					const tableData = playerData.map((player: any) => ({
+						Player: player.playerName || "Unknown",
+						"Hat-tricks": player.hatTrickCount || 0,
+					}));
+					
+					visualization = {
+						type: "Table",
+						data: tableData,
+						config: {
+							columns: [
+								{ key: "Player", label: "Player" },
+								{ key: "Hat-tricks", label: "Hat-tricks" },
+							],
+							initialDisplayLimit: Math.min(playerData.length, 10),
+							expandableLimit: playerData.length,
+							isExpandable: playerData.length > 10,
+						},
+					};
+				}
 			} else if (year) {
-				// Year-wide hat-trick query
+				// Fallback for year-wide without player data
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'} in ${year}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: `Hat-tricks in ${year}`,
+						type: "bar",
+					},
+				};
 			} else {
 				// Generic hat-trick query
+				const count = Array.isArray(data.data) && data.data.length > 0 
+					? (data.data[0] as any).value 
+					: 0;
 				answer = `There ${count === 1 ? 'was' : 'were'} ${count} hat-trick${count === 1 ? '' : 's'}.`;
+				answerValue = count;
+				visualization = {
+					type: "NumberCard",
+					data: [{ 
+						name: "hattricks", 
+						wordedText: "hattricks",
+						value: count,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: "Hat-tricks",
+						type: "bar",
+					},
+				};
 			}
-			
-			answerValue = count;
-			visualization = {
-				type: "NumberCard",
-				data: [{ 
-					name: "hattricks", 
-					wordedText: "hattricks",
-					value: count,
-					iconName: this.getIconNameForMetric("G")
-				}],
-				config: {
-					title: year ? `Hat-tricks in ${year}` : (playerName ? `${playerName}'s Hat-tricks` : "Hat-tricks"),
-					type: "bar",
-				},
-			};
 		} else if (data && data.type === "player_opposition_appearances") {
 			// Handle opposition appearance queries (e.g., "How many times have I played Old Hamptonians?")
 			const playerName = (data.playerName as string) || "";

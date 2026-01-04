@@ -1116,6 +1116,15 @@ export class EntityExtractor {
 		const entities: EntityInfo[] = [];
 		let position = 0;
 
+		// Helper function to check if a term is a hattrick-related term
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const isHatTrickTerm = (text: string): boolean => {
+			const normalized = text.toLowerCase().trim();
+			// Match hat, followed by optional dash (any Unicode dash) or space, followed by trick(s)
+			// Includes: regular hyphen (-), non-breaking hyphen (\u2011), en dash (\u2013), em dash (\u2014), and space
+			return /^hat[-\u2011\u2013\u2014 ]?trick/i.test(normalized);
+		};
+
 		// Extract "I" references
 		const iMatches = this.findMatches(/\b(i|i've|me|my|myself)\b/gi);
 		iMatches.forEach((match) => {
@@ -1160,7 +1169,12 @@ export class EntityExtractor {
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
 				const normalizedName = player.text.toLowerCase();
-				if (!addedPlayers.has(normalizedName)) {
+				// Filter out hattrick terms from player entity extraction
+				const isHatTrick = isHatTrickTerm(player.text);
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:1161',message:'player entity extraction check',data:{playerText:player.text,normalizedName,isHatTrick,willAdd:!addedPlayers.has(normalizedName) && !isHatTrick},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+				// #endregion
+				if (!addedPlayers.has(normalizedName) && !isHatTrick) {
 					addedPlayers.add(normalizedName);
 					entities.push({
 						value: player.text,
