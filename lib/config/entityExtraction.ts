@@ -1169,12 +1169,9 @@ export class EntityExtractor {
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
 				const normalizedName = player.text.toLowerCase();
-				// Filter out hattrick terms from player entity extraction
-				const isHatTrick = isHatTrickTerm(player.text);
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:1161',message:'player entity extraction check',data:{playerText:player.text,normalizedName,isHatTrick,willAdd:!addedPlayers.has(normalizedName) && !isHatTrick},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-				// #endregion
-				if (!addedPlayers.has(normalizedName) && !isHatTrick) {
+			// Filter out hattrick terms from player entity extraction
+			const isHatTrick = isHatTrickTerm(player.text);
+			if (!addedPlayers.has(normalizedName) && !isHatTrick) {
 					addedPlayers.add(normalizedName);
 					entities.push({
 						value: player.text,

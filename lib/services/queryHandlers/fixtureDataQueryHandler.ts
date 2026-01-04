@@ -28,6 +28,19 @@ export class FixtureDataQueryHandler {
 			return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
 		}
 		
+		// Check if this is a highest individual player goals in one game query
+		// This must be checked BEFORE highest scoring game query to avoid misrouting
+		const isHighestPlayerGoalsInGameQuery = 
+			(question.includes("highest number of goals") && question.includes("player") && question.includes("scored")) ||
+			(question.includes("highest goals") && question.includes("player") && (question.includes("scored") || question.includes("one game"))) ||
+			(question.includes("most goals") && question.includes("player") && question.includes("one game")) ||
+			(question.includes("most goals") && question.includes("player") && question.includes("scored") && question.includes("game")) ||
+			(question.includes("highest goals") && question.includes("one game") && question.includes("player"));
+		
+		if (isHighestPlayerGoalsInGameQuery) {
+			return await this.queryHighestPlayerGoalsInGame(entities, analysis);
+		}
+		
 		// Check if this is a highest scoring game query
 		const isHighestScoringGameQuery = 
 			question.includes("highest scoring game") ||
@@ -672,6 +685,74 @@ export class FixtureDataQueryHandler {
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in queryHighestScoringGame:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
+	 * Query highest individual player goals in a single game
+	 * Returns the player who scored the most goals in one game
+	 */
+	private static async queryHighestPlayerGoalsInGame(
+		entities: string[],
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		const question = analysis?.question?.toLowerCase() || "";
+		
+		loggingService.log(`🔍 Querying highest individual player goals in one game`, null, "log");
+		
+		// Build query to find the top 10 highest goals scored by players in single games
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.goals IS NOT NULL OR md.penaltiesScored IS NOT NULL
+			WITH md,
+			     coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0) as totalGoals
+			WHERE totalGoals > 0
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WITH md.playerName as playerName,
+			     totalGoals as goals,
+			     md.date as date,
+			     f.opposition as opposition,
+			     md.team as team,
+			     f.homeOrAway as homeOrAway,
+			     f.result as result
+			ORDER BY goals DESC, date DESC
+			LIMIT 10
+			RETURN playerName,
+			       goals,
+			       date,
+			       opposition,
+			       team,
+			       homeOrAway,
+			       result
+		`;
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			loggingService.log(`🔍 Highest individual player goals query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No match details found for highest individual goals`, null, "warn");
+				return {
+					type: "highest_player_goals_in_game",
+					data: [],
+					message: "No match data found.",
+				};
+			}
+			
+			loggingService.log(`✅ Found ${result.length} highest individual player goals records`, null, "log");
+			
+			return {
+				type: "highest_player_goals_in_game",
+				data: result,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestPlayerGoalsInGame:`, error, "error");
 			return {
 				type: "error",
 				data: [],

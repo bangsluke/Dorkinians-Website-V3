@@ -712,6 +712,20 @@ export class EnhancedQuestionAnalyzer {
 			return "club";
 		}
 
+		// Check for "played with" or "opposition most" questions - these should be player type, not ranking
+		// This must be checked BEFORE the ranking check to avoid misclassification
+		const isPlayedWithQuestion = 
+			lowerQuestion.includes("played with") ||
+			lowerQuestion.includes("play with") ||
+			(lowerQuestion.includes("which player") && lowerQuestion.includes("played") && (lowerQuestion.includes("most") || lowerQuestion.includes("with"))) ||
+			(lowerQuestion.includes("who") && lowerQuestion.includes("played") && lowerQuestion.includes("most") && lowerQuestion.includes("with")) ||
+			(lowerQuestion.includes("which opposition") && lowerQuestion.includes("most")) ||
+			(lowerQuestion.includes("opposition") && lowerQuestion.includes("most") && lowerQuestion.includes("played"));
+		
+		if (isPlayedWithQuestion) {
+			return "player";
+		}
+		
 		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
 		// CRITICAL: This must be checked BEFORE player entity check to avoid misclassification
 		// Special case: "worst penalty record" questions should be routed to ranking handler

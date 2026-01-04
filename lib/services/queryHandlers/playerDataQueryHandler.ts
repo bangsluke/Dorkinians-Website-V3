@@ -129,6 +129,8 @@ export class PlayerDataQueryHandler {
 			questionLower.includes("who did you play") ||
 			questionLower.includes("who have i played") ||
 			questionLower.includes("who have you played") ||
+			(questionLower.includes("which player") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
+			(questionLower.includes("who") && questionLower.includes("played") && questionLower.includes("most") && questionLower.includes("with")) ||
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("who did") && questionLower.includes("play") && (questionLower.includes("most") || questionLower.includes("with"))) ||
@@ -426,8 +428,35 @@ export class PlayerDataQueryHandler {
 
 		// If this is a "played with" question (but not specific player pair), handle it specially
 		if (isPlayedWithQuestion && (entities.length > 0 || userContext)) {
-			// Use userContext if no entities found (handles "I" questions)
-			const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+			// Check for personal questions (I, me, my) - use userContext
+			const isPersonalQuestion = questionLower.includes(" i ") || questionLower.includes(" i've") || 
+				questionLower.includes(" have i ") || questionLower.includes(" have you ") ||
+				questionLower.includes(" my ") || questionLower.includes(" me ") ||
+				questionLower.includes("which player have i") || questionLower.includes("who did i");
+			
+			// Filter out pronouns from entities
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const validEntities = entities.filter(e => !pronouns.includes(e.toLowerCase()));
+			
+			// Determine player name: prioritize valid entities, then userContext for personal questions
+			let playerName = "";
+			if (validEntities.length > 0) {
+				playerName = validEntities[0];
+			} else if (isPersonalQuestion && userContext) {
+				playerName = userContext;
+			} else if (userContext) {
+				playerName = userContext;
+			}
+			
+			if (!playerName) {
+				loggingService.log(`⚠️ No player name found for played with question`, null, "warn");
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 			
 			if (!resolvedPlayerName) {
@@ -828,7 +857,23 @@ export class PlayerDataQueryHandler {
 
 		// If this is an "opposition most" question, handle it specially
 		if (isOppositionMostQuestion) {
-			const playerName = entities.length > 0 ? entities[0] : undefined;
+			// Check for personal questions (I, me, my) - use userContext
+			const isPersonalQuestion = questionLower.includes(" i ") || questionLower.includes(" i've") || 
+				questionLower.includes(" have i ") || questionLower.includes(" have you ") ||
+				questionLower.includes(" my ") || questionLower.includes(" me ");
+			
+			// Filter out pronouns from entities
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your"];
+			const validEntities = entities.filter(e => !pronouns.includes(e.toLowerCase()));
+			
+			// Determine player name: prioritize valid entities, then userContext for personal questions
+			let playerName: string | undefined = undefined;
+			if (validEntities.length > 0) {
+				playerName = validEntities[0];
+			} else if (isPersonalQuestion && userContext) {
+				playerName = userContext;
+			}
+			
 			if (playerName) {
 				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 				
@@ -842,8 +887,8 @@ export class PlayerDataQueryHandler {
 					};
 				}
 				
-				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerOpponentsData`, null, "log");
-				return await RelationshipQueryHandler.queryPlayerOpponentsData(resolvedPlayerName);
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryMostPlayedAgainstOpposition(resolvedPlayerName);
 			} else {
 				// No player specified, query overall most played against
 				loggingService.log(`🔍 Querying most played against opposition (overall)`, null, "log");

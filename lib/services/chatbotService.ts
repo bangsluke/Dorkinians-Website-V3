@@ -688,7 +688,21 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for "highest scoring game" queries FIRST - these should route to fixture handler, not player handler
+			// Check for "highest individual player goals in one game" queries FIRST - these should route to fixture handler
+			// This must be checked BEFORE highest scoring game query to avoid misrouting
+			const isHighestPlayerGoalsInGameQuery = 
+				(question.includes("highest number of goals") && question.includes("player") && question.includes("scored")) ||
+				(question.includes("highest goals") && question.includes("player") && (question.includes("scored") || question.includes("one game"))) ||
+				(question.includes("most goals") && question.includes("player") && question.includes("one game")) ||
+				(question.includes("most goals") && question.includes("player") && question.includes("scored") && question.includes("game")) ||
+				(question.includes("highest goals") && question.includes("one game") && question.includes("player"));
+
+			if (isHighestPlayerGoalsInGameQuery) {
+				this.lastProcessingSteps.push(`Detected highest individual player goals in one game question, routing to FixtureDataQueryHandler`);
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+
+			// Check for "highest scoring game" queries - these should route to fixture handler, not player handler
 			const isHighestScoringGameQuery = 
 				question.includes("highest scoring game") ||
 				(question.includes("highest scoring") && question.includes("game")) ||
@@ -3218,6 +3232,54 @@ export class ChatbotService {
 				const formattedDate = DateUtils.formatDate(gameData.date);
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = answer;
+			}
+		} else if (data && data.type === "highest_player_goals_in_game") {
+			// Handle highest individual player goals in one game queries
+			const playerGameDataArray = (data.data as Array<{
+				playerName: string;
+				goals: number;
+				date: string;
+				opposition: string;
+				team: string;
+				homeOrAway: string;
+				result: string;
+			}>) || [];
+			
+			if (playerGameDataArray.length === 0) {
+				answer = (data.message as string) || "No match data found for highest individual goals in one game.";
+			} else {
+				const topRecord = playerGameDataArray[0];
+				const location = topRecord.homeOrAway === "Home" ? "at home" : topRecord.homeOrAway === "Away" ? "away" : "";
+				const formattedDate = DateUtils.formatDate(topRecord.date);
+				const goalText = topRecord.goals === 1 ? "goal" : "goals";
+				answer = `${topRecord.playerName} scored ${topRecord.goals} ${goalText} for the ${topRecord.team} ${location} against ${topRecord.opposition} on the ${formattedDate}`;
+				answerValue = topRecord.goals;
+				
+				// Create table with top 5 (expandable to 10)
+				const tableData = playerGameDataArray.map((item) => ({
+					Player: item.playerName,
+					Goals: item.goals,
+					Team: item.team,
+					Opposition: item.opposition,
+					Date: DateUtils.formatDate(item.date),
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Goals", label: "Goals" },
+							{ key: "Team", label: "Team" },
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Date", label: "Date" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
 			}
 		} else if (data && data.type === "double_game") {
 			// Handle double game weeks queries
