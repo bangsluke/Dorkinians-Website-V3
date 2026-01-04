@@ -2009,11 +2009,20 @@ export class EnhancedQuestionAnalyzer {
 	private correctGoalsAssistsConfusion(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check if question explicitly mentions "goals" or "goal"
-		const hasExplicitGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("goal");
+		// CRITICAL FIX: If "goal involvements" is present, remove "Goals" to prevent "goals goal involvements"
+		const hasGoalInvolvements = statTypes.some((stat) => stat.value === "Goal Involvements" || stat.value === "goal involvements");
+		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
+		
+		if (hasGoalInvolvements && hasGoals) {
+			// Remove "Goals" when "Goal Involvements" is present to prevent duplication
+			return statTypes.filter((stat) => stat.value !== "Goals");
+		}
+
+		// Check if question explicitly mentions "goals" or "goal" (but not "goal involvements")
+		const hasExplicitGoals = (lowerQuestion.includes("goals") || lowerQuestion.includes("goal")) && 
+			!lowerQuestion.includes("goal involvements") && !lowerQuestion.includes("goal involvement");
 		
 		// Check if both "Goals" and "Assists" are in the stat types
-		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
 		const hasAssists = statTypes.some((stat) => stat.value === "Assists");
 
 		// If goals is explicitly mentioned and both are present, remove "Assists"

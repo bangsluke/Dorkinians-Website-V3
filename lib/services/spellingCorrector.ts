@@ -98,6 +98,10 @@ export class SpellingCorrector {
 			"home",
 			"away",
 			"team",
+			"longest", // Prevent "longest" from being corrected to "lowest"
+			"goal",
+			"involvements",
+			"involvement",
 			"player",
 			"players",
 			"teammate",

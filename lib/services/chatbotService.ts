@@ -532,6 +532,30 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "no goal involvement" streak questions - route to streak handler
+			// Handle variations: "longest run", "longest streak", "lowest run" (likely typo/normalization issue)
+			// Handle variations: "goal involvement", "goal involvements", "goals goal involvements"
+			const isNoGoalInvolvementStreakQuestion = 
+				(question.includes("longest run") || question.includes("longest streak") || question.includes("lowest run") || question.includes("run of games")) &&
+				(question.includes("no goal involvement") || question.includes("no goal involvements") || 
+				 question.includes("no goals goal involvements") || question.includes("no goals goal involvement") ||
+				 question.includes("without goal involvement") || question.includes("without goal involvements") ||
+				 (question.includes("goal involvement") && (question.includes("no") || question.includes("without"))) ||
+				 (question.includes("goals goal involvements") && (question.includes("no") || question.includes("without"))));
+
+			// Check for positive goal involvement streak questions (longest run WITH goal involvements)
+			const isGoalInvolvementStreakQuestion = 
+				(question.includes("longest run") || question.includes("longest streak") || question.includes("run of games")) &&
+				(question.includes("goal involvement") || question.includes("goal involvements")) &&
+				!question.includes("no") && !question.includes("without");
+
+			if (isNoGoalInvolvementStreakQuestion || isGoalInvolvementStreakQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
 			// Check for consecutive goal involvement questions - ensure they're routed to streak handler - This catches questions that might be misclassified as "player" type
 			const isConsecutiveGoalInvolvementQuestion = 
 				(question.includes("consecutive") && question.includes("games") && 
@@ -2639,8 +2663,8 @@ export class ChatbotService {
 						},
 					};
 				}
-			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement") {
-				// Handle consecutive clean sheets and goal involvement streaks with calendar visualization
+			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement" || streakType === "longest_no_goal_involvement") {
+				// Handle consecutive clean sheets, goal involvement streaks, and no goal involvement streaks with calendar visualization
 				const streakCount = (data.streakCount as number) || 0;
 				const streakSequence = (data.streakSequence as string[]) || [];
 				const streakData = (data.data as Array<{ date: string; [key: string]: any }>) || [];
@@ -2651,6 +2675,8 @@ export class ChatbotService {
 				if (streakCount === 0) {
 					if (streakType === "consecutive_clean_sheets") {
 						answer = "You haven't had any consecutive clean sheets.";
+					} else if (streakType === "longest_no_goal_involvement") {
+						answer = "You've had goal involvements in all your games.";
 					} else {
 						answer = "You haven't had any consecutive games with goal involvement.";
 					}
@@ -2667,6 +2693,8 @@ export class ChatbotService {
 					
 					if (streakType === "consecutive_clean_sheets") {
 						answer = `Your longest consecutive clean sheet streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					} else if (streakType === "longest_no_goal_involvement") {
+						answer = `Your longest run of games without goal involvements is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					} else {
 						answer = `Your longest consecutive goal involvement streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					}
@@ -2686,7 +2714,7 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Longest consecutive streak sequence: ${streakSequence.join(' → ')}`);
 				}
 
-				// Build Calendar visualization for consecutive clean sheets/goal involvement - Convert date array to week-based format with highlightRange
+				// Build Calendar visualization for consecutive clean sheets/goal involvement/no goal involvement - Convert date array to week-based format with highlightRange
 				if (streakData.length > 0) {
 					// Helper function to calculate week number (matching Calendar.tsx weekNum function)
 					const weekNum = (date: Date): number => {
@@ -2698,8 +2726,17 @@ export class ChatbotService {
 						return Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
 					};
 
-					// Group dates by year and week
-					const weekMap = new Map<string, { year: number; weekNumber: number; value: number }>();
+					// Determine if we should show goal involvements
+					const showGoalInvolvements = streakType === "longest_no_goal_involvement" || streakType === "consecutive_goal_involvement";
+					
+					// Group dates by year and week, tracking goal involvements and game counts
+					const weekMap = new Map<string, { 
+						year: number; 
+						weekNumber: number; 
+						value: number; 
+						goalInvolvements: number;
+						gameCount: number;
+					}>();
 					
 					for (const item of streakData) {
 						if (item.date) {
@@ -2709,17 +2746,38 @@ export class ChatbotService {
 							const key = `${year}-${week}`;
 							
 							if (!weekMap.has(key)) {
-								weekMap.set(key, { year, weekNumber: week, value: 0 });
+								weekMap.set(key, { year, weekNumber: week, value: 0, goalInvolvements: 0, gameCount: 0 });
 							}
-							weekMap.get(key)!.value += 1;
+							
+							const weekEntry = weekMap.get(key)!;
+							
+							// Calculate goal involvements for this game
+							const goals = (item.goals as number) || 0;
+							const assists = (item.assists as number) || 0;
+							const penaltiesScored = (item.penaltiesScored as number) || 0;
+							const goalInvolvements = goals + assists + penaltiesScored;
+							
+							// Track goal involvements and game count
+							weekEntry.goalInvolvements += goalInvolvements;
+							weekEntry.gameCount += 1;
+							
+							// For longest_no_goal_involvement and consecutive_goal_involvement, use goal involvement count
+							// For other streak types (like consecutive_weekends), count number of games
+							if (showGoalInvolvements) {
+								weekEntry.value = weekEntry.goalInvolvements;
+							} else {
+								weekEntry.value = weekEntry.gameCount;
+							}
 						}
 					}
 
-					// Convert to week-based format
+					// Convert to week-based format with goal involvement data
 					const weeks = Array.from(weekMap.values()).map(w => ({
 						weekNumber: w.weekNumber,
 						year: w.year,
 						value: w.value,
+						goalInvolvements: showGoalInvolvements ? w.goalInvolvements : undefined,
+						gameCount: w.gameCount,
 					}));
 
 					// Calculate full calendar date range from weeks (for fixture query)
@@ -2800,6 +2858,8 @@ export class ChatbotService {
 							weeks: weeks,
 							highlightRange: highlightRange,
 							allFixtureDates: allFixtureDates,
+							streakType: streakType, // Pass streak type for styling (red for negative streaks)
+							showGoalInvolvements: showGoalInvolvements, // Flag to show goal involvements vs apps
 						},
 					};
 				}

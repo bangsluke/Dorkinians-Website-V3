@@ -107,14 +107,31 @@ export class TemporalQueryHandler {
 
 		// Check if this is a goal involvement streak question
 		// Enhanced detection to catch variations like "consecutive games have I scored/assisted/had a goal involvement"
+		// Also detect "longest run of games where I had goal involvements"
 		const isGoalInvolvementStreak = 
-			((question.includes("goal involvement") || question.includes("goals involvement")) && (question.includes("consecutive") || question.includes("in a row") || question.includes("scored") || question.includes("assisted"))) ||
+			((question.includes("goal involvement") || question.includes("goals involvement")) && (question.includes("consecutive") || question.includes("in a row") || question.includes("scored") || question.includes("assisted") || question.includes("longest run") || question.includes("longest streak"))) ||
 			((question.includes("scored") || question.includes("assisted")) && (question.includes("consecutive") || question.includes("in a row"))) ||
 			(question.includes("consecutive games") && (question.includes("scored") || question.includes("assisted") || question.includes("goal involvement") || question.includes("goals involvement"))) ||
-			(question.includes("consecutive") && question.includes("games") && (question.includes("scored") || question.includes("assisted") || question.includes("goal involvement") || question.includes("goals involvement")));
+			(question.includes("consecutive") && question.includes("games") && (question.includes("scored") || question.includes("assisted") || question.includes("goal involvement") || question.includes("goals involvement"))) ||
+			((question.includes("longest run") || question.includes("longest streak")) && (question.includes("goal involvement") || question.includes("goal involvements")) && !question.includes("no") && !question.includes("without"));
+
+		// Check if this is a "no goal involvement" streak question (longest run without goal involvements)
+		// Handle variations: "longest run", "longest streak", "lowest run" (likely typo/normalization issue)
+		// Handle variations: "goal involvement", "goal involvements", "goals goal involvements"
+		const isNoGoalInvolvementStreak = 
+			(question.includes("longest run") || question.includes("longest streak") || question.includes("lowest run") || question.includes("run of games")) &&
+			(question.includes("no goal involvement") || question.includes("no goal involvements") || 
+			 question.includes("no goals goal involvements") || question.includes("no goals goal involvement") ||
+			 question.includes("without goal involvement") || question.includes("without goal involvements") ||
+			 (question.includes("goal involvement") && (question.includes("no") || question.includes("without"))) ||
+			 (question.includes("goals goal involvements") && (question.includes("no") || question.includes("without"))));
 
 		if (isCleanSheetStreak) {
 			return await TemporalQueryHandler.queryConsecutiveCleanSheetsStreak(playerName);
+		}
+
+		if (isNoGoalInvolvementStreak) {
+			return await TemporalQueryHandler.queryLongestNoGoalInvolvementStreak(playerName);
 		}
 
 		if (isGoalInvolvementStreak) {
@@ -873,15 +890,33 @@ export class TemporalQueryHandler {
 				};
 			}
 
-			// Prepare data for calendar visualization
-			const dateData = (result || []).map((record: any) => ({
-				date: record?.date,
-				goals: record?.goals,
-				penaltiesScored: record?.penaltiesScored,
-				assists: record?.assists,
-				team: record?.team,
-				opposition: record?.opposition,
-			}));
+			// Prepare data for calendar visualization - ALL games with goal involvement data
+			// For consecutive goal involvement, we want to show all games (not just streak games) so calendar can display properly
+			// Get all games the player played with goal involvement data
+			const allGamesWithDataQuery = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.minutes > 0
+				RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.assists as assists, md.team as team, md.opposition as opposition
+				ORDER BY md.date ASC
+			`;
+			const allGamesWithDataResult = await neo4jService.executeQuery(allGamesWithDataQuery, { graphLabel, playerName });
+			
+			const dateData = (allGamesWithDataResult || []).map((record: any) => {
+				const goals = (record?.goals as number) || 0;
+				const assists = (record?.assists as number) || 0;
+				const penaltiesScored = (record?.penaltiesScored as number) || 0;
+				const goalInvolvements = goals + assists + penaltiesScored;
+				
+				return {
+					date: record?.date,
+					goals: goals,
+					penaltiesScored: penaltiesScored,
+					assists: assists,
+					goalInvolvements: goalInvolvements,
+					team: record?.team,
+					opposition: record?.opposition,
+				};
+			});
 
 			loggingService.log(`✅ Calculated consecutive goal involvement streak: ${longestStreak} for player: ${playerName}`, null, "log");
 			if (streakStartDate && streakEndDate) {
@@ -903,6 +938,133 @@ export class TemporalQueryHandler {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			loggingService.log(`❌ Error in consecutive goal involvement streak query: ${errorMessage}`, error, "error");
 			return { type: "error", data: [], error: `Error querying consecutive goal involvement streak data: ${errorMessage}` };
+		}
+	}
+
+	/**
+	 * Query longest streak of games without goal involvements
+	 * Returns calendar data with goal involvement counts and highlights the longest streak without goal involvements
+	 */
+	static async queryLongestNoGoalInvolvementStreak(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying longest no goal involvement streak for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// Get all games where player played with goal involvement data
+		const allGamesQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0
+			RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.assists as assists, md.team as team, md.opposition as opposition
+			ORDER BY md.date ASC
+		`;
+
+		// Query to get games where player had goal involvement (goals, penalties scored, or assists)
+		const goalInvolvementQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0 AND (md.goals > 0 OR md.penaltiesScored > 0 OR md.assists > 0)
+			RETURN md.date as date
+			ORDER BY md.date ASC
+		`;
+
+		try {
+			// Get all games the player played with full data
+			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
+			const allGameDates = (allGamesResult || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '')
+				.sort();
+
+			// Get goal involvement games (dates only)
+			const goalInvolvementResult = await neo4jService.executeQuery(goalInvolvementQuery, { graphLabel, playerName });
+			const goalInvolvementDates = (goalInvolvementResult || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '');
+
+			// Create a set of dates with goal involvements for quick lookup
+			const goalInvolvementSet = new Set(goalInvolvementDates);
+
+			// Find games WITHOUT goal involvements (invert the condition)
+			const noGoalInvolvementDates = allGameDates.filter(date => !goalInvolvementSet.has(date));
+
+			if (noGoalInvolvementDates.length === 0) {
+				loggingService.log(`⚠️ All games had goal involvements for player: ${playerName}`, null, "warn");
+				// Still return calendar data with all games showing their goal involvement counts
+			}
+
+			// Find longest consecutive streak of games WITHOUT goal involvements
+			const streakResult = TemporalQueryHandler.calculateConsecutiveGamesInHistory(noGoalInvolvementDates, allGameDates);
+			const longestStreak = streakResult.count;
+			const streakSequence = streakResult.sequence;
+			const streakStartDate = streakResult.startDate;
+			const streakEndDate = streakResult.endDate;
+
+			// Calculate highlight range for calendar visualization
+			let highlightRange: { startWeek: number; startYear: number; endWeek: number; endYear: number } | undefined = undefined;
+
+			if (streakStartDate && streakEndDate) {
+				const startDate = new Date(streakStartDate);
+				const endDate = new Date(streakEndDate);
+				
+				const getWeekNumber = (date: Date): { year: number; week: number } => {
+					const year = date.getFullYear();
+					const jan1 = new Date(year, 0, 1);
+					const jan1Day = jan1.getDay();
+					const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+					const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+					const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+					return { year, week: weekNumber };
+				};
+
+				const startWeekInfo = getWeekNumber(startDate);
+				const endWeekInfo = getWeekNumber(endDate);
+				
+				highlightRange = {
+					startWeek: startWeekInfo.week,
+					startYear: startWeekInfo.year,
+					endWeek: endWeekInfo.week,
+					endYear: endWeekInfo.year,
+				};
+			}
+
+			// Prepare data for calendar visualization - ALL games with goal involvement counts
+			// Goal involvement = goals + assists + penaltiesScored
+			const dateData = (allGamesResult || []).map((record: any) => {
+				const goals = (record?.goals as number) || 0;
+				const assists = (record?.assists as number) || 0;
+				const penaltiesScored = (record?.penaltiesScored as number) || 0;
+				const goalInvolvements = goals + assists + penaltiesScored;
+				
+				return {
+					date: record?.date,
+					goals: goals,
+					penaltiesScored: penaltiesScored,
+					assists: assists,
+					goalInvolvements: goalInvolvements,
+					team: record?.team,
+					opposition: record?.opposition,
+				};
+			});
+
+			loggingService.log(`✅ Calculated longest no goal involvement streak: ${longestStreak} for player: ${playerName}`, null, "log");
+			if (streakStartDate && streakEndDate) {
+				loggingService.log(`📅 Streak dates: ${streakStartDate} to ${streakEndDate}`, null, "log");
+			}
+
+			return { 
+				type: "streak", 
+				data: dateData, 
+				playerName, 
+				streakType: "longest_no_goal_involvement", 
+				streakCount: longestStreak,
+				streakSequence: streakSequence,
+				streakStartDate: streakStartDate,
+				streakEndDate: streakEndDate,
+				highlightRange: highlightRange
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in longest no goal involvement streak query: ${errorMessage}`, error, "error");
+			return { type: "error", data: [], error: `Error querying longest no goal involvement streak data: ${errorMessage}` };
 		}
 	}
 
