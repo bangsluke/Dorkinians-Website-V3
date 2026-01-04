@@ -177,8 +177,20 @@ export class TemporalQueryHandler {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
-		// Query to get distinct seasonWeek values and their dates for calendar visualization
-		const query = `
+		// Query to get all weekends with fixtures (for any Dorkinians team)
+		const allFixturesQuery = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.seasonWeek IS NOT NULL AND f.seasonWeek <> ""
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH DISTINCT f.seasonWeek as seasonWeek, f.season as season, f.week as week, f.date as date
+			ORDER BY season ASC, week ASC, date ASC
+			WITH seasonWeek, season, week, collect(date)[0] as firstDate
+			RETURN seasonWeek, season, week, firstDate as date
+			ORDER BY season ASC, week ASC
+		`;
+
+		// Query to get weekends where the player played
+		const playerPlayedQuery = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			WHERE md.minutes > 0 AND md.seasonWeek IS NOT NULL AND md.seasonWeek <> ""
 			WITH md.seasonWeek as seasonWeek, md.season as season, md.week as week, md.date as date
@@ -189,33 +201,139 @@ export class TemporalQueryHandler {
 		`;
 
 		try {
-			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
-			const seasonWeeks = (result || [])
-				.map((record: any) => record?.seasonWeek)
-				.filter((sw: string | null | undefined) => sw !== null && sw !== undefined && sw !== "");
-
-			// Create a map from seasonWeek to date for quick lookup
-			const seasonWeekToDateMap = new Map<string, string>();
-			const dateData = (result || [])
-				.map((record: any) => {
-					if (record?.seasonWeek && record?.date) {
-						seasonWeekToDateMap.set(record.seasonWeek, record.date);
+			// Get all weekends with fixtures
+			const allFixturesResult = await neo4jService.executeQuery(allFixturesQuery, { graphLabel });
+			const allFixtureSeasonWeeks = new Set<string>();
+			const allFixtureSeasonWeekToDateMap = new Map<string, string>();
+			
+			(allFixturesResult || []).forEach((record: any) => {
+				if (record?.seasonWeek) {
+					allFixtureSeasonWeeks.add(record.seasonWeek);
+					if (record?.date) {
+						allFixtureSeasonWeekToDateMap.set(record.seasonWeek, record.date);
 					}
-					return {
-						date: record?.date,
-						seasonWeek: record?.seasonWeek,
-					};
-				})
-				.filter((item: any) => item.date && item.seasonWeek);
+				}
+			});
 
-			if (seasonWeeks.length === 0) {
-				loggingService.log(`⚠️ No seasonWeek data found for player: ${playerName}`, null, "warn");
+			// Get weekends where player played
+			const playerPlayedResult = await neo4jService.executeQuery(playerPlayedQuery, { graphLabel, playerName });
+			const playerPlayedSeasonWeeks = new Set<string>();
+			const seasonWeekToDateMap = new Map<string, string>();
+			const dateData: Array<{ date: string; seasonWeek: string }> = [];
+			
+			(playerPlayedResult || []).forEach((record: any) => {
+				if (record?.seasonWeek) {
+					playerPlayedSeasonWeeks.add(record.seasonWeek);
+					if (record?.date) {
+						seasonWeekToDateMap.set(record.seasonWeek, record.date);
+						dateData.push({
+							date: record.date,
+							seasonWeek: record.seasonWeek,
+						});
+					}
+				}
+			});
+
+			// Build streak calculation based on available weekends
+			// Strategy: Only consider weekends where ANY team played (available weekends)
+			// Player must play on every available weekend to continue the streak
+			// Weekends with no fixtures are automatically skipped (not in available weekends list)
+			
+			// Sort all available weekends chronologically
+			const sortedAvailableWeeks = Array.from(allFixtureSeasonWeeks).sort((a, b) => {
+				const parsedA = TemporalQueryHandler.parseSeasonWeek(a);
+				const parsedB = TemporalQueryHandler.parseSeasonWeek(b);
+				if (!parsedA || !parsedB) return 0;
+				if (parsedA.season !== parsedB.season) {
+					const yearA = parseInt(parsedA.season.match(/^(\d{4})/)?.[1] || "0", 10);
+					const yearB = parseInt(parsedB.season.match(/^(\d{4})/)?.[1] || "0", 10);
+					return yearA - yearB;
+				}
+				return parsedA.week - parsedB.week;
+			});
+
+			if (sortedAvailableWeeks.length === 0) {
+				loggingService.log(`⚠️ No available weekends found for streak calculation: ${playerName}`, null, "warn");
 				return { type: "streak", data: [], playerName, streakType: "consecutive_weekends", streakCount: 0, streakSequence: [] };
 			}
 
-			const streakResult = TemporalQueryHandler.calculateConsecutiveWeeks(seasonWeeks);
-			const longestStreak = streakResult.count;
-			const streakSequence = streakResult.sequence;
+			// Find longest consecutive sequence where player played in ALL available weekends
+			let longestStreak = 0;
+			let longestStreakSequence: string[] = [];
+			let currentStreak = 0;
+			let currentStreakSequence: string[] = [];
+
+			for (let i = 0; i < sortedAvailableWeeks.length; i++) {
+				const availableWeek = sortedAvailableWeeks[i];
+				const playerPlayed = playerPlayedSeasonWeeks.has(availableWeek);
+				
+				// Check if this week is consecutive to the previous week in the current streak
+				// Weeks must be consecutive in the available weekends list to continue the streak
+				let isConsecutive = true;
+				if (currentStreakSequence.length > 0) {
+					const prevWeek = currentStreakSequence[currentStreakSequence.length - 1];
+					const prevParsed = TemporalQueryHandler.parseSeasonWeek(prevWeek);
+					const currParsed = TemporalQueryHandler.parseSeasonWeek(availableWeek);
+					
+					if (prevParsed && currParsed) {
+						if (prevParsed.season === currParsed.season) {
+							// Same season: check if weeks are consecutive
+							isConsecutive = currParsed.week === prevParsed.week + 1;
+						} else {
+							// Different seasons: check if it's a season boundary transition
+							const areConsecutiveSeasons = TemporalQueryHandler.areSeasonsConsecutive(prevParsed.season, currParsed.season);
+							isConsecutive = areConsecutiveSeasons && prevParsed.week === 52 && currParsed.week === 1;
+						}
+					} else {
+						isConsecutive = false;
+					}
+				}
+				
+				if (playerPlayed && isConsecutive) {
+					// Player played this weekend AND it's consecutive - continue/add to streak
+					currentStreak++;
+					currentStreakSequence.push(availableWeek);
+					
+					// Check if this is the longest streak so far
+					if (currentStreak > longestStreak) {
+						longestStreak = currentStreak;
+						longestStreakSequence = [...currentStreakSequence];
+					}
+				} else {
+					// Player didn't play OR week is not consecutive - streak breaks
+					currentStreak = 0;
+					currentStreakSequence = [];
+					
+					// If player played but week is not consecutive, start a new streak
+					if (playerPlayed && !isConsecutive) {
+						currentStreak = 1;
+						currentStreakSequence = [availableWeek];
+					}
+				}
+			}
+
+			const streakSequence = longestStreakSequence;
+			
+			// Collect actual dates from streak sequence for precise calendar matching
+			const streakDates: string[] = [];
+			streakSequence.forEach(seasonWeek => {
+				const date = seasonWeekToDateMap.get(seasonWeek) || allFixtureSeasonWeekToDateMap.get(seasonWeek);
+				if (date) {
+					// Normalize to YYYY-MM-DD
+					const dateStr = String(date).trim();
+					if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+						streakDates.push(dateStr);
+					} else {
+						const d = new Date(dateStr);
+						if (!isNaN(d.getTime())) {
+							const year = d.getFullYear();
+							const month = String(d.getMonth() + 1).padStart(2, '0');
+							const day = String(d.getDate()).padStart(2, '0');
+							streakDates.push(`${year}-${month}-${day}`);
+						}
+					}
+				}
+			});
 			
 			// Calculate start and end dates for the streak
 			let streakStartDate: string | null = null;
@@ -224,11 +342,34 @@ export class TemporalQueryHandler {
 
 			if (streakSequence.length > 0) {
 				// Get dates for first and last seasonWeek in the streak
+				// Use player's date map first, fall back to fixture date map
 				const firstSeasonWeek = streakSequence[0];
 				const lastSeasonWeek = streakSequence[streakSequence.length - 1];
 				
-				streakStartDate = seasonWeekToDateMap.get(firstSeasonWeek) || null;
-				streakEndDate = seasonWeekToDateMap.get(lastSeasonWeek) || null;
+				const firstDate = seasonWeekToDateMap.get(firstSeasonWeek) || allFixtureSeasonWeekToDateMap.get(firstSeasonWeek) || null;
+				const lastDate = seasonWeekToDateMap.get(lastSeasonWeek) || allFixtureSeasonWeekToDateMap.get(lastSeasonWeek) || null;
+
+				// Ensure dates are in correct order (earliest to latest)
+				if (firstDate && lastDate) {
+					const firstDateObj = new Date(firstDate);
+					const lastDateObj = new Date(lastDate);
+					
+					// Compare dates to ensure correct ordering
+					if (firstDateObj <= lastDateObj) {
+						streakStartDate = firstDate;
+						streakEndDate = lastDate;
+					} else {
+						// Dates are reversed, swap them
+						streakStartDate = lastDate;
+						streakEndDate = firstDate;
+					}
+				} else if (firstDate) {
+					streakStartDate = firstDate;
+					streakEndDate = firstDate;
+				} else if (lastDate) {
+					streakStartDate = lastDate;
+					streakEndDate = lastDate;
+				}
 
 				// Calculate highlight range for calendar visualization
 				// Using Google Sheets WEEKNUM(date, 2) equivalent: Week starts Monday, Week 1 = week containing January 1st
@@ -258,6 +399,30 @@ export class TemporalQueryHandler {
 				}
 			}
 			
+			// Collect all fixture dates for calendar visualization
+			// Use the same fixture data that was used in streak calculation
+			const allFixtureDates: string[] = [];
+			(allFixturesResult || []).forEach((record: any) => {
+				if (record?.date) {
+					// Normalize date to YYYY-MM-DD format
+					const dateStr = String(record.date).trim();
+					if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+						allFixtureDates.push(dateStr);
+					} else {
+						// Try to parse and normalize
+						const d = new Date(dateStr);
+						if (!isNaN(d.getTime())) {
+							const year = d.getFullYear();
+							const month = String(d.getMonth() + 1).padStart(2, '0');
+							const day = String(d.getDate()).padStart(2, '0');
+							allFixtureDates.push(`${year}-${month}-${day}`);
+						}
+					}
+				}
+			});
+			// Remove duplicates
+			const uniqueFixtureDates = Array.from(new Set(allFixtureDates));
+
 			loggingService.log(`✅ Calculated consecutive weekends streak: ${longestStreak} for player: ${playerName}`, null, "log");
 			loggingService.log(`📊 Longest consecutive streak sequence: ${streakSequence.join(' → ')}`, null, "log");
 			if (streakStartDate && streakEndDate) {
@@ -273,7 +438,9 @@ export class TemporalQueryHandler {
 				streakSequence: streakSequence,
 				streakStartDate: streakStartDate,
 				streakEndDate: streakEndDate,
-				highlightRange: highlightRange
+				highlightRange: highlightRange,
+				allFixtureDates: uniqueFixtureDates,
+				streakDates: streakDates
 			};
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : String(error);

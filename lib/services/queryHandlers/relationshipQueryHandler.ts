@@ -133,7 +133,7 @@ export class RelationshipQueryHandler {
 		}
 		
 		if (season) {
-			whereConditions.push("f.season = $season");
+			whereConditions.push("f.season = $season", "md1.season = $season", "md2.season = $season");
 		}
 		
 		if (startDate && endDate) {
@@ -148,7 +148,7 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 3
+			LIMIT 10
 			RETURN teammateName, gamesTogether
 		`;
 

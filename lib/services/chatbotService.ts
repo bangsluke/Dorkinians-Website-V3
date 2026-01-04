@@ -2325,6 +2325,8 @@ export class ChatbotService {
 				const streakStartDate = (data.streakStartDate as string) || null;
 				const streakEndDate = (data.streakEndDate as string) || null;
 				const highlightRange = (data.highlightRange as { startWeek: number; startYear: number; endWeek: number; endYear: number }) || undefined;
+				const allFixtureDatesFromQuery = (data.allFixtureDates as string[]) || [];
+				const streakDates = (data.streakDates as string[]) || [];
 				
 				if (streakCount === 0) {
 					answer = "You haven't played any consecutive weekends.";
@@ -2391,11 +2393,70 @@ export class ChatbotService {
 						value: w.value,
 					}));
 
+					// Calculate full calendar date range from weeks (for filtering fixture dates)
+					// This ensures we only show fixtures within the calendar range
+					let calendarStartDate: string | null = null;
+					let calendarEndDate: string | null = null;
+					if (weeks.length > 0) {
+						// Helper to get Monday of a week
+						const getMondayOfWeek = (year: number, weekNumber: number): Date => {
+							const jan1 = new Date(year, 0, 1);
+							const jan1Day = jan1.getDay();
+							const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+							const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+							const monday = new Date(jan1);
+							monday.setDate(jan1.getDate() + daysToAdd);
+							return monday;
+						};
+
+						// Find earliest and latest weeks
+						let earliestWeek = weeks[0];
+						let latestWeek = weeks[0];
+						for (const week of weeks) {
+							const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+							const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+							const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+							if (weekStart < earliestStart) {
+								earliestWeek = week;
+							}
+							if (weekStart > latestStart) {
+								latestWeek = week;
+							}
+						}
+
+						const earliestMonday = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+						const latestMonday = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+						const latestSunday = new Date(latestMonday);
+						latestSunday.setDate(latestMonday.getDate() + 6);
+
+						// Format dates as YYYY-MM-DD
+						calendarStartDate = earliestMonday.toISOString().split('T')[0];
+						calendarEndDate = latestSunday.toISOString().split('T')[0];
+					}
+
+					// Use fixture dates from query handler to ensure consistency with streak calculation
+					// Filter to only include dates within the calendar date range
+					let allFixtureDates: string[] = [];
+					if (allFixtureDatesFromQuery.length > 0 && calendarStartDate && calendarEndDate) {
+						const startDateObj = new Date(calendarStartDate);
+						const endDateObj = new Date(calendarEndDate);
+						allFixtureDates = allFixtureDatesFromQuery.filter(dateStr => {
+							const date = new Date(dateStr);
+							return date >= startDateObj && date <= endDateObj;
+						});
+					} else if (allFixtureDatesFromQuery.length > 0) {
+						// If no calendar date range, use all fixture dates from query
+						allFixtureDates = allFixtureDatesFromQuery;
+					}
+
 					visualization = {
 						type: "Calendar",
 						data: {
 							weeks: weeks,
 							highlightRange: highlightRange,
+							allFixtureDates: allFixtureDates,
+							streakSequence: streakSequence,
+							streakDates: streakDates,
 						},
 					};
 				}
@@ -2482,11 +2543,84 @@ export class ChatbotService {
 						value: w.value,
 					}));
 
+					// Calculate full calendar date range from weeks (for fixture query)
+					// This ensures we query fixtures for the entire calendar range, not just the streak
+					let calendarStartDate: string | null = null;
+					let calendarEndDate: string | null = null;
+					if (weeks.length > 0) {
+						// Helper to get Monday of a week
+						const getMondayOfWeek = (year: number, weekNumber: number): Date => {
+							const jan1 = new Date(year, 0, 1);
+							const jan1Day = jan1.getDay();
+							const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+							const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+							const monday = new Date(jan1);
+							monday.setDate(jan1.getDate() + daysToAdd);
+							return monday;
+						};
+
+						// Find earliest and latest weeks
+						let earliestWeek = weeks[0];
+						let latestWeek = weeks[0];
+						for (const week of weeks) {
+							const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+							const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+							const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+							if (weekStart < earliestStart) {
+								earliestWeek = week;
+							}
+							if (weekStart > latestStart) {
+								latestWeek = week;
+							}
+						}
+
+						const earliestMonday = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+						const latestMonday = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+						const latestSunday = new Date(latestMonday);
+						latestSunday.setDate(latestMonday.getDate() + 6);
+
+						// Format dates as YYYY-MM-DD
+						calendarStartDate = earliestMonday.toISOString().split('T')[0];
+						calendarEndDate = latestSunday.toISOString().split('T')[0];
+					}
+
+					// Query all fixtures for the full calendar date range to determine weekends with no games
+					let allFixtureDates: string[] = [];
+					if (calendarStartDate && calendarEndDate) {
+						try {
+							const graphLabel = neo4jService.getGraphLabel();
+							const fixtureQuery = `
+								MATCH (f:Fixture {graphLabel: $graphLabel})
+								WHERE f.date >= $startDate AND f.date <= $endDate
+								  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+								RETURN DISTINCT f.date as date
+								ORDER BY f.date ASC
+							`;
+							const fixtureResult = await neo4jService.executeQuery(fixtureQuery, {
+								graphLabel,
+								startDate: calendarStartDate,
+								endDate: calendarEndDate,
+							});
+							allFixtureDates = (fixtureResult || []).map((record: any) => {
+								const date = record?.date;
+								if (date) {
+									// Normalize date to YYYY-MM-DD format
+									const d = new Date(date);
+									return d.toISOString().split('T')[0];
+								}
+								return null;
+							}).filter((d: string | null): d is string => d !== null);
+						} catch (error) {
+							loggingService.log(`⚠️ Error querying fixtures for calendar: ${error}`, null, "warn");
+						}
+					}
+
 					visualization = {
 						type: "Calendar",
 						data: {
 							weeks: weeks,
 							highlightRange: highlightRange,
+							allFixtureDates: allFixtureDates,
 						},
 					};
 				}
@@ -3043,6 +3177,7 @@ export class ChatbotService {
 			// Handle most played with queries
 			const playerName = (data.playerName as string) || "You";
 			const teamName = data.teamName as string | undefined;
+			const season = data.season as string | undefined;
 			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number }>) || [];
 			
 			if (resultData.length === 0) {
@@ -3050,11 +3185,12 @@ export class ChatbotService {
 				answer = `${playerName} haven't played with any teammates${teamContext}.`;
 			} else {
 				const topPlayer = resultData[0];
+				const seasonContext = season ? ` in the ${season}` : "";
 				const teamContext = teamName ? ` whilst playing for the ${teamName}` : "";
-				answer = `${playerName} have played the most games with ${topPlayer.teammateName}${teamContext}, with ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
+				answer = `${playerName} played the most games with ${topPlayer.teammateName}${seasonContext}${teamContext}, in ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
 				answerValue = topPlayer.teammateName;
 				
-				// Create table with top 3 players
+				// Create table with top 10 players
 				const tableData = resultData.map((item) => ({
 					Player: item.teammateName,
 					Games: item.gamesTogether,
@@ -3068,6 +3204,8 @@ export class ChatbotService {
 							{ key: "Player", label: "Player" },
 							{ key: "Games", label: "Games" },
 						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
 					},
 				};
 			}
@@ -4846,7 +4984,7 @@ export class ChatbotService {
 		}
 		
 		if (season) {
-			whereConditions.push("f.season = $season");
+			whereConditions.push("f.season = $season", "md1.season = $season", "md2.season = $season");
 		}
 		
 		if (startDate && endDate) {
@@ -4861,7 +4999,7 @@ export class ChatbotService {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 3
+			LIMIT 10
 			RETURN teammateName, gamesTogether
 		`;
 

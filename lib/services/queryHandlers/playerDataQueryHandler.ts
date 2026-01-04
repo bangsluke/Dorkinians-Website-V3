@@ -105,11 +105,15 @@ export class PlayerDataQueryHandler {
 		
 		const isPlayedWithQuestion = 
 			questionLower.includes("played with") ||
+			questionLower.includes("play with") ||
 			questionLower.includes("played most") ||
+			questionLower.includes("who did i play") ||
+			questionLower.includes("who did you play") ||
 			questionLower.includes("who have i played") ||
 			questionLower.includes("who have you played") ||
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
+			(questionLower.includes("who did") && questionLower.includes("play") && (questionLower.includes("most") || questionLower.includes("with"))) ||
 			(questionLower.includes("most") && questionLower.includes("games") && (questionLower.includes("with") || questionLower.includes("teammate")));
 
 		// Check if this is a "goals whilst playing together" question (2+ entities, goals metric, "playing together" phrases)
@@ -403,8 +407,9 @@ export class PlayerDataQueryHandler {
 		}
 
 		// If this is a "played with" question (but not specific player pair), handle it specially
-		if (isPlayedWithQuestion && entities.length > 0) {
-			const playerName = entities[0];
+		if (isPlayedWithQuestion && (entities.length > 0 || userContext)) {
+			// Use userContext if no entities found (handles "I" questions)
+			const playerName = entities.length > 0 ? entities[0] : (userContext || "");
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
 			
 			if (!resolvedPlayerName) {
