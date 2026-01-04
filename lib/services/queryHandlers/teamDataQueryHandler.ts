@@ -346,4 +346,155 @@ export class TeamDataQueryHandler {
 			return { type: "error", data: [], error: "Error querying team data" };
 		}
 	}
+
+	/**
+	 * Query longest unbeaten run (consecutive wins) for a team within a date range
+	 */
+	static async queryLongestUnbeatenRun(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 queryLongestUnbeatenRun called with entities: ${entities}`, null, "log");
+
+		const question = analysis.question?.toLowerCase() || "";
+		const teamEntities = analysis.teamEntities || [];
+		
+		// Extract team name from entities or question
+		let teamName = "";
+		if (teamEntities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+		} else if (entities.length > 0) {
+			teamName = TeamMappingUtils.mapTeamName(entities[0]);
+		} else {
+			const teamMatch = question.match(/(\d+)(?:st|nd|rd|th)?\s*(?:team|s|xi)/i);
+			if (teamMatch) {
+				const teamNum = teamMatch[1];
+				teamName = TeamMappingUtils.mapTeamName(`${teamNum}s`);
+			}
+		}
+
+		if (!teamName) {
+			loggingService.log(`⚠️ No team name found in queryLongestUnbeatenRun`, null, "warn");
+			return { type: "team_not_found", data: [], message: "Could not identify team from question" };
+		}
+
+		// Extract date range from timeFrames or question
+		const timeFrames = analysis.extractionResult?.timeFrames || [];
+		let startDate: string | null = null;
+		let endDate: string | null = null;
+
+		// Try to extract date range from timeFrames
+		const rangeFrame = timeFrames.find(tf => tf.type === "range");
+		if (rangeFrame && rangeFrame.value.includes(" to ")) {
+			const dateRange = rangeFrame.value.split(" to ");
+			if (dateRange.length === 2) {
+				const startYearMatch = dateRange[0].trim().match(/^(\d{4})$/);
+				const endYearMatch = dateRange[1].trim().match(/^(\d{4})$/);
+				if (startYearMatch && endYearMatch) {
+					const startYear = parseInt(startYearMatch[1], 10);
+					const endYear = parseInt(endYearMatch[1], 10);
+					startDate = `${startYear}-01-01`;
+					endDate = `${endYear}-12-31`;
+				}
+			}
+		}
+
+		// If no date range from timeFrames, try to extract from question
+		if (!startDate || !endDate) {
+			const betweenYearMatch = question.match(/between\s+(\d{4})\s+and\s+(\d{4})/i);
+			if (betweenYearMatch) {
+				const startYear = parseInt(betweenYearMatch[1], 10);
+				const endYear = parseInt(betweenYearMatch[2], 10);
+				startDate = `${startYear}-01-01`;
+				endDate = `${endYear}-12-31`;
+			}
+		}
+
+		if (!startDate || !endDate) {
+			loggingService.log(`⚠️ No date range found in queryLongestUnbeatenRun`, null, "warn");
+			return { type: "error", data: [], error: "Could not identify date range from question" };
+		}
+
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Query all fixtures for the team within date range, ordered chronologically
+		const query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.team = $teamName 
+			  AND f.date >= $startDate 
+			  AND f.date <= $endDate
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH f
+			ORDER BY f.date ASC
+			RETURN f.date as date, f.result as result
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, {
+				graphLabel,
+				teamName,
+				startDate,
+				endDate
+			});
+
+			if (!result || result.length === 0) {
+				return {
+					type: "longest_unbeaten_run",
+					teamName,
+					count: 0,
+					startDate,
+					endDate
+				};
+			}
+
+			// Process results to find longest consecutive sequence of wins
+			let longestRun = 0;
+			let currentRun = 0;
+			let longestRunStartDate: string | null = null;
+			let longestRunEndDate: string | null = null;
+			let currentRunStartDate: string | null = null;
+
+			for (const fixture of result) {
+				const date = fixture.date as string;
+				const resultValue = fixture.result as string;
+
+				if (resultValue === 'W') {
+					// Win - continue or start streak
+					if (currentRun === 0) {
+						// Starting a new streak
+						currentRun = 1;
+						currentRunStartDate = date;
+					} else {
+						// Continuing streak
+						currentRun++;
+					}
+
+					// Update longest run if current is longer
+					if (currentRun > longestRun) {
+						longestRun = currentRun;
+						longestRunStartDate = currentRunStartDate;
+						longestRunEndDate = date;
+					}
+				} else {
+					// Loss or draw - streak breaks
+					currentRun = 0;
+					currentRunStartDate = null;
+				}
+			}
+
+			loggingService.log(`✅ Found longest unbeaten run: ${longestRun} games for ${teamName}`, null, "log");
+
+			return {
+				type: "longest_unbeaten_run",
+				teamName,
+				count: longestRun,
+				startDate: longestRunStartDate,
+				endDate: longestRunEndDate,
+				dateRange: {
+					start: startDate,
+					end: endDate
+				}
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryLongestUnbeatenRun:`, error, "error");
+			return { type: "error", data: [], error: "Error querying longest unbeaten run data" };
+		}
+	}
 }

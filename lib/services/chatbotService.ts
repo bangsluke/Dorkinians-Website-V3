@@ -569,14 +569,31 @@ export class ChatbotService {
 				return await TemporalQueryHandler.queryMostConsecutiveGamesPlayed();
 			}
 
-			// Check for "how many players have I played with" question
+			// Check for "how many players have I played with" question (handles both singular and plural)
 			const isTeammatesCountQuestion = 
-				(question.includes("how many players") && question.includes("played with")) ||
+				((question.includes("how many players") || question.includes("how many player")) && question.includes("played with")) ||
 				(question.includes("how many teammates")) ||
 				(question.includes("how many people") && question.includes("played with"));
 
 			if (isTeammatesCountQuestion) {
-				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				// Check if this is a personal question (I, me, my)
+				const isPersonalQuestion = question.includes(" i ") || question.includes(" i?") || question.includes(" i've") || 
+					question.includes(" have i ") || question.includes(" have you ") || question.startsWith("how many");
+				
+				// Filter out generic words from entities
+				const genericWords = ["player", "players", "teammate", "teammates", "people", "person"];
+				const validEntities = entities.filter(e => !genericWords.includes(e.toLowerCase()));
+				
+				// For personal questions, prioritize userContext; otherwise use valid entities
+				let playerName = "";
+				if (isPersonalQuestion && userContext) {
+					playerName = userContext;
+				} else if (validEntities.length > 0) {
+					playerName = validEntities[0];
+				} else if (userContext) {
+					playerName = userContext;
+				}
+				
 				if (playerName) {
 					this.lastProcessingSteps.push(`Detected teammates count question, routing to RelationshipQueryHandler with player: ${playerName}`);
 					return await RelationshipQueryHandler.queryTeammatesCount(playerName);
@@ -805,6 +822,16 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Detected TOTW in week question, routing to AwardsQueryHandler with month: ${month}, year: ${year}, week: ${weekNumber || "first"}`);
 					return await AwardsQueryHandler.queryWeeklyTOTWByDate(month, year, weekNumber);
 				}
+			}
+
+			// Check for unbeaten run queries (e.g., "What was the longest unbeaten run the 1s had between 2015 and 2020?")
+			const isUnbeatenRunQuestion = 
+				(question.includes("unbeaten run") || question.includes("longest unbeaten")) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)));
+
+			if (isUnbeatenRunQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected unbeaten run question, routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis);
 			}
 
 		// Delegate to query handlers
@@ -2681,8 +2708,33 @@ export class ChatbotService {
 				type: "NumberCard",
 				data: [{
 					value: count,
-					wordedText: "Players Played With",
-					iconName: "APP"
+					wordedText: "teammates played with",
+					iconName: "Teammates-Icon",
+					metric: "TEAM"
+				}],
+			};
+		} else if (data && data.type === "longest_unbeaten_run") {
+			// Handle longest unbeaten run query
+			const teamName = (data.teamName as string) || "";
+			const count = (data.count as number) || 0;
+			const dateRange = data.dateRange as { start: string; end: string } | undefined;
+			
+			if (count === 0) {
+				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
+				answer = `The ${teamName} had no unbeaten runs${dateRangeText}.`;
+				answerValue = 0;
+			} else {
+				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
+				answer = `The ${teamName} had a longest unbeaten run of ${count} consecutive ${count === 1 ? "win" : "wins"}${dateRangeText}.`;
+				answerValue = count;
+			}
+			
+			visualization = {
+				type: "NumberCard",
+				data: [{
+					value: count,
+					wordedText: "consecutive wins",
+					iconName: this.getIconNameForMetric("TeamWins")
 				}],
 			};
 		} else if (data && data.type === "comparison") {
