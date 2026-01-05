@@ -488,6 +488,18 @@ export class ChatbotService {
 				return await ClubDataQueryHandler.queryClubData(entities, metrics, analysis);
 			}
 
+			// Check for "how many players have scored exactly one goal in club history" questions
+			const isPlayersExactlyOneGoalQuery = 
+				(question.includes("how many players") || question.includes("how many player")) &&
+				question.includes("scored") &&
+				question.includes("exactly one goal") &&
+				(question.includes("club history") || question.includes("history"));
+
+			if (isPlayersExactlyOneGoalQuery) {
+				this.lastProcessingSteps.push(`Detected players with exactly one goal in club history question, routing to ClubDataQueryHandler`);
+				return await ClubDataQueryHandler.queryPlayersWithExactlyOneGoal();
+			}
+
 			// Check if this is an awards count question (e.g., "How many awards have I won?")
 			const isAwardsCountQuestion = type === "player" && 
 				(question.includes("how many awards") || question.includes("how many award")) &&
@@ -768,6 +780,21 @@ export class ChatbotService {
 					return await FixtureDataQueryHandler.queryHighestTeamGoalsInPlayerGames(playerName, analysis);
 				} else {
 					this.lastProcessingSteps.push(`Most goals when playing question detected but no player context available`);
+				}
+			}
+
+			// Check for "how many games have I played and scored where the team won by exactly one goal" questions
+			const isGamesScoredWonByOneGoalQuery = 
+				(question.includes("how many games") && question.includes("played") && question.includes("scored") && question.includes("won") && question.includes("exactly one goal")) ||
+				(question.includes("how many games") && question.includes("scored") && question.includes("won by exactly one"));
+
+			if (isGamesScoredWonByOneGoalQuery) {
+				this.lastProcessingSteps.push(`Detected games scored and won by exactly one goal question, routing to FixtureDataQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await FixtureDataQueryHandler.queryGamesWherePlayerScoredAndWonByOneGoal(playerName, analysis);
+				} else {
+					this.lastProcessingSteps.push(`Games scored won by one goal question detected but no player context available`);
 				}
 			}
 
@@ -3490,6 +3517,35 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "games_scored_won_by_one") {
+			// Handle games where player scored and team won by exactly one goal queries
+			const gameDataArray = (data.data as Array<{ gameCount: number }>) || [];
+			const playerName = (data.playerName as string) || "You";
+			
+			if (gameDataArray.length === 0 || !gameDataArray[0]) {
+				answer = `You haven't played and scored in any games where the team won by exactly one goal.`;
+				answerValue = 0;
+			} else {
+				const gameCount = gameDataArray[0].gameCount || 0;
+				const gameText = gameCount === 1 ? "game" : "games";
+				answer = `You've played and scored in ${gameCount} ${gameText} where the team won by exactly one goal.`;
+				answerValue = gameCount;
+				
+				// Create NumberCard visualization with goals icon
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "winning goals",
+						value: gameCount,
+						iconName: this.getIconNameForMetric("G"),
+						wordedText: "winning goals"
+					}],
+					config: {
+						title: "Games Scored & Won by One Goal",
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.type === "highest_player_goals_in_game") {
 			// Handle highest individual player goals in one game queries
 			const playerGameDataArray = (data.data as Array<{
@@ -3790,6 +3846,34 @@ export class ChatbotService {
 							{ key: "Team", label: "Team" },
 							{ key: "Goals Conceded", label: "Goals Conceded" },
 						],
+					},
+				};
+			}
+		} else if (data && data.type === "players_exactly_one_goal") {
+			// Handle players with exactly one goal in club history queries
+			const playerDataArray = (data.data as Array<{ playerCount: number }>) || [];
+			
+			if (playerDataArray.length === 0 || !playerDataArray[0]) {
+				answer = "No players have scored exactly one goal in club history.";
+				answerValue = 0;
+			} else {
+				const playerCount = playerDataArray[0].playerCount || 0;
+				const playerText = playerCount === 1 ? "player has" : "players have";
+				answer = `${playerCount} ${playerText} scored exactly one goal in club history.`;
+				answerValue = playerCount;
+				
+				// Create NumberCard visualization with appearances icon
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "players",
+						value: playerCount,
+						iconName: this.getIconNameForMetric("APP"),
+						wordedText: "players"
+					}],
+					config: {
+						title: "Players with Exactly One Goal",
+						type: "bar",
 					},
 				};
 			}

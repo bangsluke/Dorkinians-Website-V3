@@ -538,6 +538,48 @@ export class FixtureDataQueryHandler {
 	}
 
 	/**
+	 * Query games where player scored and team won by exactly one goal
+	 */
+	static async queryGamesWherePlayerScoredAndWonByOneGoal(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.result = 'W'
+			  AND f.dorkiniansGoals IS NOT NULL
+			  AND f.conceded IS NOT NULL
+			  AND f.dorkiniansGoals - f.conceded = 1
+			  AND (md.goals > 0 OR md.penaltiesScored > 0)
+			RETURN count(DISTINCT f) as gameCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const gameCount = result && result.length > 0 ? (result[0].gameCount || 0) : 0;
+			return { type: "games_scored_won_by_one", data: [{ gameCount }], playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerScoredAndWonByOneGoal:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
 	 * Query highest scoring game for a team in a season
 	 * Returns the fixture with highest combined dorkiniansGoals + conceded
 	 */

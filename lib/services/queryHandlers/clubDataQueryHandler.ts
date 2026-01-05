@@ -150,4 +150,37 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: "Error querying club data" };
 		}
 	}
+
+	/**
+	 * Query players with exactly one goal in club history
+	 */
+	static async queryPlayersWithExactlyOneGoal(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			  AND p.allGoalsScored = 1
+			RETURN count(DISTINCT p.playerName) as playerCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_EXACTLY_ONE_GOAL_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_EXACTLY_ONE_GOAL_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			return { type: "players_exactly_one_goal", data: [{ playerCount }] };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayersWithExactlyOneGoal:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }
