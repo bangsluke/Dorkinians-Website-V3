@@ -3565,7 +3565,7 @@ export class ChatbotService {
 				const topTeam = teamData[0];
 				const direction = isFewest ? "fewest" : "most";
 				answer = `The ${topTeam.team} have conceded the ${direction} goals in history with ${topTeam.goalsConceded} ${topTeam.goalsConceded === 1 ? "goal" : "goals"} conceded.`;
-				// Set answerValue to team name for Record type extraction
+				// Set answerValue to team name for Chart type extraction
 				answerValue = topTeam.team;
 				
 				// Create table with all teams sorted by goals conceded
@@ -4132,9 +4132,9 @@ export class ChatbotService {
 							const totalValue = transformedData.reduce((sum, item) => sum + item.value, 0);
 							answer = `${playerName} has ${totalValue} ${metricName} across ${transformedData.length} ${transformedData.length === 1 ? "season" : "seasons"}.`;
 							
-							// Create Record visualization with all seasons
+							// Create Chart visualization with all seasons
 							visualization = {
-								type: "Record",
+								type: "Chart",
 								data: transformedData.map((item) => ({
 									name: item.season,
 									value: item.value,
@@ -4249,9 +4249,9 @@ export class ChatbotService {
 									},
 								};
 							} else {
-								// Create Record visualization (bar chart) with all seasons
+								// Create Chart visualization (bar chart) with all seasons
 								visualization = {
-									type: "Record",
+									type: "Chart",
 									data: sortedData.map((item) => ({
 										name: item.season,
 										value: item.goals,
