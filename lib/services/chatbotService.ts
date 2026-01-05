@@ -451,7 +451,24 @@ export class ChatbotService {
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
-		const question = analysis.question?.toLowerCase() || "";
+		let question = analysis.question?.toLowerCase() || "";
+
+		// Normalize colloquial phrases to standard terms
+		// Replace colloquial goal-scoring verbs with "score"/"scored" for consistent detection
+		question = question
+			.replace(/\bbang(ed)?\s+in\b/g, (match, ed) => ed ? "scored" : "score")
+			.replace(/\bbang\s+(?:in\s+)?goals?\b/g, "score goals")
+			.replace(/\bput\s+away\b/g, "score")
+			.replace(/\bput\s+away\s+goals?\b/g, "score goals")
+			.replace(/\bnetted?\b/g, (match) => match === "netted" ? "scored" : "score")
+			.replace(/\bnet(?:ted)?\s+goals?\b/g, "scored goals")
+			.replace(/\bbagged?\b/g, (match) => match === "bagged" ? "scored" : "score")
+			.replace(/\bbag(?:ged)?\s+goals?\b/g, "scored goals");
+		
+		// Update analysis with normalized question
+		if (analysis.question) {
+			analysis.question = question;
+		}
 
 		try {
 			// Ensure Neo4j connection before querying
@@ -737,6 +754,21 @@ export class ChatbotService {
 			if (isHighestScoringGameQuery) {
 				this.lastProcessingSteps.push(`Detected highest scoring game question, routing to FixtureDataQueryHandler`);
 				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			}
+
+			// Check for "most goals we've scored in a game when I was playing" questions
+			const isMostGoalsWhenPlayingQuery = 
+				(question.includes("most goals") && question.includes("game") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were"))) ||
+				(question.includes("most goals") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were")));
+
+			if (isMostGoalsWhenPlayingQuery) {
+				this.lastProcessingSteps.push(`Detected most goals in game when playing question, routing to FixtureDataQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await FixtureDataQueryHandler.queryHighestTeamGoalsInPlayerGames(playerName, analysis);
+				} else {
+					this.lastProcessingSteps.push(`Most goals when playing question detected but no player context available`);
+				}
 			}
 
 			// Check for "which season did [team] concede the most goals" - route to league table handler BEFORE player handler
@@ -1045,6 +1077,21 @@ export class ChatbotService {
 			if (isUnbeatenRunQuestion && analysis) {
 				this.lastProcessingSteps.push(`Detected unbeaten run question, routing to TeamDataQueryHandler`);
 				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis);
+			}
+
+			// Check for team goals questions (including with colloquial terms like "bang in")
+			// This must be checked before the switch statement to ensure proper routing
+			const isTeamGoalsQuestion = 
+				(question.includes("how many goals") || question.includes("how many goal")) &&
+				(question.includes("did") || question.includes("does") || question.includes("do")) &&
+				(question.includes("score") || question.includes("scored") || question.includes("bang") || question.includes("put away") || question.includes("net") || question.includes("bag")) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || 
+				 entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)) ||
+				 question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i));
+
+			if (isTeamGoalsQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected team goals question (possibly with colloquial terms), routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
 			}
 
 		// Delegate to query handlers
@@ -3395,6 +3442,41 @@ export class ChatbotService {
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = answer;
 			}
+		} else if (data && data.type === "highest_team_goals_in_player_game") {
+			// Handle highest team goals in games where player was playing queries
+			const gameData = data.data as {
+				date: string;
+				opposition: string;
+				homeOrAway: string;
+				result: string;
+				dorkiniansGoals: number;
+				conceded: number;
+			} | null;
+			const playerName = (data.playerName as string) || "You";
+			
+			if (!gameData) {
+				answer = (data.message as string) || `No games found where ${playerName} was playing.`;
+			} else {
+				const location = gameData.homeOrAway === "Home" ? "at home" : gameData.homeOrAway === "Away" ? "away" : "";
+				const formattedDate = DateUtils.formatDate(gameData.date);
+				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
+				answerValue = gameData.dorkiniansGoals;
+				
+				// Create NumberCard visualization with goals icon
+				const roundedGoals = this.roundValueByMetric("G", gameData.dorkiniansGoals);
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Goals Scored",
+						value: roundedGoals,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: "Most Goals in Game When Playing",
+						type: "bar",
+					},
+				};
+			}
 		} else if (data && data.type === "highest_player_goals_in_game") {
 			// Handle highest individual player goals in one game queries
 			const playerGameDataArray = (data.data as Array<{
@@ -3573,6 +3655,8 @@ export class ChatbotService {
 			const gamesPlayed = data.gamesPlayed as number | undefined;
 			const isGoalsScored = data.isGoalsScored as boolean | undefined;
 			const isGoalsConceded = data.isGoalsConceded as boolean | undefined;
+			const isOpenPlayGoals = data.isOpenPlayGoals as boolean | undefined;
+			const isLastSeason = data.isLastSeason as boolean | undefined;
 			const metric = data.metric as string | undefined;
 			const metricField = data.metricField as string | undefined;
 			const season = data.season as string | undefined;
@@ -3610,21 +3694,25 @@ export class ChatbotService {
 				// Goals query
 				if (isGoalsScored) {
 					answerValue = goalsScored || 0;
-					const seasonText = season ? ` in the ${season} season` : "";
-					answer = `The ${teamName} have scored ${goalsScored || 0} ${(goalsScored || 0) === 1 ? "goal" : "goals"}${seasonText}.`;
+					// Use "last season" if it was a "last season" query, otherwise use the actual season value
+					const seasonText = isLastSeason ? " last season" : (season ? ` in the ${season} season` : "");
+					// Use simpler "scored" instead of "have scored"
+					answer = `The ${teamName} scored ${goalsScored || 0} ${(goalsScored || 0) === 1 ? "goal" : "goals"}${seasonText}.`;
 					
 					// Return NumberCard for team goals in season
 					if (season) {
 						const roundedGoals = this.roundValueByMetric("G", goalsScored || 0);
+						const seasonTitle = isLastSeason ? "last season" : season;
 						visualization = {
 							type: "NumberCard",
 							data: [{ 
-								name: "Goals Scored", 
+								name: "Goals", 
+								wordedText: "goals", // Override statObject lookup to ensure "goals" not "open play goals"
 								value: roundedGoals,
 								iconName: this.getIconNameForMetric("G")
 							}],
 							config: {
-								title: `${teamName} - Goals in ${season}`,
+								title: `${teamName} - Goals in ${seasonTitle}`,
 								type: "bar",
 							},
 						};
@@ -3636,7 +3724,7 @@ export class ChatbotService {
 					// Both goals scored and conceded
 					answerValue = goalsScored || 0;
 					const goalLabelPlural = "goals";
-					const goalLabelScored = isGoalsScored ? "Open Play Goals" : "Goals Scored";
+					const goalLabelScored = isOpenPlayGoals ? "Open Play Goals" : "Goals Scored";
 					answer = `The ${teamName} have scored ${goalsScored} ${goalsScored === 1 ? goalLabelPlural.replace("goals", "goal") : goalLabelPlural} and conceded ${goalsConceded} ${goalsConceded === 1 ? "goal" : "goals"}.`;
 					const roundedGoalsScored = this.roundValueByMetric("G", goalsScored ?? 0);
 					const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded ?? 0);

@@ -830,6 +830,84 @@ export class FixtureDataQueryHandler {
 	}
 
 	/**
+	 * Query highest team goals in games where a specific player was playing
+	 * Returns the fixture with highest dorkiniansGoals where the player participated
+	 */
+	static async queryHighestTeamGoalsInPlayerGames(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		loggingService.log(`🔍 Querying highest team goals in games where ${playerName} was playing`, null, "log");
+		
+		// Build query to find fixture with highest dorkiniansGoals where player participated
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.dorkiniansGoals IS NOT NULL
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded
+			ORDER BY f.dorkiniansGoals DESC, f.date DESC
+			LIMIT 1
+		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			loggingService.log(`🔍 Highest team goals in player games query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No fixtures found for ${playerName}`, null, "warn");
+				return {
+					type: "highest_team_goals_in_player_game",
+					playerName,
+					data: null,
+					message: `No games found where ${playerName} was playing.`,
+				};
+			}
+			
+			const game = result[0];
+			loggingService.log(`✅ Found highest team goals game for ${playerName}: ${game.dorkiniansGoals} goals`, null, "log");
+			
+			return {
+				type: "highest_team_goals_in_player_game",
+				playerName,
+				data: {
+					date: game.date,
+					opposition: game.opposition,
+					homeOrAway: game.homeOrAway,
+					result: game.result,
+					dorkiniansGoals: game.dorkiniansGoals,
+					conceded: game.conceded,
+				},
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestTeamGoalsInPlayerGames:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
 	 * Query hat-tricks with optional filters (year, team, date range)
 	 * Returns player-level data grouped by player
 	 */
