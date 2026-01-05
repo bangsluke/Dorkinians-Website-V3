@@ -40,6 +40,8 @@ export class PlayerQueryBuilder {
 			"MOSTSCOREDFORTEAM",
 			"MOSTPLAYEDFORTEAM",
 			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
+			"MOSTMINUTESSASON", // Needs MatchDetail to calculate minutes per season
+			"HIGHESTGOALSASSISTSSEASON", // Needs MatchDetail to calculate goals + assists per season
 			"FTP",
 			"POINTS",
 			"FANTASYPOINTS",
@@ -1081,6 +1083,50 @@ export class PlayerQueryBuilder {
 					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + 
 					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as goals
 				RETURN p.playerName as playerName, season, goals as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "MOSTMINUTESSASON") {
+			// Query MatchDetails to get minutes per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as minutes
+				RETURN p.playerName as playerName, season, minutes as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON") {
+			// Query MatchDetails to get goals + penaltiesScored + assists per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals,
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as penaltiesScored,
+					sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END) as assists
+				WITH p, season, goals, penaltiesScored, assists,
+					(goals + penaltiesScored + assists) as total
+				RETURN p.playerName as playerName, season, goals, penaltiesScored, assists, total as value
 				ORDER BY season ASC
 			`;
 		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {

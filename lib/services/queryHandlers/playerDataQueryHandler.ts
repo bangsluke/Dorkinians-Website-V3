@@ -1090,6 +1090,219 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "which season did I play the most minutes" questions
+		const detectMostMinutesSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I play the most minutes" / "what season did I play the most minutes"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("play") && 
+				(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+				return true;
+			}
+			// Pattern: "season I played the most minutes" / "season did I play most minutes"
+			if (lower.includes("season") && lower.includes("play") && 
+				(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+				return true;
+			}
+			return false;
+		};
+
+		const isMostMinutesSeasonQuestion = 
+			detectMostMinutesSeasonPattern(questionLower) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+		if (isMostMinutesSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "minutes", "most", "play"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying most minutes season for ${resolvedPlayerName}`, null, "log");
+			// Use MostMinutesSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostMinutesSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_MINUTES_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season minutes data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostMinutesSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most minutes season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// Check for "which season did I record my highest combined goals + assists total" questions
+		const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I record my highest combined goals + assists total"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("record") && 
+				lower.includes("highest") && 
+				(lower.includes("combined") || lower.includes("goals") && lower.includes("assists")) &&
+				(lower.includes("total") || lower.includes("goals") && lower.includes("assists"))) {
+				return true;
+			}
+			// Pattern: "season I recorded highest goals + assists" / "season did I record highest combined"
+			if (lower.includes("season") && lower.includes("record") && 
+				lower.includes("highest") && 
+				(lower.includes("combined") || (lower.includes("goals") && lower.includes("assists")))) {
+				return true;
+			}
+			return false;
+		};
+
+		const isHighestGoalsAssistsSeasonQuestion = 
+			detectHighestGoalsAssistsSeasonPattern(questionLower) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+		if (isHighestGoalsAssistsSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "goals", "assists", "combined", "highest", "record", "total"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying highest goals+assists season for ${resolvedPlayerName}`, null, "log");
+			// Use HighestGoalsAssistsSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "HighestGoalsAssistsSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`HIGHEST_GOALS_ASSISTS_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season goals+assists data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "HighestGoalsAssistsSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying highest goals+assists season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for season comparison questions
 		const isSeasonComparisonQuestion = 
 			(questionLower.includes("compare") && questionLower.includes("season")) ||

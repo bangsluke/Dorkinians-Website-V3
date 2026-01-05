@@ -854,6 +854,113 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "which season did I play the most minutes" questions - route to player handler
+			const detectMostMinutesSeasonPattern = (q: string): boolean => {
+				const lower = q.toLowerCase();
+				if ((lower.includes("which season") || lower.includes("what season")) && 
+					lower.includes("play") && 
+					(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+					return true;
+				}
+				if (lower.includes("season") && lower.includes("play") && 
+					(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+					return true;
+				}
+				return false;
+			};
+
+			const isMostMinutesSeasonQuestion = 
+				detectMostMinutesSeasonPattern(question) &&
+				(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+			if (isMostMinutesSeasonQuestion) {
+				const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+				const invalidPlayerNamePatterns = ["season", "minutes", "most", "play"];
+				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => {
+					if (e.type !== "player") return false;
+					const lowerValue = e.value.toLowerCase();
+					if (firstPersonPronouns.includes(lowerValue)) return false;
+					if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+					return true;
+				}) || [];
+				let playerName = "";
+				if (playerEntitiesFromQuestion.length > 0) {
+					playerName = playerEntitiesFromQuestion[0].value;
+				} else {
+					if (entities.length > 0) {
+						playerName = entities[0];
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+				
+				if (playerName || userContext) {
+					const playerEntities = playerName ? [playerName] : (userContext ? [userContext] : []);
+					this.lastProcessingSteps.push(`Detected most minutes season question, routing to PlayerDataQueryHandler with player: ${playerEntities[0] || userContext}`);
+					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["MostMinutesSeason"], analysis, userContext);
+				} else {
+					this.lastProcessingSteps.push(`Most minutes season question detected but no player context available`);
+				}
+			}
+
+			// Check for "which season did I record my highest combined goals + assists total" questions - route to player handler
+			const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
+				const lower = q.toLowerCase();
+				if ((lower.includes("which season") || lower.includes("what season")) && 
+					lower.includes("record") && 
+					lower.includes("highest") && 
+					(lower.includes("combined") || (lower.includes("goals") && lower.includes("assists"))) &&
+					(lower.includes("total") || (lower.includes("goals") && lower.includes("assists")))) {
+					return true;
+				}
+				if (lower.includes("season") && lower.includes("record") && 
+					lower.includes("highest") && 
+					(lower.includes("combined") || (lower.includes("goals") && lower.includes("assists")))) {
+					return true;
+				}
+				return false;
+			};
+
+			const isHighestGoalsAssistsSeasonQuestion = 
+				detectHighestGoalsAssistsSeasonPattern(question) &&
+				(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+			if (isHighestGoalsAssistsSeasonQuestion) {
+				const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+				const invalidPlayerNamePatterns = ["season", "goals", "assists", "combined", "highest", "record", "total"];
+				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => {
+					if (e.type !== "player") return false;
+					const lowerValue = e.value.toLowerCase();
+					if (firstPersonPronouns.includes(lowerValue)) return false;
+					if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+					return true;
+				}) || [];
+				let playerName = "";
+				if (playerEntitiesFromQuestion.length > 0) {
+					playerName = playerEntitiesFromQuestion[0].value;
+				} else {
+					if (entities.length > 0) {
+						playerName = entities[0];
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+				
+				if (playerName || userContext) {
+					const playerEntities = playerName ? [playerName] : (userContext ? [userContext] : []);
+					this.lastProcessingSteps.push(`Detected highest goals+assists season question, routing to PlayerDataQueryHandler with player: ${playerEntities[0] || userContext}`);
+					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["HighestGoalsAssistsSeason"], analysis, userContext);
+				} else {
+					this.lastProcessingSteps.push(`Highest goals+assists season question detected but no player context available`);
+				}
+			}
+
 			// Check for "top player in [month] [year]" questions
 			const isTopPlayerInMonthQuestion = 
 				(question.includes("top player") || question.includes("who was") || question.includes("who is")) &&
@@ -4220,6 +4327,7 @@ export class ChatbotService {
 							} else {
 								answer = `${playerName} scored the most goals in ${mostProlific.season} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
 							}
+							// Set answerValue to season string only (e.g., "2018/19") for test report validation
 							answerValue = mostProlific.season;
 							
 							// Sort by season ascending for chronological display
@@ -4298,6 +4406,124 @@ export class ChatbotService {
 						};
 					} else {
 						answer = `${playerName} has no team data available.`;
+					}
+				}
+				// Handle MOSTMINUTESSASON - find season with most minutes
+				else if (metric && metric.toUpperCase() === "MOSTMINUTESSASON") {
+					// Check if we have array data (multiple seasons) from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+						
+						// Transform data to ensure we have season and value
+						const transformedData = seasonsData
+							.map((item) => {
+								const season = item.season || (typeof item.value === "string" ? item.value : "");
+								const minutes = typeof item.value === "number" ? item.value : (item.minutes as number) || 0;
+								return { season, minutes };
+							})
+							.filter((item) => item.season && item.minutes !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Find the season with the most minutes
+							const mostMinutesSeason = transformedData.reduce((max, item) => (item.minutes > max.minutes ? item : max), transformedData[0]);
+							
+							answer = `${playerName} played the most minutes in ${mostMinutesSeason.season} (${mostMinutesSeason.minutes} ${mostMinutesSeason.minutes === 1 ? "minute" : "minutes"}).`;
+							// Set answerValue to season string only (e.g., "2018/19") for test report validation
+							answerValue = mostMinutesSeason.season;
+							
+							// Sort by season ascending for chronological display
+							const sortedData = [...transformedData].sort((a, b) => {
+								return a.season.localeCompare(b.season);
+							});
+							
+							// Create Table visualization with all seasons and their minutes
+							const tableData = sortedData.map((item) => ({
+								Season: item.season,
+								Minutes: item.minutes,
+							}));
+							
+							visualization = {
+								type: "Table",
+								data: tableData,
+								config: {
+									columns: [
+										{ key: "Season", label: "Season" },
+										{ key: "Minutes", label: "Minutes" },
+									],
+								},
+							};
+						} else {
+							answer = `${playerName} has no season minutes data available.`;
+						}
+					} else {
+						answer = `${playerName} has no season minutes data available.`;
+					}
+				}
+				// Handle HIGHESTGOALSASSISTSSEASON - find season with highest goals + assists total
+				else if (metric && metric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON") {
+					// Check if we have array data (multiple seasons) from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const seasonsData = data.data as Array<{ 
+							season?: string; 
+							value: number | string; 
+							goals?: number;
+							penaltiesScored?: number;
+							assists?: number;
+							[key: string]: unknown 
+						}>;
+						
+						// Transform data to ensure we have season, goals, penaltiesScored, assists, and total
+						const transformedData = seasonsData
+							.map((item) => {
+								const season = item.season || (typeof item.value === "string" ? item.value : "");
+								const goals = item.goals || 0;
+								const penaltiesScored = item.penaltiesScored || 0;
+								const assists = item.assists || 0;
+								const total = typeof item.value === "number" ? item.value : (goals + penaltiesScored + assists);
+								return { season, goals, penaltiesScored, assists, total };
+							})
+							.filter((item) => item.season && item.total !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Find the season with the highest total (goals + penaltiesScored + assists)
+							const highestSeason = transformedData.reduce((max, item) => (item.total > max.total ? item : max), transformedData[0]);
+							
+							answer = `${playerName} recorded the highest combined goals + assists total in ${highestSeason.season} (${highestSeason.total} total: ${highestSeason.goals} ${highestSeason.goals === 1 ? "goal" : "goals"}, ${highestSeason.penaltiesScored} ${highestSeason.penaltiesScored === 1 ? "penalty" : "penalties"}, ${highestSeason.assists} ${highestSeason.assists === 1 ? "assist" : "assists"}).`;
+							// Set answerValue to season string only (e.g., "2018/19") for test report validation
+							answerValue = highestSeason.season;
+							
+							// Sort by season ascending for chronological display
+							const sortedData = [...transformedData].sort((a, b) => {
+								return a.season.localeCompare(b.season);
+							});
+							
+							// Create Table visualization with all seasons showing goals, penalties, assists, and total
+							const tableData = sortedData.map((item) => ({
+								Season: item.season,
+								Goals: item.goals,
+								"Penalties Scored": item.penaltiesScored,
+								Assists: item.assists,
+								Total: item.total,
+							}));
+							
+							visualization = {
+								type: "Table",
+								data: tableData,
+								config: {
+									columns: [
+										{ key: "Season", label: "Season" },
+										{ key: "Goals", label: "Goals" },
+										{ key: "Penalties Scored", label: "Penalties Scored" },
+										{ key: "Assists", label: "Assists" },
+										{ key: "Total", label: "Total" },
+									],
+								},
+							};
+						} else {
+							answer = `${playerName} has no season goals+assists data available.`;
+						}
+					} else {
+						answer = `${playerName} has no season goals+assists data available.`;
 					}
 				}
 				// Handle regular single-value queries
