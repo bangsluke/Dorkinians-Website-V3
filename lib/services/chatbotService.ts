@@ -4686,7 +4686,16 @@ export class ChatbotService {
 							const transformedData = seasonsData
 								.map((item) => {
 									// Handle both { season: "2019/20", value: 15 } and { value: "2019/20" } formats
-									const season = item.season || (typeof item.value === "string" ? item.value : "");
+									let season = item.season || (typeof item.value === "string" ? item.value : "");
+									// Ensure season is in full format (e.g., "2018/19" not just "2018")
+									// If season is just a year (4 digits), we need to get the full season string from the data
+									if (season && /^\d{4}$/.test(season)) {
+										// If season is just a year, try to find the full season string in the original data
+										const fullSeasonItem = seasonsData.find(s => s.season && s.season.includes("/") && s.season.startsWith(season));
+										if (fullSeasonItem && fullSeasonItem.season) {
+											season = fullSeasonItem.season;
+										}
+									}
 									const goals = typeof item.value === "number" ? item.value : (item.goals as number) || 0;
 									return { season, goals };
 								})
@@ -4695,6 +4704,20 @@ export class ChatbotService {
 							if (transformedData.length > 0) {
 							// Find the season with the most goals
 							const mostProlific = transformedData.reduce((max, item) => (item.goals > max.goals ? item : max), transformedData[0]);
+							
+							// Ensure we have the full season string format (e.g., "2018/19")
+							// Extract from season string if it's in the format "YYYY/YY" or "YYYY-YY"
+							let seasonString = mostProlific.season;
+							if (seasonString) {
+								// If season is just a year, try to construct the full season string
+								if (/^\d{4}$/.test(seasonString)) {
+									const year = parseInt(seasonString, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									seasonString = `${year}/${nextYear}`;
+								}
+								// Normalize season format (handle both "2018/19" and "2018-19")
+								seasonString = seasonString.replace(/-/g, "/");
+							}
 							
 							// Check if team filter is present (team-specific season goals query)
 							const hasTeamFilter = analysis.teamEntities && analysis.teamEntities.length > 0;
@@ -4705,12 +4728,12 @@ export class ChatbotService {
 							
 							// Format response as: "[PlayerName] scored the most goals for the [team] in [season] ([goals] goals)."
 							if (hasTeamFilter && teamName) {
-								answer = `${playerName} scored the most goals for the ${teamName} in ${mostProlific.season} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
+								answer = `${playerName} scored the most goals for the ${teamName} in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
 							} else {
-								answer = `${playerName} scored the most goals in ${mostProlific.season} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
+								answer = `${playerName} scored the most goals in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
 							}
 							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = mostProlific.season;
+							answerValue = seasonString;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -5175,6 +5198,7 @@ export class ChatbotService {
 								const displayNameHasTeamApps = statDisplayName && typeof statDisplayName === "string" && 
 									statDisplayName.toLowerCase().includes("team appearances");
 								const isTeamSpecificAppearanceMetric = !!(metricMatch1 || metricMatch2 || hasAppsAndTeam || analysisHasTeamApps || displayNameHasTeamApps);
+								const isTeamSpecificGoalsMetric = !!(metric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)));
 								if (isTeamSpecificAppearanceMetric && hasTeamFilter) {
 									// Use "has X appearances for the Ys" format
 									const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
@@ -5189,6 +5213,62 @@ export class ChatbotService {
 										.replace("8th XI", "8s");
 									const appearanceCount = value as number;
 									answer = `${playerName} has ${appearanceCount} ${appearanceCount === 1 ? "appearance" : "appearances"} for the ${teamDisplayName}.`;
+								} else if (isTeamSpecificGoalsMetric) {
+									// Use "has X goals for the Ys" format for team-specific goals metrics
+									let teamDisplayName = "";
+									if (metric.match(/^\d+sGoals$/i)) {
+										const teamNumber = metric.match(/^(\d+)sGoals$/i)?.[1];
+										if (teamNumber) {
+											teamDisplayName = `${teamNumber}s`;
+										}
+									} else if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+										const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Goals$/i);
+										if (teamMatch) {
+											const teamName = TeamMappingUtils.mapTeamName(teamMatch[1] + " XI");
+											teamDisplayName = teamName
+												.replace("1st XI", "1s")
+												.replace("2nd XI", "2s")
+												.replace("3rd XI", "3s")
+												.replace("4th XI", "4s")
+												.replace("5th XI", "5s")
+												.replace("6th XI", "6s")
+												.replace("7th XI", "7s")
+												.replace("8th XI", "8s");
+										}
+									}
+									if (teamDisplayName) {
+										const goalCount = value as number;
+										const goalText = goalCount === 1 ? "goal" : "goals";
+										answer = `${playerName} has ${goalCount} ${goalText} for the ${teamDisplayName}.`;
+									} else {
+										// Fallback to general handler
+										const statObjectKey = this.mapMetricToStatObjectKey(metric);
+										const metricConfig = statObject[statObjectKey as keyof typeof statObject];
+										const statDisplayName = metricConfig?.displayText || getMetricDisplayName(metric, value as number);
+										const statCount = value as number;
+										
+										// Build answer parts
+										let answerParts: string[] = [];
+										answerParts.push(`${playerName} got ${statCount} ${statDisplayName.toLowerCase()}`);
+										
+										// Add team filter if present
+										if (hasTeamFilter) {
+											const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+											const teamDisplayName = teamName
+												.replace("1st XI", "1s")
+												.replace("2nd XI", "2s")
+												.replace("3rd XI", "3s")
+												.replace("4th XI", "4s")
+												.replace("5th XI", "5s")
+												.replace("6th XI", "6s")
+												.replace("7th XI", "7s")
+												.replace("8th XI", "8s");
+											answerParts.push(`for the ${teamDisplayName}`);
+										}
+										
+										// Join parts and add period
+										answer = answerParts.join(" ") + ".";
+									}
 								} else {
 									// General fallback: Build answer text for any stat query with filters (team, location, or date range)
 									// This handles yellow cards, MoMs, and other stats with filters
