@@ -655,6 +655,88 @@ export class LeagueTableQueryHandler {
 				};
 			}
 
+			// Check for "how many seasons did [team] finish with negative goal difference" query
+			const isNegativeGoalDifferenceSeasonsQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("how many seasons") || question.includes("how many season")) &&
+				question.includes("finish") &&
+				(question.includes("negative goal difference") || 
+				 (question.includes("negative") && question.includes("goal difference")));
+
+			if (isNegativeGoalDifferenceSeasonsQuery) {
+				const normalizedTeamName = teamName.includes("st") || teamName.includes("nd") || teamName.includes("rd") || teamName.includes("th") 
+					? teamName.match(/\d+/)?.[0] + "s" 
+					: teamName;
+				
+				// Use getAllHistoricalPositions pattern to get all seasons from JSON files + Neo4j
+				const { getAllHistoricalPositions, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
+				
+				// Get all historical positions for this team
+				const allPositions = await getAllHistoricalPositions();
+				const teamPositions = allPositions.filter((pos) => pos.team === normalizedTeamName);
+				
+				if (teamPositions.length === 0) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find league table data for the ${normalizedTeamName}.`,
+					};
+				}
+				
+				// Count unique seasons with negative goal difference
+				const negativeSeasons = new Set<string>();
+				teamPositions.forEach((pos) => {
+					if (pos.goalDifference < 0) {
+						negativeSeasons.add(pos.season);
+					}
+				});
+				const negativeSeasonCount = negativeSeasons.size;
+				
+				// Format team name to "4th XI" format
+				const teamNum = normalizedTeamName.replace('s', '');
+				const ordinalMap: { [key: string]: string } = {
+					'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+					'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+				};
+				const ordinalTeam = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : normalizedTeamName;
+				
+				// Build data array with all seasons (sorted by season)
+				const seasonData = teamPositions
+					.sort((a, b) => a.season.localeCompare(b.season))
+					.map((pos) => ({
+						season: pos.season,
+						position: pos.position,
+						goalDifference: pos.goalDifference,
+						played: pos.played,
+						won: pos.won,
+						drawn: pos.drawn,
+						lost: pos.lost,
+						goalsFor: pos.goalsFor,
+						goalsAgainst: pos.goalsAgainst,
+						points: pos.points,
+						team: pos.team,
+					}));
+				
+				// Build fullTable for visualization with only requested columns
+				const fullTable = seasonData.map((entry) => ({
+					Season: entry.season,
+					Pos: entry.position,
+					P: entry.played,
+					F: entry.goalsFor,
+					A: entry.goalsAgainst,
+					GD: entry.goalDifference,
+					Pts: entry.points,
+				}));
+				
+				return {
+					type: "league_table",
+					data: seasonData,
+					fullTable: fullTable,
+					answerValue: negativeSeasonCount,
+					answer: `The ${ordinalTeam} finished with a negative goal difference in ${negativeSeasonCount} ${negativeSeasonCount === 1 ? 'season' : 'seasons'}.`,
+				};
+			}
+
 			// Check for goal difference queries
 			const isGoalDifferenceQuery = 
 				question.includes("goal difference") ||

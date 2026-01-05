@@ -798,6 +798,26 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "how many games have I played where the team scored zero goals" questions
+			const isGamesWithZeroGoalsQuery = 
+				(question.includes("how many games") && question.includes("played") && 
+				 (question.includes("team scored zero goals") || 
+				  question.includes("team scored 0 goals") ||
+				  (question.includes("team") && question.includes("scored") && question.includes("zero")) ||
+				  (question.includes("team") && question.includes("scored") && question.includes("0")))) ||
+				(question.includes("how many games") && question.includes("I") && 
+				 (question.includes("zero goals") || question.includes("0 goals")));
+
+			if (isGamesWithZeroGoalsQuery) {
+				this.lastProcessingSteps.push(`Detected games with zero goals question, routing to FixtureDataQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await FixtureDataQueryHandler.queryGamesWherePlayerPlayedAndTeamScoredZero(playerName, analysis);
+				} else {
+					this.lastProcessingSteps.push(`Games with zero goals question detected but no player context available`);
+				}
+			}
+
 			// Check for "which season did [team] concede the most goals" - route to league table handler BEFORE player handler
 			const isTeamSeasonConcedeQuery = 
 				analysis.teamEntities && analysis.teamEntities.length > 0 &&
@@ -3427,38 +3447,61 @@ export class ChatbotService {
 			}
 			
 			// Always display the full league table if available
-			const fullTable = (data.fullTable as LeagueTableEntry[]) || [];
+			const fullTable = (data.fullTable as LeagueTableEntry[] | Array<Record<string, unknown>>) || [];
 			if (fullTable.length > 0) {
-				// Transform league table data for visualization
-				const tableData = fullTable.map((entry) => ({
-					Position: entry.position,
-					Team: entry.team,
-					Played: entry.played,
-					Won: entry.won,
-					Drawn: entry.drawn,
-					Lost: entry.lost,
-					"Goals For": entry.goalsFor,
-					"Goals Against": entry.goalsAgainst,
-					"Goal Difference": entry.goalDifference,
-					Points: entry.points,
-				}));
+				// Check if this is a custom table format (e.g., negative goal difference seasons query)
+				const firstEntry = fullTable[0] as Record<string, unknown>;
+				const isCustomFormat = firstEntry && "Season" in firstEntry && "Pos" in firstEntry;
+				
+				let tableData: Array<Record<string, unknown>>;
+				let columns: Array<{ key: string; label: string }>;
+				
+				if (isCustomFormat) {
+					// Use custom format directly (already has Season, Pos, P, F, A, GD, Pts)
+					tableData = fullTable as Array<Record<string, unknown>>;
+					columns = [
+						{ key: "Season", label: "Season" },
+						{ key: "Pos", label: "Pos" },
+						{ key: "P", label: "P" },
+						{ key: "F", label: "F" },
+						{ key: "A", label: "A" },
+						{ key: "GD", label: "GD" },
+						{ key: "Pts", label: "Pts" },
+					];
+				} else {
+					// Transform standard league table data for visualization
+					tableData = (fullTable as LeagueTableEntry[]).map((entry) => ({
+						Position: entry.position,
+						Team: entry.team,
+						Played: entry.played,
+						Won: entry.won,
+						Drawn: entry.drawn,
+						Lost: entry.lost,
+						"Goals For": entry.goalsFor,
+						"Goals Against": entry.goalsAgainst,
+						"Goal Difference": entry.goalDifference,
+						Points: entry.points,
+					}));
+					
+					columns = [
+						{ key: "Position", label: "Pos" },
+						{ key: "Team", label: "Team" },
+						{ key: "Played", label: "P" },
+						{ key: "Won", label: "W" },
+						{ key: "Drawn", label: "D" },
+						{ key: "Lost", label: "L" },
+						{ key: "Goals For", label: "F" },
+						{ key: "Goals Against", label: "A" },
+						{ key: "Goal Difference", label: "GD" },
+						{ key: "Points", label: "Pts" },
+					];
+				}
 				
 				visualization = {
 					type: "Table",
 					data: tableData,
 					config: {
-						columns: [
-							{ key: "Position", label: "Pos" },
-							{ key: "Team", label: "Team" },
-							{ key: "Played", label: "P" },
-							{ key: "Won", label: "W" },
-							{ key: "Drawn", label: "D" },
-							{ key: "Lost", label: "L" },
-							{ key: "Goals For", label: "F" },
-							{ key: "Goals Against", label: "A" },
-							{ key: "Goal Difference", label: "GD" },
-							{ key: "Points", label: "Pts" },
-						],
+						columns: columns,
 					},
 				};
 			}
@@ -3542,6 +3585,35 @@ export class ChatbotService {
 					}],
 					config: {
 						title: "Games Scored & Won by One Goal",
+						type: "bar",
+					},
+				};
+			}
+		} else if (data && data.type === "number_card") {
+			// Handle number card queries (e.g., games with zero goals)
+			const gameDataArray = (data.data as Array<{ value: number }>) || [];
+			const playerName = (data.playerName as string) || "You";
+			
+			if (gameDataArray.length === 0 || !gameDataArray[0]) {
+				answer = `You haven't played in any games where the team scored zero goals.`;
+				answerValue = 0;
+			} else {
+				const gameCount = gameDataArray[0].value || 0;
+				const gameText = gameCount === 1 ? "game" : "games";
+				answer = `You've played in ${gameCount} ${gameText} where the team scored zero goals.`;
+				answerValue = gameCount;
+				
+				// Create NumberCard visualization
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "games",
+						value: gameCount,
+						iconName: this.getIconNameForMetric("APP"),
+						wordedText: "games with zero goals"
+					}],
+					config: {
+						title: `${playerName === "You" ? "Your" : `${playerName}'s`} Games with Zero Goals`,
 						type: "bar",
 					},
 				};
