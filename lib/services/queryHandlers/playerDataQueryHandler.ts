@@ -2305,4 +2305,48 @@ export class PlayerDataQueryHandler {
 			return { type: "error", data: [], error: "Error querying player hat-tricks data" };
 		}
 	}
+
+	/**
+	 * Query seasons with goal counts for a player
+	 * Returns all seasons the player has played in with their goal counts
+	 */
+	static async querySeasonsWithGoalCounts(playerName: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.season IS NOT NULL
+			WITH md.season as season, sum(coalesce(md.goals, 0)) as goals
+			RETURN season, goals
+			ORDER BY season
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`SEASONS_GOAL_COUNTS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`SEASONS_GOAL_COUNTS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			const seasonsData = result && result.length > 0 
+				? result.map((row: any) => ({ season: row.season, goals: row.goals || 0 }))
+				: [];
+			
+			return { 
+				type: "seasons_goal_counts", 
+				data: seasonsData,
+				playerName 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in querySeasonsWithGoalCounts:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

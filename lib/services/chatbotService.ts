@@ -500,6 +500,40 @@ export class ChatbotService {
 				return await ClubDataQueryHandler.queryPlayersWithExactlyOneGoal();
 			}
 
+			// Check for "how many players have played only one game for [team]" questions
+			const isPlayersOnlyOneGameForTeamQuery = 
+				(question.includes("how many players") || question.includes("how many player")) &&
+				(question.includes("only one game") || question.includes("only 1 game")) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || 
+				 entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)) ||
+				 question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i));
+
+			if (isPlayersOnlyOneGameForTeamQuery) {
+				// Extract team name from entities or question
+				let teamName = "";
+				if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+					teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+				} else {
+					// Try to extract from entities
+					const teamEntity = entities.find(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e));
+					if (teamEntity) {
+						teamName = TeamMappingUtils.mapTeamName(teamEntity);
+					} else {
+						// Try to extract from question text
+						const teamMatch = question.match(/\b(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th)\b/i);
+						if (teamMatch) {
+							const teamStr = teamMatch[1];
+							teamName = TeamMappingUtils.mapTeamName(teamStr);
+						}
+					}
+				}
+
+				if (teamName) {
+					this.lastProcessingSteps.push(`Detected players with only one game for team question, routing to ClubDataQueryHandler with team: ${teamName}`);
+					return await ClubDataQueryHandler.queryPlayersWithOnlyOneGameForTeam(teamName);
+				}
+			}
+
 			// Check if this is an awards count question (e.g., "How many awards have I won?")
 			const isAwardsCountQuestion = type === "player" && 
 				(question.includes("how many awards") || question.includes("how many award")) &&
@@ -1037,6 +1071,34 @@ export class ChatbotService {
 					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["HighestGoalsAssistsSeason"], analysis, userContext);
 				} else {
 					this.lastProcessingSteps.push(`Highest goals+assists season question detected but no player context available`);
+				}
+			}
+
+			// Check for "how many seasons have I played where I didn't score any goals" questions
+			const isSeasonsNoGoalsQuestion = 
+				(question.includes("how many seasons") || question.includes("how many season")) &&
+				(question.includes("didn't score") || question.includes("didnt score") || question.includes("did not score") ||
+				 question.includes("no goals") || question.includes("zero goals") || question.includes("0 goals")) &&
+				(question.includes("played") || question.includes("play"));
+
+			if (isSeasonsNoGoalsQuestion) {
+				// Use entities first, fallback to userContext
+				let playerName = "";
+				if (entities.length > 0) {
+					playerName = entities[0];
+					// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected seasons no goals question, routing to PlayerDataQueryHandler with player: ${playerName}`);
+					return await PlayerDataQueryHandler.querySeasonsWithGoalCounts(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Seasons no goals question detected but no player context available`);
 				}
 			}
 
@@ -3946,6 +4008,69 @@ export class ChatbotService {
 					config: {
 						title: "Players with Exactly One Goal",
 						type: "bar",
+					},
+				};
+			}
+		} else if (data && data.type === "players_only_one_game_team") {
+			// Handle players who have played only one game for a specific team
+			const playerDataArray = (data.data as Array<{ playerCount: number }>) || [];
+			const teamName = (data.teamName as string) || "";
+			
+			if (playerDataArray.length === 0 || !playerDataArray[0]) {
+				const teamDisplay = teamName || "the team";
+				answer = `No players have played only one game for ${teamDisplay}.`;
+				answerValue = 0;
+			} else {
+				const playerCount = playerDataArray[0].playerCount || 0;
+				const playerText = playerCount === 1 ? "player has" : "players have";
+				const teamDisplay = teamName || "the team";
+				answer = `${playerCount} ${playerText} played only one game for ${teamDisplay}.`;
+				answerValue = playerCount;
+				
+				// Create NumberCard visualization with appearances icon
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Players",
+						value: playerCount,
+						iconName: this.getIconNameForMetric("APP"),
+						wordedText: "players"
+					}],
+					config: {
+						title: `Players with Only One Game for ${teamDisplay}`,
+						type: "bar",
+					},
+				};
+			}
+		} else if (data && data.type === "seasons_goal_counts") {
+			// Handle seasons with goal counts queries (e.g., "How many seasons have I played where I didn't score any goals?")
+			const playerName = (data.playerName as string) || "";
+			const seasonsData = (data.data as Array<{ season: string; goals: number }>) || [];
+			
+			if (seasonsData.length === 0) {
+				answer = `${playerName} has no season data available.`;
+				answerValue = 0;
+			} else {
+				// Count seasons where goals = 0
+				const seasonsWithNoGoals = seasonsData.filter(s => s.goals === 0).length;
+				const seasonText = seasonsWithNoGoals === 1 ? "season" : "seasons";
+				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${playerName} didn't score any goals.`;
+				answerValue = seasonsWithNoGoals;
+				
+				// Create Table visualization with all seasons and their goal counts
+				const tableData = seasonsData.map((item) => ({
+					Season: item.season,
+					Goals: item.goals || 0,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Season", label: "Season" },
+							{ key: "Goals", label: "Goals" },
+						],
 					},
 				};
 			}

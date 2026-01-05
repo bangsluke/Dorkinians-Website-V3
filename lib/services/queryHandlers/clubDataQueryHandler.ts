@@ -183,4 +183,42 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query players who have played only one game for a specific team
+	 */
+	static async queryPlayersWithOnlyOneGameForTeam(teamName: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.team = $teamName
+			WITH p, count(md) as gameCount
+			WHERE gameCount = 1
+			RETURN count(DISTINCT p.playerName) as playerCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$teamName/g, `'${teamName}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_ONLY_ONE_GAME_TEAM_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_ONLY_ONE_GAME_TEAM_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, teamName });
+			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			return { type: "players_only_one_game_team", data: [{ playerCount }], teamName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayersWithOnlyOneGameForTeam:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }
