@@ -126,12 +126,31 @@ export class TemporalQueryHandler {
 			 (question.includes("goal involvement") && (question.includes("no") || question.includes("without"))) ||
 			 (question.includes("goals goal involvements") && (question.includes("no") || question.includes("without"))));
 
+		// Check if this is a goal scoring streak question (goals + penalties, excluding assists)
+		const isGoalScoringStreak = 
+			(question.includes("longest") && (question.includes("goal scoring streak") || question.includes("goal scoring run") || question.includes("scoring streak"))) ||
+			(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist"));
+
+		// Check if this is an assisting run question (assists only)
+		// Handle both "assisting" and common typo "assiting"
+		const isAssistingRun = 
+			(question.includes("longest") && (question.includes("assisting run") || question.includes("assisting streak") || question.includes("assiting run") || question.includes("assiting streak"))) ||
+			(question.includes("longest") && question.includes("run") && (question.includes("assist") || question.includes("assit")) && !question.includes("goal"));
+
 		if (isCleanSheetStreak) {
 			return await TemporalQueryHandler.queryConsecutiveCleanSheetsStreak(playerName);
 		}
 
 		if (isNoGoalInvolvementStreak) {
 			return await TemporalQueryHandler.queryLongestNoGoalInvolvementStreak(playerName);
+		}
+
+		if (isGoalScoringStreak) {
+			return await TemporalQueryHandler.queryLongestGoalScoringStreak(playerName);
+		}
+
+		if (isAssistingRun) {
+			return await TemporalQueryHandler.queryLongestAssistingRun(playerName);
 		}
 
 		if (isGoalInvolvementStreak) {
@@ -938,6 +957,285 @@ export class TemporalQueryHandler {
 			const errorMessage = error instanceof Error ? error.message : String(error);
 			loggingService.log(`❌ Error in consecutive goal involvement streak query: ${errorMessage}`, error, "error");
 			return { type: "error", data: [], error: `Error querying consecutive goal involvement streak data: ${errorMessage}` };
+		}
+	}
+
+	/**
+	 * Query longest goal scoring streak (goals + penalties scored, excluding assists)
+	 * Returns calendar data with goal scoring data and highlights the longest consecutive streak
+	 */
+	static async queryLongestGoalScoringStreak(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying longest goal scoring streak for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// First, get all games where player played (to check for gaps)
+		const allGamesQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0
+			RETURN md.date as date
+			ORDER BY md.date ASC
+		`;
+
+		// Query to get games where player scored (goals or penalties scored, excluding assists)
+		const goalScoringQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0 AND (md.goals > 0 OR md.penaltiesScored > 0)
+			RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.team as team, md.opposition as opposition
+			ORDER BY md.date ASC
+		`;
+
+		try {
+			// Get all games the player played
+			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
+			const allGameDates = (allGamesResult || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '')
+				.sort();
+
+			// Get goal scoring games
+			const result = await neo4jService.executeQuery(goalScoringQuery, { graphLabel, playerName });
+			const goalScoringDates = (result || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '');
+
+			if (goalScoringDates.length === 0) {
+				loggingService.log(`⚠️ No goal scoring games found for player: ${playerName}`, null, "warn");
+				return { 
+					type: "streak", 
+					data: [], 
+					playerName, 
+					streakType: "longest_goal_scoring_streak", 
+					streakCount: 0, 
+					streakSequence: [],
+					streakStartDate: null,
+					streakEndDate: null,
+					highlightRange: undefined
+				};
+			}
+
+			// Find consecutive goal scoring games in the player's game history
+			const streakResult = TemporalQueryHandler.calculateConsecutiveGamesInHistory(goalScoringDates, allGameDates);
+			const longestStreak = streakResult.count;
+			const streakSequence = streakResult.sequence;
+			const streakStartDate = streakResult.startDate;
+			const streakEndDate = streakResult.endDate;
+
+			// Calculate highlight range for calendar visualization
+			let highlightRange: { startWeek: number; startYear: number; endWeek: number; endYear: number } | undefined = undefined;
+
+			if (streakStartDate && streakEndDate) {
+				const startDate = new Date(streakStartDate);
+				const endDate = new Date(streakEndDate);
+				
+				const getWeekNumber = (date: Date): { year: number; week: number } => {
+					const year = date.getFullYear();
+					const jan1 = new Date(year, 0, 1);
+					const jan1Day = jan1.getDay();
+					const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+					const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+					const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+					return { year, week: weekNumber };
+				};
+
+				const startWeekInfo = getWeekNumber(startDate);
+				const endWeekInfo = getWeekNumber(endDate);
+				
+				highlightRange = {
+					startWeek: startWeekInfo.week,
+					startYear: startWeekInfo.year,
+					endWeek: endWeekInfo.week,
+					endYear: endWeekInfo.year,
+				};
+			}
+
+			// Prepare data for calendar visualization - ALL games with goal scoring data
+			// Get all games the player played with goal scoring data
+			const allGamesWithDataQuery = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.minutes > 0
+				RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.assists as assists, md.team as team, md.opposition as opposition
+				ORDER BY md.date ASC
+			`;
+			const allGamesWithDataResult = await neo4jService.executeQuery(allGamesWithDataQuery, { graphLabel, playerName });
+			
+			const dateData = (allGamesWithDataResult || []).map((record: any) => {
+				const goals = (record?.goals as number) || 0;
+				const penaltiesScored = (record?.penaltiesScored as number) || 0;
+				const assists = (record?.assists as number) || 0;
+				// For goal scoring streak, we only count goals + penalties, not assists
+				const goalScoring = goals + penaltiesScored;
+				
+				return {
+					date: record?.date,
+					goals: goals,
+					penaltiesScored: penaltiesScored,
+					assists: assists,
+					goalScoring: goalScoring,
+					team: record?.team,
+					opposition: record?.opposition,
+				};
+			});
+
+			loggingService.log(`✅ Calculated longest goal scoring streak: ${longestStreak} for player: ${playerName}`, null, "log");
+			if (streakStartDate && streakEndDate) {
+				loggingService.log(`📅 Streak dates: ${streakStartDate} to ${streakEndDate}`, null, "log");
+			}
+
+			return { 
+				type: "streak", 
+				data: dateData, 
+				playerName, 
+				streakType: "longest_goal_scoring_streak", 
+				streakCount: longestStreak,
+				streakSequence: streakSequence,
+				streakStartDate: streakStartDate,
+				streakEndDate: streakEndDate,
+				highlightRange: highlightRange
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in longest goal scoring streak query: ${errorMessage}`, error, "error");
+			return { type: "error", data: [], error: `Error querying longest goal scoring streak data: ${errorMessage}` };
+		}
+	}
+
+	/**
+	 * Query longest assisting run (assists only)
+	 * Returns calendar data with assist data and highlights the longest consecutive streak
+	 */
+	static async queryLongestAssistingRun(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying longest assisting run for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// First, get all games where player played (to check for gaps)
+		const allGamesQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0
+			RETURN md.date as date
+			ORDER BY md.date ASC
+		`;
+
+		// Query to get games where player assisted (assists only)
+		const assistingQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.minutes > 0 AND md.assists > 0
+			RETURN md.date as date, md.assists as assists, md.team as team, md.opposition as opposition
+			ORDER BY md.date ASC
+		`;
+
+		try {
+			// Get all games the player played
+			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
+			const allGameDates = (allGamesResult || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '')
+				.sort();
+
+			// Get assisting games
+			const assistingResult = await neo4jService.executeQuery(assistingQuery, { graphLabel, playerName });
+			const assistingDates = (assistingResult || [])
+				.map((record: any) => TemporalQueryHandler.normalizeDate(record?.date))
+				.filter((date: string) => date !== '');
+
+			if (assistingDates.length === 0) {
+				loggingService.log(`⚠️ No assisting games found for player: ${playerName}`, null, "warn");
+				return { 
+					type: "streak", 
+					data: [], 
+					playerName, 
+					streakType: "longest_assisting_run", 
+					streakCount: 0, 
+					streakSequence: [],
+					streakStartDate: null,
+					streakEndDate: null,
+					highlightRange: undefined
+				};
+			}
+
+			// Find consecutive assisting games in the player's game history
+			const streakResult = TemporalQueryHandler.calculateConsecutiveGamesInHistory(assistingDates, allGameDates);
+			const longestStreak = streakResult.count;
+			const streakSequence = streakResult.sequence;
+			const streakStartDate = streakResult.startDate;
+			const streakEndDate = streakResult.endDate;
+
+			// Calculate highlight range for calendar visualization
+			let highlightRange: { startWeek: number; startYear: number; endWeek: number; endYear: number } | undefined = undefined;
+
+			if (streakStartDate && streakEndDate) {
+				const startDate = new Date(streakStartDate);
+				const endDate = new Date(streakEndDate);
+				
+				const getWeekNumber = (date: Date): { year: number; week: number } => {
+					const year = date.getFullYear();
+					const jan1 = new Date(year, 0, 1);
+					const jan1Day = jan1.getDay();
+					const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+					const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+					const weekNumber = Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+					return { year, week: weekNumber };
+				};
+
+				const startWeekInfo = getWeekNumber(startDate);
+				const endWeekInfo = getWeekNumber(endDate);
+				
+				highlightRange = {
+					startWeek: startWeekInfo.week,
+					startYear: startWeekInfo.year,
+					endWeek: endWeekInfo.week,
+					endYear: endWeekInfo.year,
+				};
+			}
+
+			// Prepare data for calendar visualization - ALL games with assist data
+			// Get all games the player played with assist data
+			const allGamesWithDataQuery = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.minutes > 0
+				RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.assists as assists, md.team as team, md.opposition as opposition
+				ORDER BY md.date ASC
+			`;
+			const allGamesWithDataResult = await neo4jService.executeQuery(allGamesWithDataQuery, { graphLabel, playerName });
+			
+			const dateData = (allGamesWithDataResult || []).map((record: any) => {
+				const goals = (record?.goals as number) || 0;
+				const penaltiesScored = (record?.penaltiesScored as number) || 0;
+				const assists = (record?.assists as number) || 0;
+				// For assisting run, we only count assists
+				
+				return {
+					date: record?.date,
+					goals: goals,
+					penaltiesScored: penaltiesScored,
+					assists: assists,
+					assisting: assists,
+					team: record?.team,
+					opposition: record?.opposition,
+				};
+			});
+
+			loggingService.log(`✅ Calculated longest assisting run: ${longestStreak} for player: ${playerName}`, null, "log");
+			if (streakStartDate && streakEndDate) {
+				loggingService.log(`📅 Streak dates: ${streakStartDate} to ${streakEndDate}`, null, "log");
+			}
+
+			return { 
+				type: "streak", 
+				data: dateData, 
+				playerName, 
+				streakType: "longest_assisting_run", 
+				streakCount: longestStreak,
+				streakSequence: streakSequence,
+				streakStartDate: streakStartDate,
+				streakEndDate: streakEndDate,
+				highlightRange: highlightRange
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in longest assisting run query: ${errorMessage}`, error, "error");
+			return { type: "error", data: [], error: `Error querying longest assisting run data: ${errorMessage}` };
 		}
 	}
 

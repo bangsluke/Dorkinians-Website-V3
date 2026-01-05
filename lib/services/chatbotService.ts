@@ -572,6 +572,31 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for longest goal scoring streak questions (goals + penalties, excluding assists)
+			const isGoalScoringStreakQuestion = 
+				(question.includes("longest") && (question.includes("goal scoring streak") || question.includes("goal scoring run") || question.includes("scoring streak"))) ||
+				(question.includes("longest") && question.includes("streak") && question.includes("scored") && !question.includes("assist"));
+
+			if (isGoalScoringStreakQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
+			// Check for longest assisting run questions (assists only)
+			// Handle both "assisting" and common typo "assiting"
+			const isAssistingRunQuestion = 
+				(question.includes("longest") && (question.includes("assisting run") || question.includes("assisting streak") || question.includes("assiting run") || question.includes("assiting streak"))) ||
+				(question.includes("longest") && question.includes("run") && (question.includes("assist") || question.includes("assit")) && !question.includes("goal"));
+
+			if (isAssistingRunQuestion) {
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryStreakData([playerName], [], analysis);
+				}
+			}
+
 			// Check for hat-trick questions (year-wide, team-specific, or date-filtered) BEFORE routing to handlers
 			// This prevents "hat‑tricks" from being treated as a player entity
 			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
@@ -2677,8 +2702,8 @@ export class ChatbotService {
 						},
 					};
 				}
-			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement" || streakType === "longest_no_goal_involvement") {
-				// Handle consecutive clean sheets, goal involvement streaks, and no goal involvement streaks with calendar visualization
+			} else if (streakType === "consecutive_clean_sheets" || streakType === "consecutive_goal_involvement" || streakType === "longest_no_goal_involvement" || streakType === "longest_goal_scoring_streak" || streakType === "longest_assisting_run") {
+				// Handle consecutive clean sheets, goal involvement streaks, no goal involvement streaks, goal scoring streaks, and assisting runs with calendar visualization
 				const streakCount = (data.streakCount as number) || 0;
 				const streakSequence = (data.streakSequence as string[]) || [];
 				const streakData = (data.data as Array<{ date: string; [key: string]: any }>) || [];
@@ -2691,6 +2716,10 @@ export class ChatbotService {
 						answer = "You haven't had any consecutive clean sheets.";
 					} else if (streakType === "longest_no_goal_involvement") {
 						answer = "You've had goal involvements in all your games.";
+					} else if (streakType === "longest_goal_scoring_streak") {
+						answer = "You haven't had any consecutive games where you scored.";
+					} else if (streakType === "longest_assisting_run") {
+						answer = "You haven't had any consecutive games where you assisted.";
 					} else {
 						answer = "You haven't had any consecutive games with goal involvement.";
 					}
@@ -2709,6 +2738,10 @@ export class ChatbotService {
 						answer = `Your longest consecutive clean sheet streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					} else if (streakType === "longest_no_goal_involvement") {
 						answer = `Your longest run of games without goal involvements is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					} else if (streakType === "longest_goal_scoring_streak") {
+						answer = `Your longest goal scoring streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
+					} else if (streakType === "longest_assisting_run") {
+						answer = `Your longest assisting run of games is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					} else {
 						answer = `Your longest consecutive goal involvement streak is ${streakCount} ${streakCount === 1 ? "game" : "games"}${dateRangeText}.`;
 					}
@@ -2740,8 +2773,18 @@ export class ChatbotService {
 						return Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
 					};
 
-					// Determine if we should show goal involvements
-					const showGoalInvolvements = streakType === "longest_no_goal_involvement" || streakType === "consecutive_goal_involvement";
+					// Determine if we should show goal involvements (or goal scoring/assisting)
+					const showGoalInvolvements = streakType === "longest_no_goal_involvement" || streakType === "consecutive_goal_involvement" || streakType === "longest_goal_scoring_streak" || streakType === "longest_assisting_run";
+					
+					// Determine the contribution label based on streak type
+					let contributionLabel: string = "Goal Involvements"; // Default
+					if (streakType === "longest_goal_scoring_streak") {
+						contributionLabel = "Goals";
+					} else if (streakType === "longest_assisting_run") {
+						contributionLabel = "Assists";
+					} else {
+						contributionLabel = "Goal Involvements"; // For longest_no_goal_involvement and consecutive_goal_involvement
+					}
 					
 					// Group dates by year and week, tracking goal involvements and game counts
 					const weekMap = new Map<string, { 
@@ -2765,17 +2808,28 @@ export class ChatbotService {
 							
 							const weekEntry = weekMap.get(key)!;
 							
-							// Calculate goal involvements for this game
+							// Calculate goal involvements/goal scoring/assisting for this game based on streak type
 							const goals = (item.goals as number) || 0;
 							const assists = (item.assists as number) || 0;
 							const penaltiesScored = (item.penaltiesScored as number) || 0;
-							const goalInvolvements = goals + assists + penaltiesScored;
 							
-							// Track goal involvements and game count
-							weekEntry.goalInvolvements += goalInvolvements;
+							let contributionValue = 0;
+							if (streakType === "longest_goal_scoring_streak") {
+								// For goal scoring streak, only count goals + penalties
+								contributionValue = goals + penaltiesScored;
+							} else if (streakType === "longest_assisting_run") {
+								// For assisting run, only count assists
+								contributionValue = assists;
+							} else {
+								// For goal involvement streaks, count goals + assists + penalties
+								contributionValue = goals + assists + penaltiesScored;
+							}
+							
+							// Track goal involvements/goal scoring/assisting and game count
+							weekEntry.goalInvolvements += contributionValue;
 							weekEntry.gameCount += 1;
 							
-							// For longest_no_goal_involvement and consecutive_goal_involvement, use goal involvement count
+							// For streak types that show contributions, use contribution count
 							// For other streak types (like consecutive_weekends), count number of games
 							if (showGoalInvolvements) {
 								weekEntry.value = weekEntry.goalInvolvements;
@@ -2874,6 +2928,7 @@ export class ChatbotService {
 							allFixtureDates: allFixtureDates,
 							streakType: streakType, // Pass streak type for styling (red for negative streaks)
 							showGoalInvolvements: showGoalInvolvements, // Flag to show goal involvements vs apps
+							contributionLabel: contributionLabel, // Label for contribution metric (Goals, Assists, or Goal Involvements)
 						},
 					};
 				}
