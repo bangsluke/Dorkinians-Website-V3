@@ -54,7 +54,8 @@ export class PlayerQueryBuilder {
 		}
 
 		// Check if it's a team-specific appearance metric (1st XI Apps, 2nd XI Apps, etc.)
-		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+		const teamXiAppsMatch = metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i);
+		if (teamXiAppsMatch) {
 			return true; // Team-specific appearances need MatchDetail join to filter by team
 		}
 
@@ -79,7 +80,8 @@ export class PlayerQueryBuilder {
 			return true; // These need MatchDetail to count distinct seasons/teams
 		}
 
-		return matchDetailMetrics.includes(metric.toUpperCase());
+		const result = matchDetailMetrics.includes(metric.toUpperCase());
+		return result;
 	}
 
 	/**
@@ -1465,7 +1467,6 @@ export class PlayerQueryBuilder {
 						teamNameForWithClause = teamMatch[1] + " XI";
 					}
 				}
-				
 				if (teamNameForWithClause) {
 					// Remove team filter from WHERE conditions
 					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
@@ -1495,9 +1496,22 @@ export class PlayerQueryBuilder {
 				// For non-team-specific metrics with team exclusions (e.g., assists, goals), use regular aggregation
 				// The exclusion filter is already in WHERE conditions, so just use the standard return clause
 				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+			} else if (hasPlayerEntity && isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				// For player queries with team-specific appearance metrics, use team filtering
+				// Extract team name for filtering
+				if (teamNameForWithClause) {
+					// Use WITH clause to aggregate and filter by team
+					// Ensure we always return a row even when there are no MatchDetail records
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
+				} else {
+					// Fallback to standard return clause if team name couldn't be extracted
+					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+				}
 			} else if (hasPlayerEntity && !hasTeamExclusions) {
-				// For player queries without exclusions, use standard return clause
-				// Skip team-specific metric paths entirely for player queries
+				// For player queries without exclusions and non-team-specific metrics, use standard return clause
 				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
 			} else if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering

@@ -159,6 +159,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"how many appearances",
 		"appearances made",
 		"appearances played",
+		"done",
+		"games done",
+		"done for",
 	],
 	Minutes: ["minutes of football", "minutes played", "playing time", "time played", "minutes", "minute", "mins"],
 	"Yellow Cards": ["yellow cards", "yellow card", "yellows", "bookings", "cautions"],
@@ -1826,6 +1829,19 @@ export class EntityExtractor {
 				type: "range",
 				originalText: dateRangeMatch[0],
 				position: dateRangeMatch.index,
+			});
+		}
+
+		// Extract "since [YEAR]ish" or "since like [YEAR]ish" patterns (e.g., "since 2019ish", "since like 2019ish")
+		const sinceYearIshRegex = /\bsince\s+(?:like\s+)?(\d{4})ish\b/gi;
+		let sinceYearIshMatch;
+		while ((sinceYearIshMatch = sinceYearIshRegex.exec(this.question)) !== null) {
+			const year = parseInt(sinceYearIshMatch[1], 10);
+			timeFrames.push({
+				value: year.toString(),
+				type: "since",
+				originalText: sinceYearIshMatch[0],
+				position: sinceYearIshMatch.index,
 			});
 		}
 

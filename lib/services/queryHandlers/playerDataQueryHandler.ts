@@ -2,6 +2,7 @@ import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnal
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { PlayerQueryBuilder } from "../queryBuilders/playerQueryBuilder";
 import { EntityResolutionUtils } from "../chatbotUtils/entityResolutionUtils";
+import { EntityNameResolver } from "../entityNameResolver";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { QueryExecutionUtils } from "../chatbotUtils/queryExecutionUtils";
@@ -12,6 +13,96 @@ import { ChatbotService } from "../chatbotService";
 import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
 export class PlayerDataQueryHandler {
+	/**
+	 * Check if a player name is ambiguous (has multiple matches)
+	 * Returns the clarification message if ambiguous, null otherwise
+	 */
+	private static async checkAmbiguousPlayerName(playerName: string): Promise<string | null> {
+		try {
+			const entityResolver = EntityNameResolver.getInstance();
+			const result = await entityResolver.resolveEntityName(playerName, "player");
+			
+			// Check for first name ambiguity FIRST (e.g., "Kieran" matching multiple Kierans)
+			// This is the most common case and should be checked before fuzzy matching
+			const normalizedInput = playerName.toLowerCase().trim();
+			const isSingleWord = !normalizedInput.includes(' ');
+			
+			if (isSingleWord) {
+				// For single-word inputs (likely first names), always query the database directly
+				// to ensure we get the most up-to-date list of all players
+				try {
+					const graphLabel = neo4jService.getGraphLabel();
+					const query = `
+						MATCH (p:Player {graphLabel: $graphLabel})
+						WHERE p.allowOnSite = true
+						RETURN p.playerName as playerName
+						ORDER BY p.playerName
+					`;
+					const dbResult = await neo4jService.executeQuery(query, { graphLabel });
+					let allEntities: string[] = [];
+					if (dbResult && Array.isArray(dbResult)) {
+						allEntities = dbResult.map((row: any) => row.playerName).filter((name: string) => name);
+					}
+					
+					// Fallback to result.allEntities if database query fails or returns empty
+					if (allEntities.length === 0) {
+						allEntities = result.allEntities || [];
+					}
+					
+					// Check if there are multiple players with this first name
+					const matchingPlayers = allEntities.filter((name: string) => {
+						const normalizedName = name.toLowerCase().trim();
+						const firstName = normalizedName.split(' ')[0];
+						// Check if the first name matches the input exactly
+						return firstName === normalizedInput;
+					});
+					
+					loggingService.log(`🔍 Found ${matchingPlayers.length} players with first name "${normalizedInput}": ${matchingPlayers.join(", ")}`, null, "log");
+					
+					if (matchingPlayers.length > 1) {
+						const playerNames = matchingPlayers.slice(0, 5).join(", ");
+						return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+					}
+				} catch (dbError) {
+					loggingService.log(`⚠️ Could not query database for all players, using cached entities: ${dbError}`, null, "warn");
+					// Fallback to using result.allEntities if database query fails
+					const allEntities = result.allEntities || [];
+					const matchingPlayers = allEntities.filter((name: string) => {
+						const normalizedName = name.toLowerCase().trim();
+						const firstName = normalizedName.split(' ')[0];
+						return firstName === normalizedInput;
+					});
+					
+					if (matchingPlayers.length > 1) {
+						const playerNames = matchingPlayers.slice(0, 5).join(", ");
+						return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+					}
+				}
+			}
+			
+			// Check if there are multiple high-confidence fuzzy matches (2 or more)
+			// This indicates ambiguity when multiple players have similar names
+			if (result.fuzzyMatches.length >= 2) {
+				// Check if the top matches have similar confidence (within 0.15)
+				const topMatch = result.fuzzyMatches[0];
+				const secondMatch = result.fuzzyMatches[1];
+				
+				// If both matches have high confidence and are close, it's ambiguous
+				// Lower the threshold to catch more ambiguous cases
+				if (topMatch.confidence >= 0.6 && secondMatch.confidence >= 0.6 && 
+				    Math.abs(topMatch.confidence - secondMatch.confidence) < 0.2) {
+					const playerNames = result.fuzzyMatches.slice(0, 5).map(m => m.entityName).join(", ");
+					return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+				}
+			}
+			
+			return null;
+		} catch (error) {
+			loggingService.log(`❌ Error checking ambiguous player name: ${error}`, null, "error");
+			return null;
+		}
+	}
+
 	/**
 	 * Query player data based on entities, metrics, and analysis
 	 */
@@ -336,6 +427,26 @@ export class PlayerDataQueryHandler {
 		if (isSpecificPlayerPairQuestion && entities.length >= 2) {
 			const playerName1 = entities[0];
 			const playerName2 = entities[1];
+			
+			// Check for ambiguous player names BEFORE resolving (check the second player, not "I")
+			// Filter out pronouns to get the actual player name to check
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const playerNameToCheck = pronouns.includes(playerName2.toLowerCase()) ? playerName1 : playerName2;
+			
+			if (playerNameToCheck && !pronouns.includes(playerNameToCheck.toLowerCase())) {
+				loggingService.log(`🔍 Checking for ambiguous player name: ${playerNameToCheck}`, null, "log");
+				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
+				if (ambiguousCheck) {
+					loggingService.log(`⚠️ Ambiguous player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: ambiguousCheck,
+						answerValue: "Clarification needed",
+					};
+				}
+			}
+			
 			const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
 			const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
 			
@@ -440,10 +551,15 @@ export class PlayerDataQueryHandler {
 			
 			// Determine player name: prioritize valid entities, then userContext for personal questions
 			let playerName = "";
+			let playerNameToCheck = ""; // The name to check for ambiguity (the other player, not "I")
 			if (validEntities.length > 0) {
 				playerName = validEntities[0];
+				playerNameToCheck = validEntities[0];
 			} else if (isPersonalQuestion && userContext) {
 				playerName = userContext;
+				// For personal questions, we need to check if there's another player mentioned
+				// The ambiguity check should be for the other player, not the user
+				// But if no other player is mentioned, we can't check ambiguity here
 			} else if (userContext) {
 				playerName = userContext;
 			}
@@ -455,6 +571,20 @@ export class PlayerDataQueryHandler {
 					data: [],
 					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
 				};
+			}
+			
+			// Check for ambiguous player names if we have a player name to check
+			if (playerNameToCheck) {
+				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
+				if (ambiguousCheck) {
+					loggingService.log(`⚠️ Ambiguous player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: ambiguousCheck,
+						answerValue: "Clarification needed",
+					};
+				}
 			}
 			
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
@@ -1410,8 +1540,17 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
-			// Use detected metric from question if available, otherwise use extracted metric
-			const metricToUse = detectedMetricFromQuestion || originalMetric;
+			// CRITICAL: Don't override team-specific metrics (e.g., "4th XI Apps", "3sApps") with generic "APP"
+			// Check if originalMetric is a team-specific metric before using detectedMetricFromQuestion
+			const isTeamSpecificMetric = originalMetric && (
+				originalMetric.match(/^\d+sApps$/i) ||
+				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
+				originalMetric.match(/^\d+sGoals$/i) ||
+				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
+			);
+			
+			// Use detected metric from question if available, but preserve team-specific metrics
+			const metricToUse = (isTeamSpecificMetric) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;

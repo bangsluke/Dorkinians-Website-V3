@@ -2143,6 +2143,13 @@ export class ChatbotService {
 
 	// Helper function to get icon name with fallback to goals scored icon
 	private getIconNameForMetric(metric: string, defaultIcon?: string): string {
+		// Check if this is a team-specific appearance metric (e.g., "4th XI Apps", "4sApps")
+		const isTeamSpecificAppearanceMetric = !!(metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i));
+		if (isTeamSpecificAppearanceMetric) {
+			// Use appearance icon for team-specific appearance metrics
+			return statObject.APP?.iconName || "Appearance-Icon";
+		}
+		
 		const statObjectKey = this.mapMetricToStatObjectKey(metric);
 		const metricConfig = statObject[statObjectKey as keyof typeof statObject];
 		
@@ -2214,6 +2221,12 @@ export class ChatbotService {
 			answer = "Missing context: Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
 			answer = (data.message as string) || "Please clarify your question with more specific details.";
+			// Set answerValue if not already set
+			if (data.answerValue) {
+				answerValue = data.answerValue as string;
+			} else {
+				answerValue = "Clarification needed";
+			}
 		} else if (data.type === "not_found" || data.type === "no_team") {
 			// Handle league table error cases
 			answer = (data.message as string) || "I couldn't find league table data for your query.";
@@ -4859,21 +4872,30 @@ export class ChatbotService {
 								// Join parts and add period
 								answer = answerParts.join(" ") + ".";
 							} else if (hasTeamFilter || hasHomeLocation || hasAwayLocation || dateRangeText) {
-								// General fallback: Build answer text for any stat query with filters (team, location, or date range)
-								// This handles yellow cards, MoMs, and other stats with filters
+								// Check if this is a team-specific appearance metric FIRST (before general fallback)
+								// Check multiple patterns to catch all variations
+								const metricMatch1 = metric.match(/^\d+sApps$/i);
+								const metricMatch2 = metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i);
+								// Also check if metric contains "Apps" and team reference (more lenient check)
+								// This catches variations like "4th XI Apps", "4sApps", etc.
+								const hasAppsAndTeam = metric && typeof metric === "string" && metric.includes("Apps") && (
+									metric.includes("XI") || 
+									metric.match(/\d+s/i) ||
+									metric.match(/\d+(?:st|nd|rd|th)/i)
+								);
+								// Also check analysis.metrics for team-specific appearance patterns
+								const analysisHasTeamApps = analysis.metrics && analysis.metrics.some((m: string) => 
+									m.match(/^\d+sApps$/i) || m.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)
+								);
+								// Check if the metric display name indicates team-specific appearances
 								const statObjectKey = this.mapMetricToStatObjectKey(metric);
 								const metricConfig = statObject[statObjectKey as keyof typeof statObject];
 								const statDisplayName = metricConfig?.displayText || getMetricDisplayName(metric, value as number);
-								const statCount = value as number;
-								
-								// Build answer parts
-								let answerParts: string[] = [];
-								
-								// Start with player name and stat count
-								answerParts.push(`${playerName} got ${statCount} ${statDisplayName.toLowerCase()}`);
-								
-								// Add team filter if present
-								if (hasTeamFilter) {
+								const displayNameHasTeamApps = statDisplayName && typeof statDisplayName === "string" && 
+									statDisplayName.toLowerCase().includes("team appearances");
+								const isTeamSpecificAppearanceMetric = !!(metricMatch1 || metricMatch2 || hasAppsAndTeam || analysisHasTeamApps || displayNameHasTeamApps);
+								if (isTeamSpecificAppearanceMetric && hasTeamFilter) {
+									// Use "has X appearances for the Ys" format
 									const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
 									const teamDisplayName = teamName
 										.replace("1st XI", "1s")
@@ -4884,23 +4906,52 @@ export class ChatbotService {
 										.replace("6th XI", "6s")
 										.replace("7th XI", "7s")
 										.replace("8th XI", "8s");
-									answerParts.push(`for the ${teamDisplayName}`);
+									const appearanceCount = value as number;
+									answer = `${playerName} has ${appearanceCount} ${appearanceCount === 1 ? "appearance" : "appearances"} for the ${teamDisplayName}.`;
+								} else {
+									// General fallback: Build answer text for any stat query with filters (team, location, or date range)
+									// This handles yellow cards, MoMs, and other stats with filters
+									const statObjectKey = this.mapMetricToStatObjectKey(metric);
+									const metricConfig = statObject[statObjectKey as keyof typeof statObject];
+									const statDisplayName = metricConfig?.displayText || getMetricDisplayName(metric, value as number);
+									const statCount = value as number;
+									
+									// Build answer parts
+									let answerParts: string[] = [];
+									
+									// Start with player name and stat count
+									answerParts.push(`${playerName} got ${statCount} ${statDisplayName.toLowerCase()}`);
+									
+									// Add team filter if present
+									if (hasTeamFilter) {
+										const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+										const teamDisplayName = teamName
+											.replace("1st XI", "1s")
+											.replace("2nd XI", "2s")
+											.replace("3rd XI", "3s")
+											.replace("4th XI", "4s")
+											.replace("5th XI", "5s")
+											.replace("6th XI", "6s")
+											.replace("7th XI", "7s")
+											.replace("8th XI", "8s");
+										answerParts.push(`for the ${teamDisplayName}`);
+									}
+									
+									// Add location filter if present
+									if (hasHomeLocation) {
+										answerParts.push("whilst playing at home");
+									} else if (hasAwayLocation) {
+										answerParts.push("whilst playing away");
+									}
+									
+									// Add date range filter if present
+									if (dateRangeText) {
+										answerParts.push(dateRangeText);
+									}
+									
+									// Join parts and add period
+									answer = answerParts.join(" ") + ".";
 								}
-								
-								// Add location filter if present
-								if (hasHomeLocation) {
-									answerParts.push("whilst playing at home");
-								} else if (hasAwayLocation) {
-									answerParts.push("whilst playing away");
-								}
-								
-								// Add date range filter if present
-								if (dateRangeText) {
-									answerParts.push(dateRangeText);
-								}
-								
-								// Join parts and add period
-								answer = answerParts.join(" ") + ".";
 							} else if (hasCompetitionTypeFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition type: "Luke Bangs has scored 4 goals in cup competitions."
 								const competitionType = competitionTypes[0];
