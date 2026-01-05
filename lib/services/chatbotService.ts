@@ -5256,13 +5256,16 @@ export class ChatbotService {
 			}
 		}
 
+		// Extract Cypher query: prefer data?.cypherQuery, fallback to lastExecutedQueries
+		const cypherQuery = this.extractCypherQuery(data?.cypherQuery as string | undefined, question);
+
 		return {
 			answer,
 			data: data?.data,
 			visualization,
 			sources,
 			answerValue,
-			cypherQuery: data?.cypherQuery as string | undefined,
+			cypherQuery,
 			debug: {
 				question,
 				timestamp: new Date().toISOString(),
@@ -5275,6 +5278,184 @@ export class ChatbotService {
 				},
 			},
 		};
+	}
+
+	/**
+	 * Extract Cypher query from data or lastExecutedQueries array
+	 * Priority: data?.cypherQuery > READY_TO_EXECUTE pattern > other query type patterns > generic Cypher patterns
+	 */
+	private extractCypherQuery(dataCypherQuery?: string, question?: string): string | undefined {
+		// Priority 1: Use cypherQuery from data if available
+		if (dataCypherQuery && dataCypherQuery !== "N/A" && dataCypherQuery.trim() !== "") {
+			return dataCypherQuery;
+		}
+
+		// Priority 2: Search lastExecutedQueries for READY_TO_EXECUTE pattern (most reliable)
+		// Look for entries like "READY_TO_EXECUTE: <query>" or "*_READY_TO_EXECUTE: <query>"
+		for (let i = this.lastExecutedQueries.length - 1; i >= 0; i--) {
+			const entry = this.lastExecutedQueries[i];
+			if (entry && typeof entry === "string" && entry.includes("READY_TO_EXECUTE:")) {
+				const match = entry.match(/READY_TO_EXECUTE:\s*(.+)/s);
+				if (match && match[1]) {
+					const query = match[1].trim();
+					// Verify it looks like a Cypher query
+					if (query.includes("MATCH") || query.includes("RETURN")) {
+						return query;
+					}
+				}
+			}
+		}
+
+		// Priority 3: Look for specific query type patterns (FIXTURE_QUERY, STREAK_DATA, TEAM_DATA, etc.)
+		// These patterns are more reliable than generic patterns
+		const queryTypePatterns = [
+			/FIXTURE_QUERY:\s*(.+)/s,
+			/STREAK_DATA:\s*(.+)/s,
+			/TEAM_DATA:\s*(.+)/s,
+			/RANKING_DATA:\s*(.+)/s,
+			/TEMPORAL_DATA:\s*(.+)/s,
+			/COMPARISON_DATA:\s*(.+)/s,
+			/CLUB_GOALS_DATA:\s*(.+)/s,
+			/CLUB_PLAYERS_DATA:\s*(.+)/s,
+			/MILESTONE_QUERY:\s*(.+)/s,
+			/DOUBLE_GAME_WEEKS:\s*(.+)/s,
+			/TOTW_DATA:\s*(.+)/s,
+			/HOME_AWAY_COMPARISON:\s*(.+)/s,
+			/MOST_PROLIFIC_SEASON:\s*(.+)/s,
+			/CO_PLAYERS_QUERY:\s*(.+)/s,
+			/CO_PLAYERS_READY_TO_EXECUTE:\s*(.+)/s,
+			/GAMES_PLAYED_TOGETHER_QUERY:\s*(.+)/s,
+			/GAMES_PLAYED_TOGETHER_READY_TO_EXECUTE:\s*(.+)/s,
+			/LEAGUE_TABLE_QUERY:\s*(.+)/s,
+			/LEAGUE_TABLE_READY_TO_EXECUTE:\s*(.+)/s,
+			/CONSECUTIVE_WEEKENDS_PLAYER_PLAYED:\s*(.+)/s,
+			/CONSECUTIVE_WEEKENDS_READY_TO_EXECUTE:\s*(.+)/s,
+			/FIXTURE_READY_TO_EXECUTE:\s*(.+)/s,
+			/CLEAN_SHEETS_STREAK_QUERY:\s*(.+)/s,
+			/CLEAN_SHEETS_STREAK_READY_TO_EXECUTE:\s*(.+)/s,
+			/AWARDS_COUNT_QUERY:\s*(.+)/s,
+			/AWARDS_COUNT_READY_TO_EXECUTE:\s*(.+)/s,
+			/TOTW_COUNT_QUERY:\s*(.+)/s,
+			/TOTW_COUNT_READY_TO_EXECUTE:\s*(.+)/s,
+			/HIGHEST_WEEKLY_SCORE_QUERY:\s*(.+)/s,
+			/HIGHEST_WEEKLY_SCORE_READY_TO_EXECUTE:\s*(.+)/s,
+			/LEAGUE_WINS_COUNT_QUERY:\s*(.+)/s,
+			/LEAGUE_WINS_COUNT_READY_TO_EXECUTE:\s*(.+)/s,
+			/TEAM_DATA_QUERY:\s*(.+)/s,
+			/TEAM_DATA_READY_TO_EXECUTE:\s*(.+)/s,
+			/CLUB_TEAM_CONCEDED_QUERY:\s*(.+)/s,
+			/CLUB_TEAM_CONCEDED_READY_TO_EXECUTE:\s*(.+)/s,
+			/HIGHEST_SCORING_GAME_QUERY:\s*(.+)/s,
+			/HIGHEST_SCORING_GAME_READY_TO_EXECUTE:\s*(.+)/s,
+			/BIGGEST_WIN_QUERY:\s*(.+)/s,
+			/BIGGEST_WIN_READY_TO_EXECUTE:\s*(.+)/s,
+			/GAMES_WHERE_SCORED_QUERY:\s*(.+)/s,
+			/GAMES_WHERE_SCORED_READY_TO_EXECUTE:\s*(.+)/s,
+			/CONSECUTIVE_GOAL_INVOLVEMENT_QUERY:\s*(.+)/s,
+			/CONSECUTIVE_GOAL_INVOLVEMENT_READY_TO_EXECUTE:\s*(.+)/s,
+			/PENALTIES_TAKEN_QUERY:\s*(.+)/s,
+			/PENALTIES_TAKEN_READY_TO_EXECUTE:\s*(.+)/s,
+			/MOST_PLAYED_AGAINST_QUERY:\s*(.+)/s,
+			/MOST_PLAYED_AGAINST_READY_TO_EXECUTE:\s*(.+)/s,
+			/PLAYERS_OF_THE_MONTH_QUERY:\s*(.+)/s,
+			/PLAYERS_OF_THE_MONTH_READY_TO_EXECUTE:\s*(.+)/s,
+			/PLAYER_HATTRICKS_QUERY:\s*(.+)/s,
+			/PLAYER_HATTRICKS_READY_TO_EXECUTE:\s*(.+)/s,
+			/TOTW_BY_DATE_QUERY:\s*(.+)/s,
+			/TOTW_BY_DATE_READY_TO_EXECUTE:\s*(.+)/s,
+			/OPPOSITION_STATS_QUERY:\s*(.+)/s,
+			/OPPOSITION_STATS_READY_TO_EXECUTE:\s*(.+)/s,
+			/OPPOSITION_GOALS_QUERY:\s*(.+)/s,
+			/OPPOSITION_GOALS_READY_TO_EXECUTE:\s*(.+)/s,
+			/MOST_PLAYED_WITH_QUERY:\s*(.+)/s,
+			/MOST_PLAYED_WITH_READY_TO_EXECUTE:\s*(.+)/s,
+			/GAMES_PLAYED_TOGETHER_QUERY:\s*(.+)/s,
+			/HATTRICKS_QUERY:\s*(.+)/s,
+			/HATTRICKS_READY_TO_EXECUTE:\s*(.+)/s,
+			/GOAL_SCORING_STREAK_QUERY:\s*(.+)/s,
+			/GOAL_SCORING_STREAK_READY_TO_EXECUTE:\s*(.+)/s,
+			/ASSISTING_RUN_QUERY:\s*(.+)/s,
+			/ASSISTING_RUN_READY_TO_EXECUTE:\s*(.+)/s,
+			/NO_GOAL_INVOLVEMENT_STREAK_QUERY:\s*(.+)/s,
+			/NO_GOAL_INVOLVEMENT_STREAK_READY_TO_EXECUTE:\s*(.+)/s,
+			/HIGHEST_PLAYER_GOALS_IN_GAME_QUERY:\s*(.+)/s,
+			/HIGHEST_PLAYER_GOALS_IN_GAME_READY_TO_EXECUTE:\s*(.+)/s,
+			/UNBEATEN_RUN_QUERY:\s*(.+)/s,
+			/UNBEATEN_RUN_READY_TO_EXECUTE:\s*(.+)/s,
+			/OPPONENTS_QUERY:\s*(.+)/s,
+			/OPPONENTS_READY_TO_EXECUTE:\s*(.+)/s,
+			/MOST_DIFFERENT_TEAMMATES_QUERY:\s*(.+)/s,
+			/MOST_DIFFERENT_TEAMMATES_READY_TO_EXECUTE:\s*(.+)/s,
+			/RELATIONSHIP_MOST_PLAYED_WITH_QUERY:\s*(.+)/s,
+			/RELATIONSHIP_MOST_PLAYED_WITH_READY_TO_EXECUTE:\s*(.+)/s,
+			/GOALS_SCORED_TOGETHER_QUERY:\s*(.+)/s,
+			/GOALS_SCORED_TOGETHER_READY_TO_EXECUTE:\s*(.+)/s,
+			/TEAMMATES_COUNT_QUERY:\s*(.+)/s,
+			/TEAMMATES_COUNT_READY_TO_EXECUTE:\s*(.+)/s,
+			/TEAM_SEASON_MOST_CONCEDED_QUERY:\s*(.+)/s,
+			/TEAM_SEASON_MOST_CONCEDED_READY_TO_EXECUTE:\s*(.+)/s,
+			/PLAYER_HIGHEST_LEAGUE_FINISH_QUERY:\s*(.+)/s,
+			/PLAYER_HIGHEST_LEAGUE_FINISH_READY_TO_EXECUTE:\s*(.+)/s,
+			/CURRENT_SEASON_QUERY:\s*(.+)/s,
+			/CURRENT_SEASON_READY_TO_EXECUTE:\s*(.+)/s,
+			/RANKING_QUERY:\s*(.+)/s,
+			/RANKING_READY_TO_EXECUTE:\s*(.+)/s,
+		];
+
+		for (let i = this.lastExecutedQueries.length - 1; i >= 0; i--) {
+			const entry = this.lastExecutedQueries[i];
+			if (entry && typeof entry === "string") {
+				for (const pattern of queryTypePatterns) {
+					const match = entry.match(pattern);
+					if (match && match[1]) {
+						const query = match[1].trim();
+						// Verify it looks like a Cypher query
+						if (query.includes("MATCH") || query.includes("RETURN")) {
+							return query;
+						}
+					}
+				}
+			}
+		}
+
+		// Priority 4: Look for entries that contain Cypher query keywords (MATCH, RETURN, etc.)
+		// These are typically stored as "TYPE: <query>" or just "<query>"
+		const cypherKeywords = ["MATCH", "RETURN", "WITH", "WHERE"];
+		for (let i = this.lastExecutedQueries.length - 1; i >= 0; i--) {
+			const entry = this.lastExecutedQueries[i];
+			if (entry && typeof entry === "string") {
+				// Skip parameter entries (contain JSON patterns, but allow queries with $params)
+				if (entry.includes("PARAMS:") || (entry.startsWith("{") && entry.includes("}") && !entry.includes("MATCH"))) {
+					continue;
+				}
+				// Check if entry looks like a Cypher query
+				const hasCypherKeywords = cypherKeywords.some(keyword => entry.includes(keyword));
+				if (hasCypherKeywords) {
+					// Extract query from patterns like "TYPE: <query>"
+					const colonIndex = entry.indexOf(":");
+					if (colonIndex > 0 && colonIndex < entry.length - 1) {
+						// Check if it's a type prefix (like "TOTW_DATA:", "TEAM_DATA:", etc.)
+						const prefix = entry.substring(0, colonIndex).trim();
+						// If prefix is all caps or contains underscore, it's likely a type prefix
+						if ((prefix === prefix.toUpperCase() || prefix.includes("_")) && prefix.length > 0) {
+							const query = entry.substring(colonIndex + 1).trim();
+							// Verify it looks like a Cypher query
+							if (query.includes("MATCH") || query.includes("RETURN")) {
+								return query;
+							}
+						}
+					}
+					// If no colon pattern or colon pattern didn't match, check if entry itself is a query
+					// (queries might be stored directly without prefix)
+					if (entry.includes("MATCH") && entry.includes("RETURN")) {
+						return entry.trim();
+					}
+				}
+			}
+		}
+
+		// No query found
+		return undefined;
 	}
 
 	// Enhanced query methods for new relationship properties
@@ -5441,6 +5622,7 @@ export class ChatbotService {
 		
 		console.log(`🔍 [MOST_PLAYED_WITH] COPY-PASTE QUERY FOR MANUAL TESTING:`);
 		console.log(readyToExecuteQuery);
+		this.lastExecutedQueries.push(`MOST_PLAYED_WITH_QUERY: ${query}`);
 		this.lastExecutedQueries.push(`MOST_PLAYED_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
 		try {

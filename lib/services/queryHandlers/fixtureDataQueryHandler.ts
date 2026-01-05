@@ -4,6 +4,7 @@ import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
 import { TeamDataQueryHandler } from "./teamDataQueryHandler";
+import { ChatbotService } from "../chatbotService";
 
 export class FixtureDataQueryHandler {
 	/**
@@ -316,6 +317,23 @@ export class FixtureDataQueryHandler {
 			ORDER BY f.date ASC
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${params.graphLabel}'`)
+				.replace(/\$teamName/g, `'${params.teamName}'`);
+			if (params.startDate && params.endDate) {
+				readyToExecuteQuery = readyToExecuteQuery
+					.replace(/\$startDate/g, `'${params.startDate}'`)
+					.replace(/\$endDate/g, `'${params.endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`FIXTURE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`FIXTURE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Fixture query result count: ${result?.length || 0}`, null, "log");
@@ -447,6 +465,20 @@ export class FixtureDataQueryHandler {
 			       goalDifference
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$team/g, `'${teamName}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			if (result && result.length > 0) {
@@ -483,6 +515,18 @@ export class FixtureDataQueryHandler {
 			ORDER BY f.date DESC
 			LIMIT 50
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
@@ -651,6 +695,20 @@ export class FixtureDataQueryHandler {
 			       totalGoals
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$team/g, `'${teamName}'`)
+				.replace(/\$season/g, `'${season}'`)
+				.replace(/\$normalizedSeason/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Highest scoring game query result count: ${result?.length || 0}`, null, "log");
@@ -731,6 +789,16 @@ export class FixtureDataQueryHandler {
 			       homeOrAway,
 			       result
 		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel });
@@ -813,6 +881,20 @@ export class FixtureDataQueryHandler {
 			ORDER BY hatTrickCount DESC, playerName ASC
 			RETURN playerName, hatTrickCount
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (params.startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${params.startDate}'`);
+			if (params.endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${params.endDate}'`);
+			if (params.year) readyToExecuteQuery = readyToExecuteQuery.replace(/\$year/g, `${params.year}`);
+			if (params.teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${params.teamName}'`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, params);

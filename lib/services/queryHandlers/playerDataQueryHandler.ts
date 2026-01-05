@@ -1393,6 +1393,18 @@ export class PlayerDataQueryHandler {
 			RETURN max(weeklyPoints) as highestWeeklyScore
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WEEKLY_SCORE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WEEKLY_SCORE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			const highestScore = result && result.length > 0 && result[0].highestWeeklyScore !== undefined 
@@ -1424,6 +1436,18 @@ export class PlayerDataQueryHandler {
 				penaltiesScored,
 				penaltiesMissed
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`PENALTIES_TAKEN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PENALTIES_TAKEN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
@@ -1734,6 +1758,22 @@ export class PlayerDataQueryHandler {
 					LIMIT 1
 				`;
 
+				// Push query to chatbotService for extraction (only for first query to avoid duplicates)
+				if (playerWins.length === 0) {
+					try {
+						const chatbotService = ChatbotService.getInstance();
+						const readyToExecuteQuery = playerQuery
+							.replace(/\$graphLabel/g, `'${graphLabel}'`)
+							.replace(/\$playerName/g, `'${playerName}'`)
+							.replace(/\$team/g, `'${mappedTeam}'`)
+							.replace(/\$season/g, `'${season}'`);
+						chatbotService.lastExecutedQueries.push(`LEAGUE_WINS_COUNT_QUERY: ${playerQuery}`);
+						chatbotService.lastExecutedQueries.push(`LEAGUE_WINS_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+					} catch (error) {
+						// Ignore if chatbotService not available
+					}
+				}
+
 				const result = await neo4jService.executeQuery(playerQuery, {
 					graphLabel,
 					playerName,
@@ -1881,6 +1921,18 @@ export class PlayerDataQueryHandler {
 				AND (coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3
 			RETURN count(md) as value
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HATTRICKS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HATTRICKS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });

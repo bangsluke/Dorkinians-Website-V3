@@ -2,6 +2,7 @@ import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnal
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { findMetricByAlias } from "../../config/chatbotMetrics";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 
 export class RankingQueryHandler {
@@ -330,6 +331,21 @@ export class RankingQueryHandler {
 					LIMIT ${maxLimit}
 				`;
 			}
+		}
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const graphLabel = neo4jService.getGraphLabel();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			// Replace other params if they exist
+			if (params.teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${params.teamName}'`);
+			if (params.season) readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${params.season}'`);
+			if (params.minAppearances !== undefined) readyToExecuteQuery = readyToExecuteQuery.replace(/\$minAppearances/g, `${params.minAppearances}`);
+			chatbotService.lastExecutedQueries.push(`RANKING_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`RANKING_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
 		}
 
 		try {

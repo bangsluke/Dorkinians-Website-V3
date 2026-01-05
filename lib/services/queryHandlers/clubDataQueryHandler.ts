@@ -1,6 +1,7 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 export class ClubDataQueryHandler {
 	/**
@@ -35,6 +36,16 @@ export class ClubDataQueryHandler {
 					RETURN team, goalsConceded
 					ORDER BY goalsConceded ${orderDirection}
 				`;
+
+				// Push query to chatbotService for extraction
+				try {
+					const chatbotService = ChatbotService.getInstance();
+					const readyToExecuteQuery = teamConcededQuery.replace(/\$graphLabel/g, `'${graphLabel}'`);
+					chatbotService.lastExecutedQueries.push(`CLUB_TEAM_CONCEDED_QUERY: ${teamConcededQuery}`);
+					chatbotService.lastExecutedQueries.push(`CLUB_TEAM_CONCEDED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				} catch (error) {
+					// Ignore if chatbotService not available
+				}
 
 				const teamConcededResult = await neo4jService.executeQuery(teamConcededQuery, params);
 				loggingService.log(`🔍 Team conceded goals query result:`, teamConcededResult, "log");

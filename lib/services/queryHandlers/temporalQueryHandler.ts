@@ -1,6 +1,7 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 interface ParsedSeasonWeek {
 	season: string;
@@ -235,6 +236,20 @@ export class TemporalQueryHandler {
 			RETURN seasonWeek, season, week, firstDate as date
 			ORDER BY season ASC, week ASC
 		`;
+
+		// Push queries to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteAllFixtures = allFixturesQuery.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			const readyToExecutePlayerPlayed = playerPlayedQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`CONSECUTIVE_WEEKENDS_ALL_FIXTURES: ${allFixturesQuery}`);
+			chatbotService.lastExecutedQueries.push(`CONSECUTIVE_WEEKENDS_PLAYER_PLAYED: ${playerPlayedQuery}`);
+			chatbotService.lastExecutedQueries.push(`CONSECUTIVE_WEEKENDS_READY_TO_EXECUTE: ${readyToExecutePlayerPlayed}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			// Get all weekends with fixtures
@@ -726,6 +741,18 @@ export class TemporalQueryHandler {
 			ORDER BY md.date ASC
 		`;
 
+		// Push queries to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteCleanSheets = cleanSheetsQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_STREAK_QUERY: ${cleanSheetsQuery}`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_STREAK_READY_TO_EXECUTE: ${readyToExecuteCleanSheets}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
@@ -844,6 +871,18 @@ export class TemporalQueryHandler {
 			RETURN md.date as date, md.goals as goals, md.penaltiesScored as penaltiesScored, md.assists as assists, md.team as team, md.opposition as opposition
 			ORDER BY md.date ASC
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = goalInvolvementQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`CONSECUTIVE_GOAL_INVOLVEMENT_QUERY: ${goalInvolvementQuery}`);
+			chatbotService.lastExecutedQueries.push(`CONSECUTIVE_GOAL_INVOLVEMENT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			// Get all games the player played
@@ -985,6 +1024,18 @@ export class TemporalQueryHandler {
 			ORDER BY md.date ASC
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = goalScoringQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GOAL_SCORING_STREAK_QUERY: ${goalScoringQuery}`);
+			chatbotService.lastExecutedQueries.push(`GOAL_SCORING_STREAK_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
@@ -1125,6 +1176,18 @@ export class TemporalQueryHandler {
 			ORDER BY md.date ASC
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = assistingQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`ASSISTING_RUN_QUERY: ${assistingQuery}`);
+			chatbotService.lastExecutedQueries.push(`ASSISTING_RUN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			// Get all games the player played
 			const allGamesResult = await neo4jService.executeQuery(allGamesQuery, { graphLabel, playerName });
@@ -1263,6 +1326,18 @@ export class TemporalQueryHandler {
 			RETURN md.date as date
 			ORDER BY md.date ASC
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = goalInvolvementQuery
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`NO_GOAL_INVOLVEMENT_STREAK_QUERY: ${goalInvolvementQuery}`);
+			chatbotService.lastExecutedQueries.push(`NO_GOAL_INVOLVEMENT_STREAK_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			// Get all games the player played with full data

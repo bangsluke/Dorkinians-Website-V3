@@ -3,6 +3,7 @@ import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 export class TeamDataQueryHandler {
 	/**
@@ -275,6 +276,22 @@ export class TeamDataQueryHandler {
 			`;
 		}
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query;
+			// Replace parameters with actual values
+			Object.keys(params).forEach(key => {
+				const value = params[key];
+				const replacement = typeof value === 'string' ? `'${value}'` : String(value);
+				readyToExecuteQuery = readyToExecuteQuery.replace(new RegExp(`\\$${key}`, 'g'), replacement);
+			});
+			chatbotService.lastExecutedQueries.push(`TEAM_DATA_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TEAM_DATA_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Team data query result:`, result, "log");
@@ -425,6 +442,20 @@ export class TeamDataQueryHandler {
 			ORDER BY f.date ASC
 			RETURN f.date as date, f.result as result
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$teamName/g, `'${teamName}'`)
+				.replace(/\$startDate/g, `'${startDate}'`)
+				.replace(/\$endDate/g, `'${endDate}'`);
+			chatbotService.lastExecutedQueries.push(`UNBEATEN_RUN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`UNBEATEN_RUN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, {
