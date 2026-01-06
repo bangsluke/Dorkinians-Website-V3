@@ -3,6 +3,7 @@ import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 export class TeamDataQueryHandler {
 	/**
@@ -102,7 +103,10 @@ export class TeamDataQueryHandler {
 		const isOpenPlayGoals = question.includes("open play") || 
 		                        question.includes("openplay") ||
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
-		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
+		// Check for goals scored - include both "scored" (past tense) and "score" (infinitive/present) to handle normalized colloquial terms
+		// Also check if detectedMetric is "G" (goals) - this indicates a goals query even if detectedMetric is set
+		const hasGoalsInQuestion = question.includes("scored") || question.includes("score") || question.includes("goals");
+		const isGoalsScored = (!detectedMetric || detectedMetric === "G") && hasGoalsInQuestion && !isGoalsConceded;
 		
 		// Check if this is a team goals query (team goals, not player goals)
 		// This happens when asking "How many goals did the 2nd team score during the 2017/18 season?"
@@ -112,12 +116,61 @@ export class TeamDataQueryHandler {
 		const timeRange = analysis.timeRange;
 		const timeFrames = analysis.extractionResult?.timeFrames || [];
 		
+		// Check for "last season" in question (handle typo "least season" as well)
+		const isLastSeasonQuery = question.includes("last season") || question.includes("least season");
+		
 		// Extract season from timeFrames or question
 		let season: string | null = null;
 		const seasonFrame = timeFrames.find(tf => tf.type === "season");
-		if (seasonFrame) {
+		// If seasonFrame exists but value is just "season" (literal), treat as unresolved and try to resolve "last season"
+		if (seasonFrame && seasonFrame.value && seasonFrame.value.toLowerCase() !== "season") {
 			season = seasonFrame.value;
 			season = season.replace("-", "/");
+		} else if (isLastSeasonQuery || (seasonFrame && seasonFrame.value && seasonFrame.value.toLowerCase() === "season")) {
+			// Query database to get current season and calculate last season
+			const graphLabel = neo4jService.getGraphLabel();
+			try {
+				const currentSeasonQuery = `
+					MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+					RETURN sd.currentSeason as currentSeason
+					LIMIT 1
+				`;
+				const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+				if (seasonResult && seasonResult.length > 0 && seasonResult[0].currentSeason) {
+					const currentSeason = seasonResult[0].currentSeason;
+					// Calculate last season (previous season)
+					// Format is YYYY/YY, e.g., 2024/25 -> 2023/24
+					const seasonMatch = currentSeason.match(/(\d{4})\/(\d{2})/);
+					if (seasonMatch) {
+						const startYear = parseInt(seasonMatch[1], 10);
+						const endYearShort = parseInt(seasonMatch[2], 10);
+						// Last season is one year before
+						const lastStartYear = startYear - 1;
+						const lastEndYearShort = endYearShort - 1;
+						// Handle year rollover (e.g., 2024/25 -> 2023/24, not 2023/24)
+						season = `${lastStartYear}/${String(lastEndYearShort).padStart(2, '0')}`;
+						loggingService.log(`🔍 Resolved "last season" to: ${season} (current: ${currentSeason})`, null, "log");
+					} else {
+						// Fallback: try to get most recent season from fixtures
+						const recentSeasonQuery = `
+							MATCH (f:Fixture {graphLabel: $graphLabel})
+							WHERE f.season IS NOT NULL AND f.season <> ''
+							WITH DISTINCT f.season as season
+							ORDER BY f.season DESC
+							LIMIT 2
+							RETURN collect(season) as seasons
+						`;
+						const recentResult = await neo4jService.executeQuery(recentSeasonQuery, { graphLabel });
+						if (recentResult && recentResult.length > 0 && recentResult[0].seasons && recentResult[0].seasons.length >= 2) {
+							// Second most recent season is "last season"
+							season = recentResult[0].seasons[1];
+							loggingService.log(`🔍 Resolved "last season" from fixtures: ${season}`, null, "log");
+						}
+					}
+				}
+			} catch (error) {
+				loggingService.log(`⚠️ Error resolving last season:`, error, "warn");
+			}
 		} else {
 			const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
 			if (seasonMatch) {
@@ -235,8 +288,19 @@ export class TeamDataQueryHandler {
 		}
 
 		// Build query based on what metric is being asked about
+		// Priority: Team goals query with season takes precedence over detectedMetric branch
 		let query = "";
-		if (detectedMetric && metricField) {
+		if (isTeamGoalsQuery && season) {
+			// Team goals query for a specific season - query Fixture nodes directly
+			query = `
+				MATCH (f:Fixture {graphLabel: $graphLabel, team: $teamName})
+				WHERE (f.season = $season OR f.season = $normalizedSeason)
+				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+				RETURN 
+					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
+					count(f) as gamesPlayed
+			`;
+		} else if (detectedMetric && metricField) {
 			if (metricField === "appearances") {
 				query = `
 					MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md:MatchDetail {graphLabel: $graphLabel})
@@ -254,16 +318,6 @@ export class TeamDataQueryHandler {
 						count(DISTINCT f) as gamesPlayed
 				`;
 			}
-		} else if (isTeamGoalsQuery && season) {
-			// Team goals query for a specific season - query Fixture nodes directly
-			query = `
-				MATCH (f:Fixture {graphLabel: $graphLabel, team: $teamName})
-				WHERE (f.season = $season OR f.season = $normalizedSeason)
-				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
-				RETURN 
-					coalesce(sum(f.dorkiniansGoals), 0) as goalsScored,
-					count(f) as gamesPlayed
-			`;
 		} else {
 			query = `
 				MATCH (f:Fixture {graphLabel: $graphLabel})
@@ -275,13 +329,42 @@ export class TeamDataQueryHandler {
 			`;
 		}
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query;
+			// Replace parameters with actual values
+			Object.keys(params).forEach(key => {
+				const value = params[key];
+				const replacement = typeof value === 'string' ? `'${value}'` : String(value);
+				readyToExecuteQuery = readyToExecuteQuery.replace(new RegExp(`\\$${key}`, 'g'), replacement);
+			});
+			chatbotService.lastExecutedQueries.push(`TEAM_DATA_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TEAM_DATA_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Team data query result:`, result, "log");
 
 			if (result && result.length > 0) {
 				const teamStats = result[0];
-				if (detectedMetric && metricField) {
+				// Priority: Team goals query with season takes precedence over detectedMetric branch
+				if (isTeamGoalsQuery && season) {
+					// Return team goals for specific season
+					return {
+						type: "team_stats",
+						teamName,
+						goalsScored: teamStats.goalsScored || 0,
+						gamesPlayed: teamStats.gamesPlayed || 0,
+						isGoalsScored: true,
+						isOpenPlayGoals: false, // Team goals are always total goals, not just open play
+						season: season,
+						isLastSeason: isLastSeasonQuery, // Flag to indicate "last season" query for response generation
+					};
+				} else if (detectedMetric && metricField) {
 					return {
 						type: "team_stats",
 						teamName,
@@ -292,16 +375,6 @@ export class TeamDataQueryHandler {
 						season: season || undefined,
 						startDate: startDate || undefined,
 						endDate: endDate || undefined,
-					};
-				} else if (isTeamGoalsQuery && season) {
-					// Return team goals for specific season
-					return {
-						type: "team_stats",
-						teamName,
-						goalsScored: teamStats.goalsScored || 0,
-						gamesPlayed: teamStats.gamesPlayed || 0,
-						isGoalsScored: true,
-						season: season,
 					};
 				} else {
 					return {
@@ -317,7 +390,18 @@ export class TeamDataQueryHandler {
 				}
 			}
 
-			if (detectedMetric && metricField) {
+			if (isTeamGoalsQuery && season) {
+				return { 
+					type: "team_stats", 
+					teamName, 
+					goalsScored: 0, 
+					gamesPlayed: 0, 
+					isGoalsScored: true,
+					isOpenPlayGoals: false, // Team goals are always total goals, not just open play
+					season: season,
+					isLastSeason: isLastSeasonQuery, // Flag to indicate "last season" query for response generation
+				};
+			} else if (detectedMetric && metricField) {
 				return { 
 					type: "team_stats", 
 					teamName, 
@@ -336,7 +420,9 @@ export class TeamDataQueryHandler {
 					goalsScored: 0, 
 					gamesPlayed: 0, 
 					isGoalsScored: true,
+					isOpenPlayGoals: false, // Team goals are always total goals, not just open play
 					season: season,
+					isLastSeason: isLastSeasonQuery, // Flag to indicate "last season" query for response generation
 				};
 			} else {
 				return { type: "team_stats", teamName, goalsScored: 0, goalsConceded: 0, gamesPlayed: 0, isGoalsScored, isGoalsConceded, isOpenPlayGoals };
@@ -425,6 +511,20 @@ export class TeamDataQueryHandler {
 			ORDER BY f.date ASC
 			RETURN f.date as date, f.result as result
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$teamName/g, `'${teamName}'`)
+				.replace(/\$startDate/g, `'${startDate}'`)
+				.replace(/\$endDate/g, `'${endDate}'`);
+			chatbotService.lastExecutedQueries.push(`UNBEATEN_RUN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`UNBEATEN_RUN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, {

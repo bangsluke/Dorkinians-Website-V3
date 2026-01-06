@@ -180,6 +180,19 @@ export async function getCurrentSeasonDataFromNeo4j(teamName?: string): Promise<
 			ORDER BY teamName
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const { ChatbotService } = await import("./chatbotService");
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${currentSeason}'`);
+			if (teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			chatbotService.lastExecutedQueries.push(`CURRENT_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CURRENT_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		const result = await neo4jService.runQuery(query, params);
 
 		if (result.records.length === 0) {
@@ -436,6 +449,19 @@ export async function getPlayerHighestLeagueFinish(playerName: string): Promise<
 			RETURN team, season
 			ORDER BY season DESC, team
 		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const { ChatbotService } = await import("./chatbotService");
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HIGHEST_LEAGUE_FINISH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HIGHEST_LEAGUE_FINISH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		const result = await neo4jService.runQuery(query, { graphLabel, playerName });
 		

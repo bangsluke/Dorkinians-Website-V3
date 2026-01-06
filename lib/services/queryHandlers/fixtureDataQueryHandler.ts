@@ -4,6 +4,7 @@ import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
 import { TeamDataQueryHandler } from "./teamDataQueryHandler";
+import { ChatbotService } from "../chatbotService";
 
 export class FixtureDataQueryHandler {
 	/**
@@ -316,6 +317,23 @@ export class FixtureDataQueryHandler {
 			ORDER BY f.date ASC
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${params.graphLabel}'`)
+				.replace(/\$teamName/g, `'${params.teamName}'`);
+			if (params.startDate && params.endDate) {
+				readyToExecuteQuery = readyToExecuteQuery
+					.replace(/\$startDate/g, `'${params.startDate}'`)
+					.replace(/\$endDate/g, `'${params.endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`FIXTURE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`FIXTURE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Fixture query result count: ${result?.length || 0}`, null, "log");
@@ -447,6 +465,20 @@ export class FixtureDataQueryHandler {
 			       goalDifference
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$team/g, `'${teamName}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			if (result && result.length > 0) {
@@ -484,11 +516,103 @@ export class FixtureDataQueryHandler {
 			LIMIT 50
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			return { type: "games_where_scored", data: result, playerName };
 		} catch (error) {
 			loggingService.log(`❌ Error in queryGamesWherePlayerScored:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query games where player scored and team won by exactly one goal
+	 */
+	static async queryGamesWherePlayerScoredAndWonByOneGoal(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.result = 'W'
+			  AND f.dorkiniansGoals IS NOT NULL
+			  AND f.conceded IS NOT NULL
+			  AND f.dorkiniansGoals - f.conceded = 1
+			  AND (md.goals > 0 OR md.penaltiesScored > 0)
+			RETURN count(DISTINCT f) as gameCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const gameCount = result && result.length > 0 ? (result[0].gameCount || 0) : 0;
+			return { type: "games_scored_won_by_one", data: [{ gameCount }], playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerScoredAndWonByOneGoal:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query games where player played and team scored zero goals
+	 */
+	static async queryGamesWherePlayerPlayedAndTeamScoredZero(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.dorkiniansGoals = 0
+			RETURN count(DISTINCT f) as gameCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_ZERO_GOALS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_ZERO_GOALS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const gameCount = result && result.length > 0 ? (result[0].gameCount || 0) : 0;
+			return { type: "number_card", data: [{ value: gameCount }], playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerPlayedAndTeamScoredZero:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
@@ -651,6 +775,20 @@ export class FixtureDataQueryHandler {
 			       totalGoals
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$team/g, `'${teamName}'`)
+				.replace(/\$season/g, `'${season}'`)
+				.replace(/\$normalizedSeason/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Highest scoring game query result count: ${result?.length || 0}`, null, "log");
@@ -732,6 +870,16 @@ export class FixtureDataQueryHandler {
 			       result
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel });
 			loggingService.log(`🔍 Highest individual player goals query result count: ${result?.length || 0}`, null, "log");
@@ -753,6 +901,84 @@ export class FixtureDataQueryHandler {
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in queryHighestPlayerGoalsInGame:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
+	 * Query highest team goals in games where a specific player was playing
+	 * Returns the fixture with highest dorkiniansGoals where the player participated
+	 */
+	static async queryHighestTeamGoalsInPlayerGames(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		loggingService.log(`🔍 Querying highest team goals in games where ${playerName} was playing`, null, "log");
+		
+		// Build query to find fixture with highest dorkiniansGoals where player participated
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.dorkiniansGoals IS NOT NULL
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded
+			ORDER BY f.dorkiniansGoals DESC, f.date DESC
+			LIMIT 1
+		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			loggingService.log(`🔍 Highest team goals in player games query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No fixtures found for ${playerName}`, null, "warn");
+				return {
+					type: "highest_team_goals_in_player_game",
+					playerName,
+					data: null,
+					message: `No games found where ${playerName} was playing.`,
+				};
+			}
+			
+			const game = result[0];
+			loggingService.log(`✅ Found highest team goals game for ${playerName}: ${game.dorkiniansGoals} goals`, null, "log");
+			
+			return {
+				type: "highest_team_goals_in_player_game",
+				playerName,
+				data: {
+					date: game.date,
+					opposition: game.opposition,
+					homeOrAway: game.homeOrAway,
+					result: game.result,
+					dorkiniansGoals: game.dorkiniansGoals,
+					conceded: game.conceded,
+				},
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestTeamGoalsInPlayerGames:`, error, "error");
 			return {
 				type: "error",
 				data: [],
@@ -813,6 +1039,20 @@ export class FixtureDataQueryHandler {
 			ORDER BY hatTrickCount DESC, playerName ASC
 			RETURN playerName, hatTrickCount
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (params.startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${params.startDate}'`);
+			if (params.endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${params.endDate}'`);
+			if (params.year) readyToExecuteQuery = readyToExecuteQuery.replace(/\$year/g, `${params.year}`);
+			if (params.teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${params.teamName}'`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, params);

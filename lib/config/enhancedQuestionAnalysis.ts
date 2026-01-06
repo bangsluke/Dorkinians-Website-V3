@@ -2096,6 +2096,10 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern8 = /(?:how\s+many\s+times|times)\s+has\s+.*?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 9: direct "played/playing/appeared for Xs"
 		const teamAppearancePattern9 = /(played|playing|appeared|appearing)\s+(?:.*?\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 10: "done for Xs" or "games done for Xs"
+		const teamAppearancePattern10 = /(?:games?|appearances?|apps?)?\s*(?:have\s+)?(?:i\s+)?done\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 11: "made for Xs" (similar to done)
+		const teamAppearancePattern11 = /(?:games?|appearances?|apps?)?\s*(?:have\s+)?(?:i\s+)?made\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 
 		let match = lowerQuestion.match(teamAppearancePattern1);
 		let teamReference: string | undefined;
@@ -2145,6 +2149,18 @@ export class EnhancedQuestionAnalyzer {
 										if (match) {
 											teamReference = match[2].toLowerCase();
 											appearanceTerm = match[1];
+										} else {
+											match = lowerQuestion.match(teamAppearancePattern10);
+											if (match) {
+												teamReference = match[1].toLowerCase();
+												appearanceTerm = "games done";
+											} else {
+												match = lowerQuestion.match(teamAppearancePattern11);
+												if (match) {
+													teamReference = match[1].toLowerCase();
+													appearanceTerm = "games made";
+												}
+											}
 										}
 									}
 								}

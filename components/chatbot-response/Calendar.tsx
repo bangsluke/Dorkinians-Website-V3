@@ -41,6 +41,7 @@ interface WeekBasedData {
 	streakDates?: string[]; // Actual dates from streak sequence for precise matching
 	streakType?: string; // Streak type for styling (e.g., "longest_no_goal_involvement" for red styling)
 	showGoalInvolvements?: boolean; // Whether to show goal involvements vs apps
+	contributionLabel?: string; // Label for the contribution metric (e.g., "Goal Involvements", "Goals", "Assists")
 }
 
 interface WeekData {
@@ -56,6 +57,7 @@ interface WeekData {
 	goalInvolvements?: number; // Goal involvement count for this week
 	showGoalInvolvements?: boolean; // Whether to show goal involvements vs apps
 	isPlayed?: boolean; // Whether player played in this week (for negative streak styling)
+	contributionLabel?: string; // Label for the contribution metric (e.g., "Goal Involvements", "Goals", "Assists")
 }
 
 interface MonthLabel {
@@ -135,10 +137,11 @@ function Tooltip({ week, show, position }: TooltipProps) {
 	if (!week.hasFixtures) {
 		tooltipText = "No fixtures on this week";
 	} else if (week.showGoalInvolvements) {
-		// For goal involvement questions, show apps first, then goal involvements
+		// For goal involvement/goal scoring/assisting questions, show apps first, then contribution metric
 		const goalInvolvements = week.goalInvolvements !== undefined ? week.goalInvolvements : 0;
+		const contributionLabel = week.contributionLabel || "Goal Involvements"; // Default to "Goal Involvements" for backward compatibility
 		tooltipText = `Apps: ${week.gameCount || 0}`;
-		tooltipSecondaryText = `Goal Involvements: ${goalInvolvements}`;
+		tooltipSecondaryText = `${contributionLabel}: ${goalInvolvements}`;
 	} else {
 		tooltipText = `Apps: ${week.value}`;
 	}
@@ -359,6 +362,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 		let streakDates: string[] = []; // Extract streakDates from weekBasedData if available
 		let streakType: string | undefined = undefined; // Extract streakType for styling
 		let showGoalInvolvements: boolean = false; // Whether to show goal involvements vs apps
+		let contributionLabel: string | undefined = undefined; // Label for contribution metric
 
 		// Check for new week-based format
 		if (
@@ -374,6 +378,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 			streakDates = weekBasedData?.streakDates || [];
 			streakType = weekBasedData?.streakType;
 			showGoalInvolvements = weekBasedData?.showGoalInvolvements || false;
+			contributionLabel = weekBasedData?.contributionLabel;
 
 		// Determine date range from weeks
 		const weeks = weekBasedData.weeks;
@@ -690,6 +695,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 				goalInvolvements: goalInvolvements,
 				showGoalInvolvements: showGoalInvolvements,
 				isPlayed: isPlayed,
+				contributionLabel: contributionLabel,
 			});
 		}
 
