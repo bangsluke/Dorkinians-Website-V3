@@ -533,6 +533,14 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
+			// Check if this is a clean sheets question
+			const hasCleanSheets = questionLower.includes("clean sheet") || questionLower.includes("clean sheets");
+			
+			if (hasCleanSheets) {
+				loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryCleanSheetsPlayedTogether`, null, "log");
+				return await RelationshipQueryHandler.queryCleanSheetsPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+			}
+			
 			loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGamesPlayedTogether`, null, "log");
 			return await RelationshipQueryHandler.queryGamesPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
 		}

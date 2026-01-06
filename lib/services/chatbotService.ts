@@ -2861,6 +2861,68 @@ export class ChatbotService {
 				answer = `${playerName1} and ${playerName2} have played together ${gamesTogether} ${gamesTogether === 1 ? "time" : "times"}${contextMessage}.`;
 				answerValue = gamesTogether;
 			}
+		} else if (data && data.type === "clean_sheets_played_together") {
+			// Handle clean sheets played together data (specific player pair)
+			console.log(`🔍 [RESPONSE_GEN] clean_sheets_played_together data:`, data);
+			console.log(`🔍 [RESPONSE_GEN] data.data:`, data.data, `Type:`, typeof data.data);
+			
+			const playerName1 = data.playerName1 as string;
+			const playerName2 = data.playerName2 as string;
+			const teamName = (data.teamName as string) || undefined;
+			const season = (data.season as string) || undefined;
+			const startDate = (data.startDate as string) || undefined;
+			const endDate = (data.endDate as string) || undefined;
+			
+			let cleanSheetsTogether = 0;
+			if (typeof data.data === "number") {
+				cleanSheetsTogether = data.data;
+				console.log(`🔍 [RESPONSE_GEN] Extracted number directly:`, cleanSheetsTogether);
+			} else if (data.data !== null && data.data !== undefined) {
+				if (typeof data.data === "object") {
+					// Handle Neo4j Integer objects
+					if ("toNumber" in data.data && typeof data.data.toNumber === "function") {
+						cleanSheetsTogether = (data.data as { toNumber: () => number }).toNumber();
+						console.log(`🔍 [RESPONSE_GEN] Extracted via toNumber():`, cleanSheetsTogether);
+					} else if ("low" in data.data && "high" in data.data) {
+						const neo4jInt = data.data as { low?: number; high?: number };
+						cleanSheetsTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via low/high:`, cleanSheetsTogether);
+					} else {
+						cleanSheetsTogether = Number(data.data) || 0;
+						console.log(`🔍 [RESPONSE_GEN] Extracted via Number():`, cleanSheetsTogether);
+					}
+				} else {
+					cleanSheetsTogether = Number(data.data) || 0;
+					console.log(`🔍 [RESPONSE_GEN] Extracted via Number() (non-object):`, cleanSheetsTogether);
+				}
+			}
+
+			if (cleanSheetsTogether === 0) {
+				let contextMessage = "";
+				if (teamName) {
+					contextMessage = ` for the ${teamName}`;
+				}
+				if (season) {
+					contextMessage += season ? ` in ${season}` : "";
+				}
+				if (startDate && endDate) {
+					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+				}
+				answer = `No clean sheets occurred in games where ${playerName1} played with ${playerName2}${contextMessage}.`;
+			} else {
+				let contextMessage = "";
+				if (teamName) {
+					contextMessage = ` for the ${teamName}`;
+				}
+				if (season) {
+					contextMessage += season ? ` in ${season}` : "";
+				}
+				if (startDate && endDate) {
+					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+				}
+				answer = `${cleanSheetsTogether} clean sheet${cleanSheetsTogether === 1 ? "" : "s"} occurred in game${cleanSheetsTogether === 1 ? "" : "s"} where ${playerName1} played with ${playerName2}${contextMessage}.`;
+				answerValue = cleanSheetsTogether;
+			}
 		} else if (data && data.type === "goals_scored_together") {
 			// Handle goals scored together data (specific player pair)
 			console.log(`🔍 [RESPONSE_GEN] goals_scored_together data:`, data);

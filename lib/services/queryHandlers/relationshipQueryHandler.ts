@@ -642,6 +642,138 @@ export class RelationshipQueryHandler {
 	}
 
 	/**
+	 * Query clean sheets (games with 0 conceded) where two specific players played together
+	 */
+	static async queryCleanSheetsPlayedTogether(
+		playerName1: string,
+		playerName2: string,
+		teamName?: string,
+		season?: string | null,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<Record<string, unknown>> {
+		const timeContext = [
+			teamName ? `team: ${teamName}` : null,
+			season ? `season: ${season}` : null,
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+		].filter(Boolean).join(", ");
+		
+		loggingService.log(`🔍 Querying clean sheets played together for players: ${playerName1} and ${playerName2}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const whereConditions: string[] = [
+			"p1.playerName = $playerName1",
+			"p2.playerName = $playerName2",
+			"p1 <> p2",
+			"coalesce(f.conceded, 0) = 0"
+		];
+		
+		if (teamName) {
+			whereConditions.push("md1.team = $teamName", "md2.team = $teamName");
+		}
+		
+		if (season) {
+			whereConditions.push("f.season = $season");
+		}
+		
+		if (startDate && endDate) {
+			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
+		}
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel, playerName: $playerName1})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel, playerName: $playerName2})-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
+			WHERE ${whereConditions.join(" AND ")}
+			RETURN count(DISTINCT f) as cleanSheetsTogether
+		`;
+		
+		const queryParams: Record<string, string> = {
+			playerName1,
+			playerName2,
+			graphLabel
+		};
+		if (teamName) {
+			queryParams.teamName = teamName;
+		}
+		if (season) {
+			queryParams.season = season;
+		}
+		if (startDate && endDate) {
+			queryParams.startDate = startDate;
+			queryParams.endDate = endDate;
+		}
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$playerName1/g, `'${playerName1}'`)
+				.replace(/\$playerName2/g, `'${playerName2}'`)
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			}
+			if (season) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			}
+			if (startDate && endDate) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`).replace(/\$endDate/g, `'${endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_PLAYED_TOGETHER_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_PLAYED_TOGETHER_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Extract the count from the result
+			let cleanSheetsTogether = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "cleanSheetsTogether" in record) {
+					let count = record.cleanSheetsTogether;
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							cleanSheetsTogether = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								cleanSheetsTogether = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								cleanSheetsTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								cleanSheetsTogether = Number(count) || 0;
+							}
+						} else {
+							cleanSheetsTogether = Number(count) || 0;
+						}
+					}
+				}
+			}
+			
+			return {
+				type: "clean_sheets_played_together",
+				data: cleanSheetsTogether,
+				playerName1,
+				playerName2,
+				teamName,
+				season,
+				startDate,
+				endDate
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in clean sheets played together query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying clean sheets played together data" };
+		}
+	}
+
+	/**
 	 * Query goals scored together for two specific players (sum of goals + penaltiesScored from both players in fixtures where they played together)
 	 */
 	static async queryGoalsScoredTogether(
