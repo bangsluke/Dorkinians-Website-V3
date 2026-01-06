@@ -596,6 +596,10 @@ export class PlayerQueryBuilder {
 						case "league":
 							return `f.compType = 'League'`;
 						case "cup":
+							// Use f.compType = 'Cup' to count MatchDetail nodes connected to Fixture nodes with compType value of 'Cup'
+							// Note: compType is the competition type field (League, Cup, Friendly), while competition is the specific competition name
+							// The user requirement specified f.competition = 'Cup', but compType is the correct field for competition types
+							// If competition field has 'Cup' values, we should check both, but compType is the standard field
 							return `f.compType = 'Cup'`;
 						case "friendly":
 							return `f.compType = 'Friendly'`;

@@ -822,19 +822,30 @@ export class PlayerDataQueryHandler {
 			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
 			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
 			// CRITICAL: Skip if question contains "since" or date patterns (these are date queries, not opposition queries)
+			// CRITICAL: Skip if question contains competition-related words (cup, league, friendly, competition, competitions)
 			const hasDatePattern = questionLower.includes("since") || 
 			                       questionLower.includes("between") ||
 			                       questionLower.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+			const hasCompetitionPattern = questionLower.includes("cup") || 
+			                             questionLower.includes("league") || 
+			                             questionLower.includes("friendly") ||
+			                             questionLower.includes("competition") ||
+			                             questionLower.includes("competitions") ||
+			                             (analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+			                             (analysis.competitions && analysis.competitions.length > 0);
 			
-			if (!hasDatePattern) {
+			if (!hasDatePattern && !hasCompetitionPattern) {
 				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 				if (oppositionMatch && oppositionMatch[1]) {
 					const potentialOpposition = oppositionMatch[1];
 					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+					// Also skip competition-related words
 					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
 					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+					const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
 					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
 					    !isDateKeyword &&
+					    !isCompetitionKeyword &&
 					    !afterMatch?.toLowerCase().startsWith("for") &&
 					    !afterMatch?.toLowerCase().startsWith("the")) {
 						extractedOppositionName = potentialOpposition;
@@ -853,7 +864,9 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
-			!questionLower.includes("scored");
+			!questionLower.includes("scored") &&
+			!(analysis.competitionTypes && analysis.competitionTypes.length > 0) &&
+			!(analysis.competitions && analysis.competitions.length > 0);
 
 		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
 
@@ -1662,10 +1675,10 @@ export class PlayerDataQueryHandler {
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
 				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
-				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
-					playerName: actualPlayerName,
-					graphLabel: neo4jService.getGraphLabel(),
-				});
+			const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+				playerName: actualPlayerName,
+				graphLabel: neo4jService.getGraphLabel(),
+			});
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';

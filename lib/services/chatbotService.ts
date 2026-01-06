@@ -2520,9 +2520,10 @@ export class ChatbotService {
 			const oppositionName = (data.oppositionName as string) || "";
 			const appearances = (data.appearances as number) || 0;
 			
-			// If oppositionName is empty or looks like a date keyword, this was incorrectly routed
+			// If oppositionName is empty or looks like a date/competition keyword, this was incorrectly routed
 			// Fall back to regular appearance query handling
-			if (!oppositionName || oppositionName.trim() === "" || ["since", "before", "after", "until", "from"].includes(oppositionName.toLowerCase())) {
+			const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(oppositionName.toLowerCase());
+			if (!oppositionName || oppositionName.trim() === "" || ["since", "before", "after", "until", "from"].includes(oppositionName.toLowerCase()) || isCompetitionKeyword) {
 				// This should have been a regular appearance query, not opposition
 				// Re-route to specific_player handling
 				const metric = analysis.metrics[0] || "APP";
@@ -4732,6 +4733,16 @@ export class ChatbotService {
 							} else {
 								answer = `${playerName} scored the most goals in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
 							}
+							
+							// Extract full season format from answer text if seasonString is still incomplete
+							// This handles cases where database returns just "2018" instead of "2018/19"
+							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
+								if (seasonMatch) {
+									seasonString = seasonMatch[1];
+								}
+							}
+							
 							// Set answerValue to season string only (e.g., "2018/19") for test report validation
 							answerValue = seasonString;
 							
@@ -4832,9 +4843,32 @@ export class ChatbotService {
 							// Find the season with the most minutes
 							const mostMinutesSeason = transformedData.reduce((max, item) => (item.minutes > max.minutes ? item : max), transformedData[0]);
 							
-							answer = `${playerName} played the most minutes in ${mostMinutesSeason.season} (${mostMinutesSeason.minutes} ${mostMinutesSeason.minutes === 1 ? "minute" : "minutes"}).`;
+							// Normalize season format (handle both "2018/19" and "2018-19")
+							let seasonString = mostMinutesSeason.season;
+							if (seasonString) {
+								// If season is just a year, try to construct the full season string
+								if (/^\d{4}$/.test(seasonString)) {
+									const year = parseInt(seasonString, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									seasonString = `${year}/${nextYear}`;
+								}
+								// Normalize season format (handle both "2018/19" and "2018-19")
+								seasonString = seasonString.replace(/-/g, "/");
+							}
+							
+							answer = `${playerName} played the most minutes in ${seasonString} (${mostMinutesSeason.minutes} ${mostMinutesSeason.minutes === 1 ? "minute" : "minutes"}).`;
+							
+							// Extract full season format from answer text if seasonString is still incomplete
+							// This handles cases where database returns just "2017" instead of "2017/18"
+							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
+								if (seasonMatch) {
+									seasonString = seasonMatch[1];
+								}
+							}
+							
 							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = mostMinutesSeason.season;
+							answerValue = seasonString;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -4891,9 +4925,32 @@ export class ChatbotService {
 							// Find the season with the highest total (goals + penaltiesScored + assists)
 							const highestSeason = transformedData.reduce((max, item) => (item.total > max.total ? item : max), transformedData[0]);
 							
-							answer = `${playerName} recorded the highest combined goals + assists total in ${highestSeason.season} (${highestSeason.total} total: ${highestSeason.goals} ${highestSeason.goals === 1 ? "goal" : "goals"}, ${highestSeason.penaltiesScored} ${highestSeason.penaltiesScored === 1 ? "penalty" : "penalties"}, ${highestSeason.assists} ${highestSeason.assists === 1 ? "assist" : "assists"}).`;
+							// Normalize season format (handle both "2018/19" and "2018-19")
+							let seasonString = highestSeason.season;
+							if (seasonString) {
+								// If season is just a year, try to construct the full season string
+								if (/^\d{4}$/.test(seasonString)) {
+									const year = parseInt(seasonString, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									seasonString = `${year}/${nextYear}`;
+								}
+								// Normalize season format (handle both "2018/19" and "2018-19")
+								seasonString = seasonString.replace(/-/g, "/");
+							}
+							
+							answer = `${playerName} recorded the highest combined goals + assists total in ${seasonString} (${highestSeason.total} total: ${highestSeason.goals} ${highestSeason.goals === 1 ? "goal" : "goals"}, ${highestSeason.penaltiesScored} ${highestSeason.penaltiesScored === 1 ? "penalty" : "penalties"}, ${highestSeason.assists} ${highestSeason.assists === 1 ? "assist" : "assists"}).`;
+							
+							// Extract full season format from answer text if seasonString is still incomplete
+							// This handles cases where database returns just "2016" instead of "2016/17"
+							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
+								if (seasonMatch) {
+									seasonString = seasonMatch[1];
+								}
+							}
+							
 							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = highestSeason.season;
+							answerValue = seasonString;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -5311,6 +5368,13 @@ export class ChatbotService {
 									// Join parts and add period
 									answer = answerParts.join(" ") + ".";
 								}
+							} else if (hasCompetitionTypeFilter && metric && metric.toUpperCase() === "APP") {
+								// Custom answer format for games/appearances with competition type: "Luke Bangs has played 4 games in cup competitions."
+								const competitionType = competitionTypes[0];
+								const competitionTypeDisplay = competitionType.charAt(0).toUpperCase() + competitionType.slice(1).toLowerCase();
+								const gameCount = value as number;
+								const gameText = gameCount === 1 ? "game" : "games";
+								answer = `${playerName} has played ${gameCount} ${gameText} in ${competitionTypeDisplay} competitions.`;
 							} else if (hasCompetitionTypeFilter && metric && metric.toUpperCase() === "G") {
 								// Custom answer format for goals with competition type: "Luke Bangs has scored 4 goals in cup competitions."
 								const competitionType = competitionTypes[0];
@@ -5559,6 +5623,27 @@ export class ChatbotService {
 									},
 								};
 							}
+						}
+						// Create NumberCard visualization for games/appearances queries with competition type filters
+						else if (metric && metric.toUpperCase() === "APP" && hasCompetitionTypeFilter) {
+							const competitionType = competitionTypes[0];
+							const competitionTypeDisplay = competitionType.charAt(0).toUpperCase() + competitionType.slice(1).toLowerCase();
+							const iconName = this.getIconNameForMetric(metric);
+							const roundedValue = this.roundValueByMetric(metric, value as number);
+							
+							visualization = {
+								type: "NumberCard",
+								data: [{ 
+									name: "Games",
+									wordedText: "games", 
+									value: roundedValue,
+									iconName: iconName
+								}],
+								config: {
+									title: `${playerName} - Games in ${competitionTypeDisplay} Competitions`,
+									type: "bar",
+								},
+							};
 						}
 						// Create NumberCard visualization for assists queries with team exclusions
 						else if (metric && metric.toUpperCase() === "A" && analysis.teamExclusions && analysis.teamExclusions.length > 0) {
