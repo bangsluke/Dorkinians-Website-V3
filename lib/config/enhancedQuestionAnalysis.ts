@@ -717,7 +717,10 @@ export class EnhancedQuestionAnalyzer {
 		const isPlayedWithQuestion = 
 			lowerQuestion.includes("played with") ||
 			lowerQuestion.includes("play with") ||
+			lowerQuestion.includes("shared the pitch") ||
+			lowerQuestion.includes("shared pitch") ||
 			(lowerQuestion.includes("which player") && lowerQuestion.includes("played") && (lowerQuestion.includes("most") || lowerQuestion.includes("with"))) ||
+			(lowerQuestion.includes("which player") && (lowerQuestion.includes("shared the pitch") || lowerQuestion.includes("shared pitch"))) ||
 			(lowerQuestion.includes("who") && lowerQuestion.includes("played") && lowerQuestion.includes("most") && lowerQuestion.includes("with")) ||
 			(lowerQuestion.includes("which opposition") && lowerQuestion.includes("most")) ||
 			(lowerQuestion.includes("opposition") && lowerQuestion.includes("most") && lowerQuestion.includes("played"));

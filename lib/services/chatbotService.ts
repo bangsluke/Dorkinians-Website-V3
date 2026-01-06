@@ -4373,6 +4373,40 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "team_goals_per_game_season") {
+			// Handle team goals per game by season queries
+			const teamData = (data.data as Array<{ team: string; gamesPlayed: number; goalsScored: number; goalsPerGame: number }>) || [];
+			const season = (data.season as string) || "";
+			
+			if (teamData.length === 0) {
+				answer = `No team data found for the ${season} season.`;
+				answerValue = null;
+			} else {
+				const topTeam = teamData[0];
+				answer = `The ${topTeam.team} had the highest average goals per game in ${season} with ${topTeam.goalsPerGame.toFixed(2)} goals per game (${topTeam.goalsScored} goals in ${topTeam.gamesPlayed} ${topTeam.gamesPlayed === 1 ? "game" : "games"}).`;
+				answerValue = topTeam.team;
+				
+				// Create table with all teams sorted by goals per game
+				const tableData = teamData.map((team) => ({
+					Team: team.team,
+					"Games Played": team.gamesPlayed,
+					"Goals Scored": team.goalsScored,
+					"Goals Per Game": team.goalsPerGame.toFixed(2),
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Team", label: "Team" },
+							{ key: "Games Played", label: "Games Played" },
+							{ key: "Goals Scored", label: "Goals Scored" },
+							{ key: "Goals Per Game", label: "Goals Per Game" },
+						],
+					},
+				};
+			}
 		} else if (data && data.type === "players_exactly_one_goal") {
 			// Handle players with exactly one goal in club history queries
 			const playerDataArray = (data.data as Array<{ playerCount: number }>) || [];
@@ -4589,25 +4623,32 @@ export class ChatbotService {
 					type: "bar",
 				},
 			};
-		} else if (data && data.type === "most_played_with") {
-			// Handle most played with queries
+		} else if (data && data.type === "most_played_with" || data && data.type === "most_played_with_cup") {
+			// Handle most played with queries (including cup games)
 			const playerName = (data.playerName as string) || "You";
 			const teamName = data.teamName as string | undefined;
 			const season = data.season as string | undefined;
+			const compType = data.compType as string | undefined;
+			const isCupQuery = data.type === "most_played_with_cup";
+			const requestedLimit = (data.requestedLimit as number) || 10;
+			const expandableLimit = (data.expandableLimit as number) || 10;
+			const fullData = (data.fullData as Array<{ teammateName: string; gamesTogether: number }>) || [];
 			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number }>) || [];
 			
 			if (resultData.length === 0) {
 				const teamContext = teamName ? ` for the ${teamName}` : "";
-				answer = `${playerName} haven't played with any teammates${teamContext}.`;
+				const cupContext = isCupQuery ? " in cup games" : "";
+				answer = `${playerName} haven't played with any teammates${cupContext}${teamContext}.`;
 			} else {
 				const topPlayer = resultData[0];
 				const seasonContext = season ? ` in the ${season}` : "";
 				const teamContext = teamName ? ` whilst playing for the ${teamName}` : "";
-				answer = `${playerName} played the most games with ${topPlayer.teammateName}${seasonContext}${teamContext}, in ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
+				const cupContext = isCupQuery ? " in cup games" : "";
+				answer = `${playerName} ${isCupQuery ? "shared the pitch" : "played"} the most ${isCupQuery ? "cup games" : "games"} with ${topPlayer.teammateName}${seasonContext}${teamContext}, in ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"}.`;
 				answerValue = topPlayer.teammateName;
 				
-				// Create table with top 10 players
-				const tableData = resultData.map((item) => ({
+				// Use fullData if available for expandable table, otherwise use resultData
+				const tableData = (fullData.length > 0 ? fullData : resultData).map((item) => ({
 					Player: item.teammateName,
 					Games: item.gamesTogether,
 				}));
@@ -4620,8 +4661,9 @@ export class ChatbotService {
 							{ key: "Player", label: "Player" },
 							{ key: "Games", label: "Games" },
 						],
-						initialDisplayLimit: 5,
-						expandableLimit: 10,
+						initialDisplayLimit: requestedLimit,
+						expandableLimit: expandableLimit,
+						isExpandable: fullData.length > requestedLimit,
 					},
 				};
 			}

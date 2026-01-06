@@ -12,6 +12,13 @@ export class ClubDataQueryHandler {
 
 		const question = analysis.question?.toLowerCase() || "";
 		
+		// Check if this is asking about team goals per game by season
+		const isTeamGoalsPerGameQuestion = 
+			question.includes("team") && 
+			(question.includes("highest") || question.includes("most") || question.includes("average")) &&
+			(question.includes("goal per game") || question.includes("goals per game") || question.includes("average goals per game")) &&
+			(question.includes("season") || /\d{4}[\/\-]\d{2}/.test(question));
+		
 		// Check if this is asking about which team has fewest/most goals conceded
 		const isFewestConceded = (question.includes("fewest") || question.includes("least")) && question.includes("conceded");
 		const isMostConceded = question.includes("most") && question.includes("conceded");
@@ -25,6 +32,55 @@ export class ClubDataQueryHandler {
 		};
 
 		try {
+			// Handle "which team had the highest average goals per game in [season]" query
+			if (isTeamGoalsPerGameQuestion) {
+				const timeFrames = analysis.extractionResult?.timeFrames || [];
+				const seasonFrame = timeFrames.find(tf => tf.type === "season");
+				
+				let season: string | null = null;
+				if (seasonFrame) {
+					season = seasonFrame.value;
+					// Normalize season format: handle both 2021-22 and 2021/22 formats
+					if (season.includes("-")) {
+						// Check if it's full year format (2021-2022) or short format (2021-22)
+						const fullYearMatch = season.match(/(\d{4})-(\d{4})/);
+						if (fullYearMatch) {
+							const startYear = fullYearMatch[1];
+							const endYear = fullYearMatch[2];
+							const shortEndYear = endYear.substring(2);
+							season = `${startYear}/${shortEndYear}`;
+						} else {
+							// Short format: 2021-22 -> 2021/22
+							season = season.replace("-", "/");
+						}
+					}
+				} else {
+					// Try to extract from question text
+					const fullYearMatch = question.match(/(\d{4})[\/\-](\d{4})/);
+					if (fullYearMatch) {
+						const startYear = fullYearMatch[1];
+						const endYear = fullYearMatch[2];
+						const shortEndYear = endYear.substring(2);
+						season = `${startYear}/${shortEndYear}`;
+					} else {
+						const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						}
+					}
+				}
+				
+				if (!season) {
+					return {
+						type: "no_season",
+						data: [],
+						message: "I need to know which season you're asking about. Please specify (e.g., 2021/22)."
+					};
+				}
+				
+				return await ClubDataQueryHandler.queryTeamGoalsPerGameBySeason(season);
+			}
+			
 			// Handle "which team has conceded the fewest goals" query
 			if (isFewestConceded || isMostConceded) {
 				const orderDirection = isFewestConceded ? "ASC" : "DESC";
@@ -389,6 +445,59 @@ export class ClubDataQueryHandler {
 			return { type: "penalty_shootout_saved_total", data: [{ value: total }] };
 		} catch (error) {
 			loggingService.log(`❌ Error in queryPenaltyShootoutPenaltiesSaved:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query team goals per game by season - returns all teams with their goals per game ratio
+	 */
+	static async queryTeamGoalsPerGameBySeason(season: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2021/22")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		const query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE (f.season = $season OR f.season = $normalizedSeason)
+			  AND f.team IS NOT NULL
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH f.team as team,
+			     count(DISTINCT f) as gamesPlayed,
+			     sum(coalesce(f.dorkiniansGoals, 0)) as goalsScored
+			WITH team, gamesPlayed, goalsScored,
+			     CASE WHEN gamesPlayed > 0 
+			          THEN toFloat(goalsScored) / gamesPlayed 
+			          ELSE 0.0 
+			     END as goalsPerGame
+			RETURN team, gamesPlayed, goalsScored, goalsPerGame
+			ORDER BY goalsPerGame DESC
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$season/g, `'${season}'`)
+				.replace(/\$normalizedSeason/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`TEAM_GOALS_PER_GAME_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TEAM_GOALS_PER_GAME_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, season, normalizedSeason });
+			return { 
+				type: "team_goals_per_game_season", 
+				data: result || [], 
+				season: normalizedSeason 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryTeamGoalsPerGameBySeason:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}

@@ -162,12 +162,15 @@ export class RelationshipQueryHandler {
 		teamName?: string, 
 		season?: string | null, 
 		startDate?: string | null, 
-		endDate?: string | null
+		endDate?: string | null,
+		compType?: string | null,
+		requestedLimit?: number
 	): Promise<Record<string, unknown>> {
 		const timeContext = [
 			teamName ? `team: ${teamName}` : null,
 			season ? `season: ${season}` : null,
-			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null,
+			compType ? `compType: ${compType}` : null
 		].filter(Boolean).join(", ");
 		
 		loggingService.log(`🔍 Querying most played with for player: ${playerName}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
@@ -187,6 +190,14 @@ export class RelationshipQueryHandler {
 			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
 		}
 		
+		if (compType) {
+			whereConditions.push("f.compType = $compType");
+		}
+		
+		// For expandable results, fetch at least 10 even if requestedLimit is 5
+		const expandableLimit = requestedLimit === 5 ? 10 : (requestedLimit || 10);
+		const maxLimit = Math.max(expandableLimit * 2, 50);
+		
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
@@ -195,7 +206,7 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 10
+			LIMIT ${maxLimit}
 			RETURN teammateName, gamesTogether
 		`;
 
@@ -209,13 +220,14 @@ export class RelationshipQueryHandler {
 			if (season) readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
 			if (startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`);
 			if (endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${endDate}'`);
+			if (compType) readyToExecuteQuery = readyToExecuteQuery.replace(/\$compType/g, `'${compType}'`);
 			chatbotService.lastExecutedQueries.push(`RELATIONSHIP_MOST_PLAYED_WITH_QUERY: ${query}`);
 			chatbotService.lastExecutedQueries.push(`RELATIONSHIP_MOST_PLAYED_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 		} catch (error) {
 			// Ignore if chatbotService not available
 		}
 
-		const queryParams: Record<string, string> = { 
+		const queryParams: Record<string, string | number> = { 
 			playerName,
 			graphLabel 
 		};
@@ -229,17 +241,30 @@ export class RelationshipQueryHandler {
 			queryParams.startDate = startDate;
 			queryParams.endDate = endDate;
 		}
+		if (compType) {
+			queryParams.compType = compType;
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Store all results up to expandableLimit
+			const allResults = result.slice(0, expandableLimit);
+			// Limit initial display to requestedLimit (or 10 if not specified)
+			const limitedResult = allResults.slice(0, requestedLimit || 10);
+			
 			return { 
-				type: "most_played_with", 
-				data: result, 
+				type: compType ? "most_played_with_cup" : "most_played_with", 
+				data: limitedResult,
+				fullData: allResults, // Store full data for expansion
 				playerName, 
 				teamName,
 				season,
 				startDate,
-				endDate
+				endDate,
+				compType,
+				requestedLimit: requestedLimit || 10,
+				expandableLimit: expandableLimit
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in most played with query:`, error, "error");

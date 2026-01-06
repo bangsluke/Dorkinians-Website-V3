@@ -216,11 +216,14 @@ export class PlayerDataQueryHandler {
 			questionLower.includes("played with") ||
 			questionLower.includes("play with") ||
 			questionLower.includes("played most") ||
+			questionLower.includes("shared the pitch") ||
+			questionLower.includes("shared pitch") ||
 			questionLower.includes("who did i play") ||
 			questionLower.includes("who did you play") ||
 			questionLower.includes("who have i played") ||
 			questionLower.includes("who have you played") ||
 			(questionLower.includes("which player") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
+			(questionLower.includes("which player") && (questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"))) ||
 			(questionLower.includes("who") && questionLower.includes("played") && questionLower.includes("most") && questionLower.includes("with")) ||
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
@@ -678,8 +681,21 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
+			// Check for cup game filter in "played with" or "shared the pitch" questions
+			let compType: string | null = null;
+			let requestedLimit: number | undefined = undefined;
+			const isCupGameQuestion = 
+				questionLower.includes("cup") && 
+				(questionLower.includes("played with") || questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"));
+			
+			if (isCupGameQuestion) {
+				compType = "Cup";
+				requestedLimit = 5; // Top 5 initially, expandable to 10
+				loggingService.log(`🔍 Cup game filter detected for played with question`, null, "log");
+			}
+			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedWith`, null, "log");
-			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
+			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate, compType, requestedLimit);
 		}
 
 		// Check for "highest score in a week" questions
