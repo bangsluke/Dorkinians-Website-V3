@@ -852,6 +852,40 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "which month across my career has the highest total goal involvements" questions
+			const isMonthHighestGoalInvolvementsQuestion = 
+				(question.includes("which month") || question.includes("what month")) &&
+				(question.includes("highest") || question.includes("most")) &&
+				(question.includes("goal involvement") || question.includes("goal involvements")) &&
+				(question.includes("career") || question.includes("my") || question.includes("i"));
+
+			if (isMonthHighestGoalInvolvementsQuestion) {
+				this.lastProcessingSteps.push(`Detected month with highest goal involvements question, routing to TemporalQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await TemporalQueryHandler.queryMonthlyGoalInvolvements(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Month goal involvements question detected but no player context available`);
+				}
+			}
+
+			// Check for "how many times have I scored or assisted in a game where the team kept a clean sheet" questions
+			const isCleanSheetGoalInvolvementsQuestion = 
+				(question.includes("how many times") || question.includes("how many")) &&
+				(question.includes("scored") || question.includes("assisted")) &&
+				(question.includes("clean sheet") || question.includes("kept a clean sheet")) &&
+				(question.includes("game") || question.includes("games"));
+
+			if (isCleanSheetGoalInvolvementsQuestion) {
+				this.lastProcessingSteps.push(`Detected scored/assisted in clean sheet games question, routing to FixtureDataQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await FixtureDataQueryHandler.queryCleanSheetGoalInvolvements(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Clean sheet goal involvements question detected but no player context available`);
+				}
+			}
+
 			// Check for "which season did [team] concede the most goals" - route to league table handler BEFORE player handler
 			const isTeamSeasonConcedeQuery = 
 				analysis.teamEntities && analysis.teamEntities.length > 0 &&
@@ -4129,6 +4163,72 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "monthly_goal_involvements") {
+			// Handle monthly goal involvements queries (e.g., "Which month across my career has the highest total goal involvements?")
+			const playerName = (data.playerName as string) || "";
+			const monthlyData = (data.data as Array<{ monthName: string; goalInvolvements: number }>) || [];
+			
+			if (monthlyData.length === 0) {
+				answer = `${playerName} has no monthly goal involvement data available.`;
+				answerValue = null;
+			} else {
+				// Find the month with the highest goal involvements
+				const highestMonth = monthlyData.reduce((max, item) => 
+					(item.goalInvolvements > max.goalInvolvements ? item : max), 
+					monthlyData[0]
+				);
+				
+				// Set answerValue to month name (e.g., "May")
+				answerValue = highestMonth.monthName;
+				
+				// Create answer text
+				answer = `${playerName} had the highest total goal involvements in ${highestMonth.monthName} with ${highestMonth.goalInvolvements} ${highestMonth.goalInvolvements === 1 ? "goal involvement" : "goal involvements"}.`;
+				
+				// Find the maximum value for highlighting
+				const maxValue = Math.max(...monthlyData.map((item) => item.goalInvolvements));
+				
+				// Create Chart visualization with all months
+				visualization = {
+					type: "Chart",
+					data: monthlyData.map((item) => ({
+						name: item.monthName,
+						value: item.goalInvolvements,
+						isHighest: item.goalInvolvements === maxValue,
+					})),
+					config: {
+						title: `${playerName} - Goal Involvements per Month`,
+						type: "bar",
+						tooltipLabel: "Goal Involvements",
+					},
+				};
+			}
+		} else if (data && data.type === "clean_sheet_goal_involvements") {
+			// Handle clean sheet goal involvements queries (e.g., "How many times have I scored or assisted in a game where the team kept a clean sheet?")
+			const playerName = (data.playerName as string) || "";
+			const count = (data.count as number) || 0;
+			
+			if (count === 0) {
+				answer = `${playerName} has not scored or assisted in any games where the team kept a clean sheet.`;
+				answerValue = 0;
+			} else {
+				answer = `${playerName} has scored or assisted in ${count} ${count === 1 ? "game" : "games"} where the team kept a clean sheet.`;
+				answerValue = count;
+			}
+			
+			// Create NumberCard visualization
+			visualization = {
+				type: "NumberCard",
+				data: [{
+					name: "Games",
+					value: count,
+					iconName: this.getIconNameForMetric("G"),
+					wordedText: count === 1 ? "game" : "games"
+				}],
+				config: {
+					title: `${playerName} - Goal Involvements in Clean Sheet Games`,
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "most_played_with") {
 			// Handle most played with queries
 			const playerName = (data.playerName as string) || "You";
