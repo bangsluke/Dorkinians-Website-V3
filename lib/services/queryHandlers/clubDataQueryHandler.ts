@@ -221,4 +221,82 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query team player count by season - count unique players per team for a specific season
+	 */
+	static async queryTeamPlayerCountBySeason(season: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2018/19")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.season = $season
+			WITH md.team as team, collect(DISTINCT p.playerName) as players
+			WHERE team IS NOT NULL
+			RETURN team, size(players) as playerCount
+			ORDER BY playerCount DESC, team ASC
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$season/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`TEAM_PLAYER_COUNT_BY_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TEAM_PLAYER_COUNT_BY_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, season: normalizedSeason });
+			return { type: "team_player_count_by_season", data: result || [], season: normalizedSeason };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryTeamPlayerCountBySeason:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query total goals scored across all teams in a specific year
+	 */
+	static async queryTotalGoalsByYear(year: number): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		const yearStr = String(year);
+		
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.date STARTS WITH $year
+			RETURN sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$year/g, `'${yearStr}'`);
+			chatbotService.lastExecutedQueries.push(`TOTAL_GOALS_BY_YEAR_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TOTAL_GOALS_BY_YEAR_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, year: yearStr });
+			const totalGoals = result && result.length > 0 ? (result[0].totalGoals || 0) : 0;
+			return { type: "total_goals_by_year", data: [{ totalGoals }], year };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryTotalGoalsByYear:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

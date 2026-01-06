@@ -534,6 +534,49 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "which team used the most players in [season]" questions
+			const isTeamPlayerCountBySeasonQuestion = 
+				(question.includes("which team") || question.includes("what team")) &&
+				(question.includes("used") || question.includes("use")) &&
+				(question.includes("most players") || question.includes("most player")) &&
+				(/\d{4}[\/\-]\d{2}/.test(question) || analysis.timeRange);
+
+			if (isTeamPlayerCountBySeasonQuestion) {
+				// Extract season from question
+				let season: string | null = null;
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else if (analysis.timeRange) {
+					const timeFrameMatch = analysis.timeRange.match(/(\d{4})[\/\-](\d{2})/);
+					if (timeFrameMatch) {
+						season = `${timeFrameMatch[1]}/${timeFrameMatch[2]}`;
+					}
+				}
+				
+				if (season) {
+					this.lastProcessingSteps.push(`Detected team player count by season question, routing to ClubDataQueryHandler with season: ${season}`);
+					return await ClubDataQueryHandler.queryTeamPlayerCountBySeason(season);
+				}
+			}
+
+			// Check for "how many total goals were scored across all teams in [year]" questions
+			// Make detection more flexible to handle typos: "where" vs "were", "team" vs "teams"
+			const hasHowManyGoals = question.includes("how many total goals") || question.includes("how many goals");
+			const hasAllTeams = question.includes("across all teams") || question.includes("all teams") || question.includes("all team");
+			const hasYear = /\d{4}/.test(question);
+			const isTotalGoalsByYearQuestion = hasHowManyGoals && hasAllTeams && hasYear;
+
+			if (isTotalGoalsByYearQuestion) {
+				// Extract year from question
+				const yearMatch = question.match(/\b(20\d{2})\b/);
+				if (yearMatch) {
+					const year = parseInt(yearMatch[1], 10);
+					this.lastProcessingSteps.push(`Detected total goals by year question, routing to ClubDataQueryHandler with year: ${year}`);
+					return await ClubDataQueryHandler.queryTotalGoalsByYear(year);
+				}
+			}
+
 			// Check if this is an awards count question (e.g., "How many awards have I won?")
 			const isAwardsCountQuestion = type === "player" && 
 				(question.includes("how many awards") || question.includes("how many award")) &&
@@ -4127,6 +4170,65 @@ export class ChatbotService {
 					}],
 					config: {
 						title: `Players with Only One Game for ${teamDisplay}`,
+						type: "bar",
+					},
+				};
+			}
+		} else if (data && data.type === "team_player_count_by_season") {
+			// Handle team player count by season queries
+			const teamData = (data.data as Array<{ team: string; playerCount: number }>) || [];
+			const season = (data.season as string) || "";
+			
+			if (teamData.length === 0) {
+				answer = `No team data found for the ${season} season.`;
+				answerValue = null;
+			} else {
+				const topTeam = teamData[0];
+				const shortTeamName = TeamMappingUtils.getShortTeamName(topTeam.team);
+				answer = `The ${topTeam.team} used the most players in the ${season} season with ${topTeam.playerCount} ${topTeam.playerCount === 1 ? "player" : "players"}.`;
+				answerValue = shortTeamName;
+				
+				// Create Chart visualization (column chart) with all teams and their player counts
+				const chartData = teamData.map((team) => ({
+					name: team.team,
+					value: team.playerCount,
+				}));
+				
+				visualization = {
+					type: "Chart",
+					data: chartData,
+					config: {
+						title: `Player Count by Team - ${season} Season`,
+						type: "bar",
+						tooltipLabel: "Player Count",
+					},
+				};
+			}
+		} else if (data && data.type === "total_goals_by_year") {
+			// Handle total goals by year queries
+			const goalsDataArray = (data.data as Array<{ totalGoals: number }>) || [];
+			const year = (data.year as number) || 0;
+			
+			if (goalsDataArray.length === 0 || !goalsDataArray[0]) {
+				answer = `No goals were scored across all teams in ${year}.`;
+				answerValue = 0;
+			} else {
+				const totalGoals = goalsDataArray[0].totalGoals || 0;
+				answer = `${totalGoals} ${totalGoals === 1 ? "goal was" : "goals were"} scored across all teams in ${year}.`;
+				answerValue = totalGoals;
+				
+				// Create NumberCard visualization
+				const roundedGoals = this.roundValueByMetric("G", totalGoals);
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Goals",
+						wordedText: "goals",
+						value: roundedGoals,
+						iconName: this.getIconNameForMetric("G")
+					}],
+					config: {
+						title: `Total Goals Scored in ${year}`,
 						type: "bar",
 					},
 				};

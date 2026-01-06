@@ -95,4 +95,23 @@ export class TeamMappingUtils {
 		};
 		return priorityMap[teamLower] || 999;
 	}
+
+	/**
+	 * Convert team name from database format (e.g., "5th XI") to short format (e.g., "5s")
+	 */
+	static getShortTeamName(teamName: string): string {
+		if (!teamName) return teamName;
+		const teamLower = teamName.toLowerCase().trim();
+		const reverseMapping: { [key: string]: string } = {
+			"1st xi": "1s",
+			"2nd xi": "2s",
+			"3rd xi": "3s",
+			"4th xi": "4s",
+			"5th xi": "5s",
+			"6th xi": "6s",
+			"7th xi": "7s",
+			"8th xi": "8s",
+		};
+		return reverseMapping[teamLower] || teamName;
+	}
 }
