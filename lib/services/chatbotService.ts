@@ -1019,6 +1019,60 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "which season did I appear in the most matches" questions - route to player handler
+			const detectMostAppearancesSeasonPattern = (q: string): boolean => {
+				const lower = q.toLowerCase();
+				if ((lower.includes("which season") || lower.includes("what season")) && 
+					lower.includes("appear") && 
+					(lower.includes("most matches") || lower.includes("most appearances") || 
+					 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))))) {
+					return true;
+				}
+				if (lower.includes("season") && lower.includes("appear") && 
+					(lower.includes("most matches") || lower.includes("most appearances") || 
+					 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))))) {
+					return true;
+				}
+				return false;
+			};
+
+			const isMostAppearancesSeasonQuestion = 
+				detectMostAppearancesSeasonPattern(questionLower) &&
+				(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+			if (isMostAppearancesSeasonQuestion) {
+				const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+				const invalidPlayerNamePatterns = ["season", "matches", "appearances", "most", "appear"];
+				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => {
+					if (e.type !== "player") return false;
+					const lowerValue = e.value.toLowerCase();
+					if (firstPersonPronouns.includes(lowerValue)) return false;
+					if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+					return true;
+				}) || [];
+				let playerName = "";
+				if (playerEntitiesFromQuestion.length > 0) {
+					playerName = playerEntitiesFromQuestion[0].value;
+				} else {
+					if (entities.length > 0) {
+						playerName = entities[0];
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+				
+				if (playerName || userContext) {
+					const playerEntities = playerName ? [playerName] : (userContext ? [userContext] : []);
+					this.lastProcessingSteps.push(`Detected most appearances season question, routing to PlayerDataQueryHandler with player: ${playerEntities[0] || userContext}`);
+					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["MostAppearancesSeason"], analysis, userContext);
+				} else {
+					this.lastProcessingSteps.push(`Most appearances season question detected but no player context available`);
+				}
+			}
+
 			// Check for "which season did I record my highest combined goals + assists total" questions - route to player handler
 			const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
 				const lower = q.toLowerCase();
@@ -4894,6 +4948,124 @@ export class ChatbotService {
 						}
 					} else {
 						answer = `${playerName} has no season minutes data available.`;
+					}
+				}
+				// Handle MOSTAPPEARANCESSEASON - find season with most appearances
+				else if (metric && metric.toUpperCase() === "MOSTAPPEARANCESSEASON") {
+					// Check if we have array data (multiple seasons) from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+						
+						// Transform data to ensure we have season and value
+						const transformedData = seasonsData
+							.map((item) => {
+								const season = item.season || (typeof item.value === "string" ? item.value : "");
+								const appearances = typeof item.value === "number" ? item.value : (item.appearances as number) || 0;
+								return { season, appearances };
+							})
+							.filter((item) => item.season && item.appearances !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Find the season with the most appearances
+							const mostAppearancesSeason = transformedData.reduce((max, item) => (item.appearances > max.appearances ? item : max), transformedData[0]);
+							
+							// Normalize season format (handle both "2018/19" and "2018-19")
+							let seasonString = mostAppearancesSeason.season;
+							if (seasonString) {
+								// If season is just a year, try to construct the full season string
+								if (/^\d{4}$/.test(seasonString)) {
+									const year = parseInt(seasonString, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									seasonString = `${year}/${nextYear}`;
+								}
+								// Normalize season format (handle both "2018/19" and "2018-19")
+								seasonString = seasonString.replace(/-/g, "/");
+							}
+							
+							answer = `${playerName} appeared in the most matches in ${seasonString} (${mostAppearancesSeason.appearances} ${mostAppearancesSeason.appearances === 1 ? "appearance" : "appearances"}).`;
+							
+							// Extract full season format from answer text if seasonString is still incomplete
+							// This handles cases where database returns just "2017" instead of "2017/18"
+							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
+								if (seasonMatch) {
+									seasonString = seasonMatch[1];
+								}
+							}
+							
+							// Set answerValue to season string only (e.g., "2018/19") for test report validation
+							answerValue = seasonString;
+							
+							// Sort by season ascending for chronological display
+							const sortedData = [...transformedData].sort((a, b) => {
+								return a.season.localeCompare(b.season);
+							});
+							
+							// Find the maximum appearances for highlighting
+							const maxAppearances = Math.max(...sortedData.map((item) => item.appearances));
+							
+							// Create Chart visualization with all seasons and their appearances
+							visualization = {
+								type: "Chart",
+								data: sortedData.map((item) => ({
+									name: item.season,
+									value: item.appearances,
+									isHighest: item.appearances === maxAppearances,
+								})),
+								config: {
+									title: `${playerName} - Appearances per Season`,
+									type: "bar",
+									tooltipLabel: "Apps",
+								},
+							};
+						} else {
+							answer = `${playerName} has no season appearances data available.`;
+						}
+					} else {
+						answer = `${playerName} has no season appearances data available.`;
+					}
+				}
+				// Handle SUNDAYGOALS - goals scored in matches played on Sundays
+				else if (metric && metric.toUpperCase() === "SUNDAYGOALS") {
+					// Check if we have data from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const sundayGoalsData = data.data as Array<{ totalGoals?: number; [key: string]: unknown }>;
+						const totalGoals = sundayGoalsData[0]?.totalGoals || 0;
+						
+						// Format answer based on whether it's first person or third person
+						const isFirstPerson = question.toLowerCase().includes("i ") || question.toLowerCase().includes("my ") || question.toLowerCase().includes("have i");
+						if (isFirstPerson) {
+							answer = `You have scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} in matches played on Sundays.`;
+						} else {
+							answer = `${playerName} has scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} in matches played on Sundays.`;
+						}
+						
+						answerValue = totalGoals;
+						
+						// Create NumberCard visualization
+						const roundedGoals = this.roundValueByMetric("G", totalGoals);
+						visualization = {
+							type: "NumberCard",
+							data: [{ 
+								name: "Goals", 
+								wordedText: "goals",
+								value: roundedGoals,
+								iconName: this.getIconNameForMetric("G")
+							}],
+							config: {
+								title: `${playerName} - Goals on Sundays`,
+								type: "bar",
+							},
+						};
+					} else {
+						// No data found
+						const isFirstPerson = question.toLowerCase().includes("i ") || question.toLowerCase().includes("my ") || question.toLowerCase().includes("have i");
+						if (isFirstPerson) {
+							answer = `You have not scored any goals in matches played on Sundays.`;
+						} else {
+							answer = `${playerName} has not scored any goals in matches played on Sundays.`;
+						}
+						answerValue = 0;
 					}
 				}
 				// Handle HIGHESTGOALSASSISTSSEASON - find season with highest goals + assists total

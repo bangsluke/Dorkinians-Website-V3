@@ -41,6 +41,7 @@ export class PlayerQueryBuilder {
 			"MOSTPLAYEDFORTEAM",
 			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
 			"MOSTMINUTESSEASON", // Needs MatchDetail to calculate minutes per season
+			"MOSTAPPEARANCESSEASON", // Needs MatchDetail to calculate appearances per season
 			"HIGHESTGOALSASSISTSSEASON", // Needs MatchDetail to calculate goals + assists per season
 			"FTP",
 			"POINTS",
@@ -1109,6 +1110,26 @@ export class PlayerQueryBuilder {
 				WITH p, md.season as season, 
 					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as minutes
 				RETURN p.playerName as playerName, season, minutes as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "MOSTAPPEARANCESSEASON") {
+			// Query MatchDetails to get appearances per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					count(md) as appearances
+				RETURN p.playerName as playerName, season, appearances as value
 				ORDER BY season ASC
 			`;
 		} else if (metric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON") {

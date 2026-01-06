@@ -35,13 +35,16 @@ export default function Chart({ visualization }: ChartProps) {
 	}));
 
 	// Custom tooltip
+	const tooltipLabel = (visualization.config as Record<string, unknown>)?.tooltipLabel as string | undefined;
+	const defaultTooltipLabel = tooltipLabel || "Goals";
+	
 	const CustomTooltip = ({ active, payload }: any) => {
 		if (active && payload && payload.length) {
 			return (
 				<div className='bg-gray-800 border border-yellow-400/30 rounded-lg p-2 shadow-lg'>
 					<p className='text-yellow-300 font-semibold'>{payload[0].payload.name}</p>
 					<p className='text-white'>
-						<span className='text-yellow-400'>Goals: </span>
+						<span className='text-yellow-400'>{defaultTooltipLabel}: </span>
 						{payload[0].value}
 					</p>
 				</div>

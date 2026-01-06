@@ -1338,6 +1338,150 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "which season did I appear in the most matches" questions
+		const detectMostAppearancesSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I appear in the most matches" / "what season did I appear in the most matches"
+			const pattern1Match = (lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("appear") && 
+				(lower.includes("most matches") || lower.includes("most appearances") || 
+				 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))));
+			// Pattern: "season I appeared in the most matches" / "season did I appear most"
+			const pattern2Match = lower.includes("season") && lower.includes("appear") && 
+				(lower.includes("most matches") || lower.includes("most appearances") || 
+				 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))));
+			const result = pattern1Match || pattern2Match;
+			return result;
+		};
+
+		const patternMatchResult = detectMostAppearancesSeasonPattern(questionLower);
+		const secondConditionCheck = questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did");
+		const isMostAppearancesSeasonQuestion = patternMatchResult && secondConditionCheck;
+
+		if (isMostAppearancesSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "matches", "appearances", "most", "appear"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+				// For first-person questions, prioritize userContext over playerEntities if they don't match
+				const questionLower = analysis.question?.toLowerCase() || "";
+				const isFirstPersonQuestion = questionLower.includes(" i ") || questionLower.includes(" my ") || 
+					questionLower.startsWith("i ") || questionLower.startsWith("my ") ||
+					questionLower.includes(" did i ") || questionLower.includes(" did my ");
+				
+				if (isFirstPersonQuestion && userContext && playerName.toLowerCase() !== userContext.toLowerCase()) {
+					// First-person question but playerEntity doesn't match userContext - use userContext
+					playerName = userContext;
+				}
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					// For first-person questions, prioritize userContext over entities if they don't match
+					const questionLower = analysis.question?.toLowerCase() || "";
+					const isFirstPersonQuestion = questionLower.includes(" i ") || questionLower.includes(" my ") || 
+						questionLower.startsWith("i ") || questionLower.startsWith("my ") ||
+						questionLower.includes(" did i ") || questionLower.includes(" did my ");
+					
+					if (isFirstPersonQuestion && userContext && playerName.toLowerCase() !== userContext.toLowerCase()) {
+						// First-person question but entity doesn't match userContext - use userContext
+						playerName = userContext;
+					} else if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			// Check if player name matches userContext before fuzzy matching
+			let resolvedPlayerName: string;
+			const playerNameNormalized = playerName.toLowerCase().trim();
+			const userContextNormalized = userContext?.toLowerCase().trim();
+			
+			if (userContext && playerNameNormalized === userContextNormalized) {
+				// Player name already matches the selected player, use it directly
+				resolvedPlayerName = userContext;
+				loggingService.log(`✅ Using selected player directly: ${resolvedPlayerName} (matched ${playerName})`, null, "log");
+			} else if (userContext && userContextNormalized && userContextNormalized.includes(playerNameNormalized) && playerNameNormalized.length >= 2) {
+				// Player name is a partial match of the selected player (e.g., "Luke" matches "Luke Bangs")
+				// Use the full selected player name
+				resolvedPlayerName = userContext;
+				loggingService.log(`✅ Using selected player for partial match: ${resolvedPlayerName} (matched partial ${playerName})`, null, "log");
+			} else {
+				// Resolve player name with fuzzy matching
+				const fuzzyResolved = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!fuzzyResolved) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				resolvedPlayerName = fuzzyResolved;
+				loggingService.log(`🔍 Resolved player name via fuzzy matching: ${playerName} → ${resolvedPlayerName}`, null, "log");
+			}
+
+			loggingService.log(`🔍 Querying most appearances season for ${resolvedPlayerName}`, null, "log");
+			// Use MostAppearancesSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostAppearancesSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_APPEARANCES_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season appearances data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostAppearancesSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most appearances season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for "which season did I record my highest combined goals + assists total" questions
 		const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
 			const lower = q.toLowerCase();
@@ -1438,6 +1582,123 @@ export class PlayerDataQueryHandler {
 				};
 			} catch (error) {
 				loggingService.log(`❌ Error querying highest goals+assists season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// Check for "how many goals have I scored in matches played on Sundays only" questions
+		const detectSundayGoalsPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "how many goals" + "sunday" or "sundays"
+			if (lower.includes("how many goals") && (lower.includes("sunday") || lower.includes("sundays"))) {
+				return true;
+			}
+			// Pattern: "goals" + "sunday" + ("only" or "matches")
+			if (lower.includes("goals") && lower.includes("sunday") && 
+				(lower.includes("only") || lower.includes("matches") || lower.includes("played"))) {
+				return true;
+			}
+			// Pattern: "scored" + "sunday"
+			if (lower.includes("scored") && lower.includes("sunday")) {
+				return true;
+			}
+			return false;
+		};
+
+		const isSundayGoalsQuestion = 
+			detectSundayGoalsPattern(questionLower) &&
+			(questionLower.includes("how many") || questionLower.includes("i ") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes(" have"));
+
+		if (isSundayGoalsQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["sunday", "sundays", "goals", "matches", "only"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying Sunday goals for ${resolvedPlayerName}`, null, "log");
+			
+			// Build Cypher query to get goals + penaltiesScored from MatchDetail nodes
+			// connected to Fixture nodes where the date is a Sunday (dayOfWeek = 7 in Neo4j, where 1 = Monday, 7 = Sunday)
+			const graphLabel = neo4jService.getGraphLabel();
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE date(f.date).dayOfWeek = 7
+				RETURN sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+			`;
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`SUNDAY_GOALS: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel,
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [{ totalGoals: 0 }],
+						message: `I couldn't find any Sunday match data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				const totalGoals = result[0]?.totalGoals || 0;
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "SundayGoals",
+					data: [{ totalGoals }],
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying Sunday goals:`, error, "error");
 				return {
 					type: "error",
 					data: [],
