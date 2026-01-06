@@ -4380,9 +4380,9 @@ export class ChatbotService {
 				answerValue = null;
 			} else {
 				const topTeam = teamData[0];
-				const shortTeamName = TeamMappingUtils.getShortTeamName(topTeam.team);
 				answer = `The ${topTeam.team} used the most players in the ${season} season with ${topTeam.playerCount} ${topTeam.playerCount === 1 ? "player" : "players"}.`;
-				answerValue = shortTeamName;
+				// Set answerValue to full team name (e.g., "1st XI") for test report validation
+				answerValue = topTeam.team;
 				
 				// Create Chart visualization (column chart) with all teams and their player counts
 				const chartData = teamData.map((team) => ({
@@ -5249,17 +5249,18 @@ export class ChatbotService {
 								answer = `${playerName} scored the most goals in ${seasonString} (${mostProlific.goals} ${mostProlific.goals === 1 ? "goal" : "goals"}).`;
 							}
 							
-							// Extract full season format from answer text if seasonString is still incomplete
+							// Extract full season format from answer text to ensure answerValue matches the answer
 							// This handles cases where database returns just "2018" instead of "2018/19"
-							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+							let extractedSeason = seasonString;
+							if (answer) {
 								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
 								if (seasonMatch) {
-									seasonString = seasonMatch[1];
+									extractedSeason = seasonMatch[1];
 								}
 							}
 							
-							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = seasonString;
+							// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
+							answerValue = extractedSeason;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -5373,17 +5374,18 @@ export class ChatbotService {
 							
 							answer = `${playerName} played the most minutes in ${seasonString} (${mostMinutesSeason.minutes} ${mostMinutesSeason.minutes === 1 ? "minute" : "minutes"}).`;
 							
-							// Extract full season format from answer text if seasonString is still incomplete
+							// Extract full season format from answer text to ensure answerValue matches the answer
 							// This handles cases where database returns just "2017" instead of "2017/18"
-							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+							let extractedSeason = seasonString;
+							if (answer) {
 								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
 								if (seasonMatch) {
-									seasonString = seasonMatch[1];
+									extractedSeason = seasonMatch[1];
 								}
 							}
 							
-							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = seasonString;
+							// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
+							answerValue = extractedSeason;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -5445,17 +5447,18 @@ export class ChatbotService {
 							
 							answer = `${playerName} appeared in the most matches in ${seasonString} (${mostAppearancesSeason.appearances} ${mostAppearancesSeason.appearances === 1 ? "appearance" : "appearances"}).`;
 							
-							// Extract full season format from answer text if seasonString is still incomplete
+							// Extract full season format from answer text to ensure answerValue matches the answer
 							// This handles cases where database returns just "2017" instead of "2017/18"
-							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+							let extractedSeason = seasonString;
+							if (answer) {
 								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
 								if (seasonMatch) {
-									seasonString = seasonMatch[1];
+									extractedSeason = seasonMatch[1];
 								}
 							}
 							
-							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = seasonString;
+							// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
+							answerValue = extractedSeason;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
@@ -5573,17 +5576,18 @@ export class ChatbotService {
 							
 							answer = `${playerName} recorded the highest combined goals + assists total in ${seasonString} (${highestSeason.total} total: ${highestSeason.goals} ${highestSeason.goals === 1 ? "goal" : "goals"}, ${highestSeason.penaltiesScored} ${highestSeason.penaltiesScored === 1 ? "penalty" : "penalties"}, ${highestSeason.assists} ${highestSeason.assists === 1 ? "assist" : "assists"}).`;
 							
-							// Extract full season format from answer text if seasonString is still incomplete
+							// Extract full season format from answer text to ensure answerValue matches the answer
 							// This handles cases where database returns just "2016" instead of "2016/17"
-							if (answer && (!seasonString || /^\d{4}$/.test(seasonString))) {
+							let extractedSeason = seasonString;
+							if (answer) {
 								const seasonMatch = answer.match(/\b(\d{4}\/\d{2})\b/);
 								if (seasonMatch) {
-									seasonString = seasonMatch[1];
+									extractedSeason = seasonMatch[1];
 								}
 							}
 							
-							// Set answerValue to season string only (e.g., "2018/19") for test report validation
-							answerValue = seasonString;
+							// Set answerValue to extracted season string (e.g., "2018/19") for test report validation
+							answerValue = extractedSeason;
 							
 							// Sort by season ascending for chronological display
 							const sortedData = [...transformedData].sort((a, b) => {
