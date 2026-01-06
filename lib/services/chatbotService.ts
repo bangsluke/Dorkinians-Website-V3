@@ -1343,14 +1343,48 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for unbeaten run queries (e.g., "What was the longest unbeaten run the 1s had between 2015 and 2020?")
+			// Check for winning run queries (wins only)
+			const isWinningRunQuestion = 
+				(question.includes("winning run") || question.includes("longest winning")) &&
+				(analysis.teamEntities && analysis.teamEntities.length > 0 || entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)));
+
+			// Check for unbeaten run queries (wins and draws)
 			const isUnbeatenRunQuestion = 
 				(question.includes("unbeaten run") || question.includes("longest unbeaten")) &&
 				(analysis.teamEntities && analysis.teamEntities.length > 0 || entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e)));
 
+			// Check for "which team" winning run questions (e.g., "Which team had the longest winning run in 2022?")
+			const isWhichTeamWinningRunQuestion = 
+				(question.includes("winning run") || question.includes("longest winning")) &&
+				(question.includes("which team") || question.includes("what team")) &&
+				!(analysis.teamEntities && analysis.teamEntities.length > 0) &&
+				!entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e));
+
+			// Check for "which team" unbeaten run questions (e.g., "Which team had the longest unbeaten run in 2022?")
+			const isWhichTeamUnbeatenRunQuestion = 
+				(question.includes("unbeaten run") || question.includes("longest unbeaten")) &&
+				(question.includes("which team") || question.includes("what team")) &&
+				!(analysis.teamEntities && analysis.teamEntities.length > 0) &&
+				!entities.some(e => /^\d+(?:st|nd|rd|th|s)?$/i.test(e));
+
+			if (isWhichTeamWinningRunQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected which team winning run question, routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRunAllTeams(entities, metrics, analysis, false);
+			}
+
+			if (isWhichTeamUnbeatenRunQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected which team unbeaten run question, routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRunAllTeams(entities, metrics, analysis, true);
+			}
+
+			if (isWinningRunQuestion && analysis) {
+				this.lastProcessingSteps.push(`Detected winning run question, routing to TeamDataQueryHandler`);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis, false);
+			}
+
 			if (isUnbeatenRunQuestion && analysis) {
 				this.lastProcessingSteps.push(`Detected unbeaten run question, routing to TeamDataQueryHandler`);
-				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis);
+				return await TeamDataQueryHandler.queryLongestUnbeatenRun(entities, metrics, analysis, true);
 			}
 
 			// Check for team goals questions (including with colloquial terms like "bang in")
@@ -3437,18 +3471,21 @@ export class ChatbotService {
 				}],
 			};
 		} else if (data && data.type === "longest_unbeaten_run") {
-			// Handle longest unbeaten run query
+			// Handle longest unbeaten/winning run query
 			const teamName = (data.teamName as string) || "";
 			const count = (data.count as number) || 0;
+			const includeDraws = (data.includeDraws as boolean) ?? true;
 			const dateRange = data.dateRange as { start: string; end: string } | undefined;
+			const runType = includeDraws ? "unbeaten run" : "winning run";
+			const gameType = includeDraws ? "games" : "wins";
 			
 			if (count === 0) {
 				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
-				answer = `The ${teamName} had no unbeaten runs${dateRangeText}.`;
+				answer = `The ${teamName} had no ${runType}s${dateRangeText}.`;
 				answerValue = 0;
 			} else {
 				const dateRangeText = dateRange ? ` between ${DateUtils.formatDate(dateRange.start)} and ${DateUtils.formatDate(dateRange.end)}` : "";
-				answer = `The ${teamName} had a longest unbeaten run of ${count} consecutive ${count === 1 ? "win" : "wins"}${dateRangeText}.`;
+				answer = `The ${teamName} had a longest ${runType} of ${count} consecutive ${count === 1 ? gameType.slice(0, -1) : gameType}${dateRangeText}.`;
 				answerValue = count;
 			}
 			
@@ -3456,10 +3493,135 @@ export class ChatbotService {
 				type: "NumberCard",
 				data: [{
 					value: count,
-					wordedText: "consecutive wins",
+					wordedText: includeDraws ? "consecutive games unbeaten" : "consecutive wins",
 					iconName: this.getIconNameForMetric("TeamWins")
 				}],
 			};
+		} else if (data && data.type === "longest_unbeaten_run_all_teams") {
+			// Handle longest unbeaten/winning run query for all teams
+			const teamName = (data.teamName as string) || "";
+			const count = (data.count as number) || 0;
+			const year = (data.year as number) || 0;
+			const includeDraws = (data.includeDraws as boolean) ?? true;
+			const fixtureResults = (data.fixtureResults as Record<string, string>) || {};
+			const fixtureScorelines = (data.fixtureScorelines as Record<string, string>) || {};
+			const allFixtureDates = (data.allFixtureDates as string[]) || [];
+			const streakDates = (data.streakDates as string[]) || [];
+			const dateRange = data.dateRange as { start: string; end: string } | undefined;
+			const fullDateRange = (data.fullDateRange as { start: string; end: string }) || { start: "2016-01-01", end: "2025-12-31" };
+			const runType = includeDraws ? "unbeaten run" : "winning run";
+			const gameType = includeDraws ? "games" : "wins";
+			
+			if (count === 0 || !teamName) {
+				const yearText = year ? ` in ${year}` : "";
+				answer = `No ${runType}s found${yearText}.`;
+				answerValue = "";
+			} else {
+				const yearText = year ? ` in ${year}` : "";
+				answer = `The ${teamName} had the longest ${runType}${yearText} with ${count} consecutive ${count === 1 ? gameType.slice(0, -1) : gameType}.`;
+				answerValue = teamName;
+			}
+
+			// Build Calendar visualization with fixture results
+			if (count > 0 && teamName && allFixtureDates.length > 0) {
+				// Helper function to calculate week number (matching Calendar.tsx weekNum function)
+				const weekNum = (date: Date): number => {
+					const year = date.getFullYear();
+					const jan1 = new Date(year, 0, 1);
+					const jan1Day = jan1.getDay();
+					const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+					const daysSinceJan1 = Math.floor((date.getTime() - jan1.getTime()) / (1000 * 60 * 60 * 24));
+					return Math.floor((daysSinceJan1 + jan1MondayBased) / 7) + 1;
+				};
+
+				// Helper to get Monday of a week
+				const getMondayOfWeek = (year: number, weekNumber: number): Date => {
+					const jan1 = new Date(year, 0, 1);
+					const jan1Day = jan1.getDay();
+					const jan1MondayBased = jan1Day === 0 ? 6 : jan1Day - 1;
+					const daysToAdd = (weekNumber - 1) * 7 - jan1MondayBased;
+					const monday = new Date(jan1);
+					monday.setDate(jan1.getDate() + daysToAdd);
+					return monday;
+				};
+
+				// Group fixtures by year and week, tracking results and scorelines
+				const weekMap = new Map<string, { 
+					year: number; 
+					weekNumber: number; 
+					value: number;
+					fixtureResult?: string;
+					fixtureScoreline?: string;
+					hasFixture: boolean;
+				}>();
+
+				// Process all fixture dates
+				for (const dateStr of allFixtureDates) {
+					const date = new Date(dateStr);
+					const year = date.getFullYear();
+					const week = weekNum(date);
+					const key = `${year}-${week}`;
+					
+					if (!weekMap.has(key)) {
+						weekMap.set(key, { year, weekNumber: week, value: 0, hasFixture: false });
+					}
+					
+					const weekEntry = weekMap.get(key)!;
+					weekEntry.hasFixture = true;
+					weekEntry.value = 1; // Mark that there's a fixture in this week
+					
+					// Set fixture result if available
+					if (fixtureResults[dateStr]) {
+						weekEntry.fixtureResult = fixtureResults[dateStr];
+					}
+					
+					// Set fixture scoreline if available
+					if (fixtureScorelines[dateStr]) {
+						weekEntry.fixtureScoreline = fixtureScorelines[dateStr];
+					}
+				}
+
+				// Convert to week-based format
+				const weeks = Array.from(weekMap.values()).map(w => ({
+					weekNumber: w.weekNumber,
+					year: w.year,
+					value: w.value,
+					fixtureResult: w.fixtureResult,
+					fixtureScoreline: w.fixtureScoreline,
+					gameCount: w.hasFixture ? 1 : 0,
+				}));
+
+				// Calculate highlight range from streak dates
+				let highlightRange: { startWeek: number; startYear: number; endWeek: number; endYear: number } | undefined = undefined;
+				if (streakDates.length > 0) {
+					const firstStreakDate = new Date(streakDates[0]);
+					const lastStreakDate = new Date(streakDates[streakDates.length - 1]);
+					
+					const startWeekInfo = { year: firstStreakDate.getFullYear(), week: weekNum(firstStreakDate) };
+					const endWeekInfo = { year: lastStreakDate.getFullYear(), week: weekNum(lastStreakDate) };
+					
+					highlightRange = {
+						startWeek: startWeekInfo.week,
+						startYear: startWeekInfo.year,
+						endWeek: endWeekInfo.week,
+						endYear: endWeekInfo.year,
+					};
+				}
+
+				visualization = {
+					type: "Calendar",
+					data: {
+						weeks: weeks,
+						highlightRange: highlightRange,
+						allFixtureDates: allFixtureDates,
+						fixtureResults: fixtureResults,
+						fixtureScorelines: fixtureScorelines,
+						fixtureResultType: "team_unbeaten_run",
+						streakDates: streakDates,
+						fullDateRange: fullDateRange,
+					},
+				};
+			}
 		} else if (data && data.type === "comparison") {
 			// Handle comparison data
 			const comparisonData = (data.data as PlayerData[]) || [];
