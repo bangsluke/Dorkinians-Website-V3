@@ -213,7 +213,8 @@ export class ResponseBuilder {
 			}
 			
 			if (teamDisplayName) {
-				return `${playerName} has ${formattedValue} ${formattedValue === 1 ? "appearance" : "appearances"} for the ${teamDisplayName}.`;
+				const numericValue = typeof value === "number" ? value : Number(value);
+				return `${playerName} has ${formattedValue} ${numericValue === 1 ? "appearance" : "appearances"} for the ${teamDisplayName}.`;
 			}
 		}
 
