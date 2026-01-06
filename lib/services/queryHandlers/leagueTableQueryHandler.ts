@@ -1,5 +1,6 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
+import { ChatbotService } from "../chatbotService";
 import { loggingService } from "../loggingService";
 
 export class LeagueTableQueryHandler {
@@ -52,6 +53,18 @@ export class LeagueTableQueryHandler {
 					LIMIT 1
 					RETURN season, goalsAgainst
 				`;
+				
+				// Push query to chatbotService for extraction
+				try {
+					const chatbotService = ChatbotService.getInstance();
+					const readyToExecuteQuery = neo4jQuery
+						.replace(/\$graphLabel/g, `'${graphLabel}'`)
+						.replace(/\$teamName/g, `'${normalizedTeamName}'`);
+					chatbotService.lastExecutedQueries.push(`TEAM_SEASON_MOST_CONCEDED_QUERY: ${neo4jQuery}`);
+					chatbotService.lastExecutedQueries.push(`TEAM_SEASON_MOST_CONCEDED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				} catch (error) {
+					// Ignore if chatbotService not available
+				}
 				
 				const neo4jResult = await neo4jService.executeQuery(neo4jQuery, { graphLabel, teamName: normalizedTeamName });
 				
@@ -248,6 +261,18 @@ export class LeagueTableQueryHandler {
 							entries
 						ORDER BY teamName
 					`;
+					
+					// Push query to chatbotService for extraction
+					try {
+						const chatbotService = ChatbotService.getInstance();
+						const readyToExecuteQuery = neo4jQuery
+							.replace(/\$graphLabel/g, `'${graphLabel}'`)
+							.replace(/\$seasonVariations/g, JSON.stringify(seasonVariations));
+						chatbotService.lastExecutedQueries.push(`LEAGUE_TABLE_QUERY: ${neo4jQuery}`);
+						chatbotService.lastExecutedQueries.push(`LEAGUE_TABLE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+					} catch (error) {
+						// Ignore if chatbotService not available
+					}
 					
 					try {
 						const result = await neo4jService.runQuery(neo4jQuery, { graphLabel, seasonVariations: seasonVariations });
@@ -630,6 +655,88 @@ export class LeagueTableQueryHandler {
 				};
 			}
 
+			// Check for "how many seasons did [team] finish with negative goal difference" query
+			const isNegativeGoalDifferenceSeasonsQuery = 
+				teamEntities.length > 0 &&
+				(question.includes("how many seasons") || question.includes("how many season")) &&
+				question.includes("finish") &&
+				(question.includes("negative goal difference") || 
+				 (question.includes("negative") && question.includes("goal difference")));
+
+			if (isNegativeGoalDifferenceSeasonsQuery) {
+				const normalizedTeamName = teamName.includes("st") || teamName.includes("nd") || teamName.includes("rd") || teamName.includes("th") 
+					? teamName.match(/\d+/)?.[0] + "s" 
+					: teamName;
+				
+				// Use getAllHistoricalPositions pattern to get all seasons from JSON files + Neo4j
+				const { getAllHistoricalPositions, getCurrentSeasonDataFromNeo4j, normalizeSeasonFormat } = await import("../leagueTableService");
+				
+				// Get all historical positions for this team
+				const allPositions = await getAllHistoricalPositions();
+				const teamPositions = allPositions.filter((pos) => pos.team === normalizedTeamName);
+				
+				if (teamPositions.length === 0) {
+					return {
+						type: "not_found",
+						data: [],
+						message: `I couldn't find league table data for the ${normalizedTeamName}.`,
+					};
+				}
+				
+				// Count unique seasons with negative goal difference
+				const negativeSeasons = new Set<string>();
+				teamPositions.forEach((pos) => {
+					if (pos.goalDifference < 0) {
+						negativeSeasons.add(pos.season);
+					}
+				});
+				const negativeSeasonCount = negativeSeasons.size;
+				
+				// Format team name to "4th XI" format
+				const teamNum = normalizedTeamName.replace('s', '');
+				const ordinalMap: { [key: string]: string } = {
+					'1': '1st', '2': '2nd', '3': '3rd', '4': '4th',
+					'5': '5th', '6': '6th', '7': '7th', '8': '8th'
+				};
+				const ordinalTeam = ordinalMap[teamNum] ? `${ordinalMap[teamNum]} XI` : normalizedTeamName;
+				
+				// Build data array with all seasons (sorted by season)
+				const seasonData = teamPositions
+					.sort((a, b) => a.season.localeCompare(b.season))
+					.map((pos) => ({
+						season: pos.season,
+						position: pos.position,
+						goalDifference: pos.goalDifference,
+						played: pos.played,
+						won: pos.won,
+						drawn: pos.drawn,
+						lost: pos.lost,
+						goalsFor: pos.goalsFor,
+						goalsAgainst: pos.goalsAgainst,
+						points: pos.points,
+						team: pos.team,
+					}));
+				
+				// Build fullTable for visualization with only requested columns
+				const fullTable = seasonData.map((entry) => ({
+					Season: entry.season,
+					Pos: entry.position,
+					P: entry.played,
+					F: entry.goalsFor,
+					A: entry.goalsAgainst,
+					GD: entry.goalDifference,
+					Pts: entry.points,
+				}));
+				
+				return {
+					type: "league_table",
+					data: seasonData,
+					fullTable: fullTable,
+					answerValue: negativeSeasonCount,
+					answer: `The ${ordinalTeam} finished with a negative goal difference in ${negativeSeasonCount} ${negativeSeasonCount === 1 ? 'season' : 'seasons'}.`,
+				};
+			}
+
 			// Check for goal difference queries
 			const isGoalDifferenceQuery = 
 				question.includes("goal difference") ||
@@ -659,6 +766,30 @@ export class LeagueTableQueryHandler {
 				const { getSeasonDataFromJSON } = await import("../leagueTableService");
 				const seasonData = await getSeasonDataFromJSON(normalizedSeason);
 				const fullTable = seasonData?.teams[teamName]?.table || [];
+				
+				// Push representative query (data is from JSON, but show what Neo4j query would look like)
+				try {
+					const chatbotService = ChatbotService.getInstance();
+					const graphLabel = neo4jService.getGraphLabel();
+					const representativeQuery = `
+						MATCH (lt:LeagueTable {graphLabel: $graphLabel, season: $season})
+						WHERE lt.teamName = $teamName
+						RETURN lt.position as position, lt.team as team, lt.played as played, 
+						       lt.won as won, lt.drawn as drawn, lt.lost as lost, 
+						       lt.goalsFor as goalsFor, lt.goalsAgainst as goalsAgainst, 
+						       lt.goalDifference as goalDifference, lt.points as points
+						ORDER BY lt.position
+						LIMIT 1
+					`;
+					const readyToExecuteQuery = representativeQuery
+						.replace(/\$graphLabel/g, `'${graphLabel}'`)
+						.replace(/\$season/g, `'${normalizedSeason}'`)
+						.replace(/\$teamName/g, `'${teamName}'`);
+					chatbotService.lastExecutedQueries.push(`LEAGUE_TABLE_QUERY: ${representativeQuery}`);
+					chatbotService.lastExecutedQueries.push(`LEAGUE_TABLE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				} catch (error) {
+					// Ignore if chatbotService not available
+				}
 
 				const positionSuffix = teamData.position === 1 ? "st" : teamData.position === 2 ? "nd" : teamData.position === 3 ? "rd" : "th";
 				const division = seasonData?.teams[teamName]?.division || "";
@@ -701,6 +832,7 @@ export class LeagueTableQueryHandler {
 			}
 
 			// No season specified or current season query - get current season
+			// Push representative query (getCurrentSeasonDataFromNeo4j will push its own query)
 			const currentSeasonData = await getCurrentSeasonDataFromNeo4j(teamName);
 			if (!currentSeasonData || !currentSeasonData.teams[teamName]) {
 				return {

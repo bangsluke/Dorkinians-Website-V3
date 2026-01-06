@@ -170,6 +170,53 @@ export class ResponseBuilder {
 			return `${playerName} has played for ${data.value} seasons, starting in ${data.firstSeason}`;
 		}
 
+		// Special handling for team-specific appearance metrics (e.g., "4th XI Apps", "4sApps")
+		// This must be checked BEFORE setting verb and finalMetricName to avoid using "got" and "4th team appearances"
+		// Check both the original metric and the resolved metric
+		const metricMatch1 = metric.match(/^\d+sApps$/i);
+		const metricMatch2 = metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i);
+		const resolvedMatch1 = resolvedMetricForDisplay.match(/^\d+sApps$/i);
+		const resolvedMatch2 = resolvedMetricForDisplay.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i);
+		const isTeamSpecificAppearanceMetric = !!(metricMatch1 || metricMatch2 || resolvedMatch1 || resolvedMatch2);
+		if (isTeamSpecificAppearanceMetric) {
+			// Extract team name from metric or use teamEntities
+			let teamDisplayName = "";
+			if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+				teamDisplayName = teamName
+					.replace("1st XI", "1s")
+					.replace("2nd XI", "2s")
+					.replace("3rd XI", "3s")
+					.replace("4th XI", "4s")
+					.replace("5th XI", "5s")
+					.replace("6th XI", "6s")
+					.replace("7th XI", "7s")
+					.replace("8th XI", "8s");
+			} else {
+				// Extract team from metric name (e.g., "4th XI Apps" -> "4s", "4sApps" -> "4s")
+				const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Apps$/i) || metric.match(/^(\d+)sApps$/i);
+				if (teamMatch) {
+					const teamNumber = teamMatch[1];
+					if (metric.includes("XI")) {
+						// Format like "4th XI" -> "4s"
+						const ordinalMatch = teamNumber.match(/^(\d+)(st|nd|rd|th)$/i);
+						if (ordinalMatch) {
+							teamDisplayName = ordinalMatch[1] + "s";
+						} else {
+							teamDisplayName = teamNumber + "s";
+						}
+					} else {
+						// Already in "4s" format
+						teamDisplayName = teamNumber + "s";
+					}
+				}
+			}
+			
+			if (teamDisplayName) {
+				return `${playerName} has ${formattedValue} ${formattedValue === 1 ? "appearance" : "appearances"} for the ${teamDisplayName}.`;
+			}
+		}
+
 		// Handle cases where verb and metric name overlap (e.g., "conceded" + "goals conceded")
 		let finalMetricName = metricName;
 		if (verb && metricName.toLowerCase().includes(verb.toLowerCase())) {

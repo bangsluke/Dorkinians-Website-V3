@@ -10,7 +10,7 @@ import { homepageQuestions, questionTypes, QuestionType } from "@/config/config"
 import NumberCard from "./chatbot-response/NumberCard";
 import Calendar from "./chatbot-response/Calendar";
 import Table from "./chatbot-response/Table";
-import Record from "./chatbot-response/Record";
+import Chart from "./chatbot-response/Chart";
 
 interface SavedConversation {
 	question: string;
@@ -483,7 +483,7 @@ export default function ChatbotInterface() {
 							) :
 							response.visualization.type === "Calendar" ? <Calendar visualization={response.visualization} /> :
 							response.visualization.type === "Table" ? <Table visualization={response.visualization} /> :
-							response.visualization.type === "Record" ? <Record visualization={response.visualization} /> :
+							response.visualization.type === "Chart" ? <Chart visualization={response.visualization} /> :
 							null
 						)}
 					</motion.div>

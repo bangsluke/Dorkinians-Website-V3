@@ -1,4 +1,5 @@
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
+import { ChatbotService } from "../chatbotService";
 import { loggingService } from "../loggingService";
 
 export class AwardsQueryHandler {
@@ -29,6 +30,18 @@ export class AwardsQueryHandler {
 					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_SEASON_TOTW]->(totw:SeasonTOTW {graphLabel: $graphLabel})
 					RETURN count(r) as totwCount
 				`;
+
+			// Push query to chatbotService for extraction
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				const readyToExecuteQuery = countQuery
+					.replace(/\$graphLabel/g, `'${graphLabel}'`)
+					.replace(/\$playerName/g, `'${playerName}'`);
+				chatbotService.lastExecutedQueries.push(`TOTW_COUNT_QUERY: ${countQuery}`);
+				chatbotService.lastExecutedQueries.push(`TOTW_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+			} catch (error) {
+				// Ignore if chatbotService not available
+			}
 
 			try {
 				const result = await neo4jService.executeQuery(countQuery, { playerName, graphLabel });
@@ -121,6 +134,18 @@ export class AwardsQueryHandler {
 			WHERE NOT (ca.itemName CONTAINS "Captain")
 			RETURN count(r) as awardCount
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`AWARDS_COUNT_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`AWARDS_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
@@ -323,6 +348,20 @@ export class AwardsQueryHandler {
 		
 		const yearStr = String(year);
 		const yearStrShort = String(year).slice(-2);
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$yearStr/g, `'${yearStr}'`)
+				.replace(/\$yearStrShort/g, `'${yearStrShort}'`)
+				.replace(/\$monthNum/g, `'${monthNum}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_OF_THE_MONTH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_OF_THE_MONTH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel, yearStr, yearStrShort, monthNum });
@@ -598,6 +637,16 @@ export class AwardsQueryHandler {
 			RETURN wt
 			ORDER BY wt.season, wt.week
 		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`TOTW_BY_DATE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TOTW_BY_DATE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel });

@@ -3,11 +3,11 @@
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
-interface RecordProps {
+interface ChartProps {
 	visualization: ChatbotResponse["visualization"];
 }
 
-export default function Record({ visualization }: RecordProps) {
+export default function Chart({ visualization }: ChartProps) {
 	if (!visualization) return null;
 
 	// Transform data for Recharts
@@ -84,4 +84,3 @@ export default function Record({ visualization }: RecordProps) {
 		</div>
 	);
 }
-

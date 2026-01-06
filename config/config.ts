@@ -195,7 +195,7 @@ export const questionTypes: Record<
 		displayName: "Rankings & Records",
 		description: "Questions about who has the highest/lowest statistics",
 		hasVisualization: true,
-		visualizationType: "Record",
+		visualizationType: "Chart",
 	},
 	league_table: {
 		displayName: "League Table",
@@ -217,7 +217,7 @@ export const questionTypes: Record<
 };
 
 // Visualization type definitions
-export type VisualizationType = "NumberCard" | "Table" | "Calendar" | "Record";
+export type VisualizationType = "NumberCard" | "Table" | "Calendar" | "Chart";
 
 export const visualizationTypes: Record<VisualizationType, { displayName: string; description: string; useCase: string }> = {
 	NumberCard: {
@@ -235,8 +235,8 @@ export const visualizationTypes: Record<VisualizationType, { displayName: string
 		description: "Time-based visualization for streaks and temporal data",
 		useCase: "Consecutive games, scoring streaks, performance over time, etc.",
 	},
-	Record: {
-		displayName: "Record Display",
+	Chart: {
+		displayName: "Chart Display",
 		description: "Specialized display for records and achievements",
 		useCase: "Personal bests, season records, milestone achievements, etc.",
 	},

@@ -2,6 +2,7 @@ import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnal
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { PlayerQueryBuilder } from "../queryBuilders/playerQueryBuilder";
 import { EntityResolutionUtils } from "../chatbotUtils/entityResolutionUtils";
+import { EntityNameResolver } from "../entityNameResolver";
 import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { QueryExecutionUtils } from "../chatbotUtils/queryExecutionUtils";
@@ -12,6 +13,96 @@ import { ChatbotService } from "../chatbotService";
 import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
 export class PlayerDataQueryHandler {
+	/**
+	 * Check if a player name is ambiguous (has multiple matches)
+	 * Returns the clarification message if ambiguous, null otherwise
+	 */
+	private static async checkAmbiguousPlayerName(playerName: string): Promise<string | null> {
+		try {
+			const entityResolver = EntityNameResolver.getInstance();
+			const result = await entityResolver.resolveEntityName(playerName, "player");
+			
+			// Check for first name ambiguity FIRST (e.g., "Kieran" matching multiple Kierans)
+			// This is the most common case and should be checked before fuzzy matching
+			const normalizedInput = playerName.toLowerCase().trim();
+			const isSingleWord = !normalizedInput.includes(' ');
+			
+			if (isSingleWord) {
+				// For single-word inputs (likely first names), always query the database directly
+				// to ensure we get the most up-to-date list of all players
+				try {
+					const graphLabel = neo4jService.getGraphLabel();
+					const query = `
+						MATCH (p:Player {graphLabel: $graphLabel})
+						WHERE p.allowOnSite = true
+						RETURN p.playerName as playerName
+						ORDER BY p.playerName
+					`;
+					const dbResult = await neo4jService.executeQuery(query, { graphLabel });
+					let allEntities: string[] = [];
+					if (dbResult && Array.isArray(dbResult)) {
+						allEntities = dbResult.map((row: any) => row.playerName).filter((name: string) => name);
+					}
+					
+					// Fallback to result.allEntities if database query fails or returns empty
+					if (allEntities.length === 0) {
+						allEntities = result.allEntities || [];
+					}
+					
+					// Check if there are multiple players with this first name
+					const matchingPlayers = allEntities.filter((name: string) => {
+						const normalizedName = name.toLowerCase().trim();
+						const firstName = normalizedName.split(' ')[0];
+						// Check if the first name matches the input exactly
+						return firstName === normalizedInput;
+					});
+					
+					loggingService.log(`🔍 Found ${matchingPlayers.length} players with first name "${normalizedInput}": ${matchingPlayers.join(", ")}`, null, "log");
+					
+					if (matchingPlayers.length > 1) {
+						const playerNames = matchingPlayers.slice(0, 5).join(", ");
+						return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+					}
+				} catch (dbError) {
+					loggingService.log(`⚠️ Could not query database for all players, using cached entities: ${dbError}`, null, "warn");
+					// Fallback to using result.allEntities if database query fails
+					const allEntities = result.allEntities || [];
+					const matchingPlayers = allEntities.filter((name: string) => {
+						const normalizedName = name.toLowerCase().trim();
+						const firstName = normalizedName.split(' ')[0];
+						return firstName === normalizedInput;
+					});
+					
+					if (matchingPlayers.length > 1) {
+						const playerNames = matchingPlayers.slice(0, 5).join(", ");
+						return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+					}
+				}
+			}
+			
+			// Check if there are multiple high-confidence fuzzy matches (2 or more)
+			// This indicates ambiguity when multiple players have similar names
+			if (result.fuzzyMatches.length >= 2) {
+				// Check if the top matches have similar confidence (within 0.15)
+				const topMatch = result.fuzzyMatches[0];
+				const secondMatch = result.fuzzyMatches[1];
+				
+				// If both matches have high confidence and are close, it's ambiguous
+				// Lower the threshold to catch more ambiguous cases
+				if (topMatch.confidence >= 0.6 && secondMatch.confidence >= 0.6 && 
+				    Math.abs(topMatch.confidence - secondMatch.confidence) < 0.2) {
+					const playerNames = result.fuzzyMatches.slice(0, 5).map(m => m.entityName).join(", ");
+					return `Please clarify which ${playerName} you are asking about. I found multiple players: ${playerNames}.`;
+				}
+			}
+			
+			return null;
+		} catch (error) {
+			loggingService.log(`❌ Error checking ambiguous player name: ${error}`, null, "error");
+			return null;
+		}
+	}
+
 	/**
 	 * Query player data based on entities, metrics, and analysis
 	 */
@@ -336,6 +427,26 @@ export class PlayerDataQueryHandler {
 		if (isSpecificPlayerPairQuestion && entities.length >= 2) {
 			const playerName1 = entities[0];
 			const playerName2 = entities[1];
+			
+			// Check for ambiguous player names BEFORE resolving (check the second player, not "I")
+			// Filter out pronouns to get the actual player name to check
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const playerNameToCheck = pronouns.includes(playerName2.toLowerCase()) ? playerName1 : playerName2;
+			
+			if (playerNameToCheck && !pronouns.includes(playerNameToCheck.toLowerCase())) {
+				loggingService.log(`🔍 Checking for ambiguous player name: ${playerNameToCheck}`, null, "log");
+				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
+				if (ambiguousCheck) {
+					loggingService.log(`⚠️ Ambiguous player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: ambiguousCheck,
+						answerValue: "Clarification needed",
+					};
+				}
+			}
+			
 			const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
 			const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
 			
@@ -440,10 +551,15 @@ export class PlayerDataQueryHandler {
 			
 			// Determine player name: prioritize valid entities, then userContext for personal questions
 			let playerName = "";
+			let playerNameToCheck = ""; // The name to check for ambiguity (the other player, not "I")
 			if (validEntities.length > 0) {
 				playerName = validEntities[0];
+				playerNameToCheck = validEntities[0];
 			} else if (isPersonalQuestion && userContext) {
 				playerName = userContext;
+				// For personal questions, we need to check if there's another player mentioned
+				// The ambiguity check should be for the other player, not the user
+				// But if no other player is mentioned, we can't check ambiguity here
 			} else if (userContext) {
 				playerName = userContext;
 			}
@@ -455,6 +571,20 @@ export class PlayerDataQueryHandler {
 					data: [],
 					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
 				};
+			}
+			
+			// Check for ambiguous player names if we have a player name to check
+			if (playerNameToCheck) {
+				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
+				if (ambiguousCheck) {
+					loggingService.log(`⚠️ Ambiguous player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: ambiguousCheck,
+						answerValue: "Clarification needed",
+					};
+				}
 			}
 			
 			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
@@ -1090,6 +1220,219 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "which season did I play the most minutes" questions
+		const detectMostMinutesSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I play the most minutes" / "what season did I play the most minutes"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("play") && 
+				(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+				return true;
+			}
+			// Pattern: "season I played the most minutes" / "season did I play most minutes"
+			if (lower.includes("season") && lower.includes("play") && 
+				(lower.includes("most minutes") || (lower.includes("most") && lower.includes("minutes")))) {
+				return true;
+			}
+			return false;
+		};
+
+		const isMostMinutesSeasonQuestion = 
+			detectMostMinutesSeasonPattern(questionLower) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+		if (isMostMinutesSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "minutes", "most", "play"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying most minutes season for ${resolvedPlayerName}`, null, "log");
+			// Use MostMinutesSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostMinutesSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_MINUTES_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season minutes data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostMinutesSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most minutes season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// Check for "which season did I record my highest combined goals + assists total" questions
+		const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I record my highest combined goals + assists total"
+			if ((lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("record") && 
+				lower.includes("highest") && 
+				(lower.includes("combined") || lower.includes("goals") && lower.includes("assists")) &&
+				(lower.includes("total") || lower.includes("goals") && lower.includes("assists"))) {
+				return true;
+			}
+			// Pattern: "season I recorded highest goals + assists" / "season did I record highest combined"
+			if (lower.includes("season") && lower.includes("record") && 
+				lower.includes("highest") && 
+				(lower.includes("combined") || (lower.includes("goals") && lower.includes("assists")))) {
+				return true;
+			}
+			return false;
+		};
+
+		const isHighestGoalsAssistsSeasonQuestion = 
+			detectHighestGoalsAssistsSeasonPattern(questionLower) &&
+			(questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+
+		if (isHighestGoalsAssistsSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "goals", "assists", "combined", "highest", "record", "total"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying highest goals+assists season for ${resolvedPlayerName}`, null, "log");
+			// Use HighestGoalsAssistsSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "HighestGoalsAssistsSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`HIGHEST_GOALS_ASSISTS_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season goals+assists data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "HighestGoalsAssistsSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying highest goals+assists season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for season comparison questions
 		const isSeasonComparisonQuestion = 
 			(questionLower.includes("compare") && questionLower.includes("season")) ||
@@ -1197,8 +1540,24 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
-			// Use detected metric from question if available, otherwise use extracted metric
-			const metricToUse = detectedMetricFromQuestion || originalMetric;
+			// CRITICAL: Don't override team-specific metrics (e.g., "4th XI Apps", "3sApps") with generic "APP"
+			// Check if originalMetric is a team-specific metric before using detectedMetricFromQuestion
+			const isTeamSpecificMetric = originalMetric && (
+				originalMetric.match(/^\d+sApps$/i) ||
+				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) ||
+				originalMetric.match(/^\d+sGoals$/i) ||
+				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
+			);
+			
+			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
+			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
+			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
+			const hasExplicitMetricRequest = detectedMetricFromQuestion && 
+				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
+				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
+			
+			// Use detected metric from question if available, but preserve team-specific metrics UNLESS question explicitly requests a different metric
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;
@@ -1393,6 +1752,18 @@ export class PlayerDataQueryHandler {
 			RETURN max(weeklyPoints) as highestWeeklyScore
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WEEKLY_SCORE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WEEKLY_SCORE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			const highestScore = result && result.length > 0 && result[0].highestWeeklyScore !== undefined 
@@ -1424,6 +1795,18 @@ export class PlayerDataQueryHandler {
 				penaltiesScored,
 				penaltiesMissed
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`PENALTIES_TAKEN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PENALTIES_TAKEN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
@@ -1734,6 +2117,22 @@ export class PlayerDataQueryHandler {
 					LIMIT 1
 				`;
 
+				// Push query to chatbotService for extraction (only for first query to avoid duplicates)
+				if (playerWins.length === 0) {
+					try {
+						const chatbotService = ChatbotService.getInstance();
+						const readyToExecuteQuery = playerQuery
+							.replace(/\$graphLabel/g, `'${graphLabel}'`)
+							.replace(/\$playerName/g, `'${playerName}'`)
+							.replace(/\$team/g, `'${mappedTeam}'`)
+							.replace(/\$season/g, `'${season}'`);
+						chatbotService.lastExecutedQueries.push(`LEAGUE_WINS_COUNT_QUERY: ${playerQuery}`);
+						chatbotService.lastExecutedQueries.push(`LEAGUE_WINS_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+					} catch (error) {
+						// Ignore if chatbotService not available
+					}
+				}
+
 				const result = await neo4jService.executeQuery(playerQuery, {
 					graphLabel,
 					playerName,
@@ -1882,6 +2281,18 @@ export class PlayerDataQueryHandler {
 			RETURN count(md) as value
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HATTRICKS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_HATTRICKS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			const count = result && result.length > 0 && result[0].value !== undefined
@@ -1899,6 +2310,50 @@ export class PlayerDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in player hat-tricks query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying player hat-tricks data" };
+		}
+	}
+
+	/**
+	 * Query seasons with goal counts for a player
+	 * Returns all seasons the player has played in with their goal counts
+	 */
+	static async querySeasonsWithGoalCounts(playerName: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.season IS NOT NULL
+			WITH md.season as season, sum(coalesce(md.goals, 0)) as goals
+			RETURN season, goals
+			ORDER BY season
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`SEASONS_GOAL_COUNTS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`SEASONS_GOAL_COUNTS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			const seasonsData = result && result.length > 0 
+				? result.map((row: any) => ({ season: row.season, goals: row.goals || 0 }))
+				: [];
+			
+			return { 
+				type: "seasons_goal_counts", 
+				data: seasonsData,
+				playerName 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in querySeasonsWithGoalCounts:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 }

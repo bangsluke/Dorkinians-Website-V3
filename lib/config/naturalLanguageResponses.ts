@@ -21,7 +21,7 @@ export interface MetricLanguageConfig {
 
 // Verb mappings for different metric types
 export const verbMappings: { [key: string]: VerbMapping[] } = {
-	G: [{ verb: "scored", alternativeVerbs: ["scored", "got", "achieved"], context: "goals" }],
+	G: [{ verb: "scored", alternativeVerbs: ["scored", "got", "achieved", "banged in", "put away", "netted", "bagged"], context: "goals" }],
 	A: [{ verb: "provided", alternativeVerbs: ["achieved", "got", "assisted"], context: "assists" }],
 	APP: [{ verb: "played", alternativeVerbs: ["played", "made", "appeared in", "achieved"], context: "appearances" }],
 	MIN: [

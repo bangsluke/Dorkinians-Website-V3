@@ -1,6 +1,7 @@
 import type { EnhancedQuestionAnalysis } from "../../config/enhancedQuestionAnalysis";
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 export class ClubDataQueryHandler {
 	/**
@@ -35,6 +36,16 @@ export class ClubDataQueryHandler {
 					RETURN team, goalsConceded
 					ORDER BY goalsConceded ${orderDirection}
 				`;
+
+				// Push query to chatbotService for extraction
+				try {
+					const chatbotService = ChatbotService.getInstance();
+					const readyToExecuteQuery = teamConcededQuery.replace(/\$graphLabel/g, `'${graphLabel}'`);
+					chatbotService.lastExecutedQueries.push(`CLUB_TEAM_CONCEDED_QUERY: ${teamConcededQuery}`);
+					chatbotService.lastExecutedQueries.push(`CLUB_TEAM_CONCEDED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				} catch (error) {
+					// Ignore if chatbotService not available
+				}
 
 				const teamConcededResult = await neo4jService.executeQuery(teamConcededQuery, params);
 				loggingService.log(`🔍 Team conceded goals query result:`, teamConcededResult, "log");
@@ -137,6 +148,77 @@ export class ClubDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in queryClubData:`, error, "error");
 			return { type: "error", data: [], error: "Error querying club data" };
+		}
+	}
+
+	/**
+	 * Query players with exactly one goal in club history
+	 */
+	static async queryPlayersWithExactlyOneGoal(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			  AND p.allGoalsScored = 1
+			RETURN count(DISTINCT p.playerName) as playerCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_EXACTLY_ONE_GOAL_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_EXACTLY_ONE_GOAL_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			return { type: "players_exactly_one_goal", data: [{ playerCount }] };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayersWithExactlyOneGoal:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query players who have played only one game for a specific team
+	 */
+	static async queryPlayersWithOnlyOneGameForTeam(teamName: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.team = $teamName
+			WITH p, count(md) as gameCount
+			WHERE gameCount = 1
+			RETURN count(DISTINCT p.playerName) as playerCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$teamName/g, `'${teamName}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_ONLY_ONE_GAME_TEAM_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYERS_ONLY_ONE_GAME_TEAM_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, teamName });
+			const playerCount = result && result.length > 0 ? (result[0].playerCount || 0) : 0;
+			return { type: "players_only_one_game_team", data: [{ playerCount }], teamName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayersWithOnlyOneGameForTeam:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
 }
