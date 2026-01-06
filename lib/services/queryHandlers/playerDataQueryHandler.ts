@@ -1549,8 +1549,15 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
-			// Use detected metric from question if available, but preserve team-specific metrics
-			const metricToUse = (isTeamSpecificMetric) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
+			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
+			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
+			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
+			const hasExplicitMetricRequest = detectedMetricFromQuestion && 
+				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
+				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
+			
+			// Use detected metric from question if available, but preserve team-specific metrics UNLESS question explicitly requests a different metric
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;

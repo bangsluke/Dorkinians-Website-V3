@@ -40,7 +40,7 @@ export class PlayerQueryBuilder {
 			"MOSTSCOREDFORTEAM",
 			"MOSTPLAYEDFORTEAM",
 			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
-			"MOSTMINUTESSASON", // Needs MatchDetail to calculate minutes per season
+			"MOSTMINUTESSEASON", // Needs MatchDetail to calculate minutes per season
 			"HIGHESTGOALSASSISTSSEASON", // Needs MatchDetail to calculate goals + assists per season
 			"FTP",
 			"POINTS",
@@ -1087,7 +1087,7 @@ export class PlayerQueryBuilder {
 				RETURN p.playerName as playerName, season, goals as value
 				ORDER BY season ASC
 			`;
-		} else if (metric.toUpperCase() === "MOSTMINUTESSASON") {
+		} else if (metric.toUpperCase() === "MOSTMINUTESSEASON") {
 			// Query MatchDetails to get minutes per season
 			// Use md.season directly since MatchDetail has a season property
 			const teamEntities = analysis.teamEntities || [];
@@ -1615,10 +1615,11 @@ export class PlayerQueryBuilder {
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
 					query += ` WITH p, size(filteredDetails) as appearanceCount`;
 					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
-				} else if (hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				} else if (hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) && metric.toUpperCase() !== "A") {
 					// When exclusions are present for team-specific appearances, use regular aggregation with exclusion filter
 					// This path is ONLY for team-specific appearance metrics (3sApps, etc.), not for other metrics like assists
 					// The metric.match check ensures we only use this path for actual team-specific appearances
+					// Explicitly exclude "A" (assists) to ensure assists queries use the correct aggregation path
 					const mappedExcludedTeamNames = (analysis.teamExclusions || []).map((team) => TeamMappingUtils.mapTeamName(team));
 					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
 					query += ` WITH p, collect(md) as matchDetails`;

@@ -4813,8 +4813,8 @@ export class ChatbotService {
 						answer = `${playerName} has no team data available.`;
 					}
 				}
-				// Handle MOSTMINUTESSASON - find season with most minutes
-				else if (metric && metric.toUpperCase() === "MOSTMINUTESSASON") {
+				// Handle MOSTMINUTESSEASON - find season with most minutes
+				else if (metric && metric.toUpperCase() === "MOSTMINUTESSEASON") {
 					// Check if we have array data (multiple seasons) from the query
 					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
@@ -4841,20 +4841,18 @@ export class ChatbotService {
 								return a.season.localeCompare(b.season);
 							});
 							
-							// Create Table visualization with all seasons and their minutes
-							const tableData = sortedData.map((item) => ({
-								Season: item.season,
-								Minutes: item.minutes,
+							// Create Chart visualization with all seasons and their minutes
+							const chartData = sortedData.map((item) => ({
+								name: item.season,
+								value: item.minutes,
+								isHighest: item.season === mostMinutesSeason.season,
 							}));
 							
 							visualization = {
-								type: "Table",
-								data: tableData,
+								type: "Chart",
+								data: chartData,
 								config: {
-									columns: [
-										{ key: "Season", label: "Season" },
-										{ key: "Minutes", label: "Minutes" },
-									],
+									type: "bar",
 								},
 							};
 						} else {
