@@ -299,4 +299,97 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query total penalties scored in penalty shootouts across all MatchDetails
+	 */
+	static async queryPenaltyShootoutPenaltiesScored(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			RETURN sum(coalesce(md.penaltyShootoutPenaltiesScored, 0)) as total
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_SCORED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_SCORED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			const total = result && result.length > 0 ? (result[0].total || 0) : 0;
+			return { type: "penalty_shootout_scored_total", data: [{ value: total }] };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPenaltyShootoutPenaltiesScored:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query total penalties missed in penalty shootouts across all MatchDetails
+	 */
+	static async queryPenaltyShootoutPenaltiesMissed(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			RETURN sum(coalesce(md.penaltyShootoutPenaltiesMissed, 0)) as total
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_MISSED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_MISSED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			const total = result && result.length > 0 ? (result[0].total || 0) : 0;
+			return { type: "penalty_shootout_missed_total", data: [{ value: total }] };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPenaltyShootoutPenaltiesMissed:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query total penalties saved in penalty shootouts across all MatchDetails
+	 */
+	static async queryPenaltyShootoutPenaltiesSaved(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			RETURN sum(coalesce(md.penaltyShootoutPenaltiesSaved, 0)) as total
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_SAVED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PENALTY_SHOOTOUT_SAVED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			const total = result && result.length > 0 ? (result[0].total || 0) : 0;
+			return { type: "penalty_shootout_saved_total", data: [{ value: total }] };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPenaltyShootoutPenaltiesSaved:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

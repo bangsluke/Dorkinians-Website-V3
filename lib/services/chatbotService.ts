@@ -500,6 +500,40 @@ export class ChatbotService {
 				return await ClubDataQueryHandler.queryPlayersWithExactlyOneGoal();
 			}
 
+			// Check for penalty shootout questions
+			const isPenaltyShootoutScoredQuery = 
+				(question.includes("how many") || question.includes("what number")) &&
+				question.includes("penalties") &&
+				question.includes("scored") &&
+				(question.includes("penalty shootout") || question.includes("shootout"));
+
+			const isPenaltyShootoutMissedQuery = 
+				(question.includes("how many") || question.includes("what number")) &&
+				question.includes("penalties") &&
+				question.includes("missed") &&
+				(question.includes("shootout") || question.includes("penalty shootout"));
+
+			const isPenaltyShootoutSavedQuery = 
+				(question.includes("how many") || question.includes("what number")) &&
+				question.includes("penalties") &&
+				question.includes("saved") &&
+				(question.includes("shootout") || question.includes("penalty shootout"));
+
+			if (isPenaltyShootoutScoredQuery) {
+				this.lastProcessingSteps.push(`Detected penalty shootout scored question, routing to ClubDataQueryHandler`);
+				return await ClubDataQueryHandler.queryPenaltyShootoutPenaltiesScored();
+			}
+
+			if (isPenaltyShootoutMissedQuery) {
+				this.lastProcessingSteps.push(`Detected penalty shootout missed question, routing to ClubDataQueryHandler`);
+				return await ClubDataQueryHandler.queryPenaltyShootoutPenaltiesMissed();
+			}
+
+			if (isPenaltyShootoutSavedQuery) {
+				this.lastProcessingSteps.push(`Detected penalty shootout saved question, routing to ClubDataQueryHandler`);
+				return await ClubDataQueryHandler.queryPenaltyShootoutPenaltiesSaved();
+			}
+
 			// Check for "how many players have played only one game for [team]" questions
 			const isPlayersOnlyOneGameForTeamQuery = 
 				(question.includes("how many players") || question.includes("how many player")) &&
@@ -4846,6 +4880,69 @@ export class ChatbotService {
 			const penaltiesScored = (data.penaltiesScored as number) || 0;
 			answer = `${playerName} has taken ${totalPenalties} ${totalPenalties === 1 ? "penalty" : "penalties"}, scoring ${penaltiesScored}.`;
 			answerValue = totalPenalties;
+		} else if (data && data.type === "penalty_shootout_scored_total") {
+			// Handle penalty shootout scored total query
+			const total = Array.isArray(data.data) && data.data.length > 0 
+				? (data.data[0] as any).value || 0
+				: 0;
+			answer = `${total} ${total === 1 ? "penalty has" : "penalties have"} been scored in penalty shootouts.`;
+			answerValue = total;
+			const psPscStat = statObject['PS-PSC'];
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Penalties Scored in Penalty Shootouts", 
+					wordedText: "penalties scored in penalty shootouts",
+					value: total,
+					iconName: psPscStat?.iconName || "PenaltiesScored-Icon"
+				}],
+				config: {
+					title: "Penalties Scored in Penalty Shootouts",
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "penalty_shootout_missed_total") {
+			// Handle penalty shootout missed total query
+			const total = Array.isArray(data.data) && data.data.length > 0 
+				? (data.data[0] as any).value || 0
+				: 0;
+			answer = `${total} ${total === 1 ? "penalty has" : "penalties have"} been missed in shootouts.`;
+			answerValue = total;
+			const psPmStat = statObject['PS-PM'];
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Penalties Missed in Penalty Shootouts", 
+					wordedText: "penalties missed in penalty shootouts",
+					value: total,
+					iconName: psPmStat?.iconName || "PenaltyShootoutPenaltiesMissed-Icon"
+				}],
+				config: {
+					title: "Penalties Missed in Penalty Shootouts",
+					type: "bar",
+				},
+			};
+		} else if (data && data.type === "penalty_shootout_saved_total") {
+			// Handle penalty shootout saved total query
+			const total = Array.isArray(data.data) && data.data.length > 0 
+				? (data.data[0] as any).value || 0
+				: 0;
+			answer = `${total} ${total === 1 ? "penalty has" : "penalties have"} been saved in shootouts.`;
+			answerValue = total;
+			const psPsvStat = statObject['PS-PSV'];
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Penalties Saved in Penalty Shootouts", 
+					wordedText: "penalties saved in penalty shootouts",
+					value: total,
+					iconName: psPsvStat?.iconName || "PenaltyShootoutPenaltiesSaved-Icon"
+				}],
+				config: {
+					title: "Penalties Saved in Penalty Shootouts",
+					type: "bar",
+				},
+			};
 		} else if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
 			if (data.type === "specific_player") {
 				const playerName = data.playerName as string;
