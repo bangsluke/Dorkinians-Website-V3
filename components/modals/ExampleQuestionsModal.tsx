@@ -77,7 +77,12 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 										transition={{ delay: index * 0.02 }}
 										className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05]'
 										onClick={() => handleQuestionClick(question)}>
-										<p className='font-medium text-white text-xs md:text-sm'>{question}</p>
+										<div className='flex items-start gap-3'>
+											<span className='flex-shrink-0 w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-xs font-semibold flex items-center justify-center'>
+												{index + 1}
+											</span>
+											<p className='font-medium text-white text-xs md:text-sm'>{question}</p>
+										</div>
 									</motion.div>
 								))}
 							</div>
