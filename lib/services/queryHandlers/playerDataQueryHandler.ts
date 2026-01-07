@@ -127,7 +127,7 @@ export class PlayerDataQueryHandler {
 			);
 		}
 
-		// Filter out invalid entities (team numbers, hattrick terms, etc.)
+		// Filter out invalid entities (team numbers, hattrick terms, stat-related words, etc.)
 		const validEntities = entities.filter((entity) => {
 			const lowerEntity = entity.toLowerCase();
 			// Skip team numbers (3s, 3rd, etc.)
@@ -135,6 +135,15 @@ export class PlayerDataQueryHandler {
 			// Skip hattrick terms (hattrick, hat-trick, hat trick, etc.)
 			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
 			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) return false;
+			// Skip stat-related words that might be incorrectly extracted as player entities
+			const statWords = [
+				"season", "best", "worst", "goals", "goal", "assists", "assist",
+				"saves", "save", "sheets", "sheet", "clean", "cards", "card", 
+				"yellow", "red", "mom", "match", "man", "of", "the", "own", 
+				"conceded", "penalt", "penalties", "appearances", "appearance", 
+				"minutes", "minute"
+			];
+			if (statWords.some(word => lowerEntity.includes(word))) return false;
 			return true;
 		});
 
@@ -1892,12 +1901,20 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
-		// Check for season comparison questions
-		const isSeasonComparisonQuestion = 
+		// CRITICAL: Skip season comparison check if this is a "best season for stat" question
+		// These questions need special handling via BEST_SEASON_FOR_STAT metric, not generic season comparison
+		const isBestSeasonForStatQuestion = metrics.length > 0 && (
+			metrics[0].toUpperCase() === "BEST_SEASON_FOR_STAT" ||
+			metrics[0].toUpperCase() === "BESTSEASONFORSTAT"
+		);
+		
+		// Check for season comparison questions (but exclude "best season for [stat]" questions)
+		const isSeasonComparisonQuestion = !isBestSeasonForStatQuestion && (
 			(questionLower.includes("compare") && questionLower.includes("season")) ||
 			(questionLower.includes("vs") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
 			(questionLower.includes("versus") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
-			(questionLower.includes("best season") || questionLower.includes("worst season"));
+			(questionLower.includes("best season") || questionLower.includes("worst season"))
+		);
 
 		if (isSeasonComparisonQuestion && entities.length > 0) {
 			const playerName = entities[0];
@@ -2008,6 +2025,17 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason") with detected metrics
+			// These metrics have custom query builders and should be preserved
+			const isSpecialCaseMetric = originalMetric && (
+				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
+				originalMetric.toUpperCase() === "BESTSEASONFORSTAT" ||
+				originalMetric.toUpperCase() === "MOSTPROLIFICSEASON" ||
+				originalMetric.toUpperCase() === "MOSTMINUTESSEASON" ||
+				originalMetric.toUpperCase() === "MOSTAPPEARANCESSEASON" ||
+				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON"
+			);
+			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
 			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
 			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
@@ -2015,8 +2043,11 @@ export class PlayerDataQueryHandler {
 				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
 				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
 			
-			// Use detected metric from question if available, but preserve team-specific metrics UNLESS question explicitly requests a different metric
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
+			// Use detected metric from question if available, but preserve team-specific metrics and special case metrics
+			// UNLESS question explicitly requests a different metric (and it's not a special case)
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric
+				? originalMetric 
+				: (detectedMetricFromQuestion || originalMetric);
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;
@@ -2041,6 +2072,9 @@ export class PlayerDataQueryHandler {
 			}
 
 			const metric = normalizedMetric.toUpperCase();
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2043',message:'Final metric before query',data:{normalizedMetric,metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+			// #endregion
 
 			// Check if this is a team-specific question
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
@@ -2109,7 +2143,13 @@ export class PlayerDataQueryHandler {
 			}
 
 			// Build the optimal query using unified architecture
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2112',message:'About to build query',data:{actualPlayerName,metric,originalMetric,bestSeasonStatType:(analysis as any)?.bestSeasonStatType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2113',message:'Query built',data:{queryLength:query.length,queryPreview:query.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
@@ -2125,6 +2165,9 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2127',message:'Query result received',data:{resultLength:result?.length,resultType:typeof result,firstResult:result?.[0],metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+			// #endregion
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2163,6 +2206,9 @@ export class PlayerDataQueryHandler {
 
 				// Use metricToUse (the corrected metric) instead of originalMetric for response generation
 				// This ensures the response text uses the correct metric name (e.g., "assists" instead of "3rd team appearances")
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2172',message:'Returning query result',data:{type:'specific_player',playerName:actualPlayerName,metric:metricToUse,originalMetric,resultLength:result?.length,firstResult:result?.[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+				// #endregion
 				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: metricToUse, cypherQuery: query };
 			} catch (error) {
 				loggingService.log(`❌ Error in player query:`, error, "error");
@@ -2180,9 +2226,15 @@ export class PlayerDataQueryHandler {
 
 		// If we have player names but no metrics, return general player info
 		if (entities.length > 0 && metrics.length === 0) {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2197',message:'No metrics - returning general player',data:{entities,metrics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+			// #endregion
 			return { type: "general_player", data: entities, message: "General player query" };
 		}
 
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2192',message:'Falling back to general player query',data:{entities,metrics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+		// #endregion
 		loggingService.log(`🔍 No specific player query, falling back to general player query`, null, "log");
 
 		// Fallback to general player query

@@ -369,11 +369,24 @@
 	height: 100vh;
 }
 
+/* Settings page - remove footer spacing */
+.main-content-container.settings-page {
+	padding: 64px 11px 11px 11px;
+}
+
+.frosted-container.settings-frosted-container {
+	bottom: 11px;
+}
+
 /* Desktop main content container */
 @media (min-width: 768px) {
 	.main-content-container {
 		padding: 11px 11px 11px 231px;
 		height: 100vh;
+	}
+
+	.main-content-container.settings-page {
+		padding: 11px 11px 11px 231px;
 	}
 
 	/* Masonry layout for player stats - desktop only */

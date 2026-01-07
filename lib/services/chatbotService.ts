@@ -1123,6 +1123,85 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "best season for [stat]" questions - route to player handler
+			const detectBestSeasonForStatPattern = (q: string): boolean => {
+				const lower = q.toLowerCase();
+				// Pattern: "best season for [stat]" or "my best season for [stat]"
+				if ((lower.includes("best season for") || lower.includes("worst season for")) &&
+					(lower.includes("what") || lower.includes("which") || lower.includes("my") || lower.includes("your") || lower.includes("i ") || lower.includes(" did"))) {
+					return true;
+				}
+				// Pattern: "best season [stat]" (without "for") - check for any stat keywords
+				if ((lower.includes("best season") || lower.includes("worst season")) &&
+					(lower.includes("goals") || lower.includes("assists") || lower.includes("saves") || 
+					 lower.includes("yellow card") || lower.includes("red card") || lower.includes("clean sheet") ||
+					 lower.includes("appearance") || lower.includes("minute") || lower.includes("mom") ||
+					 lower.includes("man of the match") || lower.includes("own goal") || lower.includes("penalt") ||
+					 lower.includes("conceded")) &&
+					(lower.includes("what") || lower.includes("which") || lower.includes("my") || lower.includes("your") || lower.includes("i ") || lower.includes(" did"))) {
+					return true;
+				}
+				return false;
+			};
+
+			const patternMatch = detectBestSeasonForStatPattern(question);
+			const hasRequiredWords = (questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did"));
+			const isBestSeasonForStatQuestion = patternMatch && hasRequiredWords;
+
+			if (isBestSeasonForStatQuestion) {
+				const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+				const invalidPlayerNamePatterns = [
+					"season", "best", "worst", 
+					"goals", "goal", "assists", "assist",
+					"saves", "save", "sheets", "sheet", "clean",
+					"cards", "card", "yellow", "red",
+					"mom", "match", "man", "of", "the",
+					"own", "conceded", "penalt", "penalties",
+					"appearances", "appearance", "minutes", "minute"
+				];
+				const playerEntitiesFromQuestion = analysis.extractionResult?.entities?.filter(e => {
+					if (e.type !== "player") return false;
+					const lowerValue = e.value.toLowerCase();
+					if (firstPersonPronouns.includes(lowerValue)) return false;
+					if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+					return true;
+				}) || [];
+				let playerName = "";
+				if (playerEntitiesFromQuestion.length > 0) {
+					playerName = playerEntitiesFromQuestion[0].value;
+				} else {
+					// Filter entities to exclude stat-related words before using them
+					const filteredEntities = entities.filter(entity => {
+						const lowerEntity = entity.toLowerCase();
+						return !invalidPlayerNamePatterns.some(pattern => lowerEntity.includes(pattern));
+					});
+					if (filteredEntities.length > 0) {
+						playerName = filteredEntities[0];
+						if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+							playerName = userContext;
+						}
+					} else if (userContext) {
+						playerName = userContext;
+					}
+				}
+				if (playerName || userContext) {
+					const playerEntities = playerName ? [playerName] : (userContext ? [userContext] : []);
+					this.lastProcessingSteps.push(`Detected best season for stat question, routing to PlayerDataQueryHandler with player: ${playerEntities[0] || userContext}`);
+					// Pass the stat type from analysis if available
+					const bestSeasonStatType = (analysis.extractionResult as any)?.bestSeasonStatType;
+					if (bestSeasonStatType) {
+						(analysis as any).bestSeasonStatType = bestSeasonStatType;
+					}
+					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["BestSeasonForStat"], analysis, userContext);
+				} else {
+					this.lastProcessingSteps.push(`Best season for stat question detected but no player context available`);
+				}
+			} else {
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:1185',message:'Best season pattern NOT matched - falling through',data:{question,questionLower,patternMatch,hasRequiredWords,isBestSeasonForStatQuestion,entities,metrics:analysis.metrics,extractedMetrics:analysis.extractionResult?.statTypes?.map((s:any)=>s.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+				// #endregion
+			}
+
 			// Check for "which season did I play the most minutes" questions - route to player handler
 			const detectMostMinutesSeasonPattern = (q: string): boolean => {
 				const lower = q.toLowerCase();
@@ -1514,6 +1593,9 @@ export class ChatbotService {
 				return await PlayerDataQueryHandler.queryPlayerData(entities, metrics, analysis, userContext);
 			}
 
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:1587',message:'Default routing switch',data:{type,entities,metrics,question:analysis.question},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+		// #endregion
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
@@ -4850,26 +4932,25 @@ export class ChatbotService {
 				answer = `${playerName} has no season data available.`;
 				answerValue = 0;
 			} else {
-				// Count seasons where goals = 0
+				// Count seasons where goals = 0 (player played at least one game but scored 0 goals)
 				const seasonsWithNoGoals = seasonsData.filter(s => s.goals === 0).length;
 				const seasonText = seasonsWithNoGoals === 1 ? "season" : "seasons";
 				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${playerName} didn't score any goals.`;
 				answerValue = seasonsWithNoGoals;
 				
-				// Create Table visualization with all seasons and their goal counts
-				const tableData = seasonsData.map((item) => ({
-					Season: item.season,
-					Goals: item.goals || 0,
-				}));
-				
+				// Create NumberCard visualization
+				const iconName = this.getIconNameForMetric("G");
 				visualization = {
-					type: "Table",
-					data: tableData,
+					type: "NumberCard",
+					data: [{ 
+						name: "Seasons with Zero Goals",
+						wordedText: "seasons where you didn't score any goals",
+						value: seasonsWithNoGoals,
+						iconName: iconName
+					}],
 					config: {
-						columns: [
-							{ key: "Season", label: "Season" },
-							{ key: "Goals", label: "Goals" },
-						],
+						title: "Seasons with Zero Goals",
+						type: "bar",
 					},
 				};
 			}
@@ -5563,6 +5644,9 @@ export class ChatbotService {
 			if (data.type === "specific_player") {
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:5624',message:'Response handler - specific_player entry',data:{dataType:data.type,playerName,metric,dataLength:data.data.length,firstDataItem:data.data[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+				// #endregion
 				
 				// Check for "each season" pattern BEFORE extracting first data item (needs full array)
 				const questionLower = question.toLowerCase();
@@ -5763,6 +5847,95 @@ export class ChatbotService {
 						} else {
 							answer = `${playerName} has no season data available.`;
 						}
+					}
+				}
+				// Handle BEST_SEASON_FOR_STAT - best season for any stat type
+				else if (metric && (metric.toUpperCase() === "BEST_SEASON_FOR_STAT" || metric.toUpperCase() === "BESTSEASONFORSTAT")) {
+					// Check if we have array data (multiple seasons) from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const seasonsData = data.data as Array<{ season?: string; value: number | string; [key: string]: unknown }>;
+						
+						// Get stat display name from analysis or default to "Goals"
+						const statDisplayName = (analysis as any)?.bestSeasonStatDisplayName || "Goals";
+						
+						// Transform data to ensure we have season and value
+						const transformedData = seasonsData
+							.map((item) => {
+								let season = item.season || (typeof item.value === "string" ? item.value : "");
+								// Normalize season format
+								if (season && /^\d{4}$/.test(season)) {
+									const year = parseInt(season, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									season = `${year}/${nextYear}`;
+								}
+								const statValue = typeof item.value === "number" ? item.value : 0;
+								return { season, value: statValue };
+							})
+							.filter((item) => item.season && item.value !== undefined);
+						
+						if (transformedData.length > 0) {
+							// Find the season with the highest stat value
+							const bestSeason = transformedData.reduce((max, item) => (item.value > max.value ? item : max), transformedData[0]);
+							
+							// Normalize season format
+							let seasonString = bestSeason.season;
+							if (seasonString) {
+								if (/^\d{4}$/.test(seasonString)) {
+									const year = parseInt(seasonString, 10);
+									const nextYear = (year + 1).toString().substring(2);
+									seasonString = `${year}/${nextYear}`;
+								}
+								seasonString = seasonString.replace(/-/g, "/");
+							}
+							
+							// Check if team filter is present
+							const hasTeamFilter = analysis.teamEntities && analysis.teamEntities.length > 0;
+							let teamName = "";
+							if (hasTeamFilter && analysis.teamEntities && analysis.teamEntities.length > 0) {
+								teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+							}
+							
+							// Format answer based on stat type
+							const statValueText = bestSeason.value === 1 
+								? statDisplayName.toLowerCase().slice(0, -1) // Remove 's' for singular
+								: statDisplayName.toLowerCase();
+							
+							if (hasTeamFilter && teamName) {
+								answer = `${playerName}'s best season for ${statDisplayName.toLowerCase()} for the ${teamName} was ${seasonString} (${bestSeason.value} ${statValueText}).`;
+							} else {
+								answer = `${playerName}'s best season for ${statDisplayName.toLowerCase()} was ${seasonString} (${bestSeason.value} ${statValueText}).`;
+							}
+							
+							// Set answerValue to the season string
+							answerValue = seasonString;
+							
+							// Sort by season ascending for chronological display
+							const sortedData = [...transformedData].sort((a, b) => {
+								return a.season.localeCompare(b.season);
+							});
+							
+							// Find the maximum value for highlighting
+							const maxValue = Math.max(...sortedData.map((item) => item.value));
+							
+							// Create Chart visualization with all seasons
+							visualization = {
+								type: "Chart",
+								data: sortedData.map((item) => ({
+									name: item.season,
+									value: item.value,
+									isHighest: item.value === maxValue,
+								})),
+								config: {
+									title: `${playerName} - ${statDisplayName} per Season`,
+									type: "bar",
+									tooltipLabel: statDisplayName, // Dynamic tooltip label
+								},
+							};
+						} else {
+							answer = `${playerName} has no season data available.`;
+						}
+					} else {
+						answer = `${playerName} has no season data available.`;
 					}
 				}
 				// Handle MostPlayedForTeam/TEAM_ANALYSIS - create table with all teams

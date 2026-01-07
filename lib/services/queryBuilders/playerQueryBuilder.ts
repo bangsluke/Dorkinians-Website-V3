@@ -1102,6 +1102,132 @@ export class PlayerQueryBuilder {
 				RETURN p.playerName as playerName, season, goals as value
 				ORDER BY season ASC
 			`;
+		} else if (metric.toUpperCase() === "BEST_SEASON_FOR_STAT" || metric.toUpperCase() === "BESTSEASONFORSTAT") {
+			// Query MatchDetails to get stat per season for any stat type
+			// Extract stat type from analysis
+			const statType = (analysis as any).bestSeasonStatType || "";
+			const questionLower = (analysis.question || "").toLowerCase();
+			
+			// Map stat type names to MatchDetail property names
+			const statFieldMap: Record<string, { field: string; displayName: string; includePenalties?: boolean }> = {
+				"goals": { field: "goals", displayName: "Goals", includePenalties: true },
+				"goal": { field: "goals", displayName: "Goals", includePenalties: true },
+				"assists": { field: "assists", displayName: "Assists" },
+				"assist": { field: "assists", displayName: "Assists" },
+				"yellowcards": { field: "yellowCards", displayName: "Yellow Cards" },
+				"yellowcard": { field: "yellowCards", displayName: "Yellow Cards" },
+				"redcards": { field: "redCards", displayName: "Red Cards" },
+				"redcard": { field: "redCards", displayName: "Red Cards" },
+				"saves": { field: "saves", displayName: "Saves" },
+				"save": { field: "saves", displayName: "Saves" },
+				"cleansheets": { field: "cleanSheets", displayName: "Clean Sheets" },
+				"cleansheet": { field: "cleanSheets", displayName: "Clean Sheets" },
+				"owngoals": { field: "ownGoals", displayName: "Own Goals" },
+				"owngoal": { field: "ownGoals", displayName: "Own Goals" },
+				"conceded": { field: "conceded", displayName: "Goals Conceded" },
+				"appearances": { field: "appearances", displayName: "Appearances" },
+				"appearance": { field: "appearances", displayName: "Appearances" },
+				"minutes": { field: "minutes", displayName: "Minutes" },
+				"minute": { field: "minutes", displayName: "Minutes" },
+				"mom": { field: "mom", displayName: "Man of the Match" },
+				"penaltiesscored": { field: "penaltiesScored", displayName: "Penalties Scored" },
+				"penaltiessaved": { field: "penaltiesSaved", displayName: "Penalties Saved" },
+				"penaltiesmissed": { field: "penaltiesMissed", displayName: "Penalties Missed" },
+			};
+
+			// Find stat field from statType or question text
+			let statField = "goals"; // Default
+			let statDisplayName = "Goals";
+			let includePenalties = false;
+
+			// Try to match from statType first
+			if (statType) {
+				const normalizedStatType = statType.toLowerCase().replace(/\s+/g, "");
+				if (statFieldMap[normalizedStatType]) {
+					statField = statFieldMap[normalizedStatType].field;
+					statDisplayName = statFieldMap[normalizedStatType].displayName;
+					includePenalties = statFieldMap[normalizedStatType].includePenalties || false;
+				}
+			}
+
+			// Fallback: try to extract from question text if statType wasn't found
+			if (statField === "goals" && !statType) {
+				if (questionLower.includes("assist")) {
+					statField = "assists";
+					statDisplayName = "Assists";
+				} else if (questionLower.includes("yellow card")) {
+					statField = "yellowCards";
+					statDisplayName = "Yellow Cards";
+				} else if (questionLower.includes("red card")) {
+					statField = "redCards";
+					statDisplayName = "Red Cards";
+				} else if (questionLower.includes("save") && !questionLower.includes("penalt")) {
+					statField = "saves";
+					statDisplayName = "Saves";
+				} else if (questionLower.includes("clean sheet")) {
+					statField = "cleanSheets";
+					statDisplayName = "Clean Sheets";
+				} else if (questionLower.includes("own goal")) {
+					statField = "ownGoals";
+					statDisplayName = "Own Goals";
+				} else if (questionLower.includes("conceded")) {
+					statField = "conceded";
+					statDisplayName = "Goals Conceded";
+				} else if (questionLower.includes("appearance") || questionLower.includes("game")) {
+					statField = "appearances";
+					statDisplayName = "Appearances";
+				} else if (questionLower.includes("minute")) {
+					statField = "minutes";
+					statDisplayName = "Minutes";
+				} else if (questionLower.includes("mom") || questionLower.includes("man of the match")) {
+					statField = "mom";
+					statDisplayName = "Man of the Match";
+				} else if (questionLower.includes("penalt") && questionLower.includes("scored")) {
+					statField = "penaltiesScored";
+					statDisplayName = "Penalties Scored";
+				} else if (questionLower.includes("penalt") && questionLower.includes("saved")) {
+					statField = "penaltiesSaved";
+					statDisplayName = "Penalties Saved";
+				} else if (questionLower.includes("penalt") && questionLower.includes("missed")) {
+					statField = "penaltiesMissed";
+					statDisplayName = "Penalties Missed";
+				}
+			}
+
+			// Store stat info in analysis for response generation
+			(analysis as any).bestSeasonStatField = statField;
+			(analysis as any).bestSeasonStatDisplayName = statDisplayName;
+
+			// Check if team filtering is needed
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+
+			// Build aggregation expression
+			let aggregationExpression = "";
+			if (statField === "appearances") {
+				// Count appearances
+				aggregationExpression = "count(md)";
+			} else if (statField === "goals" && includePenalties) {
+				// Goals + penalties scored
+				aggregationExpression = `sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END)`;
+			} else {
+				// Regular stat field
+				aggregationExpression = `sum(CASE WHEN md.${statField} IS NULL OR md.${statField} = "" THEN 0 ELSE md.${statField} END)`;
+			}
+
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, ${aggregationExpression} as statValue
+				RETURN p.playerName as playerName, season, statValue as value
+				ORDER BY season ASC
+			`;
 		} else if (metric.toUpperCase() === "MOSTMINUTESSEASON") {
 			// Query MatchDetails to get minutes per season
 			// Use md.season directly since MatchDetail has a season property
