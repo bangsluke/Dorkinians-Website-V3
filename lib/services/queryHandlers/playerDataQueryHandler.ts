@@ -2072,9 +2072,6 @@ export class PlayerDataQueryHandler {
 			}
 
 			const metric = normalizedMetric.toUpperCase();
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2043',message:'Final metric before query',data:{normalizedMetric,metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-			// #endregion
 
 			// Check if this is a team-specific question
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
@@ -2143,13 +2140,7 @@ export class PlayerDataQueryHandler {
 			}
 
 			// Build the optimal query using unified architecture
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2112',message:'About to build query',data:{actualPlayerName,metric,originalMetric,bestSeasonStatType:(analysis as any)?.bestSeasonStatType},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2113',message:'Query built',data:{queryLength:query.length,queryPreview:query.substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
@@ -2165,9 +2156,6 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2127',message:'Query result received',data:{resultLength:result?.length,resultType:typeof result,firstResult:result?.[0],metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-			// #endregion
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2206,9 +2194,6 @@ export class PlayerDataQueryHandler {
 
 				// Use metricToUse (the corrected metric) instead of originalMetric for response generation
 				// This ensures the response text uses the correct metric name (e.g., "assists" instead of "3rd team appearances")
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2172',message:'Returning query result',data:{type:'specific_player',playerName:actualPlayerName,metric:metricToUse,originalMetric,resultLength:result?.length,firstResult:result?.[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-				// #endregion
 				return { type: "specific_player", data: result, playerName: actualPlayerName, metric: metricToUse, cypherQuery: query };
 			} catch (error) {
 				loggingService.log(`❌ Error in player query:`, error, "error");
@@ -2226,15 +2211,9 @@ export class PlayerDataQueryHandler {
 
 		// If we have player names but no metrics, return general player info
 		if (entities.length > 0 && metrics.length === 0) {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2197',message:'No metrics - returning general player',data:{entities,metrics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-			// #endregion
 			return { type: "general_player", data: entities, message: "General player query" };
 		}
 
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2192',message:'Falling back to general player query',data:{entities,metrics},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-		// #endregion
 		loggingService.log(`🔍 No specific player query, falling back to general player query`, null, "log");
 
 		// Fallback to general player query

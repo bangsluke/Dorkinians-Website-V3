@@ -646,14 +646,24 @@ export class TeamDataQueryHandler {
 			year = parseInt(yearMatch[1], 10);
 		}
 
-		// Also try to extract from timeFrames
+		// Also try to extract from timeFrames (check season type or parse value field)
 		if (!year) {
 			const timeFrames = analysis.extractionResult?.timeFrames || [];
-			const yearFrame = timeFrames.find(tf => tf.type === "year");
-			if (yearFrame) {
-				const yearMatch2 = yearFrame.value.match(/\b(20\d{2})\b/);
+			// Try to find year in season type or parse from any timeFrame value
+			const seasonFrame = timeFrames.find(tf => tf.type === "season");
+			if (seasonFrame) {
+				const yearMatch2 = seasonFrame.value.match(/\b(20\d{2})\b/);
 				if (yearMatch2) {
 					year = parseInt(yearMatch2[1], 10);
+				}
+			} else {
+				// Fallback: try to extract year from any timeFrame value
+				for (const tf of timeFrames) {
+					const yearMatch2 = tf.value.match(/\b(20\d{2})\b/);
+					if (yearMatch2) {
+						year = parseInt(yearMatch2[1], 10);
+						break;
+					}
 				}
 			}
 		}

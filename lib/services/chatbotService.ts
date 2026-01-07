@@ -1197,9 +1197,7 @@ export class ChatbotService {
 					this.lastProcessingSteps.push(`Best season for stat question detected but no player context available`);
 				}
 			} else {
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:1185',message:'Best season pattern NOT matched - falling through',data:{question,questionLower,patternMatch,hasRequiredWords,isBestSeasonForStatQuestion,entities,metrics:analysis.metrics,extractedMetrics:analysis.extractionResult?.statTypes?.map((s:any)=>s.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-				// #endregion
+				this.lastProcessingSteps.push(`Best season for stat question not detected`);
 			}
 
 			// Check for "which season did I play the most minutes" questions - route to player handler
@@ -1593,9 +1591,6 @@ export class ChatbotService {
 				return await PlayerDataQueryHandler.queryPlayerData(entities, metrics, analysis, userContext);
 			}
 
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:1587',message:'Default routing switch',data:{type,entities,metrics,question:analysis.question},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-		// #endregion
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
@@ -5644,9 +5639,6 @@ export class ChatbotService {
 			if (data.type === "specific_player") {
 				const playerName = data.playerName as string;
 				const metric = data.metric as string;
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'chatbotService.ts:5624',message:'Response handler - specific_player entry',data:{dataType:data.type,playerName,metric,dataLength:data.data.length,firstDataItem:data.data[0]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-				// #endregion
 				
 				// Check for "each season" pattern BEFORE extracting first data item (needs full array)
 				const questionLower = question.toLowerCase();
