@@ -2940,6 +2940,132 @@ export class PlayerDataQueryHandler {
 	}
 
 	/**
+	 * Query player goals (including penalties) for last season
+	 * Returns total goals + penaltiesScored from MatchDetail nodes in the last season
+	 */
+	static async queryPlayerGoalsLastSeason(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying player goals last season for: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Resolve "last season" using the same logic as TeamDataQueryHandler
+		let lastSeason: string | null = null;
+		try {
+			const currentSeasonQuery = `
+				MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+				RETURN sd.currentSeason as currentSeason
+				LIMIT 1
+			`;
+			const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+			if (seasonResult && seasonResult.length > 0 && seasonResult[0].currentSeason) {
+				const currentSeason = seasonResult[0].currentSeason;
+				// Calculate last season (previous season)
+				// Format is YYYY/YY, e.g., 2024/25 -> 2023/24
+				const seasonMatch = currentSeason.match(/(\d{4})\/(\d{2})/);
+				if (seasonMatch) {
+					const startYear = parseInt(seasonMatch[1], 10);
+					const endYearShort = parseInt(seasonMatch[2], 10);
+					// Last season is one year before
+					const lastStartYear = startYear - 1;
+					const lastEndYearShort = endYearShort - 1;
+					// Handle year rollover (e.g., 2024/25 -> 2023/24, not 2023/24)
+					lastSeason = `${lastStartYear}/${String(lastEndYearShort).padStart(2, '0')}`;
+					loggingService.log(`🔍 Resolved "last season" to: ${lastSeason} (current: ${currentSeason})`, null, "log");
+				} else {
+					// Fallback: try to get most recent season from fixtures
+					const recentSeasonQuery = `
+						MATCH (f:Fixture {graphLabel: $graphLabel})
+						WHERE f.season IS NOT NULL AND f.season <> ''
+						WITH DISTINCT f.season as season
+						ORDER BY f.season DESC
+						LIMIT 2
+						RETURN collect(season) as seasons
+					`;
+					const recentResult = await neo4jService.executeQuery(recentSeasonQuery, { graphLabel });
+					if (recentResult && recentResult.length > 0 && recentResult[0].seasons && recentResult[0].seasons.length >= 2) {
+						// Second most recent season is "last season"
+						lastSeason = recentResult[0].seasons[1];
+						loggingService.log(`🔍 Resolved "last season" from fixtures: ${lastSeason}`, null, "log");
+					}
+				}
+			}
+		} catch (error) {
+			loggingService.log(`⚠️ Error resolving last season:`, error, "warn");
+		}
+
+		if (!lastSeason) {
+			loggingService.log(`❌ Could not resolve last season`, null, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: "Could not determine last season" 
+			};
+		}
+
+		// Query MatchDetail nodes for goals and penalties in last season
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.season = $lastSeason
+			RETURN sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`)
+				.replace(/\$lastSeason/g, `'${lastSeason}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_GOALS_LAST_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_GOALS_LAST_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName, lastSeason });
+			
+			// Extract the total goals from the result
+			let totalGoals = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "totalGoals" in record) {
+					let goals = record.totalGoals;
+					
+					// Handle Neo4j Integer objects and null values
+					if (goals !== null && goals !== undefined) {
+						if (typeof goals === "number") {
+							totalGoals = goals;
+						} else if (typeof goals === "object") {
+							if ("toNumber" in goals && typeof goals.toNumber === "function") {
+								totalGoals = (goals as { toNumber: () => number }).toNumber();
+							} else if ("low" in goals && "high" in goals) {
+								const neo4jInt = goals as { low?: number; high?: number };
+								totalGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								totalGoals = Number(goals) || 0;
+							}
+						} else {
+							totalGoals = Number(goals) || 0;
+						}
+					}
+				}
+			}
+			
+			return { 
+				type: "player_goals_last_season", 
+				data: totalGoals,
+				playerName,
+				totalGoals,
+				lastSeason
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayerGoalsLastSeason:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
 	 * Query players with most clean sheet appearances in a specific season
 	 * Clean sheet = MatchDetail in season connected to Fixture with conceded = 0
 	 */

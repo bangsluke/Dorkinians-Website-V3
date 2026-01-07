@@ -451,7 +451,9 @@ export class ChatbotService {
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
-		let question = analysis.question?.toLowerCase() || "";
+		// Store original question before normalization for detection
+		const originalQuestionBeforeNormalization = analysis.question?.toLowerCase() || "";
+		let question = originalQuestionBeforeNormalization;
 
 		// Normalize apostrophes (curly to straight) for consistent pattern matching
 		question = question.replace(/['']/g, "'");
@@ -1472,6 +1474,45 @@ export class ChatbotService {
 					return await PlayerDataQueryHandler.querySeasonsWithGoalCounts(playerName);
 				} else {
 					this.lastProcessingSteps.push(`Seasons no goals question detected but no player context available`);
+				}
+			}
+
+			// Check for "how many goals did I get last season" questions
+			const hasGoalsPhrase = question.includes("how many goals") || question.includes("how many goal") || 
+				(question.includes("goals") && (question.includes("get") || question.includes("got") || question.includes("score") || question.includes("scored")));
+			// More robust detection: check for "last season" in both normalized and original question
+			// Also check if question contains "season" and "last" separately (handles spacing variations)
+			// Handle common typo "least season" as "last season" when in goals context
+			// Check original question before normalization to catch "last" before any text processing
+			const originalQuestion = originalQuestionBeforeNormalization || analysis.question?.toLowerCase() || "";
+			const hasLastSeasonDirect = question.includes("last season") || originalQuestion.includes("last season");
+			const hasLastAndSeason = (question.includes("season") && question.includes("last")) || 
+				(originalQuestion.includes("season") && originalQuestion.includes("last"));
+			const hasLeastSeasonTypo = (question.includes("least season") || originalQuestion.includes("least season")) && hasGoalsPhrase;
+			const hasLastSeason = hasLastSeasonDirect || hasLastAndSeason || hasLeastSeasonTypo ||
+				question.match(/\blast\s+season\b/i) || 
+				(question.includes("season") && question.match(/\b(?:previous|prior|before)\s+season\b/i));
+			const hasPlayerContext = question.includes("i ") || question.includes(" i") || question.includes("my ") || userContext || entities.length > 0;
+			const isPlayerGoalsLastSeasonQuestion = hasGoalsPhrase && hasLastSeason && hasPlayerContext;
+
+			if (isPlayerGoalsLastSeasonQuestion) {
+				// Use entities first, fallback to userContext
+				let playerName = "";
+				if (entities.length > 0) {
+					playerName = entities[0];
+					// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected player goals last season question, routing to PlayerDataQueryHandler with player: ${playerName}`);
+					return await PlayerDataQueryHandler.queryPlayerGoalsLastSeason(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Player goals last season question detected but no player context available`);
 				}
 			}
 
@@ -4845,6 +4886,30 @@ export class ChatbotService {
 					};
 				}
 			}
+		} else if (data && data.type === "player_goals_last_season") {
+			// Handle player goals last season queries
+			const playerName = (data.playerName as string) || "You";
+			const totalGoals = (data.totalGoals as number) || 0;
+			const lastSeason = (data.lastSeason as string) || "";
+			
+			answerValue = totalGoals;
+			answer = `${playerName} scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} last season.`;
+			
+			// Create NumberCard visualization
+			const roundedGoals = this.roundValueByMetric("G", totalGoals);
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Goals", 
+					wordedText: "goals",
+					value: roundedGoals,
+					iconName: this.getIconNameForMetric("G")
+				}],
+				config: {
+					title: `${playerName} - Goals Last Season`,
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "team_conceded_ranking") {
 			// Handle team conceded goals ranking
 			const teamData = (data.data as Array<{ team: string; goalsConceded: number }>) || [];
