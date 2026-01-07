@@ -207,12 +207,60 @@ export class PlayerDataQueryHandler {
 			(teamEntities.length > 0 || questionLower.match(/\b(?:for|in|with)\s+(?:the\s+)?(\d+)(?:st|nd|rd|th|s)\b/i));
 		
 		if (isScoringRecordQuestion) {
-			// Override metrics to "G" (goals) for scoring record questions
-			metrics = ["G"];
-			loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+		// Override metrics to "G" (goals) for scoring record questions
+		metrics = ["G"];
+		loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+	}
+	
+	// Check for "highest win percentage with" questions
+	const isWinPercentageQuestion = 
+		(questionLower.includes("highest win percentage") && questionLower.includes("with")) ||
+		(questionLower.includes("win percentage") && questionLower.includes("highest") && questionLower.includes("with")) ||
+		(questionLower.includes("best win percentage") && questionLower.includes("with"));
+	
+	if (isWinPercentageQuestion) {
+		// Resolve player name - prioritize "I" detection for userContext, then explicit player names
+		let playerName: string | undefined;
+		
+		// First, check if question contains "I" or first-person pronouns - use userContext immediately
+		const hasFirstPerson = questionLower.includes(" i ") || 
+		                       questionLower.match(/\bi\b/) ||
+		                       questionLower.includes("have i") ||
+		                       questionLower.includes("has i") ||
+		                       questionLower.includes("did i");
+		
+		if (hasFirstPerson && userContext) {
+			playerName = userContext;
+		} else if (entities.length > 0) {
+			playerName = entities[0];
 		}
 		
-		const isPlayedWithQuestion = 
+		if (!playerName) {
+			loggingService.log(`❌ No player context found for win percentage question`, null, "error");
+			return {
+				type: "no_context",
+				data: [],
+				message: "I need to know which player you're asking about. Please specify a player name or select a player.",
+			};
+		}
+		
+		const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+		
+		if (!resolvedPlayerName) {
+			loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+			return {
+				type: "player_not_found",
+				data: [],
+				message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+				playerName,
+			};
+		}
+		
+		loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryHighestWinPercentageWith`, null, "log");
+		return await RelationshipQueryHandler.queryHighestWinPercentageWith(resolvedPlayerName);
+	}
+	
+	const isPlayedWithQuestion =
 			questionLower.includes("played with") ||
 			questionLower.includes("play with") ||
 			questionLower.includes("played most") ||

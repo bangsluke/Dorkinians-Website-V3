@@ -525,17 +525,27 @@ export class PlayerQueryBuilder {
 			timeRange !== "since" &&
 			(timeRange.includes(" to ") || timeRange.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || timeRange.match(/^\d{4}[\/\-]\d{2,4}$/));
 		
-		if (isValidTimeRange && !isTeamSpecificMetric) {
+		// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
+		// For other queries that need fixture data, use f.date
+		const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
+		const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
+		
+		// Check for "during [YEAR]" pattern in question (e.g., "during 2023")
+		// This pattern might not be extracted as a timeFrame, so we check the question directly
+		const duringYearMatch = questionLower.match(/\bduring\s+(\d{4})\b/);
+		if (duringYearMatch && !isTeamSpecificMetric) {
+			const year = parseInt(duringYearMatch[1], 10);
+			if (!isNaN(year) && year >= 2000 && year <= 2100) {
+				const startDate = `${year}-01-01`;
+				const endDate = `${year}-12-31`;
+				whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+			}
+		} else if (isValidTimeRange && !isTeamSpecificMetric) {
 			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
 			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
 			
 			// Check if we have a "since" type timeFrame in extractionResult
 			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
-			
-			// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
-			// For other queries that need fixture data, use f.date
-			const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
-			const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
 			
 			if (beforeFrame) {
 				// Handle "before [SEASON]" pattern - convert season to start date and use < operator

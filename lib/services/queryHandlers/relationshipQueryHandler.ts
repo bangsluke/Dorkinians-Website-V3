@@ -273,6 +273,75 @@ export class RelationshipQueryHandler {
 	}
 
 	/**
+	 * Query highest win percentage with teammates for a player
+	 * Returns top 5 initially, expandable to 10
+	 */
+	static async queryHighestWinPercentageWith(
+		playerName: string
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying highest win percentage with for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const expandableLimit = 10;
+		const maxLimit = Math.max(expandableLimit * 2, 50);
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (other:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE other.playerName <> p.playerName
+			WITH other.playerName as teammateName, 
+			     count(DISTINCT f) as gamesTogether,
+			     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins
+			WHERE gamesTogether > 0
+			WITH teammateName, gamesTogether, wins,
+			     CASE WHEN gamesTogether > 0 THEN round(100.0 * wins / gamesTogether * 100) / 100.0 ELSE 0.0 END as winPercentage
+			ORDER BY winPercentage DESC, gamesTogether DESC
+			LIMIT ${maxLimit}
+			RETURN teammateName, gamesTogether, wins, winPercentage
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WIN_PERCENTAGE_WITH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WIN_PERCENTAGE_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		const queryParams: Record<string, string> = { 
+			playerName,
+			graphLabel 
+		};
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Store all results up to expandableLimit
+			const allResults = result.slice(0, expandableLimit);
+			// Limit initial display to top 5
+			const limitedResult = allResults.slice(0, 5);
+			
+			return { 
+				type: "highest_win_percentage_with", 
+				data: limitedResult,
+				fullData: allResults, // Store full data for expansion
+				playerName,
+				requestedLimit: 5,
+				expandableLimit: expandableLimit
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in highest win percentage with query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying highest win percentage with data" };
+		}
+	}
+
+	/**
 	 * Query player stats against a specific opposition
 	 */
 	static async queryPlayerStatsAgainstOpposition(

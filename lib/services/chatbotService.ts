@@ -1402,6 +1402,18 @@ export class ChatbotService {
 				return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
 			}
 
+			// Check for "highest win percentage with" questions BEFORE switch statement
+			// This must be checked before routing to avoid misclassification as "ranking" type
+			const isWinPercentageQuestion = 
+				(question.includes("highest win percentage") && question.includes("with")) ||
+				(question.includes("win percentage") && question.includes("highest") && question.includes("with")) ||
+				(question.includes("best win percentage") && question.includes("with"));
+			
+			if (isWinPercentageQuestion) {
+				this.lastProcessingSteps.push(`Detected win percentage question, routing to PlayerDataQueryHandler`);
+				return await PlayerDataQueryHandler.queryPlayerData(entities, metrics, analysis, userContext);
+			}
+
 		// Delegate to query handlers
 		switch (type) {
 			case "player":
@@ -4623,6 +4635,40 @@ export class ChatbotService {
 					type: "bar",
 				},
 			};
+		} else if (data && data.type === "highest_win_percentage_with") {
+			// Handle highest win percentage with queries
+			const playerName = (data.playerName as string) || "You";
+			const requestedLimit = (data.requestedLimit as number) || 5;
+			const expandableLimit = (data.expandableLimit as number) || 10;
+			const fullData = (data.fullData as Array<{ teammateName: string; gamesTogether: number; wins: number; winPercentage: number }>) || [];
+			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number; wins: number; winPercentage: number }>) || [];
+			
+			if (resultData.length === 0) {
+				answer = `${playerName} haven't played with any teammates.`;
+			} else {
+				const topPlayer = resultData[0];
+				answer = `${playerName} has the highest win percentage with ${topPlayer.teammateName}, winning ${topPlayer.winPercentage.toFixed(1)}% of ${topPlayer.gamesTogether} ${topPlayer.gamesTogether === 1 ? "game" : "games"} together.`;
+				answerValue = topPlayer.teammateName;
+				
+				// Use fullData if available for expandable table, otherwise use resultData
+				const tableData = (fullData.length > 0 ? fullData : resultData).map((item) => ({
+					Player: item.teammateName,
+					"Games Together": item.gamesTogether,
+					Wins: item.wins,
+					"Win %": `${item.winPercentage.toFixed(1)}%`
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						title: `Players ${playerName} has highest win percentage with`,
+						expandable: fullData.length > requestedLimit,
+						initialLimit: requestedLimit,
+						maxLimit: expandableLimit
+					}
+				};
+			}
 		} else if (data && data.type === "most_played_with" || data && data.type === "most_played_with_cup") {
 			// Handle most played with queries (including cup games)
 			const playerName = (data.playerName as string) || "You";
@@ -5952,7 +5998,7 @@ export class ChatbotService {
 								let answerParts: string[] = [];
 								
 								// Start with player name and assist count
-								answerParts.push(`${playerName} got ${assistCount} ${assistText}`);
+								answerParts.push(`${playerName} provided ${assistCount} ${assistText}`);
 								
 								// Add team filter
 								answerParts.push(`for the ${teamDisplayName}`);
@@ -5965,8 +6011,24 @@ export class ChatbotService {
 								}
 								
 								// Add date range filter if present
-								if (dateRangeText) {
-									answerParts.push(dateRangeText);
+								let finalDateRangeText = dateRangeText;
+								if (!finalDateRangeText) {
+									// Check if question contains "during [YEAR]" pattern
+									const duringYearMatch = lowerQuestion.match(/\bduring\s+(\d{4})\b/);
+									if (duringYearMatch) {
+										finalDateRangeText = `in ${duringYearMatch[1]}`;
+									}
+								} else {
+									// Check if dateRangeText contains a year (e.g., "in 2023" or "during 2023")
+									// If it's a year, format it as "in 2023"
+									const yearMatch = dateRangeText.match(/\b(20\d{2})\b/);
+									if (yearMatch && (dateRangeText.includes("during") || lowerQuestion.includes("during"))) {
+										finalDateRangeText = `in ${yearMatch[1]}`;
+									}
+								}
+								
+								if (finalDateRangeText) {
+									answerParts.push(finalDateRangeText);
 								}
 								
 								// Join parts and add period
@@ -6065,6 +6127,47 @@ export class ChatbotService {
 										// Join parts and add period
 										answer = answerParts.join(" ") + ".";
 									}
+								} else if (isAssistsQuery && (hasHomeLocation || hasAwayLocation || dateRangeText)) {
+									// Build answer text for assists queries with location/date filters (but no team filter)
+									const assistCount = value as number;
+									const assistText = assistCount === 1 ? "assist" : "assists";
+									
+									// Build answer parts
+									let answerParts: string[] = [];
+									
+									// Start with player name and assist count
+									answerParts.push(`${playerName} provided ${assistCount} ${assistText}`);
+									
+									// Add location filter if present
+									if (hasHomeLocation) {
+										answerParts.push("whilst playing at home");
+									} else if (hasAwayLocation) {
+										answerParts.push("whilst playing away");
+									}
+									
+									// Add date range filter if present
+									let finalDateRangeText = dateRangeText;
+									if (!finalDateRangeText) {
+										// Check if question contains "during [YEAR]" pattern
+										const duringYearMatch = lowerQuestion.match(/\bduring\s+(\d{4})\b/);
+										if (duringYearMatch) {
+											finalDateRangeText = `in ${duringYearMatch[1]}`;
+										}
+									} else {
+										// Check if dateRangeText contains a year (e.g., "in 2023" or "during 2023")
+										// If it's a year, format it as "in 2023"
+										const yearMatch = dateRangeText.match(/\b(20\d{2})\b/);
+										if (yearMatch && (dateRangeText.includes("during") || lowerQuestion.includes("during"))) {
+											finalDateRangeText = `in ${yearMatch[1]}`;
+										}
+									}
+									
+									if (finalDateRangeText) {
+										answerParts.push(finalDateRangeText);
+									}
+									
+									// Join parts and add period
+									answer = answerParts.join(" ") + ".";
 								} else {
 									// General fallback: Build answer text for any stat query with filters (team, location, or date range)
 									// This handles yellow cards, MoMs, and other stats with filters
