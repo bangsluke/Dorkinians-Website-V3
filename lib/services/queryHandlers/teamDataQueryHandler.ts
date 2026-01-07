@@ -55,38 +55,46 @@ export class TeamDataQueryHandler {
 		};
 
 		// Find the primary metric from question text keywords FIRST (most reliable)
+		// CRITICAL: Check for "conceded" FIRST before other metrics to avoid false matches
+		// (e.g., "app" matches inside "conceded", causing incorrect APP metric detection)
 		let detectedMetric: string | null = null;
 		let metricField: string | null = null;
 		
 		const questionLower = question.toLowerCase();
-		if (questionLower.includes("red card") || questionLower.includes("reds")) {
-			detectedMetric = "R";
-			metricField = "redCards";
-			loggingService.log(`✅ Detected metric from question text: R (redCards)`, null, "log");
-		} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
-			detectedMetric = "Y";
-			metricField = "yellowCards";
-			loggingService.log(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
-		} else if (questionLower.includes("assist")) {
-			detectedMetric = "A";
-			metricField = "assists";
-			loggingService.log(`✅ Detected metric from question text: A (assists)`, null, "log");
-		} else if (questionLower.includes("clean sheet")) {
-			detectedMetric = "CLS";
-			metricField = "cleanSheets";
-			loggingService.log(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
-		} else if (questionLower.includes("save")) {
-			detectedMetric = "SAVES";
-			metricField = "saves";
-			loggingService.log(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
-		} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
-			detectedMetric = "MOM";
-			metricField = "mom";
-			loggingService.log(`✅ Detected metric from question text: MOM (mom)`, null, "log");
-		} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
-			detectedMetric = "APP";
-			metricField = "appearances";
-			loggingService.log(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+		
+		// Skip metric detection if question is about goals conceded (let isGoalsConceded handle it)
+		const isConcededQuestion = questionLower.includes("conceded");
+		
+		if (!isConcededQuestion) {
+			if (questionLower.includes("red card") || questionLower.includes("reds")) {
+				detectedMetric = "R";
+				metricField = "redCards";
+				loggingService.log(`✅ Detected metric from question text: R (redCards)`, null, "log");
+			} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+				detectedMetric = "Y";
+				metricField = "yellowCards";
+				loggingService.log(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
+			} else if (questionLower.includes("assist")) {
+				detectedMetric = "A";
+				metricField = "assists";
+				loggingService.log(`✅ Detected metric from question text: A (assists)`, null, "log");
+			} else if (questionLower.includes("clean sheet")) {
+				detectedMetric = "CLS";
+				metricField = "cleanSheets";
+				loggingService.log(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
+			} else if (questionLower.includes("save")) {
+				detectedMetric = "SAVES";
+				metricField = "saves";
+				loggingService.log(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
+			} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
+				detectedMetric = "MOM";
+				metricField = "mom";
+				loggingService.log(`✅ Detected metric from question text: MOM (mom)`, null, "log");
+			} else if (questionLower.includes("appearance") || (questionLower.match(/\bapp\b/) && !questionLower.includes("conceded")) || (questionLower.includes("game") && !questionLower.includes("conceded"))) {
+				detectedMetric = "APP";
+				metricField = "appearances";
+				loggingService.log(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+			}
 		}
 		
 		// If no metric found from question text, check extracted metrics
@@ -99,7 +107,15 @@ export class TeamDataQueryHandler {
 			}
 		}
 		
-		const isGoalsConceded = !detectedMetric && question.includes("conceded");
+		// For team goals conceded queries, we should use Fixture aggregation, not MatchDetail
+		// Check if this is a goals conceded query (either no detectedMetric with "conceded", or detectedMetric is "C" for team queries)
+		const isGoalsConceded = question.includes("conceded") && (!detectedMetric || (detectedMetric === "C" && !question.includes("player")));
+		
+		// If this is a team goals conceded query, clear detectedMetric to use Fixture aggregation branch
+		if (isGoalsConceded && !question.includes("player")) {
+			detectedMetric = null;
+			metricField = null;
+		}
 		const isOpenPlayGoals = question.includes("open play") || 
 		                        question.includes("openplay") ||
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
@@ -250,6 +266,12 @@ export class TeamDataQueryHandler {
 			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 		}
 
+		// Check for away games filter (for goals conceded queries with away games)
+		const hasAwayLocation = question.includes("away") || question.includes("away games");
+		if (isGoalsConceded && hasAwayLocation) {
+			whereConditions.push(`f.homeOrAway = 'Away'`);
+		}
+
 		// Check for win rate queries
 		const isWinRateQuery = question.includes("win rate") || question.includes("win percentage");
 		
@@ -386,6 +408,8 @@ export class TeamDataQueryHandler {
 						isGoalsScored,
 						isGoalsConceded,
 						isOpenPlayGoals,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
 					};
 				}
 			}

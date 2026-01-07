@@ -4265,6 +4265,8 @@ export class ChatbotService {
 			const metric = data.metric as string | undefined;
 			const metricField = data.metricField as string | undefined;
 			const season = data.season as string | undefined;
+			const startDate = data.startDate as string | undefined;
+			const endDate = data.endDate as string | undefined;
 
 			if (value !== undefined && metric && metricField) {
 				// Single metric query (e.g., appearances, assists, etc.)
@@ -4324,7 +4326,70 @@ export class ChatbotService {
 					}
 				} else if (isGoalsConceded) {
 					answerValue = goalsConceded || 0;
-					answer = `The ${teamName} have conceded ${goalsConceded || 0} ${(goalsConceded || 0) === 1 ? "goal" : "goals"}.`;
+					
+					// Check if this is an away games query with date range
+					const hasAwayLocation = question.toLowerCase().includes("away") || question.toLowerCase().includes("away games");
+					const hasDateRange = startDate && endDate;
+					
+					let locationText = "";
+					let dateRangeText = "";
+					
+					if (hasAwayLocation) {
+						locationText = " in away games";
+					}
+					
+					if (hasDateRange) {
+						// Format dates for display (convert YYYY-MM-DD to readable format)
+						const formatDateForDisplay = (dateStr: string): string => {
+							const date = new Date(dateStr);
+							const year = date.getFullYear();
+							const month = date.getMonth() + 1;
+							const day = date.getDate();
+							return `${day}/${month}/${year}`;
+						};
+						
+						const formattedStartDate = formatDateForDisplay(startDate);
+						const formattedEndDate = formatDateForDisplay(endDate);
+						dateRangeText = ` between ${formattedStartDate} and ${formattedEndDate}`;
+					}
+					
+					answer = `The ${teamName} have conceded ${goalsConceded || 0} ${(goalsConceded || 0) === 1 ? "goal" : "goals"}${locationText}${dateRangeText}.`;
+					
+					// Create NumberCard visualization for goals conceded with filters
+					if (hasAwayLocation || hasDateRange) {
+						const roundedGoalsConceded = this.roundValueByMetric("C", goalsConceded || 0);
+						let cardTitle = `${teamName} - Goals Conceded`;
+						if (hasAwayLocation) {
+							cardTitle += " (Away)";
+						}
+						if (hasDateRange) {
+							const formatDateForTitle = (dateStr: string): string => {
+								const date = new Date(dateStr);
+								return date.getFullYear().toString();
+							};
+							const startYear = formatDateForTitle(startDate);
+							const endYear = formatDateForTitle(endDate);
+							if (startYear === endYear) {
+								cardTitle += ` (${startYear})`;
+							} else {
+								cardTitle += ` (${startYear}-${endYear})`;
+							}
+						}
+						
+						visualization = {
+							type: "NumberCard",
+							data: [{ 
+								name: "Goals Conceded", 
+								wordedText: "goals conceded",
+								value: roundedGoalsConceded,
+								iconName: this.getIconNameForMetric("C")
+							}],
+							config: {
+								title: cardTitle,
+								type: "bar",
+							},
+						};
+					}
 				} else {
 					// Both goals scored and conceded
 					answerValue = goalsScored || 0;
@@ -5678,6 +5743,49 @@ export class ChatbotService {
 							answer = `You have not scored any goals in matches played on Sundays.`;
 						} else {
 							answer = `${playerName} has not scored any goals in matches played on Sundays.`;
+						}
+						answerValue = 0;
+					}
+				}
+				// Handle SATURDAYAPPEARANCES2022 - appearances on Saturdays in 2022
+				else if (metric && metric.toUpperCase() === "SATURDAYAPPEARANCES2022") {
+					// Check if we have data from the query
+					if (data && "data" in data && Array.isArray(data.data) && data.data.length > 0) {
+						const saturdayAppearancesData = data.data as Array<{ appearances?: number; [key: string]: unknown }>;
+						const appearances = saturdayAppearancesData[0]?.appearances || 0;
+						
+						// Format answer based on whether it's first person or third person
+						const isFirstPerson = question.toLowerCase().includes("i ") || question.toLowerCase().includes("my ") || question.toLowerCase().includes("have i");
+						if (isFirstPerson) {
+							answer = `You made ${appearances} ${appearances === 1 ? "appearance" : "appearances"} on Saturdays in 2022.`;
+						} else {
+							answer = `${playerName} made ${appearances} ${appearances === 1 ? "appearance" : "appearances"} on Saturdays in 2022.`;
+						}
+						
+						answerValue = appearances;
+						
+						// Create NumberCard visualization
+						const roundedAppearances = this.roundValueByMetric("APP", appearances);
+						visualization = {
+							type: "NumberCard",
+							data: [{ 
+								name: "Appearances", 
+								wordedText: "appearances",
+								value: roundedAppearances,
+								iconName: this.getIconNameForMetric("APP")
+							}],
+							config: {
+								title: `${playerName} - Appearances on Saturdays in 2022`,
+								type: "bar",
+							},
+						};
+					} else {
+						// No data found
+						const isFirstPerson = question.toLowerCase().includes("i ") || question.toLowerCase().includes("my ") || question.toLowerCase().includes("have i");
+						if (isFirstPerson) {
+							answer = `You did not make any appearances on Saturdays in 2022.`;
+						} else {
+							answer = `${playerName} did not make any appearances on Saturdays in 2022.`;
 						}
 						answerValue = 0;
 					}

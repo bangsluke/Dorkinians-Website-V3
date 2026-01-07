@@ -1779,6 +1779,119 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "how many appearances did I make on Saturdays in 2022" questions
+		const detectSaturdayAppearancesPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "appearances" or "app" + "saturday" or "saturdays" + year "2022"
+			if ((lower.includes("appearance") || lower.includes("app")) && 
+				(lower.includes("saturday") || lower.includes("saturdays")) &&
+				lower.includes("2022")) {
+				return true;
+			}
+			return false;
+		};
+
+		const isSaturdayAppearancesQuestion = 
+			detectSaturdayAppearancesPattern(questionLower) &&
+			(questionLower.includes("how many") || questionLower.includes("i ") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes(" have"));
+
+		if (isSaturdayAppearancesQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["saturday", "saturdays", "appearances", "app", "matches", "2022"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying Saturday appearances in 2022 for ${resolvedPlayerName}`, null, "log");
+			
+			// Build Cypher query to count MatchDetail nodes attached to the selected player
+			// that are from a Fixture in the year 2022 and were played on a Saturday
+			// Saturday = dayOfWeek = 6 in Neo4j (1=Monday, 7=Sunday, so 6=Saturday)
+			const graphLabel = neo4jService.getGraphLabel();
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE date(f.date).dayOfWeek = 6
+				  AND f.date >= '2022-01-01' 
+				  AND f.date <= '2022-12-31'
+				RETURN count(md) as appearances
+			`;
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`SATURDAY_APPEARANCES_2022: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel,
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [{ appearances: 0 }],
+						message: `I couldn't find any Saturday match data for ${resolvedPlayerName} in 2022.`,
+					};
+				}
+
+				const appearances = result[0]?.appearances || 0;
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "SaturdayAppearances2022",
+					data: [{ appearances }],
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying Saturday appearances in 2022:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for season comparison questions
 		const isSeasonComparisonQuestion = 
 			(questionLower.includes("compare") && questionLower.includes("season")) ||
