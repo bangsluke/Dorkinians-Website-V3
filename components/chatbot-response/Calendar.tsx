@@ -24,6 +24,10 @@ interface WeekValue {
 	weekNumber: number;
 	year: number;
 	value: number;
+	goalInvolvements?: number; // Goal involvement count for this week
+	gameCount?: number; // Number of games in this week
+	fixtureResult?: string; // Fixture result: 'W', 'D', or 'L'
+	fixtureScoreline?: string; // Fixture scoreline: 'W 3-1', 'D 2-2', 'L 1-3', etc.
 }
 
 interface WeekBasedData {
@@ -34,6 +38,16 @@ interface WeekBasedData {
 		endWeek: number;
 		endYear: number;
 	};
+	allFixtureDates?: string[];
+	streakSequence?: string[]; // seasonWeek strings from streak calculation
+	streakDates?: string[]; // Actual dates from streak sequence for precise matching
+	streakType?: string; // Streak type for styling (e.g., "longest_no_goal_involvement" for red styling)
+	showGoalInvolvements?: boolean; // Whether to show goal involvements vs apps
+	contributionLabel?: string; // Label for the contribution metric (e.g., "Goal Involvements", "Goals", "Assists")
+	fixtureResults?: Record<string, string>; // Map of date -> result ('W'|'D'|'L')
+	fixtureScorelines?: Record<string, string>; // Map of date -> scoreline ('W 3-1', 'D 2-2', etc.)
+	fixtureResultType?: string; // Type identifier for fixture result visualization (e.g., "team_unbeaten_run")
+	fullDateRange?: { start: string; end: string }; // Full date range for full calendar view (e.g., 2016-2025)
 }
 
 interface WeekData {
@@ -44,6 +58,15 @@ interface WeekData {
 	gameCount: number;
 	value: number;
 	isHighlighted: boolean;
+	hasFixtures: boolean;
+	isNegativeStreak?: boolean; // For negative streaks (e.g., no goal involvements)
+	goalInvolvements?: number; // Goal involvement count for this week
+	showGoalInvolvements?: boolean; // Whether to show goal involvements vs apps
+	isPlayed?: boolean; // Whether player played in this week (for negative streak styling)
+	contributionLabel?: string; // Label for the contribution metric (e.g., "Goal Involvements", "Goals", "Assists")
+	fixtureResult?: string; // Fixture result: 'W', 'D', or 'L'
+	fixtureScoreline?: string; // Fixture scoreline: 'W 3-1', 'D 2-2', 'L 1-3', etc.
+	fixtureResultType?: string; // Type identifier for fixture result visualization
 }
 
 interface MonthLabel {
@@ -117,6 +140,24 @@ function Tooltip({ week, show, position }: TooltipProps) {
 
 	const monthName = getMonthName(week.startDate);
 
+	// Show different tooltip text based on whether week has fixtures and what data type to show
+	let tooltipText: string;
+	let tooltipSecondaryText: string | null = null;
+	if (!week.hasFixtures) {
+		tooltipText = "No fixtures on this week";
+	} else if (week.fixtureResultType === "team_unbeaten_run" && week.fixtureScoreline) {
+		// For team unbeaten run questions, show scoreline (e.g., "W 3-1")
+		tooltipText = week.fixtureScoreline;
+	} else if (week.showGoalInvolvements) {
+		// For goal involvement/goal scoring/assisting questions, show apps first, then contribution metric
+		const goalInvolvements = week.goalInvolvements !== undefined ? week.goalInvolvements : 0;
+		const contributionLabel = week.contributionLabel || "Goal Involvements"; // Default to "Goal Involvements" for backward compatibility
+		tooltipText = `Apps: ${week.gameCount || 0}`;
+		tooltipSecondaryText = `${contributionLabel}: ${goalInvolvements}`;
+	} else {
+		tooltipText = `Apps: ${week.value}`;
+	}
+
 	return createPortal(
 		<div
 			className='fixed z-[9999] px-3 py-2 text-sm text-white rounded-lg shadow-lg pointer-events-none'
@@ -129,7 +170,10 @@ function Tooltip({ week, show, position }: TooltipProps) {
 				<div className='font-semibold'>{week.year}</div>
 				<div>{monthName}</div>
 				<div>Week {week.weekNumber}</div>
-				<div className='font-medium' style={{ color: '#F9ED32' }}>Value: {week.value}</div>
+				<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipText}</div>
+				{tooltipSecondaryText && (
+					<div className='font-medium' style={{ color: '#F9ED32' }}>{tooltipSecondaryText}</div>
+				)}
 			</div>
 		</div>,
 		document.body
@@ -210,17 +254,94 @@ function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
 		};
 	}, []);
 
-	// Determine background color
+	// Determine background color and border style
 	let backgroundColor: string;
-	if (week.isHighlighted) {
-		// Dorkinians Green with opacity
-		backgroundColor = `rgba(28, 136, 65, ${opacity})`;
-	} else if (week.value > 0) {
-		// Yellow with opacity
-		backgroundColor = `rgba(249, 237, 50, ${opacity})`;
+	let borderStyle: React.CSSProperties = {};
+	// Grey styling for boxes with fixtures but no player games
+	const hasFixturesNoGames = week.hasFixtures && !week.isPlayed && (week.gameCount === 0 || week.value === 0);
+	
+	// For fixture result type (team unbeaten run), use fixture result colors
+	if (week.fixtureResultType === "team_unbeaten_run") {
+		if (!week.hasFixtures) {
+			// No fixtures - dark grey
+			backgroundColor = `rgba(100, 100, 100, 0.5)`;
+		} else if (week.fixtureResult === 'W') {
+			// Win - green
+			backgroundColor = `rgba(28, 136, 65, ${opacity})`;
+		} else if (week.fixtureResult === 'D') {
+			// Draw - grey
+			backgroundColor = `rgba(200, 200, 200, 0.5)`;
+		} else if (week.fixtureResult === 'L') {
+			// Loss - red
+			backgroundColor = `rgba(220, 50, 50, 1.0)`;
+		} else {
+			// Has fixtures but no result data - default to grey
+			backgroundColor = `rgba(200, 200, 200, 0.5)`;
+		}
+		
+		// Add bold white border for highlighted weeks (winning streak)
+		if (week.isHighlighted) {
+			borderStyle = {
+				border: '2px solid rgba(255, 255, 255, 0.9)',
+			};
+		}
+	} else if (week.showGoalInvolvements) {
+		// For goal involvement/goal/assist questions, use specific styling logic
+		const goalInvolvements = week.goalInvolvements !== undefined ? week.goalInvolvements : 0;
+		const gameCount = week.gameCount || 0;
+		
+		if (!week.hasFixtures) {
+			// No fixtures - dark grey, no border
+			backgroundColor = `rgba(100, 100, 100, 0.5)`;
+		} else if (gameCount === 0) {
+			// Apps 0 - grey (player didn't play), no border
+			backgroundColor = `rgba(200, 200, 200, 0.5)`;
+		} else if (week.isHighlighted && week.isNegativeStreak) {
+			// Games in the streak without goal involvements/goals/assists - red fill with bold white border
+			backgroundColor = `rgba(220, 50, 50, 1.0)`; // Red with full opacity
+			borderStyle = {
+				border: '2px solid rgba(255, 255, 255, 0.9)',
+			};
+		} else if (goalInvolvements === 0) {
+			// Apps 1+ but Goal Involvements 0 - brighter Dorkinians yellow fill
+			backgroundColor = `rgba(249, 237, 50, 1.0)`; // Brighter Dorkinians yellow with full opacity
+		} else {
+			// Apps 1+ and Goal Involvements > 0 - green fill
+			backgroundColor = `rgba(28, 136, 65, ${opacity})`; // Green
+		}
+		
+		// Add bold white border for positive goal involvement streaks (highlighted but not negative)
+		if (week.isHighlighted && !week.isNegativeStreak) {
+			borderStyle = {
+				border: '2px solid rgba(255, 255, 255, 0.9)',
+			};
+		}
 	} else {
-		// White with transparency
-		backgroundColor = `rgba(255, 255, 255, ${opacity})`;
+		// For non-goal involvement questions (e.g., consecutive weekends), use original logic
+		if (week.isHighlighted) {
+			// Dorkinians Green - darker for value 2, regular for value 1, with bold white border for streak
+			if (week.value === 2) {
+				backgroundColor = `rgba(20, 100, 45, ${opacity})`; // Darker green
+			} else {
+				backgroundColor = `rgba(28, 136, 65, ${opacity})`; // Regular green
+			}
+			borderStyle = {
+				border: '2px solid rgba(255, 255, 255, 0.9)',
+			};
+		} else if (week.value > 0) {
+			// Yellow - darker for value 2, regular for value 1
+			if (week.value === 2) {
+				backgroundColor = `rgba(220, 210, 30, ${opacity})`; // Darker yellow
+			} else {
+				backgroundColor = `rgba(249, 237, 50, ${opacity})`; // Regular yellow
+			}
+		} else if (hasFixturesNoGames) {
+			// Darker grey, no border for weekends with fixtures but no player games
+			backgroundColor = `rgba(100, 100, 100, 0.5)`;
+		} else {
+			// White with transparency (for weekends with no fixtures)
+			backgroundColor = `rgba(255, 255, 255, ${opacity})`;
+		}
 	}
 
 	return (
@@ -228,7 +349,7 @@ function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
 			<div
 				ref={squareRef}
 				className='w-6 h-6 rounded flex items-center justify-center relative cursor-pointer'
-				style={{ backgroundColor }}
+				style={{ backgroundColor, ...borderStyle }}
 				onMouseEnter={handleMouseEnter}
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
@@ -237,9 +358,24 @@ function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
 					className='text-xs font-medium'
 					style={{
 						fontSize: '9px',
-						color: week.value > 0 ? '#000000' : 'rgba(255, 255, 255, 0.6)',
+						color: (() => {
+							// For yellow boxes (Apps 1+ but Goal Involvements 0), use black text
+							if (week.showGoalInvolvements) {
+								const goalInvolvements = week.goalInvolvements !== undefined ? week.goalInvolvements : 0;
+								const gameCount = week.gameCount || 0;
+								if (gameCount > 0 && goalInvolvements === 0 && !(week.isHighlighted && week.isNegativeStreak)) {
+									return '#000000'; // Black for yellow boxes
+								}
+							}
+							// Default: black for boxes with value/goal involvements, white/grey for others
+							return (week.value > 0 || (week.showGoalInvolvements && week.goalInvolvements !== undefined && week.goalInvolvements > 0)) 
+								? '#000000' 
+								: (hasFixturesNoGames ? 'rgba(255, 255, 255, 0.7)' : 'rgba(255, 255, 255, 0.6)');
+						})(),
 					}}>
-					{week.weekNumber}
+					{week.showGoalInvolvements && week.goalInvolvements !== undefined 
+						? week.goalInvolvements 
+						: week.weekNumber}
 				</span>
 			</div>
 			<Tooltip week={week} show={showTooltip} position={tooltipPosition} />
@@ -256,20 +392,39 @@ export default function Calendar({ visualization }: CalendarProps) {
 	let startDate: Date;
 	let endDate: Date;
 	const gameDates = new Set<string>(); // Set of dates that have games
-	let weekBasedData: WeekBasedData | null = null;
-	let highlightRange: WeekBasedData["highlightRange"] = undefined;
+		let weekBasedData: WeekBasedData | null = null;
+		let highlightRange: WeekBasedData["highlightRange"] = undefined;
+		let allFixtureDates: string[] = []; // Extract allFixtureDates from weekBasedData if available
+		let streakSequence: string[] = []; // Extract streakSequence from weekBasedData if available
+		let streakDates: string[] = []; // Extract streakDates from weekBasedData if available
+		let streakType: string | undefined = undefined; // Extract streakType for styling
+		let showGoalInvolvements: boolean = false; // Whether to show goal involvements vs apps
+		let contributionLabel: string | undefined = undefined; // Label for contribution metric
+		let fixtureResults: Record<string, string> | undefined = undefined; // Extract fixtureResults if available
+		let fixtureScorelines: Record<string, string> | undefined = undefined; // Extract fixtureScorelines if available
+		let fixtureResultType: string | undefined = undefined; // Extract fixtureResultType if available
 
-	// Check for new week-based format
-	if (
-		visualization.data &&
-		typeof visualization.data === "object" &&
-		"weeks" in visualization.data &&
-		Array.isArray((visualization.data as WeekBasedData).weeks)
-	) {
-		weekBasedData = visualization.data as WeekBasedData;
-		highlightRange = weekBasedData.highlightRange;
+		// Check for new week-based format
+		if (
+			visualization.data &&
+			typeof visualization.data === "object" &&
+			"weeks" in visualization.data &&
+			Array.isArray((visualization.data as WeekBasedData).weeks)
+		) {
+			weekBasedData = visualization.data as WeekBasedData;
+			highlightRange = weekBasedData.highlightRange;
+			allFixtureDates = weekBasedData?.allFixtureDates || [];
+			streakSequence = weekBasedData?.streakSequence || [];
+			streakDates = weekBasedData?.streakDates || [];
+			streakType = weekBasedData?.streakType;
+			showGoalInvolvements = weekBasedData?.showGoalInvolvements || false;
+			contributionLabel = weekBasedData?.contributionLabel;
+			fixtureResults = weekBasedData?.fixtureResults;
+			fixtureScorelines = weekBasedData?.fixtureScorelines;
+			fixtureResultType = weekBasedData?.fixtureResultType;
+			const fullDateRange = weekBasedData?.fullDateRange;
 
-		// Determine date range from weeks
+		// Determine date range from weeks or fullDateRange
 		const weeks = weekBasedData.weeks;
 		if (weeks.length === 0) {
 			return (
@@ -279,27 +434,34 @@ export default function Calendar({ visualization }: CalendarProps) {
 			);
 		}
 
-		// Find earliest and latest weeks
-		let earliestWeek = weeks[0];
-		let latestWeek = weeks[0];
+		// If showFullCalendar is true and fullDateRange exists, use that for the date range
+		// Otherwise, determine from weeks data
+		if (showFullCalendar && fullDateRange) {
+			startDate = new Date(fullDateRange.start);
+			endDate = new Date(fullDateRange.end);
+		} else {
+			// Find earliest and latest weeks
+			let earliestWeek = weeks[0];
+			let latestWeek = weeks[0];
 
-		for (const week of weeks) {
-			const weekStart = getMondayOfWeek(week.year, week.weekNumber);
-			const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
-			const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+			for (const week of weeks) {
+				const weekStart = getMondayOfWeek(week.year, week.weekNumber);
+				const earliestStart = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+				const latestStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
 
-			if (weekStart < earliestStart) {
-				earliestWeek = week;
+				if (weekStart < earliestStart) {
+					earliestWeek = week;
+				}
+				if (weekStart > latestStart) {
+					latestWeek = week;
+				}
 			}
-			if (weekStart > latestStart) {
-				latestWeek = week;
-			}
+
+			startDate = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
+			const latestWeekStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
+			endDate = new Date(latestWeekStart);
+			endDate.setDate(latestWeekStart.getDate() + 6);
 		}
-
-		startDate = getMondayOfWeek(earliestWeek.year, earliestWeek.weekNumber);
-		const latestWeekStart = getMondayOfWeek(latestWeek.year, latestWeek.weekNumber);
-		endDate = new Date(latestWeekStart);
-		endDate.setDate(latestWeekStart.getDate() + 6);
 	} else if (Array.isArray(visualization.data) && visualization.data.length > 0) {
 		// Handle array of game dates (streak data format)
 		const gameData = visualization.data as GameDate[];
@@ -357,21 +519,42 @@ export default function Calendar({ visualization }: CalendarProps) {
 	// Get years in the range
 	// In compact mode, only include years within the streak range
 	const years: number[] = [];
+	const allYears: number[] = []; // All years in the full date range
 	const startYear = startDate.getFullYear();
 	const endYear = endDate.getFullYear();
 	
-	if (isStreakLessThanYear && !showFullCalendar && highlightRange) {
-		// In compact mode with highlightRange, only include years within the highlight range
+	// Calculate all years in the full date range
+	for (let year = startYear; year <= endYear; year++) {
+		allYears.push(year);
+	}
+	
+	// If showFullCalendar is true and fullDateRange exists, use that for years calculation
+	if (showFullCalendar && weekBasedData?.fullDateRange) {
+		const fullStartYear = new Date(weekBasedData.fullDateRange.start).getFullYear();
+		const fullEndYear = new Date(weekBasedData.fullDateRange.end).getFullYear();
+		// Include all years in the full date range
+		for (let year = fullStartYear; year <= fullEndYear; year++) {
+			years.push(year);
+		}
+	} else if (!showFullCalendar && highlightRange) {
+		// Initially show only years within the highlight range (streak years)
 		// This ensures we only show the year(s) that contain the actual streak
 		for (let year = highlightRange.startYear; year <= highlightRange.endYear; year++) {
 			years.push(year);
 		}
 	} else {
-		// In full calendar mode or when no highlightRange, include all years in the date range
-		for (let year = startYear; year <= endYear; year++) {
-			years.push(year);
-		}
+		// In full calendar mode (without fullDateRange) or when no highlightRange, include all years in the date range
+		years.push(...allYears);
 	}
+	
+	// Determine if we should show the toggle button
+	// Show toggle if:
+	// 1. There are more years in the full range than in the highlight range, OR
+	// 2. The streak is less than a year (so users can expand to see full year), OR
+	// 3. There's a highlightRange (so users can toggle between compact and full view)
+	const highlightRangeYearCount = highlightRange ? (highlightRange.endYear - highlightRange.startYear + 1) : 0;
+	const hasMoreYears = highlightRange ? allYears.length > highlightRangeYearCount : false;
+	const shouldShowToggle = hasMoreYears || isStreakLessThanYear || (highlightRange !== undefined);
 
 	// Process weeks for each year
 	const yearWeeks: Map<number, WeekData[]> = new Map();
@@ -379,6 +562,10 @@ export default function Calendar({ visualization }: CalendarProps) {
 	const yearWeekValues: Map<number, Map<number, number>> = new Map(); // year -> week -> value (for week-based format)
 
 	// Handle week-based data format
+	// Track goal involvements per week and game counts
+	const yearGoalInvolvements: Map<number, Map<number, number>> = new Map(); // year -> week -> goal involvements
+	const yearFixtureResults: Map<number, Map<number, string>> = new Map(); // year -> week -> fixture result
+	const yearFixtureScorelines: Map<number, Map<number, string>> = new Map(); // year -> week -> fixture scoreline
 	if (weekBasedData) {
 		for (const week of weekBasedData.weeks) {
 			if (!yearWeekValues.has(week.year)) {
@@ -386,12 +573,48 @@ export default function Calendar({ visualization }: CalendarProps) {
 			}
 			const weekValues = yearWeekValues.get(week.year)!;
 			weekValues.set(week.weekNumber, week.value);
+			
+			// Track goal involvements if available
+			if (week.goalInvolvements !== undefined) {
+				if (!yearGoalInvolvements.has(week.year)) {
+					yearGoalInvolvements.set(week.year, new Map());
+				}
+				yearGoalInvolvements.get(week.year)!.set(week.weekNumber, week.goalInvolvements);
+			}
+			
+			// Track fixture results if available
+			if (week.fixtureResult) {
+				if (!yearFixtureResults.has(week.year)) {
+					yearFixtureResults.set(week.year, new Map());
+				}
+				yearFixtureResults.get(week.year)!.set(week.weekNumber, week.fixtureResult);
+			}
+			
+			// Track fixture scorelines if available
+			if (week.fixtureScoreline) {
+				if (!yearFixtureScorelines.has(week.year)) {
+					yearFixtureScorelines.set(week.year, new Map());
+				}
+				yearFixtureScorelines.get(week.year)!.set(week.weekNumber, week.fixtureScoreline);
+			}
+			
 			// Also set gameCount for backward compatibility with existing rendering logic
 			if (!yearGameCounts.has(week.year)) {
 				yearGameCounts.set(week.year, new Map());
 			}
 			const weekCounts = yearGameCounts.get(week.year)!;
-			weekCounts.set(week.weekNumber, week.value > 0 ? 1 : 0);
+			// Use gameCount if available
+			// For goal involvement questions, gameCount represents actual games played (from chatbotService)
+			// Don't infer from value because value is goal involvements, not game count
+			if (week.gameCount !== undefined) {
+				weekCounts.set(week.weekNumber, week.gameCount);
+			} else if (!showGoalInvolvements) {
+				// Only infer from value for non-goal involvement questions
+				weekCounts.set(week.weekNumber, week.value > 0 ? 1 : 0);
+			} else {
+				// For goal involvement questions, if gameCount is not provided, default to 0
+				weekCounts.set(week.weekNumber, 0);
+			}
 		}
 	} else {
 		// Count games per week from dates
@@ -416,6 +639,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 		const weekValues = yearWeekValues.get(year) || new Map();
 
 		// Create a set of months that contain data for compact view filtering
+		// Show shortened view if streak is less than a year, even with highlightRange
 		const monthsWithData = new Set<number>();
 		if (isStreakLessThanYear && !showFullCalendar) {
 			if (weekBasedData) {
@@ -444,15 +668,9 @@ export default function Calendar({ visualization }: CalendarProps) {
 			const sunday = new Date(monday);
 			sunday.setDate(monday.getDate() + 6);
 
-			// In compact mode (streak < 1 year and not showing full calendar), only include weeks in months with data
-			if (isStreakLessThanYear && !showFullCalendar) {
-				// Use Thursday (middle of week) to determine which month the week belongs to
-				const thursday = new Date(monday);
-				thursday.setDate(monday.getDate() + 3);
-				if (!monthsWithData.has(thursday.getMonth())) {
-					continue; // Skip weeks in months without data
-				}
-			} else {
+			// When showing full calendar, check if week is within date range
+			// When in compact mode (even with highlightRange), filter by months with data if streak is less than a year
+			if (showFullCalendar) {
 				// In full calendar mode, check if this week is within our date range
 				const weekEnd = new Date(sunday);
 				weekEnd.setHours(23, 59, 59, 999);
@@ -460,11 +678,32 @@ export default function Calendar({ visualization }: CalendarProps) {
 				if (weekEnd < startDate || monday > endDate) {
 					continue; // Skip weeks outside the date range
 				}
+			} else if (isStreakLessThanYear) {
+				// In compact mode, only include weeks in months with data (even with highlightRange)
+				const thursday = new Date(monday);
+				thursday.setDate(monday.getDate() + 3);
+				if (!monthsWithData.has(thursday.getMonth())) {
+					continue; // Skip weeks in months without data
+				}
 			}
 
 			// Determine if this week is highlighted
+			// Only highlight if the week is actually in the streak sequence, not just in the date range
 			let isHighlighted = false;
-			if (highlightRange) {
+			if (streakDates.length > 0) {
+				// Use actual dates from streak for precise matching
+				// Check if any date in the streak falls within this week (Monday-Sunday)
+				const weekStartNormalized = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate());
+				const weekEndNormalized = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate());
+				
+				isHighlighted = streakDates.some(dateStr => {
+					const streakDate = new Date(dateStr);
+					const streakDateNormalized = new Date(streakDate.getFullYear(), streakDate.getMonth(), streakDate.getDate());
+					// Check if streak date falls within this week
+					return streakDateNormalized >= weekStartNormalized && streakDateNormalized <= weekEndNormalized;
+				});
+			} else if (highlightRange) {
+				// Fallback to highlightRange if no streakSequence (for backward compatibility)
 				// Check if this week falls within the highlight range
 				if (year === highlightRange.startYear && year === highlightRange.endYear) {
 					// Same year range
@@ -484,6 +723,52 @@ export default function Calendar({ visualization }: CalendarProps) {
 			// Get value from week-based data or use gameCount
 			const value = weekValues.has(weekNum) ? weekValues.get(weekNum)! : (weekCounts.get(weekNum) || 0);
 
+			// Check if this week has any fixtures (for any Dorkinians team)
+			// Only check for fixtures if the week is within the displayed date range
+			// If allFixtureDates is provided (array exists, even if empty), use it to determine hasFixtures
+			// If allFixtureDates is undefined, default to true (assume fixtures might exist, don't show grey)
+			let hasFixtures = true; // Default to true
+			if (weekBasedData?.allFixtureDates !== undefined) {
+				// Ensure this week is within the date range before checking fixtures
+				const weekEnd = new Date(sunday);
+				weekEnd.setHours(23, 59, 59, 999);
+				const isWithinDateRange = weekEnd >= startDate && monday <= endDate;
+				
+				if (isWithinDateRange) {
+					// allFixtureDates array exists (may be empty), check if any fixture falls in this week
+					// Normalize dates to midnight local time for accurate date comparison
+					const mondayNormalized = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate());
+					const sundayNormalized = new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate());
+					
+					hasFixtures = allFixtureDates.some(fixtureDateStr => {
+						const fixtureDate = new Date(fixtureDateStr);
+						// Normalize to midnight local time for accurate date comparison
+						const fixtureDateNormalized = new Date(fixtureDate.getFullYear(), fixtureDate.getMonth(), fixtureDate.getDate());
+						// Check if fixture date falls within this week (Monday to Sunday)
+						const isInWeek = fixtureDateNormalized >= mondayNormalized && fixtureDateNormalized <= sundayNormalized;
+						return isInWeek;
+					});
+				} else {
+					// Week is outside the date range - don't check fixtures, default to true
+					hasFixtures = true;
+				}
+			}
+
+			// Check if this is a negative streak (e.g., no goal involvements)
+			const isNegativeStreak = streakType === "longest_no_goal_involvement";
+			
+			// Get goal involvements for this week if available (default to 0 if not found)
+			const goalInvolvements = yearGoalInvolvements.get(year)?.get(weekNum) ?? (showGoalInvolvements ? 0 : undefined);
+			
+			// Get fixture result for this week if available
+			const weekFixtureResult = yearFixtureResults.get(year)?.get(weekNum);
+			
+			// Get fixture scoreline for this week if available
+			const weekFixtureScoreline = yearFixtureScorelines.get(year)?.get(weekNum);
+			
+			// Determine if player played in this week (for negative streak styling)
+			const isPlayed = (weekCounts.get(weekNum) || 0) > 0;
+
 			weeks.push({
 				weekNumber: weekNum,
 				year: year,
@@ -492,6 +777,15 @@ export default function Calendar({ visualization }: CalendarProps) {
 				gameCount: weekCounts.get(weekNum) || 0,
 				value: value,
 				isHighlighted: isHighlighted,
+				hasFixtures: hasFixtures,
+				isNegativeStreak: isNegativeStreak,
+				goalInvolvements: goalInvolvements,
+				showGoalInvolvements: showGoalInvolvements,
+				isPlayed: isPlayed,
+				contributionLabel: contributionLabel,
+				fixtureResult: weekFixtureResult,
+				fixtureScoreline: weekFixtureScoreline,
+				fixtureResultType: fixtureResultType,
 			});
 		}
 
@@ -639,12 +933,12 @@ export default function Calendar({ visualization }: CalendarProps) {
 				);
 			})}
 			{/* Toggle button for full calendar view */}
-			{isStreakLessThanYear && (
+			{shouldShowToggle && (
 				<div className='mt-4 text-center'>
 					<button
 						onClick={() => setShowFullCalendar(!showFullCalendar)}
 						className='text-sm text-yellow-300 hover:text-yellow-200 cursor-pointer underline transition-colors'>
-						{showFullCalendar ? 'Hide full calendar' : 'Click for full calendar'}
+						{showFullCalendar ? 'Hide full calendar' : 'Show full calendar'}
 					</button>
 				</div>
 			)}

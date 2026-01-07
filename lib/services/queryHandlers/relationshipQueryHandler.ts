@@ -1,5 +1,6 @@
 import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
+import { ChatbotService } from "../chatbotService";
 
 export class RelationshipQueryHandler {
 	/**
@@ -14,6 +15,16 @@ export class RelationshipQueryHandler {
 			ORDER BY gamesPlayedTogether DESC
 			LIMIT 20
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`CO_PLAYERS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CO_PLAYERS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName });
@@ -43,6 +54,18 @@ export class RelationshipQueryHandler {
 			RETURN opponents, size(opponents) as totalOpponents
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`OPPONENTS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`OPPONENTS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			return { type: "opponents", data: result, playerName };
@@ -69,6 +92,18 @@ export class RelationshipQueryHandler {
 			LIMIT 10
 			RETURN opposition, goalsScored
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_GOALS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_GOALS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
@@ -98,6 +133,18 @@ export class RelationshipQueryHandler {
 			LIMIT $limit
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$limit/g, `${limit}`);
+			chatbotService.lastExecutedQueries.push(`MOST_DIFFERENT_TEAMMATES_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`MOST_DIFFERENT_TEAMMATES_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel, limit });
 			return { type: "most_different_teammates", data: result };
@@ -115,12 +162,15 @@ export class RelationshipQueryHandler {
 		teamName?: string, 
 		season?: string | null, 
 		startDate?: string | null, 
-		endDate?: string | null
+		endDate?: string | null,
+		compType?: string | null,
+		requestedLimit?: number
 	): Promise<Record<string, unknown>> {
 		const timeContext = [
 			teamName ? `team: ${teamName}` : null,
 			season ? `season: ${season}` : null,
-			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null,
+			compType ? `compType: ${compType}` : null
 		].filter(Boolean).join(", ");
 		
 		loggingService.log(`🔍 Querying most played with for player: ${playerName}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
@@ -133,12 +183,20 @@ export class RelationshipQueryHandler {
 		}
 		
 		if (season) {
-			whereConditions.push("f.season = $season");
+			whereConditions.push("f.season = $season", "md1.season = $season", "md2.season = $season");
 		}
 		
 		if (startDate && endDate) {
 			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
 		}
+		
+		if (compType) {
+			whereConditions.push("f.compType = $compType");
+		}
+		
+		// For expandable results, fetch at least 10 even if requestedLimit is 5
+		const expandableLimit = requestedLimit === 5 ? 10 : (requestedLimit || 10);
+		const maxLimit = Math.max(expandableLimit * 2, 50);
 		
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
@@ -148,11 +206,28 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			WITH other.playerName as teammateName, count(DISTINCT f) as gamesTogether
 			ORDER BY gamesTogether DESC
-			LIMIT 3
+			LIMIT ${maxLimit}
 			RETURN teammateName, gamesTogether
 		`;
 
-		const queryParams: Record<string, string> = { 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			if (teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			if (season) readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			if (startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`);
+			if (endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${endDate}'`);
+			if (compType) readyToExecuteQuery = readyToExecuteQuery.replace(/\$compType/g, `'${compType}'`);
+			chatbotService.lastExecutedQueries.push(`RELATIONSHIP_MOST_PLAYED_WITH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`RELATIONSHIP_MOST_PLAYED_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		const queryParams: Record<string, string | number> = { 
 			playerName,
 			graphLabel 
 		};
@@ -166,21 +241,103 @@ export class RelationshipQueryHandler {
 			queryParams.startDate = startDate;
 			queryParams.endDate = endDate;
 		}
+		if (compType) {
+			queryParams.compType = compType;
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Store all results up to expandableLimit
+			const allResults = result.slice(0, expandableLimit);
+			// Limit initial display to requestedLimit (or 10 if not specified)
+			const limitedResult = allResults.slice(0, requestedLimit || 10);
+			
 			return { 
-				type: "most_played_with", 
-				data: result, 
+				type: compType ? "most_played_with_cup" : "most_played_with", 
+				data: limitedResult,
+				fullData: allResults, // Store full data for expansion
 				playerName, 
 				teamName,
 				season,
 				startDate,
-				endDate
+				endDate,
+				compType,
+				requestedLimit: requestedLimit || 10,
+				expandableLimit: expandableLimit
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in most played with query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying most played with data" };
+		}
+	}
+
+	/**
+	 * Query highest win percentage with teammates for a player
+	 * Returns top 5 initially, expandable to 10
+	 */
+	static async queryHighestWinPercentageWith(
+		playerName: string
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying highest win percentage with for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const expandableLimit = 10;
+		const maxLimit = Math.max(expandableLimit * 2, 50);
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (other:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE other.playerName <> p.playerName
+			WITH other.playerName as teammateName, 
+			     count(DISTINCT f) as gamesTogether,
+			     sum(CASE WHEN f.result = 'W' THEN 1 ELSE 0 END) as wins
+			WHERE gamesTogether > 0
+			WITH teammateName, gamesTogether, wins,
+			     CASE WHEN gamesTogether > 0 THEN round(100.0 * wins / gamesTogether * 100) / 100.0 ELSE 0.0 END as winPercentage
+			ORDER BY winPercentage DESC, gamesTogether DESC
+			LIMIT ${maxLimit}
+			RETURN teammateName, gamesTogether, wins, winPercentage
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WIN_PERCENTAGE_WITH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_WIN_PERCENTAGE_WITH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		const queryParams: Record<string, string> = { 
+			playerName,
+			graphLabel 
+		};
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Store all results up to expandableLimit
+			const allResults = result.slice(0, expandableLimit);
+			// Limit initial display to top 5
+			const limitedResult = allResults.slice(0, 5);
+			
+			return { 
+				type: "highest_win_percentage_with", 
+				data: limitedResult,
+				fullData: allResults, // Store full data for expansion
+				playerName,
+				requestedLimit: 5,
+				expandableLimit: expandableLimit
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in highest win percentage with query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying highest win percentage with data" };
 		}
 	}
 
@@ -235,6 +392,19 @@ export class RelationshipQueryHandler {
 			WHERE toLower(trim(f.opposition)) = toLower(trim($oppositionName))
 			RETURN ${returnClause}
 		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`)
+				.replace(/\$oppositionName/g, `'${oppositionName}'`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_STATS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_STATS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
@@ -303,6 +473,19 @@ export class RelationshipQueryHandler {
 				LIMIT 10
 				RETURN opposition, gamesPlayed
 			`;
+		}
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (playerName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$playerName/g, `'${playerName}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`MOST_PLAYED_AGAINST_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`MOST_PLAYED_AGAINST_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
 		}
 
 		try {
@@ -484,6 +667,28 @@ export class RelationshipQueryHandler {
 			queryParams.endDate = endDate;
 		}
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$playerName1/g, `'${playerName1}'`)
+				.replace(/\$playerName2/g, `'${playerName2}'`)
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			}
+			if (season) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			}
+			if (startDate && endDate) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`).replace(/\$endDate/g, `'${endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`GAMES_PLAYED_TOGETHER_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_PLAYED_TOGETHER_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, queryParams);
 			
@@ -527,6 +732,138 @@ export class RelationshipQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in games played together query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying games played together data" };
+		}
+	}
+
+	/**
+	 * Query clean sheets (games with 0 conceded) where two specific players played together
+	 */
+	static async queryCleanSheetsPlayedTogether(
+		playerName1: string,
+		playerName2: string,
+		teamName?: string,
+		season?: string | null,
+		startDate?: string | null,
+		endDate?: string | null
+	): Promise<Record<string, unknown>> {
+		const timeContext = [
+			teamName ? `team: ${teamName}` : null,
+			season ? `season: ${season}` : null,
+			startDate && endDate ? `dates: ${startDate} to ${endDate}` : null
+		].filter(Boolean).join(", ");
+		
+		loggingService.log(`🔍 Querying clean sheets played together for players: ${playerName1} and ${playerName2}${timeContext ? ` (${timeContext})` : ""}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const whereConditions: string[] = [
+			"p1.playerName = $playerName1",
+			"p2.playerName = $playerName2",
+			"p1 <> p2",
+			"coalesce(f.conceded, 0) = 0"
+		];
+		
+		if (teamName) {
+			whereConditions.push("md1.team = $teamName", "md2.team = $teamName");
+		}
+		
+		if (season) {
+			whereConditions.push("f.season = $season");
+		}
+		
+		if (startDate && endDate) {
+			whereConditions.push("f.date >= $startDate", "f.date <= $endDate");
+		}
+		
+		const query = `
+			MATCH (p1:Player {graphLabel: $graphLabel, playerName: $playerName1})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (p2:Player {graphLabel: $graphLabel, playerName: $playerName2})-[:PLAYED_IN]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
+			WHERE ${whereConditions.join(" AND ")}
+			RETURN count(DISTINCT f) as cleanSheetsTogether
+		`;
+		
+		const queryParams: Record<string, string> = {
+			playerName1,
+			playerName2,
+			graphLabel
+		};
+		if (teamName) {
+			queryParams.teamName = teamName;
+		}
+		if (season) {
+			queryParams.season = season;
+		}
+		if (startDate && endDate) {
+			queryParams.startDate = startDate;
+			queryParams.endDate = endDate;
+		}
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$playerName1/g, `'${playerName1}'`)
+				.replace(/\$playerName2/g, `'${playerName2}'`)
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			}
+			if (season) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			}
+			if (startDate && endDate) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`).replace(/\$endDate/g, `'${endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_PLAYED_TOGETHER_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEETS_PLAYED_TOGETHER_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, queryParams);
+			
+			// Extract the count from the result
+			let cleanSheetsTogether = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "cleanSheetsTogether" in record) {
+					let count = record.cleanSheetsTogether;
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							cleanSheetsTogether = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								cleanSheetsTogether = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								cleanSheetsTogether = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								cleanSheetsTogether = Number(count) || 0;
+							}
+						} else {
+							cleanSheetsTogether = Number(count) || 0;
+						}
+					}
+				}
+			}
+			
+			return {
+				type: "clean_sheets_played_together",
+				data: cleanSheetsTogether,
+				playerName1,
+				playerName2,
+				teamName,
+				season,
+				startDate,
+				endDate
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in clean sheets played together query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying clean sheets played together data" };
 		}
 	}
 
@@ -576,6 +913,23 @@ export class RelationshipQueryHandler {
 			WHERE ${whereConditions.join(" AND ")}
 			RETURN sum(coalesce(md1.goals, 0) + coalesce(md1.penaltiesScored, 0) + coalesce(md2.goals, 0) + coalesce(md2.penaltiesScored, 0)) as totalGoals
 		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName1/g, `'${playerName1}'`)
+				.replace(/\$playerName2/g, `'${playerName2}'`);
+			if (teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${teamName}'`);
+			if (season) readyToExecuteQuery = readyToExecuteQuery.replace(/\$season/g, `'${season}'`);
+			if (startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${startDate}'`);
+			if (endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${endDate}'`);
+			chatbotService.lastExecutedQueries.push(`GOALS_SCORED_TOGETHER_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GOALS_SCORED_TOGETHER_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		const queryParams: Record<string, string> = {
 			playerName1,
@@ -636,6 +990,52 @@ export class RelationshipQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in goals scored together query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying goals scored together data" };
+		}
+	}
+
+	/**
+	 * Query count of unique teammates for a player
+	 * Counts distinct players who played in the same fixtures
+	 */
+	static async queryTeammatesCount(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying teammates count for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md1:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
+			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2:MatchDetail {graphLabel: $graphLabel})
+			MATCH (other:Player {graphLabel: $graphLabel})-[:PLAYED_IN]->(md2)
+			WHERE other.playerName <> p.playerName
+			RETURN count(DISTINCT other.playerName) as count
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`TEAMMATES_COUNT_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`TEAMMATES_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			const count = result && result.length > 0 ? (result[0]?.count || 0) : 0;
+			
+			loggingService.log(`✅ Found ${count} unique teammates for player: ${playerName}`, null, "log");
+			
+			return { 
+				type: "teammates_count", 
+				data: [{ count }],
+				playerName
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in teammates count query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying teammates count data" };
 		}
 	}
 }

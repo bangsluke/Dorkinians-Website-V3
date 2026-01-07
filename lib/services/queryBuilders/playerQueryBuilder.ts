@@ -40,6 +40,9 @@ export class PlayerQueryBuilder {
 			"MOSTSCOREDFORTEAM",
 			"MOSTPLAYEDFORTEAM",
 			"MOSTPROLIFICSEASON", // Needs MatchDetail to calculate goals per season
+			"MOSTMINUTESSEASON", // Needs MatchDetail to calculate minutes per season
+			"MOSTAPPEARANCESSEASON", // Needs MatchDetail to calculate appearances per season
+			"HIGHESTGOALSASSISTSSEASON", // Needs MatchDetail to calculate goals + assists per season
 			"FTP",
 			"POINTS",
 			"FANTASYPOINTS",
@@ -52,7 +55,8 @@ export class PlayerQueryBuilder {
 		}
 
 		// Check if it's a team-specific appearance metric (1st XI Apps, 2nd XI Apps, etc.)
-		if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) {
+		const teamXiAppsMatch = metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i);
+		if (teamXiAppsMatch) {
 			return true; // Team-specific appearances need MatchDetail join to filter by team
 		}
 
@@ -77,7 +81,8 @@ export class PlayerQueryBuilder {
 			return true; // These need MatchDetail to count distinct seasons/teams
 		}
 
-		return matchDetailMetrics.includes(metric.toUpperCase());
+		const result = matchDetailMetrics.includes(metric.toUpperCase());
+		return result;
 	}
 
 	/**
@@ -520,17 +525,27 @@ export class PlayerQueryBuilder {
 			timeRange !== "since" &&
 			(timeRange.includes(" to ") || timeRange.match(/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}$/) || timeRange.match(/^\d{4}[\/\-]\d{2,4}$/));
 		
-		if (isValidTimeRange && !isTeamSpecificMetric) {
+		// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
+		// For other queries that need fixture data, use f.date
+		const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
+		const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
+		
+		// Check for "during [YEAR]" pattern in question (e.g., "during 2023")
+		// This pattern might not be extracted as a timeFrame, so we check the question directly
+		const duringYearMatch = questionLower.match(/\bduring\s+(\d{4})\b/);
+		if (duringYearMatch && !isTeamSpecificMetric) {
+			const year = parseInt(duringYearMatch[1], 10);
+			if (!isNaN(year) && year >= 2000 && year <= 2100) {
+				const startDate = `${year}-01-01`;
+				const endDate = `${year}-12-31`;
+				whereConditions.push(`${dateField} >= '${startDate}' AND ${dateField} <= '${endDate}'`);
+			}
+		} else if (isValidTimeRange && !isTeamSpecificMetric) {
 			// Check if we have a "before" type timeFrame in extractionResult (check this FIRST)
 			const beforeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "before");
 			
 			// Check if we have a "since" type timeFrame in extractionResult
 			const sinceFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "since");
-			
-			// For appearance/goals queries, always use md.date to filter MatchDetail nodes directly
-			// For other queries that need fixture data, use f.date
-			const isAppearanceOrGoalsQuery = metricUpper === "APP" || metricUpper === "G" || metricUpper === "A";
-			const dateField = (isAppearanceOrGoalsQuery || !needsFixture) ? "md.date" : "f.date";
 			
 			if (beforeFrame) {
 				// Handle "before [SEASON]" pattern - convert season to start date and use < operator
@@ -592,6 +607,10 @@ export class PlayerQueryBuilder {
 						case "league":
 							return `f.compType = 'League'`;
 						case "cup":
+							// Use f.compType = 'Cup' to count MatchDetail nodes connected to Fixture nodes with compType value of 'Cup'
+							// Note: compType is the competition type field (League, Cup, Friendly), while competition is the specific competition name
+							// The user requirement specified f.competition = 'Cup', but compType is the correct field for competition types
+							// If competition field has 'Cup' values, we should check both, but compType is the standard field
 							return `f.compType = 'Cup'`;
 						case "friendly":
 							return `f.compType = 'Friendly'`;
@@ -1083,6 +1102,196 @@ export class PlayerQueryBuilder {
 				RETURN p.playerName as playerName, season, goals as value
 				ORDER BY season ASC
 			`;
+		} else if (metric.toUpperCase() === "BEST_SEASON_FOR_STAT" || metric.toUpperCase() === "BESTSEASONFORSTAT") {
+			// Query MatchDetails to get stat per season for any stat type
+			// Extract stat type from analysis
+			const statType = (analysis as any).bestSeasonStatType || "";
+			const questionLower = (analysis.question || "").toLowerCase();
+			
+			// Map stat type names to MatchDetail property names
+			const statFieldMap: Record<string, { field: string; displayName: string; includePenalties?: boolean }> = {
+				"goals": { field: "goals", displayName: "Goals", includePenalties: true },
+				"goal": { field: "goals", displayName: "Goals", includePenalties: true },
+				"assists": { field: "assists", displayName: "Assists" },
+				"assist": { field: "assists", displayName: "Assists" },
+				"yellowcards": { field: "yellowCards", displayName: "Yellow Cards" },
+				"yellowcard": { field: "yellowCards", displayName: "Yellow Cards" },
+				"redcards": { field: "redCards", displayName: "Red Cards" },
+				"redcard": { field: "redCards", displayName: "Red Cards" },
+				"saves": { field: "saves", displayName: "Saves" },
+				"save": { field: "saves", displayName: "Saves" },
+				"cleansheets": { field: "cleanSheets", displayName: "Clean Sheets" },
+				"cleansheet": { field: "cleanSheets", displayName: "Clean Sheets" },
+				"owngoals": { field: "ownGoals", displayName: "Own Goals" },
+				"owngoal": { field: "ownGoals", displayName: "Own Goals" },
+				"conceded": { field: "conceded", displayName: "Goals Conceded" },
+				"appearances": { field: "appearances", displayName: "Appearances" },
+				"appearance": { field: "appearances", displayName: "Appearances" },
+				"minutes": { field: "minutes", displayName: "Minutes" },
+				"minute": { field: "minutes", displayName: "Minutes" },
+				"mom": { field: "mom", displayName: "Man of the Match" },
+				"penaltiesscored": { field: "penaltiesScored", displayName: "Penalties Scored" },
+				"penaltiessaved": { field: "penaltiesSaved", displayName: "Penalties Saved" },
+				"penaltiesmissed": { field: "penaltiesMissed", displayName: "Penalties Missed" },
+			};
+
+			// Find stat field from statType or question text
+			let statField = "goals"; // Default
+			let statDisplayName = "Goals";
+			let includePenalties = false;
+
+			// Try to match from statType first
+			if (statType) {
+				const normalizedStatType = statType.toLowerCase().replace(/\s+/g, "");
+				if (statFieldMap[normalizedStatType]) {
+					statField = statFieldMap[normalizedStatType].field;
+					statDisplayName = statFieldMap[normalizedStatType].displayName;
+					includePenalties = statFieldMap[normalizedStatType].includePenalties || false;
+				}
+			}
+
+			// Fallback: try to extract from question text if statType wasn't found
+			if (statField === "goals" && !statType) {
+				if (questionLower.includes("assist")) {
+					statField = "assists";
+					statDisplayName = "Assists";
+				} else if (questionLower.includes("yellow card")) {
+					statField = "yellowCards";
+					statDisplayName = "Yellow Cards";
+				} else if (questionLower.includes("red card")) {
+					statField = "redCards";
+					statDisplayName = "Red Cards";
+				} else if (questionLower.includes("save") && !questionLower.includes("penalt")) {
+					statField = "saves";
+					statDisplayName = "Saves";
+				} else if (questionLower.includes("clean sheet")) {
+					statField = "cleanSheets";
+					statDisplayName = "Clean Sheets";
+				} else if (questionLower.includes("own goal")) {
+					statField = "ownGoals";
+					statDisplayName = "Own Goals";
+				} else if (questionLower.includes("conceded")) {
+					statField = "conceded";
+					statDisplayName = "Goals Conceded";
+				} else if (questionLower.includes("appearance") || questionLower.includes("game")) {
+					statField = "appearances";
+					statDisplayName = "Appearances";
+				} else if (questionLower.includes("minute")) {
+					statField = "minutes";
+					statDisplayName = "Minutes";
+				} else if (questionLower.includes("mom") || questionLower.includes("man of the match")) {
+					statField = "mom";
+					statDisplayName = "Man of the Match";
+				} else if (questionLower.includes("penalt") && questionLower.includes("scored")) {
+					statField = "penaltiesScored";
+					statDisplayName = "Penalties Scored";
+				} else if (questionLower.includes("penalt") && questionLower.includes("saved")) {
+					statField = "penaltiesSaved";
+					statDisplayName = "Penalties Saved";
+				} else if (questionLower.includes("penalt") && questionLower.includes("missed")) {
+					statField = "penaltiesMissed";
+					statDisplayName = "Penalties Missed";
+				}
+			}
+
+			// Store stat info in analysis for response generation
+			(analysis as any).bestSeasonStatField = statField;
+			(analysis as any).bestSeasonStatDisplayName = statDisplayName;
+
+			// Check if team filtering is needed
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+
+			// Build aggregation expression
+			let aggregationExpression = "";
+			if (statField === "appearances") {
+				// Count appearances
+				aggregationExpression = "count(md)";
+			} else if (statField === "goals" && includePenalties) {
+				// Goals + penalties scored
+				aggregationExpression = `sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) + sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END)`;
+			} else {
+				// Regular stat field
+				aggregationExpression = `sum(CASE WHEN md.${statField} IS NULL OR md.${statField} = "" THEN 0 ELSE md.${statField} END)`;
+			}
+
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, ${aggregationExpression} as statValue
+				RETURN p.playerName as playerName, season, statValue as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "MOSTMINUTESSEASON") {
+			// Query MatchDetails to get minutes per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					sum(CASE WHEN md.minutes IS NULL OR md.minutes = "" THEN 0 ELSE md.minutes END) as minutes
+				RETURN p.playerName as playerName, season, minutes as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "MOSTAPPEARANCESSEASON") {
+			// Query MatchDetails to get appearances per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					count(md) as appearances
+				RETURN p.playerName as playerName, season, appearances as value
+				ORDER BY season ASC
+			`;
+		} else if (metric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON") {
+			// Query MatchDetails to get goals + penaltiesScored + assists per season
+			// Use md.season directly since MatchDetail has a season property
+			const teamEntities = analysis.teamEntities || [];
+			let teamFilter = "";
+			
+			if (teamEntities.length > 0) {
+				const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const escapedTeamName = teamName.replace(/'/g, "\\'");
+				teamFilter = ` AND md.team = '${escapedTeamName}'`;
+			}
+			
+			return `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				WHERE md.season IS NOT NULL AND md.season <> ""${teamFilter}
+				WITH p, md.season as season, 
+					sum(CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END) as goals,
+					sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) as penaltiesScored,
+					sum(CASE WHEN md.assists IS NULL OR md.assists = "" THEN 0 ELSE md.assists END) as assists
+				WITH p, season, goals, penaltiesScored, assists,
+					(goals + penaltiesScored + assists) as total
+				RETURN p.playerName as playerName, season, goals, penaltiesScored, assists, total as value
+				ORDER BY season ASC
+			`;
 		} else if (metric === "MostPlayedForTeam" || metric === "MOSTPLAYEDFORTEAM" || metric === "TEAM_ANALYSIS") {
 			if (TeamMappingUtils.isTeamCountQuestion(analysis.question)) {
 				return `
@@ -1406,6 +1615,7 @@ export class PlayerQueryBuilder {
 			// For team-specific appearances with OPTIONAL MATCH, remove team filter from WHERE conditions
 			// (we'll filter in WITH clause instead to ensure we always return a row)
 			// BUT skip this if team exclusions are present (exclusions mean we want all teams except the excluded ones)
+			// ALSO: For team-specific goals metrics, remove team filter from WHERE conditions (we'll filter in WITH clause)
 			let teamNameForWithClause = "";
 			if (!hasTeamExclusions && (isTeamSpecificMetric || isPositionMetric) && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
 				if (metric.match(/^\d+sApps$/i)) {
@@ -1419,12 +1629,36 @@ export class PlayerQueryBuilder {
 						teamNameForWithClause = teamMatch[1] + " XI";
 					}
 				}
-				
 				if (teamNameForWithClause) {
 					// Remove team filter from WHERE conditions
 					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
 					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
 				}
+			}
+			// For team-specific goals metrics, also remove team filter from WHERE conditions (we'll filter in WITH clause)
+			if (!hasTeamExclusions && isTeamSpecificMetric && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
+				let teamNameForGoals = "";
+				if (metric.match(/^\d+sGoals$/i)) {
+					const teamNumber = metric.match(/^(\d+)sGoals$/i)?.[1];
+					if (teamNumber) {
+						teamNameForGoals = TeamMappingUtils.mapTeamName(`${teamNumber}s`);
+					}
+				} else if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Goals$/i);
+					if (teamMatch) {
+						teamNameForGoals = teamMatch[1] + " XI";
+					}
+				}
+				if (teamNameForGoals) {
+					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+				}
+			}
+			// For goals queries with team entities (non-team-specific metric), also remove team filter from WHERE conditions (we'll filter in WITH clause)
+			if (hasTeamFilterForGoals && !hasTeamExclusions && teamEntities.length > 0) {
+				const teamNameForGoals = TeamMappingUtils.mapTeamName(teamEntities[0]);
+				const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+				whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
 			}
 
 			// Add WHERE clause if we have conditions
@@ -1449,9 +1683,60 @@ export class PlayerQueryBuilder {
 				// For non-team-specific metrics with team exclusions (e.g., assists, goals), use regular aggregation
 				// The exclusion filter is already in WHERE conditions, so just use the standard return clause
 				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+			} else if (hasPlayerEntity && isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
+				// For player queries with team-specific goals metrics (e.g., "3sGoals"), filter by team
+				// Extract team name for filtering
+				let teamName = "";
+				if (metric.match(/^\d+sGoals$/i)) {
+					const teamNumber = metric.match(/^(\d+)sGoals$/i)?.[1];
+					if (teamNumber) {
+						teamName = TeamMappingUtils.mapTeamName(`${teamNumber}s`);
+					}
+				} else if (metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)) {
+					const teamMatch = metric.match(/^(\d+(?:st|nd|rd|th))\s+XI\s+Goals$/i);
+					if (teamMatch) {
+						teamName = teamMatch[1] + " XI";
+					}
+				}
+				
+				if (teamName) {
+					// Use WITH clause to aggregate and filter by team
+					// Ensure we always return a row even when there are no MatchDetail records
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamName}')] END as filteredDetails`;
+					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END + CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) END as totalGoals`;
+					query += ` RETURN p.playerName as playerName, totalGoals as value`;
+				} else {
+					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+				}
+			} else if (hasPlayerEntity && isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				// For player queries with team-specific appearance metrics, use team filtering
+				// Extract team name for filtering
+				if (teamNameForWithClause) {
+					// Use WITH clause to aggregate and filter by team
+					// Ensure we always return a row even when there are no MatchDetail records
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
+					query += ` WITH p, size(filteredDetails) as appearanceCount`;
+					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
+				} else {
+					// Fallback to standard return clause if team name couldn't be extracted
+					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+				}
+			} else if (hasPlayerEntity && hasTeamFilterForGoals && !hasTeamExclusions) {
+				// For player queries with goals metric and team entity (e.g., "How many goals have I scored for the 3rd team?")
+				// Filter by team using WITH clause to aggregate
+				if (teamEntities.length > 0) {
+					const teamName = TeamMappingUtils.mapTeamName(teamEntities[0]);
+					query += ` WITH p, collect(md) as matchDetails`;
+					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamName}')] END as filteredDetails`;
+					query += ` WITH p, CASE WHEN size(filteredDetails) = 0 THEN 0 ELSE reduce(total = 0, md IN filteredDetails | total + CASE WHEN md.goals IS NULL OR md.goals = "" THEN 0 ELSE md.goals END + CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = "" THEN 0 ELSE md.penaltiesScored END) END as totalGoals`;
+					query += ` RETURN p.playerName as playerName, totalGoals as value`;
+				} else {
+					query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
+				}
 			} else if (hasPlayerEntity && !hasTeamExclusions) {
-				// For player queries without exclusions, use standard return clause
-				// Skip team-specific metric paths entirely for player queries
+				// For player queries without exclusions and non-team-specific metrics, use standard return clause
 				query += ` RETURN p.playerName as playerName, ${PlayerQueryBuilder.getMatchDetailReturnClause(metric)}`;
 			} else if (isTeamSpecificMetric && !hasTeamExclusions && (metric.match(/^\d+sGoals$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i))) {
 				// Extract team name for filtering
@@ -1491,10 +1776,11 @@ export class PlayerQueryBuilder {
 					query += ` WITH p, CASE WHEN size(matchDetails) = 0 OR matchDetails[0] IS NULL THEN [] ELSE [md IN matchDetails WHERE md IS NOT NULL AND toUpper(md.team) = toUpper('${teamNameForWithClause}')] END as filteredDetails`;
 					query += ` WITH p, size(filteredDetails) as appearanceCount`;
 					query += ` RETURN p.playerName as playerName, appearanceCount as value`;
-				} else if (hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i))) {
+				} else if (hasTeamExclusions && (metric.match(/^\d+sApps$/i) || metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i)) && metric.toUpperCase() !== "A") {
 					// When exclusions are present for team-specific appearances, use regular aggregation with exclusion filter
 					// This path is ONLY for team-specific appearance metrics (3sApps, etc.), not for other metrics like assists
 					// The metric.match check ensures we only use this path for actual team-specific appearances
+					// Explicitly exclude "A" (assists) to ensure assists queries use the correct aggregation path
 					const mappedExcludedTeamNames = (analysis.teamExclusions || []).map((team) => TeamMappingUtils.mapTeamName(team));
 					const exclusionConditions = mappedExcludedTeamNames.map(team => `toUpper(md.team) <> toUpper('${team}')`).join(" AND ");
 					query += ` WITH p, collect(md) as matchDetails`;

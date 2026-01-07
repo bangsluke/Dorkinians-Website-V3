@@ -159,6 +159,9 @@ export const STAT_TYPE_PSEUDONYMS = {
 		"how many appearances",
 		"appearances made",
 		"appearances played",
+		"done",
+		"games done",
+		"done for",
 	],
 	Minutes: ["minutes of football", "minutes played", "playing time", "time played", "minutes", "minute", "mins"],
 	"Yellow Cards": ["yellow cards", "yellow card", "yellows", "bookings", "cautions"],
@@ -249,7 +252,7 @@ export const STAT_TYPE_PSEUDONYMS = {
 	"Co Players": ["co players", "teammates", "played with", "team mates"],
 	Opponents: ["opponents", "played against", "faced", "versus"],
 	"Fantasy Points": ["fantasy points", "fantasy score", "fantasy point", "points", "ftp", "fp"],
-	"Goals Per Appearance": ["goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
+	"Goals Per Appearance": ["goal per game ratio", "goal-per-game ratio", "goals per game", "goals per match", "goals on average scored", "average goals scored", "goals on average.*scored per appearance", "goals.*average.*per appearance"],
 	"Conceded Per Appearance": [
 		"goals on average does.*concede per match",
 		"goals on average does.*concede per game",
@@ -1116,6 +1119,15 @@ export class EntityExtractor {
 		const entities: EntityInfo[] = [];
 		let position = 0;
 
+		// Helper function to check if a term is a hattrick-related term
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const isHatTrickTerm = (text: string): boolean => {
+			const normalized = text.toLowerCase().trim();
+			// Match hat, followed by optional dash (any Unicode dash) or space, followed by trick(s)
+			// Includes: regular hyphen (-), non-breaking hyphen (\u2011), en dash (\u2013), em dash (\u2014), and space
+			return /^hat[-\u2011\u2013\u2014 ]?trick/i.test(normalized);
+		};
+
 		// Extract "I" references
 		const iMatches = this.findMatches(/\b(i|i've|me|my|myself)\b/gi);
 		iMatches.forEach((match) => {
@@ -1160,7 +1172,9 @@ export class EntityExtractor {
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
 				const normalizedName = player.text.toLowerCase();
-				if (!addedPlayers.has(normalizedName)) {
+			// Filter out hattrick terms from player entity extraction
+			const isHatTrick = isHatTrickTerm(player.text);
+			if (!addedPlayers.has(normalizedName) && !isHatTrick) {
 					addedPlayers.add(normalizedName);
 					entities.push({
 						value: player.text,
@@ -1815,6 +1829,19 @@ export class EntityExtractor {
 				type: "range",
 				originalText: dateRangeMatch[0],
 				position: dateRangeMatch.index,
+			});
+		}
+
+		// Extract "since [YEAR]ish" or "since like [YEAR]ish" patterns (e.g., "since 2019ish", "since like 2019ish")
+		const sinceYearIshRegex = /\bsince\s+(?:like\s+)?(\d{4})ish\b/gi;
+		let sinceYearIshMatch;
+		while ((sinceYearIshMatch = sinceYearIshRegex.exec(this.question)) !== null) {
+			const year = parseInt(sinceYearIshMatch[1], 10);
+			timeFrames.push({
+				value: year.toString(),
+				type: "since",
+				originalText: sinceYearIshMatch[0],
+				position: sinceYearIshMatch.index,
 			});
 		}
 

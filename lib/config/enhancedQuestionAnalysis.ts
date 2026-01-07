@@ -102,6 +102,94 @@ export class EnhancedQuestionAnalyzer {
 			}
 		}
 
+		// Early detection: Check for "best season for [stat]" pattern
+		const detectBestSeasonForStatPattern = (q: string): { isMatch: boolean; statType?: string } => {
+			const lower = q.toLowerCase();
+			
+			// Multi-word stat patterns (check these first to avoid partial matches)
+			const multiWordStats = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(yellow\s*cards?)/i, stat: "yellowcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(red\s*cards?)/i, stat: "redcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(clean\s*sheets?)/i, stat: "cleansheets" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(man\s+of\s+the\s+match|mom)/i, stat: "mom" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(own\s+goals?)/i, stat: "owngoals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+scored)/i, stat: "penaltiesscored" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+saved)/i, stat: "penaltiessaved" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+missed)/i, stat: "penaltiesmissed" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(goals\s+conceded)/i, stat: "conceded" },
+			];
+			
+			for (const { pattern, stat } of multiWordStats) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Single-word stat patterns
+			const singleWordStats = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(goals?)/i, stat: "goals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(assists?)/i, stat: "assists" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(saves?)/i, stat: "saves" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(appearances?)/i, stat: "appearances" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(minutes?)/i, stat: "minutes" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(mom)/i, stat: "mom" },
+			];
+			
+			for (const { pattern, stat } of singleWordStats) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Pattern: "best season [stat]" (without "for") - check for multi-word stats first
+			const multiWordStatsNoFor = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(yellow\s*cards?)/i, stat: "yellowcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(red\s*cards?)/i, stat: "redcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(clean\s*sheets?)/i, stat: "cleansheets" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(man\s+of\s+the\s+match|mom)/i, stat: "mom" },
+			];
+			
+			for (const { pattern, stat } of multiWordStatsNoFor) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Single-word stats without "for"
+			const singleWordStatsNoFor = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(goals?)/i, stat: "goals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(assists?)/i, stat: "assists" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(saves?)/i, stat: "saves" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(appearances?)/i, stat: "appearances" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(minutes?)/i, stat: "minutes" },
+			];
+			
+			for (const { pattern, stat } of singleWordStatsNoFor) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			return { isMatch: false };
+		};
+
+		const bestSeasonForStat = detectBestSeasonForStatPattern(lowerQuestion);
+		if (bestSeasonForStat.isMatch && bestSeasonForStat.statType) {
+			// Store the stat type in the analysis for later use
+			(extractionResult as any).bestSeasonStatType = bestSeasonForStat.statType;
+			// Add "Best Season For Stat" to statTypes to ensure proper routing
+			const hasBestSeasonForStat = extractionResult.statTypes.some(
+				(stat) => stat.value === "Best Season For Stat"
+			);
+			if (!hasBestSeasonForStat) {
+				extractionResult.statTypes.push({
+					value: "Best Season For Stat",
+					originalText: `best season for ${bestSeasonForStat.statType}`,
+					position: lowerQuestion.indexOf("best"),
+				});
+			}
+		}
+
 		// Early detection: Check for percentage queries and add to statTypes if found
 		// This must happen before the early exit check to ensure the question is properly recognized
 		const isPercentageQuestion = 
@@ -701,6 +789,58 @@ export class EnhancedQuestionAnalyzer {
 			return "milestone";
 		}
 
+		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
+		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		if (
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
+			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+		) {
+			return "club";
+		}
+
+		// Check for "played with" or "opposition most" questions - these should be player type, not ranking
+		// This must be checked BEFORE the ranking check to avoid misclassification
+		const isPlayedWithQuestion = 
+			lowerQuestion.includes("played with") ||
+			lowerQuestion.includes("play with") ||
+			lowerQuestion.includes("shared the pitch") ||
+			lowerQuestion.includes("shared pitch") ||
+			(lowerQuestion.includes("which player") && lowerQuestion.includes("played") && (lowerQuestion.includes("most") || lowerQuestion.includes("with"))) ||
+			(lowerQuestion.includes("which player") && (lowerQuestion.includes("shared the pitch") || lowerQuestion.includes("shared pitch"))) ||
+			(lowerQuestion.includes("who") && lowerQuestion.includes("played") && lowerQuestion.includes("most") && lowerQuestion.includes("with")) ||
+			(lowerQuestion.includes("which opposition") && lowerQuestion.includes("most")) ||
+			(lowerQuestion.includes("opposition") && lowerQuestion.includes("most") && lowerQuestion.includes("played"));
+		
+		if (isPlayedWithQuestion) {
+			return "player";
+		}
+		
+		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
+		// CRITICAL: This must be checked BEFORE player entity check to avoid misclassification
+		// Special case: "worst penalty record" questions should be routed to ranking handler
+		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
+			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
+			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
+		
+		if (
+			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
+			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
+			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
+		) {
+			// If it's asking about teams specifically, route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+				return "club";
+			}
+			return "ranking";
+		}
+		
+		// Also check for "worst penalty record" questions that might not have "which" or "who"
+		if (isWorstPenaltyRecord) {
+			return "ranking";
+		}
+
 		// Check for team exclusion patterns - if present, this should be a player query
 		// (exclusions only make sense for player queries, not team queries)
 		const hasExclusionPattern = 
@@ -709,7 +849,7 @@ export class EnhancedQuestionAnalyzer {
 			lowerQuestion.includes("excluding") ||
 			lowerQuestion.includes("except for");
 		
-		// Check for player-specific queries (but not if it's a streak, milestone, or other special question)
+		// Check for player-specific queries (but not if it's a streak, milestone, ranking, or other special question)
 		// Also prioritize player type if exclusion patterns are detected
 		if (hasPlayerEntities || hasExclusionPattern) {
 			return "player";
@@ -735,40 +875,6 @@ export class EnhancedQuestionAnalyzer {
 		// Check for percentage queries
 		if (lowerQuestion.includes("percentage") || lowerQuestion.includes("percent") || lowerQuestion.includes("%")) {
 			return "player";
-		}
-
-		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
-		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
-		if (
-			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
-			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
-			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
-			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
-		) {
-			return "club";
-		}
-
-		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
-		// Special case: "worst penalty record" questions should be routed to ranking handler
-		const isWorstPenaltyRecord = lowerQuestion.includes("worst") && 
-			(lowerQuestion.includes("penalty") || lowerQuestion.includes("penalties")) && 
-			(lowerQuestion.includes("record") || lowerQuestion.includes("conversion"));
-		
-		if (
-			(lowerQuestion.includes("which") || lowerQuestion.includes("who")) &&
-			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
-			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
-		) {
-			// If it's asking about teams specifically, route to club handler
-			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
-				return "club";
-			}
-			return "ranking";
-		}
-		
-		// Also check for "worst penalty record" questions that might not have "which" or "who"
-		if (isWorstPenaltyRecord) {
-			return "ranking";
 		}
 
 		// Check for competition-specific queries (cup vs league, etc.)
@@ -2008,11 +2114,20 @@ export class EnhancedQuestionAnalyzer {
 	private correctGoalsAssistsConfusion(statTypes: StatTypeInfo[]): StatTypeInfo[] {
 		const lowerQuestion = this.question.toLowerCase();
 
-		// Check if question explicitly mentions "goals" or "goal"
-		const hasExplicitGoals = lowerQuestion.includes("goals") || lowerQuestion.includes("goal");
+		// CRITICAL FIX: If "goal involvements" is present, remove "Goals" to prevent "goals goal involvements"
+		const hasGoalInvolvements = statTypes.some((stat) => stat.value === "Goal Involvements" || stat.value === "goal involvements");
+		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
+		
+		if (hasGoalInvolvements && hasGoals) {
+			// Remove "Goals" when "Goal Involvements" is present to prevent duplication
+			return statTypes.filter((stat) => stat.value !== "Goals");
+		}
+
+		// Check if question explicitly mentions "goals" or "goal" (but not "goal involvements")
+		const hasExplicitGoals = (lowerQuestion.includes("goals") || lowerQuestion.includes("goal")) && 
+			!lowerQuestion.includes("goal involvements") && !lowerQuestion.includes("goal involvement");
 		
 		// Check if both "Goals" and "Assists" are in the stat types
-		const hasGoals = statTypes.some((stat) => stat.value === "Goals");
 		const hasAssists = statTypes.some((stat) => stat.value === "Assists");
 
 		// If goals is explicitly mentioned and both are present, remove "Assists"
@@ -2072,6 +2187,10 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern8 = /(?:how\s+many\s+times|times)\s+has\s+.*?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 9: direct "played/playing/appeared for Xs"
 		const teamAppearancePattern9 = /(played|playing|appeared|appearing)\s+(?:.*?\s+)?for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 10: "done for Xs" or "games done for Xs"
+		const teamAppearancePattern10 = /(?:games?|appearances?|apps?)?\s*(?:have\s+)?(?:i\s+)?done\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 11: "made for Xs" (similar to done)
+		const teamAppearancePattern11 = /(?:games?|appearances?|apps?)?\s*(?:have\s+)?(?:i\s+)?made\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 
 		let match = lowerQuestion.match(teamAppearancePattern1);
 		let teamReference: string | undefined;
@@ -2121,6 +2240,18 @@ export class EnhancedQuestionAnalyzer {
 										if (match) {
 											teamReference = match[2].toLowerCase();
 											appearanceTerm = match[1];
+										} else {
+											match = lowerQuestion.match(teamAppearancePattern10);
+											if (match) {
+												teamReference = match[1].toLowerCase();
+												appearanceTerm = "games done";
+											} else {
+												match = lowerQuestion.match(teamAppearancePattern11);
+												if (match) {
+													teamReference = match[1].toLowerCase();
+													appearanceTerm = "games made";
+												}
+											}
 										}
 									}
 								}

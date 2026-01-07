@@ -2,6 +2,8 @@
 
 import { MatchDetail } from "@/types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 
 interface FTPBreakdown {
 	stat: string;
@@ -172,6 +174,9 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 
 	// Calculate total FTP for all matches
 	const calculateTotalFTP = (): number => {
+		if (!matchDetails || matchDetails.length === 0) {
+			return 0;
+		}
 		return matchDetails.reduce((total, match) => {
 			const breakdown = calculateFTPBreakdown(match);
 			const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
@@ -217,131 +222,168 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 	};
 
 	const totalFTP = calculateTotalFTP();
-	const playerAppearances = matchDetails.length;
+	const playerAppearances = matchDetails ? matchDetails.length : 0;
 
-	return (
-		<div className='fixed inset-0 z-50' style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }} onClick={onClose}>
-			<div
-				className='fixed inset-0 flex flex-col'
-				style={{ backgroundColor: 'rgb(14, 17, 15)' }}
-				onClick={(e) => e.stopPropagation()}
-			>
-				{/* Header with Close button */}
-				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
-					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
-					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
-						<XMarkIcon className='h-6 w-6' />
-					</button>
-				</div>
+	// Handle SSR
+	if (typeof window === 'undefined') {
+		return null;
+	}
 
-				{/* Scrollable content */}
-				<div 
-					className='flex-1 overflow-y-auto min-h-0 player-detail-scrollable px-6 pt-4' 
-					style={{ 
-						WebkitOverflowScrolling: 'touch',
-						paddingTop: '1rem',
-						paddingBottom: '1rem'
-					}}
-				>
+	const handleClose = () => {
+		onClose();
+	};
 
-					{/* TOTW Appearances */}
-					{totwAppearances !== undefined && (
-						<div className='text-center mb-4'>
-							<p className='text-white text-xs md:text-sm'>
-								Number of TOTW appearances: <span className='font-bold'>{totwAppearances}</span>
-							</p>
+	const modalContent = (
+		<AnimatePresence>
+			<>
+				{/* Backdrop */}
+				<motion.div
+					className='fixed inset-0 bg-black/50 z-[9999]'
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					onClick={handleClose}
+				/>
+
+				{/* Full-screen modal */}
+				<motion.div
+					className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
+					style={{ backgroundColor: '#0f0f0f' }}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+					<div className='h-full flex flex-col'>
+						{/* Header with Close button */}
+						<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
+							<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
+							<button
+								onClick={handleClose}
+								className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors ml-4 flex-shrink-0'>
+								<XMarkIcon className='w-5 h-5' />
+							</button>
 						</div>
-					)}
 
-					{/* Player Appearances - Only show if > 1 */}
-					{playerAppearances > 1 && (
-						<div className='text-center mb-4'>
-							<p className='text-white text-xs md:text-sm'>
-								Player Appearances: <span className='font-bold'>{playerAppearances}</span>
-							</p>
-						</div>
-					)}
-
-					{/* Match Details */}
-					{matchDetails.map((match, matchIndex) => {
-						const breakdown = calculateFTPBreakdown(match);
-						const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
-						const visibleStats = breakdown.filter((stat) => stat.show);
-						const matchSummary = getMatchSummary(match);
-
-						return (
-							<div key={matchIndex}>
-								{/* White line break between fixtures (except for first fixture) */}
-								{matchIndex > 0 && (
-									<div className='border-t border-white my-6'></div>
-								)}
-								
-								<div className={matchIndex > 0 ? 'mt-6' : 'mb-6'}>
-									{/* Match Summary - Split into two lines */}
-									<div className='text-center mb-3'>
-										<p className='text-white text-xs md:text-sm font-normal'>{matchSummary.teamOpposition}</p>
-										{matchSummary.resultScore && (
-											<p className='text-white text-sm md:text-base font-semibold mt-1'>{matchSummary.resultScore}</p>
-										)}
-									</div>
-
-									{/* Statistics Table */}
-									<div className='overflow-x-auto'>
-										<table className='w-full text-white'>
-											<thead>
-												<tr className='border-b-2 border-dorkinians-yellow'>
-													<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
-													<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
-													<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
-												</tr>
-											</thead>
-											<tbody>
-												{visibleStats.map((stat, index) => (
-													<tr key={index} className='border-b border-green-500'>
-														<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
-														<td className='text-center py-2 px-2'>{stat.value}</td>
-														<td className='text-center py-2 px-2'>{stat.points}</td>
-													</tr>
-												))}
-												{matchDetails.length > 1 && (
-													<tr className='border-t-2 border-dorkinians-yellow font-bold'>
-														<td className='py-2 px-2 text-xs md:text-sm'>Match Total</td>
-														<td className='text-center py-2 px-2'></td>
-														<td className='text-center py-2 px-2'>{matchTotal}</td>
-													</tr>
-												)}
-											</tbody>
-										</table>
-									</div>
+						{/* Scrollable content */}
+						<div 
+							className='flex-1 overflow-y-auto min-h-0 player-detail-scrollable px-6 pt-4' 
+							style={{ 
+								WebkitOverflowScrolling: 'touch',
+								paddingTop: '1rem',
+								paddingBottom: '1rem'
+							}}
+						>
+							{/* TOTW Appearances */}
+							{totwAppearances !== undefined && (
+								<div className='text-center mb-4'>
+									<p className='text-white text-xs md:text-sm'>
+										Number of TOTW appearances: <span className='font-bold'>{totwAppearances}</span>
+									</p>
 								</div>
-							</div>
-						);
-					})}
+							)}
 
-					{/* Total Points */}
-					<div className='mt-4 pt-4 pb-4 border-t-2 border-white'>
-						<table className='w-full text-white'>
-							<tbody>
-								<tr className='font-bold text-lg'>
-									<td className='py-2 px-2'>Total Points</td>
-									<td className='text-center py-2 px-2'></td>
-									<td className='text-center py-2 px-2'>{totalFTP}</td>
-								</tr>
-							</tbody>
-						</table>
+							{/* Player Appearances - Only show if > 1 */}
+							{playerAppearances > 1 && (
+								<div className='text-center mb-4'>
+									<p className='text-white text-xs md:text-sm'>
+										Player Appearances: <span className='font-bold'>{playerAppearances}</span>
+									</p>
+								</div>
+							)}
+
+							{/* Match Details */}
+							{matchDetails && matchDetails.length > 0 ? (
+								matchDetails.map((match, matchIndex) => {
+									const breakdown = calculateFTPBreakdown(match);
+									const matchTotal = breakdown.reduce((sum, stat) => sum + stat.points, 0);
+									const visibleStats = breakdown.filter((stat) => stat.show);
+									const matchSummary = getMatchSummary(match);
+
+									return (
+										<div key={matchIndex}>
+											{/* White line break between fixtures (except for first fixture) */}
+											{matchIndex > 0 && (
+												<div className='border-t border-white my-6'></div>
+											)}
+											
+											<div className={matchIndex > 0 ? 'mt-6' : 'mb-6'}>
+												{/* Match Summary - Split into two lines */}
+												<div className='text-center mb-3'>
+													<p className='text-white text-xs md:text-sm font-normal'>{matchSummary.teamOpposition}</p>
+													{matchSummary.resultScore && (
+														<p className='text-white text-sm md:text-base font-semibold mt-1'>{matchSummary.resultScore}</p>
+													)}
+												</div>
+
+												{/* Statistics Table */}
+												<div className='overflow-x-auto'>
+													<table className='w-full text-white'>
+														<thead>
+															<tr className='border-b-2 border-dorkinians-yellow'>
+																<th className='text-left py-2 px-2 text-xs md:text-sm'>Statistics</th>
+																<th className='text-center py-2 px-2 text-xs md:text-sm'>Value</th>
+																<th className='text-center py-2 px-2 text-xs md:text-sm'>Points</th>
+															</tr>
+														</thead>
+														<tbody>
+															{visibleStats.map((stat, index) => (
+																<tr key={index} className='border-b border-green-500'>
+																	<td className='py-2 px-2 text-xs md:text-sm'>{stat.stat}</td>
+																	<td className='text-center py-2 px-2'>{stat.value}</td>
+																	<td className='text-center py-2 px-2'>{stat.points}</td>
+																</tr>
+															))}
+															{matchDetails.length > 1 && (
+																<tr className='border-t-2 border-dorkinians-yellow font-bold'>
+																	<td className='py-2 px-2 text-xs md:text-sm'>Match Total</td>
+																	<td className='text-center py-2 px-2'></td>
+																	<td className='text-center py-2 px-2'>{matchTotal}</td>
+																</tr>
+															)}
+														</tbody>
+													</table>
+												</div>
+											</div>
+										</div>
+									);
+								})
+							) : (
+								<div className='text-center text-gray-400 py-8'>
+									No match details available
+								</div>
+							)}
+
+							{/* Total Points */}
+							{matchDetails && matchDetails.length > 0 && (
+								<div className='mt-4 pt-4 pb-4 border-t-2 border-white'>
+									<table className='w-full text-white'>
+										<tbody>
+											<tr className='font-bold text-lg'>
+												<td className='py-2 px-2'>Total Points</td>
+												<td className='text-center py-2 px-2'></td>
+												<td className='text-center py-2 px-2'>{totalFTP}</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							)}
+						</div>
+
+						{/* Close Button at Bottom */}
+						<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
+							<button
+								type='button'
+								onClick={handleClose}
+								className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
+								Close
+							</button>
+						</div>
 					</div>
-				</div>
-
-				{/* Close Button at Bottom */}
-				<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
-					<button
-						onClick={onClose}
-						className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
-						Close
-					</button>
-				</div>
-			</div>
-		</div>
+				</motion.div>
+			</>
+		</AnimatePresence>
 	);
+
+	return createPortal(modalContent, document.body);
 }
 

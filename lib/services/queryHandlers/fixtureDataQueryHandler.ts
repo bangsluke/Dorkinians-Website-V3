@@ -4,6 +4,7 @@ import { TeamMappingUtils } from "../chatbotUtils/teamMappingUtils";
 import { DateUtils } from "../chatbotUtils/dateUtils";
 import { loggingService } from "../loggingService";
 import { TeamDataQueryHandler } from "./teamDataQueryHandler";
+import { ChatbotService } from "../chatbotService";
 
 export class FixtureDataQueryHandler {
 	/**
@@ -28,6 +29,19 @@ export class FixtureDataQueryHandler {
 			return await TeamDataQueryHandler.queryTeamData(entities, metrics, analysis);
 		}
 		
+		// Check if this is a highest individual player goals in one game query
+		// This must be checked BEFORE highest scoring game query to avoid misrouting
+		const isHighestPlayerGoalsInGameQuery = 
+			(question.includes("highest number of goals") && question.includes("player") && question.includes("scored")) ||
+			(question.includes("highest goals") && question.includes("player") && (question.includes("scored") || question.includes("one game"))) ||
+			(question.includes("most goals") && question.includes("player") && question.includes("one game")) ||
+			(question.includes("most goals") && question.includes("player") && question.includes("scored") && question.includes("game")) ||
+			(question.includes("highest goals") && question.includes("one game") && question.includes("player"));
+		
+		if (isHighestPlayerGoalsInGameQuery) {
+			return await this.queryHighestPlayerGoalsInGame(entities, analysis);
+		}
+		
 		// Check if this is a highest scoring game query
 		const isHighestScoringGameQuery = 
 			question.includes("highest scoring game") ||
@@ -39,45 +53,158 @@ export class FixtureDataQueryHandler {
 			return await this.queryHighestScoringGame(entities, analysis);
 		}
 
-		// Check for year-wide hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
-		const hatTrickPattern = /hat[- ]?trick/i;
-		const hasYear = question.match(/\b(20\d{2})\b/) || analysis?.extractionResult?.timeFrames?.some(tf => {
-			// Check if timeFrame value contains a year
-			const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
-			return yearMatch !== null;
-		});
-		const hasYearWidePhrases = question.includes("across all teams") || 
-			question.includes("across all") ||
-			question.includes("all teams");
-		const hasPlayerMention = question.includes("has ") || question.includes("have ") || 
-			question.includes(" i ") || question.includes(" i?");
-		const isYearHatTrickQuestion = hatTrickPattern.test(question) && 
-			(question.includes("how many") || question.includes("count")) &&
-			hasYear &&
-			(hasYearWidePhrases || !hasPlayerMention);
-
-		if (isYearHatTrickQuestion && analysis) {
-			// Extract year from timeFrames or question text
-			let year: number | null = null;
-			const timeFrames = analysis.extractionResult?.timeFrames || [];
+		// Check for hat-trick questions (handles "hattrick", "hat-trick", "hat trick" variations)
+		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
+		const hatTrickPattern = /hat[-\u2011\u2013\u2014 ]?trick/i;
+		const isHatTrickQuestion = hatTrickPattern.test(question) && 
+			(question.includes("how many") || question.includes("count"));
+		
+		if (isHatTrickQuestion && analysis) {
+			const hasYear = question.match(/\b(20\d{2})\b/) || analysis?.extractionResult?.timeFrames?.some(tf => {
+				// Check if timeFrame value contains a year
+				const yearMatch = tf.value?.match(/\b(20\d{2})\b/);
+				return yearMatch !== null;
+			});
+			const hasYearWidePhrases = question.includes("across all teams") || 
+				question.includes("across all team") ||
+				question.includes("across all") ||
+				question.includes("all teams") ||
+				question.includes("all team");
+			const hasPlayerMention = question.includes("has ") || 
+				question.includes("have ") || 
+				question.includes(" i ") || 
+				question.match(/\bi\b/);
+			const hasTeamFilter = (analysis.teamEntities && analysis.teamEntities.length > 0) ||
+				question.match(/\b(?:by|for)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i);
+			const hasDateFilter = question.includes("after ") || 
+				question.includes("before ") ||
+				question.includes("since ") ||
+				question.includes("between ") ||
+				analysis.extractionResult?.timeFrames?.some(tf => 
+					tf.type === "since" || tf.type === "before" || tf.type === "range"
+				);
 			
-			// Try to extract year from timeFrames
-			const yearFrame = timeFrames.find(tf => tf.type === "year");
-			if (yearFrame) {
-				year = parseInt(yearFrame.value, 10);
-			} else {
-				// Try to extract year from question text (e.g., "2022", "in 2022")
-				const yearMatch = analysis.question?.match(/\b(20\d{2})\b/);
-				if (yearMatch) {
-					year = parseInt(yearMatch[1], 10);
-				}
-			}
+			// Year-wide question: has year AND (year-wide phrases OR no player mention) AND no team filter
+			const isYearHatTrickQuestion = hasYear && (hasYearWidePhrases || !hasPlayerMention) && !hasTeamFilter;
+			// Team-specific or date-filtered question: hat-trick question with team filter or date filter
+			const isFilteredHatTrickQuestion = (hasTeamFilter || hasDateFilter || hasYear) && !hasPlayerMention;
 
-			if (year && !isNaN(year) && year >= 2000 && year <= 2100) {
-				loggingService.log(`🔍 Detected year-wide hat-trick question for year: ${year}`, null, "log");
-				return await this.queryYearHatTricks(year, analysis);
-			} else {
-				loggingService.log(`⚠️ Could not extract valid year from hat-trick question`, null, "warn");
+			if (isYearHatTrickQuestion || isFilteredHatTrickQuestion) {
+				// Extract team name if present
+				let teamName: string | null = null;
+				if (hasTeamFilter) {
+					if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+						teamName = TeamMappingUtils.mapTeamName(analysis.teamEntities[0]);
+					} else {
+						// Try to extract from question text
+						const teamMatch = question.match(/\b(?:by|for)\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i);
+						if (teamMatch) {
+							const teamStr = teamMatch[1];
+							// Handle ordinal formats (1st, 2nd, etc.)
+							if (teamStr.includes("st") || teamStr.includes("nd") || teamStr.includes("rd") || teamStr.includes("th")) {
+								const num = teamStr.match(/\d+/)?.[0];
+								if (num) {
+									teamName = TeamMappingUtils.mapTeamName(`${num}s`);
+								}
+							} else if (teamStr.match(/^(first|second|third|fourth|fifth|sixth|seventh|eighth)$/i)) {
+								// Handle word formats (first, second, etc.)
+								const wordToNum: { [key: string]: string } = {
+									first: "1s", second: "2s", third: "3s", fourth: "4s",
+									fifth: "5s", sixth: "6s", seventh: "7s", eighth: "8s"
+								};
+								const numStr = wordToNum[teamStr.toLowerCase()];
+								if (numStr) {
+									teamName = TeamMappingUtils.mapTeamName(numStr);
+								}
+							} else {
+								// Direct format (1s, 2s, etc.)
+								teamName = TeamMappingUtils.mapTeamName(teamStr);
+							}
+						}
+					}
+				}
+
+				// Extract date range filters
+				let startDate: string | null = null;
+				let endDate: string | null = null;
+				const timeFrames = analysis.extractionResult?.timeFrames || [];
+				
+				// Check for "after [YEAR]" or "since [YEAR]"
+				const afterFrame = timeFrames.find(tf => tf.type === "since");
+				if (afterFrame) {
+					const year = parseInt(afterFrame.value, 10);
+					if (!isNaN(year) && year >= 2000 && year <= 2100) {
+						startDate = `${year + 1}-01-01`; // "since 2023" or "after 2023" means from 2024-01-01 onwards
+					}
+				}
+				
+				// Try to extract "after [YEAR]" from question text (if not already found)
+				if (!startDate) {
+					const afterMatch = question.match(/\bafter\s+(\d{4})\b/i);
+					if (afterMatch) {
+						const year = parseInt(afterMatch[1], 10);
+						if (!isNaN(year) && year >= 2000 && year <= 2100) {
+							startDate = `${year + 1}-01-01`; // "after 2023" means from 2024-01-01 onwards
+						}
+					}
+				}
+				
+				// Check for "before [YEAR]"
+				const beforeFrame = timeFrames.find(tf => tf.type === "before");
+				if (beforeFrame) {
+					// Extract year from beforeFrame value (might be a year or season)
+					const yearMatch = beforeFrame.value.match(/\b(20\d{2})\b/);
+					if (yearMatch) {
+						const year = parseInt(yearMatch[1], 10);
+						if (!isNaN(year) && year >= 2000 && year <= 2100) {
+							endDate = `${year - 1}-12-31`; // "before 2024" means up to 2023-12-31
+						}
+					}
+				}
+				
+				// Try to extract "before [YEAR]" from question text (if not already found)
+				if (!endDate) {
+					const beforeMatch = question.match(/\bbefore\s+(\d{4})\b/i);
+					if (beforeMatch) {
+						const year = parseInt(beforeMatch[1], 10);
+						if (!isNaN(year) && year >= 2000 && year <= 2100) {
+							endDate = `${year - 1}-12-31`; // "before 2024" means up to 2023-12-31
+						}
+					}
+				}
+				
+				// Check for date range (between X and Y)
+				const rangeFrame = timeFrames.find(tf => tf.type === "range" && tf.value.includes(" to "));
+				if (rangeFrame) {
+					const dateRange = rangeFrame.value.split(" to ");
+					if (dateRange.length === 2) {
+						startDate = DateUtils.convertDateFormat(dateRange[0].trim());
+						endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					}
+				}
+				
+				// Extract year if present (for exact year queries)
+				let year: number | null = null;
+				if (!startDate && !endDate) {
+					// Try to extract year from timeFrames (check if any frame value matches a year pattern)
+					const yearFrame = timeFrames.find(tf => /^\d{4}$/.test(tf.value) && parseInt(tf.value, 10) >= 2000 && parseInt(tf.value, 10) <= 2100);
+					if (yearFrame) {
+						year = parseInt(yearFrame.value, 10);
+					} else {
+						// Try to extract year from question text (e.g., "2022", "in 2022")
+						const yearMatch = analysis.question?.match(/\b(20\d{2})\b/);
+						if (yearMatch) {
+							year = parseInt(yearMatch[1], 10);
+						}
+					}
+				}
+
+				if (year || startDate || endDate || teamName) {
+					loggingService.log(`🔍 Detected hat-trick question with filters - year: ${year}, team: ${teamName}, startDate: ${startDate}, endDate: ${endDate}`, null, "log");
+					return await this.queryYearHatTricks(year, analysis, teamName, startDate, endDate);
+				} else {
+					loggingService.log(`⚠️ Could not extract valid filters from hat-trick question`, null, "warn");
+				}
 			}
 		}
 
@@ -189,6 +316,23 @@ export class FixtureDataQueryHandler {
 			RETURN f.opposition as opposition, f.date as date, f.homeOrAway as homeOrAway
 			ORDER BY f.date ASC
 		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${params.graphLabel}'`)
+				.replace(/\$teamName/g, `'${params.teamName}'`);
+			if (params.startDate && params.endDate) {
+				readyToExecuteQuery = readyToExecuteQuery
+					.replace(/\$startDate/g, `'${params.startDate}'`)
+					.replace(/\$endDate/g, `'${params.endDate}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`FIXTURE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`FIXTURE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
 		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
@@ -321,6 +465,20 @@ export class FixtureDataQueryHandler {
 			       goalDifference
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (teamName) {
+				readyToExecuteQuery = readyToExecuteQuery.replace(/\$team/g, `'${teamName}'`);
+			}
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`BIGGEST_WIN_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			if (result && result.length > 0) {
@@ -358,11 +516,103 @@ export class FixtureDataQueryHandler {
 			LIMIT 50
 		`;
 
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_WHERE_SCORED_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
 			return { type: "games_where_scored", data: result, playerName };
 		} catch (error) {
 			loggingService.log(`❌ Error in queryGamesWherePlayerScored:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query games where player scored and team won by exactly one goal
+	 */
+	static async queryGamesWherePlayerScoredAndWonByOneGoal(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.result = 'W'
+			  AND f.dorkiniansGoals IS NOT NULL
+			  AND f.conceded IS NOT NULL
+			  AND f.dorkiniansGoals - f.conceded = 1
+			  AND (md.goals > 0 OR md.penaltiesScored > 0)
+			RETURN count(DISTINCT f) as gameCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_SCORED_WON_BY_ONE_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const gameCount = result && result.length > 0 ? (result[0].gameCount || 0) : 0;
+			return { type: "games_scored_won_by_one", data: [{ gameCount }], playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerScoredAndWonByOneGoal:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query games where player played and team scored zero goals
+	 */
+	static async queryGamesWherePlayerPlayedAndTeamScoredZero(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.dorkiniansGoals = 0
+			RETURN count(DISTINCT f) as gameCount
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`GAMES_ZERO_GOALS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GAMES_ZERO_GOALS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			const gameCount = result && result.length > 0 ? (result[0].gameCount || 0) : 0;
+			return { type: "number_card", data: [{ value: gameCount }], playerName };
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGamesWherePlayerPlayedAndTeamScoredZero:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
@@ -525,6 +775,20 @@ export class FixtureDataQueryHandler {
 			       totalGoals
 		`;
 		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$team/g, `'${teamName}'`)
+				.replace(/\$season/g, `'${season}'`)
+				.replace(/\$normalizedSeason/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_SCORING_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
 		try {
 			const result = await neo4jService.executeQuery(query, params);
 			loggingService.log(`🔍 Highest scoring game query result count: ${result?.length || 0}`, null, "log");
@@ -568,40 +832,307 @@ export class FixtureDataQueryHandler {
 	}
 
 	/**
-	 * Query year-wide hat-tricks (count distinct matches in a year where any player scored 3+ goals including penalties)
+	 * Query highest individual player goals in a single game
+	 * Returns the player who scored the most goals in one game
+	 */
+	private static async queryHighestPlayerGoalsInGame(
+		entities: string[],
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		const question = analysis?.question?.toLowerCase() || "";
+		
+		loggingService.log(`🔍 Querying highest individual player goals in one game`, null, "log");
+		
+		// Build query to find the top 10 highest goals scored by players in single games
+		const query = `
+			MATCH (md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.goals IS NOT NULL OR md.penaltiesScored IS NOT NULL
+			WITH md,
+			     coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0) as totalGoals
+			WHERE totalGoals > 0
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WITH md.playerName as playerName,
+			     totalGoals as goals,
+			     md.date as date,
+			     f.opposition as opposition,
+			     md.team as team,
+			     f.homeOrAway as homeOrAway,
+			     f.result as result
+			ORDER BY goals DESC, date DESC
+			LIMIT 10
+			RETURN playerName,
+			       goals,
+			       date,
+			       opposition,
+			       team,
+			       homeOrAway,
+			       result
+		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_PLAYER_GOALS_IN_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			loggingService.log(`🔍 Highest individual player goals query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No match details found for highest individual goals`, null, "warn");
+				return {
+					type: "highest_player_goals_in_game",
+					data: [],
+					message: "No match data found.",
+				};
+			}
+			
+			loggingService.log(`✅ Found ${result.length} highest individual player goals records`, null, "log");
+			
+			return {
+				type: "highest_player_goals_in_game",
+				data: result,
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestPlayerGoalsInGame:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
+	 * Query highest team goals in games where a specific player was playing
+	 * Returns the fixture with highest dorkiniansGoals where the player participated
+	 */
+	static async queryHighestTeamGoalsInPlayerGames(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		loggingService.log(`🔍 Querying highest team goals in games where ${playerName} was playing`, null, "log");
+		
+		// Build query to find fixture with highest dorkiniansGoals where player participated
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.dorkiniansGoals IS NOT NULL
+			RETURN f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded
+			ORDER BY f.dorkiniansGoals DESC, f.date DESC
+			LIMIT 1
+		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_IN_PLAYER_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			loggingService.log(`🔍 Highest team goals in player games query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No fixtures found for ${playerName}`, null, "warn");
+				return {
+					type: "highest_team_goals_in_player_game",
+					playerName,
+					data: null,
+					message: `No games found where ${playerName} was playing.`,
+				};
+			}
+			
+			const game = result[0];
+			loggingService.log(`✅ Found highest team goals game for ${playerName}: ${game.dorkiniansGoals} goals`, null, "log");
+			
+			return {
+				type: "highest_team_goals_in_player_game",
+				playerName,
+				data: {
+					date: game.date,
+					opposition: game.opposition,
+					homeOrAway: game.homeOrAway,
+					result: game.result,
+					dorkiniansGoals: game.dorkiniansGoals,
+					conceded: game.conceded,
+				},
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestTeamGoalsInPlayerGames:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
+	 * Query hat-tricks with optional filters (year, team, date range)
+	 * Returns player-level data grouped by player
 	 */
 	static async queryYearHatTricks(
-		year: number,
+		year: number | null,
 		analysis: EnhancedQuestionAnalysis,
+		teamName?: string | null,
+		startDate?: string | null,
+		endDate?: string | null,
 	): Promise<Record<string, unknown>> {
-		loggingService.log(`🔍 Querying year-wide hat-tricks for year: ${year}`, null, "log");
+		loggingService.log(`🔍 Querying hat-tricks with filters - year: ${year}, team: ${teamName}, startDate: ${startDate}, endDate: ${endDate}`, null, "log");
 		const graphLabel = neo4jService.getGraphLabel();
+
+		// Build WHERE conditions dynamically
+		const whereConditions: string[] = [];
+		const params: Record<string, unknown> = { graphLabel };
+
+		// Date filtering
+		if (startDate && endDate) {
+			whereConditions.push(`md.date >= $startDate AND md.date <= $endDate`);
+			params.startDate = startDate;
+			params.endDate = endDate;
+		} else if (startDate) {
+			whereConditions.push(`md.date >= $startDate`);
+			params.startDate = startDate;
+		} else if (endDate) {
+			whereConditions.push(`md.date <= $endDate`);
+			params.endDate = endDate;
+		} else if (year) {
+			whereConditions.push(`date(md.date).year = $year`);
+			params.year = year;
+		}
+
+		// Team filtering
+		if (teamName) {
+			whereConditions.push(`md.team = $teamName`);
+			params.teamName = teamName;
+		}
+
+		// Hat-trick condition (always required)
+		whereConditions.push(`(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3`);
+
+		const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
 		const query = `
 			MATCH (md:MatchDetail {graphLabel: $graphLabel})
-			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
-			WHERE date(md.date).year = $year
-				AND (coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) >= 3
-			RETURN count(DISTINCT f) as value
+			${whereClause}
+			WITH md.playerName as playerName, count(md) as hatTrickCount
+			ORDER BY hatTrickCount DESC, playerName ASC
+			RETURN playerName, hatTrickCount
 		`;
 
+		// Push query to chatbotService for extraction
 		try {
-			const result = await neo4jService.executeQuery(query, { year, graphLabel });
-			const count = result && result.length > 0 && result[0].value !== undefined
-				? (typeof result[0].value === 'number' 
-					? result[0].value 
-					: (result[0].value?.low || 0) + (result[0].value?.high || 0) * 4294967296)
-				: 0;
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			if (params.startDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$startDate/g, `'${params.startDate}'`);
+			if (params.endDate) readyToExecuteQuery = readyToExecuteQuery.replace(/\$endDate/g, `'${params.endDate}'`);
+			if (params.year) readyToExecuteQuery = readyToExecuteQuery.replace(/\$year/g, `${params.year}`);
+			if (params.teamName) readyToExecuteQuery = readyToExecuteQuery.replace(/\$teamName/g, `'${params.teamName}'`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HATTRICKS_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			const playerData = (result || []).map((row: any) => ({
+				playerName: row.playerName || "Unknown",
+				hatTrickCount: typeof row.hatTrickCount === 'number' 
+					? row.hatTrickCount 
+					: (row.hatTrickCount?.low || 0) + (row.hatTrickCount?.high || 0) * 4294967296
+			}));
+			
+			const totalCount = playerData.reduce((sum, player) => sum + player.hatTrickCount, 0);
 			
 			return { 
 				type: "hattrick_count", 
-				data: [{ value: count }], 
+				data: playerData,
+				totalCount,
 				isHatTrickQuery: true,
-				year 
+				isYearWideHatTrickQuery: true,
+				year: year || undefined,
+				teamName: teamName || undefined,
+				startDate: startDate || undefined,
+				endDate: endDate || undefined,
 			};
 		} catch (error) {
-			loggingService.log(`❌ Error in year-wide hat-tricks query:`, error, "error");
-			return { type: "error", data: [], error: "Error querying year-wide hat-tricks data" };
+			loggingService.log(`❌ Error in hat-tricks query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying hat-tricks data" };
+		}
+	}
+
+	/**
+	 * Query count of games where player scored or assisted and team kept a clean sheet
+	 * Returns count of MatchDetail nodes where player scored (goals/penaltiesScored) or assisted AND Fixture.conceded = 0
+	 */
+	static async queryCleanSheetGoalInvolvements(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying clean sheet goal involvements for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: Record<string, unknown> = {
+			playerName,
+			graphLabel
+		};
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE (coalesce(md.goals, 0) > 0 OR coalesce(md.penaltiesScored, 0) > 0 OR coalesce(md.assists, 0) > 0)
+			  AND coalesce(f.conceded, 0) = 0
+			RETURN count(DISTINCT md) as count
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			
+			if (!result || result.length === 0) {
+				return {
+					type: "clean_sheet_goal_involvements",
+					data: [],
+					count: 0,
+					playerName
+				};
+			}
+
+			const count = typeof result[0].count === 'number' 
+				? result[0].count 
+				: (result[0].count?.low || 0) + (result[0].count?.high || 0) * 4294967296;
+
+			return {
+				type: "clean_sheet_goal_involvements",
+				data: result,
+				count,
+				playerName
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in clean sheet goal involvements query: ${errorMessage}`, error, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: `Error querying clean sheet goal involvements: ${errorMessage}` 
+			};
 		}
 	}
 }

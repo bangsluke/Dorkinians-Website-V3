@@ -14,7 +14,6 @@ import {
 	ShieldCheckIcon,
 	BookOpenIcon,
 } from "@heroicons/react/24/outline";
-import Header from "@/components/Header";
 import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
 import FeedbackModal from "@/components/modals/FeedbackModal";
@@ -190,9 +189,6 @@ export default function SettingsPage() {
 
 	return (
 		<>
-			{/* Header */}
-			<Header onSettingsClick={handleSettingsClick} isSettingsPage={true} />
-
 			{/* Settings Content */}
 			<div className='h-full flex flex-col md:px-[15%]'>
 				{/* Header */}
