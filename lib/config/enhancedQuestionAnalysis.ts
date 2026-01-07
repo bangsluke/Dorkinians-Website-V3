@@ -49,9 +49,50 @@ export class EnhancedQuestionAnalyzer {
 	async analyze(): Promise<EnhancedQuestionAnalysis> {
 		const extractionResult = await this.extractor.resolveEntitiesWithFuzzyMatching();
 		
+		// Early check for special nickname "twat" - return clarification immediately if found
+		const lowerQuestion = this.question.toLowerCase();
+		if (/\btwat\b/.test(lowerQuestion) && this.userContext) {
+			const correctedStatTypes = this.applyStatTypeCorrections(extractionResult.statTypes);
+			const correctedExtractionResult = {
+				...extractionResult,
+				statTypes: correctedStatTypes
+			};
+			const complexity = this.assessComplexity(correctedExtractionResult);
+			const entities = this.extractLegacyEntities(extractionResult);
+			const metrics = this.extractLegacyMetrics(extractionResult);
+			const timeRange = this.extractLegacyTimeRange(extractionResult);
+			const teamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
+			const oppositionEntities = extractionResult.entities.filter((e) => e.type === "opposition").map((e) => e.value);
+			const competitionTypes = extractionResult.competitionTypes.map((ct) => ct.value);
+			const competitions = extractionResult.competitions.map((c) => c.value);
+			const results = extractionResult.results.map((r) => r.value);
+			const confidence = this.calculateConfidence(extractionResult, complexity, true);
+			const resultQuantity = this.detectResultQuantity();
+			
+			const result = {
+				type: "clarification_needed" as QuestionType,
+				entities,
+				metrics,
+				timeRange,
+				teamEntities,
+				oppositionEntities,
+				competitionTypes,
+				competitions,
+				results,
+				opponentOwnGoals: extractionResult.opponentOwnGoals,
+				extractionResult: correctedExtractionResult,
+				complexity,
+				requiresClarification: true,
+				clarificationMessage: "Did you mean Kieran Mackrell?",
+				question: this.question,
+				confidence,
+				resultQuantity,
+			};
+			return result;
+		}
+		
 		// Early detection: Check for "most prolific season", "highest scoring season", or "season I scored the most goals" pattern and add to statTypes if found
 		// This must happen before the early exit check to ensure the question is properly recognized
-		const lowerQuestion = this.question.toLowerCase();
 		const detectMostGoalsSeasonPattern = (q: string): boolean => {
 			const lower = q.toLowerCase();
 			// Pattern 1: "most prolific season" or "highest scoring season"

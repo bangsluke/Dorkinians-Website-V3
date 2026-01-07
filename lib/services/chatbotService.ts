@@ -283,7 +283,17 @@ export class ChatbotService {
 					conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
 				}
 				
-				// Try to provide a better fallback response
+				// If there's an explicit clarification message, use it regardless of confidence
+				const clarificationMessage = analysis.clarificationMessage || analysis.message;
+				if (clarificationMessage) {
+					return {
+						answer: clarificationMessage,
+						sources: [],
+						answerValue: "Clarification needed",
+					};
+				}
+				
+				// Try to provide a better fallback response if no explicit clarification message
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
 					return {
@@ -293,7 +303,7 @@ export class ChatbotService {
 					};
 				}
 				return {
-					answer: analysis.message || "Please clarify your question.",
+					answer: "Please clarify your question.",
 					sources: [],
 					answerValue: "Clarification needed",
 				};
