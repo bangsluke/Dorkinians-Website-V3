@@ -14,9 +14,6 @@ export async function OPTIONS() {
 
 // Build unified Cypher query for team stats with aggregation
 function buildTeamStatsQuery(teamName: string, filters: any = null): { query: string; params: any } {
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:16',message:'buildTeamStatsQuery entry',data:{teamName,filtersType:typeof filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-	// #endregion
 	const graphLabel = neo4jService.getGraphLabel();
 	const params: any = {
 		graphLabel,
@@ -31,13 +28,7 @@ function buildTeamStatsQuery(teamName: string, filters: any = null): { query: st
 	`;
 
 	// Build filter conditions
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:31',message:'Before buildFilterConditions',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-	// #endregion
 	const filterConditions = buildFilterConditions(filters, params);
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:33',message:'After buildFilterConditions',data:{conditionsCount:filterConditions?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-	// #endregion
 	
 	// If teamName is provided and not "Whole Club", use it (backward compatibility)
 	// Otherwise, rely on filters.teams for team filtering
@@ -274,17 +265,8 @@ function validateFilters(filters: any): string | null {
 }
 
 export async function POST(request: NextRequest) {
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:254',message:'POST handler entry',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-	// #endregion
 	try {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:256',message:'Before JSON parse',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 		const body = await request.json();
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:258',message:'After JSON parse',data:{teamName:body?.teamName,hasFilters:!!body?.filters,filtersKeys:body?.filters?Object.keys(body.filters):[]},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 		const { teamName, filters } = body;
 
 		// Enhanced validation
@@ -297,37 +279,19 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Validate filter structure
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:269',message:'Before filter validation',data:{filtersType:typeof filters,filtersStr:JSON.stringify(filters).substring(0,200)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		const validationError = validateFilters(filters);
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:271',message:'After filter validation',data:{validationError:validationError||null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		if (validationError) {
 			return NextResponse.json({ error: validationError }, { status: 400, headers: corsHeaders });
 		}
 
 		// Connect to Neo4j
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:275',message:'Before DB connection',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-		// #endregion
 		const connected = await neo4jService.connect();
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:277',message:'After DB connection',data:{connected},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-		// #endregion
 		if (!connected) {
 			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
 		}
 
 		// Build query with filters using shared query builder
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:281',message:'Before query build',data:{teamName,filtersType:typeof filters},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-		// #endregion
 		const { query, params } = buildTeamStatsQuery(teamName, filters);
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:283',message:'After query build',data:{queryLength:query.length,paramKeys:Object.keys(params)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-		// #endregion
 
 		// Create a copy-pasteable query for manual testing
 		const copyPasteQuery = query.replace(/\$(\w+)/g, (match, paramName) => {
@@ -344,17 +308,8 @@ export async function POST(request: NextRequest) {
 
 		let result;
 		try {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:298',message:'Before query execution',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-			// #endregion
 			result = await neo4jService.runQuery(query, params);
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:300',message:'After query execution',data:{recordsCount:result?.records?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-			// #endregion
 		} catch (queryError: any) {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:303',message:'Query execution error',data:{errorMessage:queryError?.message,errorName:queryError?.name},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
-			// #endregion
 			console.error("Cypher query error:", queryError);
 			console.error("Query:", query);
 			console.error("Params:", JSON.stringify(params, null, 2));
@@ -396,13 +351,7 @@ export async function POST(request: NextRequest) {
 		};
 
 		// Extract aggregated stats from result
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:341',message:'Before result processing',data:{hasRecords:!!result?.records,recordsLength:result?.records?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-		// #endregion
 		const record = result.records[0];
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:343',message:'After record extraction',data:{hasRecord:!!record},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
-		// #endregion
 		// Always use "Whole Club" as team name since we're aggregating stats
 		const teamData = {
 			team: "Whole Club",
@@ -458,14 +407,8 @@ export async function POST(request: NextRequest) {
 			},
 		};
 
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:397',message:'Before response return',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
-		// #endregion
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'team-data-filtered/route.ts:399',message:'Catch block error',data:{errorMessage:error instanceof Error?error.message:String(error),errorName:error instanceof Error?error.name:'Unknown',errorStack:error instanceof Error?error.stack?.substring(0,500):'No stack'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-		// #endregion
 		console.error("Error fetching filtered team data:", error);
 		return NextResponse.json({ error: "Failed to fetch filtered team data" }, { status: 500, headers: corsHeaders });
 	}

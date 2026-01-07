@@ -55,38 +55,46 @@ export class TeamDataQueryHandler {
 		};
 
 		// Find the primary metric from question text keywords FIRST (most reliable)
+		// CRITICAL: Check for "conceded" FIRST before other metrics to avoid false matches
+		// (e.g., "app" matches inside "conceded", causing incorrect APP metric detection)
 		let detectedMetric: string | null = null;
 		let metricField: string | null = null;
 		
 		const questionLower = question.toLowerCase();
-		if (questionLower.includes("red card") || questionLower.includes("reds")) {
-			detectedMetric = "R";
-			metricField = "redCards";
-			loggingService.log(`✅ Detected metric from question text: R (redCards)`, null, "log");
-		} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
-			detectedMetric = "Y";
-			metricField = "yellowCards";
-			loggingService.log(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
-		} else if (questionLower.includes("assist")) {
-			detectedMetric = "A";
-			metricField = "assists";
-			loggingService.log(`✅ Detected metric from question text: A (assists)`, null, "log");
-		} else if (questionLower.includes("clean sheet")) {
-			detectedMetric = "CLS";
-			metricField = "cleanSheets";
-			loggingService.log(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
-		} else if (questionLower.includes("save")) {
-			detectedMetric = "SAVES";
-			metricField = "saves";
-			loggingService.log(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
-		} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
-			detectedMetric = "MOM";
-			metricField = "mom";
-			loggingService.log(`✅ Detected metric from question text: MOM (mom)`, null, "log");
-		} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
-			detectedMetric = "APP";
-			metricField = "appearances";
-			loggingService.log(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+		
+		// Skip metric detection if question is about goals conceded (let isGoalsConceded handle it)
+		const isConcededQuestion = questionLower.includes("conceded");
+		
+		if (!isConcededQuestion) {
+			if (questionLower.includes("red card") || questionLower.includes("reds")) {
+				detectedMetric = "R";
+				metricField = "redCards";
+				loggingService.log(`✅ Detected metric from question text: R (redCards)`, null, "log");
+			} else if (questionLower.includes("yellow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
+				detectedMetric = "Y";
+				metricField = "yellowCards";
+				loggingService.log(`✅ Detected metric from question text: Y (yellowCards)`, null, "log");
+			} else if (questionLower.includes("assist")) {
+				detectedMetric = "A";
+				metricField = "assists";
+				loggingService.log(`✅ Detected metric from question text: A (assists)`, null, "log");
+			} else if (questionLower.includes("clean sheet")) {
+				detectedMetric = "CLS";
+				metricField = "cleanSheets";
+				loggingService.log(`✅ Detected metric from question text: CLS (cleanSheets)`, null, "log");
+			} else if (questionLower.includes("save")) {
+				detectedMetric = "SAVES";
+				metricField = "saves";
+				loggingService.log(`✅ Detected metric from question text: SAVES (saves)`, null, "log");
+			} else if (questionLower.includes("man of the match") || questionLower.includes("mom")) {
+				detectedMetric = "MOM";
+				metricField = "mom";
+				loggingService.log(`✅ Detected metric from question text: MOM (mom)`, null, "log");
+			} else if (questionLower.includes("appearance") || (questionLower.match(/\bapp\b/) && !questionLower.includes("conceded")) || (questionLower.includes("game") && !questionLower.includes("conceded"))) {
+				detectedMetric = "APP";
+				metricField = "appearances";
+				loggingService.log(`✅ Detected metric from question text: APP (appearances)`, null, "log");
+			}
 		}
 		
 		// If no metric found from question text, check extracted metrics
@@ -99,7 +107,15 @@ export class TeamDataQueryHandler {
 			}
 		}
 		
-		const isGoalsConceded = !detectedMetric && question.includes("conceded");
+		// For team goals conceded queries, we should use Fixture aggregation, not MatchDetail
+		// Check if this is a goals conceded query (either no detectedMetric with "conceded", or detectedMetric is "C" for team queries)
+		const isGoalsConceded = question.includes("conceded") && (!detectedMetric || (detectedMetric === "C" && !question.includes("player")));
+		
+		// If this is a team goals conceded query, clear detectedMetric to use Fixture aggregation branch
+		if (isGoalsConceded && !question.includes("player")) {
+			detectedMetric = null;
+			metricField = null;
+		}
 		const isOpenPlayGoals = question.includes("open play") || 
 		                        question.includes("openplay") ||
 		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
@@ -250,6 +266,12 @@ export class TeamDataQueryHandler {
 			whereConditions.push(`f.date >= $startDate AND f.date <= $endDate`);
 		}
 
+		// Check for away games filter (for goals conceded queries with away games)
+		const hasAwayLocation = question.includes("away") || question.includes("away games");
+		if (isGoalsConceded && hasAwayLocation) {
+			whereConditions.push(`f.homeOrAway = 'Away'`);
+		}
+
 		// Check for win rate queries
 		const isWinRateQuery = question.includes("win rate") || question.includes("win percentage");
 		
@@ -386,6 +408,8 @@ export class TeamDataQueryHandler {
 						isGoalsScored,
 						isGoalsConceded,
 						isOpenPlayGoals,
+						startDate: startDate || undefined,
+						endDate: endDate || undefined,
 					};
 				}
 			}
@@ -434,9 +458,10 @@ export class TeamDataQueryHandler {
 	}
 
 	/**
-	 * Query longest unbeaten run (consecutive wins) for a team within a date range
+	 * Query longest unbeaten/winning run for a team within a date range
+	 * @param includeDraws - If true, streak includes wins and draws (unbeaten run). If false, streak includes only wins (winning run).
 	 */
-	static async queryLongestUnbeatenRun(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis): Promise<Record<string, unknown>> {
+	static async queryLongestUnbeatenRun(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis, includeDraws: boolean = true): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 queryLongestUnbeatenRun called with entities: ${entities}`, null, "log");
 
 		const question = analysis.question?.toLowerCase() || "";
@@ -544,7 +569,9 @@ export class TeamDataQueryHandler {
 				};
 			}
 
-			// Process results to find longest consecutive sequence of wins
+			// Process results to find longest consecutive sequence
+			// If includeDraws is true, streak includes wins and draws (unbeaten run)
+			// If includeDraws is false, streak includes only wins (winning run)
 			let longestRun = 0;
 			let currentRun = 0;
 			let longestRunStartDate: string | null = null;
@@ -555,8 +582,11 @@ export class TeamDataQueryHandler {
 				const date = fixture.date as string;
 				const resultValue = fixture.result as string;
 
-				if (resultValue === 'W') {
-					// Win - continue or start streak
+				// Check if this result continues the streak
+				const continuesStreak = resultValue === 'W' || (includeDraws && resultValue === 'D');
+
+				if (continuesStreak) {
+					// Win (or draw if includeDraws is true) - continue or start streak
 					if (currentRun === 0) {
 						// Starting a new streak
 						currentRun = 1;
@@ -573,7 +603,7 @@ export class TeamDataQueryHandler {
 						longestRunEndDate = date;
 					}
 				} else {
-					// Loss or draw - streak breaks
+					// Loss (or draw if includeDraws is false) - streak breaks
 					currentRun = 0;
 					currentRunStartDate = null;
 				}
@@ -587,6 +617,7 @@ export class TeamDataQueryHandler {
 				count: longestRun,
 				startDate: longestRunStartDate,
 				endDate: longestRunEndDate,
+				includeDraws,
 				dateRange: {
 					start: startDate,
 					end: endDate
@@ -595,6 +626,288 @@ export class TeamDataQueryHandler {
 		} catch (error) {
 			loggingService.log(`❌ Error in queryLongestUnbeatenRun:`, error, "error");
 			return { type: "error", data: [], error: "Error querying longest unbeaten run data" };
+		}
+	}
+
+	/**
+	 * Query longest unbeaten/winning run for all teams in a given year
+	 * Returns the team with the longest streak and calendar data
+	 * @param includeDraws - If true, streak includes wins and draws (unbeaten run). If false, streak includes only wins (winning run).
+	 */
+	static async queryLongestUnbeatenRunAllTeams(entities: string[], metrics: string[], analysis: EnhancedQuestionAnalysis, includeDraws: boolean = true): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 queryLongestUnbeatenRunAllTeams called with entities: ${entities}`, null, "log");
+
+		const question = analysis.question?.toLowerCase() || "";
+		
+		// Extract year from question (e.g., "in 2022")
+		let year: number | null = null;
+		const yearMatch = question.match(/\b(20\d{2})\b/);
+		if (yearMatch) {
+			year = parseInt(yearMatch[1], 10);
+		}
+
+		// Also try to extract from timeFrames (check season type or parse value field)
+		if (!year) {
+			const timeFrames = analysis.extractionResult?.timeFrames || [];
+			// Try to find year in season type or parse from any timeFrame value
+			const seasonFrame = timeFrames.find(tf => tf.type === "season");
+			if (seasonFrame) {
+				const yearMatch2 = seasonFrame.value.match(/\b(20\d{2})\b/);
+				if (yearMatch2) {
+					year = parseInt(yearMatch2[1], 10);
+				}
+			} else {
+				// Fallback: try to extract year from any timeFrame value
+				for (const tf of timeFrames) {
+					const yearMatch2 = tf.value.match(/\b(20\d{2})\b/);
+					if (yearMatch2) {
+						year = parseInt(yearMatch2[1], 10);
+						break;
+					}
+				}
+			}
+		}
+
+		if (!year) {
+			loggingService.log(`⚠️ No year found in queryLongestUnbeatenRunAllTeams`, null, "warn");
+			return { type: "error", data: [], error: "Could not identify year from question" };
+		}
+
+		const startDate = `${year}-01-01`;
+		const endDate = `${year}-12-31`;
+
+		const graphLabel = neo4jService.getGraphLabel();
+
+		// First, get all distinct teams that played in this year
+		const getAllTeamsQuery = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.date >= $startDate 
+			  AND f.date <= $endDate
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			  AND f.team IS NOT NULL
+			RETURN DISTINCT f.team as team
+			ORDER BY f.team ASC
+		`;
+
+		try {
+			const teamsResult = await neo4jService.executeQuery(getAllTeamsQuery, {
+				graphLabel,
+				startDate,
+				endDate
+			});
+
+			if (!teamsResult || teamsResult.length === 0) {
+				return {
+					type: "longest_unbeaten_run_all_teams",
+					teamName: "",
+					count: 0,
+					year,
+					startDate,
+					endDate
+				};
+			}
+
+			const teams = (teamsResult || []).map((r: { team: string }) => r.team);
+
+			// For each team, calculate longest winning streak
+			let longestStreakTeam = "";
+			let longestStreak = 0;
+			let longestStreakStartDate: string | null = null;
+			let longestStreakEndDate: string | null = null;
+			let longestStreakTeamData: Array<{ date: string; result: string }> = [];
+
+			for (const teamName of teams) {
+				// Query all fixtures for this team in the year
+				const teamFixturesQuery = `
+					MATCH (f:Fixture {graphLabel: $graphLabel})
+					WHERE f.team = $teamName 
+					  AND f.date >= $startDate 
+					  AND f.date <= $endDate
+					  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+					WITH f
+					ORDER BY f.date ASC
+					RETURN f.date as date, f.result as result
+				`;
+
+				const teamFixtures = await neo4jService.executeQuery(teamFixturesQuery, {
+					graphLabel,
+					teamName,
+					startDate,
+					endDate
+				});
+
+				if (!teamFixtures || teamFixtures.length === 0) {
+					continue;
+				}
+
+				// Calculate longest consecutive streak (allowing gaps between fixtures)
+				// If includeDraws is true, streak includes wins and draws (unbeaten run)
+				// If includeDraws is false, streak includes only wins (winning run)
+				let currentStreak = 0;
+				let longestStreakForTeam = 0;
+				let currentStreakStartDate: string | null = null;
+				let longestStreakStartDateForTeam: string | null = null;
+				let longestStreakEndDateForTeam: string | null = null;
+				const streakFixtures: Array<{ date: string; result: string }> = [];
+				let currentStreakFixtures: Array<{ date: string; result: string }> = [];
+
+				for (const fixture of teamFixtures) {
+					const date = fixture.date as string;
+					const resultValue = fixture.result as string;
+
+					// Check if this result continues the streak
+					const continuesStreak = resultValue === 'W' || (includeDraws && resultValue === 'D');
+
+					if (continuesStreak) {
+						// Win (or draw if includeDraws is true) - continue or start streak
+						if (currentStreak === 0) {
+							// Starting a new streak
+							currentStreak = 1;
+							currentStreakStartDate = date;
+							currentStreakFixtures = [{ date, result: resultValue }];
+						} else {
+							// Continuing streak
+							currentStreak++;
+							currentStreakFixtures.push({ date, result: resultValue });
+						}
+
+						// Update longest streak if current is longer
+						if (currentStreak > longestStreakForTeam) {
+							longestStreakForTeam = currentStreak;
+							longestStreakStartDateForTeam = currentStreakStartDate;
+							longestStreakEndDateForTeam = date;
+							streakFixtures.length = 0;
+							streakFixtures.push(...currentStreakFixtures);
+						}
+					} else {
+						// Loss (or draw if includeDraws is false) - streak breaks
+						currentStreak = 0;
+						currentStreakStartDate = null;
+						currentStreakFixtures = [];
+					}
+				}
+
+				// Update overall longest streak if this team's streak is longer
+				if (longestStreakForTeam > longestStreak) {
+					longestStreak = longestStreakForTeam;
+					longestStreakTeam = teamName;
+					longestStreakStartDate = longestStreakStartDateForTeam;
+					longestStreakEndDate = longestStreakEndDateForTeam;
+					longestStreakTeamData = streakFixtures;
+				}
+			}
+
+			if (longestStreak === 0 || !longestStreakTeam) {
+				return {
+					type: "longest_unbeaten_run_all_teams",
+					teamName: "",
+					count: 0,
+					year,
+					startDate,
+					endDate
+				};
+			}
+
+			// Get the latest fixture date from the database to determine the full date range
+			const latestDateQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE f.date IS NOT NULL
+				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+				RETURN max(f.date) as latestDate
+			`;
+
+			const latestDateResult = await neo4jService.executeQuery(latestDateQuery, {
+				graphLabel
+			});
+
+			// Determine the full date range for calendar display
+			const fullStartDate = "2016-01-01";
+			let fullEndDate = "2025-12-31"; // Default fallback
+			
+			if (latestDateResult && latestDateResult.length > 0 && latestDateResult[0].latestDate) {
+				const latestDate = latestDateResult[0].latestDate as string;
+				// Format the date to YYYY-MM-DD if needed
+				if (typeof latestDate === 'string') {
+					fullEndDate = latestDate.split('T')[0]; // Handle ISO date strings
+				} else {
+					// If it's a Date object or other format, convert it
+					const date = new Date(latestDate);
+					if (!isNaN(date.getTime())) {
+						fullEndDate = date.toISOString().split('T')[0];
+					}
+				}
+			}
+
+			// Get all fixtures for the winning team across the full date range for calendar display
+			const allTeamFixturesQuery = `
+				MATCH (f:Fixture {graphLabel: $graphLabel})
+				WHERE f.team = $teamName 
+				  AND f.date >= $fullStartDate 
+				  AND f.date <= $fullEndDate
+				  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+				WITH f
+				ORDER BY f.date ASC
+				RETURN f.date as date, f.result as result, f.dorkiniansGoals as dorkiniansGoals, f.conceded as conceded
+			`;
+
+			const allTeamFixtures = await neo4jService.executeQuery(allTeamFixturesQuery, {
+				graphLabel,
+				teamName: longestStreakTeam,
+				fullStartDate,
+				fullEndDate
+			});
+
+			// Create fixture results map (date -> result) and fixture scorelines map (date -> scoreline)
+			const fixtureResults: Record<string, string> = {};
+			const fixtureScorelines: Record<string, string> = {};
+			const allFixtureDates: string[] = [];
+			(allTeamFixtures || []).forEach((fixture: { date: string; result: string; dorkiniansGoals: number | null; conceded: number | null }) => {
+				const date = fixture.date as string;
+				const result = fixture.result as string;
+				const dorkiniansGoals = fixture.dorkiniansGoals ?? 0;
+				const conceded = fixture.conceded ?? 0;
+				
+				fixtureResults[date] = result;
+				
+				// Create scoreline format: "W 3-1" (result + dorkiniansGoals-conceded)
+				if (dorkiniansGoals !== null && conceded !== null) {
+					fixtureScorelines[date] = `${result} ${dorkiniansGoals}-${conceded}`;
+				} else {
+					fixtureScorelines[date] = result;
+				}
+				
+				allFixtureDates.push(date);
+			});
+
+			// Create streak dates array for highlighting
+			const streakDates = longestStreakTeamData.map(f => f.date);
+
+			loggingService.log(`✅ Found longest unbeaten run: ${longestStreak} games for ${longestStreakTeam} in ${year}`, null, "log");
+
+			return {
+				type: "longest_unbeaten_run_all_teams",
+				teamName: longestStreakTeam,
+				count: longestStreak,
+				year,
+				startDate: longestStreakStartDate,
+				endDate: longestStreakEndDate,
+				includeDraws,
+				dateRange: {
+					start: startDate,
+					end: endDate
+				},
+				fullDateRange: {
+					start: fullStartDate,
+					end: fullEndDate
+				},
+				fixtureResults,
+				fixtureScorelines,
+				allFixtureDates,
+				streakDates
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryLongestUnbeatenRunAllTeams:`, error, "error");
+			return { type: "error", data: [], error: "Error querying longest unbeaten run data for all teams" };
 		}
 	}
 }

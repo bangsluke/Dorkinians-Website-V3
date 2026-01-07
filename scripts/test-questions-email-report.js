@@ -201,6 +201,14 @@ function extractValueFromResponse(response, expectedOutputType, expectedAnswer) 
 			if (response.answerValue === "table_data") {
 				return "Table data present";
 			}
+			// Check if it's a season format (YYYY/YY) - don't parse as number
+			if (/^\d{4}\/\d{2}$/.test(response.answerValue)) {
+				return response.answerValue;
+			}
+			// Check if it's a team name format (e.g., "1st XI", "2nd XI", "5th XI") - preserve as string
+			if (/\d+(?:st|nd|rd|th)\s+XI/i.test(response.answerValue)) {
+				return response.answerValue;
+			}
 			// Try to parse as number if it's a numeric string
 			const parsed = parseFloat(response.answerValue);
 			if (!isNaN(parsed) && isFinite(parsed)) {

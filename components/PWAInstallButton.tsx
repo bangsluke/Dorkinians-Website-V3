@@ -275,10 +275,10 @@ export default function PWAInstallButton() {
 								</div>
 
 								{/* Footer with close button */}
-								<div className='p-4 border-t border-white/20'>
+								<div className='flex justify-center p-4 border-t border-white/20'>
 									<button
 										onClick={closeAndroidInstructions}
-										className='w-full px-4 py-2 bg-dorkinians-yellow text-black rounded-lg font-semibold hover:bg-dorkinians-yellow/90 transition-colors'>
+										className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
 										Got it!
 									</button>
 								</div>
@@ -371,10 +371,10 @@ export default function PWAInstallButton() {
 								</div>
 
 								{/* Footer with close button */}
-								<div className='p-4 border-t border-white/20'>
+								<div className='flex justify-center p-4 border-t border-white/20'>
 									<button
 										onClick={closeIOSInstructions}
-										className='w-full px-4 py-2 bg-dorkinians-yellow text-black rounded-lg font-semibold hover:bg-dorkinians-yellow/90 transition-colors'>
+										className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
 										Got it!
 									</button>
 								</div>

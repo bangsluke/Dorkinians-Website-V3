@@ -34,25 +34,22 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 		const weekNumber = parseInt(week, 10);
-		const weekString = week.toString();
 
 		// Construct seasonWeek string from season and week (format: "2025/26-44")
 		const seasonWeek = `${season}-${weekNumber}`;
 
 		// Fetch all MatchDetail nodes for the player in that week
-		// Using TOTW_HAS_DETAILS relationship which connects WeeklyTOTW to MatchDetail
+		// Use same approach as week-data route: Player -> PLAYED_IN -> MatchDetail with seasonWeek filter
 		// Also fetch related Fixture for match summary
-		// Explicitly filter MatchDetail by seasonWeek to ensure correct matching
 		const query = `
-			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})
-			WHERE (wt.week = $weekNumber OR wt.week = $weekString)
-			MATCH (wt)-[:TOTW_HAS_DETAILS]-(md:MatchDetail {graphLabel: $graphLabel, playerName: $playerName, seasonWeek: $seasonWeek})
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel, seasonWeek: $seasonWeek})
 			OPTIONAL MATCH (f:Fixture {graphLabel: $graphLabel})-[r:HAS_MATCH_DETAILS]->(md)
 			RETURN md, f.fullResult as matchSummary, f.opposition as opposition, f.result as result
 			ORDER BY md.date ASC
 		`;
 
-		const queryResult = await neo4jService.runQuery(query, { graphLabel, season, weekNumber, weekString, seasonWeek, playerName });
+		const queryResult = await neo4jService.runQuery(query, { graphLabel, seasonWeek, playerName });
 
 		const matchDetails = queryResult.records.map((record) => {
 			const mdNode = record.get("md");

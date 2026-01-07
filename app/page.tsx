@@ -283,7 +283,7 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				console.log("📊 [HomePage] Rendering stats page");
+				// console.log("📊 [HomePage] Rendering stats page");
 				return (
 					<motion.div
 						key='stats'
@@ -296,7 +296,7 @@ export default function HomePage() {
 				);
 
 			case "totw":
-				console.log("🏆 [HomePage] Rendering TOTW page");
+				// console.log("🏆 [HomePage] Rendering TOTW page");
 				return (
 					<motion.div key='totw' initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className='h-full'>
 						<TOTWContainer />
@@ -304,7 +304,7 @@ export default function HomePage() {
 				);
 
 			case "club-info":
-				console.log("ℹ️ [HomePage] Rendering club-info page");
+				// console.log("ℹ️ [HomePage] Rendering club-info page");
 				return (
 					<motion.div
 						key='club-info'
@@ -317,7 +317,7 @@ export default function HomePage() {
 				);
 
 			case "settings":
-				console.log("⚙️ [HomePage] Rendering settings page");
+				// console.log("⚙️ [HomePage] Rendering settings page");
 				return (
 					<motion.div
 						key='settings'

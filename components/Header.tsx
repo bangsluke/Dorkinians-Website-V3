@@ -19,6 +19,9 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 
 	const handleLogoClick = () => {
 		setMainPage("home");
+		if (typeof window !== "undefined") {
+			window.location.href = "/";
+		}
 	};
 
 	return (

@@ -275,7 +275,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						onClick={onClose}
-						className='fixed inset-0 bg-black/80 z-50'
+						className='fixed inset-0 bg-black z-50'
 					/>
 
 					{/* Menu */}
@@ -284,7 +284,8 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}
-						className='fixed left-0 top-0 bottom-0 w-full max-w-md bg-gradient-to-br from-black via-black to-yellow-900/30 z-50 flex flex-col'
+						className='fixed left-0 top-0 bottom-0 w-full max-w-md z-50 flex flex-col'
+						style={{ backgroundColor: '#0f0f0f' }}
 					>
 						<div className='flex-1 overflow-y-auto p-4 md:p-6 pb-24'>
 							{/* Header */}
@@ -370,10 +371,10 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						</div>
 						
 						{/* Yellow Close Button at Bottom - Always Visible */}
-						<div className='flex-shrink-0 p-4 md:p-6 pt-0 border-t border-white/10 bg-gradient-to-br from-black via-black to-yellow-900/30'>
+						<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20' style={{ backgroundColor: '#0f0f0f' }}>
 							<motion.button
 								onClick={onClose}
-								className='w-full bg-dorkinians-yellow text-black font-semibold py-3 px-4 rounded-lg hover:bg-yellow-400 transition-colors shadow-lg'
+								className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'
 								whileHover={{ scale: 1.02 }}
 								whileTap={{ scale: 0.98 }}>
 								Close

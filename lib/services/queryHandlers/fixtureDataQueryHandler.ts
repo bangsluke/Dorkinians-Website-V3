@@ -1081,4 +1081,58 @@ export class FixtureDataQueryHandler {
 			return { type: "error", data: [], error: "Error querying hat-tricks data" };
 		}
 	}
+
+	/**
+	 * Query count of games where player scored or assisted and team kept a clean sheet
+	 * Returns count of MatchDetail nodes where player scored (goals/penaltiesScored) or assisted AND Fixture.conceded = 0
+	 */
+	static async queryCleanSheetGoalInvolvements(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying clean sheet goal involvements for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: Record<string, unknown> = {
+			playerName,
+			graphLabel
+		};
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE (coalesce(md.goals, 0) > 0 OR coalesce(md.penaltiesScored, 0) > 0 OR coalesce(md.assists, 0) > 0)
+			  AND coalesce(f.conceded, 0) = 0
+			RETURN count(DISTINCT md) as count
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			
+			if (!result || result.length === 0) {
+				return {
+					type: "clean_sheet_goal_involvements",
+					data: [],
+					count: 0,
+					playerName
+				};
+			}
+
+			const count = typeof result[0].count === 'number' 
+				? result[0].count 
+				: (result[0].count?.low || 0) + (result[0].count?.high || 0) * 4294967296;
+
+			return {
+				type: "clean_sheet_goal_involvements",
+				data: result,
+				count,
+				playerName
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in clean sheet goal involvements query: ${errorMessage}`, error, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: `Error querying clean sheet goal involvements: ${errorMessage}` 
+			};
+		}
+	}
 }
