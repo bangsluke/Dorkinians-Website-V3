@@ -99,10 +99,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						whileTap={{ scale: 0.95 }}
 						onClick={handleLogoClick}
 						title='Click to return to homepage'>
-						<div className='w-12 h-12 flex items-center justify-center'>
-							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={48} height={48} className='rounded-full' />
-						</div>
-						<span className='font-bold text-lg text-white text-center'>Dorkinians FC</span>
+					<div className='w-[72px] h-[72px] flex items-center justify-center'>
+						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={66} height={66} className='rounded-full' />
+					</div>
+					<span className='font-bold text-[22px] text-white text-center'>Dorkinians FC</span>
 					</motion.div>
 
 					{/* Action Icons */}
@@ -115,7 +115,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open stats navigation'>
-								<Bars3Icon className='w-5 h-5 text-white' />
+								<Bars3Icon className='w-8 h-8 text-white' />
 							</motion.button>
 						)}
 						{/* Filter Icon - only show on stats pages */}
@@ -126,7 +126,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open filters'>
-								<FunnelIcon className='w-5 h-5 text-white' />
+								<FunnelIcon className='w-8 h-8 text-white' />
 							</motion.button>
 						)}
 						{/* Settings Icon */}
@@ -136,7 +136,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? <XMarkIcon className='w-5 h-5 text-white' /> : <Cog6ToothIcon className='w-5 h-5 text-white' />}
+							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-white' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
 						</motion.button>
 					</div>
 				</div>
@@ -160,8 +160,8 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 									}`}
 									whileHover={{ scale: 1.02 }}
 									whileTap={{ scale: 0.98 }}>
-									<Icon className={`w-6 h-6 flex-shrink-0 ${isActive ? "text-yellow-400" : ""}`} />
-									<span className={`text-sm font-medium flex-1 text-left ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
+									<Icon className={`w-8 h-8 flex-shrink-0 ${isActive ? "text-yellow-400" : ""}`} />
+									<span className={`text-[16px] font-medium flex-1 text-left ${isActive ? "text-yellow-400" : ""}`}>{item.label}</span>
 								</motion.button>
 								{hasSubPages && (
 									<div className='pl-4 space-y-1'>
@@ -178,7 +178,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 													}`}
 													whileHover={{ scale: 1.02 }}
 													whileTap={{ scale: 0.98 }}>
-													<span className={`text-sm font-medium ${isSubActive ? "text-yellow-400" : ""}`}>{subPage.label}</span>
+													<span className={`text-[14px] font-medium ${isSubActive ? "text-yellow-400" : ""}`}>{subPage.label}</span>
 												</motion.button>
 											);
 										})}

@@ -4,7 +4,7 @@ slug: /projects/dorkinians-website/settings-page
 
 # Settings
 
-> [Back to Dorkinians Website Documentation](1DorkiniansWebsite.md)
+> [< Back to Dorkinians Website](1DorkiniansWebsite.md)
 
 ## Table of Contents
 
@@ -23,6 +23,13 @@ slug: /projects/dorkinians-website/settings-page
   - [Install Prompt](#install-prompt)
   - [Installation Benefits](#installation-benefits)
   - [Update Notifications](#update-notifications)
+- [App Updates](#app-updates)
+  - [Check for Updates](#check-for-updates)
+  - [Update Toast](#update-toast)
+- [Help and Support](#help-and-support)
+  - [Documentation Link](#documentation-link)
+  - [Feedback Modal](#feedback-modal)
+  - [Data Privacy Modal](#data-privacy-modal)
 - [App Information](#app-information)
 - [Tips and Tricks](#tips-and-tricks)
 
@@ -229,6 +236,120 @@ Update notifications help ensure you're always using the latest version with the
 
 > [Back to Table of Contents](#table-of-contents)
 
+## App Updates
+
+The Settings page provides tools to check for and install app updates.
+
+### Check for Updates
+
+You can manually check for app updates from the Settings page:
+
+1. **Navigate to Settings**: Open the Settings page from the header menu
+2. **Find Update Section**: Locate the "Check for Updates" section
+3. **Tap Check Button**: Tap the "Check" button to check for available updates
+4. **View Status**: The app will display whether updates are available or if you're using the latest version
+
+**Update Status Messages:**
+- **"No updates available"**: You're using the latest version
+- **"Update available"**: A new version is ready to install
+- **"Checking..."**: The app is currently checking for updates
+
+:::tip
+Check for updates regularly to ensure you have access to the latest features and improvements.
+:::
+
+[Image: Check for Updates Screenshot]
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Update Toast
+
+When an app update is available, an Update Toast notification appears at the bottom of the screen. This notification provides:
+
+- **Update Information**: Shows the new version number and release notes (if available)
+- **Update Button**: Tap "Update Now" to install the update immediately
+- **Dismiss Option**: Tap the X button to dismiss the notification (you can update later from Settings)
+
+**Update Toast Features:**
+- Appears automatically when updates are detected
+- Can be dismissed and accessed later from Settings
+- Shows version number and release notes
+- One-tap update installation
+
+:::info
+If you dismiss the update toast, you can still update the app later from the Settings page.
+:::
+
+[Image: Update Toast Screenshot]
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Help and Support
+
+The Settings page provides access to help resources and support options.
+
+### Documentation Link
+
+A "Help" button in the Settings page provides quick access to the complete user documentation:
+
+1. **Find Help Button**: Locate the "Help" button in the Settings page
+2. **Tap to Open**: Tap the button to open the documentation in a new tab
+3. **Browse Documentation**: Access complete guides for all app features
+
+The documentation includes:
+- Complete user guides for all pages
+- Feature explanations and usage examples
+- Tips and tricks for using the app effectively
+- Troubleshooting information
+
+[Image: Help Button Screenshot]
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Feedback Modal
+
+The Settings page includes a feedback option to submit comments, suggestions, or report issues:
+
+1. **Access Feedback**: Look for the feedback option in the Settings page
+2. **Open Modal**: Tap to open the feedback modal
+3. **Submit Feedback**: Enter your feedback and submit
+
+**Feedback Types:**
+- Bug reports
+- Feature suggestions
+- General comments
+- Questions or concerns
+
+:::tip
+Your feedback helps improve the app. Don't hesitate to share your thoughts!
+:::
+
+[Image: Feedback Modal Screenshot]
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Data Privacy Modal
+
+The Settings page provides access to data privacy information:
+
+1. **Access Privacy Info**: Look for the data privacy option in the Settings page
+2. **Open Modal**: Tap to open the data privacy modal
+3. **Review Information**: Read about how your data is handled
+
+The data privacy modal includes information about:
+- Data collection practices
+- How data is used
+- Data storage and security
+- Your privacy rights
+
+:::info
+The app is committed to protecting your privacy. Review the data privacy information to understand how your data is handled.
+:::
+
+[Image: Data Privacy Modal Screenshot]
+
+> [Back to Table of Contents](#table-of-contents)
+
 ## App Information
 
 The Settings page may display additional app information, such as:
@@ -251,15 +372,18 @@ This information helps identify which version of the app you're using and when i
 
 3. **Install as PWA**: For the best experience, install the app as a PWA on your mobile device
 
-4. **Monitor Updates**: Keep an eye on update notifications to ensure you're using the latest version
+4. **Monitor Updates**: Keep an eye on update notifications to ensure you're using the latest version. Use the "Check for Updates" feature regularly
 
 5. **Expand Navigation Tree**: Expand the Available Screens section to see all available pages at a glance
 
 6. **Use Settings as Hub**: The Settings page serves as a central hub - use it to quickly navigate to any section
+
+7. **Access Help**: Use the Help button to access complete documentation when you need assistance
+
+8. **Provide Feedback**: Use the feedback option to share your thoughts and help improve the app
 
 :::warning
 If database seeding fails, some statistics may not be available. Check the database status and contact support if issues persist.
 :::
 
 > [Back to Table of Contents](#table-of-contents)
-

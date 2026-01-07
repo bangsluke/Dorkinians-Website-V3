@@ -4,7 +4,7 @@ slug: /projects/dorkinians-website/club-info-page
 
 # Club Info
 
-> [Back to Dorkinians Website Documentation](1DorkiniansWebsite.md)
+> [< Back to Dorkinians Website](1DorkiniansWebsite.md)
 
 ## Table of Contents
 

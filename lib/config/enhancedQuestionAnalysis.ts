@@ -2997,8 +2997,17 @@ export class EnhancedQuestionAnalyzer {
 		// Look for "since" type first (e.g., "since 2020")
 		const sinceFrame = extractionResult.timeFrames.find((tf) => tf.type === "since");
 		if (sinceFrame) {
-			const year = parseInt(sinceFrame.value, 10);
-			if (!isNaN(year)) {
+			// Extract year from phrases like "2019ish", "like 2019ish", "2019-ish", etc.
+			let year: number | null = null;
+			const yearMatch = sinceFrame.value.match(/\b(20\d{2})\b/);
+			if (yearMatch) {
+				year = parseInt(yearMatch[1], 10);
+			} else {
+				// Fallback to direct parsing if no match found
+				year = parseInt(sinceFrame.value, 10);
+			}
+			
+			if (!isNaN(year) && year >= 2000 && year <= 2100) {
 				const startDate = DateUtils.convertSinceYearToDate(year);
 				// Format as DD/MM/YYYY for legacy format
 				const formattedDate = DateUtils.formatDate(startDate);
