@@ -543,7 +543,7 @@ export default function Comparison() {
 		"Attacking Stats": [
 			{ displayName: "All Goals Scored", statKey: "AllGSC", statName: "allGoalsScored" },
 			{ displayName: "Goals Per Appearance", statKey: "GperAPP", statName: "goalsPerApp" },
-			{ displayName: "Minutes Per Goals", statKey: "MperG", statName: "minutesPerGoal" },
+			{ displayName: "Minutes Per Goal", statKey: "MperG", statName: "minutesPerGoal" },
 			{ displayName: "Assists", statKey: "A", statName: "assists" },
 			{ displayName: "Assists Per Appearance", statKey: "AperAPP", statName: "assistsPerApp" },
 			{ displayName: "Goal Involvements", statKey: "GI", statName: "goalInvolvements" },
@@ -617,21 +617,41 @@ export default function Comparison() {
 			};
 		});
 
-		// Find max values per stat for normalization
+		// Find max and min values per stat for normalization
 		const maxValues: { [key: string]: number } = {};
+		const minValues: { [key: string]: number } = {};
 		Object.entries(statValues).forEach(([statName, values]) => {
 			maxValues[statName] = Math.max(values.player1, values.player2, 1);
+			minValues[statName] = Math.min(values.player1, values.player2);
 		});
 
 		// Create data points with normalized values (0-100)
 		return categoryStats.map((statMapping) => {
 			const { player1, player2 } = statValues[statMapping.displayName];
 			const max = maxValues[statMapping.displayName] || 1;
+			const min = minValues[statMapping.displayName] || 1;
+			
+			// Get stat object to check if lower is better
+			const stat = statMapping.statKey ? statObject[statMapping.statKey as keyof typeof statObject] : null;
+			const isLowerBetter = stat?.statHigherBetterBoolean === false;
+			
+			let normalizedPlayer1: number;
+			let normalizedPlayer2: number;
+			
+			if (isLowerBetter) {
+				// For lower-is-better stats: lower value becomes 100%, higher value scales relative to it
+				normalizedPlayer1 = min > 0 ? (min / player1) * 100 : 0;
+				normalizedPlayer2 = min > 0 ? (min / player2) * 100 : 0;
+			} else {
+				// For higher-is-better stats: normalize relative to max (0-100)
+				normalizedPlayer1 = max > 0 ? (player1 / max) * 100 : 0;
+				normalizedPlayer2 = max > 0 ? (player2 / max) * 100 : 0;
+			}
 			
 			return {
 				category: statMapping.displayName,
-				player1: max > 0 ? (player1 / max) * 100 : 0,
-				player2: max > 0 ? (player2 / max) * 100 : 0,
+				player1: normalizedPlayer1,
+				player2: normalizedPlayer2,
 				player1Raw: player1,
 				player2Raw: player2
 			};
