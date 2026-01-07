@@ -501,4 +501,110 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query goals scored by team for a specific month and year
+	 */
+	static async queryGoalsByMonthAndYear(month: string, year: number): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Map month name to month index (0-11)
+		const monthMap: { [key: string]: number } = {
+			"january": 0, "february": 1, "march": 2, "april": 3, "may": 4, "june": 5,
+			"july": 6, "august": 7, "september": 8, "october": 9, "november": 10, "december": 11
+		};
+		
+		const monthIndex = monthMap[month.toLowerCase()];
+		if (monthIndex === undefined) {
+			return { type: "error", data: [], error: `Invalid month name: ${month}` };
+		}
+		
+		// Calculate start and end dates for the month
+		const startDate = `${year}-${String(monthIndex + 1).padStart(2, '0')}-01`;
+		const endDate = monthIndex === 11 
+			? `${year + 1}-01-01`  // December -> January of next year
+			: `${year}-${String(monthIndex + 2).padStart(2, '0')}-01`;
+		
+		const query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.date >= $startDate AND f.date < $endDate
+			  AND f.team IS NOT NULL
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH f.team as team, sum(coalesce(f.dorkiniansGoals, 0)) as goals
+			RETURN team, goals
+			ORDER BY goals DESC, team ASC
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$startDate/g, `'${startDate}'`)
+				.replace(/\$endDate/g, `'${endDate}'`);
+			chatbotService.lastExecutedQueries.push(`GOALS_BY_MONTH_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`GOALS_BY_MONTH_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, startDate, endDate });
+			return { 
+				type: "goals_by_month", 
+				data: result || [], 
+				month: month,
+				year: year
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryGoalsByMonthAndYear:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query players with most appearances in a specific season
+	 */
+	static async queryMostAppearancesBySeason(season: string): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2022/23")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WHERE md.season = $season
+			WITH p.playerName as playerName, count(md) as appearances
+			RETURN playerName, appearances
+			ORDER BY appearances DESC, playerName ASC
+			LIMIT 10
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$season/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`MOST_APPEARANCES_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`MOST_APPEARANCES_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, season: normalizedSeason });
+			return { 
+				type: "most_appearances_season", 
+				data: result || [], 
+				season: normalizedSeason 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryMostAppearancesBySeason:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

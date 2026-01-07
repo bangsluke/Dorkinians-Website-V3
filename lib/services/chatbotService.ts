@@ -594,12 +594,45 @@ export class ChatbotService {
 				}
 			}
 
-			// Check for "how many total goals were scored across all teams in [year]" questions
-			// Make detection more flexible to handle typos: "where" vs "were", "team" vs "teams"
+			// Check for "how many goals were scored across all teams in [month] [year]" questions
+			// This must be checked BEFORE the year-only check to ensure month-specific queries are handled correctly
 			const hasHowManyGoals = question.includes("how many total goals") || question.includes("how many goals");
 			const hasAllTeams = question.includes("across all teams") || question.includes("all teams") || question.includes("all team");
 			const hasYear = /\d{4}/.test(question);
-			const isTotalGoalsByYearQuestion = hasHowManyGoals && hasAllTeams && hasYear;
+			const monthNames = ["january", "february", "march", "april", "may", "june", 
+				"july", "august", "september", "october", "november", "december"];
+			const monthAbbreviations = ["jan", "feb", "mar", "apr", "may", "jun",
+				"jul", "aug", "sep", "oct", "nov", "dec"];
+			const hasMonth = monthNames.some(month => question.includes(month)) || 
+				monthAbbreviations.some(month => question.includes(month));
+			const isGoalsByMonthQuestion = hasHowManyGoals && hasAllTeams && hasMonth && hasYear;
+
+			if (isGoalsByMonthQuestion) {
+				// Extract month and year from question
+				let monthName = "";
+				let monthIndex = -1;
+				for (let i = 0; i < monthNames.length; i++) {
+					if (question.includes(monthNames[i])) {
+						monthName = monthNames[i];
+						monthIndex = i;
+						break;
+					} else if (question.includes(monthAbbreviations[i])) {
+						monthName = monthNames[i];
+						monthIndex = i;
+						break;
+					}
+				}
+				const yearMatch = question.match(/\b(20\d{2})\b/);
+				if (monthName && yearMatch) {
+					const year = parseInt(yearMatch[1], 10);
+					this.lastProcessingSteps.push(`Detected goals by month question, routing to ClubDataQueryHandler with month: ${monthName}, year: ${year}`);
+					return await ClubDataQueryHandler.queryGoalsByMonthAndYear(monthName, year);
+				}
+			}
+
+			// Check for "how many total goals were scored across all teams in [year]" questions
+			// Make detection more flexible to handle typos: "where" vs "were", "team" vs "teams"
+			const isTotalGoalsByYearQuestion = hasHowManyGoals && hasAllTeams && hasYear && !hasMonth;
 
 			if (isTotalGoalsByYearQuestion) {
 				// Extract year from question
@@ -1181,6 +1214,33 @@ export class ChatbotService {
 					return await PlayerDataQueryHandler.queryPlayerData(playerEntities, ["MostAppearancesSeason"], analysis, userContext);
 				} else {
 					this.lastProcessingSteps.push(`Most appearances season question detected but no player context available`);
+				}
+			}
+
+			// Check for "which player appeared in the most games in [season]" questions
+			const isMostAppearancesBySeasonQuestion = 
+				(question.includes("which player") || question.includes("what player") || question.includes("who")) &&
+				(question.includes("appeared") || question.includes("appearances") || question.includes("appear")) &&
+				(question.includes("most games") || question.includes("most matches")) &&
+				/\d{4}[\/\-]\d{2}/.test(question) &&
+				!question.includes("my") && !question.includes("your") && !question.includes("i ") && !question.includes("you ");
+
+			if (isMostAppearancesBySeasonQuestion) {
+				// Extract season from question
+				let season: string | null = null;
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else if (analysis.timeRange) {
+					const timeFrameMatch = analysis.timeRange.match(/(\d{4})[\/\-](\d{2})/);
+					if (timeFrameMatch) {
+						season = `${timeFrameMatch[1]}/${timeFrameMatch[2]}`;
+					}
+				}
+				
+				if (season) {
+					this.lastProcessingSteps.push(`Detected most appearances by season question, routing to ClubDataQueryHandler with season: ${season}`);
+					return await ClubDataQueryHandler.queryMostAppearancesBySeason(season);
 				}
 			}
 
@@ -3098,6 +3158,72 @@ export class ChatbotService {
 						columns: [
 							{ key: "Opposition", label: "Opposition" },
 							{ key: "Games Played", label: "Games Played" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type === "goals_by_month") {
+			// Handle goals by month data
+			const month = (data.month as string) || "";
+			const year = (data.year as number) || 0;
+			const goalsData = (data.data as Array<{ team: string; goals: number }>) || [];
+			
+			if (goalsData.length === 0) {
+				const monthCapitalized = month.charAt(0).toUpperCase() + month.slice(1);
+				answer = `No goals were scored across all teams in ${monthCapitalized} ${year}.`;
+				answerValue = 0;
+			} else {
+				const totalGoals = goalsData.reduce((sum, item) => sum + (item.goals || 0), 0);
+				const monthCapitalized = month.charAt(0).toUpperCase() + month.slice(1);
+				answer = `${totalGoals} ${totalGoals === 1 ? "goal was" : "goals were"} scored across all teams in ${monthCapitalized} ${year}.`;
+				answerValue = totalGoals;
+				
+				// Format data for table visualization
+				const tableData = goalsData.map((item) => ({
+					Team: item.team,
+					Goals: item.goals || 0,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Team", label: "Team" },
+							{ key: "Goals", label: "Goals" },
+						],
+					},
+				};
+			}
+		} else if (data && data.type === "most_appearances_season") {
+			// Handle most appearances by season data
+			const season = (data.season as string) || "";
+			const appearancesData = (data.data as Array<{ playerName: string; appearances: number }>) || [];
+			
+			if (appearancesData.length === 0) {
+				answer = `No player appearances found for the ${season} season.`;
+				answerValue = null;
+			} else {
+				const topPlayer = appearancesData[0];
+				answer = `${topPlayer.playerName} appeared in the most games in the ${season} season with ${topPlayer.appearances} ${topPlayer.appearances === 1 ? "appearance" : "appearances"}.`;
+				answerValue = topPlayer.playerName;
+				
+				// Format data for table visualization
+				const tableData = appearancesData.map((item) => ({
+					Player: item.playerName,
+					Appearances: item.appearances || 0,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Appearances", label: "Appearances" },
 						],
 						initialDisplayLimit: 5,
 						expandableLimit: 10,
