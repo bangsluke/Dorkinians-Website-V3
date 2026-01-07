@@ -607,4 +607,41 @@ export class ClubDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query wins count per season across all teams
+	 */
+	static async querySeasonWinsCount(): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		const query = `
+			MATCH (f:Fixture {graphLabel: $graphLabel})
+			WHERE f.result = "W" AND f.season IS NOT NULL
+			  AND (f.status IS NULL OR NOT (f.status IN ['Void', 'Postponed', 'Abandoned']))
+			WITH f.season as season, count(f) as wins
+			RETURN season, wins
+			ORDER BY wins DESC, season ASC
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`);
+			chatbotService.lastExecutedQueries.push(`SEASON_WINS_COUNT_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`SEASON_WINS_COUNT_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel });
+			return { 
+				type: "season_wins_count", 
+				data: result || []
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in querySeasonWinsCount:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

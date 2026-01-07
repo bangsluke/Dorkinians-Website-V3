@@ -2815,4 +2815,54 @@ export class PlayerDataQueryHandler {
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}
+
+	/**
+	 * Query players with most clean sheet appearances in a specific season
+	 * Clean sheet = MatchDetail in season connected to Fixture with conceded = 0
+	 */
+	static async queryCleanSheetAppearancesBySeason(season: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying clean sheet appearances by season: ${season}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2021/22")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE md.season = $season AND coalesce(f.conceded, 0) = 0
+			WITH p.playerName as playerName, count(DISTINCT md) as cleanSheetAppearances
+			RETURN playerName, cleanSheetAppearances
+			ORDER BY cleanSheetAppearances DESC, playerName ASC
+			LIMIT 10
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$season/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEET_APPEARANCES_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEET_APPEARANCES_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, season: normalizedSeason });
+			return { 
+				type: "clean_sheet_appearances_season", 
+				data: result || [], 
+				season: normalizedSeason 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryCleanSheetAppearancesBySeason:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
 }

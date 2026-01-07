@@ -644,6 +644,18 @@ export class ChatbotService {
 				}
 			}
 
+			// Check for "which season did the club record the most total wins across all teams" questions
+			const isSeasonWinsQuestion = 
+				(question.includes("which season") || question.includes("what season")) &&
+				(question.includes("most") || question.includes("highest")) &&
+				(question.includes("wins") || question.includes("win")) &&
+				(question.includes("across all teams") || question.includes("all teams") || question.includes("club") || question.includes("total wins"));
+
+			if (isSeasonWinsQuestion) {
+				this.lastProcessingSteps.push(`Detected season wins question, routing to ClubDataQueryHandler`);
+				return await ClubDataQueryHandler.querySeasonWinsCount();
+			}
+
 			// Check if this is an awards count question (e.g., "How many awards have I won?")
 			const isAwardsCountQuestion = type === "player" && 
 				(question.includes("how many awards") || question.includes("how many award")) &&
@@ -1241,6 +1253,34 @@ export class ChatbotService {
 				if (season) {
 					this.lastProcessingSteps.push(`Detected most appearances by season question, routing to ClubDataQueryHandler with season: ${season}`);
 					return await ClubDataQueryHandler.queryMostAppearancesBySeason(season);
+				}
+			}
+
+			// Check for "which player had the most clean sheet appearances in [season]" questions
+			const isCleanSheetAppearancesBySeasonQuestion = 
+				(question.includes("which player") || question.includes("what player") || question.includes("who")) &&
+				(question.includes("most") || question.includes("highest")) &&
+				(question.includes("clean sheet") || question.includes("clean sheets")) &&
+				(question.includes("appearances") || question.includes("appearance")) &&
+				/\d{4}[\/\-]\d{2}/.test(question) &&
+				!question.includes("my") && !question.includes("your") && !question.includes("i ") && !question.includes("you ");
+
+			if (isCleanSheetAppearancesBySeasonQuestion) {
+				// Extract season from question
+				let season: string | null = null;
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				if (seasonMatch) {
+					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else if (analysis.timeRange) {
+					const timeFrameMatch = analysis.timeRange.match(/(\d{4})[\/\-](\d{2})/);
+					if (timeFrameMatch) {
+						season = `${timeFrameMatch[1]}/${timeFrameMatch[2]}`;
+					}
+				}
+				
+				if (season) {
+					this.lastProcessingSteps.push(`Detected clean sheet appearances by season question, routing to PlayerDataQueryHandler with season: ${season}`);
+					return await PlayerDataQueryHandler.queryCleanSheetAppearancesBySeason(season);
 				}
 			}
 
@@ -3224,6 +3264,79 @@ export class ChatbotService {
 						columns: [
 							{ key: "Player", label: "Player" },
 							{ key: "Appearances", label: "Appearances" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type === "season_wins_count") {
+			// Handle season wins count data
+			const winsData = (data.data as Array<{ season: string; wins: number }>) || [];
+			
+			if (winsData.length === 0) {
+				answer = "No wins data found for any season.";
+				answerValue = null;
+			} else {
+				const topSeason = winsData[0];
+				// Normalize season format
+				let seasonString = topSeason.season;
+				if (seasonString) {
+					seasonString = seasonString.replace(/-/g, "/");
+				}
+				answer = `The club recorded the most total wins across all teams in the ${seasonString} season with ${topSeason.wins} ${topSeason.wins === 1 ? "win" : "wins"}.`;
+				answerValue = seasonString;
+				
+				// Format data for table visualization
+				const tableData = winsData.map((item) => {
+					let normalizedSeason = item.season;
+					if (normalizedSeason) {
+						normalizedSeason = normalizedSeason.replace(/-/g, "/");
+					}
+					return {
+						Season: normalizedSeason,
+						Wins: item.wins || 0,
+					};
+				});
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Season", label: "Season" },
+							{ key: "Wins", label: "Wins" },
+						],
+					},
+				};
+			}
+		} else if (data && data.type === "clean_sheet_appearances_season") {
+			// Handle clean sheet appearances by season data
+			const season = (data.season as string) || "";
+			const cleanSheetData = (data.data as Array<{ playerName: string; cleanSheetAppearances: number }>) || [];
+			
+			if (cleanSheetData.length === 0) {
+				answer = `No clean sheet appearances found for the ${season} season.`;
+				answerValue = null;
+			} else {
+				const topPlayer = cleanSheetData[0];
+				answer = `${topPlayer.playerName} had the most clean sheet appearances in the ${season} season with ${topPlayer.cleanSheetAppearances} ${topPlayer.cleanSheetAppearances === 1 ? "appearance" : "appearances"}.`;
+				answerValue = topPlayer.playerName;
+				
+				// Format data for table visualization
+				const tableData = cleanSheetData.map((item) => ({
+					Player: item.playerName,
+					"Clean Sheet Appearances": item.cleanSheetAppearances || 0,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Player", label: "Player" },
+							{ key: "Clean Sheet Appearances", label: "Clean Sheet Appearances" },
 						],
 						initialDisplayLimit: 5,
 						expandableLimit: 10,
