@@ -267,11 +267,11 @@ export default function LeagueResultsModal({
 							</div>
 
 							{/* Footer */}
-							<div className='border-t border-white/20 p-4'>
+							<div className='flex justify-center p-4 border-t border-white/20'>
 								<button
 									type='button'
 									onClick={handleClose}
-									className='w-full px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+									className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
 									Close
 								</button>
 							</div>

@@ -55,6 +55,9 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 
 	const handleLogoClick = () => {
 		setMainPage("home");
+		if (typeof window !== "undefined") {
+			window.location.href = "/";
+		}
 	};
 
 	const handleSubPageClick = (mainPageId: MainPage, subPageId: string) => {
