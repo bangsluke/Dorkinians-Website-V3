@@ -268,8 +268,10 @@ export default function ChatbotInterface() {
 			setResponse(data);
 
 			// Save to conversation history with player context
+			// Use the merged question from the response if available (for clarification merges), otherwise use the original input
+			const questionToStore = data.debug?.question || questionToSubmit.trim();
 			const newConversation: SavedConversation = {
-				question: questionToSubmit.trim(),
+				question: questionToStore,
 				response: data,
 				timestamp: Date.now(),
 				playerContext: selectedPlayer || undefined,
