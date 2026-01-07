@@ -127,7 +127,7 @@ export class PlayerDataQueryHandler {
 			);
 		}
 
-		// Filter out invalid entities (team numbers, hattrick terms, etc.)
+		// Filter out invalid entities (team numbers, hattrick terms, stat-related words, etc.)
 		const validEntities = entities.filter((entity) => {
 			const lowerEntity = entity.toLowerCase();
 			// Skip team numbers (3s, 3rd, etc.)
@@ -135,6 +135,15 @@ export class PlayerDataQueryHandler {
 			// Skip hattrick terms (hattrick, hat-trick, hat trick, etc.)
 			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
 			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) return false;
+			// Skip stat-related words that might be incorrectly extracted as player entities
+			const statWords = [
+				"season", "best", "worst", "goals", "goal", "assists", "assist",
+				"saves", "save", "sheets", "sheet", "clean", "cards", "card", 
+				"yellow", "red", "mom", "match", "man", "of", "the", "own", 
+				"conceded", "penalt", "penalties", "appearances", "appearance", 
+				"minutes", "minute"
+			];
+			if (statWords.some(word => lowerEntity.includes(word))) return false;
 			return true;
 		});
 
@@ -207,20 +216,71 @@ export class PlayerDataQueryHandler {
 			(teamEntities.length > 0 || questionLower.match(/\b(?:for|in|with)\s+(?:the\s+)?(\d+)(?:st|nd|rd|th|s)\b/i));
 		
 		if (isScoringRecordQuestion) {
-			// Override metrics to "G" (goals) for scoring record questions
-			metrics = ["G"];
-			loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+		// Override metrics to "G" (goals) for scoring record questions
+		metrics = ["G"];
+		loggingService.log(`🔍 Detected "scoring record" question, mapping to goals metric`, null, "log");
+	}
+	
+	// Check for "highest win percentage with" questions
+	const isWinPercentageQuestion = 
+		(questionLower.includes("highest win percentage") && questionLower.includes("with")) ||
+		(questionLower.includes("win percentage") && questionLower.includes("highest") && questionLower.includes("with")) ||
+		(questionLower.includes("best win percentage") && questionLower.includes("with"));
+	
+	if (isWinPercentageQuestion) {
+		// Resolve player name - prioritize "I" detection for userContext, then explicit player names
+		let playerName: string | undefined;
+		
+		// First, check if question contains "I" or first-person pronouns - use userContext immediately
+		const hasFirstPerson = questionLower.includes(" i ") || 
+		                       questionLower.match(/\bi\b/) ||
+		                       questionLower.includes("have i") ||
+		                       questionLower.includes("has i") ||
+		                       questionLower.includes("did i");
+		
+		if (hasFirstPerson && userContext) {
+			playerName = userContext;
+		} else if (entities.length > 0) {
+			playerName = entities[0];
 		}
 		
-		const isPlayedWithQuestion = 
+		if (!playerName) {
+			loggingService.log(`❌ No player context found for win percentage question`, null, "error");
+			return {
+				type: "no_context",
+				data: [],
+				message: "I need to know which player you're asking about. Please specify a player name or select a player.",
+			};
+		}
+		
+		const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+		
+		if (!resolvedPlayerName) {
+			loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+			return {
+				type: "player_not_found",
+				data: [],
+				message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+				playerName,
+			};
+		}
+		
+		loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryHighestWinPercentageWith`, null, "log");
+		return await RelationshipQueryHandler.queryHighestWinPercentageWith(resolvedPlayerName);
+	}
+	
+	const isPlayedWithQuestion =
 			questionLower.includes("played with") ||
 			questionLower.includes("play with") ||
 			questionLower.includes("played most") ||
+			questionLower.includes("shared the pitch") ||
+			questionLower.includes("shared pitch") ||
 			questionLower.includes("who did i play") ||
 			questionLower.includes("who did you play") ||
 			questionLower.includes("who have i played") ||
 			questionLower.includes("who have you played") ||
 			(questionLower.includes("which player") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
+			(questionLower.includes("which player") && (questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"))) ||
 			(questionLower.includes("who") && questionLower.includes("played") && questionLower.includes("most") && questionLower.includes("with")) ||
 			(questionLower.includes("who have") && questionLower.includes("played") && questionLower.includes("most")) ||
 			(questionLower.includes("who has") && questionLower.includes("played") && (questionLower.includes("most") || questionLower.includes("with"))) ||
@@ -533,6 +593,14 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
+			// Check if this is a clean sheets question
+			const hasCleanSheets = questionLower.includes("clean sheet") || questionLower.includes("clean sheets");
+			
+			if (hasCleanSheets) {
+				loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryCleanSheetsPlayedTogether`, null, "log");
+				return await RelationshipQueryHandler.queryCleanSheetsPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
+			}
+			
 			loggingService.log(`🔍 Resolved player names: ${resolvedPlayerName1} and ${resolvedPlayerName2}, calling queryGamesPlayedTogether`, null, "log");
 			return await RelationshipQueryHandler.queryGamesPlayedTogether(resolvedPlayerName1, resolvedPlayerName2, teamName, season, startDate, endDate);
 		}
@@ -670,8 +738,21 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
+			// Check for cup game filter in "played with" or "shared the pitch" questions
+			let compType: string | null = null;
+			let requestedLimit: number | undefined = undefined;
+			const isCupGameQuestion = 
+				questionLower.includes("cup") && 
+				(questionLower.includes("played with") || questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"));
+			
+			if (isCupGameQuestion) {
+				compType = "Cup";
+				requestedLimit = 5; // Top 5 initially, expandable to 10
+				loggingService.log(`🔍 Cup game filter detected for played with question`, null, "log");
+			}
+			
 			loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryMostPlayedWith`, null, "log");
-			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate);
+			return await RelationshipQueryHandler.queryMostPlayedWith(resolvedPlayerName, teamName, season, startDate, endDate, compType, requestedLimit);
 		}
 
 		// Check for "highest score in a week" questions
@@ -822,19 +903,30 @@ export class PlayerDataQueryHandler {
 			// Pattern: "how many times have I played [Team Name]?" or "played against [Team Name]"
 			// Only extract if it's clearly an opposition context (not "playing for" or team-related)
 			// CRITICAL: Skip if question contains "since" or date patterns (these are date queries, not opposition queries)
+			// CRITICAL: Skip if question contains competition-related words (cup, league, friendly, competition, competitions)
 			const hasDatePattern = questionLower.includes("since") || 
 			                       questionLower.includes("between") ||
 			                       questionLower.match(/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/);
+			const hasCompetitionPattern = questionLower.includes("cup") || 
+			                             questionLower.includes("league") || 
+			                             questionLower.includes("friendly") ||
+			                             questionLower.includes("competition") ||
+			                             questionLower.includes("competitions") ||
+			                             (analysis.competitionTypes && analysis.competitionTypes.length > 0) ||
+			                             (analysis.competitions && analysis.competitions.length > 0);
 			
-			if (!hasDatePattern) {
+			if (!hasDatePattern && !hasCompetitionPattern) {
 				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 				if (oppositionMatch && oppositionMatch[1]) {
 					const potentialOpposition = oppositionMatch[1];
 					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+					// Also skip competition-related words
 					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
 					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+					const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
 					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
 					    !isDateKeyword &&
+					    !isCompetitionKeyword &&
 					    !afterMatch?.toLowerCase().startsWith("for") &&
 					    !afterMatch?.toLowerCase().startsWith("the")) {
 						extractedOppositionName = potentialOpposition;
@@ -853,7 +945,9 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("how many times") || questionLower.includes("how many")) &&
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
-			!questionLower.includes("scored");
+			!questionLower.includes("scored") &&
+			!(analysis.competitionTypes && analysis.competitionTypes.length > 0) &&
+			!(analysis.competitions && analysis.competitions.length > 0);
 
 		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
 
@@ -1325,6 +1419,150 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
+		// Check for "which season did I appear in the most matches" questions
+		const detectMostAppearancesSeasonPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "which season did I appear in the most matches" / "what season did I appear in the most matches"
+			const pattern1Match = (lower.includes("which season") || lower.includes("what season")) && 
+				lower.includes("appear") && 
+				(lower.includes("most matches") || lower.includes("most appearances") || 
+				 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))));
+			// Pattern: "season I appeared in the most matches" / "season did I appear most"
+			const pattern2Match = lower.includes("season") && lower.includes("appear") && 
+				(lower.includes("most matches") || lower.includes("most appearances") || 
+				 (lower.includes("most") && (lower.includes("matches") || lower.includes("appearances"))));
+			const result = pattern1Match || pattern2Match;
+			return result;
+		};
+
+		const patternMatchResult = detectMostAppearancesSeasonPattern(questionLower);
+		const secondConditionCheck = questionLower.includes("what") || questionLower.includes("which") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes("i ") || questionLower.includes(" did");
+		const isMostAppearancesSeasonQuestion = patternMatchResult && secondConditionCheck;
+
+		if (isMostAppearancesSeasonQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["season", "matches", "appearances", "most", "appear"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+				// For first-person questions, prioritize userContext over playerEntities if they don't match
+				const questionLower = analysis.question?.toLowerCase() || "";
+				const isFirstPersonQuestion = questionLower.includes(" i ") || questionLower.includes(" my ") || 
+					questionLower.startsWith("i ") || questionLower.startsWith("my ") ||
+					questionLower.includes(" did i ") || questionLower.includes(" did my ");
+				
+				if (isFirstPersonQuestion && userContext && playerName.toLowerCase() !== userContext.toLowerCase()) {
+					// First-person question but playerEntity doesn't match userContext - use userContext
+					playerName = userContext;
+				}
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					// For first-person questions, prioritize userContext over entities if they don't match
+					const questionLower = analysis.question?.toLowerCase() || "";
+					const isFirstPersonQuestion = questionLower.includes(" i ") || questionLower.includes(" my ") || 
+						questionLower.startsWith("i ") || questionLower.startsWith("my ") ||
+						questionLower.includes(" did i ") || questionLower.includes(" did my ");
+					
+					if (isFirstPersonQuestion && userContext && playerName.toLowerCase() !== userContext.toLowerCase()) {
+						// First-person question but entity doesn't match userContext - use userContext
+						playerName = userContext;
+					} else if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			// Check if player name matches userContext before fuzzy matching
+			let resolvedPlayerName: string;
+			const playerNameNormalized = playerName.toLowerCase().trim();
+			const userContextNormalized = userContext?.toLowerCase().trim();
+			
+			if (userContext && playerNameNormalized === userContextNormalized) {
+				// Player name already matches the selected player, use it directly
+				resolvedPlayerName = userContext;
+				loggingService.log(`✅ Using selected player directly: ${resolvedPlayerName} (matched ${playerName})`, null, "log");
+			} else if (userContext && userContextNormalized && userContextNormalized.includes(playerNameNormalized) && playerNameNormalized.length >= 2) {
+				// Player name is a partial match of the selected player (e.g., "Luke" matches "Luke Bangs")
+				// Use the full selected player name
+				resolvedPlayerName = userContext;
+				loggingService.log(`✅ Using selected player for partial match: ${resolvedPlayerName} (matched partial ${playerName})`, null, "log");
+			} else {
+				// Resolve player name with fuzzy matching
+				const fuzzyResolved = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!fuzzyResolved) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				resolvedPlayerName = fuzzyResolved;
+				loggingService.log(`🔍 Resolved player name via fuzzy matching: ${playerName} → ${resolvedPlayerName}`, null, "log");
+			}
+
+			loggingService.log(`🔍 Querying most appearances season for ${resolvedPlayerName}`, null, "log");
+			// Use MostAppearancesSeason metric to trigger the special case query
+			const query = PlayerQueryBuilder.buildPlayerQuery(resolvedPlayerName, "MostAppearancesSeason", analysis);
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`MOST_APPEARANCES_SEASON: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel: neo4jService.getGraphLabel() })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel: neo4jService.getGraphLabel(),
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [],
+						message: `I couldn't find any season appearances data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "MostAppearancesSeason",
+					data: result,
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying most appearances season:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
 		// Check for "which season did I record my highest combined goals + assists total" questions
 		const detectHighestGoalsAssistsSeasonPattern = (q: string): boolean => {
 			const lower = q.toLowerCase();
@@ -1433,12 +1671,250 @@ export class PlayerDataQueryHandler {
 			}
 		}
 
-		// Check for season comparison questions
-		const isSeasonComparisonQuestion = 
+		// Check for "how many goals have I scored in matches played on Sundays only" questions
+		const detectSundayGoalsPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "how many goals" + "sunday" or "sundays"
+			if (lower.includes("how many goals") && (lower.includes("sunday") || lower.includes("sundays"))) {
+				return true;
+			}
+			// Pattern: "goals" + "sunday" + ("only" or "matches")
+			if (lower.includes("goals") && lower.includes("sunday") && 
+				(lower.includes("only") || lower.includes("matches") || lower.includes("played"))) {
+				return true;
+			}
+			// Pattern: "scored" + "sunday"
+			if (lower.includes("scored") && lower.includes("sunday")) {
+				return true;
+			}
+			return false;
+		};
+
+		const isSundayGoalsQuestion = 
+			detectSundayGoalsPattern(questionLower) &&
+			(questionLower.includes("how many") || questionLower.includes("i ") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes(" have"));
+
+		if (isSundayGoalsQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["sunday", "sundays", "goals", "matches", "only"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying Sunday goals for ${resolvedPlayerName}`, null, "log");
+			
+			// Build Cypher query to get goals + penaltiesScored from MatchDetail nodes
+			// connected to Fixture nodes where the date is a Sunday (dayOfWeek = 7 in Neo4j, where 1 = Monday, 7 = Sunday)
+			const graphLabel = neo4jService.getGraphLabel();
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE date(f.date).dayOfWeek = 7
+				RETURN sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+			`;
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`SUNDAY_GOALS: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel,
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [{ totalGoals: 0 }],
+						message: `I couldn't find any Sunday match data for ${resolvedPlayerName}.`,
+					};
+				}
+
+				const totalGoals = result[0]?.totalGoals || 0;
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "SundayGoals",
+					data: [{ totalGoals }],
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying Sunday goals:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// Check for "how many appearances did I make on Saturdays in 2022" questions
+		const detectSaturdayAppearancesPattern = (q: string): boolean => {
+			const lower = q.toLowerCase();
+			// Pattern: "appearances" or "app" + "saturday" or "saturdays" + year "2022"
+			if ((lower.includes("appearance") || lower.includes("app")) && 
+				(lower.includes("saturday") || lower.includes("saturdays")) &&
+				lower.includes("2022")) {
+				return true;
+			}
+			return false;
+		};
+
+		const isSaturdayAppearancesQuestion = 
+			detectSaturdayAppearancesPattern(questionLower) &&
+			(questionLower.includes("how many") || questionLower.includes("i ") || questionLower.includes("my") || questionLower.includes("your") || questionLower.includes(" have"));
+
+		if (isSaturdayAppearancesQuestion && (entities.length > 0 || userContext)) {
+			// Resolve player name - prioritize explicit player entities from question over userContext
+			let playerName = "";
+			const firstPersonPronouns = ["i", "my", "me", "myself", "i've"];
+			const invalidPlayerNamePatterns = ["saturday", "saturdays", "appearances", "app", "matches", "2022"];
+			const playerEntities = analysis.extractionResult?.entities?.filter(e => {
+				if (e.type !== "player") return false;
+				const lowerValue = e.value.toLowerCase();
+				if (firstPersonPronouns.includes(lowerValue)) return false;
+				if (invalidPlayerNamePatterns.some(pattern => lowerValue.includes(pattern))) return false;
+				return true;
+			}) || [];
+			if (playerEntities.length > 0) {
+				playerName = playerEntities[0].value;
+			} else {
+				if (entities.length > 0) {
+					playerName = entities[0];
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+			}
+			
+			if (!playerName) {
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question."
+				};
+			}
+			
+			const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+			
+			if (!resolvedPlayerName) {
+				loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+					playerName,
+				};
+			}
+
+			loggingService.log(`🔍 Querying Saturday appearances in 2022 for ${resolvedPlayerName}`, null, "log");
+			
+			// Build Cypher query to count MatchDetail nodes attached to the selected player
+			// that are from a Fixture in the year 2022 and were played on a Saturday
+			// Saturday = dayOfWeek = 6 in Neo4j (1=Monday, 7=Sunday, so 6=Saturday)
+			const graphLabel = neo4jService.getGraphLabel();
+			const query = `
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+				MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+				WHERE date(f.date).dayOfWeek = 6
+				  AND f.date >= '2022-01-01' 
+				  AND f.date <= '2022-12-31'
+				RETURN count(md) as appearances
+			`;
+			
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				chatbotService.lastExecutedQueries.push(`SATURDAY_APPEARANCES_2022: ${query}`);
+				chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName: resolvedPlayerName, graphLabel })}`);
+
+				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+					playerName: resolvedPlayerName,
+					graphLabel,
+				});
+
+				if (!result || !Array.isArray(result) || result.length === 0) {
+					return {
+						type: "specific_player",
+						playerName: resolvedPlayerName,
+						data: [{ appearances: 0 }],
+						message: `I couldn't find any Saturday match data for ${resolvedPlayerName} in 2022.`,
+					};
+				}
+
+				const appearances = result[0]?.appearances || 0;
+
+				return {
+					type: "specific_player",
+					playerName: resolvedPlayerName,
+					metric: "SaturdayAppearances2022",
+					data: [{ appearances }],
+				};
+			} catch (error) {
+				loggingService.log(`❌ Error querying Saturday appearances in 2022:`, error, "error");
+				return {
+					type: "error",
+					data: [],
+					error: error instanceof Error ? error.message : String(error),
+				};
+			}
+		}
+
+		// CRITICAL: Skip season comparison check if this is a "best season for stat" question
+		// These questions need special handling via BEST_SEASON_FOR_STAT metric, not generic season comparison
+		const isBestSeasonForStatQuestion = metrics.length > 0 && (
+			metrics[0].toUpperCase() === "BEST_SEASON_FOR_STAT" ||
+			metrics[0].toUpperCase() === "BESTSEASONFORSTAT"
+		);
+		
+		// Check for season comparison questions (but exclude "best season for [stat]" questions)
+		const isSeasonComparisonQuestion = !isBestSeasonForStatQuestion && (
 			(questionLower.includes("compare") && questionLower.includes("season")) ||
 			(questionLower.includes("vs") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
 			(questionLower.includes("versus") && (questionLower.includes("season") || /\d{4}[\/\-]\d{2}/.test(questionLower))) ||
-			(questionLower.includes("best season") || questionLower.includes("worst season"));
+			(questionLower.includes("best season") || questionLower.includes("worst season"))
+		);
 
 		if (isSeasonComparisonQuestion && entities.length > 0) {
 			const playerName = entities[0];
@@ -1549,6 +2025,17 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason") with detected metrics
+			// These metrics have custom query builders and should be preserved
+			const isSpecialCaseMetric = originalMetric && (
+				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
+				originalMetric.toUpperCase() === "BESTSEASONFORSTAT" ||
+				originalMetric.toUpperCase() === "MOSTPROLIFICSEASON" ||
+				originalMetric.toUpperCase() === "MOSTMINUTESSEASON" ||
+				originalMetric.toUpperCase() === "MOSTAPPEARANCESSEASON" ||
+				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON"
+			);
+			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
 			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
 			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
@@ -1556,8 +2043,11 @@ export class PlayerDataQueryHandler {
 				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
 				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
 			
-			// Use detected metric from question if available, but preserve team-specific metrics UNLESS question explicitly requests a different metric
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) ? originalMetric : (detectedMetricFromQuestion || originalMetric);
+			// Use detected metric from question if available, but preserve team-specific metrics and special case metrics
+			// UNLESS question explicitly requests a different metric (and it's not a special case)
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric
+				? originalMetric 
+				: (detectedMetricFromQuestion || originalMetric);
 
 			// Normalize metric names before uppercase conversion
 			let normalizedMetric = metricToUse;
@@ -1662,10 +2152,10 @@ export class PlayerDataQueryHandler {
 					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
 				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
 
-				const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
-					playerName: actualPlayerName,
-					graphLabel: neo4jService.getGraphLabel(),
-				});
+			const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
+				playerName: actualPlayerName,
+				graphLabel: neo4jService.getGraphLabel(),
+			});
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2353,6 +2843,56 @@ export class PlayerDataQueryHandler {
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in querySeasonsWithGoalCounts:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query players with most clean sheet appearances in a specific season
+	 * Clean sheet = MatchDetail in season connected to Fixture with conceded = 0
+	 */
+	static async queryCleanSheetAppearancesBySeason(season: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying clean sheet appearances by season: ${season}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Normalize season format to slash format (e.g., "2021/22")
+		const { normalizeSeasonFormat } = await import("../leagueTableService");
+		const normalizedSeason = normalizeSeasonFormat(season, 'slash');
+		
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel})
+			WHERE p.allowOnSite = true
+			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE md.season = $season AND coalesce(f.conceded, 0) = 0
+			WITH p.playerName as playerName, count(DISTINCT md) as cleanSheetAppearances
+			RETURN playerName, cleanSheetAppearances
+			ORDER BY cleanSheetAppearances DESC, playerName ASC
+			LIMIT 10
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$season/g, `'${normalizedSeason}'`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEET_APPEARANCES_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`CLEAN_SHEET_APPEARANCES_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, season: normalizedSeason });
+			return { 
+				type: "clean_sheet_appearances_season", 
+				data: result || [], 
+				season: normalizedSeason 
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryCleanSheetAppearancesBySeason:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}

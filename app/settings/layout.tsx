@@ -40,6 +40,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 			{/* Mobile Header */}
 			<Header 
 				onSettingsClick={handleSettingsClick} 
+				isSettingsPage={true}
 				onFilterClick={handleFilterClick} 
 				showFilterIcon={false}
 				onMenuClick={handleMenuClick}
@@ -47,8 +48,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 			/>
 
 			{/* Main Content */}
-			<main className='main-content-container'>
-				<div className='frosted-container'>
+			<main className='main-content-container settings-page'>
+				<div className='frosted-container settings-frosted-container'>
 					<div 
 						className='h-full overflow-y-auto'
 						style={{ 
@@ -60,8 +61,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 				</div>
 			</main>
 
-			{/* Mobile Footer Navigation */}
-			<FooterNavigation />
+			{/* Mobile Footer Navigation - Hidden on settings page */}
 		</div>
 	);
 }

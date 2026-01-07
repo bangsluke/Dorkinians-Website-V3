@@ -11,6 +11,7 @@ import NumberCard from "./chatbot-response/NumberCard";
 import Calendar from "./chatbot-response/Calendar";
 import Table from "./chatbot-response/Table";
 import Chart from "./chatbot-response/Chart";
+import ExampleQuestionsModal from "./modals/ExampleQuestionsModal";
 
 interface SavedConversation {
 	question: string;
@@ -29,6 +30,7 @@ export default function ChatbotInterface() {
 	const [error, setError] = useState<string | null>(null);
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
+	const [showExampleQuestionsModal, setShowExampleQuestionsModal] = useState(false);
 	const previousPlayerRef = useRef<string | null>(null);
 	const [sessionId] = useState(() => {
 		if (typeof window !== "undefined") {
@@ -516,6 +518,13 @@ export default function ChatbotInterface() {
 								</motion.div>
 							))}
 						</div>
+						<div className='flex justify-center mt-2 mb-4'>
+							<button
+								onClick={() => setShowExampleQuestionsModal(true)}
+								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+								Show more example questions
+							</button>
+						</div>
 					</div>
 				)}
 
@@ -586,9 +595,36 @@ export default function ChatbotInterface() {
 								))}
 							</div>
 						)}
+						{showExampleQuestions && (
+							<div className='flex justify-center mt-2 mb-4'>
+								<button
+									onClick={() => setShowExampleQuestionsModal(true)}
+									className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+									Show more example questions
+								</button>
+							</div>
+						)}
 					</div>
 				)}
 			</div>
+
+			{/* Example Questions Modal */}
+			<ExampleQuestionsModal
+				isOpen={showExampleQuestionsModal}
+				onClose={() => setShowExampleQuestionsModal(false)}
+				onSelectQuestion={(question) => {
+					setQuestion(question);
+					setShowExampleQuestionsModal(false);
+					// Focus the input after setting the question
+					setTimeout(() => {
+						const input = document.querySelector('input[type="text"]') as HTMLInputElement;
+						if (input) {
+							input.focus();
+							input.setSelectionRange(0, input.value.length);
+						}
+					}, 0);
+				}}
+			/>
 		</div>
 	);
 }

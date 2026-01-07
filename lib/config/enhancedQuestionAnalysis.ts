@@ -102,6 +102,94 @@ export class EnhancedQuestionAnalyzer {
 			}
 		}
 
+		// Early detection: Check for "best season for [stat]" pattern
+		const detectBestSeasonForStatPattern = (q: string): { isMatch: boolean; statType?: string } => {
+			const lower = q.toLowerCase();
+			
+			// Multi-word stat patterns (check these first to avoid partial matches)
+			const multiWordStats = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(yellow\s*cards?)/i, stat: "yellowcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(red\s*cards?)/i, stat: "redcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(clean\s*sheets?)/i, stat: "cleansheets" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(man\s+of\s+the\s+match|mom)/i, stat: "mom" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(own\s+goals?)/i, stat: "owngoals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+scored)/i, stat: "penaltiesscored" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+saved)/i, stat: "penaltiessaved" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(penalties\s+missed)/i, stat: "penaltiesmissed" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(goals\s+conceded)/i, stat: "conceded" },
+			];
+			
+			for (const { pattern, stat } of multiWordStats) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Single-word stat patterns
+			const singleWordStats = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(goals?)/i, stat: "goals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(assists?)/i, stat: "assists" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(saves?)/i, stat: "saves" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(appearances?)/i, stat: "appearances" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(minutes?)/i, stat: "minutes" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+for\s+(mom)/i, stat: "mom" },
+			];
+			
+			for (const { pattern, stat } of singleWordStats) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Pattern: "best season [stat]" (without "for") - check for multi-word stats first
+			const multiWordStatsNoFor = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(yellow\s*cards?)/i, stat: "yellowcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(red\s*cards?)/i, stat: "redcards" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(clean\s*sheets?)/i, stat: "cleansheets" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(man\s+of\s+the\s+match|mom)/i, stat: "mom" },
+			];
+			
+			for (const { pattern, stat } of multiWordStatsNoFor) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			// Single-word stats without "for"
+			const singleWordStatsNoFor = [
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(goals?)/i, stat: "goals" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(assists?)/i, stat: "assists" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(saves?)/i, stat: "saves" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(appearances?)/i, stat: "appearances" },
+				{ pattern: /(?:what'?s|what is|my|your)\s+(?:best|worst)\s+season\s+(minutes?)/i, stat: "minutes" },
+			];
+			
+			for (const { pattern, stat } of singleWordStatsNoFor) {
+				if (pattern.test(lower)) {
+					return { isMatch: true, statType: stat };
+				}
+			}
+			
+			return { isMatch: false };
+		};
+
+		const bestSeasonForStat = detectBestSeasonForStatPattern(lowerQuestion);
+		if (bestSeasonForStat.isMatch && bestSeasonForStat.statType) {
+			// Store the stat type in the analysis for later use
+			(extractionResult as any).bestSeasonStatType = bestSeasonForStat.statType;
+			// Add "Best Season For Stat" to statTypes to ensure proper routing
+			const hasBestSeasonForStat = extractionResult.statTypes.some(
+				(stat) => stat.value === "Best Season For Stat"
+			);
+			if (!hasBestSeasonForStat) {
+				extractionResult.statTypes.push({
+					value: "Best Season For Stat",
+					originalText: `best season for ${bestSeasonForStat.statType}`,
+					position: lowerQuestion.indexOf("best"),
+				});
+			}
+		}
+
 		// Early detection: Check for percentage queries and add to statTypes if found
 		// This must happen before the early exit check to ensure the question is properly recognized
 		const isPercentageQuestion = 
@@ -717,7 +805,10 @@ export class EnhancedQuestionAnalyzer {
 		const isPlayedWithQuestion = 
 			lowerQuestion.includes("played with") ||
 			lowerQuestion.includes("play with") ||
+			lowerQuestion.includes("shared the pitch") ||
+			lowerQuestion.includes("shared pitch") ||
 			(lowerQuestion.includes("which player") && lowerQuestion.includes("played") && (lowerQuestion.includes("most") || lowerQuestion.includes("with"))) ||
+			(lowerQuestion.includes("which player") && (lowerQuestion.includes("shared the pitch") || lowerQuestion.includes("shared pitch"))) ||
 			(lowerQuestion.includes("who") && lowerQuestion.includes("played") && lowerQuestion.includes("most") && lowerQuestion.includes("with")) ||
 			(lowerQuestion.includes("which opposition") && lowerQuestion.includes("most")) ||
 			(lowerQuestion.includes("opposition") && lowerQuestion.includes("most") && lowerQuestion.includes("played"));

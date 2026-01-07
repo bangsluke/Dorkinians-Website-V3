@@ -1613,4 +1613,96 @@ export class TemporalQueryHandler {
 			};
 		}
 	}
+
+	/**
+	 * Query monthly goal involvements for a player
+	 * Returns goal involvements (goals + assists + penaltiesScored) grouped by month
+	 */
+	static async queryMonthlyGoalInvolvements(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying monthly goal involvements for player: ${playerName}`, null, "log");
+
+		const graphLabel = neo4jService.getGraphLabel();
+		const params: Record<string, unknown> = {
+			playerName,
+			graphLabel
+		};
+
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			WITH md,
+			     CASE 
+			       WHEN toString(md.date) CONTAINS 'T' THEN substring(toString(md.date), 0, size(toString(md.date)) - size(split(toString(md.date), 'T')[1]) - 1)
+			       ELSE toString(md.date)
+			     END as dateOnly
+			WITH md, dateOnly,
+			     CASE 
+			       WHEN dateOnly CONTAINS '-' THEN split(dateOnly, '-')[1]
+			       WHEN dateOnly CONTAINS '/' THEN split(dateOnly, '/')[1]
+			       ELSE ''
+			     END as monthNum
+			WHERE monthNum IS NOT NULL AND monthNum <> ''
+			WITH md, monthNum,
+			     CASE 
+			       WHEN monthNum = '01' THEN 'January'
+			       WHEN monthNum = '02' THEN 'February'
+			       WHEN monthNum = '03' THEN 'March'
+			       WHEN monthNum = '04' THEN 'April'
+			       WHEN monthNum = '05' THEN 'May'
+			       WHEN monthNum = '06' THEN 'June'
+			       WHEN monthNum = '07' THEN 'July'
+			       WHEN monthNum = '08' THEN 'August'
+			       WHEN monthNum = '09' THEN 'September'
+			       WHEN monthNum = '10' THEN 'October'
+			       WHEN monthNum = '11' THEN 'November'
+			       WHEN monthNum = '12' THEN 'December'
+			       ELSE 'Unknown'
+			     END as monthName
+			WHERE monthName <> 'Unknown'
+			WITH monthName,
+			     sum(coalesce(md.goals, 0) + coalesce(md.assists, 0) + coalesce(md.penaltiesScored, 0)) as goalInvolvements
+			RETURN monthName, goalInvolvements
+			ORDER BY 
+				CASE monthName
+					WHEN 'January' THEN 1
+					WHEN 'February' THEN 2
+					WHEN 'March' THEN 3
+					WHEN 'April' THEN 4
+					WHEN 'May' THEN 5
+					WHEN 'June' THEN 6
+					WHEN 'July' THEN 7
+					WHEN 'August' THEN 8
+					WHEN 'September' THEN 9
+					WHEN 'October' THEN 10
+					WHEN 'November' THEN 11
+					WHEN 'December' THEN 12
+					ELSE 13
+				END ASC
+		`;
+
+		try {
+			const result = await neo4jService.executeQuery(query, params);
+			
+			if (!result || result.length === 0) {
+				return {
+					type: "monthly_goal_involvements",
+					data: [],
+					playerName
+				};
+			}
+
+			return {
+				type: "monthly_goal_involvements",
+				data: result,
+				playerName
+			};
+		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
+			loggingService.log(`❌ Error in monthly goal involvements query: ${errorMessage}`, error, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: `Error querying monthly goal involvements: ${errorMessage}` 
+			};
+		}
+	}
 }
