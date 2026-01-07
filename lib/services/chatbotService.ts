@@ -912,19 +912,24 @@ export class ChatbotService {
 				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
 			}
 
-			// Check for "highest scoring game" queries - these should route to fixture handler, not player handler
-			const isHighestScoringGameQuery = 
-				question.includes("highest scoring game") ||
-				(question.includes("highest scoring") && question.includes("game")) ||
-				(question.includes("most goals") && question.includes("game")) ||
-				(question.includes("highest total") && question.includes("game"));
+			// Check for "most goals we've conceded in a game when I was playing" questions
+			// This must be checked BEFORE isMostGoalsWhenPlayingQuery to avoid misrouting
+			const isMostGoalsConcededWhenPlayingQuery = 
+				(question.includes("most goals") && question.includes("conceded") && question.includes("game") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were"))) ||
+				(question.includes("most goals") && question.includes("conceded") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were")));
 
-			if (isHighestScoringGameQuery) {
-				this.lastProcessingSteps.push(`Detected highest scoring game question, routing to FixtureDataQueryHandler`);
-				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
+			if (isMostGoalsConcededWhenPlayingQuery) {
+				this.lastProcessingSteps.push(`Detected most goals conceded in game when playing question, routing to FixtureDataQueryHandler`);
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					return await FixtureDataQueryHandler.queryHighestTeamGoalsConcededInPlayerGames(playerName, analysis);
+				} else {
+					this.lastProcessingSteps.push(`Most goals conceded when playing question detected but no player context available`);
+				}
 			}
 
 			// Check for "most goals we've scored in a game when I was playing" questions
+			// This must be checked BEFORE isHighestScoringGameQuery to avoid misrouting
 			const isMostGoalsWhenPlayingQuery = 
 				(question.includes("most goals") && question.includes("game") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were"))) ||
 				(question.includes("most goals") && (question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were")));
@@ -937,6 +942,22 @@ export class ChatbotService {
 				} else {
 					this.lastProcessingSteps.push(`Most goals when playing question detected but no player context available`);
 				}
+			}
+
+			// Check for "highest scoring game" queries - these should route to fixture handler, not player handler
+			// Exclude player-specific patterns (e.g., "when I was playing") to avoid misrouting
+			const hasPlayerSpecificPattern = question.includes("when i was playing") || question.includes("when playing") || question.includes("when i was") || question.includes("when you were");
+			const isHighestScoringGameQuery = 
+				!hasPlayerSpecificPattern && (
+					question.includes("highest scoring game") ||
+					(question.includes("highest scoring") && question.includes("game")) ||
+					(question.includes("most goals") && question.includes("game")) ||
+					(question.includes("highest total") && question.includes("game"))
+				);
+
+			if (isHighestScoringGameQuery) {
+				this.lastProcessingSteps.push(`Detected highest scoring game question, routing to FixtureDataQueryHandler`);
+				return await FixtureDataQueryHandler.queryFixtureData(entities, metrics, analysis);
 			}
 
 			// Check for "how many games have I played and scored where the team won by exactly one goal" questions
@@ -3000,6 +3021,10 @@ export class ChatbotService {
 			const startDate = (data.startDate as string) || undefined;
 			const endDate = (data.endDate as string) || undefined;
 			
+			// Check if this is a "since" query (endDate is placeholder or sinceFrame exists)
+			const isSinceQuery = endDate === "2099-12-31" || 
+				analysis.extractionResult?.timeFrames?.some(tf => tf.type === "since");
+			
 			let gamesTogether = 0;
 			if (typeof data.data === "number") {
 				gamesTogether = data.data;
@@ -3033,7 +3058,11 @@ export class ChatbotService {
 					contextMessage += season ? ` in ${season}` : "";
 				}
 				if (startDate && endDate) {
-					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+					if (isSinceQuery && startDate) {
+						contextMessage += ` since ${DateUtils.formatDate(startDate)}`;
+					} else {
+						contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+					}
 				}
 				answer = `${playerName1} and ${playerName2} have not played together${contextMessage}.`;
 			} else {
@@ -3045,10 +3074,29 @@ export class ChatbotService {
 					contextMessage += season ? ` in ${season}` : "";
 				}
 				if (startDate && endDate) {
-					contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+					if (isSinceQuery && startDate) {
+						contextMessage += ` since ${DateUtils.formatDate(startDate)}`;
+					} else {
+						contextMessage += ` between ${DateUtils.formatDate(startDate)} and ${DateUtils.formatDate(endDate)}`;
+					}
 				}
 				answer = `${playerName1} and ${playerName2} have played together ${gamesTogether} ${gamesTogether === 1 ? "time" : "times"}${contextMessage}.`;
 				answerValue = gamesTogether;
+				
+				// Create NumberCard visualization with appearances icon
+				const roundedGames = this.roundValueByMetric("APP", gamesTogether);
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Games Together",
+						value: roundedGames,
+						iconName: this.getIconNameForMetric("APP")
+					}],
+					config: {
+						title: "Games Played Together",
+						type: "bar",
+					},
+				};
 			}
 		} else if (data && data.type === "clean_sheets_played_together") {
 			// Handle clean sheets played together data (specific player pair)
@@ -4332,10 +4380,47 @@ export class ChatbotService {
 					data: [{
 						name: "Goals Scored",
 						value: roundedGoals,
-						iconName: this.getIconNameForMetric("G")
+						iconName: this.getIconNameForMetric("G"),
+						wordedText: "goals scored"
 					}],
 					config: {
 						title: "Most Goals in Game When Playing",
+						type: "bar",
+					},
+				};
+			}
+		} else if (data && data.type === "highest_team_goals_conceded_in_player_game") {
+			// Handle highest team goals conceded in games where player was playing queries
+			const gameData = data.data as {
+				date: string;
+				opposition: string;
+				homeOrAway: string;
+				result: string;
+				dorkiniansGoals: number;
+				conceded: number;
+			} | null;
+			const playerName = (data.playerName as string) || "You";
+			
+			if (!gameData) {
+				answer = (data.message as string) || `No games found where ${playerName} was playing.`;
+			} else {
+				const location = gameData.homeOrAway === "Home" ? "at home" : gameData.homeOrAway === "Away" ? "away" : "";
+				const formattedDate = DateUtils.formatDate(gameData.date);
+				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
+				answerValue = gameData.conceded;
+				
+				// Create NumberCard visualization with goals conceded icon
+				const roundedConceded = this.roundValueByMetric("C", gameData.conceded);
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Goals Conceded",
+						value: roundedConceded,
+						iconName: this.getIconNameForMetric("C"),
+						wordedText: "goals conceded"
+					}],
+					config: {
+						title: "Most Goals Conceded in Game When Playing",
 						type: "bar",
 					},
 				};
