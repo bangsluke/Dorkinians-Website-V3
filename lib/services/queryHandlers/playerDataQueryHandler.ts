@@ -577,6 +577,28 @@ export class PlayerDataQueryHandler {
 				}
 			}
 			
+			// Handle "since" timeFrame - extract year from phrases like "2019ish", "like 2019ish", etc.
+			if (!startDate) {
+				const sinceFrame = timeFrames.find(tf => tf.type === "since");
+				if (sinceFrame) {
+					let year: number | null = null;
+					const yearMatch = sinceFrame.value.match(/\b(20\d{2})\b/);
+					if (yearMatch) {
+						year = parseInt(yearMatch[1], 10);
+					} else {
+						// Fallback to direct parsing if no match found
+						year = parseInt(sinceFrame.value, 10);
+					}
+					
+					if (!isNaN(year) && year >= 2000 && year <= 2100) {
+						startDate = DateUtils.convertSinceYearToDate(year);
+						// For "since" queries, endDate is not needed (it's open-ended)
+						// But we set it to a far future date to ensure all matches are included
+						endDate = "2099-12-31";
+					}
+				}
+			}
+			
 			if (!startDate || !endDate) {
 				const betweenDateMatch = question.match(/between\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})\s+and\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4})/i);
 				if (betweenDateMatch) {
