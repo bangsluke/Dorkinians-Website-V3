@@ -633,7 +633,14 @@ export default function Comparison() {
 			
 			// Get stat object to check if lower is better
 			const stat = statMapping.statKey ? statObject[statMapping.statKey as keyof typeof statObject] : null;
-			const isLowerBetter = stat?.statHigherBetterBoolean === false;
+			const statHigherBetter = stat && 'statHigherBetterBoolean' in stat 
+				? (stat as any).statHigherBetterBoolean 
+				: stat && 'statHigherBetterBooleanArray' in stat
+					? Array.isArray((stat as any).statHigherBetterBooleanArray) && (stat as any).statHigherBetterBooleanArray.length > 0
+						? (stat as any).statHigherBetterBooleanArray[0]
+						: true
+					: true;
+			const isLowerBetter = statHigherBetter === false;
 			
 			let normalizedPlayer1: number;
 			let normalizedPlayer2: number;
