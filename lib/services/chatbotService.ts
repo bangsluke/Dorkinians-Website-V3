@@ -233,14 +233,18 @@ export class ChatbotService {
 			}
 
 			// Use the question directly (removed clarification handling that combined questions)
-			const questionToProcess = context.question;
+			let questionToProcess = context.question;
 
 			// Analyze the question
 			let analysis = await this.analyzeQuestion(questionToProcess, context.userContext);
 			
 			// Merge conversation context if session ID provided
 			if (context.sessionId) {
-				analysis = conversationContextManager.mergeContext(context.sessionId, analysis);
+				analysis = await conversationContextManager.mergeContext(context.sessionId, analysis);
+				// Update questionToProcess to use the merged question from analysis if it was merged
+				if (analysis.question !== questionToProcess) {
+					questionToProcess = analysis.question;
+				}
 			}
 			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
@@ -265,6 +269,20 @@ export class ChatbotService {
 			// Handle clarification needed case (only set if explicitly needed, not pre-emptively)
 			// Note: Clarification will be requested post-query if no data is found
 			if (analysis.type === "clarification_needed") {
+				// Store pending clarification if we have a session ID
+				if (context.sessionId) {
+					const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
+					// Extract partial name from clarification message if it's a partial name clarification
+					let partialName: string | undefined = undefined;
+					if (clarificationMessage.includes("Please provide clarification on who")) {
+						const match = clarificationMessage.match(/who (\w+) is/);
+						if (match) {
+							partialName = match[1];
+						}
+					}
+					conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
+				}
+				
 				// Try to provide a better fallback response
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
@@ -1492,8 +1510,12 @@ export class ChatbotService {
 			const hasLastSeason = hasLastSeasonDirect || hasLastAndSeason || hasLeastSeasonTypo ||
 				question.match(/\blast\s+season\b/i) || 
 				(question.includes("season") && question.match(/\b(?:previous|prior|before)\s+season\b/i));
-			const hasPlayerContext = question.includes("i ") || question.includes(" i") || question.includes("my ") || userContext || entities.length > 0;
-			const isPlayerGoalsLastSeasonQuestion = hasGoalsPhrase && hasLastSeason && hasPlayerContext;
+			// Check if this is a team question - if teamEntities exist, this is NOT a player question
+			const hasTeamEntities = analysis.teamEntities && analysis.teamEntities.length > 0;
+			const hasExplicitPlayerMention = question.includes("i ") || question.includes(" i") || question.includes("my ") || 
+				(entities.length > 0 && !hasTeamEntities && entities.some(e => e.toLowerCase() !== "i" && e.toLowerCase() !== "my"));
+			const hasPlayerContext = hasExplicitPlayerMention || (userContext && !hasTeamEntities);
+			const isPlayerGoalsLastSeasonQuestion = hasGoalsPhrase && hasLastSeason && hasPlayerContext && !hasTeamEntities;
 
 			if (isPlayerGoalsLastSeasonQuestion) {
 				// Use entities first, fallback to userContext
@@ -7486,6 +7508,19 @@ export class ChatbotService {
 				if (clarificationMessage) {
 					answer = clarificationMessage;
 					answerValue = "Clarification needed";
+					
+					// Set pending clarification if we have a session ID
+					if (sessionId) {
+						// Extract partial name from clarification message if it's a partial name clarification
+						let partialName: string | undefined = undefined;
+						if (clarificationMessage.includes("Please provide clarification on who") || clarificationMessage.includes("Please clarify which")) {
+							const match = clarificationMessage.match(/(?:who|which) (\w+) (?:is|you are asking)/);
+							if (match) {
+								partialName = match[1];
+							}
+						}
+						conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage, analysis, partialName, userContext);
+					}
 				}
 			}
 		}
@@ -7586,7 +7621,15 @@ export class ChatbotService {
 			
 			// Set pending clarification if we have a session ID
 			if (sessionId) {
-				conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage);
+				// Extract partial name from clarification message if it's a partial name clarification
+				let partialName: string | undefined = undefined;
+				if (clarificationMessage.includes("Please provide clarification on who")) {
+					const match = clarificationMessage.match(/who (\w+) is/);
+					if (match) {
+						partialName = match[1];
+					}
+				}
+				conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage, analysis, partialName, userContext);
 			}
 		} else {
 			// Clear pending clarification if we successfully answered

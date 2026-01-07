@@ -12,7 +12,58 @@ import { AwardsQueryHandler } from "./awardsQueryHandler";
 import { ChatbotService } from "../chatbotService";
 import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
+// Special nickname mapping
+const TWAT_NICKNAME_MAP: Record<string, string> = {
+	"twat": "Kieran Mackrell",
+};
+
 export class PlayerDataQueryHandler {
+	/**
+	 * Check if a player name is a partial name that needs clarification
+	 * Returns clarification message if needed, null otherwise
+	 */
+	private static checkPartialNameClarification(playerName: string, userContext?: string): { needsClarification: boolean; message?: string } | null {
+		if (!userContext) {
+			return null;
+		}
+
+		const normalizedName = playerName.toLowerCase().trim();
+		const selectedPlayerLower = userContext.toLowerCase().trim();
+		const pronouns = ["i", "i've", "me", "my", "myself"];
+
+		// Skip pronouns
+		if (pronouns.includes(normalizedName)) {
+			return null;
+		}
+
+		// Check if it's a single word (partial name)
+		const isSingleWord = !normalizedName.includes(" ") && normalizedName.length >= 2 && normalizedName.length < 20;
+
+		if (isSingleWord) {
+			// Check special case: "Twat" -> "Kieran Mackrell"
+			if (normalizedName === "twat") {
+				return {
+					needsClarification: true,
+					message: "Did you mean Kieran Mackrell?",
+				};
+			}
+
+			// Check if selected player contains this partial name
+			if (selectedPlayerLower.includes(normalizedName) && normalizedName.length >= 2) {
+				// Partial name matches selected player, no clarification needed
+				return null;
+			}
+
+			// Partial name doesn't match selected player, clarification needed
+			return {
+				needsClarification: true,
+				message: `Please provide clarification on who ${playerName} is.`,
+			};
+		}
+
+		return null;
+	}
+
 	/**
 	 * Check if a player name is ambiguous (has multiple matches)
 	 * Returns the clarification message if ambiguous, null otherwise
@@ -533,12 +584,25 @@ export class PlayerDataQueryHandler {
 			const playerName1 = entities[0];
 			const playerName2 = entities[1];
 			
-			// Check for ambiguous player names BEFORE resolving (check the second player, not "I")
 			// Filter out pronouns to get the actual player name to check
 			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
 			const playerNameToCheck = pronouns.includes(playerName2.toLowerCase()) ? playerName1 : playerName2;
 			
 			if (playerNameToCheck && !pronouns.includes(playerNameToCheck.toLowerCase())) {
+				// Check for partial name FIRST (before ambiguous check)
+				loggingService.log(`🔍 Checking for partial player name: ${playerNameToCheck}`, null, "log");
+				const partialNameCheck = PlayerDataQueryHandler.checkPartialNameClarification(playerNameToCheck, userContext);
+				if (partialNameCheck && partialNameCheck.needsClarification && partialNameCheck.message) {
+					loggingService.log(`⚠️ Partial player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: partialNameCheck.message,
+						answerValue: "Clarification needed",
+					};
+				}
+
+				// Check for ambiguous player names AFTER partial name check
 				loggingService.log(`🔍 Checking for ambiguous player name: ${playerNameToCheck}`, null, "log");
 				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
 				if (ambiguousCheck) {
@@ -2143,6 +2207,18 @@ export class PlayerDataQueryHandler {
 			// Check if this is a team-specific question
 			if (playerName.match(/^\d+(?:st|nd|rd|th)?$/)) {
 				return await PlayerDataQueryHandler.queryTeamSpecificPlayerData(playerName, metric);
+			}
+
+			// Check for partial name that needs clarification BEFORE resolving
+			const partialNameCheck = PlayerDataQueryHandler.checkPartialNameClarification(playerName, userContext);
+			if (partialNameCheck && partialNameCheck.needsClarification && partialNameCheck.message) {
+				loggingService.log(`⚠️ Partial player name detected: ${playerName}`, null, "warn");
+				return {
+					type: "clarification_needed",
+					data: [],
+					message: partialNameCheck.message,
+					answerValue: "Clarification needed",
+				};
 			}
 
 			// Check if player name matches the selected player (userContext) before fuzzy matching
