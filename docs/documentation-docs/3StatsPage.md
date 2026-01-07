@@ -4,13 +4,14 @@ slug: /projects/dorkinians-website/stats-page
 
 # Stats
 
-> [Back to Dorkinians Website Documentation](1DorkiniansWebsite.md)
+> [< Back to Dorkinians Website](1DorkiniansWebsite.md)
 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
 - [Navigation](#navigation)
+  - [Stats Navigation Menu](#stats-navigation-menu)
 - [Filters](#filters)
 - [Player Stats](#player-stats)
   - [Key Performance Stats](#key-performance-stats)
@@ -65,18 +66,19 @@ slug: /projects/dorkinians-website/stats-page
 
 ## Overview
 
-The Stats section provides comprehensive statistics for players, teams, and the entire club. You can view detailed performance metrics, analyze trends over time, and compare different entities using interactive visualizations.
+The Stats section provides comprehensive statistics for players, teams, and the entire club, plus a player comparison section.
 
 :::info
-All statistics can be filtered by time range, team, location, opposition, competition, result, and position (where applicable).
+All statistics can be filtered by time range, team, location, opposition, competition, result, and position (where each is applicable).
 :::
 
-[Image: Stats Page Screenshot]
+<!-- TODO [Image: Stats Page Screenshot] -->
+
 > [Back to Table of Contents](#table-of-contents)
 
 ## Navigation
 
-The Stats section has four main sub-pages accessible via the navigation menu:
+The Stats section has four main sub-pages accessible via swiping left or right on mobile devices or using the navigation menu on desktop devices:
 
 - **Player Stats**: Individual player performance metrics
 - **Team Stats**: Team-level statistics and analysis
@@ -87,7 +89,20 @@ The Stats section has four main sub-pages accessible via the navigation menu:
 Swipe left or right on mobile devices to quickly switch between Stats sub-pages.
 :::
 
-You can also access the navigation menu by tapping the menu icon in the header to see all available sections and jump directly to any one.
+You can also access the navigation menu by tapping the burger menu icon in the header (that's the three horizontal lines) to see all available sections and jump directly to any one.
+
+### Stats Navigation Menu
+
+The Stats Navigation Menu provides quick access to all sections within the Stats pages. Access it by tapping the menu icon (three horizontal lines) in the header when viewing any Stats page.
+
+**Using the Stats Navigation Menu:**
+1. Tap the menu icon in the header (on mobile) or sidebar (on desktop)
+2. Expand the stats page you want to navigate to
+3. Tap on any section to jump directly to it
+
+:::tip
+Use the Stats Navigation Menu to quickly jump to specific sections without scrolling through the entire page.
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -99,22 +114,17 @@ Filters allow you to narrow down statistics to specific criteria. Available filt
 - **Team**: Filter by specific team (1st XI, 2nd XI, etc.)
 - **Location**: Filter by home or away matches
 - **Opposition**: Filter by specific opposition teams
-- **Competition**: Filter by League, Cup, or Friendly matches
+- **Competition**: Filter by League, Cup, or Friendly matches or by a specific competition
 - **Result**: Filter by wins, draws, or losses
 - **Position**: Filter by player position (GK, DEF, MID, FWD)
 
 **Using Filters:**
 1. Tap the filter icon to open the filter sidebar
-2. Select your desired filter criteria
-3. Active filters appear as pills below the header
-4. Tap a filter pill to remove that filter
-5. Tap "Clear All" to remove all filters
+2. Select your desired filter criteria and click "Apply Filters"
+3. Active filters appear as white pills below the header once back on the Stats page so you can see what filters are currently applied
 
-:::tip
-Filters are applied across all sections within the Stats page, so you can set them once and navigate between Player Stats, Team Stats, and Club Stats with the same filters active.
-:::
+<!-- TODO [Image: Filters Screenshot] -->
 
-[Image: Filters Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Player Stats
@@ -126,34 +136,22 @@ The Player Stats section provides comprehensive statistics for individual player
 The Key Performance Stats section displays the most important metrics for the selected player, including:
 
 - Appearances
-- Goals and assists
+- Minutes played
+- Seasons count
 - Man of the Match awards
-- Clean sheets (for defenders and goalkeepers)
-- Goals conceded (for defenders and goalkeepers)
-- Yellow and red cards
-- Fantasy points
+- Goals scored
+- Assists
 
-These stats are displayed as large, easy-to-read cards with icons and labels.
-
-[Image: Key Performance Stats Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Seasonal Performance
 
-The Seasonal Performance section shows how the player's statistics have changed across different seasons. This includes:
-
-- Goals per season
-- Assists per season
-- Appearances per season
-- Other key metrics over time
-
-Data is displayed in bar charts or line graphs showing trends across seasons.
+The Seasonal Performance section shows how the player's statistics have changed across different seasons displayed in a column chart to show trends over time.
 
 :::tip
-Use this section to identify a player's best seasons and track their performance trajectory over time.
+Use the dropdown menu to select a different metric to display in the chart.
 :::
 
-[Image: Seasonal Performance Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Team Performance
@@ -748,4 +746,3 @@ Filters persist when navigating between Stats sub-pages, so remember to clear fi
 :::
 
 > [Back to Table of Contents](#table-of-contents)
-

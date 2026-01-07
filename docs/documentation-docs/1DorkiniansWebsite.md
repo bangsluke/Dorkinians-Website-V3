@@ -4,7 +4,13 @@ slug: /projects/dorkinians-website
 
 # Dorkinians Website
 
-![Dorkinians Logo](https://i.postimg.cc/gJ87N09K/Dorkinians.png)
+![Dorkinians Website Screenshot](https://i.postimg.cc/Yq7Xvd7n/Dorkinians-Website.png)
+
+:::danger[HOT TIP]
+This app works best when installed as a native app on your phone or tablet and is highly recommended to do so.
+
+Navigate to the Settings Page using the icon in the top right of the screen and follow the steps for "**Add App to Home Screen**" to install the app.
+:::
 
 ## Quick Links
 
@@ -19,44 +25,18 @@ slug: /projects/dorkinians-website
 - [Quick Links](#quick-links)
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
-- [Database](#database)
-- [Main Features](#main-features)
 - [Navigation](#navigation)
-- [Documentation Pages](#documentation-pages)
+- [Site Pages](#site-pages)
   - [Home](#home)
   - [Stats](#stats)
   - [TOTW](#totw)
   - [Club Info](#club-info)
   - [Settings](#settings)
-- [Quick Start Guide](#quick-start-guide)
 - [Useful Links](#useful-links)
 
 ## Overview
 
-The Dorkinians Website is a mobile-first Progressive Web App (PWA) that provides comprehensive statistics and information about Dorkinians FC. The app features a natural language chatbot interface, detailed player and team statistics, Team of the Week displays, and club information.
-
-:::info
-The app is designed to work seamlessly on mobile devices and can be installed as a native app on your phone or tablet.
-:::
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Database
-
-The database is a Neo4j Aura instance that is used to store the data for the app, containing Player, Team, Fixture, and MatchDetail nodes, with over 23,000 nodes and 100,000 relationships.
-
-![Database Visualisation](https://i.postimg.cc/gjYNp0kc/visualisation_(2).png)
-
-![Database Visualisation Zoomed](https://i.postimg.cc/RhMXm0VF/visualisation_(1).png)
-
-## Main Features
-
-- **Natural Language Chatbot**: Ask questions about player stats, team performance, and club information in plain English
-- **Comprehensive Statistics**: View detailed player, team, and club statistics with interactive visualizations
-- **Team of the Week**: See the best performing players each week with a visual pitch display
-- **Player Comparison**: Compare multiple players side-by-side with radar charts
-- **Advanced Filtering**: Filter statistics by time range, team, location, opposition, competition, and more
-- **Progressive Web App**: Install the app on your device for offline access and native app experience
+The Dorkinians Website is a mobile-first Progressive Web App (PWA) that provides comprehensive statistics and information about Dorkinians FC. The app features a chatbot interface, detailed player and team statistics, Team of the Week displays, and club information.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -69,28 +49,34 @@ The app uses a bottom navigation bar with four main tabs:
 - **TOTW**: Team of the Week and Players of the Month
 - **Club Info**: Club information, league details, captains, awards, and useful links
 
-:::tip
-You can swipe left and right between pages on mobile devices for quick navigation.
+:::info
+There is also an easy navigation feature on the Settings Page to quickly navigate to any page.
 :::
 
-The Settings page can be accessed from the header menu and provides quick navigation to all sections, database status information, and PWA installation options.
+Within each tab, there can be multiple pages such as on the Stats tab.
+
+:::tip
+You can swipe left and right between some pages on mobile devices for quick navigation or click on the white dots at the top of the screen.
+:::
+
+**Desktop Navigation:**
+- On desktop devices, a persistent sidebar navigation is available on the left side of the screen
+- The sidebar provides quick access to all main pages and sub-pages
+- Filter and menu icons are available in the sidebar when viewing Stats pages
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Documentation Pages
+## Site Pages
 
 ### Home
 
-The Home page features the chatbot interface where you can ask natural language questions about Dorkinians FC statistics.
+The Home page features the chatbot interface where you can ask questions about Dorkinians FC statistics.
 
-**Key Features:**
-- Natural language question processing
-- Player context selection
-- Example questions
-- Conversation history
-- Visual data responses
+Example questions are provided to get you started.
 
+:::info
 [View Home Documentation →](2HomePage.md)
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -104,7 +90,9 @@ The Stats section provides comprehensive statistics for players, teams, and the 
 - **Club Stats**: Club-wide statistics and comparisons
 - **Comparison**: Side-by-side player comparison with radar charts
 
+:::info
 [View Stats Documentation →](3StatsPage.md)
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -116,7 +104,9 @@ The TOTW (Team of the Week) section displays the best performing players each we
 - **Team of the Week**: Weekly best XI with visual pitch display
 - **Players of the Month**: Monthly player awards
 
+:::info
 [View TOTW Documentation →](4TOTWPage.md)
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -131,7 +121,9 @@ The Club Info section contains information about the club, leagues, captains, aw
 - **Club Awards**: Award information and winners
 - **Useful Links**: External resources and links
 
+:::info
 [View Club Info Documentation →](5ClubInfoPage.md)
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -145,20 +137,8 @@ The Settings page provides quick navigation to all app sections, database status
 - PWA installation prompt
 - App version information
 
+:::info
 [View Settings Documentation →](6SettingsPage.md)
-
-> [Back to Table of Contents](#table-of-contents)
-
-## Quick Start Guide
-
-1. **Access the App**: Open the Dorkinians Website in your browser or install it as a PWA
-2. **Ask a Question**: On the Home page, type a question in the chatbot interface (e.g., "How many goals has Luke Bangs scored?")
-3. **View Statistics**: Navigate to the Stats tab to explore detailed player, team, and club statistics
-4. **Check TOTW**: Visit the TOTW tab to see the Team of the Week and Players of the Month
-5. **Explore Club Info**: Browse club information, league details, and useful links in the Club Info tab
-
-:::tip
-Start with the chatbot on the Home page - it's the quickest way to find specific information!
 :::
 
 > [Back to Table of Contents](#table-of-contents)
