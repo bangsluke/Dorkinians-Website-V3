@@ -27,6 +27,11 @@ export interface EnhancedQuestionAnalysis {
 	resultQuantity?: "singular" | "plural";
 }
 
+// Special nickname mapping
+const TWAT_NICKNAME_MAP: Record<string, string> = {
+	"twat": "Kieran Mackrell",
+};
+
 // EnhancedQuestionAnalyzer class processes the question and returns an EnhancedQuestionAnalysis object
 export class EnhancedQuestionAnalyzer {
 	private question: string;
@@ -267,12 +272,24 @@ export class EnhancedQuestionAnalyzer {
 		
 		const complexity = this.assessComplexity(correctedExtractionResult);
 		
-		// Don't set clarification at analysis time - let queries run first
-		// Clarification will be requested only if queries return no data
-		const requiresClarification = false;
+		// Check for partial player names BEFORE other checks - these need clarification immediately
+		// This check happens early because partial names are inherently ambiguous and shouldn't proceed to queries
+		const partialNameCheck = this.checkPartialNameClarificationNeeded(correctedExtractionResult);
+		let requiresClarification = false;
+		let clarificationMessage: string | undefined = undefined;
+		
+		if (partialNameCheck.needsClarification) {
+			requiresClarification = true;
+			clarificationMessage = partialNameCheck.message;
+		} else {
+			// Don't set clarification at analysis time for other cases - let queries run first
+			// Clarification will be requested only if queries return no data
+			requiresClarification = false;
+		}
 
 		// Determine question type based on extracted entities and content
-		const type = this.determineQuestionType(extractionResult);
+		// If partial name clarification is needed, set type to clarification_needed
+		const type = partialNameCheck.needsClarification ? ("clarification_needed" as QuestionType) : this.determineQuestionType(extractionResult);
 
 		// Extract entities for backward compatibility
 		const entities = this.extractLegacyEntities(extractionResult);
@@ -357,7 +374,7 @@ export class EnhancedQuestionAnalyzer {
 			extractionResult,
 			complexity,
 			requiresClarification,
-			clarificationMessage: requiresClarification ? this.generateClarificationMessage(extractionResult, complexity) : undefined,
+			clarificationMessage: clarificationMessage || (requiresClarification ? this.generateClarificationMessage(extractionResult, complexity) : undefined),
 			question: this.question,
 			confidence,
 			resultQuantity,
@@ -446,6 +463,97 @@ export class EnhancedQuestionAnalyzer {
 		return null;
 	}
 
+	// Check if clarification is needed for partial player names (single-word names)
+	private checkPartialNameClarificationNeeded(extractionResult: EntityExtractionResult): { needsClarification: boolean; message?: string; partialName?: string } {
+		if (!this.userContext) {
+			return { needsClarification: false };
+		}
+
+		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
+		if (playerEntities.length === 0) {
+			return { needsClarification: false };
+		}
+
+		const selectedPlayerLower = this.userContext.toLowerCase().trim();
+		const pronouns = ["i", "i've", "me", "my", "myself"];
+		// Common words that are unlikely to be player names but might be incorrectly extracted as player entities
+		// Includes: common nouns, competition names, location names, and other non-player terms
+		const commonWords = ["team", "teams", "week", "weeks", "weekend", "weekends", "history", "score", "scores", "goal", "goals", "time", "times", "row", "streak", "streaks", "consecutive", "clean", "sheet", "sheets", "premier", "league", "cup", "friendly", "competition", "competitions", "season", "seasons", "home", "away", "pixham", "opposition", "oppositions", "player", "players", "club", "games", "game", "matches", "match", "appearances", "appearance", "assists", "assist", "penalties", "penalty", "shootouts", "shootout", "sundays", "saturday", "saturdays", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "position", "positions", "finish", "finishes", "record", "records", "defensive", "involvements", "involvement", "number", "numbers", "highest", "longest", "best", "most", "combined", "shared", "pitch", "bang", "banged", "run", "runs", "total", "totals"];
+
+		// Filter out pronouns and common words - only check actual potential player names
+		const nonPronounPlayerEntities = playerEntities.filter((entity) => {
+			let originalText = entity.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+			// Handle duplication issue: if text contains the same word twice (e.g., "Luke Luke"), take only the first occurrence
+			const words = originalText.split(/\s+/);
+			const uniqueWords: string[] = [];
+			for (const word of words) {
+				if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+					uniqueWords.push(word);
+				}
+			}
+			originalText = uniqueWords.join(" ").trim();
+			
+			// Normalize text by removing trailing punctuation before checking against common words
+			const normalizedText = originalText.replace(/[?!.,;:]+$/, "").trim();
+			
+			// Skip pronouns and common words (check both original and normalized versions)
+			return !pronouns.includes(originalText) && !pronouns.includes(normalizedText) && 
+			       !commonWords.includes(originalText) && !commonWords.includes(normalizedText);
+		});
+
+		// If all player entities are pronouns or common words, no clarification needed
+		if (nonPronounPlayerEntities.length === 0) {
+			return { needsClarification: false };
+		}
+
+		// Check each non-pronoun player entity for partial names
+		for (const entity of nonPronounPlayerEntities) {
+			// Clean originalText: remove "(resolved to: ...)" suffix and handle any duplication
+			let originalText = entity.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+			// Handle duplication issue: if text contains the same word twice (e.g., "Luke Luke"), take only the first occurrence
+			const words = originalText.split(/\s+/);
+			const uniqueWords: string[] = [];
+			for (const word of words) {
+				if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+					uniqueWords.push(word);
+				}
+			}
+			originalText = uniqueWords.join(" ").trim();
+
+			// Check if it's a single word (partial name)
+			const isSingleWord = !originalText.includes(" ") && originalText.length >= 2 && originalText.length < 20;
+			
+			if (isSingleWord) {
+				// Check special case: "Twat" -> "Kieran Mackrell"
+				if (originalText === "twat") {
+					return {
+						needsClarification: true,
+						message: "Did you mean Kieran Mackrell?",
+						partialName: originalText,
+					};
+				}
+
+				// Check if selected player contains this partial name
+				const containsPartial = selectedPlayerLower.includes(originalText) && originalText.length >= 2;
+				if (containsPartial) {
+					// Partial name matches selected player, no clarification needed
+					continue;
+				}
+
+				// Partial name doesn't match selected player, clarification needed
+				// Use the cleaned originalText (after deduplication) for the message
+				const cleanNameForMessage = originalText; // Already deduplicated above
+				return {
+					needsClarification: true,
+					message: `Please provide clarification on who ${cleanNameForMessage} is.`,
+					partialName: originalText,
+				};
+			}
+		}
+
+		return { needsClarification: false };
+	}
+
 	// Check if clarification is needed based on the number of entities and stat types
 	private checkClarificationNeeded(extractionResult: EntityExtractionResult, complexity: "simple" | "moderate" | "complex"): boolean {
 		// Only count actual named entities (players, teams, oppositions, leagues), not locations/timeframes
@@ -474,6 +582,13 @@ export class EnhancedQuestionAnalyzer {
 		// Check for ambiguous entity references
 		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
 		const hasAmbiguousPlayerRef = playerEntities.some((e) => e.value === "I") && this.userContext;
+
+		// Check for partial player names (single-word names) that need clarification
+		// This check happens before the general ambiguous player name check
+		const partialNameCheck = this.checkPartialNameClarificationNeeded(extractionResult);
+		if (partialNameCheck.needsClarification) {
+			return true;
+		}
 
 		// Check for ambiguous player names that don't match the selected player
 		// If we have player entities, userContext exists, but none of the player entities match the selected player
@@ -587,6 +702,13 @@ export class EnhancedQuestionAnalyzer {
 		const teamCount = namedEntities.filter((e) => e.type === "team").length;
 		const oppositionCount = namedEntities.filter((e) => e.type === "opposition").length;
 		const leagueCount = namedEntities.filter((e) => e.type === "league").length;
+
+		// Check for partial player names (single-word names) that need clarification
+		// This check happens first to provide specific messages for partial names
+		const partialNameCheck = this.checkPartialNameClarificationNeeded(extractionResult);
+		if (partialNameCheck.needsClarification && partialNameCheck.message) {
+			return partialNameCheck.message;
+		}
 
 		// Check for ambiguous player names that don't match the selected player
 		const playerEntities = extractionResult.entities.filter((e) => e.type === "player");
@@ -1079,6 +1201,31 @@ export class EnhancedQuestionAnalyzer {
 					if (selectedPlayerLower.includes(cleanOriginalText) && cleanOriginalText.length >= 2 && 
 						cleanOriginalText !== "i" && cleanOriginalText !== "i've" && cleanOriginalText !== "me" && cleanOriginalText !== "my" && cleanOriginalText !== "myself") {
 						entities.push(matchedPlayerName); // Use the matched player name (which is this.userContext)
+						hasMatchedPlayer = true;
+					} else {
+						entities.push(entity.value);
+					}
+				} else if (this.userContext && entity.type === "player") {
+					// Check if this is a partial name that matches the selected player
+					// This handles cases where checkPartialPlayerNameMatch didn't catch it
+					let originalText = entity.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					// Handle duplication issue
+					const words = originalText.split(/\s+/);
+					const uniqueWords: string[] = [];
+					for (const word of words) {
+						if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+							uniqueWords.push(word);
+						}
+					}
+					originalText = uniqueWords.join(" ").trim();
+					
+					const selectedPlayerLower = this.userContext.toLowerCase().trim();
+					const pronouns = ["i", "i've", "me", "my", "myself"];
+					const isSingleWord = !originalText.includes(" ") && originalText.length >= 2 && originalText.length < 20;
+					
+					// If it's a single word (partial name) and the selected player contains it, use the selected player
+					if (isSingleWord && !pronouns.includes(originalText) && selectedPlayerLower.includes(originalText)) {
+						entities.push(this.userContext);
 						hasMatchedPlayer = true;
 					} else {
 						entities.push(entity.value);

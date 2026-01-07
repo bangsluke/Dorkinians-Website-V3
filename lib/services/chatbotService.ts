@@ -233,14 +233,18 @@ export class ChatbotService {
 			}
 
 			// Use the question directly (removed clarification handling that combined questions)
-			const questionToProcess = context.question;
+			let questionToProcess = context.question;
 
 			// Analyze the question
 			let analysis = await this.analyzeQuestion(questionToProcess, context.userContext);
 			
 			// Merge conversation context if session ID provided
 			if (context.sessionId) {
-				analysis = conversationContextManager.mergeContext(context.sessionId, analysis);
+				analysis = await conversationContextManager.mergeContext(context.sessionId, analysis);
+				// Update questionToProcess to use the merged question from analysis if it was merged
+				if (analysis.question !== questionToProcess) {
+					questionToProcess = analysis.question;
+				}
 			}
 			
 			this.lastQuestionAnalysis = analysis; // Store for debugging
@@ -265,6 +269,20 @@ export class ChatbotService {
 			// Handle clarification needed case (only set if explicitly needed, not pre-emptively)
 			// Note: Clarification will be requested post-query if no data is found
 			if (analysis.type === "clarification_needed") {
+				// Store pending clarification if we have a session ID
+				if (context.sessionId) {
+					const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
+					// Extract partial name from clarification message if it's a partial name clarification
+					let partialName: string | undefined = undefined;
+					if (clarificationMessage.includes("Please provide clarification on who")) {
+						const match = clarificationMessage.match(/who (\w+) is/);
+						if (match) {
+							partialName = match[1];
+						}
+					}
+					conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
+				}
+				
 				// Try to provide a better fallback response
 				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
 					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
@@ -451,8 +469,13 @@ export class ChatbotService {
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
 		const { type, entities, metrics } = analysis;
-		let question = analysis.question?.toLowerCase() || "";
+		// Store original question before normalization for detection
+		const originalQuestionBeforeNormalization = analysis.question?.toLowerCase() || "";
+		let question = originalQuestionBeforeNormalization;
 
+		// Normalize apostrophes (curly to straight) for consistent pattern matching
+		question = question.replace(/['']/g, "'");
+		
 		// Normalize colloquial phrases to standard terms
 		// Replace colloquial goal-scoring verbs with "score"/"scored" for consistent detection
 		question = question
@@ -1438,10 +1461,17 @@ export class ChatbotService {
 			}
 
 			// Check for "how many seasons have I played where I didn't score any goals" questions
+			// Use flexible regex to handle any apostrophe character and word variations
+			// Match "didn't" or "didnt" (with any character or none between 'n' and 't') followed by "score" or "scored"
+			// Try Unicode punctuation class first, fallback to simple character match
+			const didntScoreRegex1 = /didn\p{P}?t\s+scored?/iu;
+			const didntScoreRegex2 = /didn.t\s+scored?/i; // . matches any character including apostrophes
+			const hasDidntScore = didntScoreRegex1.test(question) || didntScoreRegex2.test(question);
+			// Match "any goals", "no goals", "zero goals", "0 goals", "a goal", or "many goals" (user might type this)
+			const hasNoGoalsPhrase = /\b(any|no|zero|0|many)\s+goals?\b|\ba\s+goal\b/i.test(question);
 			const isSeasonsNoGoalsQuestion = 
 				(question.includes("how many seasons") || question.includes("how many season")) &&
-				(question.includes("didn't score") || question.includes("didnt score") || question.includes("did not score") ||
-				 question.includes("no goals") || question.includes("zero goals") || question.includes("0 goals")) &&
+				hasDidntScore && hasNoGoalsPhrase &&
 				(question.includes("played") || question.includes("play"));
 
 			if (isSeasonsNoGoalsQuestion) {
@@ -1462,6 +1492,49 @@ export class ChatbotService {
 					return await PlayerDataQueryHandler.querySeasonsWithGoalCounts(playerName);
 				} else {
 					this.lastProcessingSteps.push(`Seasons no goals question detected but no player context available`);
+				}
+			}
+
+			// Check for "how many goals did I get last season" questions
+			const hasGoalsPhrase = question.includes("how many goals") || question.includes("how many goal") || 
+				(question.includes("goals") && (question.includes("get") || question.includes("got") || question.includes("score") || question.includes("scored")));
+			// More robust detection: check for "last season" in both normalized and original question
+			// Also check if question contains "season" and "last" separately (handles spacing variations)
+			// Handle common typo "least season" as "last season" when in goals context
+			// Check original question before normalization to catch "last" before any text processing
+			const originalQuestion = originalQuestionBeforeNormalization || analysis.question?.toLowerCase() || "";
+			const hasLastSeasonDirect = question.includes("last season") || originalQuestion.includes("last season");
+			const hasLastAndSeason = (question.includes("season") && question.includes("last")) || 
+				(originalQuestion.includes("season") && originalQuestion.includes("last"));
+			const hasLeastSeasonTypo = (question.includes("least season") || originalQuestion.includes("least season")) && hasGoalsPhrase;
+			const hasLastSeason = hasLastSeasonDirect || hasLastAndSeason || hasLeastSeasonTypo ||
+				question.match(/\blast\s+season\b/i) || 
+				(question.includes("season") && question.match(/\b(?:previous|prior|before)\s+season\b/i));
+			// Check if this is a team question - if teamEntities exist, this is NOT a player question
+			const hasTeamEntities = analysis.teamEntities && analysis.teamEntities.length > 0;
+			const hasExplicitPlayerMention = question.includes("i ") || question.includes(" i") || question.includes("my ") || 
+				(entities.length > 0 && !hasTeamEntities && entities.some(e => e.toLowerCase() !== "i" && e.toLowerCase() !== "my"));
+			const hasPlayerContext = hasExplicitPlayerMention || (userContext && !hasTeamEntities);
+			const isPlayerGoalsLastSeasonQuestion = hasGoalsPhrase && hasLastSeason && hasPlayerContext && !hasTeamEntities;
+
+			if (isPlayerGoalsLastSeasonQuestion) {
+				// Use entities first, fallback to userContext
+				let playerName = "";
+				if (entities.length > 0) {
+					playerName = entities[0];
+					// Fix: If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+					if ((playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my") && userContext) {
+						playerName = userContext;
+					}
+				} else if (userContext) {
+					playerName = userContext;
+				}
+
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected player goals last season question, routing to PlayerDataQueryHandler with player: ${playerName}`);
+					return await PlayerDataQueryHandler.queryPlayerGoalsLastSeason(playerName);
+				} else {
+					this.lastProcessingSteps.push(`Player goals last season question detected but no player context available`);
 				}
 			}
 
@@ -3159,6 +3232,21 @@ export class ChatbotService {
 				}
 				answer = `${cleanSheetsTogether} clean sheet${cleanSheetsTogether === 1 ? "" : "s"} occurred in game${cleanSheetsTogether === 1 ? "" : "s"} where ${playerName1} played with ${playerName2}${contextMessage}.`;
 				answerValue = cleanSheetsTogether;
+				
+				// Create NumberCard visualization with clean sheet icon
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Clean Sheets",
+						value: cleanSheetsTogether,
+						wordedText: cleanSheetsTogether === 1 ? "clean sheet" : "clean sheets",
+						iconName: this.getIconNameForMetric("CLS")
+					}],
+					config: {
+						title: "Clean Sheets",
+						type: "bar",
+					},
+				};
 			}
 		} else if (data && data.type === "goals_scored_together") {
 			// Handle goals scored together data (specific player pair)
@@ -4820,6 +4908,30 @@ export class ChatbotService {
 					};
 				}
 			}
+		} else if (data && data.type === "player_goals_last_season") {
+			// Handle player goals last season queries
+			const playerName = (data.playerName as string) || "You";
+			const totalGoals = (data.totalGoals as number) || 0;
+			const lastSeason = (data.lastSeason as string) || "";
+			
+			answerValue = totalGoals;
+			answer = `${playerName} scored ${totalGoals} ${totalGoals === 1 ? "goal" : "goals"} last season.`;
+			
+			// Create NumberCard visualization
+			const roundedGoals = this.roundValueByMetric("G", totalGoals);
+			visualization = {
+				type: "NumberCard",
+				data: [{ 
+					name: "Goals", 
+					wordedText: "goals",
+					value: roundedGoals,
+					iconName: this.getIconNameForMetric("G")
+				}],
+				config: {
+					title: `${playerName} - Goals Last Season`,
+					type: "bar",
+				},
+			};
 		} else if (data && data.type === "team_conceded_ranking") {
 			// Handle team conceded goals ranking
 			const teamData = (data.data as Array<{ team: string; goalsConceded: number }>) || [];
@@ -5006,16 +5118,15 @@ export class ChatbotService {
 		} else if (data && data.type === "seasons_goal_counts") {
 			// Handle seasons with goal counts queries (e.g., "How many seasons have I played where I didn't score any goals?")
 			const playerName = (data.playerName as string) || "";
-			const seasonsData = (data.data as Array<{ season: string; goals: number }>) || [];
+			const seasonsWithNoGoals = typeof data.data === "number" ? data.data : 0;
 			
-			if (seasonsData.length === 0) {
-				answer = `${playerName} has no season data available.`;
+			if (seasonsWithNoGoals === 0) {
+				answer = `${playerName} has played in all seasons with at least one goal or penalty scored.`;
 				answerValue = 0;
 			} else {
-				// Count seasons where goals = 0 (player played at least one game but scored 0 goals)
-				const seasonsWithNoGoals = seasonsData.filter(s => s.goals === 0).length;
 				const seasonText = seasonsWithNoGoals === 1 ? "season" : "seasons";
-				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${playerName} didn't score any goals.`;
+				const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
+				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${pronoun} didn't score any goals.`;
 				answerValue = seasonsWithNoGoals;
 				
 				// Create NumberCard visualization
@@ -5023,13 +5134,13 @@ export class ChatbotService {
 				visualization = {
 					type: "NumberCard",
 					data: [{ 
-						name: "Seasons with Zero Goals",
-						wordedText: "seasons where you didn't score any goals",
+						name: "Goal-less Seasons",
+						wordedText: "goal-less seasons",
 						value: seasonsWithNoGoals,
 						iconName: iconName
 					}],
 					config: {
-						title: "Seasons with Zero Goals",
+						title: "Goal-less Seasons",
 						type: "bar",
 					},
 				};
@@ -7397,6 +7508,19 @@ export class ChatbotService {
 				if (clarificationMessage) {
 					answer = clarificationMessage;
 					answerValue = "Clarification needed";
+					
+					// Set pending clarification if we have a session ID
+					if (sessionId) {
+						// Extract partial name from clarification message if it's a partial name clarification
+						let partialName: string | undefined = undefined;
+						if (clarificationMessage.includes("Please provide clarification on who") || clarificationMessage.includes("Please clarify which")) {
+							const match = clarificationMessage.match(/(?:who|which) (\w+) (?:is|you are asking)/);
+							if (match) {
+								partialName = match[1];
+							}
+						}
+						conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage, analysis, partialName, userContext);
+					}
 				}
 			}
 		}
@@ -7497,7 +7621,15 @@ export class ChatbotService {
 			
 			// Set pending clarification if we have a session ID
 			if (sessionId) {
-				conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage);
+				// Extract partial name from clarification message if it's a partial name clarification
+				let partialName: string | undefined = undefined;
+				if (clarificationMessage.includes("Please provide clarification on who")) {
+					const match = clarificationMessage.match(/who (\w+) is/);
+					if (match) {
+						partialName = match[1];
+					}
+				}
+				conversationContextManager.setPendingClarification(sessionId, question, clarificationMessage, analysis, partialName, userContext);
 			}
 		} else {
 			// Clear pending clarification if we successfully answered
