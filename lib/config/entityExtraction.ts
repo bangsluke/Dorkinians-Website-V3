@@ -1160,6 +1160,17 @@ export class EntityExtractor {
 			});
 		});
 
+		// Extract special nickname "twat" as a player entity (before NLP extraction)
+		const twatMatches = this.findMatches(/\btwat\b/gi);
+		twatMatches.forEach((match) => {
+			entities.push({
+				value: match.text,
+				type: "player",
+				originalText: match.text,
+				position: match.position,
+			});
+		});
+
 		// Extract player names using compromise NLP for better accuracy
 		// Allow extraction if we have player context ("I" reference), no team entities were found,
 		// OR if there's a clear player name pattern (e.g., "Luk Bangs", "Luke Bangs", "Kieran MCkrell")
