@@ -151,6 +151,51 @@ export class PlayerDataQueryHandler {
 		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
 		const questionLower = (analysis.question?.toLowerCase() || "").trim();
 
+		// Check if this is a "how many clean sheets occurred in games where I played with [player]" question
+		// This must be checked BEFORE entity filtering to preserve all player names
+		const hasCleanSheetsInQuestion = questionLower.includes("clean sheet") || questionLower.includes("clean sheets");
+		const hasHowManyCleanSheets = hasCleanSheetsInQuestion && (questionLower.includes("how many") || questionLower.includes("how much"));
+		const hasPlayedWithPattern = questionLower.includes("played with") || questionLower.includes("play with");
+		const hasOccurredInGames = questionLower.includes("occurred") || questionLower.includes("in games");
+		const isCleanSheetsWithPlayerQuestion = hasHowManyCleanSheets && (hasPlayedWithPattern || hasOccurredInGames) && (entities.length >= 1 || userContext);
+		
+		if (isCleanSheetsWithPlayerQuestion) {
+			// Extract player names: current player from userContext or entities[0], other player from entities
+			// Use original entities array before filtering
+			let playerName1 = "";
+			let playerName2 = "";
+			
+			// Filter out pronouns from entities
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const validPlayerEntities = entities.filter(e => !pronouns.includes(e.toLowerCase()));
+			
+			// Determine player 1 (current player): use userContext if available, otherwise first valid entity
+			if (userContext) {
+				playerName1 = userContext;
+			} else if (validPlayerEntities.length > 0) {
+				playerName1 = validPlayerEntities[0];
+			} else if (entities.length > 0) {
+				playerName1 = entities[0];
+			}
+			
+			// Determine player 2 (other player): use first valid entity that's not the current player
+			if (validPlayerEntities.length > 0) {
+				playerName2 = validPlayerEntities.find(e => e.toLowerCase() !== playerName1.toLowerCase()) || validPlayerEntities[0];
+			} else if (entities.length > 0) {
+				playerName2 = entities.find(e => e.toLowerCase() !== playerName1.toLowerCase()) || entities[0];
+			}
+			
+			if (playerName1 && playerName2 && playerName1.toLowerCase() !== playerName2.toLowerCase()) {
+				const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
+				const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
+				
+				if (resolvedPlayerName1 && resolvedPlayerName2) {
+					loggingService.log(`🔍 Detected clean sheets with specific player question, routing to queryCleanSheetsPlayedTogether`, null, "log");
+					return await RelationshipQueryHandler.queryCleanSheetsPlayedTogether(resolvedPlayerName1, resolvedPlayerName2);
+				}
+			}
+		}
+
 		// Check for hat-trick questions (year-wide, team-specific, or date-filtered) FIRST (before entity processing)
 		// This prevents "hat‑tricks" from being treated as a player entity
 		// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
@@ -2827,17 +2872,18 @@ export class PlayerDataQueryHandler {
 
 	/**
 	 * Query seasons with goal counts for a player
-	 * Returns all seasons the player has played in with their goal counts
+	 * Returns count of distinct seasons where player played but scored 0 goals and 0 penalties
 	 */
 	static async querySeasonsWithGoalCounts(playerName: string): Promise<Record<string, unknown>> {
 		const graphLabel = neo4jService.getGraphLabel();
 		
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-			WHERE md.season IS NOT NULL
-			WITH md.season as season, sum(coalesce(md.goals, 0)) as goals
-			RETURN season, goals
-			ORDER BY season
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.season IS NOT NULL
+			WITH f.season as season, sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+			WHERE totalGoals = 0
+			RETURN count(DISTINCT season) as seasonsWithNoGoals
 		`;
 
 		// Push query to chatbotService for extraction
@@ -2854,13 +2900,37 @@ export class PlayerDataQueryHandler {
 
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
-			const seasonsData = result && result.length > 0 
-				? result.map((row: any) => ({ season: row.season, goals: row.goals || 0 }))
-				: [];
+			
+			// Extract the count from the result
+			let seasonsWithNoGoals = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "seasonsWithNoGoals" in record) {
+					let count = record.seasonsWithNoGoals;
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							seasonsWithNoGoals = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								seasonsWithNoGoals = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								seasonsWithNoGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								seasonsWithNoGoals = Number(count) || 0;
+							}
+						} else {
+							seasonsWithNoGoals = Number(count) || 0;
+						}
+					}
+				}
+			}
 			
 			return { 
 				type: "seasons_goal_counts", 
-				data: seasonsData,
+				data: seasonsWithNoGoals,
 				playerName 
 			};
 		} catch (error) {

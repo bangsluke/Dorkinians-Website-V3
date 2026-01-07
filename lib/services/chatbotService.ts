@@ -453,6 +453,9 @@ export class ChatbotService {
 		const { type, entities, metrics } = analysis;
 		let question = analysis.question?.toLowerCase() || "";
 
+		// Normalize apostrophes (curly to straight) for consistent pattern matching
+		question = question.replace(/['']/g, "'");
+		
 		// Normalize colloquial phrases to standard terms
 		// Replace colloquial goal-scoring verbs with "score"/"scored" for consistent detection
 		question = question
@@ -1438,10 +1441,17 @@ export class ChatbotService {
 			}
 
 			// Check for "how many seasons have I played where I didn't score any goals" questions
+			// Use flexible regex to handle any apostrophe character and word variations
+			// Match "didn't" or "didnt" (with any character or none between 'n' and 't') followed by "score" or "scored"
+			// Try Unicode punctuation class first, fallback to simple character match
+			const didntScoreRegex1 = /didn\p{P}?t\s+scored?/iu;
+			const didntScoreRegex2 = /didn.t\s+scored?/i; // . matches any character including apostrophes
+			const hasDidntScore = didntScoreRegex1.test(question) || didntScoreRegex2.test(question);
+			// Match "any goals", "no goals", "zero goals", "0 goals", "a goal", or "many goals" (user might type this)
+			const hasNoGoalsPhrase = /\b(any|no|zero|0|many)\s+goals?\b|\ba\s+goal\b/i.test(question);
 			const isSeasonsNoGoalsQuestion = 
 				(question.includes("how many seasons") || question.includes("how many season")) &&
-				(question.includes("didn't score") || question.includes("didnt score") || question.includes("did not score") ||
-				 question.includes("no goals") || question.includes("zero goals") || question.includes("0 goals")) &&
+				hasDidntScore && hasNoGoalsPhrase &&
 				(question.includes("played") || question.includes("play"));
 
 			if (isSeasonsNoGoalsQuestion) {
@@ -3159,6 +3169,21 @@ export class ChatbotService {
 				}
 				answer = `${cleanSheetsTogether} clean sheet${cleanSheetsTogether === 1 ? "" : "s"} occurred in game${cleanSheetsTogether === 1 ? "" : "s"} where ${playerName1} played with ${playerName2}${contextMessage}.`;
 				answerValue = cleanSheetsTogether;
+				
+				// Create NumberCard visualization with clean sheet icon
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Clean Sheets",
+						value: cleanSheetsTogether,
+						wordedText: cleanSheetsTogether === 1 ? "clean sheet" : "clean sheets",
+						iconName: this.getIconNameForMetric("CLS")
+					}],
+					config: {
+						title: "Clean Sheets",
+						type: "bar",
+					},
+				};
 			}
 		} else if (data && data.type === "goals_scored_together") {
 			// Handle goals scored together data (specific player pair)
@@ -5006,16 +5031,15 @@ export class ChatbotService {
 		} else if (data && data.type === "seasons_goal_counts") {
 			// Handle seasons with goal counts queries (e.g., "How many seasons have I played where I didn't score any goals?")
 			const playerName = (data.playerName as string) || "";
-			const seasonsData = (data.data as Array<{ season: string; goals: number }>) || [];
+			const seasonsWithNoGoals = typeof data.data === "number" ? data.data : 0;
 			
-			if (seasonsData.length === 0) {
-				answer = `${playerName} has no season data available.`;
+			if (seasonsWithNoGoals === 0) {
+				answer = `${playerName} has played in all seasons with at least one goal or penalty scored.`;
 				answerValue = 0;
 			} else {
-				// Count seasons where goals = 0 (player played at least one game but scored 0 goals)
-				const seasonsWithNoGoals = seasonsData.filter(s => s.goals === 0).length;
 				const seasonText = seasonsWithNoGoals === 1 ? "season" : "seasons";
-				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${playerName} didn't score any goals.`;
+				const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
+				answer = `${playerName} has played ${seasonsWithNoGoals} ${seasonText} where ${pronoun} didn't score any goals.`;
 				answerValue = seasonsWithNoGoals;
 				
 				// Create NumberCard visualization
@@ -5023,13 +5047,13 @@ export class ChatbotService {
 				visualization = {
 					type: "NumberCard",
 					data: [{ 
-						name: "Seasons with Zero Goals",
-						wordedText: "seasons where you didn't score any goals",
+						name: "Goal-less Seasons",
+						wordedText: "goal-less seasons",
 						value: seasonsWithNoGoals,
 						iconName: iconName
 					}],
 					config: {
-						title: "Seasons with Zero Goals",
+						title: "Goal-less Seasons",
 						type: "bar",
 					},
 				};
