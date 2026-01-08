@@ -1,0 +1,59 @@
+name: E2E Tests - Weekly
+
+on:
+  schedule:
+    # Run every Monday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
+    - cron: '0 2 * * 1'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  e2e-tests:
+    name: Run E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests with email notification
+        env:
+          WEBSITE_URL: ${{ secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
+          BASE_URL: ${{ secrets.WEBSITE_URL || secrets.BASE_URL || 'https://dorkinians-website-v3.netlify.app' }}
+          HEADLESS: 'true'
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
+          SMTP_TO_EMAIL: ${{ secrets.SMTP_TO_EMAIL }}
+          SMTP_EMAIL_SECURE: ${{ secrets.SMTP_EMAIL_SECURE || 'false' }}
+        run: npm run test:e2e:email
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: __tests__/e2e/playwright-report/
+          retention-days: 30
+
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-screenshots
+          path: __tests__/e2e/test-results/screenshots/
+          retention-days: 30

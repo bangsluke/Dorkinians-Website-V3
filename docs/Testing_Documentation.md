@@ -38,7 +38,7 @@
 - [Test Utilities](#test-utilities)
 - [Troubleshooting](#troubleshooting)
 - [Continuous Integration](#continuous-integration)
-- [Cron Job Setup for E2E Tests](#cron-job-setup-for-e2e-tests)
+- [GitHub Actions Setup for E2E Tests](#github-actions-setup-for-e2e-tests)
 
 ## Overview
 
@@ -655,15 +655,9 @@ npm run test:e2e:email
 npm run test:e2e:report
 ```
 
-#### Cron Job Execution
+#### GitHub Actions Execution
 
-For cron-job.org, use:
-
-```bash
-npm run test:e2e:headless
-```
-
-Or with email notifications:
+For GitHub Actions (automated weekly runs), the workflow uses:
 
 ```bash
 npm run test:e2e:email
@@ -673,8 +667,11 @@ This will:
 - Run all tests in headless mode
 - Generate HTML report in `__tests__/e2e/playwright-report/`
 - Capture screenshots on failure in `__tests__/e2e/test-results/screenshots/`
-- Send email notification with test results (if email configured)
-- Exit with non-zero code on failure (for cron job notification)
+- Send email notification with test results (configured via GitHub secrets)
+- Upload test reports and screenshots as artifacts
+- Exit with non-zero code on failure (triggers GitHub Actions failure status)
+
+See [GitHub Actions Setup for E2E Tests](#github-actions-setup-for-e2e-tests) for detailed setup instructions.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -958,127 +955,133 @@ The test suite is designed to run in CI/CD environments:
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Cron Job Setup for E2E Tests
+## GitHub Actions Setup for E2E Tests
 
 ### Overview
 
-This guide explains how to set up weekly E2E test execution via cron-job.org. The tests will run automatically once per week to verify that the Dorkinians FC website is functioning correctly.
+This guide explains how to set up weekly E2E test execution via GitHub Actions. The tests will run automatically once per week to verify that the Dorkinians FC website is functioning correctly. GitHub Actions provides a reliable, free solution that supports Playwright and browser binaries.
 
 > [Back to Table of Contents](#table-of-contents)
 
 ### Prerequisites
 
-1. **cron-job.org Account**: Sign up at https://cron-job.org
-2. **Production URL**: The tests will run against the production site
-3. **Node.js Environment**: cron-job.org should support Node.js execution (or use a custom server)
+1. **GitHub Repository**: The code must be in a GitHub repository
+2. **GitHub Actions Enabled**: Actions are enabled by default for public repos
+3. **GitHub Secrets**: Configure required secrets for email notifications
 
 > [Back to Table of Contents](#table-of-contents)
 
-### Setting Up cron-job.org
+### Setting Up GitHub Actions
 
-#### Option 1: Direct Command Execution (Recommended)
+#### Step 1: Workflow File
 
-If cron-job.org supports Node.js execution:
+The workflow file is already created at `.github/workflows/e2e-tests.yml`. It includes:
 
-1. **Create a new cron job**:
-   - Title: "Dorkinians E2E Tests - Weekly"
-   - URL/Command: See command below
-   - Schedule: Weekly (e.g., Every Monday at 2:00 AM)
+- **Schedule**: Runs every Monday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
+- **Manual Trigger**: Can be triggered manually via GitHub Actions UI
+- **Playwright Setup**: Automatically installs Playwright browsers
+- **Email Notifications**: Uses the `test:e2e:email` script to send results
+- **Artifact Upload**: Saves test reports and screenshots for 30 days
 
-2. **Command to execute**:
-   ```bash
-   cd /path/to/V3-Dorkinians-Website && npm run test:e2e:cron
-   ```
+#### Step 2: Configure GitHub Secrets
 
-3. **Environment Variables**:
-   - `BASE_URL=https://dorkinians-website-v3.netlify.app`
-   - `HEADLESS=true`
+Navigate to your GitHub repository → Settings → Secrets and variables → Actions, and add the following secrets:
 
-#### Option 2: HTTP Endpoint (Alternative)
+**Required Secrets:**
 
-If you prefer to trigger tests via HTTP endpoint:
+- `WEBSITE_URL` (optional): Production website URL (defaults to `https://dorkinians-website-v3.netlify.app`)
+- `SMTP_SERVER`: SMTP server hostname
+- `SMTP_PORT`: SMTP server port (e.g., `587` for TLS, `465` for SSL)
+- `SMTP_USERNAME`: SMTP username
+- `SMTP_PASSWORD`: SMTP password
+- `SMTP_FROM_EMAIL`: Sender email address
+- `SMTP_TO_EMAIL`: Recipient email address
+- `SMTP_EMAIL_SECURE`: Use TLS/SSL (`true` or `false`, defaults to `false`)
 
-1. Create a Netlify Function or API route that executes the tests
-2. Set up cron-job.org to call this endpoint weekly
-3. The endpoint should:
-   - Run the test suite
-   - Return test results
-   - Send notifications on failure
+**Optional Secrets:**
 
-#### Option 3: Custom Server Script
+- `BASE_URL`: Alternative to `WEBSITE_URL` (for backward compatibility)
 
-If you have a server with Node.js:
+#### Step 3: Verify Workflow
 
-1. Set up a script that:
-   - Clones/pulls the latest code
-   - Installs dependencies
-   - Runs the test suite
-   - Sends email notifications on failure
-
-2. Configure cron-job.org to call this script via HTTP or SSH
+1. Push the workflow file to your repository
+2. Go to the **Actions** tab in GitHub
+3. The workflow will appear in the list
+4. It will run automatically on the schedule, or you can trigger it manually
 
 > [Back to Table of Contents](#table-of-contents)
 
 ### Test Execution
 
-#### Command for cron-job.org
+#### Automatic Execution
 
-```bash
-BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2e:cron
-```
+The workflow runs automatically:
+- **Schedule**: Every Monday at 2:00 AM UTC
+- **Trigger**: GitHub Actions cron schedule
+
+#### Manual Execution
+
+To trigger tests manually:
+
+1. Go to **Actions** tab in GitHub
+2. Select **E2E Tests - Weekly** workflow
+3. Click **Run workflow**
+4. Select the branch (usually `main` or `master`)
+5. Click **Run workflow**
 
 #### What Happens During Execution
 
-1. **Test Suite Runs**: All E2E tests execute in headless mode
-2. **Screenshots Captured**: On failure, screenshots are saved to `__tests__/e2e/test-results/screenshots/`
-3. **Report Generated**: HTML report created in `__tests__/e2e/playwright-report/`
-4. **Email Sent**: If using `test:e2e:email`, email notification is sent with results and screenshots
-5. **Exit Code**: 
-   - `0` if all tests pass
-   - `1` if any test fails (triggers cron job notification)
+1. **Code Checkout**: Repository code is checked out
+2. **Node.js Setup**: Node.js 20 is installed with npm cache
+3. **Dependencies**: All npm dependencies are installed
+4. **Playwright Browsers**: Chromium browser is installed with dependencies
+5. **Test Suite Runs**: All E2E tests execute in headless mode
+6. **Screenshots Captured**: On failure, screenshots are saved
+7. **Report Generated**: HTML report created in `__tests__/e2e/playwright-report/`
+8. **Email Sent**: Email notification is sent with results and screenshots
+9. **Artifacts Uploaded**: Test reports and screenshots are saved as artifacts
 
 #### Expected Duration
 
 - Full test suite: ~5-10 minutes
 - Individual test: ~10-30 seconds
 - Timeout per test: 60 seconds (configured in `playwright.config.ts`)
+- Workflow timeout: 20 minutes (configured in workflow)
 
 > [Back to Table of Contents](#table-of-contents)
 
 ### Failure Notifications
 
-#### cron-job.org Built-in Notifications
+#### Email Notifications
 
-1. **Email Notifications**:
-   - Enable in cron-job.org settings
-   - Configure email address
-   - Set to notify on failure only
+Email notifications are automatically sent via the `test:e2e:email` script:
 
-2. **Webhook Notifications**:
-   - Configure webhook URL
-   - Receive JSON payload with test results
+- **On Success**: Email with test summary and pass rate
+- **On Failure**: Email with detailed failure information, screenshots, and test output
+- **Format**: HTML email with formatted test results grouped by test suite
 
-#### Custom Notification Script
+#### GitHub Actions Notifications
 
-You can extend `__tests__/e2e/scripts/run-e2e-tests.js` to send custom notifications:
+GitHub Actions also provides built-in notifications:
 
-```javascript
-// Add after error handling
-const nodemailer = require('nodemailer');
+1. **Email Notifications** (if enabled in GitHub settings):
+   - Go to GitHub Settings → Notifications
+   - Enable "Actions" notifications
+   - Configure when to receive notifications (on failure, always, etc.)
 
-async function sendFailureNotification(errorDetails) {
-	// Configure email transporter
-	// Send email with test results
-}
-```
+2. **Workflow Status Badge**:
+   - Add a badge to your README to show workflow status
+   - Badge URL: `https://github.com/USERNAME/REPO/workflows/E2E%20Tests%20-%20Weekly/badge.svg`
 
 #### Notification Content
 
-On failure, notifications should include:
-- Test failure summary
-- Link to test report (if hosted)
-- Screenshot attachments (if email supports)
-- Timestamp of execution
+Email notifications include:
+- Test summary (passed, failed, skipped, pass rate)
+- Test results grouped by suite (Navigation, Home, Stats, TOTW, etc.)
+- Failure reasons for each failed test
+- Raw test output (truncated)
+- Screenshot attachments (if any failures occurred)
+- Timestamp and base URL
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -1086,12 +1089,29 @@ On failure, notifications should include:
 
 #### Weekly Review Checklist
 
-- [ ] Review test results from cron job
+- [ ] Review test results from GitHub Actions
 - [ ] Check for any failing tests
-- [ ] Investigate failures (check screenshots)
+- [ ] Download and review screenshots from artifacts
+- [ ] Investigate failures (check screenshots and logs)
 - [ ] Update tests if UI/components changed
 - [ ] Verify test data is still valid
 - [ ] Update documentation if needed
+
+#### Accessing Test Results
+
+1. **GitHub Actions UI**:
+   - Go to **Actions** tab
+   - Click on the latest workflow run
+   - View logs and download artifacts
+
+2. **Artifacts**:
+   - Test reports: `playwright-report` artifact
+   - Screenshots: `test-screenshots` artifact (only on failure)
+   - Artifacts are retained for 30 days
+
+3. **Email Reports**:
+   - Check your email for detailed test results
+   - Screenshots are attached if tests fail
 
 #### Common Issues and Solutions
 
@@ -1106,51 +1126,57 @@ On failure, notifications should include:
 3. **Tests Timeout**:
    - Check if site is slow or down
    - Increase timeout in `playwright.config.ts` if needed
-   - Verify network connectivity
+   - Verify network connectivity from GitHub Actions
 
-4. **Screenshots Not Captured**:
-   - Verify `__tests__/e2e/test-results/screenshots/` directory exists
-   - Check file permissions
-   - Review Playwright configuration
+4. **Email Not Sent**:
+   - Verify all SMTP secrets are configured correctly
+   - Check GitHub Actions logs for email errors
+   - Ensure SMTP credentials are valid
 
-#### Test Report Access
-
-After test execution:
-- HTML report: `__tests__/e2e/playwright-report/index.html`
-- Screenshots: `__tests__/e2e/test-results/screenshots/*.png`
-- View report: `npm run test:e2e:report`
+5. **Workflow Fails to Start**:
+   - Check if GitHub Actions is enabled for the repository
+   - Verify the workflow file syntax is correct
+   - Check GitHub Actions usage limits (free tier has limits)
 
 #### Updating Test Schedule
 
 To change the test schedule:
-1. Log into cron-job.org
-2. Edit the cron job
-3. Update the schedule
-4. Save changes
+
+1. Edit `.github/workflows/e2e-tests.yml`
+2. Update the cron expression in the `schedule` section:
+   ```yaml
+   schedule:
+     - cron: '0 2 * * 1'  # Monday at 2:00 AM UTC
+   ```
+3. Commit and push the changes
+4. The new schedule will take effect on the next run
+
+**Cron Expression Format**: `minute hour day-of-month month day-of-week`
+
+Examples:
+- `'0 2 * * 1'` - Every Monday at 2:00 AM UTC
+- `'0 0 * * 0'` - Every Sunday at midnight UTC
+- `'0 14 * * *'` - Every day at 2:00 PM UTC
 
 > [Back to Table of Contents](#table-of-contents)
 
-### Example cron-job.org Configuration
+### Workflow Configuration
 
-**Job Title**: Dorkinians E2E Tests - Weekly
+The workflow file (`.github/workflows/e2e-tests.yml`) includes:
 
-**Schedule**: Every Monday at 2:00 AM
+**Key Features:**
+- **Schedule**: Weekly execution (Monday 2:00 AM UTC)
+- **Manual Trigger**: Can be run on-demand
+- **Node.js 20**: Latest LTS version
+- **Playwright**: Chromium browser with dependencies
+- **Email Integration**: Uses existing `test:e2e:email` script
+- **Artifact Storage**: Reports and screenshots saved for 30 days
+- **Timeout**: 20 minutes maximum execution time
 
-**Command**:
-```bash
-cd /path/to/V3-Dorkinians-Website && BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2e:email
-```
-
-**Alternative (without email)**:
-```bash
-cd /path/to/V3-Dorkinians-Website && BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2e:cron
-```
-
-**Notifications**:
-- Email: your-email@example.com
-- Notify on: Failure only
-- Include output: Yes
-
-**Timeout**: 15 minutes
+**Environment Variables:**
+- `WEBSITE_URL`: Production website URL (from secrets or default)
+- `BASE_URL`: Backward compatibility (uses `WEBSITE_URL`)
+- `HEADLESS`: Always `true` for CI/CD
+- All SMTP configuration from GitHub secrets
 
 > [Back to Table of Contents](#table-of-contents)

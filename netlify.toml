@@ -36,12 +36,6 @@
     X-Function-Timeout = "300"
     X-Request-Timeout = "300"
 
-[functions."run-e2e-tests"]
-  timeout = 900
-  [functions."run-e2e-tests".headers]
-    X-Function-Timeout = "900"
-    X-Request-Timeout = "900"
-
 # Handle static assets
 [[redirects]]
   from = "/_next/*"
@@ -63,11 +57,6 @@
 [[redirects]]
   from = "/api/trigger-seed"
   to = "/.netlify/functions/trigger-seed"
-  status = 200
-
-[[redirects]]
-  from = "/api/run-e2e-tests"
-  to = "/.netlify/functions/run-e2e-tests"
   status = 200
 
 [[redirects]]
