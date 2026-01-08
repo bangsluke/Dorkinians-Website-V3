@@ -43,9 +43,9 @@ const getEmailConfig = () => {
 };
 
 // Ensure directories exist
-const testResultsDir = path.join(process.cwd(), 'e2e', 'test-results');
+const testResultsDir = path.join(process.cwd(), '__tests__', 'e2e', 'test-results');
 const screenshotsDir = path.join(testResultsDir, 'screenshots');
-const reportDir = path.join(process.cwd(), 'e2e', 'playwright-report');
+const reportDir = path.join(process.cwd(), '__tests__', 'e2e', 'playwright-report');
 
 if (!fs.existsSync(testResultsDir)) {
 	fs.mkdirSync(testResultsDir, { recursive: true });
@@ -457,8 +457,8 @@ const sendEmailReport = async () => {
 
 			<div class="footer">
 				<p><strong>Base URL:</strong> ${BASE_URL}</p>
-				<p><strong>Test Report:</strong> Available in e2e/playwright-report/</p>
-				<p><strong>Screenshots:</strong> Available in e2e/test-results/screenshots/</p>
+				<p><strong>Test Report:</strong> Available in __tests__/e2e/playwright-report/</p>
+				<p><strong>Screenshots:</strong> Available in __tests__/e2e/test-results/screenshots/</p>
 				<p>View full report: <code>npm run test:e2e:report</code></p>
 			</div>
 		</div>
@@ -535,8 +535,8 @@ ${generateTextResults()}
 ${screenshots.length > 0 ? `\nScreenshots: ${screenshots.length} screenshot(s) captured\n` : ''}
 
 Base URL: ${BASE_URL}
-Test Report: e2e/playwright-report/
-Screenshots: e2e/test-results/screenshots/
+Test Report: __tests__/e2e/playwright-report/
+Screenshots: __tests__/e2e/test-results/screenshots/
 View full report: npm run test:e2e:report
 	`;
 

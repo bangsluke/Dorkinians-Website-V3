@@ -116,5 +116,5 @@ logs/test-chatbot-email-report.log
 logs/test-execution.log
 
 # Test Results
-e2e/test-results/
-e2e/playwright-report/
+__tests__/e2e/test-results/
+__tests__/e2e/playwright-report/

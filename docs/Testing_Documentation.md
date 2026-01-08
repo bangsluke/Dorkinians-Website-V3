@@ -1,12 +1,17 @@
-# E2E Testing Documentation
+# Testing Documentation
 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
-- [Test Framework](#test-framework)
+- [Test Framework Overview](#test-framework-overview)
 - [Test Structure](#test-structure)
-- [Test Categories](#test-categories)
+- [Unit Tests](#unit-tests)
+  - [Basic Tests](#basic-tests)
+  - [Service Tests](#service-tests)
+  - [Utility Tests](#utility-tests)
+- [Integration Tests](#integration-tests)
+- [End-to-End Tests](#end-to-end-tests)
   - [Navigation Tests](#navigation-tests)
   - [Home Page Tests](#home-page-tests)
   - [Stats Page Tests](#stats-page-tests)
@@ -15,52 +20,61 @@
   - [Settings Page Tests](#settings-page-tests)
   - [API Endpoint Tests](#api-endpoint-tests)
   - [Cross-Cutting Tests](#cross-cutting-tests)
-- [What Is Tested](#what-is-tested)
-- [What Is Not Tested](#what-is-not-tested)
+- [Comprehensive Tests](#comprehensive-tests)
+- [Advanced Tests](#advanced-tests)
+- [Performance Tests](#performance-tests)
+- [Validation Tests](#validation-tests)
+- [User Experience Tests](#user-experience-tests)
+- [Security Tests](#security-tests)
+- [Monitoring Tests](#monitoring-tests)
+- [Test Data](#test-data)
 - [Running Tests](#running-tests)
-  - [Local Development](#local-development)
-  - [Cron Job Execution](#cron-job-execution)
-  - [Environment Variables](#environment-variables)
-- [Test Maintenance](#test-maintenance)
-  - [When to Update Tests](#when-to-update-tests)
-  - [Test Data](#test-data)
-  - [Selector Updates](#selector-updates)
-  - [Adding New Tests](#adding-new-tests)
+  - [Unit and Integration Tests](#unit-and-integration-tests)
+  - [E2E Tests](#e2e-tests)
+  - [Chatbot Test Reports](#chatbot-test-reports)
+- [Test Coverage Analysis](#test-coverage-analysis)
+- [Testing Recommendations](#testing-recommendations)
+- [Environment Variables](#environment-variables)
+- [Test Utilities](#test-utilities)
+- [Troubleshooting](#troubleshooting)
+- [Continuous Integration](#continuous-integration)
 - [Cron Job Setup for E2E Tests](#cron-job-setup-for-e2e-tests)
-  - [Overview](#overview-1)
-  - [Prerequisites](#prerequisites)
-  - [Setting Up cron-job.org](#setting-up-cron-joborg)
-    - [Option 1: Direct Command Execution (Recommended)](#option-1-direct-command-execution-recommended)
-    - [Option 2: HTTP Endpoint (Alternative)](#option-2-http-endpoint-alternative)
-    - [Option 3: Custom Server Script](#option-3-custom-server-script)
-  - [Test Execution](#test-execution)
-    - [Command for cron-job.org](#command-for-cron-joborg)
-    - [What Happens During Execution](#what-happens-during-execution)
-    - [Expected Duration](#expected-duration)
-  - [Failure Notifications](#failure-notifications)
-    - [cron-job.org Built-in Notifications](#cron-joborg-built-in-notifications)
-    - [Custom Notification Script](#custom-notification-script)
-    - [Notification Content](#notification-content)
-  - [Monitoring and Maintenance](#monitoring-and-maintenance)
-    - [Weekly Review Checklist](#weekly-review-checklist)
-    - [Common Issues and Solutions](#common-issues-and-solutions)
-    - [Test Report Access](#test-report-access)
-    - [Updating Test Schedule](#updating-test-schedule)
-  - [Example cron-job.org Configuration](#example-cron-joborg-configuration)
 
 ## Overview
 
-This document serves as the main source of information about the E2E (End-to-End) test suite for the Dorkinians FC website. The test suite is designed to verify that all major functionality is working correctly and can be run weekly via cron-job.org to ensure the app is up and running at all times.
+This comprehensive test suite validates the Dorkinians FC website functionality across multiple testing layers. The suite includes:
 
-The test suite uses Playwright for browser automation and is configured to run headlessly for cron job execution. Tests are organized by feature/page and cover navigation, user interactions, data loading, and API endpoints.
+- **200+ unit and integration test cases** across 10 major categories
+- **End-to-end browser tests** covering all major user flows
+- **Production database testing** for real-world validation
+- **Performance and load testing** for system reliability
+- **Security and edge case testing** for robustness
+
+The test suite uses Jest for unit/integration testing and Playwright for end-to-end browser automation, providing complete coverage of both backend services and frontend user interactions.
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Test Framework
+## Test Framework Overview
+
+### Jest (Unit and Integration Tests)
+
+**Framework**: Jest with ts-jest  
+**Language**: TypeScript  
+**Test Location**: `__tests__/` directory  
+**Configuration**: `jest.config.js`
+
+**Key Features**:
+- TypeScript support via ts-jest
+- Production database testing
+- Custom reporters for clean output
+- Coverage reporting
+- Test timeout: 60 seconds for database operations
+
+### Playwright (End-to-End Tests)
 
 **Framework**: Playwright  
 **Language**: TypeScript  
-**Test Location**: `e2e/` directory  
+**Test Location**: `__tests__/e2e/` directory  
 **Configuration**: `playwright.config.ts`
 
 **Key Features**:
@@ -75,26 +89,136 @@ The test suite uses Playwright for browser automation and is configured to run h
 ## Test Structure
 
 ```
-e2e/
-├── fixtures/        # Test data and constants
-├── utils/           # Helper functions and utilities
-├── navigation/      # Navigation tests
-├── home/            # Home page tests
-├── stats/           # Stats page tests
-├── totw/            # TOTW page tests
-├── club-info/       # Club Info page tests
-├── settings/        # Settings page tests
-├── api/             # API endpoint tests
-└── cross-cutting/   # Cross-cutting tests
+__tests__/
+├── unit/                           # Unit tests (isolated component/service tests)
+│   ├── basic/                     # Basic functionality tests
+│   │   └── chatbotBasic.test.ts   # Core service validation
+│   ├── services/                  # Service-specific tests
+│   │   └── chatbotService.test.ts # Chatbot service unit tests
+│   └── utils/                     # Utility function tests
+│       └── testUtils.test.ts      # Test utility validation
+├── integration/                    # Integration tests (component interactions)
+│   ├── chatbotIntegration.test.ts # Full workflow validation
+│   └── enhancedIntegration.test.ts # Extended integration scenarios
+├── e2e/                           # End-to-end tests (Playwright)
+│   ├── fixtures/                  # Test data and constants
+│   ├── utils/                     # Helper functions and utilities
+│   ├── scripts/                   # E2E test runner scripts
+│   │   ├── run-e2e-tests.js      # Cron job runner
+│   │   └── test-e2e-email-report.js # Email report generator
+│   ├── navigation/                # Navigation tests
+│   ├── home/                      # Home page tests
+│   ├── stats/                     # Stats page tests
+│   ├── totw/                      # TOTW page tests
+│   ├── club-info/                 # Club Info page tests
+│   ├── settings/                  # Settings page tests
+│   ├── api/                       # API endpoint tests
+│   ├── cross-cutting/             # Cross-cutting tests
+│   ├── playwright-report/         # Test reports
+│   └── test-results/              # Test artifacts
+├── comprehensive/                  # Comprehensive validation tests
+│   ├── statTesting.test.ts        # All 50+ metrics coverage
+│   ├── chatbotComprehensiveValidation.test.ts
+│   ├── chatbotNLPVariations.test.ts
+│   └── test-individual-questions.test.ts
+├── advanced/                       # Advanced test scenarios
+│   └── advancedQuestionTypes.test.ts # Comparative, ranking, complex queries
+├── performance/                    # Performance and load testing
+│   └── performanceLoadTesting.test.ts # Response times, concurrent users, memory
+├── validation/                     # Data accuracy validation
+│   └── dataAccuracyValidation.test.ts # Reference vs production data
+├── ux/                            # User experience testing
+│   └── userExperienceTesting.test.ts # Naturalness, context awareness
+├── security/                      # Security and edge cases
+│   └── securityEdgeCases.test.ts  # Input sanitization, injection prevention
+├── monitoring/                    # Monitoring and observability
+│   └── monitoringObservability.test.ts # Logging, metrics, health checks
+├── mocks/                         # Mock services
+│   └── neo4jMock.ts              # Neo4j service mock
+├── reporters/                     # Custom test reporters
+│   └── summaryReporter.js        # Clean output reporter
+├── scripts/                       # Test utility scripts
+│   ├── test-chatbot-email-report.js
+│   ├── test-chatbot-with-enhanced-logging.js
+│   ├── test-questions-email-report.js
+│   └── analyze-chatbot-logs.js
+└── utils/                         # Test utilities (shared)
+    └── testUtils.ts              # Test data and validation helpers
 ```
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Test Categories
+## Unit Tests
+
+### Basic Tests
+
+**Location**: `__tests__/unit/basic/`  
+**File**: `chatbotBasic.test.ts`
+
+**Purpose**: Core service validation and fundamental functionality
+
+**What is tested**:
+- Service Initialization: Singleton pattern, method availability
+- Reference Data Validation: CSV parsing, fallback handling, data structure
+- Question Analysis: Player extraction, metric identification
+- Response Validation: Numeric extraction, format verification
+- Production Database: Real Neo4j connection testing
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Service Tests
+
+**Location**: `__tests__/unit/services/`  
+**File**: `chatbotService.test.ts`
+
+**Purpose**: Unit testing of chatbot service components
+
+**What is tested**:
+- Reference Data Loading: Dynamic CSV fetching, fallback mechanisms
+- Player Statistics Queries: Goals, assists, appearances validation
+- Response Format Validation: Natural language, appropriate terminology
+- Error Handling: Unknown players, malformed questions
+- Question Analysis: Player identification, metric extraction
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Utility Tests
+
+**Location**: `__tests__/unit/utils/`  
+**File**: `testUtils.test.ts`
+
+**Purpose**: Validation of test utility functions
+
+**What is tested**:
+- Data fetching utilities
+- Response validation helpers
+- Test data generation
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Integration Tests
+
+**Location**: `__tests__/integration/`  
+**Files**: `chatbotIntegration.test.ts`, `enhancedIntegration.test.ts`
+
+**Purpose**: End-to-end workflow validation
+
+**What is tested**:
+- Complete User Journey: Full session from start to finish
+- Multi-Player Workflow: Seamless switching between players
+- Complex Query Integration: Nested comparative queries, temporal queries
+- Error Recovery Integration: Graceful error handling and recovery
+- Data Consistency Integration: Cross-format consistency validation
+- Performance Integration: Complex scenarios within time limits
+- Real-World Usage Patterns: Typical user interaction patterns
+
+> [Back to Table of Contents](#table-of-contents)
+
+## End-to-End Tests
 
 ### Navigation Tests
 
-**File**: `e2e/navigation/navigation.spec.ts`
+**File**: `__tests__/e2e/navigation/navigation.spec.ts`
 
 **What is tested**:
 - Navigation to all main pages (Home, Stats, TOTW, Club Info, Settings)
@@ -111,7 +235,7 @@ e2e/
 
 ### Home Page Tests
 
-**File**: `e2e/home/home.spec.ts`
+**File**: `__tests__/e2e/home/home.spec.ts`
 
 **What is tested**:
 - Player selection functionality
@@ -131,7 +255,7 @@ e2e/
 
 ### Stats Page Tests
 
-**File**: `e2e/stats/stats.spec.ts`
+**File**: `__tests__/e2e/stats/stats.spec.ts`
 
 **What is tested**:
 - Player Stats page default display
@@ -154,7 +278,7 @@ e2e/
 
 ### TOTW Page Tests
 
-**File**: `e2e/totw/totw.spec.ts`
+**File**: `__tests__/e2e/totw/totw.spec.ts`
 
 **What is tested**:
 - Team of the Week page display
@@ -184,7 +308,7 @@ e2e/
 
 ### Club Info Page Tests
 
-**File**: `e2e/club-info/club-info.spec.ts`
+**File**: `__tests__/e2e/club-info/club-info.spec.ts`
 
 **What is tested**:
 - Club Information page default display
@@ -208,7 +332,7 @@ e2e/
 
 ### Settings Page Tests
 
-**File**: `e2e/settings/settings.spec.ts`
+**File**: `__tests__/e2e/settings/settings.spec.ts`
 
 **What is tested**:
 - Settings page display
@@ -228,7 +352,7 @@ e2e/
 
 ### API Endpoint Tests
 
-**File**: `e2e/api/api.spec.ts`
+**File**: `__tests__/e2e/api/api.spec.ts`
 
 **What is tested**:
 - Chatbot API response structure and timing
@@ -249,7 +373,7 @@ e2e/
 
 ### Cross-Cutting Tests
 
-**File**: `e2e/cross-cutting/cross-cutting.spec.ts`
+**File**: `__tests__/e2e/cross-cutting/cross-cutting.spec.ts`
 
 **What is tested**:
 - Loading states (skeletons appear and disappear)
@@ -269,40 +393,244 @@ e2e/
 
 > [Back to Table of Contents](#table-of-contents)
 
-## What Is Tested
+## Comprehensive Tests
 
-The test suite covers:
+**Location**: `__tests__/comprehensive/`  
+**Files**: `statTesting.test.ts`, `chatbotComprehensiveValidation.test.ts`, `chatbotNLPVariations.test.ts`, `test-individual-questions.test.ts`
 
-1. **Core Navigation**: All main pages and sub-pages
-2. **Critical User Flows**: Player selection, chatbot queries, TOTW player interactions
-3. **Data Loading**: Verification that data loads and displays correctly
-4. **User Interactions**: Clicks, form inputs, dropdown selections
-5. **API Endpoints**: Critical API responses and error handling
-6. **Responsive Design**: Mobile viewport testing
-7. **Error Resilience**: App doesn't crash on invalid input
+**Purpose**: Complete coverage of all 50+ statistical metrics with comprehensive validation
+
+**What is tested**:
+- **Dynamic Player Discovery**: Automatically reads player names from `TBL_TestData` (no hardcoding)
+- **All 50+ Stats**: Tests every statistic for each player including:
+  - **Basic Statistics**: APP, MIN, MOM, G, A, Y, R, SAVES, OG, C, CLS, PSC, PM, PCO, PSV, FTP
+  - **Advanced Statistics**: AllGSC, GperAPP, CperAPP, MperG, MperCLS, FTPperAPP, DIST
+  - **Home/Away Statistics**: HomeGames, HomeWins, AwayGames, AwayWins, Games%Won
+  - **Team-Specific Appearances**: 1sApps through 8sApps, MostPlayedForTeam, NumberTeamsPlayedFor
+  - **Team-Specific Goals**: 1sGoals through 8sGoals, MostScoredForTeam
+  - **Seasonal Appearances**: 2016/17 through 2021/22 seasons
+  - **Seasonal Goals**: All seasonal goal statistics
+  - **Positional Statistics**: GK, DEF, MID, FWD, MostCommonPosition
+- **Data Validation**: Compares chatbot responses against actual `TBL_TestData` values
+- **Standardized Output**: Provides output in the exact format: "Database value: {X}, ChatBot answer: {Y}, Equals Check: {true/false}"
+- **Response Quality**: Natural language, appropriate terminology
+- **Edge Case Handling**: Zero values, decimal values, performance testing
+
+**Test Coverage Summary**:
+- Players tested: 3
+- Stats tested per player: 50+
+- Total tests executed: 150+
 
 > [Back to Table of Contents](#table-of-contents)
 
-## What Is Not Tested
+## Advanced Tests
 
-The test suite does not cover:
+**Location**: `__tests__/advanced/`  
+**File**: `advancedQuestionTypes.test.ts`
 
-1. **Detailed Content Validation**: Specific data values, calculations, or business logic accuracy
-2. **All Edge Cases**: Only common user flows are tested
-3. **Performance Metrics**: Load times, render performance, bundle sizes
-4. **Accessibility**: WCAG compliance, screen reader compatibility
-5. **Browser Compatibility**: Only Chromium and Mobile Chrome are tested
-6. **Offline Functionality**: PWA offline mode, service worker behavior
-7. **Analytics**: Tracking pixel firing, event logging
-8. **Third-Party Integrations**: External service integrations beyond API calls
-9. **Complex User Workflows**: Multi-step processes spanning multiple pages
-10. **Data Accuracy**: The tests verify data is present, not that it's correct
+**Purpose**: Testing complex query scenarios and natural language processing
+
+**What is tested**:
+- Comparative Questions: "Who has more goals?", "Who has fewer assists?"
+- Ranking Questions: "Top 3 goal scorers", "Best assist providers"
+- Complex Multi-Condition Queries: Team-specific comparisons, seasonal comparisons
+- Natural Language Variations: Informal questions, different phrasings
+- Edge Case Handling: Invalid comparisons, ambiguous questions, malformed inputs
+- Performance Testing: Multiple complex queries within time limits
+- Response Quality Validation: Detailed responses, structured rankings
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Performance Tests
+
+**Location**: `__tests__/performance/`  
+**File**: `performanceLoadTesting.test.ts`
+
+**Purpose**: Response time benchmarking and system performance validation
+
+**What is tested**:
+- Response Time Benchmarking: Basic questions <2s, complex questions <5s
+- Concurrent User Simulation: 5 concurrent users, burst traffic (10 rapid requests)
+- Memory Usage Monitoring: Memory leak detection, large dataset handling
+- Database Connection Performance: Connection and query time analysis
+- Stress Testing: Sustained load over 30 seconds
+- Performance Regression Testing: Baseline performance maintenance
+- Detailed Performance Metrics: Average, min, max response times, standard deviation
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Validation Tests
+
+**Location**: `__tests__/validation/`  
+**File**: `dataAccuracyValidation.test.ts`
+
+**Purpose**: Validating chatbot responses against reference data and production database
+
+**What is tested**:
+- Reference Data vs Production Database: Basic and advanced stats validation
+- Cross-Reference Data Validation: Different question formats, team-specific data
+- Statistical Validation: Calculated ratios, mathematical correctness
+- Data Range Validation: Reasonable ranges, percentage values (0-100)
+- Data Completeness Validation: All players have basic stats data
+- Real-Time Data Validation: Consistency across multiple requests
+- Accuracy Rate Tracking: 80%+ accuracy for basic stats, 70%+ for advanced stats
+
+> [Back to Table of Contents](#table-of-contents)
+
+## User Experience Tests
+
+**Location**: `__tests__/ux/`  
+**File**: `userExperienceTesting.test.ts`
+
+**Purpose**: Testing response naturalness, context awareness, and user interaction quality
+
+**What is tested**:
+- Response Naturalness: Conversational responses, appropriate verbs
+- Context Awareness: Player context maintenance, pronoun references
+- Error Message Quality: Helpful error messages, suggestions
+- Response Completeness: Complete answers with relevant information
+- Conversation Flow: Natural conversation handling, topic transitions
+- Accessibility and Clarity: Clear language, easy to understand
+- Personalization: User context adaptation, formality levels
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Security Tests
+
+**Location**: `__tests__/security/`  
+**File**: `securityEdgeCases.test.ts`
+
+**Purpose**: Input sanitization, SQL injection prevention, and malicious query handling
+
+**What is tested**:
+- Input Sanitization: SQL injection, XSS, command injection prevention
+- Input Validation: Long inputs, special characters, empty inputs
+- Rate Limiting and Abuse Prevention: Rapid requests, concurrent requests
+- Data Privacy and Security: No sensitive information exposure
+- Edge Case Handling: Malformed JSON, large numbers, unicode characters
+- Resource Exhaustion Prevention: Memory-intensive queries, infinite loops
+- Error Handling Security: No stack trace exposure, graceful failures
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Monitoring Tests
+
+**Location**: `__tests__/monitoring/`  
+**File**: `monitoringObservability.test.ts`
+
+**Purpose**: Logging completeness, metrics collection, error tracking, and performance monitoring
+
+**What is tested**:
+- Logging Completeness: All events logged, performance metrics
+- Metrics Collection: Response times, success rates, question type distribution
+- Error Tracking: Error categorization, frequency patterns
+- Performance Monitoring: Response time trends, memory usage patterns
+- Health Check Monitoring: System health indicators, overall health rate
+- Comprehensive Observability: Full system monitoring capabilities
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Test Data
+
+### TBL_TestData Integration
+
+The test suite dynamically reads **reference data** from the `TBL_TestData` Google Sheet to validate chatbot responses against the production database:
+
+- **Luke Bangs**: 29 goals, 7 assists, 78 appearances
+- **Oli Goddard**: 15 goals, 12 assists, 45 appearances
+- **Jonny Sourris**: 8 goals, 15 assists, 52 appearances
+
+### Fallback Data
+
+If CSV loading fails, the suite uses embedded fallback reference data to ensure tests can run independently.
+
+### Production Database Testing
+
+**⚠️ Important**: This test suite connects to the **production database** to test real chatbot performance:
+
+- Tests actual Neo4j queries and response times
+- Validates real data accuracy and consistency
+- Measures chatbot performance under real conditions
+- Requires production database credentials
 
 > [Back to Table of Contents](#table-of-contents)
 
 ## Running Tests
 
-### Local Development
+### Unit and Integration Tests
+
+#### All Tests
+
+```bash
+npm test
+```
+
+#### Specific Test Categories
+
+```bash
+# Basic functionality
+npm test -- --testPathPattern=unit/basic
+
+# Service unit tests
+npm test -- --testPathPattern=unit/services
+
+# Integration tests
+npm test -- --testPathPattern=integration
+
+# Comprehensive stat testing
+npm test -- --testPathPattern=comprehensive
+
+# Advanced question types
+npm test -- --testPathPattern=advanced
+
+# Performance and load testing
+npm test -- --testPathPattern=performance
+
+# Data accuracy validation
+npm test -- --testPathPattern=validation
+
+# User experience testing
+npm test -- --testPathPattern=ux
+
+# Security and edge cases
+npm test -- --testPathPattern=security
+
+# Monitoring and observability
+npm test -- --testPathPattern=monitoring
+```
+
+#### With Coverage
+
+```bash
+npm run test:coverage
+```
+
+#### Debug Mode
+
+```bash
+npm run test:debug
+```
+
+#### Test Output Modes
+
+**Clean Output (Default)**:
+- Simple one-line status for each test
+- Minimal logging - only essential information
+- Clean summary with pass/fail counts
+- Perfect for CI/CD and regular development
+
+**Detailed Debug Output**:
+- Verbose logging for all operations
+- Detailed database connection info
+- Full error stack traces
+- Reference data loading details
+- Perfect for troubleshooting and development
+
+> [Back to Table of Contents](#table-of-contents)
+
+### E2E Tests
+
+#### Local Development
 
 ```bash
 # Run all tests
@@ -315,7 +643,7 @@ npm run test:e2e:ui
 npm run test:e2e:headless
 
 # Run specific test file
-npx playwright test e2e/totw/totw.spec.ts
+npx playwright test __tests__/e2e/totw/totw.spec.ts
 
 # Run tests in debug mode
 npm run test:e2e:debug
@@ -327,7 +655,7 @@ npm run test:e2e:email
 npm run test:e2e:report
 ```
 
-### Cron Job Execution
+#### Cron Job Execution
 
 For cron-job.org, use:
 
@@ -343,12 +671,176 @@ npm run test:e2e:email
 
 This will:
 - Run all tests in headless mode
-- Generate HTML report in `e2e/playwright-report/`
-- Capture screenshots on failure in `e2e/test-results/screenshots/`
+- Generate HTML report in `__tests__/e2e/playwright-report/`
+- Capture screenshots on failure in `__tests__/e2e/test-results/screenshots/`
 - Send email notification with test results (if email configured)
 - Exit with non-zero code on failure (for cron job notification)
 
-### Environment Variables
+> [Back to Table of Contents](#table-of-contents)
+
+### Chatbot Test Reports
+
+#### Chatbot Email Report
+
+```bash
+# Run chatbot tests and send email report
+npm run test:chatbot-report
+
+# Hide passed tests in report
+npm run test:chatbot-report:hide
+
+# Run with debug mode
+npm run test:chatbot-report:debug
+
+# Enhanced logging version
+npm run test:chatbot-report:enhanced-logging
+
+# Analyze chatbot logs
+npm run test:chatbot-report:analyze-logs
+```
+
+#### Questions Email Report
+
+```bash
+# Run questions tests and send email report
+npm run test:questions-report
+
+# Hide passed tests in report
+npm run test:questions-report:hide
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Test Coverage Analysis
+
+### Current Coverage
+
+#### Unit and Integration Tests
+- **Total Test Files**: 10+ comprehensive test suites
+- **Total Test Cases**: 200+ individual test cases
+- **Test Categories**: 10 major categories
+- **Stat Configurations**: 50+ metrics tested
+- **Coverage Areas**:
+  - Chatbot service methods: ~90% coverage
+  - Database operations: Full coverage of critical paths
+  - Error handling: Comprehensive edge case coverage
+  - Performance: Response time and load testing
+  - Security: Input validation and sanitization
+
+#### E2E Tests
+- **Total Test Suites**: 8 major test suites
+- **Test Coverage**:
+  - Core Navigation: All main pages and sub-pages
+  - Critical User Flows: Player selection, chatbot queries, TOTW interactions
+  - Data Loading: Verification that data loads and displays
+  - User Interactions: Clicks, form inputs, dropdown selections
+  - API Endpoints: Critical API responses and error handling
+  - Responsive Design: Mobile viewport testing
+  - Error Resilience: App doesn't crash on invalid input
+
+### Coverage Gaps Identified
+
+1. **Component-Level Unit Tests**: 
+   - Missing: React component tests with @testing-library/react
+   - Impact: UI changes may break without detection
+   - Priority: Medium
+
+2. **API Route Unit Tests**:
+   - Missing: Direct API route testing without browser
+   - Impact: API changes may not be caught early
+   - Priority: High
+
+3. **Utility Function Tests**:
+   - Partial: Some utilities tested, but not comprehensive
+   - Impact: Utility bugs may affect multiple features
+   - Priority: Medium
+
+4. **Accessibility Tests**:
+   - Missing: WCAG compliance validation
+   - Impact: Accessibility issues may go undetected
+   - Priority: Medium
+
+5. **Visual Regression Tests**:
+   - Missing: Screenshot comparison testing
+   - Impact: Visual bugs may not be caught
+   - Priority: Low
+
+6. **Performance Benchmarks**:
+   - Partial: Load testing exists, but no baseline benchmarks
+   - Impact: Performance regressions may go unnoticed
+   - Priority: Medium
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Testing Recommendations
+
+### Short-Term Improvements (1-3 months)
+
+1. **Add React Component Tests**:
+   - Use @testing-library/react for component testing
+   - Focus on critical UI components (PlayerStats, TOTW, Chatbot)
+   - Target: 60% component coverage
+
+2. **Expand API Route Testing**:
+   - Add unit tests for all API routes
+   - Test error handling and edge cases
+   - Target: 80% API route coverage
+
+3. **Improve Utility Test Coverage**:
+   - Add tests for all utility functions
+   - Focus on data transformation and validation utilities
+   - Target: 90% utility coverage
+
+### Medium-Term Improvements (3-6 months)
+
+1. **Add Accessibility Testing**:
+   - Integrate @axe-core/playwright for E2E accessibility tests
+   - Run accessibility audits on all pages
+   - Target: WCAG 2.1 AA compliance
+
+2. **Implement Visual Regression Testing**:
+   - Use Playwright's screenshot comparison
+   - Test critical UI components and pages
+   - Integrate into CI/CD pipeline
+
+3. **Performance Benchmarking**:
+   - Establish performance baselines
+   - Add performance regression tests
+   - Monitor Core Web Vitals
+
+### Long-Term Improvements (6-12 months)
+
+1. **Test Coverage Goals**:
+   - Unit Tests: 90%+ coverage of chatbot service methods
+   - Integration Tests: End-to-end workflow validation with real database
+   - E2E Tests: 80%+ coverage of critical user flows
+   - Overall: 70%+ code coverage
+
+2. **CI/CD Integration**:
+   - Automated test runs on all pull requests
+   - Test result reporting in PR comments
+   - Block merges on test failures
+
+3. **Test Maintenance**:
+   - Regular test review and cleanup
+   - Update tests when features change
+   - Document test patterns and best practices
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Environment Variables
+
+### Unit and Integration Tests
+
+```bash
+PROD_NEO4J_URI=bolt://your-production-db:7687
+PROD_NEO4J_USER=your-username
+PROD_NEO4J_PASSWORD=your-password
+```
+
+**⚠️ Note**: If production credentials are not provided, tests will fall back to local development database.
+
+### E2E Tests
 
 Set `BASE_URL` environment variable for testing against production:
 
@@ -367,36 +859,102 @@ For email notifications, ensure these environment variables are set:
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Test Maintenance
+## Test Utilities
 
-### When to Update Tests
+### Data Fetching
+
+- `fetchTestData()`: Retrieves reference CSV data from Google Sheets
+- `getTestPlayerNames()`: Extracts player names dynamically
+- `getPlayerTestData()`: Gets specific player reference statistics
+- `getAllStatConfigs()`: Gets all 50+ stat configurations
+
+### Response Validation
+
+- `extractNumericValue()`: Parses numbers from chatbot responses
+- `validateResponse()`: Compares reference data vs. production database values
+- `generateTestQuestions()`: Creates test scenarios for each player
+
+### Mock Services
+
+- `neo4jMock.ts`: Mock Neo4j service for testing without database connection
+
+### E2E Test Helpers
+
+- `testHelpers.ts`: Common E2E test utilities
+- `apiHelpers.ts`: API testing helpers
+- `testData.ts`: E2E test data and constants
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Troubleshooting
+
+### Common Issues
+
+1. **CSV Loading Failures**: Tests fall back to embedded reference data
+2. **Production Database Connection**: Ensure database credentials are correct
+3. **Network Issues**: Check database connectivity and firewall settings
+4. **TypeScript Errors**: Ensure proper type definitions
+5. **Database Performance**: Tests may be slower during peak database load
+6. **Memory Issues**: Large test suites may require increased memory limits
+7. **Timeout Issues**: Complex queries may need extended timeout periods
+8. **E2E Test Failures**: Check for UI changes that require selector updates
+
+### Debug Mode
+
+Run tests with verbose output:
+
+```bash
+# Unit/Integration tests
+npm run test:debug
+
+# E2E tests
+npm run test:e2e:debug
+```
+
+### E2E Test Maintenance
+
+#### When to Update Tests
 
 1. **New Features**: Add tests for new pages or major features
 2. **Breaking Changes**: Update selectors when UI components change
 3. **Bug Fixes**: Add regression tests for fixed bugs
 4. **API Changes**: Update API tests when endpoints change
 
-### Test Data
+#### Test Data
 
-Test data is defined in `e2e/fixtures/testData.ts`. Update this file when:
+Test data is defined in `__tests__/e2e/fixtures/testData.ts`. Update this file when:
 - Test players are no longer in the database
 - Test seasons are outdated
 - Expected response times need adjustment
 
-### Selector Updates
+#### Selector Updates
 
 If UI components change and tests fail:
 1. Update selectors in test files to match new structure
 2. Prefer data attributes or ARIA labels over class names
 3. Use semantic selectors (text content, roles) when possible
 
-### Adding New Tests
+#### Adding New Tests
 
 When adding new tests:
 1. Follow existing test structure and naming conventions
-2. Use helper functions from `e2e/utils/testHelpers.ts`
+2. Use helper functions from `__tests__/e2e/utils/testHelpers.ts`
 3. Update this documentation to reflect new test coverage
 4. Ensure tests are independent and can run in any order
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Continuous Integration
+
+The test suite is designed to run in CI/CD environments:
+
+1. **Build Verification**: Ensures TypeScript compilation
+2. **Unit Testing**: Validates core functionality
+3. **Integration Testing**: Verifies end-to-end workflows
+4. **E2E Testing**: Validates user-facing functionality
+5. **Performance Testing**: Validates response times and load handling
+6. **Security Testing**: Ensures input sanitization and abuse prevention
+7. **Coverage Reporting**: Tracks test coverage metrics
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -472,8 +1030,8 @@ BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2
 #### What Happens During Execution
 
 1. **Test Suite Runs**: All E2E tests execute in headless mode
-2. **Screenshots Captured**: On failure, screenshots are saved to `e2e/test-results/screenshots/`
-3. **Report Generated**: HTML report created in `e2e/playwright-report/`
+2. **Screenshots Captured**: On failure, screenshots are saved to `__tests__/e2e/test-results/screenshots/`
+3. **Report Generated**: HTML report created in `__tests__/e2e/playwright-report/`
 4. **Email Sent**: If using `test:e2e:email`, email notification is sent with results and screenshots
 5. **Exit Code**: 
    - `0` if all tests pass
@@ -502,7 +1060,7 @@ BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2
 
 #### Custom Notification Script
 
-You can extend `scripts/run-e2e-tests.js` to send custom notifications:
+You can extend `__tests__/e2e/scripts/run-e2e-tests.js` to send custom notifications:
 
 ```javascript
 // Add after error handling
@@ -542,7 +1100,7 @@ On failure, notifications should include:
    - Prefer stable selectors (data attributes, ARIA labels)
 
 2. **Tests Fail Due to Data Changes**:
-   - Update test data in `e2e/fixtures/testData.ts`
+   - Update test data in `__tests__/e2e/fixtures/testData.ts`
    - Use stable test data that won't change
 
 3. **Tests Timeout**:
@@ -551,15 +1109,15 @@ On failure, notifications should include:
    - Verify network connectivity
 
 4. **Screenshots Not Captured**:
-   - Verify `test-results/screenshots/` directory exists
+   - Verify `__tests__/e2e/test-results/screenshots/` directory exists
    - Check file permissions
    - Review Playwright configuration
 
 #### Test Report Access
 
 After test execution:
-- HTML report: `e2e/playwright-report/index.html`
-- Screenshots: `e2e/test-results/screenshots/*.png`
+- HTML report: `__tests__/e2e/playwright-report/index.html`
+- Screenshots: `__tests__/e2e/test-results/screenshots/*.png`
 - View report: `npm run test:e2e:report`
 
 #### Updating Test Schedule
