@@ -20,12 +20,19 @@ export default defineConfig({
 	/* Opt out of parallel tests on CI. */
 	workers: process.env.CI ? 1 : undefined,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
-	reporter: [
-		['html', { outputFolder: '__tests__/e2e/playwright-report' }],
-		['list'],
-		...(process.env.CI ? [['junit', { outputFile: '__tests__/e2e/test-results/junit.xml' }]] : []),
-	],
+	reporter: process.env.CI
+		? [
+				['html', { outputFolder: '__tests__/e2e/playwright-report' }],
+				['list'],
+				['junit', { outputFile: '__tests__/e2e/test-results/junit.xml' }],
+		  ]
+		: [
+				['html', { outputFolder: '__tests__/e2e/playwright-report' }],
+				['list'],
+		  ],
 	outputDir: '__tests__/e2e/test-results',
+	/* Maximum time each test can run. */
+	timeout: 60000,
 	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
@@ -38,8 +45,6 @@ export default defineConfig({
 		video: 'off',
 		/* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
 		actionTimeout: 30000,
-		/* Maximum time each test can run. */
-		timeout: 60000,
 	},
 
 	/* Configure projects for major browsers */
