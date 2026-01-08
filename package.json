@@ -24,7 +24,13 @@
 		"test:chatbot-report:enhanced-logging": "node scripts/test-chatbot-with-enhanced-logging.js",
 		"test:chatbot-report:analyze-logs": "node scripts/analyze-chatbot-logs.js",
 		"test:questions-report": "node scripts/test-questions-email-report.js",
-		"test:questions-report:hide": "node scripts/test-questions-email-report.js --hide-passed"
+		"test:questions-report:hide": "node scripts/test-questions-email-report.js --hide-passed",
+		"test:e2e": "playwright test",
+		"test:e2e:ui": "playwright test --ui",
+		"test:e2e:headless": "playwright test --headed=false",
+		"test:e2e:report": "playwright show-report",
+		"test:e2e:debug": "playwright test --debug",
+		"test:e2e:cron": "node scripts/run-e2e-tests.js"
 	},
 	"dependencies": {
 		"@googlemaps/js-api-loader": "^1.16.6",
@@ -38,8 +44,8 @@
 		"@types/papaparse": "^5.5.2",
 		"@types/react": "^18.3.27",
 		"@types/react-dom": "^18.2.18",
-		"compromise": "^14.14.5",
 		"autoprefixer": "^10.4.23",
+		"compromise": "^14.14.5",
 		"dotenv": "^17.2.3",
 		"framer-motion": "^10.16.16",
 		"html2canvas": "^1.4.1",
@@ -61,6 +67,7 @@
 	},
 	"devDependencies": {
 		"@netlify/functions": "^2.0.0",
+		"@playwright/test": "^1.57.0",
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/react": "^16.3.0",
 		"@types/google.maps": "^3.58.1",
