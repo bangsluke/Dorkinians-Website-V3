@@ -18,7 +18,7 @@ require("dotenv").config();
 const isDebugMode = process.env.DEBUG_MODE === "true";
 
 // Set up comprehensive logging
-const logDir = path.join(__dirname, "..", "logs");
+const logDir = path.join(__dirname, "..", "..", "logs");
 if (!fs.existsSync(logDir)) {
 	fs.mkdirSync(logDir, { recursive: true });
 }
@@ -244,7 +244,7 @@ async function runEnhancedChatbotTest() {
 
 		// Parse results if possible
 		try {
-			const resultsLogFile = path.join(__dirname, "..", "logs", "test-chatbot-email-report.log");
+			const resultsLogFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-email-report.log");
 			if (fs.existsSync(resultsLogFile)) {
 				const resultsContent = fs.readFileSync(resultsLogFile, "utf8");
 				const results = JSON.parse(resultsContent);

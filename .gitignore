@@ -114,3 +114,7 @@ example-data/CSV-examples/
 logs/
 logs/test-chatbot-email-report.log
 logs/test-execution.log
+
+# Test Results
+__tests__/e2e/test-results/
+__tests__/e2e/playwright-report/

@@ -16,7 +16,7 @@ const path = require("path");
 const nodemailer = require("nodemailer");
 
 // Enhanced logging for debugging
-const debugLogFile = path.join(__dirname, "..", "logs", "test-chatbot-debug.log");
+const debugLogFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-debug.log");
 const debugLogStream = fs.createWriteStream(debugLogFile, { flags: "w" });
 
 // Override console methods to log to both console and debug file
@@ -71,7 +71,7 @@ const logDebug = (message) => {
 };
 
 // Set up console logging to file
-const logDir = path.join(__dirname, "..", "logs");
+const logDir = path.join(__dirname, "..", "..", "logs");
 if (!fs.existsSync(logDir)) {
 	fs.mkdirSync(logDir, { recursive: true });
 }
@@ -1305,7 +1305,7 @@ function writeTestResultsToLog(testResults) {
 			})),
 		};
 
-		const logFile = path.join(__dirname, "..", "logs", "test-chatbot-email-report.log");
+		const logFile = path.join(__dirname, "..", "..", "logs", "test-chatbot-email-report.log");
 		fs.writeFileSync(logFile, JSON.stringify(logContent, null, 2));
 		console.log(`📝 Test results written to: ${logFile}`);
 	} catch (error) {
