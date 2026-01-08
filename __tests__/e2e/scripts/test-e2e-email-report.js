@@ -13,7 +13,8 @@ const nodemailer = require('nodemailer');
 // Load environment variables
 require('dotenv').config();
 
-const BASE_URL = process.env.BASE_URL || 'https://dorkinians-website-v3.netlify.app';
+// Use WEBSITE_URL (available in Netlify) or fallback to BASE_URL for backward compatibility
+const BASE_URL = process.env.WEBSITE_URL || process.env.BASE_URL || 'https://dorkinians-website-v3.netlify.app';
 const HEADLESS = process.env.HEADLESS !== 'false';
 
 // Email configuration
