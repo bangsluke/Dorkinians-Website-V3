@@ -320,6 +320,9 @@ npx playwright test e2e/totw/totw.spec.ts
 # Run tests in debug mode
 npm run test:e2e:debug
 
+# Run tests with email notification
+npm run test:e2e:email
+
 # View test report
 npm run test:e2e:report
 ```
@@ -332,10 +335,17 @@ For cron-job.org, use:
 npm run test:e2e:headless
 ```
 
+Or with email notifications:
+
+```bash
+npm run test:e2e:email
+```
+
 This will:
 - Run all tests in headless mode
-- Generate HTML report in `playwright-report/`
-- Capture screenshots on failure in `test-results/screenshots/`
+- Generate HTML report in `e2e/playwright-report/`
+- Capture screenshots on failure in `e2e/test-results/screenshots/`
+- Send email notification with test results (if email configured)
 - Exit with non-zero code on failure (for cron job notification)
 
 ### Environment Variables
@@ -345,6 +355,15 @@ Set `BASE_URL` environment variable for testing against production:
 ```bash
 BASE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:headless
 ```
+
+For email notifications, ensure these environment variables are set:
+- `SMTP_SERVER` - SMTP server hostname
+- `SMTP_PORT` - SMTP server port
+- `SMTP_USERNAME` - SMTP username
+- `SMTP_PASSWORD` - SMTP password
+- `SMTP_FROM_EMAIL` - Sender email address
+- `SMTP_TO_EMAIL` - Recipient email address
+- `SMTP_EMAIL_SECURE` - Use TLS/SSL (true/false)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -453,9 +472,10 @@ BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2
 #### What Happens During Execution
 
 1. **Test Suite Runs**: All E2E tests execute in headless mode
-2. **Screenshots Captured**: On failure, screenshots are saved to `test-results/screenshots/`
-3. **Report Generated**: HTML report created in `playwright-report/`
-4. **Exit Code**: 
+2. **Screenshots Captured**: On failure, screenshots are saved to `e2e/test-results/screenshots/`
+3. **Report Generated**: HTML report created in `e2e/playwright-report/`
+4. **Email Sent**: If using `test:e2e:email`, email notification is sent with results and screenshots
+5. **Exit Code**: 
    - `0` if all tests pass
    - `1` if any test fails (triggers cron job notification)
 
@@ -538,8 +558,8 @@ On failure, notifications should include:
 #### Test Report Access
 
 After test execution:
-- HTML report: `playwright-report/index.html`
-- Screenshots: `test-results/screenshots/*.png`
+- HTML report: `e2e/playwright-report/index.html`
+- Screenshots: `e2e/test-results/screenshots/*.png`
 - View report: `npm run test:e2e:report`
 
 #### Updating Test Schedule
@@ -559,6 +579,11 @@ To change the test schedule:
 **Schedule**: Every Monday at 2:00 AM
 
 **Command**:
+```bash
+cd /path/to/V3-Dorkinians-Website && BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2e:email
+```
+
+**Alternative (without email)**:
 ```bash
 cd /path/to/V3-Dorkinians-Website && BASE_URL=https://dorkinians-website-v3.netlify.app HEADLESS=true npm run test:e2e:cron
 ```

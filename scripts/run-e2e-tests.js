@@ -23,7 +23,7 @@ console.log(`🎭 Headless: ${HEADLESS}`);
 console.log('');
 
 // Ensure test-results directory exists
-const testResultsDir = path.join(process.cwd(), 'test-results');
+const testResultsDir = path.join(process.cwd(), 'e2e', 'test-results');
 const screenshotsDir = path.join(testResultsDir, 'screenshots');
 if (!fs.existsSync(testResultsDir)) {
 	fs.mkdirSync(testResultsDir, { recursive: true });
@@ -32,11 +32,11 @@ if (!fs.existsSync(screenshotsDir)) {
 	fs.mkdirSync(screenshotsDir, { recursive: true });
 }
 
-try {
-	// Run Playwright tests
-	const command = `npx playwright test ${HEADLESS ? '--headed=false' : ''}`;
-	console.log(`📝 Executing: ${command}`);
-	console.log('');
+	try {
+		// Run Playwright tests (headless is default, so only add --headed if not headless)
+		const command = `npx playwright test${HEADLESS ? '' : ' --headed'}`;
+		console.log(`📝 Executing: ${command}`);
+		console.log('');
 
 	const result = execSync(command, {
 		stdio: 'inherit',
@@ -58,7 +58,7 @@ try {
 	console.error('');
 	
 	// Check if test results exist
-	const reportDir = path.join(process.cwd(), 'playwright-report');
+	const reportDir = path.join(process.cwd(), 'e2e', 'playwright-report');
 	if (fs.existsSync(reportDir)) {
 		console.error(`📊 Test report available at: ${reportDir}`);
 		console.error(`📊 View report: npm run test:e2e:report`);

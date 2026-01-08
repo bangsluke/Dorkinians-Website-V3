@@ -48,11 +48,11 @@ export async function waitForDataLoad(page: Page, skeletonSelector?: string) {
  * Navigate to a main page
  */
 export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' | 'totw' | 'club-info' | 'settings') {
-	const pageMap = {
+	const pageMap: Record<string, string> = {
 		home: '/',
 		stats: '/',
 		totw: '/',
-		club-info: '/',
+		'club-info': '/',
 		settings: '/settings',
 	};
 
@@ -137,5 +137,5 @@ export async function verifyNoConsoleErrors(page: Page) {
  * Take screenshot with descriptive name
  */
 export async function takeScreenshot(page: Page, name: string) {
-	await page.screenshot({ path: `test-results/screenshots/${name}.png`, fullPage: true });
+	await page.screenshot({ path: `e2e/test-results/screenshots/${name}.png`, fullPage: true });
 }
