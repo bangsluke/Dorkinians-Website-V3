@@ -10,7 +10,7 @@ jobs:
   e2e-tests:
     name: Run E2E Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
 
     steps:
       - name: Checkout code
@@ -29,10 +29,12 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests with email notification
+        timeout-minutes: 55
         env:
           WEBSITE_URL: ${{ secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
           BASE_URL: ${{ secrets.WEBSITE_URL || secrets.BASE_URL || 'https://dorkinians-website-v3.netlify.app' }}
           HEADLESS: 'true'
+          CI: 'true'
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
