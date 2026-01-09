@@ -28,9 +28,8 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headless": "playwright test --headed=false",
-		"test:e2e:report": "playwright show-report __tests__/e2e/playwright-report",
+		"test:e2e:show-last-report": "playwright show-report __tests__/e2e/playwright-report",
 		"test:e2e:debug": "playwright test --debug",
-		"test:e2e:cron": "node __tests__/e2e/scripts/run-e2e-tests.js",
 		"test:e2e:email": "node __tests__/e2e/scripts/test-e2e-email-report.js"
 	},
 	"dependencies": {

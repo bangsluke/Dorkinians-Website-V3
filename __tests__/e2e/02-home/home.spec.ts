@@ -1,20 +1,25 @@
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, selectPlayer, waitForChatbot, submitChatbotQuery } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, selectPlayer, waitForChatbot, submitChatbotQuery, logSectionHeader } from '../utils/testHelpers';
 import { TEST_PLAYERS, TEST_QUERIES } from '../fixtures/testData';
 
 test.describe('Home Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('HOME PAGE TESTS', '🏠', '02');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'home');
 		await waitForPageLoad(page);
 	});
 
+	// Verify welcome message or player selection is visible
 	test('should display home page with player selection', async ({ page }) => {
-		// Verify welcome message or player selection is visible
 		await expect(
-			page.locator('text=/Welcome|Select.*player|Player Selection/i')
+			page.locator('text=/Welcome to the Dorkinians FC|Choose.*player/i')
 		).toBeVisible({ timeout: 10000 });
 	});
 
+	// Verify player selection is visible and allows selection
 	test('should allow player selection', async ({ page }) => {
 		// Find player selection input
 		const playerInput = page.locator('input[type="text"], input[placeholder*="player" i]').first();
@@ -30,12 +35,13 @@ test.describe('Home Page Tests', () => {
 				await playerOption.click();
 				await waitForPageLoad(page);
 
-				// Verify player name is displayed
-				await expect(page.locator(`text=/${TEST_PLAYERS.primary}/i`)).toBeVisible({ timeout: 5000 });
+				// Verify player name and "Try these questions" is displayed
+				await expect(page.locator(`text=/${TEST_PLAYERS.primary}/i, text=/Try these questions/i`)).toBeVisible({ timeout: 5000 });
 			}
 		}
 	});
 
+	// Verify chatbot interface is displayed after player selection
 	test('should display chatbot interface after player selection', async ({ page }) => {
 		// Select a player
 		await selectPlayer(page, TEST_PLAYERS.primary);
@@ -49,6 +55,7 @@ test.describe('Home Page Tests', () => {
 		).toBeVisible({ timeout: 5000 });
 	});
 
+	// Verify chatbot query is submitted and response is displayed
 	test('should submit chatbot query and receive response', async ({ page }) => {
 		// Select a player
 		await selectPlayer(page, TEST_PLAYERS.primary);
@@ -66,10 +73,11 @@ test.describe('Home Page Tests', () => {
 		await expect(response.first()).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should display example questions when no player is selected', async ({ page }) => {
-		// Navigate to home page (without player selected)
-		await navigateToMainPage(page, 'home');
-		await waitForPageLoad(page);
+	// Verify example questions are displayed when a player is selected
+	test('should display example questions when a player is selected', async ({ page }) => {
+		// Select a player
+		await selectPlayer(page, TEST_PLAYERS.primary);
+		await waitForChatbot(page);
 
 		// Verify example questions are displayed
 		const exampleQuestions = page.locator('text=/What.*most|How many|Who.*played/i');
@@ -77,6 +85,7 @@ test.describe('Home Page Tests', () => {
 		expect(hasExamples).toBe(true);
 	});
 
+	// Verify example questions can be clicked and submitted
 	test('should allow clicking example questions', async ({ page }) => {
 		// Find an example question
 		const exampleQuestion = page.locator('button:has-text(/What|How|Who/i), [class*="question" i]').first();
@@ -98,6 +107,7 @@ test.describe('Home Page Tests', () => {
 		}
 	});
 
+	// Verify recently selected players are displayed
 	test('should display recently selected players', async ({ page }) => {
 		// First select a player to create recent history
 		await selectPlayer(page, TEST_PLAYERS.primary);

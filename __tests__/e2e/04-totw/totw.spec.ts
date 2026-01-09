@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../utils/testHelpers';
 import { TEST_TOTW_WEEKS } from '../fixtures/testData';
 
 test.describe('TOTW Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('TOTW PAGE TESTS', '⭐', '04');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'totw');
 		await waitForPageLoad(page);

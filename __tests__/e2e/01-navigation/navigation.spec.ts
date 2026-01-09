@@ -1,20 +1,27 @@
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
 
 test.describe('Navigation Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('NAVIGATION TESTS', '📍', '01');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/');
 		await waitForPageLoad(page);
 	});
 
 	test('should navigate to Home page', async ({ page }) => {
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'navigation.spec.ts:test:entry',message:'Test started',data:{testName:'should navigate to Home page'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+		// #endregion
 		// Click home navigation
 		const homeButton = page.locator('button:has-text("Home"), [aria-label*="Home" i]').first();
 		await homeButton.click();
 		await waitForPageLoad(page);
 
 		// Verify we're on home page - check for player selection or welcome message
-		await expect(page.locator('text=/Welcome|Player|Select.*player/i')).toBeVisible({ timeout: 10000 });
+		await expect(page.locator('text=/Welcome to the Dorkinians FC|Choose.*player/i')).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should navigate to Stats page', async ({ page }) => {

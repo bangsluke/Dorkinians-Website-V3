@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../utils/testHelpers';
 
 test.describe('Club Info Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('CLUB INFO PAGE TESTS', '🏛️ ', '05');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'club-info');
 		await waitForPageLoad(page);

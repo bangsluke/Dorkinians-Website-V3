@@ -1,8 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../utils/testHelpers';
 import { TEST_PLAYERS, TEST_TEAMS } from '../fixtures/testData';
 
 test.describe('Stats Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('STATS PAGE TESTS', '📊', '03');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);

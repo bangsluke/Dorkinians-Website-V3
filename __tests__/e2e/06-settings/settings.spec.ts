@@ -1,7 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { waitForPageLoad } from '../utils/testHelpers';
+import { waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
 
 test.describe('Settings Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('SETTINGS PAGE TESTS', '⚙️ ', '06');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await page.goto('/settings');
 		await waitForPageLoad(page);
