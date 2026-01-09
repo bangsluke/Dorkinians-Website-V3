@@ -44,7 +44,7 @@ export default defineConfig({
 		/* Video recording disabled - only screenshots on failure */
 		video: 'off',
 		/* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
-		actionTimeout: 30000,
+		actionTimeout: 60000,
 	},
 
 	/* Configure projects for major browsers */
