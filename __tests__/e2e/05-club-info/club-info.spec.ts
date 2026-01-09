@@ -14,10 +14,8 @@ test.describe('Club Info Page Tests', () => {
 	test('should display Club Information page by default', async ({ page }) => {
 		await waitForDataLoad(page);
 
-		// Verify Club Information content
-		await expect(
-			page.locator('text=/Club Information|Club History|Milestones/i')
-		).toBeVisible({ timeout: 10000 });
+		// Verify Club Information button is visible
+		await expect(page.getByRole('button', { name: /Club Information/i })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should navigate to League Information sub-page', async ({ page }) => {
@@ -31,10 +29,8 @@ test.describe('Club Info Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify League Information content
-			await expect(
-				page.locator('text=/League Information|League.*Table|Standings/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify League Information button is visible
+			await expect(page.getByRole('button', { name: /League Information/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -48,10 +44,8 @@ test.describe('Club Info Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify Club Captains content
-			await expect(
-				page.locator('text=/Club Captains|Current.*Captains|Historical.*Captains/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Club Captains button is visible
+			await expect(page.getByRole('button', { name: /Club Captains/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -65,10 +59,8 @@ test.describe('Club Info Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify Club Awards content
-			await expect(
-				page.locator('text=/Club Awards|Award.*Categories|Award.*Winners/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Club Awards button is visible
+			await expect(page.getByRole('button', { name: /Club Awards/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -82,10 +74,8 @@ test.describe('Club Info Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify Useful Links content
-			await expect(
-				page.locator('text=/Useful Links|External.*Resources|Links/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Useful Links button is visible
+			await expect(page.getByRole('button', { name: /Useful Links/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 

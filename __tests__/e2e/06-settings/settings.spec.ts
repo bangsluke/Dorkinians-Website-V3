@@ -12,17 +12,13 @@ test.describe('Settings Page Tests', () => {
 	});
 
 	test('should display Settings page', async ({ page }) => {
-		// Verify Settings page content
-		await expect(
-			page.locator('text=/Settings|Database Status|PWA|Navigation/i')
-		).toBeVisible({ timeout: 10000 });
+		// Verify Settings heading is visible
+		await expect(page.getByRole('heading', { name: /Settings/i })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should display navigation shortcuts', async ({ page }) => {
-		// Verify navigation shortcuts are visible
-		await expect(
-			page.locator('text=/Home|Stats|TOTW|Club Info|Quick.*Navigation/i')
-		).toBeVisible({ timeout: 10000 });
+		// Verify at least one navigation shortcut is visible (check for Home button)
+		await expect(page.getByRole('button', { name: /Home/i })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should navigate using quick navigation shortcuts', async ({ page }) => {
@@ -33,10 +29,13 @@ test.describe('Settings Page Tests', () => {
 			await homeShortcut.click();
 			await waitForPageLoad(page);
 
-			// Verify we navigated to home page
-			await expect(
-				page.locator('text=/Welcome|Select.*player|Player Selection/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify we navigated to home page - check for welcome heading or player selection
+			const welcomeHeading = page.getByRole('heading', { name: /Welcome/i });
+			const playerButton = page.getByRole('button', { name: /Select.*player|Player Selection/i });
+			await Promise.race([
+				expect(welcomeHeading).toBeVisible({ timeout: 10000 }),
+				expect(playerButton).toBeVisible({ timeout: 10000 })
+			]);
 		}
 	});
 

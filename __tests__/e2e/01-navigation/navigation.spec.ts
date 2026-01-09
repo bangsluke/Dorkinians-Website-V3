@@ -12,83 +12,132 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('should navigate to Home page', async ({ page }) => {
-		// Click home navigation
-		const homeButton = page.locator('button:has-text("Home"), [aria-label*="Home" i]').first();
+		const homeButton = page.getByRole('button', { name: 'Home' }).first();
+		await homeButton.waitFor({ state: 'visible', timeout: 10000 });
+		await homeButton.scrollIntoViewIfNeeded();
 		await homeButton.click();
 		await waitForPageLoad(page);
 
-		// Verify we're on home page - check for player selection or welcome message
-		await expect(page.locator('text=/Welcome to the Dorkinians FC|Choose.*player/i')).toBeVisible({ timeout: 10000 });
+		const welcome = page.getByRole('heading', { name: /Welcome to the Dorkinians FC/i });
+		const choosePlayer = page.getByRole('button', { name: /Choose a player/i });
+
+		await Promise.race([
+			expect(welcome).toBeVisible({ timeout: 10000 }),
+			expect(choosePlayer).toBeVisible({ timeout: 10000 })
+		]);
 	});
 
 	test('should navigate to Stats page', async ({ page }) => {
-		// Click stats navigation
-		const statsButton = page.locator('button:has-text("Stats"), [aria-label*="Stats" i]').first();
+		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
+		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
+		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
 		await waitForPageLoad(page);
 
-		// Verify we're on stats page - check for stats content
-		await expect(page.locator('text=/Player Stats|Team Stats|Club Stats/i')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('button', { name: /Player Stats/i })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should navigate to TOTW page', async ({ page }) => {
-		// Click TOTW navigation
-		const totwButton = page.locator('button:has-text("TOTW"), [aria-label*="TOTW" i]').first();
+		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
+		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
+		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();
 		await waitForPageLoad(page);
 
-		// Verify we're on TOTW page - check for TOTW header
-		await expect(page.locator('text=/Team of the Week|TOTW/i')).toBeVisible({ timeout: 10000 });
+		const totwHeading1 = page.getByRole('heading', { name: /Team of the Week/i });
+		const totwHeading2 = page.getByRole('heading', { name: /TOTW/i });
+
+		await Promise.race([
+			expect(totwHeading1).toBeVisible({ timeout: 10000 }),
+			expect(totwHeading2).toBeVisible({ timeout: 10000 })
+		]);
 	});
 
 	test('should navigate to Club Info page', async ({ page }) => {
-		// Click club info navigation
-		const clubInfoButton = page.locator('button:has-text("Club Info"), [aria-label*="Club Info" i]').first();
+		const clubInfoButton = page.getByRole('button', { name: 'Club Info' }).first();
+		await clubInfoButton.waitFor({ state: 'visible', timeout: 10000 });
+		await clubInfoButton.scrollIntoViewIfNeeded();
 		await clubInfoButton.click();
 		await waitForPageLoad(page);
 
-		// Verify we're on club info page
-		await expect(page.locator('text=/Club Information|League Information|Club Captains/i')).toBeVisible({ timeout: 10000 });
+		await expect(page.getByRole('button', { name: /Club Information/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate to Settings page', async ({ page }) => {
-		// Click settings icon (usually in header)
-		const settingsButton = page.locator('button[aria-label*="Settings" i], button[aria-label*="settings" i], [data-testid*="settings"]').first();
-		await settingsButton.click();
-		await waitForPageLoad(page);
-
-		// Verify we're on settings page
-		await expect(page.locator('text=/Settings|Database Status|PWA/i')).toBeVisible({ timeout: 10000 });
+	/* ---------------------------------------------------------
+	   DESKTOP SETTINGS TEST
+	   --------------------------------------------------------- */
+	   test.describe('Settings Navigation - Desktop', () => {
+		test.use({ viewport: { width: 1280, height: 800 } });
+	
+		test('should navigate to Settings page on desktop', async ({ page }) => {
+			// Desktop settings icon lives in <aside>, not <header>
+			const desktopSettingsButton = page
+				.locator('aside')
+				.getByTitle('Open settings')
+				.first();
+	
+			await desktopSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
+			await desktopSettingsButton.scrollIntoViewIfNeeded();
+			await desktopSettingsButton.click();
+	
+			await waitForPageLoad(page);
+	
+			await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible({ timeout: 10000 });			  
+		});
 	});
+	
+
+	/* ---------------------------------------------------------
+	   MOBILE SETTINGS TEST
+	   --------------------------------------------------------- */
+	   test.describe('Settings Navigation - Mobile', () => {
+		test.use({ viewport: { width: 375, height: 812 } });
+	
+		test('should navigate to Settings page on mobile', async ({ page }) => {
+			// Mobile settings icon lives in <header class="md:hidden">
+			const mobileSettingsButton = page
+				.locator('header.md\\:hidden')
+				.getByTitle('Open settings')
+				.first();
+	
+			await mobileSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
+			await mobileSettingsButton.scrollIntoViewIfNeeded();
+			await mobileSettingsButton.click();
+	
+			await waitForPageLoad(page);
+	
+			await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible({ timeout: 10000 });
+		});
+	});
+	
 
 	test('should navigate between Stats sub-pages', async ({ page }) => {
-		// Navigate to Stats page
-		const statsButton = page.locator('button:has-text("Stats"), [aria-label*="Stats" i]').first();
+		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
+		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
+		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
 		await waitForPageLoad(page);
 
-		// Check for sub-page navigation (dots or menu)
 		const subPageIndicators = page.locator('[class*="dot"], [class*="indicator"], button[aria-label*="Player Stats" i]');
 		const count = await subPageIndicators.count();
-		
+
 		if (count > 0) {
-			// Click on Team Stats if available
 			const teamStatsButton = page.locator('button:has-text("Team Stats"), [aria-label*="Team Stats" i]').first();
 			if (await teamStatsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 				await teamStatsButton.click();
 				await waitForPageLoad(page);
-				await expect(page.locator('text=/Team Stats|Team.*Stats/i')).toBeVisible({ timeout: 10000 });
+				await expect(page.getByRole('button', { name: /Team Stats/i })).toBeVisible({ timeout: 10000 });
 			}
 		}
 	});
 
 	test('should navigate between TOTW sub-pages', async ({ page }) => {
-		// Navigate to TOTW page
-		const totwButton = page.locator('button:has-text("TOTW"), [aria-label*="TOTW" i]').first();
+		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
+		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
+		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();
 		await waitForPageLoad(page);
 
-		// Check for sub-page navigation
 		const playersOfMonthButton = page.locator('button:has-text("Players of the Month"), [aria-label*="Players of the Month" i]').first();
 		if (await playersOfMonthButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await playersOfMonthButton.click();

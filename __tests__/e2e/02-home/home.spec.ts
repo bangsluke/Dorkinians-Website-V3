@@ -14,9 +14,13 @@ test.describe('Home Page Tests', () => {
 
 	// Verify welcome message or player selection is visible
 	test('should display home page with player selection', async ({ page }) => {
-		await expect(
-			page.locator('text=/Welcome to the Dorkinians FC|Choose.*player/i')
-		).toBeVisible({ timeout: 10000 });
+		// Check for welcome heading or player selection button
+		const welcomeHeading = page.getByRole('heading', { name: /Welcome to the Dorkinians FC/i });
+		const playerButton = page.getByRole('button', { name: /Choose.*player/i });
+		await Promise.race([
+			expect(welcomeHeading).toBeVisible({ timeout: 10000 }),
+			expect(playerButton).toBeVisible({ timeout: 10000 })
+		]);
 	});
 
 	// Verify player selection is visible and allows selection
@@ -35,8 +39,10 @@ test.describe('Home Page Tests', () => {
 				await playerOption.click();
 				await waitForPageLoad(page);
 
-				// Verify player name and "Try these questions" is displayed
-				await expect(page.locator(`text=/${TEST_PLAYERS.primary}/i, text=/Try these questions/i`)).toBeVisible({ timeout: 5000 });
+				// Verify player name is displayed
+				await expect(page.getByText(new RegExp(TEST_PLAYERS.primary, 'i'))).toBeVisible({ timeout: 5000 });
+				// Verify "Try these questions" is displayed
+				await expect(page.getByText(/Try these questions/i)).toBeVisible({ timeout: 5000 });
 			}
 		}
 	});
