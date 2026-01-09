@@ -12,9 +12,6 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('should navigate to Home page', async ({ page }) => {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'navigation.spec.ts:test:entry',message:'Test started',data:{testName:'should navigate to Home page'},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 		// Click home navigation
 		const homeButton = page.locator('button:has-text("Home"), [aria-label*="Home" i]').first();
 		await homeButton.click();
