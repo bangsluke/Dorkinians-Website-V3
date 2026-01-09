@@ -780,7 +780,7 @@ export class RelationshipQueryHandler {
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md1)
 			MATCH (f)-[:HAS_MATCH_DETAILS]->(md2)
 			WHERE ${whereConditions.join(" AND ")}
-			RETURN count(DISTINCT f) as cleanSheetsTogether
+			RETURN count(DISTINCT md1) as cleanSheetsTogether
 		`;
 		
 		const queryParams: Record<string, string> = {

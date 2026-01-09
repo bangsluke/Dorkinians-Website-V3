@@ -16,6 +16,9 @@ export interface ConversationContext {
 		originalQuestion: string;
 		clarificationType: string;
 		timestamp: Date;
+		originalAnalysis?: EnhancedQuestionAnalysis;
+		partialName?: string;
+		userContext?: string;
 	};
 }
 
@@ -69,13 +72,29 @@ export class ConversationContextManager {
 		}
 
 		// Store pending clarification if analysis requires clarification
-		if (analysis.requiresClarification && analysis.type === "clarification_needed") {
+		// Only set if not already set (preserve existing pending clarification from setPendingClarification)
+		if (analysis.requiresClarification && analysis.type === "clarification_needed" && !context.pendingClarification) {
+			// Extract partial name from clarification message if it's a partial name clarification
+			let partialName: string | undefined = undefined;
+			const clarificationMsg = analysis.clarificationMessage || analysis.message || "";
+			if (clarificationMsg.includes("Please provide clarification on who")) {
+				const match = clarificationMsg.match(/who (\w+) is/);
+				if (match) {
+					partialName = match[1];
+				}
+			}
+			
+			// Extract userContext from analysis if available (stored in extractionResult or elsewhere)
+			const userContext = (analysis as any).userContext || undefined;
 			context.pendingClarification = {
 				originalQuestion: question,
-				clarificationType: analysis.clarificationMessage || "general",
+				clarificationType: clarificationMsg || "general",
 				timestamp: new Date(),
+				originalAnalysis: analysis,
+				partialName: partialName,
+				userContext: userContext,
 			};
-		} else {
+		} else if (!analysis.requiresClarification || analysis.type !== "clarification_needed") {
 			// Clear pending clarification when a non-clarification question is successfully processed
 			context.pendingClarification = undefined;
 		}
@@ -84,7 +103,7 @@ export class ConversationContextManager {
 	/**
 	 * Get pending clarification for a session
 	 */
-	public getPendingClarification(sessionId: string): { originalQuestion: string; clarificationType: string; timestamp: Date } | undefined {
+	public getPendingClarification(sessionId: string): { originalQuestion: string; clarificationType: string; timestamp: Date; originalAnalysis?: EnhancedQuestionAnalysis; partialName?: string; userContext?: string } | undefined {
 		const context = this.getContext(sessionId);
 		return context.pendingClarification;
 	}
@@ -92,12 +111,15 @@ export class ConversationContextManager {
 	/**
 	 * Set pending clarification for a session
 	 */
-	public setPendingClarification(sessionId: string, originalQuestion: string, clarificationMessage?: string): void {
+	public setPendingClarification(sessionId: string, originalQuestion: string, clarificationMessage?: string, originalAnalysis?: EnhancedQuestionAnalysis, partialName?: string, userContext?: string): void {
 		const context = this.getContext(sessionId);
 		context.pendingClarification = {
 			originalQuestion,
 			clarificationType: clarificationMessage || "general",
 			timestamp: new Date(),
+			originalAnalysis: originalAnalysis,
+			partialName: partialName,
+			userContext: userContext,
 		};
 	}
 
@@ -112,8 +134,50 @@ export class ConversationContextManager {
 	/**
 	 * Merge previous context into current question analysis
 	 */
-	public mergeContext(sessionId: string, currentAnalysis: EnhancedQuestionAnalysis): EnhancedQuestionAnalysis {
+	public async mergeContext(sessionId: string, currentAnalysis: EnhancedQuestionAnalysis): Promise<EnhancedQuestionAnalysis> {
 		const context = this.getContext(sessionId);
+
+		// Check if there's a pending clarification that needs to be merged
+		const pendingClarification = context.pendingClarification;
+		if (pendingClarification && pendingClarification.originalAnalysis) {
+			// Check if current question looks like a player name clarification (single or two-word name)
+			const currentQuestion = currentAnalysis.question.trim();
+			const words = currentQuestion.split(/\s+/);
+			const isLikelyPlayerName = words.length <= 3 && words.length >= 1 && 
+				words.every(word => /^[A-Z][a-z]+$/.test(word) || /^[A-Z]\.$/.test(word)); // Capitalized words or initials
+			
+			if (isLikelyPlayerName && pendingClarification.partialName) {
+				// This is a follow-up with a full player name to replace the partial name
+				const fullPlayerName = currentQuestion;
+				const originalQuestion = pendingClarification.originalQuestion;
+				
+				// Replace the partial name in the original question with the full name
+				const partialNameLower = pendingClarification.partialName.toLowerCase();
+				const originalQuestionLower = originalQuestion.toLowerCase();
+				const partialNameIndex = originalQuestionLower.indexOf(partialNameLower);
+				
+				if (partialNameIndex !== -1) {
+					// Replace the partial name with the full name, preserving case of surrounding text
+					const beforePartial = originalQuestion.substring(0, partialNameIndex);
+					const afterPartial = originalQuestion.substring(partialNameIndex + pendingClarification.partialName.length);
+					const mergedQuestion = beforePartial + fullPlayerName + afterPartial;
+					
+					// Create merged analysis with the original analysis structure but updated question
+					// Re-analyze the merged question to get correct entities and type (not clarification_needed)
+					const { EnhancedQuestionAnalyzer } = await import("../config/enhancedQuestionAnalysis");
+					// Get userContext from pending clarification or current analysis
+					const userContext = pendingClarification.userContext || 
+						(currentAnalysis as any).userContext || undefined;
+					const analyzer = new EnhancedQuestionAnalyzer(mergedQuestion, userContext);
+					const reanalyzedAnalysis = await analyzer.analyze();
+					
+					// Clear the pending clarification since we've merged it
+					context.pendingClarification = undefined;
+					
+					return reanalyzedAnalysis;
+				}
+			}
+		}
 
 		if (!context.lastQuestion) {
 			return currentAnalysis;

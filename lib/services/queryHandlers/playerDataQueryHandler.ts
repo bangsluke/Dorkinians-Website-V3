@@ -12,7 +12,58 @@ import { AwardsQueryHandler } from "./awardsQueryHandler";
 import { ChatbotService } from "../chatbotService";
 import { FixtureDataQueryHandler } from "./fixtureDataQueryHandler";
 
+// Special nickname mapping
+const TWAT_NICKNAME_MAP: Record<string, string> = {
+	"twat": "Kieran Mackrell",
+};
+
 export class PlayerDataQueryHandler {
+	/**
+	 * Check if a player name is a partial name that needs clarification
+	 * Returns clarification message if needed, null otherwise
+	 */
+	private static checkPartialNameClarification(playerName: string, userContext?: string): { needsClarification: boolean; message?: string } | null {
+		if (!userContext) {
+			return null;
+		}
+
+		const normalizedName = playerName.toLowerCase().trim();
+		const selectedPlayerLower = userContext.toLowerCase().trim();
+		const pronouns = ["i", "i've", "me", "my", "myself"];
+
+		// Skip pronouns
+		if (pronouns.includes(normalizedName)) {
+			return null;
+		}
+
+		// Check if it's a single word (partial name)
+		const isSingleWord = !normalizedName.includes(" ") && normalizedName.length >= 2 && normalizedName.length < 20;
+
+		if (isSingleWord) {
+			// Check special case: "Twat" -> "Kieran Mackrell"
+			if (normalizedName === "twat") {
+				return {
+					needsClarification: true,
+					message: "Did you mean Kieran Mackrell?",
+				};
+			}
+
+			// Check if selected player contains this partial name
+			if (selectedPlayerLower.includes(normalizedName) && normalizedName.length >= 2) {
+				// Partial name matches selected player, no clarification needed
+				return null;
+			}
+
+			// Partial name doesn't match selected player, clarification needed
+			return {
+				needsClarification: true,
+				message: `Please provide clarification on who ${playerName} is.`,
+			};
+		}
+
+		return null;
+	}
+
 	/**
 	 * Check if a player name is ambiguous (has multiple matches)
 	 * Returns the clarification message if ambiguous, null otherwise
@@ -150,6 +201,51 @@ export class PlayerDataQueryHandler {
 		// Check for "played with" or "most played with" questions
 		// This check must happen BEFORE the normal player query path to prevent incorrect metric extraction
 		const questionLower = (analysis.question?.toLowerCase() || "").trim();
+
+		// Check if this is a "how many clean sheets occurred in games where I played with [player]" question
+		// This must be checked BEFORE entity filtering to preserve all player names
+		const hasCleanSheetsInQuestion = questionLower.includes("clean sheet") || questionLower.includes("clean sheets");
+		const hasHowManyCleanSheets = hasCleanSheetsInQuestion && (questionLower.includes("how many") || questionLower.includes("how much"));
+		const hasPlayedWithPattern = questionLower.includes("played with") || questionLower.includes("play with");
+		const hasOccurredInGames = questionLower.includes("occurred") || questionLower.includes("in games");
+		const isCleanSheetsWithPlayerQuestion = hasHowManyCleanSheets && (hasPlayedWithPattern || hasOccurredInGames) && (entities.length >= 1 || userContext);
+		
+		if (isCleanSheetsWithPlayerQuestion) {
+			// Extract player names: current player from userContext or entities[0], other player from entities
+			// Use original entities array before filtering
+			let playerName1 = "";
+			let playerName2 = "";
+			
+			// Filter out pronouns from entities
+			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
+			const validPlayerEntities = entities.filter(e => !pronouns.includes(e.toLowerCase()));
+			
+			// Determine player 1 (current player): use userContext if available, otherwise first valid entity
+			if (userContext) {
+				playerName1 = userContext;
+			} else if (validPlayerEntities.length > 0) {
+				playerName1 = validPlayerEntities[0];
+			} else if (entities.length > 0) {
+				playerName1 = entities[0];
+			}
+			
+			// Determine player 2 (other player): use first valid entity that's not the current player
+			if (validPlayerEntities.length > 0) {
+				playerName2 = validPlayerEntities.find(e => e.toLowerCase() !== playerName1.toLowerCase()) || validPlayerEntities[0];
+			} else if (entities.length > 0) {
+				playerName2 = entities.find(e => e.toLowerCase() !== playerName1.toLowerCase()) || entities[0];
+			}
+			
+			if (playerName1 && playerName2 && playerName1.toLowerCase() !== playerName2.toLowerCase()) {
+				const resolvedPlayerName1 = await EntityResolutionUtils.resolvePlayerName(playerName1);
+				const resolvedPlayerName2 = await EntityResolutionUtils.resolvePlayerName(playerName2);
+				
+				if (resolvedPlayerName1 && resolvedPlayerName2) {
+					loggingService.log(`🔍 Detected clean sheets with specific player question, routing to queryCleanSheetsPlayedTogether`, null, "log");
+					return await RelationshipQueryHandler.queryCleanSheetsPlayedTogether(resolvedPlayerName1, resolvedPlayerName2);
+				}
+			}
+		}
 
 		// Check for hat-trick questions (year-wide, team-specific, or date-filtered) FIRST (before entity processing)
 		// This prevents "hat‑tricks" from being treated as a player entity
@@ -488,12 +584,25 @@ export class PlayerDataQueryHandler {
 			const playerName1 = entities[0];
 			const playerName2 = entities[1];
 			
-			// Check for ambiguous player names BEFORE resolving (check the second player, not "I")
 			// Filter out pronouns to get the actual player name to check
 			const pronouns = ["i", "me", "my", "myself", "i've", "you", "your", "player", "players"];
 			const playerNameToCheck = pronouns.includes(playerName2.toLowerCase()) ? playerName1 : playerName2;
 			
 			if (playerNameToCheck && !pronouns.includes(playerNameToCheck.toLowerCase())) {
+				// Check for partial name FIRST (before ambiguous check)
+				loggingService.log(`🔍 Checking for partial player name: ${playerNameToCheck}`, null, "log");
+				const partialNameCheck = PlayerDataQueryHandler.checkPartialNameClarification(playerNameToCheck, userContext);
+				if (partialNameCheck && partialNameCheck.needsClarification && partialNameCheck.message) {
+					loggingService.log(`⚠️ Partial player name detected: ${playerNameToCheck}`, null, "warn");
+					return {
+						type: "clarification_needed",
+						data: [],
+						message: partialNameCheck.message,
+						answerValue: "Clarification needed",
+					};
+				}
+
+				// Check for ambiguous player names AFTER partial name check
 				loggingService.log(`🔍 Checking for ambiguous player name: ${playerNameToCheck}`, null, "log");
 				const ambiguousCheck = await PlayerDataQueryHandler.checkAmbiguousPlayerName(playerNameToCheck);
 				if (ambiguousCheck) {
@@ -573,6 +682,28 @@ export class PlayerDataQueryHandler {
 					if (dateRange.length === 2) {
 						startDate = DateUtils.convertDateFormat(dateRange[0].trim());
 						endDate = DateUtils.convertDateFormat(dateRange[1].trim());
+					}
+				}
+			}
+			
+			// Handle "since" timeFrame - extract year from phrases like "2019ish", "like 2019ish", etc.
+			if (!startDate) {
+				const sinceFrame = timeFrames.find(tf => tf.type === "since");
+				if (sinceFrame) {
+					let year: number | null = null;
+					const yearMatch = sinceFrame.value.match(/\b(20\d{2})\b/);
+					if (yearMatch) {
+						year = parseInt(yearMatch[1], 10);
+					} else {
+						// Fallback to direct parsing if no match found
+						year = parseInt(sinceFrame.value, 10);
+					}
+					
+					if (!isNaN(year) && year >= 2000 && year <= 2100) {
+						startDate = DateUtils.convertSinceYearToDate(year);
+						// For "since" queries, endDate is not needed (it's open-ended)
+						// But we set it to a far future date to ensure all matches are included
+						endDate = "2099-12-31";
 					}
 				}
 			}
@@ -2078,6 +2209,18 @@ export class PlayerDataQueryHandler {
 				return await PlayerDataQueryHandler.queryTeamSpecificPlayerData(playerName, metric);
 			}
 
+			// Check for partial name that needs clarification BEFORE resolving
+			const partialNameCheck = PlayerDataQueryHandler.checkPartialNameClarification(playerName, userContext);
+			if (partialNameCheck && partialNameCheck.needsClarification && partialNameCheck.message) {
+				loggingService.log(`⚠️ Partial player name detected: ${playerName}`, null, "warn");
+				return {
+					type: "clarification_needed",
+					data: [],
+					message: partialNameCheck.message,
+					answerValue: "Clarification needed",
+				};
+			}
+
 			// Check if player name matches the selected player (userContext) before fuzzy matching
 			// This preserves the selected player when a partial name was matched earlier
 			let actualPlayerName: string;
@@ -2805,17 +2948,18 @@ export class PlayerDataQueryHandler {
 
 	/**
 	 * Query seasons with goal counts for a player
-	 * Returns all seasons the player has played in with their goal counts
+	 * Returns count of distinct seasons where player played but scored 0 goals and 0 penalties
 	 */
 	static async querySeasonsWithGoalCounts(playerName: string): Promise<Record<string, unknown>> {
 		const graphLabel = neo4jService.getGraphLabel();
 		
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-			WHERE md.season IS NOT NULL
-			WITH md.season as season, sum(coalesce(md.goals, 0)) as goals
-			RETURN season, goals
-			ORDER BY season
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.season IS NOT NULL
+			WITH f.season as season, sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+			WHERE totalGoals = 0
+			RETURN count(DISTINCT season) as seasonsWithNoGoals
 		`;
 
 		// Push query to chatbotService for extraction
@@ -2832,17 +2976,167 @@ export class PlayerDataQueryHandler {
 
 		try {
 			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
-			const seasonsData = result && result.length > 0 
-				? result.map((row: any) => ({ season: row.season, goals: row.goals || 0 }))
-				: [];
+			
+			// Extract the count from the result
+			let seasonsWithNoGoals = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "seasonsWithNoGoals" in record) {
+					let count = record.seasonsWithNoGoals;
+					
+					// Handle Neo4j Integer objects
+					if (count !== null && count !== undefined) {
+						if (typeof count === "number") {
+							seasonsWithNoGoals = count;
+						} else if (typeof count === "object") {
+							if ("toNumber" in count && typeof count.toNumber === "function") {
+								seasonsWithNoGoals = (count as { toNumber: () => number }).toNumber();
+							} else if ("low" in count && "high" in count) {
+								const neo4jInt = count as { low?: number; high?: number };
+								seasonsWithNoGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								seasonsWithNoGoals = Number(count) || 0;
+							}
+						} else {
+							seasonsWithNoGoals = Number(count) || 0;
+						}
+					}
+				}
+			}
 			
 			return { 
 				type: "seasons_goal_counts", 
-				data: seasonsData,
+				data: seasonsWithNoGoals,
 				playerName 
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in querySeasonsWithGoalCounts:`, error, "error");
+			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
+		}
+	}
+
+	/**
+	 * Query player goals (including penalties) for last season
+	 * Returns total goals + penaltiesScored from MatchDetail nodes in the last season
+	 */
+	static async queryPlayerGoalsLastSeason(playerName: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying player goals last season for: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		// Resolve "last season" using the same logic as TeamDataQueryHandler
+		let lastSeason: string | null = null;
+		try {
+			const currentSeasonQuery = `
+				MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+				RETURN sd.currentSeason as currentSeason
+				LIMIT 1
+			`;
+			const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+			if (seasonResult && seasonResult.length > 0 && seasonResult[0].currentSeason) {
+				const currentSeason = seasonResult[0].currentSeason;
+				// Calculate last season (previous season)
+				// Format is YYYY/YY, e.g., 2024/25 -> 2023/24
+				const seasonMatch = currentSeason.match(/(\d{4})\/(\d{2})/);
+				if (seasonMatch) {
+					const startYear = parseInt(seasonMatch[1], 10);
+					const endYearShort = parseInt(seasonMatch[2], 10);
+					// Last season is one year before
+					const lastStartYear = startYear - 1;
+					const lastEndYearShort = endYearShort - 1;
+					// Handle year rollover (e.g., 2024/25 -> 2023/24, not 2023/24)
+					lastSeason = `${lastStartYear}/${String(lastEndYearShort).padStart(2, '0')}`;
+					loggingService.log(`🔍 Resolved "last season" to: ${lastSeason} (current: ${currentSeason})`, null, "log");
+				} else {
+					// Fallback: try to get most recent season from fixtures
+					const recentSeasonQuery = `
+						MATCH (f:Fixture {graphLabel: $graphLabel})
+						WHERE f.season IS NOT NULL AND f.season <> ''
+						WITH DISTINCT f.season as season
+						ORDER BY f.season DESC
+						LIMIT 2
+						RETURN collect(season) as seasons
+					`;
+					const recentResult = await neo4jService.executeQuery(recentSeasonQuery, { graphLabel });
+					if (recentResult && recentResult.length > 0 && recentResult[0].seasons && recentResult[0].seasons.length >= 2) {
+						// Second most recent season is "last season"
+						lastSeason = recentResult[0].seasons[1];
+						loggingService.log(`🔍 Resolved "last season" from fixtures: ${lastSeason}`, null, "log");
+					}
+				}
+			}
+		} catch (error) {
+			loggingService.log(`⚠️ Error resolving last season:`, error, "warn");
+		}
+
+		if (!lastSeason) {
+			loggingService.log(`❌ Could not resolve last season`, null, "error");
+			return { 
+				type: "error", 
+				data: [], 
+				error: "Could not determine last season" 
+			};
+		}
+
+		// Query MatchDetail nodes for goals and penalties in last season
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.season = $lastSeason
+			RETURN sum(coalesce(md.goals, 0) + coalesce(md.penaltiesScored, 0)) as totalGoals
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`)
+				.replace(/\$lastSeason/g, `'${lastSeason}'`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_GOALS_LAST_SEASON_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PLAYER_GOALS_LAST_SEASON_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName, lastSeason });
+			
+			// Extract the total goals from the result
+			let totalGoals = 0;
+			if (result && Array.isArray(result) && result.length > 0) {
+				const record = result[0];
+				if (record && typeof record === "object" && "totalGoals" in record) {
+					let goals = record.totalGoals;
+					
+					// Handle Neo4j Integer objects and null values
+					if (goals !== null && goals !== undefined) {
+						if (typeof goals === "number") {
+							totalGoals = goals;
+						} else if (typeof goals === "object") {
+							if ("toNumber" in goals && typeof goals.toNumber === "function") {
+								totalGoals = (goals as { toNumber: () => number }).toNumber();
+							} else if ("low" in goals && "high" in goals) {
+								const neo4jInt = goals as { low?: number; high?: number };
+								totalGoals = (neo4jInt.low || 0) + (neo4jInt.high || 0) * 4294967296;
+							} else {
+								totalGoals = Number(goals) || 0;
+							}
+						} else {
+							totalGoals = Number(goals) || 0;
+						}
+					}
+				}
+			}
+			
+			return { 
+				type: "player_goals_last_season", 
+				data: totalGoals,
+				playerName,
+				totalGoals,
+				lastSeason
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryPlayerGoalsLastSeason:`, error, "error");
 			return { type: "error", data: [], error: error instanceof Error ? error.message : String(error) };
 		}
 	}

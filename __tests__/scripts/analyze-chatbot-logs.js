@@ -14,7 +14,7 @@ require("dotenv").config();
 function analyzeLogs() {
 	console.log("🔍 Analyzing chatbot test logs...");
 
-	const logDir = path.join(__dirname, "..", "logs");
+	const logDir = path.join(__dirname, "..", "..", "logs");
 
 	if (!fs.existsSync(logDir)) {
 		console.log("❌ Logs directory not found. Run the enhanced logging test first.");

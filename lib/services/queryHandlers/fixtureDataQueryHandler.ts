@@ -922,11 +922,12 @@ export class FixtureDataQueryHandler {
 		loggingService.log(`🔍 Querying highest team goals in games where ${playerName} was playing`, null, "log");
 		
 		// Build query to find fixture with highest dorkiniansGoals where player participated
+		// Query finds Fixture nodes indirectly connected to the player via MatchDetail
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
 			WHERE f.dorkiniansGoals IS NOT NULL
-			RETURN f.date as date,
+			RETURN DISTINCT f.date as date,
 			       f.opposition as opposition,
 			       f.homeOrAway as homeOrAway,
 			       f.result as result,
@@ -979,6 +980,85 @@ export class FixtureDataQueryHandler {
 			};
 		} catch (error) {
 			loggingService.log(`❌ Error in queryHighestTeamGoalsInPlayerGames:`, error, "error");
+			return {
+				type: "error",
+				data: [],
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	/**
+	 * Query highest team goals conceded in games where a specific player was playing
+	 * Returns the fixture with highest conceded where the player participated
+	 */
+	static async queryHighestTeamGoalsConcededInPlayerGames(
+		playerName: string,
+		analysis?: EnhancedQuestionAnalysis,
+	): Promise<Record<string, unknown>> {
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		loggingService.log(`🔍 Querying highest team goals conceded in games where ${playerName} was playing`, null, "log");
+		
+		// Build query to find fixture with highest conceded where player participated
+		// Query finds Fixture nodes indirectly connected to the player via MatchDetail
+		const query = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.conceded IS NOT NULL
+			RETURN DISTINCT f.date as date,
+			       f.opposition as opposition,
+			       f.homeOrAway as homeOrAway,
+			       f.result as result,
+			       f.dorkiniansGoals as dorkiniansGoals,
+			       f.conceded as conceded
+			ORDER BY f.conceded DESC, f.date DESC
+			LIMIT 1
+		`;
+		
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			let readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_CONCEDED_IN_PLAYER_GAME_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`HIGHEST_TEAM_GOALS_CONCEDED_IN_PLAYER_GAME_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+		
+		try {
+			const result = await neo4jService.executeQuery(query, { graphLabel, playerName });
+			loggingService.log(`🔍 Highest team goals conceded in player games query result count: ${result?.length || 0}`, null, "log");
+			
+			if (!result || result.length === 0) {
+				loggingService.log(`⚠️ No fixtures found for ${playerName}`, null, "warn");
+				return {
+					type: "highest_team_goals_conceded_in_player_game",
+					playerName,
+					data: null,
+					message: `No games found where ${playerName} was playing.`,
+				};
+			}
+			
+			const game = result[0];
+			loggingService.log(`✅ Found highest team goals conceded game for ${playerName}: ${game.conceded} goals`, null, "log");
+			
+			return {
+				type: "highest_team_goals_conceded_in_player_game",
+				playerName,
+				data: {
+					date: game.date,
+					opposition: game.opposition,
+					homeOrAway: game.homeOrAway,
+					result: game.result,
+					dorkiniansGoals: game.dorkiniansGoals,
+					conceded: game.conceded,
+				},
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in queryHighestTeamGoalsConcededInPlayerGames:`, error, "error");
 			return {
 				type: "error",
 				data: [],
