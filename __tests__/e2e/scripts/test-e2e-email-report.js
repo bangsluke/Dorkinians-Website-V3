@@ -5,7 +5,7 @@
  * Runs E2E tests and sends email notification with results
  */
 
-const { execSync } = require('child_process');
+const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
@@ -64,41 +64,127 @@ let testPassed = false;
 let testOutput = '';
 let exitCode = 1;
 
-	try {
-		// Run Playwright tests (headless is default, so only add --headed if not headless)
-		const command = `npx playwright test${HEADLESS ? '' : ' --headed'}`;
-		console.log(`📝 Executing: ${command}`);
+// Run Playwright tests using spawn for real-time output streaming
+const startTime = Date.now();
+let stdoutBuffer = '';
+let stderrBuffer = '';
+let lastTestLine = '';
+let lastActivityTime = Date.now();
+
+// Parse command arguments
+const commandArgs = ['playwright', 'test'];
+if (!HEADLESS) {
+	commandArgs.push('--headed');
+}
+
+console.log(`📝 Executing: npx ${commandArgs.join(' ')}`);
+console.log('');
+
+// Spawn process with real-time output
+const child = spawn('npx', commandArgs, {
+	stdio: ['inherit', 'pipe', 'pipe'],
+	env: {
+		...process.env,
+		BASE_URL,
+	},
+	cwd: process.cwd(),
+	shell: true,
+});
+
+// Stream stdout to console and buffer
+child.stdout.on('data', (data) => {
+	const text = data.toString();
+	stdoutBuffer += text;
+	process.stdout.write(text); // Real-time to GitHub Actions
+	
+	// Extract last meaningful line for heartbeat
+	const lines = text.split('\n').filter(line => line.trim());
+	if (lines.length > 0) {
+		const meaningfulLine = lines[lines.length - 1];
+		// Only update if it looks like test output (not just whitespace or control chars)
+		if (meaningfulLine.match(/[✓✗›]/) || meaningfulLine.match(/Running|Test|passed|failed/i)) {
+			lastTestLine = meaningfulLine.trim();
+			lastActivityTime = Date.now();
+		}
+	}
+});
+
+// Stream stderr to console and buffer
+child.stderr.on('data', (data) => {
+	const text = data.toString();
+	stderrBuffer += text;
+	process.stderr.write(text); // Real-time to GitHub Actions
+	lastActivityTime = Date.now();
+});
+
+// Heartbeat logging every 30 seconds
+const heartbeatInterval = setInterval(() => {
+	const elapsed = Math.floor((Date.now() - startTime) / 1000);
+	const minutes = Math.floor(elapsed / 60);
+	const seconds = elapsed % 60;
+	const timeSinceActivity = Math.floor((Date.now() - lastActivityTime) / 1000);
+	
+	console.log(`\n[HEARTBEAT ${minutes}m ${seconds}s] Tests still running...`);
+	
+	if (lastTestLine) {
+		console.log(`[HEARTBEAT] Last activity: ${lastTestLine.substring(0, 100)}${lastTestLine.length > 100 ? '...' : ''}`);
+	}
+	
+	if (timeSinceActivity > 60) {
+		console.log(`[HEARTBEAT] ⚠️ No output for ${Math.floor(timeSinceActivity / 60)}m ${timeSinceActivity % 60}s - tests may be stuck`);
+	}
+	
+	// Timeout warnings
+	if (elapsed >= 3000) { // 50 minutes
+		console.log(`[HEARTBEAT] ⚠️ WARNING: Tests running for ${minutes} minutes, 5 minutes remaining before timeout`);
+	} else if (elapsed >= 2400) { // 40 minutes
+		console.log(`[HEARTBEAT] ⚠️ WARNING: Tests running for ${minutes} minutes, 15 minutes remaining before timeout`);
+	}
+}, 30000);
+
+// Handle process completion
+child.on('close', (code) => {
+	clearInterval(heartbeatInterval);
+	
+	// Combine all output
+	testOutput = stdoutBuffer + (stderrBuffer ? '\n' + stderrBuffer : '');
+	
+	if (code === 0) {
+		testPassed = true;
+		exitCode = 0;
 		console.log('');
-
-	const result = execSync(command, {
-		stdio: 'pipe',
-		env: {
-			...process.env,
-			BASE_URL,
-		},
-		cwd: process.cwd(),
-		encoding: 'utf8',
-	});
-
-	testOutput = result.toString();
-	testPassed = true;
-	exitCode = 0;
-
-	console.log(testOutput);
-	console.log('');
-	console.log('✅ All tests passed!');
-} catch (error) {
-	const stdout = error.stdout?.toString() || '';
-	const stderr = error.stderr?.toString() || '';
-	// Combine stdout and stderr to capture all test results
-	testOutput = stdout + (stderr ? '\n' + stderr : '') || error.message || 'Test execution failed';
+		console.log('✅ All tests passed!');
+	} else {
+		testPassed = false;
+		exitCode = code || 1;
+		console.error('');
+		console.error('❌ Test suite failed!');
+	}
 	
-	console.error(testOutput);
-	console.error('');
-	console.error('❌ Test suite failed!');
-	
+	// Continue with email sending
+	processTestResults();
+});
+
+// Handle process errors
+child.on('error', (error) => {
+	clearInterval(heartbeatInterval);
+	testOutput = error.message || 'Test execution failed';
 	testPassed = false;
 	exitCode = 1;
+	console.error('❌ Failed to start test process:', error.message);
+	processTestResults();
+});
+
+// Function to process test results and send email
+function processTestResults() {
+	sendEmailReport()
+		.then(() => {
+			process.exit(exitCode);
+		})
+		.catch((error) => {
+			console.error('❌ Error sending email report:', error);
+			process.exit(exitCode);
+		});
 }
 
 // Normalize suite name to match documentation sections
@@ -576,12 +662,4 @@ View full report: npm run test:e2e:report
 	}
 };
 
-// Send email and exit
-sendEmailReport()
-	.then(() => {
-		process.exit(exitCode);
-	})
-	.catch((error) => {
-		console.error('❌ Error sending email report:', error);
-		process.exit(exitCode);
-	});
+// Note: Email sending is now handled in processTestResults() which is called after tests complete
