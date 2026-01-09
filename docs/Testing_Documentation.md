@@ -1043,10 +1043,11 @@ To trigger tests manually:
 
 #### Expected Duration
 
-- Full test suite: ~5-10 minutes
+- Full test suite: ~15-30 minutes (with retries and multiple browser projects)
 - Individual test: ~10-30 seconds
 - Timeout per test: 60 seconds (configured in `playwright.config.ts`)
-- Workflow timeout: 20 minutes (configured in workflow)
+- Workflow timeout: 60 minutes (configured in workflow)
+- Step timeout: 55 minutes (for test execution step)
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -1171,7 +1172,7 @@ The workflow file (`.github/workflows/e2e-tests.yml`) includes:
 - **Playwright**: Chromium browser with dependencies
 - **Email Integration**: Uses existing `test:e2e:email` script
 - **Artifact Storage**: Reports and screenshots saved for 30 days
-- **Timeout**: 20 minutes maximum execution time
+- **Timeout**: 60 minutes maximum execution time (55 minutes for test step)
 
 **Environment Variables:**
 - `WEBSITE_URL`: Production website URL (from secrets or default)
