@@ -144,4 +144,60 @@ test.describe('Home Page Tests', () => {
 		const hasRecent = await recentPlayers.isVisible({ timeout: 5000 }).catch(() => false);
 		// This is optional, so we don't fail if it's not present
 	});
+
+	// Verify "Show more example questions" opens modal and displays the specific question
+	test('8. should open example questions modal and display specific question', async ({ page }) => {
+		// Select a player
+		await selectPlayer(page, TEST_PLAYERS.primary);
+		await waitForChatbot(page);
+
+		// Find and click "Show more example questions" button - try test ID first
+		const showMoreButton = page.getByTestId('chatbot-show-more-example-questions')
+			.or(page.locator('button:has-text("Show more example questions")'))
+			.first();
+		
+		await expect(showMoreButton).toBeVisible({ timeout: 5000 });
+		await showMoreButton.click();
+
+		// Wait for modal to appear - check for "Example Questions" heading
+		const modalHeading = page.getByRole('heading', { name: 'Example Questions' });
+		await expect(modalHeading).toBeVisible({ timeout: 5000 });
+
+		// Verify the specific question is visible in the modal
+		const targetQuestion = page.getByText('How many goals have I scored for the 3rd team?');
+		await expect(targetQuestion).toBeVisible({ timeout: 5000 });
+	});
+
+	// Verify clicking example question closes modal and loads it into chatbot input
+	test('9. should close modal and load question into chatbot input when example question is clicked', async ({ page }) => {
+		// Select a player
+		await selectPlayer(page, TEST_PLAYERS.primary);
+		await waitForChatbot(page);
+
+		// Find and click "Show more example questions" button - try test ID first
+		const showMoreButton = page.getByTestId('chatbot-show-more-example-questions')
+			.or(page.locator('button:has-text("Show more example questions")'))
+			.first();
+		
+		await expect(showMoreButton).toBeVisible({ timeout: 5000 });
+		await showMoreButton.click();
+
+		// Wait for modal to appear
+		const modalHeading = page.getByRole('heading', { name: 'Example Questions' });
+		await expect(modalHeading).toBeVisible({ timeout: 5000 });
+
+		// Find and click the specific question in the modal
+		const targetQuestion = page.getByText('How many goals have I scored for the 3rd team?');
+		await expect(targetQuestion).toBeVisible({ timeout: 5000 });
+		await targetQuestion.click();
+
+		// Wait for modal to close - verify modal heading is no longer visible
+		await expect(modalHeading).not.toBeVisible({ timeout: 5000 });
+
+		// Verify the question is loaded into the chatbot input
+		const chatbotInput = page.getByTestId('chatbot-input').or(page.getByPlaceholder(/player, club or team stats/i));
+		await expect(chatbotInput).toBeVisible({ timeout: 5000 });
+		const inputValue = await chatbotInput.inputValue();
+		expect(inputValue).toBe('How many goals have I scored for the 3rd team?');
+	});
 });

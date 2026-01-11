@@ -526,7 +526,8 @@ export default function ChatbotInterface() {
 						<div className='flex justify-center mt-2 mb-4'>
 							<button
 								onClick={() => setShowExampleQuestionsModal(true)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
+								data-testid="chatbot-show-more-example-questions">
 								Show more example questions
 							</button>
 						</div>
