@@ -383,6 +383,7 @@ export default function ChatbotInterface() {
 			<form onSubmit={handleSubmit} className='space-y-3 md:space-y-4'>
 				<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
 					<input
+						data-testid="chatbot-input"
 						type='text'
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
@@ -392,6 +393,7 @@ export default function ChatbotInterface() {
 					/>
 					{/* Desktop button - hidden on mobile */}
 					<button
+						data-testid="chatbot-submit"
 						type='submit'
 						disabled={!question.trim() || isLoading}
 						className='CTA px-3 md:px-4 py-2 md:py-2 text-base w-full md:w-auto hidden md:block'>
@@ -406,7 +408,7 @@ export default function ChatbotInterface() {
 					</button>
 				</div>
 				{/* Mobile button - shown below input on mobile screens */}
-				<button type='submit' disabled={!question.trim() || isLoading} className='CTA px-4 py-2 text-sm w-full md:hidden'>
+				<button data-testid="chatbot-submit" type='submit' disabled={!question.trim() || isLoading} className='CTA px-4 py-2 text-sm w-full md:hidden'>
 					{isLoading ? (
 						<div className='flex items-center justify-center space-x-2'>
 							<svg className='animate-spin h-4 w-4' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
@@ -458,7 +460,7 @@ export default function ChatbotInterface() {
 						</div>
 
 						{/* Answer */}
-						<div className='mb-3 md:mb-4'>
+						<div className='mb-3 md:mb-4' data-testid="chatbot-answer">
 							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>
 							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
@@ -505,6 +507,7 @@ export default function ChatbotInterface() {
 							{homepageQuestions.map((q, index) => (
 								<motion.div
 									key={q.id}
+									data-testid={`chatbot-example-question-${index}`}
 									initial={{ opacity: 0, x: -20 }}
 									animate={{ opacity: 1, x: 0 }}
 									transition={{ delay: index * 0.1 }}
@@ -581,6 +584,7 @@ export default function ChatbotInterface() {
 								{homepageQuestions.map((q, index) => (
 									<motion.div
 										key={q.id}
+										data-testid={`chatbot-example-question-${index}`}
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.1 }}

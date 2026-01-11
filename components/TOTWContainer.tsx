@@ -41,6 +41,7 @@ export default function TOTWContainer() {
 				{totwSubPages.map((page, index) => (
 					<button
 						key={page.id}
+						data-testid={`totw-subpage-indicator-${page.id}`}
 						onClick={() => setTOTWSubPage(page.id)}
 						className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
 							currentTOTWSubPage === page.id

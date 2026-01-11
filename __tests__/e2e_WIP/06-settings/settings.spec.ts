@@ -14,26 +14,28 @@ test.describe('Settings Page Tests', () => {
 	});
 
 	test('1. should display Settings page', async ({ page }) => {
-		// Verify Settings heading is visible
-		await expect(page.getByRole('heading', { name: /Settings/i })).toBeVisible({ timeout: 10000 });
+		// Verify Settings heading is visible - try test ID first
+		await expect(page.getByTestId('settings-heading').or(page.getByRole('heading', { name: /Settings/i }))).toBeVisible({ timeout: 10000 });
 	});
 
 	test('2. should display navigation shortcuts', async ({ page }) => {
-		// Verify at least one navigation shortcut is visible (check for Home button)
-		await expect(page.getByRole('button', { name: /Home/i })).toBeVisible({ timeout: 10000 });
+		// Verify at least one navigation shortcut is visible (check for Home button) - try test ID first
+		await expect(page.getByTestId('settings-nav-home').or(page.getByRole('button', { name: /Home/i }))).toBeVisible({ timeout: 10000 });
 	});
 
 	test('3. should navigate using quick navigation shortcuts', async ({ page }) => {
-		// Find a navigation shortcut (e.g., Home)
-		const homeShortcut = page.locator('button:has-text("Home"), [aria-label*="Home" i]').first();
+		// Find a navigation shortcut (e.g., Home) - try test ID first
+		const homeShortcut = page.getByTestId('settings-nav-home')
+			.or(page.locator('button:has-text("Home"), [aria-label*="Home" i]'))
+			.first();
 		
 		if (await homeShortcut.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await homeShortcut.click();
 			await waitForPageLoad(page);
 
-			// Verify we navigated to home page - check for welcome heading or player selection
-			const welcomeHeading = page.getByRole('heading', { name: /Welcome/i });
-			const playerButton = page.getByRole('button', { name: /Select.*player|Player Selection/i });
+			// Verify we navigated to home page - check for welcome heading or player selection - try test IDs first
+			const welcomeHeading = page.getByTestId('home-welcome-heading').or(page.getByRole('heading', { name: /Welcome/i }));
+			const playerButton = page.getByTestId('player-selection-button').or(page.getByRole('button', { name: /Select.*player|Player Selection/i }));
 			await Promise.race([
 				expect(welcomeHeading).toBeVisible({ timeout: 10000 }),
 				expect(playerButton).toBeVisible({ timeout: 10000 })

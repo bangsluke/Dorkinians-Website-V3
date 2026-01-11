@@ -247,6 +247,7 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 
 				{/* Full-screen modal */}
 				<motion.div
+					data-testid="totw-player-modal"
 					className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
 					style={{ backgroundColor: '#0f0f0f' }}
 					initial={{ opacity: 0 }}
@@ -258,6 +259,7 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 						<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
 							<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
 							<button
+								data-testid="totw-player-modal-close"
 								onClick={handleClose}
 								className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors ml-4 flex-shrink-0'>
 								<XMarkIcon className='w-5 h-5' />

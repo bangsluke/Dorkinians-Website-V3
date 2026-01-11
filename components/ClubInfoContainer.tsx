@@ -65,6 +65,7 @@ export default function ClubInfoContainer() {
 						{clubInfoSubPages.map((page, index) => (
 							<button
 								key={page.id}
+								data-testid={`club-info-subpage-indicator-${index}`}
 								onClick={() => setClubInfoSubPage(page.id)}
 								className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
 									currentClubInfoSubPage === page.id

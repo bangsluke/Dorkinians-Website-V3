@@ -140,7 +140,7 @@ export async function waitForElement(
  * Wait for loading skeleton to disappear
  */
 export async function waitForDataLoad(page: Page, skeletonSelector?: string) {
-	const defaultSkeletonSelector = '[class*="skeleton"], [class*="Skeleton"], [class*="loading"]';
+	const defaultSkeletonSelector = '[data-testid="loading-skeleton"], [class*="skeleton"], [class*="Skeleton"], [class*="loading"]';
 	const selector = skeletonSelector || defaultSkeletonSelector;
 	
 	// Wait for skeleton to appear (if it does)
@@ -175,16 +175,26 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 
 	// If not settings and not home, use client-side navigation to switch pages
 	if (pageName !== 'settings' && pageName !== 'home') {
-		// Click the navigation button in footer or sidebar
-		const navSelector = pageName === 'stats'
+		// Try test IDs first, then fall back to text-based selectors
+		const testIdSelector = `[data-testid="nav-footer-${pageName}"], [data-testid="nav-sidebar-${pageName}"]`;
+		const textSelector = pageName === 'stats'
 			? 'button:has-text("Stats"), [aria-label*="Stats"]'
 			: pageName === 'totw'
 			? 'button:has-text("TOTW"), [aria-label*="TOTW"]'
 			: 'button:has-text("Club Info"), [aria-label*="Club Info"]';
 
-		const buttonExists = await page.locator(navSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+		// Try test ID first
+		let buttonExists = await page.locator(testIdSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+		let selectorToUse = testIdSelector;
+		
+		// Fall back to text selector if test ID not found
+		if (!buttonExists) {
+			buttonExists = await page.locator(textSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+			selectorToUse = textSelector;
+		}
+		
 		if (buttonExists) {
-			await page.click(navSelector, { timeout: 10000 });
+			await page.locator(selectorToUse).first().click({ timeout: 10000 });
 			// Wait for navigation to complete
 			await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
 		}
@@ -198,20 +208,67 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
  * Select a player from the player selection component
  */
 export async function selectPlayer(page: Page, playerName: string) {
-	// 1. Open the dropdown
-	await page.getByRole('button', { name: /Choose a player/i }).click();
+	// Wait for component to be ready (players might be loading)
+	await page.waitForTimeout(500);
+	
+	// 1. Open the dropdown - try test ID first, then fall back to role
+	const button = page.getByTestId('player-selection-button').first();
+	const buttonExists = await button.isVisible({ timeout: 2000 }).catch(() => false);
+	
+	if (buttonExists) {
+		// Ensure button is in view and clickable
+		await button.scrollIntoViewIfNeeded();
+		// Try normal click first, then fallback to force click if needed
+		try {
+			await button.click({ timeout: 5000 });
+		} catch {
+			// If normal click fails, use force click (Headless UI Listbox may require this)
+			await button.click({ force: true, timeout: 5000 });
+		}
+	} else {
+		const roleButton = page.getByRole('button', { name: /Choose a player/i });
+		await roleButton.scrollIntoViewIfNeeded();
+		try {
+			await roleButton.click({ timeout: 5000 });
+		} catch {
+			await roleButton.click({ force: true, timeout: 5000 });
+		}
+	}
 
-	// 2. Wait for the search input to appear
-	const searchInput = page.getByPlaceholder(/Type at least 3 characters.../i);
-	await searchInput.waitFor({ state: 'visible' });
+	// Wait for Listbox.Options to be visible (indicates dropdown is open)
+	// The input is inside Listbox.Options, so we need to wait for the container first
+	const optionsContainer = page.locator('[role="listbox"]').or(page.locator('ul[class*="dark-dropdown"]')).first();
+	await optionsContainer.waitFor({ state: 'visible', timeout: 10000 }).catch(async () => {
+		// If role-based selector doesn't work, wait for any container with the input
+		await page.waitForSelector('[data-testid="player-selection-input"]', { state: 'visible', timeout: 10000 });
+	});
+
+	// 2. Wait for the search input to appear (Headless UI may use Portal or conditional rendering)
+	let searchInput;
+	try {
+		// Wait for input by test ID to be visible
+		await page.waitForSelector('[data-testid="player-selection-input"]', { state: 'visible', timeout: 10000 });
+		searchInput = page.getByTestId('player-selection-input');
+	} catch {
+		// Fallback to placeholder selector
+		await page.waitForSelector('input[placeholder*="Type at least 3 characters" i]', { state: 'visible', timeout: 10000 });
+		searchInput = page.getByPlaceholder(/Type at least 3 characters.../i);
+	}
 	
 	// Type player name
 	await searchInput.fill(playerName);
 	
-	// Wait for dropdown and select
+	// Wait for dropdown and select - try test ID first
 	await page.waitForTimeout(500); // Wait for dropdown to appear
-	const option = page.locator(`text=${playerName}`).first();
-	await option.click();
+	const optionByTestId = page.getByTestId('player-selection-option').filter({ hasText: playerName }).first();
+	const optionExists = await optionByTestId.isVisible({ timeout: 2000 }).catch(() => false);
+	
+	if (optionExists) {
+		await optionByTestId.click();
+	} else {
+		const option = page.locator(`text=${playerName}`).first();
+		await option.click();
+	}
 	
 	// Wait for player to be selected
 	await waitForPageLoad(page);
@@ -221,20 +278,36 @@ export async function selectPlayer(page: Page, playerName: string) {
  * Wait for chatbot to appear
  */
 export async function waitForChatbot(page: Page) {
-	await waitForElement(page, '[class*="chatbot"], [class*="Chatbot"]', { timeout: 10000 });
+	await waitForElement(page, '[data-testid="chatbot-input"]', { timeout: 10000 });
 }
 
 /**
  * Submit a chatbot query
  */
 export async function submitChatbotQuery(page: Page, query: string) {
-	const inputSelector = 'input[type="text"][placeholder*="question" i], textarea[placeholder*="question" i]';
-	const input = await waitForElement(page, inputSelector);
+	// Try test ID first, then fall back to placeholder
+	const inputByTestId = page.getByTestId('chatbot-input');
+	const inputExists = await inputByTestId.isVisible({ timeout: 2000 }).catch(() => false);
+	
+	let input;
+	if (inputExists) {
+		input = inputByTestId;
+	} else {
+		const inputSelector = 'input[type="text"][placeholder*="question" i], textarea[placeholder*="question" i]';
+		input = await waitForElement(page, inputSelector);
+	}
 	
 	await input.fill(query);
 	
-	const submitButton = page.locator('button[type="submit"], button:has-text("Send"), button:has-text("Ask")');
-	await submitButton.click();
+	// Try test ID first, then fall back to type/submit
+	const submitByTestId = page.getByTestId('chatbot-submit');
+	const submitExists = await submitByTestId.isVisible({ timeout: 2000 }).catch(() => false);
+	
+	if (submitExists) {
+		await submitByTestId.click();
+	} else {
+		await page.getByTestId('chatbot-submit').filter({ has: page.locator(':visible') }).click();
+	}
 	
 	// Wait for response
 	await page.waitForTimeout(2000); // Initial wait

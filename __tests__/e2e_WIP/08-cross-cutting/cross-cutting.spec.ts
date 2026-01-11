@@ -13,8 +13,9 @@ test.describe('Cross-Cutting Tests', () => {
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
 
-		// Check for loading skeletons (they should appear briefly)
-		const skeletons = page.locator('[class*="skeleton" i], [class*="Skeleton" i], [class*="loading" i]');
+		// Check for loading skeletons - try test ID first
+		const skeletons = page.getByTestId('loading-skeleton')
+			.or(page.locator('[class*="skeleton" i], [class*="Skeleton" i], [class*="loading" i]'));
 		const skeletonCount = await skeletons.count();
 
 		// Wait for data to load (skeletons should disappear)
@@ -30,8 +31,10 @@ test.describe('Cross-Cutting Tests', () => {
 		await navigateToMainPage(page, 'home');
 		await waitForPageLoad(page);
 
-		// Try to select an invalid player
-		const playerInput = page.locator('input[type="text"], input[placeholder*="player" i]').first();
+		// Try to select an invalid player - try test ID first
+		const playerInput = page.getByTestId('player-selection-input')
+			.or(page.locator('input[type="text"], input[placeholder*="player" i]'))
+			.first();
 		
 		if (await playerInput.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await playerInput.fill('InvalidPlayerName12345');
@@ -65,9 +68,11 @@ test.describe('Cross-Cutting Tests', () => {
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
 
-		// Try swiping between sub-pages (if supported)
-		// This is a basic check - full swipe gesture testing would require more complex setup
-		const subPageButton = page.locator('button[aria-label*="Team Stats" i]').first();
+		// Try swiping between sub-pages (if supported) - try test IDs first
+		const subPageButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('stats-subpage-indicator-1'))
+			.or(page.locator('button[aria-label*="Team Stats" i]'))
+			.first();
 		
 		if (await subPageButton.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await subPageButton.click();
@@ -124,10 +129,11 @@ test.describe('Cross-Cutting Tests', () => {
 		await page.waitForTimeout(2000);
 
 		// Verify data is present and formatted correctly
-		// Check for player names (should be text, not empty)
-		const playerElements = page.locator('div.cursor-pointer').filter({ 
-			has: page.locator('text=/[A-Z][a-z]+/') 
-		});
+		// Check for player names - try test ID first
+		const playerElements = page.getByTestId('totw-player')
+			.or(page.locator('div.cursor-pointer').filter({ 
+				has: page.locator('text=/[A-Z][a-z]+/') 
+			}));
 		const playerCount = await playerElements.count();
 		
 		if (playerCount > 0) {
