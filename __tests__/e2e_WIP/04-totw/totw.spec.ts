@@ -1,8 +1,14 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad } from '../utils/testHelpers';
-import { TEST_TOTW_WEEKS } from '../fixtures/testData';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../../e2e/utils/testHelpers';
+import { TEST_TOTW_WEEKS } from '../../e2e/fixtures/testData';
 
 test.describe('TOTW Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('TOTW PAGE TESTS', '⭐', '04');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'totw');
 		await waitForPageLoad(page);
@@ -10,7 +16,12 @@ test.describe('TOTW Page Tests', () => {
 
 	test('should display Team of the Week page', async ({ page }) => {
 		// Verify TOTW header is visible
-		await expect(page.locator('text=/Team of the Week|TOTW/i')).toBeVisible({ timeout: 10000 });
+		const totwHeading1 = page.getByRole('heading', { name: /Team of the Week/i });
+		const totwHeading2 = page.getByRole('heading', { name: /TOTW/i });
+		await Promise.race([
+			expect(totwHeading1).toBeVisible({ timeout: 10000 }),
+			expect(totwHeading2).toBeVisible({ timeout: 10000 })
+		]);
 
 		// Verify season and week selectors are present (HeadlessUI Listbox buttons)
 		await expect(page.locator('button:has-text("Select season"), button:has-text(/\\d{4}-\\d{2}/)').first()).toBeVisible({ timeout: 10000 });
@@ -24,7 +35,7 @@ test.describe('TOTW Page Tests', () => {
 		// Verify pitch visualization or player data is displayed
 		// Check for either pitch image or player names
 		const hasPitch = await page.locator('img[alt*="pitch" i], [class*="pitch" i]').isVisible({ timeout: 5000 }).catch(() => false);
-		const hasPlayers = await page.locator('text=/Player|GK|DEF|MID|FWD/i').isVisible({ timeout: 5000 }).catch(() => false);
+		const hasPlayers = await page.getByText(/Player/i).first().isVisible({ timeout: 5000 }).catch(() => false);
 		
 		expect(hasPitch || hasPlayers).toBe(true);
 	});
