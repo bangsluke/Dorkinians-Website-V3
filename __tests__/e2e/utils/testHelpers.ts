@@ -195,7 +195,8 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
  */
 export async function selectPlayer(page: Page, playerName: string) {
 	// Wait for player selection input
-	const playerInput = await waitForElement(page, 'input[type="text"], input[placeholder*="player" i]');
+	const playerInput = page.getByPlaceholder(/player, club or team stats/i);
+	await playerInput.waitFor({ state: 'visible', timeout: 10000 });
 	
 	// Type player name
 	await playerInput.fill(playerName);
