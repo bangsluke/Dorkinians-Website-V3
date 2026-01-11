@@ -1,5 +1,7 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
+import { waitForPageLoad, logSectionHeader } from '../../e2e/utils/testHelpers';
 
 test.describe('Settings Page Tests', () => {
 	test.beforeAll(() => {

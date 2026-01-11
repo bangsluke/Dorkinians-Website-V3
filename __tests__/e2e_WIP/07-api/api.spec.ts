@@ -1,7 +1,9 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { testChatbotAPI, testPlayerDataAPI, testTOTWAPI } from '../utils/apiHelpers';
-import { TEST_PLAYERS, TEST_TOTW_WEEKS, TEST_QUERIES } from '../fixtures/testData';
-import { logSectionHeader } from '../utils/testHelpers';
+import { testChatbotAPI, testPlayerDataAPI, testTOTWAPI } from '../../e2e/utils/apiHelpers';
+import { TEST_PLAYERS, TEST_TOTW_WEEKS, TEST_QUERIES } from '../../e2e/fixtures/testData';
+import { logSectionHeader } from '../../e2e/utils/testHelpers';
 
 test.describe('API Endpoint Tests', () => {
 	test.beforeAll(() => {

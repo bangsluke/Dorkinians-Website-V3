@@ -1,6 +1,8 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../utils/testHelpers';
-import { TEST_TOTW_WEEKS } from '../fixtures/testData';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../../e2e/utils/testHelpers';
+import { TEST_TOTW_WEEKS } from '../../e2e/fixtures/testData';
 
 test.describe('TOTW Page Tests', () => {
 	test.beforeAll(() => {

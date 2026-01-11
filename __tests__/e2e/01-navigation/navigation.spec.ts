@@ -1,3 +1,5 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
 import { navigateToMainPage, waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
 

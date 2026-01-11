@@ -1,3 +1,5 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
 import { navigateToMainPage, waitForPageLoad, waitForDataLoad, selectPlayer, waitForChatbot, submitChatbotQuery, logSectionHeader } from '../utils/testHelpers';
 import { TEST_PLAYERS, TEST_QUERIES } from '../fixtures/testData';
@@ -51,13 +53,13 @@ test.describe('Home Page Tests', () => {
 	test('should display chatbot interface after player selection', async ({ page }) => {
 		// Select a player
 		await selectPlayer(page, TEST_PLAYERS.primary);
-		
+	
 		// Wait for chatbot to appear
 		await waitForChatbot(page);
-
+	
 		// Verify chatbot input is visible
 		await expect(
-			page.locator('input[type="text"][placeholder*="question" i], textarea[placeholder*="question" i]')
+			page.getByPlaceholder(/player, club or team stats/i)
 		).toBeVisible({ timeout: 5000 });
 	});
 
