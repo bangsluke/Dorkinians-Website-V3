@@ -119,8 +119,8 @@ export function logSectionHeader(sectionName: string, emoji: string, number: str
  * Wait for page to be fully loaded
  */
 export async function waitForPageLoad(page: Page) {
-	await page.waitForLoadState('networkidle');
-	await page.waitForLoadState('domcontentloaded');
+	// Wait for DOM - networkidle is unreliable with continuous requests (analytics, websockets, etc.)
+	await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
 }
 
 /**
@@ -171,35 +171,42 @@ export async function navigateToMainPage(page: Page, pageName: 'home' | 'stats' 
 		settings: '/settings',
 	};
 
-	await page.goto(pageMap[pageName]);
-	await waitForPageLoad(page);
+	await page.goto(pageMap[pageName], { timeout: 30000, waitUntil: 'domcontentloaded' });
 
-	// If not settings, use client-side navigation
-	if (pageName !== 'settings') {
+	// If not settings and not home, use client-side navigation to switch pages
+	if (pageName !== 'settings' && pageName !== 'home') {
 		// Click the navigation button in footer or sidebar
-		const navSelector = pageName === 'home' 
-			? 'button:has-text("Home"), [aria-label*="Home"]'
-			: pageName === 'stats'
+		const navSelector = pageName === 'stats'
 			? 'button:has-text("Stats"), [aria-label*="Stats"]'
 			: pageName === 'totw'
 			? 'button:has-text("TOTW"), [aria-label*="TOTW"]'
 			: 'button:has-text("Club Info"), [aria-label*="Club Info"]';
 
-		await page.click(navSelector);
-		await waitForPageLoad(page);
+		const buttonExists = await page.locator(navSelector).first().isVisible({ timeout: 5000 }).catch(() => false);
+		if (buttonExists) {
+			await page.click(navSelector, { timeout: 10000 });
+			// Wait for navigation to complete
+			await page.waitForLoadState('domcontentloaded', { timeout: 10000 });
+		}
 	}
+	
+	// Final wait for page to be ready
+	await waitForPageLoad(page);
 }
 
 /**
  * Select a player from the player selection component
  */
 export async function selectPlayer(page: Page, playerName: string) {
-	// Wait for player selection input
-	const playerInput = page.getByPlaceholder(/player, club or team stats/i);
-	await playerInput.waitFor({ state: 'visible', timeout: 10000 });
+	// 1. Open the dropdown
+	await page.getByRole('button', { name: /Choose a player/i }).click();
+
+	// 2. Wait for the search input to appear
+	const searchInput = page.getByPlaceholder(/Type at least 3 characters.../i);
+	await searchInput.waitFor({ state: 'visible' });
 	
 	// Type player name
-	await playerInput.fill(playerName);
+	await searchInput.fill(playerName);
 	
 	// Wait for dropdown and select
 	await page.waitForTimeout(500); // Wait for dropdown to appear

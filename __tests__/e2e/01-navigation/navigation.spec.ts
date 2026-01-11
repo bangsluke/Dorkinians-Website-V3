@@ -9,8 +9,7 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		await waitForPageLoad(page);
+		await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 	});
 
 	test('1. should navigate to Home page', async ({ page }) => {

@@ -11,7 +11,6 @@ test.describe('Home Page Tests', () => {
 
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'home');
-		await waitForPageLoad(page);
 	});
 
 	// Verify welcome message or player selection is visible
@@ -51,6 +50,7 @@ test.describe('Home Page Tests', () => {
 
 	// Verify chatbot interface is displayed after player selection
 	test('3. should display chatbot interface after player selection', async ({ page }) => {
+
 		// Select a player
 		await selectPlayer(page, TEST_PLAYERS.primary);
 	
@@ -58,9 +58,7 @@ test.describe('Home Page Tests', () => {
 		await waitForChatbot(page);
 	
 		// Verify chatbot input is visible
-		await expect(
-			page.getByPlaceholder(/player, club or team stats/i)
-		).toBeVisible({ timeout: 5000 });
+		await expect(page.getByPlaceholder(/player, club or team stats/i)).toBeVisible({ timeout: 5000 });
 	});
 
 	// Verify chatbot query is submitted and response is displayed
@@ -88,7 +86,7 @@ test.describe('Home Page Tests', () => {
 		await waitForChatbot(page);
 
 		// Verify example questions are displayed
-		const exampleQuestions = page.locator('text=/What.*most|How many|Who.*played/i');
+		const exampleQuestions = page.locator('text=/What was my most prolific season?/i');
 		const hasExamples = await exampleQuestions.isVisible({ timeout: 5000 }).catch(() => false);
 		expect(hasExamples).toBe(true);
 	});
