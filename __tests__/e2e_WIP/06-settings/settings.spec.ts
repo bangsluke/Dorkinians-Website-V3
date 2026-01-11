@@ -13,17 +13,17 @@ test.describe('Settings Page Tests', () => {
 		await waitForPageLoad(page);
 	});
 
-	test('should display Settings page', async ({ page }) => {
+	test('1. should display Settings page', async ({ page }) => {
 		// Verify Settings heading is visible
 		await expect(page.getByRole('heading', { name: /Settings/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should display navigation shortcuts', async ({ page }) => {
+	test('2. should display navigation shortcuts', async ({ page }) => {
 		// Verify at least one navigation shortcut is visible (check for Home button)
 		await expect(page.getByRole('button', { name: /Home/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate using quick navigation shortcuts', async ({ page }) => {
+	test('3. should navigate using quick navigation shortcuts', async ({ page }) => {
 		// Find a navigation shortcut (e.g., Home)
 		const homeShortcut = page.locator('button:has-text("Home"), [aria-label*="Home" i]').first();
 		
@@ -41,13 +41,13 @@ test.describe('Settings Page Tests', () => {
 		}
 	});
 
-	test('should display database status', async ({ page }) => {
+	test('4. should display database status', async ({ page }) => {
 		// Verify database status section is visible
 		const hasStatus = await page.locator('text=/Database.*Status|Last.*Seeded|Version/i').isVisible({ timeout: 5000 }).catch(() => false);
 		// Database status is optional, so we don't fail if not present
 	});
 
-	test('should display PWA install button', async ({ page }) => {
+	test('5. should display PWA install button', async ({ page }) => {
 		// Verify PWA install button is present (if PWA is supported)
 		const pwaButton = page.locator('button:has-text("Install"), button:has-text("Add to Home Screen"), [aria-label*="install" i]');
 		const hasPWAButton = await pwaButton.isVisible({ timeout: 5000 }).catch(() => false);

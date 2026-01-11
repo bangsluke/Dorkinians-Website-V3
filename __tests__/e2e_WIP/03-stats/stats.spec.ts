@@ -14,7 +14,7 @@ test.describe('Stats Page Tests', () => {
 		await waitForPageLoad(page);
 	});
 
-	test('should display Player Stats page by default', async ({ page }) => {
+	test('1. should display Player Stats page by default', async ({ page }) => {
 		// Wait for data to load
 		await waitForDataLoad(page);
 
@@ -22,7 +22,7 @@ test.describe('Stats Page Tests', () => {
 		await expect(page.getByRole('button', { name: /Player Stats/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate between Stats sub-pages', async ({ page }) => {
+	test('2. should navigate between Stats sub-pages', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Find sub-page navigation (dots on mobile, menu on desktop)
@@ -38,7 +38,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should open and use filter sidebar', async ({ page }) => {
+	test('3. should open and use filter sidebar', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Find filter icon/button
@@ -77,7 +77,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should display data tables', async ({ page }) => {
+	test('4. should display data tables', async ({ page }) => {
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
 
@@ -94,7 +94,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should display charts', async ({ page }) => {
+	test('5. should display charts', async ({ page }) => {
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
 
@@ -112,7 +112,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Team Stats sub-page', async ({ page }) => {
+	test('6. should navigate to Team Stats sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Navigate to Team Stats
@@ -128,7 +128,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Club Stats sub-page', async ({ page }) => {
+	test('7. should navigate to Club Stats sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Navigate to Club Stats
@@ -144,7 +144,7 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Comparison sub-page', async ({ page }) => {
+	test('8. should navigate to Comparison sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Navigate to Comparison

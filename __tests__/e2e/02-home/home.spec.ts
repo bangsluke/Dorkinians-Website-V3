@@ -1,8 +1,8 @@
 // @ts-check
 
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, selectPlayer, waitForChatbot, submitChatbotQuery, logSectionHeader } from '../../e2e/utils/testHelpers';
-import { TEST_PLAYERS, TEST_QUERIES } from '../../e2e/fixtures/testData';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, selectPlayer, waitForChatbot, submitChatbotQuery, logSectionHeader } from '../utils/testHelpers';
+import { TEST_PLAYERS, TEST_QUERIES } from '../fixtures/testData';
 
 test.describe('Home Page Tests', () => {
 	test.beforeAll(() => {

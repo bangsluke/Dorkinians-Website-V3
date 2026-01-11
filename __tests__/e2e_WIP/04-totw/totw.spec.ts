@@ -14,7 +14,7 @@ test.describe('TOTW Page Tests', () => {
 		await waitForPageLoad(page);
 	});
 
-	test('should display Team of the Week page', async ({ page }) => {
+	test('1. should display Team of the Week page', async ({ page }) => {
 		// Verify TOTW header is visible
 		const totwHeading1 = page.getByRole('heading', { name: /Team of the Week/i });
 		const totwHeading2 = page.getByRole('heading', { name: /TOTW/i });
@@ -28,7 +28,7 @@ test.describe('TOTW Page Tests', () => {
 		await expect(page.locator('button:has-text("Select week"), button:has-text(/Week \\d+/)').first()).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should load TOTW data', async ({ page }) => {
+	test('2. should load TOTW data', async ({ page }) => {
 		// Wait for data to load (skeletons to disappear)
 		await waitForDataLoad(page);
 
@@ -40,7 +40,7 @@ test.describe('TOTW Page Tests', () => {
 		expect(hasPitch || hasPlayers).toBe(true);
 	});
 
-	test('should display players on pitch with scores', async ({ page }) => {
+	test('3. should display players on pitch with scores', async ({ page }) => {
 		// Wait for data to load
 		await waitForDataLoad(page);
 
@@ -62,7 +62,7 @@ test.describe('TOTW Page Tests', () => {
 		expect(scoreCount).toBeGreaterThan(0);
 	});
 
-	test('should open player detail modal when clicking a player and display points', async ({ page }) => {
+	test('4. should open player detail modal when clicking a player and display points', async ({ page }) => {
 		// Wait for data to load
 		await waitForDataLoad(page);
 		await page.waitForTimeout(3000); // Extra wait for players to render on pitch
@@ -126,7 +126,7 @@ test.describe('TOTW Page Tests', () => {
 		}
 	});
 
-	test('should change season and update weeks', async ({ page }) => {
+	test('5. should change season and update weeks', async ({ page }) => {
 		// Wait for initial load
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
@@ -180,7 +180,7 @@ test.describe('TOTW Page Tests', () => {
 		}
 	});
 
-	test('should change week and update TOTW data', async ({ page }) => {
+	test('6. should change week and update TOTW data', async ({ page }) => {
 		// Wait for initial load
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
@@ -229,7 +229,7 @@ test.describe('TOTW Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Players of the Month sub-page', async ({ page }) => {
+	test('7. should navigate to Players of the Month sub-page', async ({ page }) => {
 		// Look for sub-page navigation dots (mobile) or sidebar navigation
 		// On mobile, there are dot indicators at the top
 		const subPageDots = page.locator('button[aria-label*="Players of the Month" i], button[aria-label*="month" i]');
@@ -252,7 +252,7 @@ test.describe('TOTW Page Tests', () => {
 		}
 	});
 
-	test('should display player rankings on Players of the Month page', async ({ page }) => {
+	test('8. should display player rankings on Players of the Month page', async ({ page }) => {
 		// Navigate to Players of the Month sub-page
 		const subPageButton = page.locator('button[aria-label*="Players of the Month" i], button:has-text("Players of the Month")').first();
 		

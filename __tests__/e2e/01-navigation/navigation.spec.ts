@@ -13,7 +13,7 @@ test.describe('Navigation Tests', () => {
 		await waitForPageLoad(page);
 	});
 
-	test('should navigate to Home page', async ({ page }) => {
+	test('1. should navigate to Home page', async ({ page }) => {
 		const homeButton = page.getByRole('button', { name: 'Home' }).first();
 		await homeButton.waitFor({ state: 'visible', timeout: 10000 });
 		await homeButton.scrollIntoViewIfNeeded();
@@ -29,7 +29,7 @@ test.describe('Navigation Tests', () => {
 		]);
 	});
 
-	test('should navigate to Stats page', async ({ page }) => {
+	test('2. should navigate to Stats page', async ({ page }) => {
 		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
@@ -39,7 +39,7 @@ test.describe('Navigation Tests', () => {
 		await expect(page.getByRole('button', { name: /Player Stats/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate to TOTW page', async ({ page }) => {
+	test('3. should navigate to TOTW page', async ({ page }) => {
 		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();
@@ -55,7 +55,7 @@ test.describe('Navigation Tests', () => {
 		]);
 	});
 
-	test('should navigate to Club Info page', async ({ page }) => {
+	test('4. should navigate to Club Info page', async ({ page }) => {
 		const clubInfoButton = page.getByRole('button', { name: 'Club Info' }).first();
 		await clubInfoButton.waitFor({ state: 'visible', timeout: 10000 });
 		await clubInfoButton.scrollIntoViewIfNeeded();
@@ -71,7 +71,7 @@ test.describe('Navigation Tests', () => {
 	   test.describe('Settings Navigation - Desktop', () => {
 		test.use({ viewport: { width: 1280, height: 800 } });
 	
-		test('should navigate to Settings page on desktop', async ({ page }) => {
+		test('5. should navigate to Settings page on desktop', async ({ page }) => {
 			// Desktop settings icon lives in <aside>, not <header>
 			const desktopSettingsButton = page
 				.locator('aside')
@@ -95,7 +95,7 @@ test.describe('Navigation Tests', () => {
 	   test.describe('Settings Navigation - Mobile', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 	
-		test('should navigate to Settings page on mobile', async ({ page }) => {
+		test('6. should navigate to Settings page on mobile', async ({ page }) => {
 			// Mobile settings icon lives in <header class="md:hidden">
 			const mobileSettingsButton = page
 				.locator('header.md\\:hidden')
@@ -113,7 +113,7 @@ test.describe('Navigation Tests', () => {
 	});
 	
 
-	test('should navigate between Stats sub-pages', async ({ page }) => {
+	test('7. should navigate between Stats sub-pages', async ({ page }) => {
 		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
@@ -133,7 +133,7 @@ test.describe('Navigation Tests', () => {
 		}
 	});
 
-	test('should navigate between TOTW sub-pages', async ({ page }) => {
+	test('8. should navigate between TOTW sub-pages', async ({ page }) => {
 		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();

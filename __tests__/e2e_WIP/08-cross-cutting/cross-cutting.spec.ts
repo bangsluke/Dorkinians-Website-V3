@@ -8,7 +8,7 @@ test.describe('Cross-Cutting Tests', () => {
 		logSectionHeader('CROSS-CUTTING TESTS', '🔗', '08');
 	});
 
-	test('should handle loading states correctly', async ({ page }) => {
+	test('1. should handle loading states correctly', async ({ page }) => {
 		// Navigate to a page that loads data
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
@@ -25,7 +25,7 @@ test.describe('Cross-Cutting Tests', () => {
 		expect(finalSkeletonCount).toBeLessThan(skeletonCount);
 	});
 
-	test('should handle errors gracefully', async ({ page }) => {
+	test('2. should handle errors gracefully', async ({ page }) => {
 		// Navigate to a page
 		await navigateToMainPage(page, 'home');
 		await waitForPageLoad(page);
@@ -42,7 +42,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should be responsive on mobile viewport', async ({ page }) => {
+	test('3. should be responsive on mobile viewport', async ({ page }) => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
 		
@@ -58,7 +58,7 @@ test.describe('Cross-Cutting Tests', () => {
 		expect(hasFooterNav).toBe(true);
 	});
 
-	test('should handle touch interactions on mobile', async ({ page }) => {
+	test('4. should handle touch interactions on mobile', async ({ page }) => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
 		
@@ -78,7 +78,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should not have console errors on page load', async ({ page }) => {
+	test('5. should not have console errors on page load', async ({ page }) => {
 		const errors: string[] = [];
 		
 		page.on('console', (msg) => {
@@ -104,7 +104,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should maintain navigation state across page refreshes', async ({ page }) => {
+	test('6. should maintain navigation state across page refreshes', async ({ page }) => {
 		// Navigate to a specific page
 		await navigateToMainPage(page, 'totw');
 		await waitForPageLoad(page);
@@ -117,7 +117,7 @@ test.describe('Cross-Cutting Tests', () => {
 		await expect(page.locator('body')).toBeVisible();
 	});
 
-	test('should handle data validation', async ({ page }) => {
+	test('7. should handle data validation', async ({ page }) => {
 		// Navigate to TOTW page
 		await navigateToMainPage(page, 'totw');
 		await waitForDataLoad(page);

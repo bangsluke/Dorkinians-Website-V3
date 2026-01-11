@@ -13,14 +13,14 @@ test.describe('Club Info Page Tests', () => {
 		await waitForPageLoad(page);
 	});
 
-	test('should display Club Information page by default', async ({ page }) => {
+	test('1. should display Club Information page by default', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Verify Club Information button is visible
 		await expect(page.getByRole('button', { name: /Club Information/i })).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate to League Information sub-page', async ({ page }) => {
+	test('2. should navigate to League Information sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Find sub-page navigation (dots or buttons)
@@ -36,7 +36,7 @@ test.describe('Club Info Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Club Captains sub-page', async ({ page }) => {
+	test('3. should navigate to Club Captains sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		const captainsButton = page.locator('button[aria-label*="Club Captains" i], button:has-text("Club Captains")').first();
@@ -51,7 +51,7 @@ test.describe('Club Info Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Club Awards sub-page', async ({ page }) => {
+	test('4. should navigate to Club Awards sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		const awardsButton = page.locator('button[aria-label*="Club Awards" i], button:has-text("Club Awards")').first();
@@ -66,7 +66,7 @@ test.describe('Club Info Page Tests', () => {
 		}
 	});
 
-	test('should navigate to Useful Links sub-page', async ({ page }) => {
+	test('5. should navigate to Useful Links sub-page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		const usefulLinksButton = page.locator('button[aria-label*="Useful Links" i], button:has-text("Useful Links")').first();
@@ -81,7 +81,7 @@ test.describe('Club Info Page Tests', () => {
 		}
 	});
 
-	test('should display league tables on League Information page', async ({ page }) => {
+	test('6. should display league tables on League Information page', async ({ page }) => {
 		await waitForDataLoad(page);
 
 		// Navigate to League Information
