@@ -49,6 +49,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					{/* Burger Menu Icon - only show on stats pages */}
 					{showMenuIcon && onMenuClick && (
 						<motion.button
+							data-testid="header-menu"
 							onClick={onMenuClick}
 							className='p-2 rounded-full hover:bg-white/20 transition-colors'
 							whileHover={{ scale: 1.1 }}
@@ -60,6 +61,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					{/* Filter Icon - only show on stats pages */}
 					{showFilterIcon && onFilterClick && (
 						<motion.button
+							data-testid="header-filter"
 							onClick={onFilterClick}
 							className='p-2 rounded-full hover:bg-white/20 transition-colors'
 							whileHover={{ scale: 1.1 }}
@@ -71,6 +73,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 
 					{/* Settings/Close Icon */}
 					<motion.button
+						data-testid="header-settings"
 						onClick={onSettingsClick}
 						className='p-2 rounded-full hover:bg-white/20 transition-colors'
 						whileHover={{ scale: 1.1 }}

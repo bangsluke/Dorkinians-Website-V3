@@ -33,6 +33,7 @@ export default function FooterNavigation() {
 					return (
 						<motion.button
 							key={item.id}
+							data-testid={`nav-footer-${item.id}`}
 							onClick={() => {
 								console.log("🔘 [FooterNavigation] Button clicked:", item.id);
 								setMainPage(item.id);

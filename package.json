@@ -32,7 +32,7 @@
 		"test:e2e:debug": "playwright test --debug",
 		"test:e2e:email": "node __tests__/e2e/scripts/test-e2e-email-report.js",
 		"test:e2e:navigation": "playwright test __tests__/e2e/01-navigation/navigation.spec.ts",
-		"test:e2e:home": "playwright test __tests__/e2e_WIP/02-home/home.spec.ts",
+		"test:e2e:home": "playwright test __tests__/e2e/02-home/home.spec.ts",
 		"test:e2e:stats": "playwright test __tests__/e2e/03-stats/stats.spec.ts",
 		"test:e2e:totw": "playwright test __tests__/e2e/04-totw/totw.spec.ts",
 		"test:e2e:club-info": "playwright test __tests__/e2e/05-club-info/club-info.spec.ts",

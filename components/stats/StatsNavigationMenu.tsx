@@ -311,6 +311,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 										<div key={item.id} className='space-y-2'>
 											{/* Main Page Button */}
 											<motion.button
+												data-testid={`stats-nav-menu-${item.id}`}
 												onClick={() => {
 													if (hasSections) {
 														togglePage(item.id);

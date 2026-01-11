@@ -94,6 +94,7 @@ export default function StatsContainer() {
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
+						data-testid={`stats-subpage-indicator-${index}`}
 						onClick={() => setStatsSubPage(page.id)}
 						className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
 							currentStatsSubPage === page.id

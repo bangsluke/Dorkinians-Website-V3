@@ -42,7 +42,7 @@ export default defineConfig({
 		/* Screenshot on failure */
 		screenshot: 'only-on-failure',
 		/* Video recording disabled - only screenshots on failure */
-		video: 'off',
+		video: 'on',
 		/* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
 		actionTimeout: 60000,
 	},

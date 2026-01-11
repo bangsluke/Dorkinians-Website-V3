@@ -2160,8 +2160,9 @@ export default function PlayerStats() {
 
 	if (isLoadingPlayerData || appConfig.forceSkeletonView) {
 		return (
-			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-				<div className='h-full flex flex-col'>
+			<div data-testid="loading-skeleton">
+				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+					<div className='h-full flex flex-col'>
 					<div className='flex-shrink-0 p-2 md:p-4'>
 						<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
@@ -2188,7 +2189,8 @@ export default function PlayerStats() {
 						<ChartSkeleton />
 					</div>
 				</div>
-			</SkeletonTheme>
+				</SkeletonTheme>
+			</div>
 		);
 	}
 
@@ -3378,9 +3380,11 @@ export default function PlayerStats() {
 				{!isDataTableMode && chartContent}
 				{isDataTableMode && (
 					isLoadingPlayerData ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<DataTableSkeleton />
-						</SkeletonTheme>
+						<div data-testid="loading-skeleton">
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<DataTableSkeleton />
+							</SkeletonTheme>
+						</div>
 					) : (
 						dataTableContent
 					)

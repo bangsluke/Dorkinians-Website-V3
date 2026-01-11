@@ -716,7 +716,7 @@ export default function TeamOfTheWeek() {
 					<div className='w-1/3 md:w-1/2'>
 						<Listbox value={selectedSeason} onChange={setSelectedSeason}>
 							<div className='relative'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<Listbox.Button data-testid="totw-season-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
 									</span>
@@ -728,6 +728,7 @@ export default function TeamOfTheWeek() {
 									{seasons.map((season) => (
 										<Listbox.Option
 											key={season}
+											data-testid={`totw-season-option-${season}`}
 											className={({ active }) =>
 												`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
 											}
@@ -746,7 +747,7 @@ export default function TeamOfTheWeek() {
 					<div className='flex-1 md:w-1/2'>
 						<Listbox value={selectedWeek || 0} onChange={setSelectedWeek}>
 							<div className='relative'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<Listbox.Button data-testid="totw-week-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 									<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
 										{weeks.length === 0 ? (
 											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -773,6 +774,7 @@ export default function TeamOfTheWeek() {
 										weeks.map((week) => (
 											<Listbox.Option
 												key={week.week}
+												data-testid={`totw-week-option-${week.week}`}
 												className={({ active }) =>
 													`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
 												}
@@ -795,9 +797,11 @@ export default function TeamOfTheWeek() {
 
 			{/* Summary Statistics and Pitch Visualization */}
 			{(loading || !totwData || appConfig.forceSkeletonView) ? (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<TOTWPitchSkeleton />
-				</SkeletonTheme>
+				<div data-testid="loading-skeleton">
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<TOTWPitchSkeleton />
+					</SkeletonTheme>
+				</div>
 			) : (
 				<>
 					{/* Summary Statistics */}
@@ -887,6 +891,7 @@ export default function TeamOfTheWeek() {
 							return (
 								<div
 									key={`${player.name}-${index}`}
+									data-testid="totw-player"
 									className='absolute cursor-pointer hover:scale-110 transition-transform z-10'
 									style={{
 										left: `${adjustedX}%`,
@@ -952,9 +957,11 @@ export default function TeamOfTheWeek() {
 
 			{/* Loading Overlay */}
 			{loadingPlayerDetails && (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<TOTWPlayerDetailsSkeleton />
-				</SkeletonTheme>
+				<div data-testid="loading-skeleton">
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<TOTWPlayerDetailsSkeleton />
+					</SkeletonTheme>
+				</div>
 			)}
 
 			{/* Player Detail Modal */}
