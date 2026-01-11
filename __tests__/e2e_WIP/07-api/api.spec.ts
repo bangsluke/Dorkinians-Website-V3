@@ -10,7 +10,7 @@ test.describe('API Endpoint Tests', () => {
 		logSectionHeader('API ENDPOINT TESTS', '🔌', '07');
 	});
 
-	test('should respond to chatbot API query', async ({ request }) => {
+	test('1. should respond to chatbot API query', async ({ request }) => {
 		const { response, json, responseTime } = await testChatbotAPI(
 			request,
 			TEST_QUERIES.simple,
@@ -24,7 +24,7 @@ test.describe('API Endpoint Tests', () => {
 		expect(responseTime).toBeLessThan(5000);
 	});
 
-	test('should return player data from player data API', async ({ request }) => {
+	test('2. should return player data from player data API', async ({ request }) => {
 		const { response, json, responseTime } = await testPlayerDataAPI(request, TEST_PLAYERS.primary);
 
 		expect(response.status()).toBe(200);
@@ -33,7 +33,7 @@ test.describe('API Endpoint Tests', () => {
 		expect(responseTime).toBeLessThan(5000);
 	});
 
-	test('should return TOTW data from TOTW API', async ({ request }) => {
+	test('3. should return TOTW data from TOTW API', async ({ request }) => {
 		const { response, json, responseTime } = await testTOTWAPI(
 			request,
 			TEST_TOTW_WEEKS.season,
@@ -47,7 +47,7 @@ test.describe('API Endpoint Tests', () => {
 		expect(responseTime).toBeLessThan(5000);
 	});
 
-	test('should handle invalid chatbot query gracefully', async ({ request }) => {
+	test('4. should handle invalid chatbot query gracefully', async ({ request }) => {
 		const response = await request.post('/api/chatbot', {
 			data: {
 				query: 'This is not a valid question about football',
@@ -59,7 +59,7 @@ test.describe('API Endpoint Tests', () => {
 		expect(response.status()).toBeLessThan(500);
 	});
 
-	test('should handle invalid player name gracefully', async ({ request }) => {
+	test('5. should handle invalid player name gracefully', async ({ request }) => {
 		const response = await request.get(
 			`/api/player-data?playerName=${encodeURIComponent('NonExistentPlayer123')}`
 		);

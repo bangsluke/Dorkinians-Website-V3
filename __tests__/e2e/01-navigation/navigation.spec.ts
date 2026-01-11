@@ -9,19 +9,18 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test.beforeEach(async ({ page }) => {
-		await page.goto('/');
-		await waitForPageLoad(page);
+		await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
 	});
 
-	test('should navigate to Home page', async ({ page }) => {
-		const homeButton = page.getByRole('button', { name: 'Home' }).first();
+	test('1. should navigate to Home page', async ({ page }) => {
+		const homeButton = page.getByTestId('nav-footer-home').or(page.getByTestId('nav-sidebar-home')).first();
 		await homeButton.waitFor({ state: 'visible', timeout: 10000 });
 		await homeButton.scrollIntoViewIfNeeded();
 		await homeButton.click();
 		await waitForPageLoad(page);
 
-		const welcome = page.getByRole('heading', { name: /Welcome to the Dorkinians FC/i });
-		const choosePlayer = page.getByRole('button', { name: /Choose a player/i });
+		const welcome = page.getByTestId('home-welcome-heading');
+		const choosePlayer = page.getByTestId('player-selection-button');
 
 		await Promise.race([
 			expect(welcome).toBeVisible({ timeout: 10000 }),
@@ -29,18 +28,18 @@ test.describe('Navigation Tests', () => {
 		]);
 	});
 
-	test('should navigate to Stats page', async ({ page }) => {
-		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
+	test('2. should navigate to Stats page', async ({ page }) => {
+		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
 		await waitForPageLoad(page);
 
-		await expect(page.getByRole('button', { name: /Player Stats/i })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('stats-nav-menu-player-stats').or(page.getByRole('button', { name: /Player Stats/i }))).toBeVisible({ timeout: 10000 });
 	});
 
-	test('should navigate to TOTW page', async ({ page }) => {
-		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
+	test('3. should navigate to TOTW page', async ({ page }) => {
+		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();
@@ -55,14 +54,14 @@ test.describe('Navigation Tests', () => {
 		]);
 	});
 
-	test('should navigate to Club Info page', async ({ page }) => {
-		const clubInfoButton = page.getByRole('button', { name: 'Club Info' }).first();
+	test('4. should navigate to Club Info page', async ({ page }) => {
+		const clubInfoButton = page.getByTestId('nav-footer-club-info').or(page.getByTestId('nav-sidebar-club-info')).first();
 		await clubInfoButton.waitFor({ state: 'visible', timeout: 10000 });
 		await clubInfoButton.scrollIntoViewIfNeeded();
 		await clubInfoButton.click();
 		await waitForPageLoad(page);
 
-		await expect(page.getByRole('button', { name: /Club Information/i })).toBeVisible({ timeout: 10000 });
+		await expect(page.getByTestId('nav-sidebar-club-information').or(page.getByRole('button', { name: /Club Information/i }))).toBeVisible({ timeout: 10000 });
 	});
 
 	/* ---------------------------------------------------------
@@ -71,12 +70,9 @@ test.describe('Navigation Tests', () => {
 	   test.describe('Settings Navigation - Desktop', () => {
 		test.use({ viewport: { width: 1280, height: 800 } });
 	
-		test('should navigate to Settings page on desktop', async ({ page }) => {
+	   test('5. should navigate to Settings page on desktop', async ({ page }) => {
 			// Desktop settings icon lives in <aside>, not <header>
-			const desktopSettingsButton = page
-				.locator('aside')
-				.getByTitle('Open settings')
-				.first();
+			const desktopSettingsButton = page.getByTestId('nav-sidebar-settings').first();
 	
 			await desktopSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
 			await desktopSettingsButton.scrollIntoViewIfNeeded();
@@ -84,7 +80,7 @@ test.describe('Navigation Tests', () => {
 	
 			await waitForPageLoad(page);
 	
-			await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible({ timeout: 10000 });			  
+			await expect(page.getByTestId('settings-heading')).toBeVisible({ timeout: 10000 });			  
 		});
 	});
 	
@@ -95,12 +91,9 @@ test.describe('Navigation Tests', () => {
 	   test.describe('Settings Navigation - Mobile', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 	
-		test('should navigate to Settings page on mobile', async ({ page }) => {
+		test('6. should navigate to Settings page on mobile', async ({ page }) => {
 			// Mobile settings icon lives in <header class="md:hidden">
-			const mobileSettingsButton = page
-				.locator('header.md\\:hidden')
-				.getByTitle('Open settings')
-				.first();
+			const mobileSettingsButton = page.getByTestId('header-settings').first();
 	
 			await mobileSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
 			await mobileSettingsButton.scrollIntoViewIfNeeded();
@@ -108,39 +101,43 @@ test.describe('Navigation Tests', () => {
 	
 			await waitForPageLoad(page);
 	
-			await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible({ timeout: 10000 });
+			await expect(page.getByTestId('settings-heading')).toBeVisible({ timeout: 10000 });
 		});
 	});
 	
 
-	test('should navigate between Stats sub-pages', async ({ page }) => {
-		const statsButton = page.getByRole('button', { name: 'Stats' }).first();
+	test('7. should navigate between Stats sub-pages', async ({ page }) => {
+		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
 		await waitForPageLoad(page);
 
-		const subPageIndicators = page.locator('[class*="dot"], [class*="indicator"], button[aria-label*="Player Stats" i]');
-		const count = await subPageIndicators.count();
-
-		if (count > 0) {
-			const teamStatsButton = page.locator('button:has-text("Team Stats"), [aria-label*="Team Stats" i]').first();
-			if (await teamStatsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
-				await teamStatsButton.click();
-				await waitForPageLoad(page);
-				await expect(page.getByRole('button', { name: /Team Stats/i })).toBeVisible({ timeout: 10000 });
-			}
+		// Try test ID first, then fall back to other selectors
+		const teamStatsButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('nav-sidebar-team-stats'))
+			.or(page.locator('button:has-text("Team Stats"), [aria-label*="Team Stats" i]'))
+			.first();
+		
+		if (await teamStatsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await teamStatsButton.click();
+			await waitForPageLoad(page);
+			await expect(page.getByTestId('stats-nav-menu-team-stats').or(page.getByRole('button', { name: /Team Stats/i }))).toBeVisible({ timeout: 10000 });
 		}
 	});
 
-	test('should navigate between TOTW sub-pages', async ({ page }) => {
-		const totwButton = page.getByRole('button', { name: 'TOTW' }).first();
+	test('8. should navigate between TOTW sub-pages', async ({ page }) => {
+		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();
 		await waitForPageLoad(page);
 
-		const playersOfMonthButton = page.locator('button:has-text("Players of the Month"), [aria-label*="Players of the Month" i]').first();
+		const playersOfMonthButton = page.getByTestId('totw-subpage-indicator-players-of-month')
+			.or(page.getByTestId('nav-sidebar-players-of-month'))
+			.or(page.locator('button:has-text("Players of the Month"), [aria-label*="Players of the Month" i]'))
+			.first();
+		
 		if (await playersOfMonthButton.isVisible({ timeout: 2000 }).catch(() => false)) {
 			await playersOfMonthButton.click();
 			await waitForPageLoad(page);
