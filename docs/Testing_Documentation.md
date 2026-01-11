@@ -104,16 +104,15 @@ __tests__/
 │   ├── fixtures/                  # Test data and constants
 │   ├── utils/                     # Helper functions and utilities
 │   ├── scripts/                   # E2E test runner scripts
-│   │   ├── run-e2e-tests.js      # Cron job runner
 │   │   └── test-e2e-email-report.js # Email report generator
-│   ├── navigation/                # Navigation tests
-│   ├── home/                      # Home page tests
-│   ├── stats/                     # Stats page tests
-│   ├── totw/                      # TOTW page tests
-│   ├── club-info/                 # Club Info page tests
-│   ├── settings/                  # Settings page tests
-│   ├── api/                       # API endpoint tests
-│   ├── cross-cutting/             # Cross-cutting tests
+│   ├── 01-navigation/             # Navigation tests (executed first)
+│   ├── 02-home/                   # Home page tests
+│   ├── 03-stats/                  # Stats page tests
+│   ├── 04-totw/                   # TOTW page tests
+│   ├── 05-club-info/              # Club Info page tests
+│   ├── 06-settings/               # Settings page tests
+│   ├── 07-api/                    # API endpoint tests
+│   ├── 08-cross-cutting/          # Cross-cutting tests (executed last)
 │   ├── playwright-report/         # Test reports
 │   └── test-results/              # Test artifacts
 ├── comprehensive/                  # Comprehensive validation tests
@@ -218,7 +217,7 @@ __tests__/
 
 ### Navigation Tests
 
-**File**: `__tests__/e2e/navigation/navigation.spec.ts`
+**File**: `__tests__/e2e/01-navigation/navigation.spec.ts`
 
 **What is tested**:
 - Navigation to all main pages (Home, Stats, TOTW, Club Info, Settings)
@@ -235,7 +234,7 @@ __tests__/
 
 ### Home Page Tests
 
-**File**: `__tests__/e2e/home/home.spec.ts`
+**File**: `__tests__/e2e/02-home/home.spec.ts`
 
 **What is tested**:
 - Player selection functionality
@@ -255,7 +254,7 @@ __tests__/
 
 ### Stats Page Tests
 
-**File**: `__tests__/e2e/stats/stats.spec.ts`
+**File**: `__tests__/e2e/03-stats/stats.spec.ts`
 
 **What is tested**:
 - Player Stats page default display
@@ -278,7 +277,7 @@ __tests__/
 
 ### TOTW Page Tests
 
-**File**: `__tests__/e2e/totw/totw.spec.ts`
+**File**: `__tests__/e2e/04-totw/totw.spec.ts`
 
 **What is tested**:
 - Team of the Week page display
@@ -308,7 +307,7 @@ __tests__/
 
 ### Club Info Page Tests
 
-**File**: `__tests__/e2e/club-info/club-info.spec.ts`
+**File**: `__tests__/e2e/05-club-info/club-info.spec.ts`
 
 **What is tested**:
 - Club Information page default display
@@ -332,7 +331,7 @@ __tests__/
 
 ### Settings Page Tests
 
-**File**: `__tests__/e2e/settings/settings.spec.ts`
+**File**: `__tests__/e2e/06-settings/settings.spec.ts`
 
 **What is tested**:
 - Settings page display
@@ -352,7 +351,7 @@ __tests__/
 
 ### API Endpoint Tests
 
-**File**: `__tests__/e2e/api/api.spec.ts`
+**File**: `__tests__/e2e/07-api/api.spec.ts`
 
 **What is tested**:
 - Chatbot API response structure and timing
@@ -373,7 +372,7 @@ __tests__/
 
 ### Cross-Cutting Tests
 
-**File**: `__tests__/e2e/cross-cutting/cross-cutting.spec.ts`
+**File**: `__tests__/e2e/08-cross-cutting/cross-cutting.spec.ts`
 
 **What is tested**:
 - Loading states (skeletons appear and disappear)
@@ -643,7 +642,7 @@ npm run test:e2e:ui
 npm run test:e2e:headless
 
 # Run specific test file
-npx playwright test __tests__/e2e/totw/totw.spec.ts
+npx playwright test __tests__/e2e/04-totw/totw.spec.ts
 
 # Run tests in debug mode
 npm run test:e2e:debug

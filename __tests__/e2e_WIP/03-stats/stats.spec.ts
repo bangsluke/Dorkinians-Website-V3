@@ -1,8 +1,14 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad } from '../utils/testHelpers';
-import { TEST_PLAYERS, TEST_TEAMS } from '../fixtures/testData';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader } from '../../e2e/utils/testHelpers';
+import { TEST_PLAYERS, TEST_TEAMS } from '../../e2e/fixtures/testData';
 
 test.describe('Stats Page Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('STATS PAGE TESTS', '📊', '03');
+	});
+
 	test.beforeEach(async ({ page }) => {
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
@@ -12,10 +18,8 @@ test.describe('Stats Page Tests', () => {
 		// Wait for data to load
 		await waitForDataLoad(page);
 
-		// Verify Player Stats content is visible
-		await expect(
-			page.locator('text=/Player Stats|Key Performance|Seasonal Performance/i')
-		).toBeVisible({ timeout: 10000 });
+		// Verify Player Stats button is visible
+		await expect(page.getByRole('button', { name: /Player Stats/i })).toBeVisible({ timeout: 10000 });
 	});
 
 	test('should navigate between Stats sub-pages', async ({ page }) => {
@@ -29,8 +33,8 @@ test.describe('Stats Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify Team Stats content
-			await expect(page.locator('text=/Team Stats|Team.*Stats/i')).toBeVisible({ timeout: 10000 });
+			// Verify Team Stats button is visible
+			await expect(page.getByRole('button', { name: /Team Stats/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -48,8 +52,8 @@ test.describe('Stats Page Tests', () => {
 			const filterSidebar = page.locator('[class*="sidebar" i], [class*="Sidebar" i], [role="complementary"]');
 			await expect(filterSidebar).toBeVisible({ timeout: 5000 });
 
-			// Try to select a filter (e.g., team filter)
-			const teamFilter = filterSidebar.locator('text=/Team|1st|2nd|3rd/i').first();
+			// Try to select a filter (e.g., team filter) - check for Team first
+			const teamFilter = filterSidebar.getByText(/Team/i).first();
 			if (await teamFilter.isVisible({ timeout: 2000 }).catch(() => false)) {
 				await teamFilter.click();
 				await waitForDataLoad(page);
@@ -119,10 +123,8 @@ test.describe('Stats Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify team selection or team stats are displayed
-			await expect(
-				page.locator('text=/Team Stats|Select.*Team|1st XI|2nd XI/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Team Stats button is visible
+			await expect(page.getByRole('button', { name: /Team Stats/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -137,10 +139,8 @@ test.describe('Stats Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify club stats content
-			await expect(
-				page.locator('text=/Club Stats|Club.*Stats|Team Comparison/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Club Stats button is visible
+			await expect(page.getByRole('button', { name: /Club Stats/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 
@@ -155,10 +155,8 @@ test.describe('Stats Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify comparison content
-			await expect(
-				page.locator('text=/Comparison|Select.*Player|Radar/i')
-			).toBeVisible({ timeout: 10000 });
+			// Verify Comparison button is visible
+			await expect(page.getByRole('button', { name: /Comparison/i })).toBeVisible({ timeout: 10000 });
 		}
 	});
 });

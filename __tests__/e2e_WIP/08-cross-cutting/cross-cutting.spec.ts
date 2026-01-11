@@ -1,7 +1,13 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, verifyNoConsoleErrors } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, verifyNoConsoleErrors, logSectionHeader } from '../../e2e/utils/testHelpers';
 
 test.describe('Cross-Cutting Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('CROSS-CUTTING TESTS', '🔗', '08');
+	});
+
 	test('should handle loading states correctly', async ({ page }) => {
 		// Navigate to a page that loads data
 		await navigateToMainPage(page, 'stats');

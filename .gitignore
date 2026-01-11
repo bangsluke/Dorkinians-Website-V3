@@ -118,3 +118,5 @@ logs/test-execution.log
 # Test Results
 __tests__/e2e/test-results/
 __tests__/e2e/playwright-report/
+__tests__/e2e/.section-locks.json
+__tests__/e2e/.lock-*

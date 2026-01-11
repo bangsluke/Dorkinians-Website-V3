@@ -1,8 +1,15 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { testChatbotAPI, testPlayerDataAPI, testTOTWAPI } from '../utils/apiHelpers';
-import { TEST_PLAYERS, TEST_TOTW_WEEKS, TEST_QUERIES } from '../fixtures/testData';
+import { testChatbotAPI, testPlayerDataAPI, testTOTWAPI } from '../../e2e/utils/apiHelpers';
+import { TEST_PLAYERS, TEST_TOTW_WEEKS, TEST_QUERIES } from '../../e2e/fixtures/testData';
+import { logSectionHeader } from '../../e2e/utils/testHelpers';
 
 test.describe('API Endpoint Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('API ENDPOINT TESTS', '🔌', '07');
+	});
+
 	test('should respond to chatbot API query', async ({ request }) => {
 		const { response, json, responseTime } = await testChatbotAPI(
 			request,
