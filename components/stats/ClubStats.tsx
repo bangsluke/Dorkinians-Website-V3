@@ -1465,8 +1465,9 @@ export default function ClubStats() {
 			</div>
 
 			{(isLoadingTeamData || appConfig.forceSkeletonView) ? (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+				<div data-testid="loading-skeleton">
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
 						<div className='md:break-inside-avoid md:mb-4'>
 							<StatCardSkeleton />
 						</div>
@@ -1480,7 +1481,8 @@ export default function ClubStats() {
 							<ChartSkeleton />
 						</div>
 					</div>
-				</SkeletonTheme>
+					</SkeletonTheme>
+				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
 					<div className='text-center'>

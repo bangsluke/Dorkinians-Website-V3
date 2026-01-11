@@ -180,7 +180,7 @@ export default function HomePage() {
 										exit={{ opacity: 0, y: -50 }}
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4 md:mb-8'>
-										<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
+										<h1 data-testid="home-welcome-heading" className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
 										<p className='text-base text-white max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
@@ -246,6 +246,7 @@ export default function HomePage() {
 										<div className='flex items-center justify-center space-x-2 md:space-x-3'>
 											<h2 className='text-xl md:text-2xl font-semibold text-dorkinians-yellow'>{selectedPlayer}</h2>
 											<button
+												data-testid="home-edit-player-button"
 												onClick={handleEditClick}
 												className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 												title='Edit player selection'>

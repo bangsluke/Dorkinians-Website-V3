@@ -110,7 +110,7 @@ export default function Settings() {
 						whileTap={{ scale: 0.9 }}>
 						<ArrowLeftIcon className='w-6 h-6 text-white' />
 					</motion.button>
-					<h1 className='text-3xl font-bold text-white'>Settings</h1>
+					<h1 data-testid="settings-heading" className='text-3xl font-bold text-white'>Settings</h1>
 				</div>
 				{/* Desktop Close Button */}
 				<motion.button
@@ -146,6 +146,7 @@ export default function Settings() {
 							<div key={item.id} className='space-y-2'>
 								{/* Main Navigation Item */}
 								<motion.button
+									data-testid={`settings-nav-${item.id}`}
 									onClick={() => handleNavigationClick(item.id)}
 									className='w-full p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
 									whileHover={{ scale: 1.02 }}

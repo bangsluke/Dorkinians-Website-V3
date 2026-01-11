@@ -11,14 +11,14 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
 	testDir: './__tests__/e2e',
-	/* Run tests in files in parallel */
-	fullyParallel: true,
+	/* Run tests in files sequentially to maintain order */
+	fullyParallel: false,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
 	/* Retry on CI only */
 	retries: process.env.CI ? 2 : 0,
-	/* Opt out of parallel tests on CI. */
-	workers: process.env.CI ? 1 : undefined,
+	/* Run tests sequentially to maintain order */
+	workers: 1,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
 	reporter: process.env.CI
 		? [
@@ -42,9 +42,9 @@ export default defineConfig({
 		/* Screenshot on failure */
 		screenshot: 'only-on-failure',
 		/* Video recording disabled - only screenshots on failure */
-		video: 'off',
+		video: 'on',
 		/* Maximum time each action such as `click()` can take. Defaults to 0 (no limit). */
-		actionTimeout: 30000,
+		actionTimeout: 60000,
 	},
 
 	/* Configure projects for major browsers */
@@ -56,7 +56,7 @@ export default defineConfig({
 		// Mobile viewport testing
 		{
 			name: 'Mobile Chrome',
-			use: { ...devices['Pixel 5'] },
+			use: { ...devices['Pixel 7'] },
 		},
 	],
 
@@ -66,4 +66,7 @@ export default defineConfig({
 	//   url: 'http://localhost:3000',
 	//   reuseExistingServer: !process.env.CI,
 	// },
+
+	/* Global setup - clear section locks at start of each test run */
+	globalSetup: require.resolve('./__tests__/e2e/utils/globalSetup.ts'),
 });

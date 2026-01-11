@@ -138,6 +138,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 							}}>
 							<div className='relative'>
 								<Listbox.Button
+									data-testid="player-selection-button"
 									onClick={handleDropdownOpen}
 									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
@@ -158,6 +159,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									<div className='px-3 py-2'>
 										<input
 											ref={inputRef}
+											data-testid="player-selection-input"
 											type='text'
 											placeholder={query.length < 3 ? "Type at least 3 characters..." : "Type to filter players..."}
 											value={query}
@@ -188,6 +190,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 									{getFilteredPlayers().map((player, playerIdx) => (
 										<Listbox.Option
 											key={playerIdx}
+											data-testid="player-selection-option"
 											className={({ active }) =>
 												`relative cursor-default select-none dark-dropdown-option ${active ? "bg-yellow-400/10 text-yellow-300" : "text-white"}`
 											}
@@ -220,6 +223,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				<div className='flex items-center justify-center space-x-2 md:space-x-3'>
 					<h2 className='text-xl md:text-2xl font-semibold text-white'>{selectedPlayer}</h2>
 					<button
+						data-testid="player-selection-edit-button"
 						onClick={onEditClick}
 						className='p-1.5 md:p-2 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
 						title='Edit player selection'>
@@ -249,6 +253,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 						}}>
 						<div className='relative'>
 							<Listbox.Button
+								data-testid="player-selection-button"
 								onClick={handleDropdownOpen}
 								className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
@@ -269,6 +274,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 								<div className='px-3 py-2'>
 									<input
 										ref={inputRef}
+										data-testid="player-selection-input"
 										type='text'
 										placeholder={query.length < 3 ? "Type at least 3 characters..." : "Type to filter players..."}
 										value={query}
@@ -299,6 +305,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 								{getFilteredPlayers().map((player, playerIdx) => (
 									<Listbox.Option
 										key={playerIdx}
+										data-testid="player-selection-option"
 										className={({ active }) =>
 											`relative cursor-default select-none dark-dropdown-option ${active ? "bg-yellow-400/10 text-yellow-300" : "text-white"}`
 										}

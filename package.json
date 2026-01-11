@@ -28,10 +28,17 @@
 		"test:e2e": "playwright test",
 		"test:e2e:ui": "playwright test --ui",
 		"test:e2e:headless": "playwright test --headed=false",
-		"test:e2e:report": "playwright show-report __tests__/e2e/playwright-report",
+		"test:e2e:show-last-report": "playwright show-report __tests__/e2e/playwright-report",
 		"test:e2e:debug": "playwright test --debug",
-		"test:e2e:cron": "node __tests__/e2e/scripts/run-e2e-tests.js",
-		"test:e2e:email": "node __tests__/e2e/scripts/test-e2e-email-report.js"
+		"test:e2e:email": "node __tests__/e2e/scripts/test-e2e-email-report.js",
+		"test:e2e:navigation": "playwright test __tests__/e2e/01-navigation/navigation.spec.ts",
+		"test:e2e:home": "playwright test __tests__/e2e/02-home/home.spec.ts",
+		"test:e2e:stats": "playwright test __tests__/e2e/03-stats/stats.spec.ts",
+		"test:e2e:totw": "playwright test __tests__/e2e/04-totw/totw.spec.ts",
+		"test:e2e:club-info": "playwright test __tests__/e2e/05-club-info/club-info.spec.ts",
+		"test:e2e:settings": "playwright test __tests__/e2e/06-settings/settings.spec.ts",
+		"test:e2e:api": "playwright test __tests__/e2e/07-api/api.spec.ts",
+		"test:e2e:cross-cutting": "playwright test __tests__/e2e/08-cross-cutting/cross-cutting.spec.ts"
 	},
 	"dependencies": {
 		"@googlemaps/js-api-loader": "^1.16.6",

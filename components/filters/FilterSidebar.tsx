@@ -568,6 +568,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 					{/* Sidebar */}
 					<motion.div
+						data-testid="filter-sidebar"
 						className='fixed right-0 top-0 h-full w-full max-w-md z-50 shadow-xl'
 						style={{ backgroundColor: '#0f0f0f' }}
 						initial={{ x: "100%" }}
@@ -584,7 +585,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 										className='px-3 py-1 text-sm text-white/80 hover:text-white hover:bg-white/20 rounded transition-colors'>
 										Reset
 									</button>
-									<button onClick={onClose} className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+									<button data-testid="filter-sidebar-close" onClick={onClose} className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>
@@ -596,7 +597,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 								style={{ WebkitOverflowScrolling: 'touch' }}>
 								{/* Time Range Section */}
 								{availableFilters.includes("timeRange") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-timeRange">
 									<button
 										onClick={() => toggleAccordion("timeRange")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -775,7 +776,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Team Section */}
 								{availableFilters.includes("team") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-team">
 									<button
 										onClick={() => toggleAccordion("team")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -829,7 +830,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Location Section */}
 								{availableFilters.includes("location") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-location">
 									<button
 										onClick={() => toggleAccordion("location")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -863,7 +864,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Opposition Section */}
 								{availableFilters.includes("opposition") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-opposition">
 									<button
 										onClick={() => toggleAccordion("opposition")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -933,7 +934,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Competition Section */}
 								{availableFilters.includes("competition") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-competition">
 									<button
 										onClick={() => toggleAccordion("competition")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -1003,7 +1004,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Result Section */}
 								{availableFilters.includes("result") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-result">
 									<button
 										onClick={() => toggleAccordion("result")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
@@ -1037,7 +1038,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Position Section */}
 								{availableFilters.includes("position") && (
-									<div className='border border-white/20 rounded-lg bg-white/5'>
+									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-position">
 									<button
 										onClick={() => toggleAccordion("position")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>

@@ -1,14 +1,21 @@
+// @ts-check
+
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, verifyNoConsoleErrors } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, verifyNoConsoleErrors, logSectionHeader } from '../../e2e/utils/testHelpers';
 
 test.describe('Cross-Cutting Tests', () => {
-	test('should handle loading states correctly', async ({ page }) => {
+	test.beforeAll(() => {
+		logSectionHeader('CROSS-CUTTING TESTS', '🔗', '08');
+	});
+
+	test('1. should handle loading states correctly', async ({ page }) => {
 		// Navigate to a page that loads data
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
 
-		// Check for loading skeletons (they should appear briefly)
-		const skeletons = page.locator('[class*="skeleton" i], [class*="Skeleton" i], [class*="loading" i]');
+		// Check for loading skeletons - try test ID first
+		const skeletons = page.getByTestId('loading-skeleton')
+			.or(page.locator('[class*="skeleton" i], [class*="Skeleton" i], [class*="loading" i]'));
 		const skeletonCount = await skeletons.count();
 
 		// Wait for data to load (skeletons should disappear)
@@ -19,13 +26,15 @@ test.describe('Cross-Cutting Tests', () => {
 		expect(finalSkeletonCount).toBeLessThan(skeletonCount);
 	});
 
-	test('should handle errors gracefully', async ({ page }) => {
+	test('2. should handle errors gracefully', async ({ page }) => {
 		// Navigate to a page
 		await navigateToMainPage(page, 'home');
 		await waitForPageLoad(page);
 
-		// Try to select an invalid player
-		const playerInput = page.locator('input[type="text"], input[placeholder*="player" i]').first();
+		// Try to select an invalid player - try test ID first
+		const playerInput = page.getByTestId('player-selection-input')
+			.or(page.locator('input[type="text"], input[placeholder*="player" i]'))
+			.first();
 		
 		if (await playerInput.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await playerInput.fill('InvalidPlayerName12345');
@@ -36,7 +45,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should be responsive on mobile viewport', async ({ page }) => {
+	test('3. should be responsive on mobile viewport', async ({ page }) => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
 		
@@ -52,16 +61,18 @@ test.describe('Cross-Cutting Tests', () => {
 		expect(hasFooterNav).toBe(true);
 	});
 
-	test('should handle touch interactions on mobile', async ({ page }) => {
+	test('4. should handle touch interactions on mobile', async ({ page }) => {
 		// Set mobile viewport
 		await page.setViewportSize({ width: 375, height: 667 });
 		
 		await navigateToMainPage(page, 'stats');
 		await waitForPageLoad(page);
 
-		// Try swiping between sub-pages (if supported)
-		// This is a basic check - full swipe gesture testing would require more complex setup
-		const subPageButton = page.locator('button[aria-label*="Team Stats" i]').first();
+		// Try swiping between sub-pages (if supported) - try test IDs first
+		const subPageButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('stats-subpage-indicator-1'))
+			.or(page.locator('button[aria-label*="Team Stats" i]'))
+			.first();
 		
 		if (await subPageButton.isVisible({ timeout: 5000 }).catch(() => false)) {
 			await subPageButton.click();
@@ -72,7 +83,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should not have console errors on page load', async ({ page }) => {
+	test('5. should not have console errors on page load', async ({ page }) => {
 		const errors: string[] = [];
 		
 		page.on('console', (msg) => {
@@ -98,7 +109,7 @@ test.describe('Cross-Cutting Tests', () => {
 		}
 	});
 
-	test('should maintain navigation state across page refreshes', async ({ page }) => {
+	test('6. should maintain navigation state across page refreshes', async ({ page }) => {
 		// Navigate to a specific page
 		await navigateToMainPage(page, 'totw');
 		await waitForPageLoad(page);
@@ -111,17 +122,18 @@ test.describe('Cross-Cutting Tests', () => {
 		await expect(page.locator('body')).toBeVisible();
 	});
 
-	test('should handle data validation', async ({ page }) => {
+	test('7. should handle data validation', async ({ page }) => {
 		// Navigate to TOTW page
 		await navigateToMainPage(page, 'totw');
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
 
 		// Verify data is present and formatted correctly
-		// Check for player names (should be text, not empty)
-		const playerElements = page.locator('div.cursor-pointer').filter({ 
-			has: page.locator('text=/[A-Z][a-z]+/') 
-		});
+		// Check for player names - try test ID first
+		const playerElements = page.getByTestId('totw-player')
+			.or(page.locator('div.cursor-pointer').filter({ 
+				has: page.locator('text=/[A-Z][a-z]+/') 
+			}));
 		const playerCount = await playerElements.count();
 		
 		if (playerCount > 0) {

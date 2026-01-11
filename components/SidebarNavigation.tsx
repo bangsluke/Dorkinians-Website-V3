@@ -110,6 +110,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
 							<motion.button
+								data-testid="nav-sidebar-menu"
 								onClick={onMenuClick}
 								className='p-2 rounded-full hover:bg-white/20 transition-colors'
 								whileHover={{ scale: 1.1 }}
@@ -121,6 +122,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						{/* Filter Icon - only show on stats pages */}
 						{showFilterIcon && onFilterClick && (
 							<motion.button
+								data-testid="nav-sidebar-filter"
 								onClick={onFilterClick}
 								className='p-2 rounded-full hover:bg-white/20 transition-colors'
 								whileHover={{ scale: 1.1 }}
@@ -131,6 +133,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						)}
 						{/* Settings Icon */}
 						<motion.button
+							data-testid="nav-sidebar-settings"
 							onClick={onSettingsClick}
 							className='p-2 rounded-full hover:bg-white/20 transition-colors'
 							whileHover={{ scale: 1.1 }}
@@ -151,6 +154,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						return (
 							<div key={item.id} className='space-y-1'>
 								<motion.button
+									data-testid={`nav-sidebar-${item.id}`}
 									onClick={() => {
 										console.log("🔘 [SidebarNavigation] Button clicked:", item.id);
 										setMainPage(item.id);
@@ -170,6 +174,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 											return (
 												<motion.button
 													key={subPage.id}
+													data-testid={`nav-sidebar-${subPage.id}`}
 													onClick={() => handleSubPageClick(item.id, subPage.id)}
 													className={`w-full flex items-center px-4 py-2 rounded-lg transition-colors text-left ${
 														isSubActive

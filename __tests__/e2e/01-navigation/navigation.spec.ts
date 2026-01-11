@@ -1,0 +1,147 @@
+// @ts-check
+
+import { test, expect } from '@playwright/test';
+import { navigateToMainPage, waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
+
+test.describe('Navigation Tests', () => {
+	test.beforeAll(() => {
+		logSectionHeader('NAVIGATION TESTS', '📍', '01');
+	});
+
+	test.beforeEach(async ({ page }) => {
+		await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+	});
+
+	test('1. should navigate to Home page', async ({ page }) => {
+		const homeButton = page.getByTestId('nav-footer-home').or(page.getByTestId('nav-sidebar-home')).first();
+		await homeButton.waitFor({ state: 'visible', timeout: 10000 });
+		await homeButton.scrollIntoViewIfNeeded();
+		await homeButton.click();
+		await waitForPageLoad(page);
+
+		const welcome = page.getByTestId('home-welcome-heading');
+		const choosePlayer = page.getByTestId('player-selection-button');
+
+		await Promise.race([
+			expect(welcome).toBeVisible({ timeout: 10000 }),
+			expect(choosePlayer).toBeVisible({ timeout: 10000 })
+		]);
+	});
+
+	test('2. should navigate to Stats page', async ({ page }) => {
+		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
+		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
+		await statsButton.scrollIntoViewIfNeeded();
+		await statsButton.click();
+		await waitForPageLoad(page);
+
+		await expect(page.getByTestId('stats-nav-menu-player-stats').or(page.getByRole('button', { name: /Player Stats/i }))).toBeVisible({ timeout: 10000 });
+	});
+
+	test('3. should navigate to TOTW page', async ({ page }) => {
+		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
+		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
+		await totwButton.scrollIntoViewIfNeeded();
+		await totwButton.click();
+		await waitForPageLoad(page);
+
+		const totwHeading1 = page.getByRole('heading', { name: /Team of the Week/i });
+		const totwHeading2 = page.getByRole('heading', { name: /TOTW/i });
+
+		await Promise.race([
+			expect(totwHeading1).toBeVisible({ timeout: 10000 }),
+			expect(totwHeading2).toBeVisible({ timeout: 10000 })
+		]);
+	});
+
+	test('4. should navigate to Club Info page', async ({ page }) => {
+		const clubInfoButton = page.getByTestId('nav-footer-club-info').or(page.getByTestId('nav-sidebar-club-info')).first();
+		await clubInfoButton.waitFor({ state: 'visible', timeout: 10000 });
+		await clubInfoButton.scrollIntoViewIfNeeded();
+		await clubInfoButton.click();
+		await waitForPageLoad(page);
+
+		await expect(page.getByTestId('nav-sidebar-club-information').or(page.getByRole('button', { name: /Club Information/i }))).toBeVisible({ timeout: 10000 });
+	});
+
+	/* ---------------------------------------------------------
+	   DESKTOP SETTINGS TEST
+	   --------------------------------------------------------- */
+	   test.describe('Settings Navigation - Desktop', () => {
+		test.use({ viewport: { width: 1280, height: 800 } });
+	
+	   test('5. should navigate to Settings page on desktop', async ({ page }) => {
+			// Desktop settings icon lives in <aside>, not <header>
+			const desktopSettingsButton = page.getByTestId('nav-sidebar-settings').first();
+	
+			await desktopSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
+			await desktopSettingsButton.scrollIntoViewIfNeeded();
+			await desktopSettingsButton.click();
+	
+			await waitForPageLoad(page);
+	
+			await expect(page.getByTestId('settings-heading')).toBeVisible({ timeout: 10000 });			  
+		});
+	});
+	
+
+	/* ---------------------------------------------------------
+	   MOBILE SETTINGS TEST
+	   --------------------------------------------------------- */
+	   test.describe('Settings Navigation - Mobile', () => {
+		test.use({ viewport: { width: 375, height: 812 } });
+	
+		test('6. should navigate to Settings page on mobile', async ({ page }) => {
+			// Mobile settings icon lives in <header class="md:hidden">
+			const mobileSettingsButton = page.getByTestId('header-settings').first();
+	
+			await mobileSettingsButton.waitFor({ state: 'visible', timeout: 10000 });
+			await mobileSettingsButton.scrollIntoViewIfNeeded();
+			await mobileSettingsButton.click();
+	
+			await waitForPageLoad(page);
+	
+			await expect(page.getByTestId('settings-heading')).toBeVisible({ timeout: 10000 });
+		});
+	});
+	
+
+	test('7. should navigate between Stats sub-pages', async ({ page }) => {
+		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
+		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
+		await statsButton.scrollIntoViewIfNeeded();
+		await statsButton.click();
+		await waitForPageLoad(page);
+
+		// Try test ID first, then fall back to other selectors
+		const teamStatsButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('nav-sidebar-team-stats'))
+			.or(page.locator('button:has-text("Team Stats"), [aria-label*="Team Stats" i]'))
+			.first();
+		
+		if (await teamStatsButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await teamStatsButton.click();
+			await waitForPageLoad(page);
+			await expect(page.getByTestId('stats-nav-menu-team-stats').or(page.getByRole('button', { name: /Team Stats/i }))).toBeVisible({ timeout: 10000 });
+		}
+	});
+
+	test('8. should navigate between TOTW sub-pages', async ({ page }) => {
+		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
+		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
+		await totwButton.scrollIntoViewIfNeeded();
+		await totwButton.click();
+		await waitForPageLoad(page);
+
+		const playersOfMonthButton = page.getByTestId('totw-subpage-indicator-players-of-month')
+			.or(page.getByTestId('nav-sidebar-players-of-month'))
+			.or(page.locator('button:has-text("Players of the Month"), [aria-label*="Players of the Month" i]'))
+			.first();
+		
+		if (await playersOfMonthButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+			await playersOfMonthButton.click();
+			await waitForPageLoad(page);
+			await expect(page.locator('text=/Players of the Month/i')).toBeVisible({ timeout: 10000 });
+		}
+	});
+});

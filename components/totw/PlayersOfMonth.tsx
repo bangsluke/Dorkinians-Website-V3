@@ -977,7 +977,7 @@ export default function PlayersOfMonth() {
 							setSelectedSeason(newSeason);
 						}}>
 							<div className='relative'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<Listbox.Button data-testid="players-of-month-season-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 									<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 										{selectedSeason || "Select season..."}
 									</span>
@@ -1017,7 +1017,7 @@ export default function PlayersOfMonth() {
 							setSelectedMonth(newMonth);
 						}}>
 							<div className='relative'>
-								<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<Listbox.Button data-testid="players-of-month-month-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
 								<span className={`block truncate ${selectedMonth ? "text-white" : "text-yellow-300"}`}>
 									{selectedMonth || "Select month..."}
 								</span>
@@ -1057,9 +1057,11 @@ export default function PlayersOfMonth() {
 
 			{/* Loading Skeleton - Show when loading month data */}
 			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<PlayersTableSkeleton />
-				</SkeletonTheme>
+				<div data-testid="loading-skeleton">
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<PlayersTableSkeleton />
+					</SkeletonTheme>
+				</div>
 			)}
 
 			{/* Players Table */}
