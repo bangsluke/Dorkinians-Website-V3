@@ -193,7 +193,7 @@ export default function SettingsPage() {
 			<div className='h-full flex flex-col md:px-[15%]'>
 				{/* Header */}
 				<div className='flex items-center pt-2 pb-2 px-6'>
-					<h1 className='text-2xl font-bold text-white'>Settings</h1>
+					<h1 className='text-2xl font-bold text-white' data-testid="settings-heading">Settings</h1>
 				</div>
 
 				{/* Navigation List */}

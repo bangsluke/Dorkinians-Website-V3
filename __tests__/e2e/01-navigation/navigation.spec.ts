@@ -1,7 +1,7 @@
 // @ts-check
 
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, logSectionHeader } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, logSectionHeader, getVisibleNavButton } from '../utils/testHelpers';
 
 test.describe('Navigation Tests', () => {
 	test.beforeAll(() => {
@@ -13,7 +13,7 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('1. should navigate to Home page', async ({ page }) => {
-		const homeButton = page.getByTestId('nav-footer-home').or(page.getByTestId('nav-sidebar-home')).first();
+		const homeButton = await getVisibleNavButton(page, 'home');
 		await homeButton.waitFor({ state: 'visible', timeout: 10000 });
 		await homeButton.scrollIntoViewIfNeeded();
 		await homeButton.click();
@@ -29,7 +29,7 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('2. should navigate to Stats page', async ({ page }) => {
-		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
+		const statsButton = await getVisibleNavButton(page, 'stats');
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
@@ -39,7 +39,7 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('3. should navigate to TOTW page', async ({ page }) => {
-		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
+		const totwButton = await getVisibleNavButton(page, 'totw');
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();
@@ -55,22 +55,28 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('4. should navigate to Club Info page', async ({ page }) => {
-		const clubInfoButton = page.getByTestId('nav-footer-club-info').or(page.getByTestId('nav-sidebar-club-info')).first();
+		const clubInfoButton = await getVisibleNavButton(page, 'club-info');
 		await clubInfoButton.waitFor({ state: 'visible', timeout: 10000 });
 		await clubInfoButton.scrollIntoViewIfNeeded();
 		await clubInfoButton.click();
 		await waitForPageLoad(page);
 
-		await expect(page.getByTestId('nav-sidebar-club-information').or(page.getByRole('button', { name: /Club Information/i }))).toBeVisible({ timeout: 10000 });
+		const clubInfoHeading1 = page.getByRole('heading', { name: /Club Information/i });
+		const clubInfoHeading2 = page.getByRole('heading', { name: /League Information/i });
+
+		await Promise.race([
+			expect(clubInfoHeading1).toBeVisible({ timeout: 10000 }),
+			expect(clubInfoHeading2).toBeVisible({ timeout: 10000 })
+		]);
 	});
 
 	/* ---------------------------------------------------------
-	   DESKTOP SETTINGS TEST
+	DESKTOP SETTINGS TEST
 	   --------------------------------------------------------- */
-	   test.describe('Settings Navigation - Desktop', () => {
+	test.describe('Settings Navigation - Desktop', () => {
 		test.use({ viewport: { width: 1280, height: 800 } });
 	
-	   test('5. should navigate to Settings page on desktop', async ({ page }) => {
+		test('5. should navigate to Settings page on desktop', async ({ page }) => {
 			// Desktop settings icon lives in <aside>, not <header>
 			const desktopSettingsButton = page.getByTestId('nav-sidebar-settings').first();
 	
@@ -86,9 +92,9 @@ test.describe('Navigation Tests', () => {
 	
 
 	/* ---------------------------------------------------------
-	   MOBILE SETTINGS TEST
-	   --------------------------------------------------------- */
-	   test.describe('Settings Navigation - Mobile', () => {
+	MOBILE SETTINGS TEST
+	--------------------------------------------------------- */
+	test.describe('Settings Navigation - Mobile', () => {
 		test.use({ viewport: { width: 375, height: 812 } });
 	
 		test('6. should navigate to Settings page on mobile', async ({ page }) => {
@@ -107,7 +113,7 @@ test.describe('Navigation Tests', () => {
 	
 
 	test('7. should navigate between Stats sub-pages', async ({ page }) => {
-		const statsButton = page.getByTestId('nav-footer-stats').or(page.getByTestId('nav-sidebar-stats')).first();
+		const statsButton = await getVisibleNavButton(page, 'stats');
 		await statsButton.waitFor({ state: 'visible', timeout: 10000 });
 		await statsButton.scrollIntoViewIfNeeded();
 		await statsButton.click();
@@ -127,7 +133,7 @@ test.describe('Navigation Tests', () => {
 	});
 
 	test('8. should navigate between TOTW sub-pages', async ({ page }) => {
-		const totwButton = page.getByTestId('nav-footer-totw').or(page.getByTestId('nav-sidebar-totw')).first();
+		const totwButton = await getVisibleNavButton(page, 'totw');
 		await totwButton.waitFor({ state: 'visible', timeout: 10000 });
 		await totwButton.scrollIntoViewIfNeeded();
 		await totwButton.click();

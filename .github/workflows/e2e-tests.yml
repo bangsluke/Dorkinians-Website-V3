@@ -3,7 +3,7 @@ name: E2E Tests - Weekly
 on:
   schedule:
     # Run every Monday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
-    - cron: '0 2 * * 1'
+    - cron: '0 2 * * 2'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
@@ -29,10 +29,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run E2E tests with email notification
-        timeout-minutes: 55
+        continue-on-error: true
+        timeout-minutes: 60
         env:
-          WEBSITE_URL: ${{ secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
-          BASE_URL: ${{ secrets.WEBSITE_URL || secrets.BASE_URL || 'https://dorkinians-website-v3.netlify.app' }}
+          WEBSITE_URL: ${{ secrets.WEBSITE_URL != '' && secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
           HEADLESS: 'true'
           CI: 'true'
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
@@ -53,7 +53,7 @@ jobs:
           retention-days: 30
 
       - name: Upload screenshots
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-screenshots

@@ -330,6 +330,37 @@ export async function verifyNoConsoleErrors(page: Page) {
 }
 
 /**
+ * Get the visible navigation button (footer on mobile, sidebar on desktop)
+ */
+export async function getVisibleNavButton(page: Page, pageId: 'home' | 'stats' | 'totw' | 'club-info') {
+	const footerButton = page.getByTestId(`nav-footer-${pageId}`);
+	const sidebarButton = page.getByTestId(`nav-sidebar-${pageId}`);
+	
+	// Check which button is visible - prioritize footer on mobile, sidebar on desktop
+	const viewport = page.viewportSize();
+	const isMobile = viewport && viewport.width < 768; // md breakpoint
+	
+	if (isMobile) {
+		// On mobile, try footer first
+		const footerVisible = await footerButton.isVisible({ timeout: 2000 }).catch(() => false);
+		if (footerVisible) return footerButton;
+		// Fallback to sidebar if footer not visible
+		const sidebarVisible = await sidebarButton.isVisible({ timeout: 2000 }).catch(() => false);
+		if (sidebarVisible) return sidebarButton;
+	} else {
+		// On desktop, try sidebar first
+		const sidebarVisible = await sidebarButton.isVisible({ timeout: 2000 }).catch(() => false);
+		if (sidebarVisible) return sidebarButton;
+		// Fallback to footer if sidebar not visible
+		const footerVisible = await footerButton.isVisible({ timeout: 2000 }).catch(() => false);
+		if (footerVisible) return footerButton;
+	}
+	
+	// If neither is visible yet, return the one that should be visible based on viewport
+	return isMobile ? footerButton : sidebarButton;
+}
+
+/**
  * Take screenshot with descriptive name
  */
 export async function takeScreenshot(page: Page, name: string) {
