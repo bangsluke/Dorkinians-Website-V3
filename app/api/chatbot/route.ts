@@ -3,7 +3,7 @@ import { chatbotService, QuestionContext } from "@/lib/services/chatbotService";
 
 // CORS headers for production
 const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app",
 	"Access-Control-Allow-Methods": "POST, OPTIONS",
 	"Access-Control-Allow-Headers": "Content-Type",
 };

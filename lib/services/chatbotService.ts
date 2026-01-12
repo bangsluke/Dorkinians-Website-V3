@@ -1722,7 +1722,7 @@ export class ChatbotService {
 			case "general":
 				return await this.queryGeneralData();
 			default:
-				this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
+				this.logToBoth(`🔍 Unknown question type: ${type}`, null, "warn");
 				return { type: "unknown", data: [], message: "Unknown question type" };
 			}
 		} catch (error) {

@@ -554,15 +554,15 @@ interface ChatbotResponse {
 **Required Environment Variables:**
 
 ```bash
-# Neo4j Database
+# Neo4j Database (required)
 PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
 
-# OpenAI API (for chatbot)
-OPENAI_API_KEY=your_openai_api_key_here
+# CORS Configuration (optional - defaults to production URL)
+ALLOWED_ORIGIN=https://dorkinians-website-v3.netlify.app
 
-# Email Configuration (for notifications)
+# Email Configuration (optional - for notifications)
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL_SECURE=false
@@ -574,8 +574,17 @@ SMTP_TO_EMAIL=recipient@example.com
 # Umami Analytics (optional)
 NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
-NEXT_PUBLIC_APP_VERSION=1.1.21
+NEXT_PUBLIC_APP_VERSION=1.1.23
+
+# Heroku Seeder URL (optional)
+HEROKU_SEEDER_URL=https://database-dorkinians-4bac3364a645.herokuapp.com
 ```
+
+**Environment Variable Validation:**
+
+The application validates all required environment variables at startup using Zod schema validation. Missing or invalid variables will cause the application to fail to start in production mode, with clear error messages indicating which variables are missing or invalid.
+
+See [Additional_Details.md](./docs/Additional_Details.md#environment-setup) for detailed environment configuration instructions.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -600,7 +609,7 @@ The project uses a unified schema system where configuration files are synchroni
 
 ### Chatbot Query Endpoint
 
-**Endpoint**: `/api/chatbot/query`
+**Endpoint**: `/api/chatbot`
 
 **Method**: POST
 
@@ -608,11 +617,8 @@ The project uses a unified schema system where configuration files are synchroni
 
 ```json
 {
-	"query": "How many goals has Luke Bangs scored this season?",
-	"context": {
-		"userId": "optional-user-id",
-		"sessionId": "optional-session-id"
-	}
+	"question": "How many goals has Luke Bangs scored this season?",
+	"userContext": "Luke Bangs"
 }
 ```
 
@@ -620,18 +626,21 @@ The project uses a unified schema system where configuration files are synchroni
 
 ```json
 {
-  "success": true,
-  "data": {
-    "answer": "Luke Bangs has scored 15 goals this season",
-    "visualization": {
-      "type": "bar-chart",
-      "data": [...],
-      "config": {...}
-    },
-    "entities": {
-      "players": ["Luke Bangs"],
-      "statType": "goals",
-      "timeframe": "this season"
+  "answer": "Luke Bangs has scored 15 goals this season",
+  "visualization": {
+    "type": "bar-chart",
+    "data": [...],
+    "config": {...}
+  },
+  "sources": ["Neo4j Database"],
+  "debug": {
+    "question": "How many goals has Luke Bangs scored this season?",
+    "userContext": "Luke Bangs",
+    "timestamp": "2024-01-01T06:00:00.000Z",
+    "processingDetails": {
+      "questionAnalysis": {...},
+      "cypherQueries": [...],
+      "processingSteps": [...]
     }
   }
 }
@@ -641,30 +650,43 @@ The project uses a unified schema system where configuration files are synchroni
 
 ### Database Seeding Endpoint
 
-**Endpoint**: `/.netlify/functions/trigger-seed`
+**Endpoint**: `/api/trigger-seed`
 
-**Method**: GET
+**Method**: POST
 
-**Query Parameters**:
+**Request Body**:
 
-- `environment`: "production" or "development"
+```json
+{
+	"emailConfig": {
+		"emailAddress": "your-email@example.com",
+		"sendEmailAtStart": false,
+		"sendEmailAtCompletion": true
+	},
+	"seasonConfig": {
+		"currentSeason": null,
+		"useSeasonOverride": false,
+		"fullRebuild": false
+	}
+}
+```
 
 **Response**:
 
 ```json
 {
 	"success": true,
-	"message": "Database seeding completed successfully",
+	"message": "Database seeding started on Heroku",
 	"environment": "production",
+	"jobId": "seed_1234567890_abc123",
 	"timestamp": "2024-01-01T06:00:00.000Z",
-	"result": {
-		"success": true,
-		"exitCode": 0,
-		"nodesCreated": 1500,
-		"relationshipsCreated": 3000
-	}
+	"status": "started",
+	"note": "Seeding is running on Heroku. Check email for completion notification.",
+	"herokuUrl": "https://database-dorkinians-4bac3364a645.herokuapp.com"
 }
 ```
+
+**Note**: The seeding process runs on Heroku and will send an email notification upon completion if email configuration is provided.
 
 > [Back to Table of Contents](#table-of-contents)
 
