@@ -5,6 +5,8 @@
 - [Table of Contents](#table-of-contents)
 - [Overview](#overview)
 - [Test Framework Overview](#test-framework-overview)
+  - [Jest (Unit and Integration Tests)](#jest-unit-and-integration-tests)
+  - [Playwright (End-to-End Tests)](#playwright-end-to-end-tests)
 - [Test Structure](#test-structure)
 - [Unit Tests](#unit-tests)
   - [Basic Tests](#basic-tests)
@@ -28,17 +30,70 @@
 - [Security Tests](#security-tests)
 - [Monitoring Tests](#monitoring-tests)
 - [Test Data](#test-data)
+  - [TBL\_TestData Integration](#tbl_testdata-integration)
+  - [Fallback Data](#fallback-data)
+  - [Production Database Testing](#production-database-testing)
 - [Running Tests](#running-tests)
   - [Unit and Integration Tests](#unit-and-integration-tests)
+    - [All Tests](#all-tests)
+    - [Specific Test Categories](#specific-test-categories)
+    - [With Coverage](#with-coverage)
+    - [Debug Mode](#debug-mode)
+    - [Test Output Modes](#test-output-modes)
   - [E2E Tests](#e2e-tests)
+    - [Local Development](#local-development)
+    - [GitHub Actions Execution](#github-actions-execution)
   - [Chatbot Test Reports](#chatbot-test-reports)
+    - [Chatbot Email Report](#chatbot-email-report)
+    - [Questions Email Report](#questions-email-report)
 - [Test Coverage Analysis](#test-coverage-analysis)
+  - [Current Coverage](#current-coverage)
+    - [Unit and Integration Tests](#unit-and-integration-tests-1)
+    - [E2E Tests](#e2e-tests-1)
+  - [Coverage Gaps Identified](#coverage-gaps-identified)
 - [Testing Recommendations](#testing-recommendations)
+  - [Short-Term Improvements (1-3 months)](#short-term-improvements-1-3-months)
+  - [Medium-Term Improvements (3-6 months)](#medium-term-improvements-3-6-months)
+  - [Long-Term Improvements (6-12 months)](#long-term-improvements-6-12-months)
 - [Environment Variables](#environment-variables)
+  - [Unit and Integration Tests](#unit-and-integration-tests-2)
+  - [E2E Tests](#e2e-tests-2)
 - [Test Utilities](#test-utilities)
+  - [Data Fetching](#data-fetching)
+  - [Response Validation](#response-validation)
+  - [Mock Services](#mock-services)
+  - [E2E Test Helpers](#e2e-test-helpers)
 - [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+  - [Debug Mode](#debug-mode-1)
+  - [E2E Test Maintenance](#e2e-test-maintenance)
+    - [When to Update Tests](#when-to-update-tests)
+    - [Test Data](#test-data-1)
+    - [Selector Updates](#selector-updates)
+    - [Adding New Tests](#adding-new-tests)
 - [Continuous Integration](#continuous-integration)
 - [GitHub Actions Setup for E2E Tests](#github-actions-setup-for-e2e-tests)
+  - [Overview](#overview-1)
+  - [Prerequisites](#prerequisites)
+  - [Setting Up GitHub Actions](#setting-up-github-actions)
+    - [Step 1: Workflow File](#step-1-workflow-file)
+    - [Step 2: Configure GitHub Secrets](#step-2-configure-github-secrets)
+    - [Step 3: Verify Workflow](#step-3-verify-workflow)
+  - [Test Execution](#test-execution)
+    - [Automatic Execution](#automatic-execution)
+    - [Manual Execution](#manual-execution)
+    - [What Happens During Execution](#what-happens-during-execution)
+    - [Expected Duration](#expected-duration)
+  - [Failure Notifications](#failure-notifications)
+    - [Email Notifications](#email-notifications)
+    - [GitHub Actions Notifications](#github-actions-notifications)
+    - [Notification Content](#notification-content)
+  - [Monitoring and Maintenance](#monitoring-and-maintenance)
+    - [Weekly Review Checklist](#weekly-review-checklist)
+    - [Accessing Test Results](#accessing-test-results)
+    - [Common Issues and Solutions](#common-issues-and-solutions)
+    - [Updating Test Schedule](#updating-test-schedule)
+  - [Workflow Configuration](#workflow-configuration)
 
 ## Overview
 
@@ -838,10 +893,10 @@ PROD_NEO4J_PASSWORD=your-password
 
 ### E2E Tests
 
-Set `BASE_URL` environment variable for testing against production:
+Set `WEBSITE_URL` environment variable for testing against production:
 
 ```bash
-BASE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:headless
+WEBSITE_URL=https://dorkinians-website-v3.netlify.app npm run test:e2e:headless
 ```
 
 For email notifications, ensure these environment variables are set:
@@ -976,7 +1031,7 @@ This guide explains how to set up weekly E2E test execution via GitHub Actions. 
 
 The workflow file is already created at `.github/workflows/e2e-tests.yml`. It includes:
 
-- **Schedule**: Runs every Monday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
+- **Schedule**: Runs every Tuesday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
 - **Manual Trigger**: Can be triggered manually via GitHub Actions UI
 - **Playwright Setup**: Automatically installs Playwright browsers
 - **Email Notifications**: Uses the `test:e2e:email` script to send results
@@ -997,9 +1052,6 @@ Navigate to your GitHub repository → Settings → Secrets and variables → Ac
 - `SMTP_TO_EMAIL`: Recipient email address
 - `SMTP_EMAIL_SECURE`: Use TLS/SSL (`true` or `false`, defaults to `false`)
 
-**Optional Secrets:**
-
-- `BASE_URL`: Alternative to `WEBSITE_URL` (for backward compatibility)
 
 #### Step 3: Verify Workflow
 
@@ -1015,7 +1067,7 @@ Navigate to your GitHub repository → Settings → Secrets and variables → Ac
 #### Automatic Execution
 
 The workflow runs automatically:
-- **Schedule**: Every Monday at 2:00 AM UTC
+- **Schedule**: Every Tuesday at 2:00 AM UTC
 - **Trigger**: GitHub Actions cron schedule
 
 #### Manual Execution
@@ -1146,7 +1198,7 @@ To change the test schedule:
 2. Update the cron expression in the `schedule` section:
    ```yaml
    schedule:
-     - cron: '0 2 * * 1'  # Monday at 2:00 AM UTC
+     - cron: '0 2 * * 2'  # Tuesday at 2:00 AM UTC
    ```
 3. Commit and push the changes
 4. The new schedule will take effect on the next run
@@ -1154,7 +1206,7 @@ To change the test schedule:
 **Cron Expression Format**: `minute hour day-of-month month day-of-week`
 
 Examples:
-- `'0 2 * * 1'` - Every Monday at 2:00 AM UTC
+- `'0 2 * * 2'` - Every Tuesday at 2:00 AM UTC
 - `'0 0 * * 0'` - Every Sunday at midnight UTC
 - `'0 14 * * *'` - Every day at 2:00 PM UTC
 
@@ -1165,7 +1217,7 @@ Examples:
 The workflow file (`.github/workflows/e2e-tests.yml`) includes:
 
 **Key Features:**
-- **Schedule**: Weekly execution (Monday 2:00 AM UTC)
+- **Schedule**: Weekly execution (Tuesday 2:00 AM UTC)
 - **Manual Trigger**: Can be run on-demand
 - **Node.js 20**: Latest LTS version
 - **Playwright**: Chromium browser with dependencies
@@ -1175,7 +1227,6 @@ The workflow file (`.github/workflows/e2e-tests.yml`) includes:
 
 **Environment Variables:**
 - `WEBSITE_URL`: Production website URL (from secrets or default)
-- `BASE_URL`: Backward compatibility (uses `WEBSITE_URL`)
 - `HEADLESS`: Always `true` for CI/CD
 - All SMTP configuration from GitHub secrets
 
