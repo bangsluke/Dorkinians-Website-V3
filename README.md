@@ -5,7 +5,7 @@
 <h1 align="center">Dorkinians FC Statistics Website</h1>
 
 <p align="center">
-  <strong>Mobile-first PWA chatbot statistics website</strong> with natural language processing, graph database architecture, and advanced data visualization
+  <strong>Mobile-first PWA chatbot statistics website</strong> for Dorkinians FC with natural language processing, graph database architecture, and advanced data visualization
 </p>
 
 <p align="center">
@@ -27,6 +27,10 @@
   <img src="https://img.shields.io/badge/license-Proprietary-red" alt="License" />
 </p>
 
+<p align="center">
+  <img src="./public/screenshots/TeamStats.png" alt="Dorkinians Website Screenshot" height="550"/>
+</p>
+
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
@@ -34,6 +38,10 @@
   - [Live Demo](#live-demo)
   - [Key Features](#key-features)
   - [Tech Stack](#tech-stack)
+  - [Screenshots](#screenshots)
+    - [Home Page](#home-page)
+    - [Team Stats](#team-stats)
+    - [League Information](#league-information)
 - [Architecture](#architecture)
   - [Chatbot Architecture](#chatbot-architecture)
     - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
@@ -122,6 +130,28 @@ This project demonstrates modern full-stack development practices, combining adv
 - **Netlify** - Hosting and edge functions
 - **GitHub Actions** - CI/CD pipeline
 - **PWA** - Progressive Web App with service workers
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Screenshots
+
+#### Home Page
+
+<p align="center">
+  <img src="./public/screenshots/Homepage.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
+
+#### Team Stats
+
+<p align="center">
+  <img src="./public/screenshots/TeamStats.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
+
+#### League Information
+
+<p align="center">
+  <img src="./public/screenshots/LeagueInformation.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
 
 > [Back to Table of Contents](#table-of-contents)
 
