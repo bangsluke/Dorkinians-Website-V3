@@ -31,8 +31,7 @@ jobs:
       - name: Run E2E tests with email notification
         timeout-minutes: 55
         env:
-          WEBSITE_URL: ${{ secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
-          BASE_URL: ${{ secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
+          WEBSITE_URL: ${{ secrets.WEBSITE_URL != '' && secrets.WEBSITE_URL || 'https://dorkinians-website-v3.netlify.app' }}
           HEADLESS: 'true'
           CI: 'true'
           SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
