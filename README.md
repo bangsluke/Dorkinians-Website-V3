@@ -1,20 +1,42 @@
 <p align="center">
-  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" width="200"/>
+  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" width="100"/>
 </p>
 
-# Dorkinians FC Statistics Website
+<h1 align="center">Dorkinians FC Statistics Website</h1>
 
-> Mobile-first PWA chatbot statistics website for Dorkinians FC with unified schema architecture.
+<p align="center">
+  <strong>Mobile-first PWA chatbot statistics website</strong> with natural language processing, graph database architecture, and advanced data visualization
+</p>
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status)](https://app.netlify.com/projects/dorkinians-website-v3/deploys)
+<p align="center">
+  <a href="https://dorkinians-website-v3.netlify.app">🌐 Live Demo</a> •
+  <a href="#key-features">✨ Features</a> •
+  <a href="#tech-stack">🛠️ Tech Stack</a> •
+  <a href="#architecture">🏗️ Architecture</a> •
+  <a href="https://bangsluke-documentation.netlify.app/docs/projects/dorkinians-website">📚 User Documentation</a>
+</p>
+
+<p align="center">
+  <a href="https://app.netlify.com/projects/dorkinians-website-v3/deploys">
+    <img src="https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status" alt="Netlify Status" />
+  </a>
+  <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js 14" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Neo4j-Aura-green?logo=neo4j" alt="Neo4j" />
+  <img src="https://img.shields.io/badge/PWA-enabled-purple?logo=pwa" alt="PWA" />
+  <img src="https://img.shields.io/badge/license-Proprietary-red" alt="License" />
+</p>
 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Project Overview](#project-overview)
+  - [Live Demo](#live-demo)
   - [Key Features](#key-features)
-- [Chatbot Architecture](#chatbot-architecture)
-  - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
+  - [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+  - [Chatbot Architecture](#chatbot-architecture)
+    - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
 - [Query Processing Pipeline](#query-processing-pipeline)
   - [Stage 1: Text Preprocessing](#stage-1-text-preprocessing)
   - [Stage 2: Entity Recognition](#stage-2-entity-recognition)
@@ -44,6 +66,14 @@
 
 **Mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
+This project demonstrates modern full-stack development practices, combining advanced NLP techniques, graph database architecture, and progressive web app technologies to create an intuitive, performant user experience.
+
+### Live Demo
+
+🌐 **Production Site**: [https://dorkinians-website-v3.netlify.app](https://dorkinians-website-v3.netlify.app)
+
+> [Back to Table of Contents](#table-of-contents)
+
 ### Key Features
 
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
@@ -63,11 +93,86 @@
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Chatbot Architecture
+### Tech Stack
+
+**Frontend:**
+- **Next.js 14** - React framework with App Router, Server Components, and optimized performance
+- **TypeScript** - Strict type safety throughout the codebase
+- **Tailwind CSS** - Utility-first CSS framework
+- **Zustand** - Lightweight state management
+- **Framer Motion** - Smooth animations and transitions
+- **Recharts** - Data visualization library
+
+**Backend & Database:**
+- **Google Sheets** - Data source for the chatbot and statistics
+- **Neo4j Aura** - Graph database for relationship-based queries
+- **Cypher** - Graph query language for complex statistical queries
+- **Next.js API Routes** - Serverless API endpoints
+
+**Natural Language Processing:**
+- **compromise** - Advanced text parsing and linguistic analysis
+- **natural** - Fuzzy string matching algorithms (Jaro-Winkler, Levenshtein, Dice)
+
+**Testing & Quality:**
+- **TypeScript** - Compile-time type checking
+- **Jest** - Unit and integration testing
+- **Playwright** - End-to-end browser testing
+
+**Deployment & DevOps:**
+- **Netlify** - Hosting and edge functions
+- **GitHub Actions** - CI/CD pipeline
+- **PWA** - Progressive Web App with service workers
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Architecture
+
+The application follows a modern, scalable architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Frontend (Next.js 14)                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │   PWA UI     │  │  Chatbot     │  │  Stats       │       │
+│  │  Components  │  │  Interface   │  │  Visualizer  │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  API Layer (Next.js Routes)                 │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  /api/chatbot - NLP Processing & Query Generation    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│              NLP Pipeline (Entity Extraction)               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │  Text    │→ │ Entity   │→ │  Fuzzy   │→ │ Question │     │
+│  │  Preproc │  │ Extract  │  │ Matching │  │ Analysis │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Database Layer (Neo4j Aura)                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Graph Database with Cypher Query Execution          │   │
+│  │  - Players, Teams, Matches, Statistics               │   │
+│  │  - Relationship-based queries                        │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Chatbot Architecture
 
 The chatbot is the core functionality of the application, processing natural language queries about Dorkinians FC statistics and returning visualized responses.
 
-### Natural Language Processing & Entity Extraction
+#### Natural Language Processing & Entity Extraction
 
 The chatbot uses a sophisticated entity extraction pipeline for sports terminology:
 
