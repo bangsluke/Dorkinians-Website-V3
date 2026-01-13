@@ -6,6 +6,7 @@ import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
 import UmamiAnalytics from "../components/UmamiAnalytics";
 import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
+import SessionProvider from "../components/SessionProvider";
 import { validateEnv } from "@/lib/config/envValidation";
 
 // Validate environment variables at app startup
@@ -95,19 +96,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			</head>
 			<body className={inter.className} suppressHydrationWarning={true}>
 				<ErrorBoundaryWrapper>
-					{children}
-					<PWAUpdateNotification />
-					{umamiScriptUrl && umamiWebsiteId && (
-						<Script
-							async
-							defer
-							data-website-id={umamiWebsiteId}
-							src={umamiScriptUrl}
-							strategy='lazyOnload'
-							nonce={nonce}
-						/>
-					)}
-					<UmamiAnalytics />
+					<SessionProvider>
+						{children}
+						<PWAUpdateNotification />
+						{umamiScriptUrl && umamiWebsiteId && (
+							<Script
+								async
+								defer
+								data-website-id={umamiWebsiteId}
+								src={umamiScriptUrl}
+								strategy='lazyOnload'
+								nonce={nonce}
+							/>
+						)}
+						<UmamiAnalytics />
+					</SessionProvider>
 				</ErrorBoundaryWrapper>
 			</body>
 		</html>
