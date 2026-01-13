@@ -15,16 +15,20 @@ const nextJsScriptHashes = [
 	"'sha256-icOUPQF1lsCsYH1prE9Pwc2LYzrDY0zUXJ0qZ4jevgU='",
 	"'sha256-YCY2bf5bcU2HcKPAnxlCMEjOkOA5LiZaS0pExKQrLGY='",
 	"'sha256-hgvJd27o01BU2afAw8APHsK434EDy+cwaRYn0JovZtE='",
+	"'sha256-5ydHU1LXj1KKDB5Nx74ydjKfvpPQ9Y5YpcPH0Utbl8g='",
+	"'sha256-Rq/c7HsTxjYvtu/HTT8rtUj4jf0OyslseDP3JCQmtOI='",
 ].join(' ');
 
 // Build base CSP (without nonce) - includes unsafe-eval in development for React Fast Refresh
-function buildBaseCSP(): string {
+function buildBaseCSP(nonce?: string): string {
 	const isDevelopment = process.env.NODE_ENV === 'development';
 	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
+	const noncePart = nonce ? ` 'nonce-${nonce}'` : '';
 	
 	return [
 		"default-src 'self'",
-		`script-src 'self' 'strict-dynamic'${unsafeEval} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // strict-dynamic allows scripts loaded by nonce'd scripts
+		`script-src 'self' 'strict-dynamic'${noncePart}${unsafeEval} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // strict-dynamic allows scripts loaded by nonce'd scripts
+		`script-src-elem 'self'${noncePart} https://fonts.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self'
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
@@ -57,18 +61,7 @@ export function generateCSPNonce(): string {
  * Build Content Security Policy with nonce
  */
 function buildCSP(nonce?: string): string {
-	const baseCSP = buildBaseCSP();
-	const isDevelopment = process.env.NODE_ENV === 'development';
-	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
-	
-	if (nonce) {
-		// Add nonce to script-src (hashes and unsafe-eval are already included in base policy)
-		return baseCSP.replace(
-			`script-src 'self' 'strict-dynamic'${unsafeEval} ${nextJsScriptHashes}`,
-			`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${nextJsScriptHashes}`
-		);
-	}
-	return baseCSP;
+	return buildBaseCSP(nonce);
 }
 
 /**
