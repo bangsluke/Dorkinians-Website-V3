@@ -1,33 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRateLimiter } from "@/lib/middleware/rateLimiter";
 
-// Simple in-memory rate limiting (in production, use Redis or similar)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-const RATE_LIMIT_WINDOW = 10 * 1000; // 10 seconds
-const RATE_LIMIT_MAX_REQUESTS = 2;
-
-function checkRateLimit(ip: string): boolean {
-	const now = Date.now();
-	const userLimit = rateLimitMap.get(ip);
-
-	if (!userLimit) {
-		rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-		return true;
-	}
-
-	if (now > userLimit.resetTime) {
-		// Reset the window
-		rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-		return true;
-	}
-
-	if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
-		return false;
-	}
-
-	userLimit.count++;
-	return true;
-}
+// Rate limiting: 2 requests per 10 seconds (using centralized Redis-based limiter)
+const feedbackRateLimiter = createRateLimiter({
+	windowMs: 10 * 1000, // 10 seconds
+	maxRequests: 2, // 2 requests per window
+});
 
 // Security: Sanitize HTML to prevent XSS attacks
 function sanitizeHtml(str: string): string {
@@ -132,21 +110,19 @@ const emailService = new SimpleEmailService();
 emailService.configure();
 
 export async function POST(request: NextRequest) {
-	try {
-		// Get client IP for rate limiting
-		const forwarded = request.headers.get("x-forwarded-for");
-		const ip = forwarded ? forwarded.split(",")[0] : request.ip || "unknown";
+	// Apply rate limiting
+	const rateLimitResponse = await feedbackRateLimiter(request);
+	if (rateLimitResponse) {
+		return NextResponse.json(
+			{
+				success: false,
+				message: "Too many requests. Please wait before sending another message.",
+			},
+			{ status: 429 },
+		);
+	}
 
-		// Check rate limit
-		if (!checkRateLimit(ip)) {
-			return NextResponse.json(
-				{
-					success: false,
-					message: "Too many requests. Please wait before sending another message.",
-				},
-				{ status: 429 },
-			);
-		}
+	try {
 
 		const body = await request.json();
 		const { type, name, message, version, timestamp } = body;

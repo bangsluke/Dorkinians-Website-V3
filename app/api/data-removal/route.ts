@@ -1,33 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createRateLimiter } from "@/lib/middleware/rateLimiter";
 
-// Simple in-memory rate limiting (in production, use Redis or similar)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
-
-const RATE_LIMIT_WINDOW = 10 * 1000; // 10 seconds
-const RATE_LIMIT_MAX_REQUESTS = 2;
-
-function checkRateLimit(ip: string): boolean {
-	const now = Date.now();
-	const userLimit = rateLimitMap.get(ip);
-
-	if (!userLimit) {
-		rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-		return true;
-	}
-
-	if (now > userLimit.resetTime) {
-		// Reset the window
-		rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
-		return true;
-	}
-
-	if (userLimit.count >= RATE_LIMIT_MAX_REQUESTS) {
-		return false;
-	}
-
-	userLimit.count++;
-	return true;
+// Security: Sanitize HTML to prevent XSS attacks
+function sanitizeHtml(str: string): string {
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#x27;')
+		.replace(/\//g, '&#x2F;');
 }
+
+// Rate limiting: 2 requests per 10 seconds (using centralized Redis-based limiter)
+const dataRemovalRateLimiter = createRateLimiter({
+	windowMs: 10 * 1000, // 10 seconds
+	maxRequests: 2, // 2 requests per window
+});
 
 // Simple email service for Next.js API routes
 class SimpleEmailService {
@@ -53,15 +42,13 @@ class SimpleEmailService {
 			try {
 				// Dynamic import for nodemailer (only available in production)
 				const nodemailer = require("nodemailer");
+				// Security: Use proper TLS validation - removed insecure certificate bypass
 				this.transporter = nodemailer.createTransport({
 					host: emailConfig.host,
 					port: emailConfig.port,
 					secure: emailConfig.secure,
 					auth: emailConfig.auth,
-					tls: {
-						rejectUnauthorized: false,
-						checkServerIdentity: () => undefined,
-					},
+					// TLS certificate validation is enabled by default for security
 				});
 				this.config = emailConfig;
 				console.log("📧 Email service configured successfully");
@@ -78,7 +65,11 @@ class SimpleEmailService {
 			throw new Error("Email service not configured");
 		}
 
-		const subject = `Dorkinians FC - Data Removal Request from ${data.name}`;
+		// Security: Sanitize all user input to prevent XSS attacks
+		const sanitizedName = sanitizeHtml(data.name);
+		const sanitizedVersion = sanitizeHtml(data.version);
+		
+		const subject = `Dorkinians FC - Data Removal Request from ${sanitizedName}`;
 		const html = `
 			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 				<h2 style="color: #1e40af;">Dorkinians FC - Data Removal Request</h2>
@@ -90,8 +81,8 @@ class SimpleEmailService {
 
 				<div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
 					<h3 style="color: #374151; margin-top: 0;">Request Details</h3>
-					<p><strong>Name to Remove:</strong> ${data.name}</p>
-					<p><strong>App Version:</strong> ${data.version}</p>
+					<p><strong>Name to Remove:</strong> ${sanitizedName}</p>
+					<p><strong>App Version:</strong> ${sanitizedVersion}</p>
 					<p><strong>Request Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
 				</div>
 
@@ -122,21 +113,19 @@ const emailService = new SimpleEmailService();
 emailService.configure();
 
 export async function POST(request: NextRequest) {
-	try {
-		// Get client IP for rate limiting
-		const forwarded = request.headers.get("x-forwarded-for");
-		const ip = forwarded ? forwarded.split(",")[0] : request.ip || "unknown";
+	// Apply rate limiting
+	const rateLimitResponse = await dataRemovalRateLimiter(request);
+	if (rateLimitResponse) {
+		return NextResponse.json(
+			{
+				success: false,
+				message: "Too many requests. Please wait before sending another request.",
+			},
+			{ status: 429 },
+		);
+	}
 
-		// Check rate limit
-		if (!checkRateLimit(ip)) {
-			return NextResponse.json(
-				{
-					success: false,
-					message: "Too many requests. Please wait before sending another request.",
-				},
-				{ status: 429 },
-			);
-		}
+	try {
 
 		const body = await request.json();
 		const { name, version, timestamp } = body;

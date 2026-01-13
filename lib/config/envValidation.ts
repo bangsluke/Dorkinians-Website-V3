@@ -31,6 +31,12 @@ const envSchema = z.object({
 
 	// Heroku Seeder URL (optional)
 	HEROKU_SEEDER_URL: z.string().url().optional(),
+
+	// Authentication (required for admin access)
+	AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters for security"),
+	AUTH_GOOGLE_ID: z.string().min(1, "AUTH_GOOGLE_ID is required"),
+	AUTH_GOOGLE_SECRET: z.string().min(1, "AUTH_GOOGLE_SECRET is required"),
+	AUTH_URL: z.string().url("AUTH_URL must be a valid URL"),
 });
 
 type Env = z.infer<typeof envSchema>;
