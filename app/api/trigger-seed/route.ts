@@ -77,11 +77,15 @@ export async function POST(request: NextRequest) {
 				);
 			}
 
+			// Get origin for CORS validation
+			const origin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+
 			const herokuResponse = await fetch(`${cleanHerokuUrl}/seed`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					"X-API-Key": seedApiKey,
+					"Origin": origin,
 				},
 				body: JSON.stringify({
 					environment,
