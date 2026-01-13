@@ -99,12 +99,43 @@ function createRedisRateLimiter(config: RateLimitConfig) {
 		analytics: true,
 	});
 
+	// Create in-memory fallback for fail-secure behavior
+	const inMemoryFallback = createInMemoryRateLimiter(config);
+
+	// Track Redis failures for circuit breaker pattern
+	let redisFailureCount = 0;
+	const MAX_REDIS_FAILURES = 3;
+	const REDIS_FAILURE_RESET_TIME = 60 * 1000; // 1 minute
+	let lastRedisFailureTime = 0;
+	let usingFallback = false;
+
 	return async (request: NextRequest): Promise<NextResponse | null> => {
 		const forwarded = request.headers.get("x-forwarded-for");
 		const ip = forwarded ? forwarded.split(",")[0].trim() : request.ip || "unknown";
 
+		// Circuit breaker: if Redis has failed recently, use fallback immediately
+		const now = Date.now();
+		if (usingFallback && (now - lastRedisFailureTime) < REDIS_FAILURE_RESET_TIME) {
+			console.warn("⚠️ Rate limiting: Using in-memory fallback due to recent Redis failures");
+			return inMemoryFallback(request);
+		}
+
+		// Reset failure count if enough time has passed
+		if (usingFallback && (now - lastRedisFailureTime) >= REDIS_FAILURE_RESET_TIME) {
+			redisFailureCount = 0;
+			usingFallback = false;
+			console.log("✅ Rate limiting: Attempting to recover Redis connection");
+		}
+
 		try {
 			const { success, limit, remaining, reset } = await ratelimit.limit(ip);
+
+			// Reset failure tracking on success
+			if (usingFallback) {
+				redisFailureCount = 0;
+				usingFallback = false;
+				console.log("✅ Rate limiting: Redis connection recovered");
+			}
 
 			if (!success) {
 				const retryAfter = Math.ceil((reset - Date.now()) / 1000);
@@ -124,9 +155,19 @@ function createRedisRateLimiter(config: RateLimitConfig) {
 
 			return null; // Allow request
 		} catch (error) {
-			// If Redis fails, log error but allow request (fail open)
-			console.error("Rate limiting error (allowing request):", error);
-			return null;
+			// Fail-secure: if Redis fails, use in-memory rate limiting as backup
+			redisFailureCount++;
+			lastRedisFailureTime = now;
+			
+			if (redisFailureCount >= MAX_REDIS_FAILURES) {
+				usingFallback = true;
+				console.error("🚨 Rate limiting: Redis failed multiple times, switching to in-memory fallback", error);
+			} else {
+				console.error("⚠️ Rate limiting: Redis error (using fallback):", error);
+			}
+
+			// Use in-memory fallback instead of allowing all requests
+			return inMemoryFallback(request);
 		}
 	};
 }
