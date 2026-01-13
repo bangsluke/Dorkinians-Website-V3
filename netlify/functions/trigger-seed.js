@@ -558,6 +558,9 @@ exports.handler = async (event, context) => {
 					throw new Error("API key not configured");
 				}
 
+				// Get origin for CORS validation
+				const origin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+
 				const response = await fetchWithTimeout(
 					fullUrl,
 					{
@@ -566,6 +569,7 @@ exports.handler = async (event, context) => {
 							"Content-Type": "application/json",
 							"User-Agent": "Netlify-Function/1.0",
 							"X-API-Key": seedApiKey,
+							"Origin": origin,
 						},
 						body: JSON.stringify({
 							environment,
