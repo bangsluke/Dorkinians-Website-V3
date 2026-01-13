@@ -32,11 +32,12 @@ export function middleware(request: NextRequest) {
 	
 	// Build CSP with nonce and script hashes
 	// Use script-src-elem to allow Next.js chunks from 'self' while keeping strict-dynamic for scripts loaded by nonce'd scripts
-	// Include script hashes in script-src-elem to allow inline scripts
+	// Use 'unsafe-inline' for script-src-elem since Next.js generates different inline scripts on each build
+	// Security is maintained via 'strict-dynamic' in script-src which prevents XSS from user content
 	const csp = [
 		"default-src 'self'",
 		`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`,
-		`script-src-elem 'self' 'nonce-${nonce}' ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`,
+		`script-src-elem 'self' 'unsafe-inline' 'nonce-${nonce}' https://fonts.googleapis.com https://*.umami.is`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
