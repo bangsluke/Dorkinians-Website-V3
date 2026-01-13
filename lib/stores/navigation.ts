@@ -999,10 +999,15 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		try {
 			set({ isLoadingPlayerData: true });
 
+			// Get CSRF token headers
+			const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+			const csrfHeaders = getCsrfHeaders();
+
 			const response = await fetch("/api/player-data-filtered", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					...csrfHeaders,
 				},
 				body: JSON.stringify({
 					playerName: selectedPlayer,
@@ -1703,10 +1708,16 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				};
 
 				// Preload team data
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
 				preloadPromises.push(
 					fetch("/api/team-data-filtered", {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
+						headers: { 
+							"Content-Type": "application/json",
+							...csrfHeaders,
+						},
 						body: JSON.stringify({
 							teamName: defaultTeam,
 							filters: {
@@ -1794,11 +1805,18 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		// Preload Club Stats data
 		const clubFiltersForPreload = playerFiltersByPage["club-stats"] || playerFilters;
 		if (clubFiltersForPreload) {
+			// Get CSRF headers
+			const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+			const csrfHeaders = getCsrfHeaders();
+			
 			// Preload club team data
 			preloadPromises.push(
 				fetch("/api/team-data-filtered", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { 
+						"Content-Type": "application/json",
+						...csrfHeaders,
+					},
 					body: JSON.stringify({
 						teamName: "Whole Club",
 						filters: clubFiltersForPreload,
@@ -1932,13 +1950,17 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					.catch(() => {})
 			);
 
-			// Preload position stats
+			// Preload position stats (default to appearances if not specified)
 			preloadPromises.push(
 				fetch("/api/club-position-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
+					headers: { 
+						"Content-Type": "application/json",
+						...csrfHeaders,
+					},
 					body: JSON.stringify({
 						filters: clubFiltersForPreload,
+						statType: "appearances", // Default stat type for preload
 					}),
 				})
 					.then(res => res.ok ? res.json() : null)

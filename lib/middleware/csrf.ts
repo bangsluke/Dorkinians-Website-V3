@@ -7,16 +7,22 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { randomBytes } from "crypto";
 
 const CSRF_TOKEN_HEADER = "X-CSRF-Token";
 const CSRF_TOKEN_COOKIE = "csrf-token";
 
 /**
  * Generate a cryptographically secure CSRF token
+ * Uses Web Crypto API (available in Edge Runtime) instead of Node.js crypto
  */
 export function generateCsrfToken(): string {
-	return randomBytes(32).toString("hex");
+	// Use Web Crypto API for Edge Runtime compatibility
+	const array = new Uint8Array(32);
+	crypto.getRandomValues(array);
+	// Convert to hex string
+	return Array.from(array)
+		.map(b => b.toString(16).padStart(2, '0'))
+		.join('');
 }
 
 /**
@@ -60,4 +66,35 @@ export function csrfProtection(request: NextRequest): NextResponse | null {
 	}
 
 	return null; // Request is valid
+}
+
+/**
+ * Get CSRF token from cookie (client-side only)
+ */
+export function getCsrfToken(): string | null {
+	if (typeof document === 'undefined') {
+		return null;
+	}
+	
+	const cookies = document.cookie.split(';');
+	for (const cookie of cookies) {
+		const [name, value] = cookie.trim().split('=');
+		if (name === CSRF_TOKEN_COOKIE) {
+			return value;
+		}
+	}
+	return null;
+}
+
+/**
+ * Get headers with CSRF token for fetch requests (client-side only)
+ */
+export function getCsrfHeaders(): Record<string, string> {
+	const token = getCsrfToken();
+	if (!token) {
+		return {};
+	}
+	return {
+		[CSRF_TOKEN_HEADER]: token,
+	};
 }
