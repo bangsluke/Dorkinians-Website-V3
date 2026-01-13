@@ -20,6 +20,7 @@ export function middleware(request: NextRequest) {
 		"'sha256-5ydHU1LXj1KKDB5Nx74ydjKfvpPQ9Y5YpcPH0Utbl8g='",
 		"'sha256-Rq/c7HsTxjYvtu/HTT8rtUj4jf0OyslseDP3JCQmtOI='",
 		"'sha256-gYohaCRZkQk6ahFNUMWKE4PjjTiptCPt6sBP18Wkm4k='",
+		"'sha256-thPcge7komhZrsDFrKw/ET6++04qLBk3FeqHBYQ7BhQ='",
 	].join(' ');
 	
 	// In development, allow unsafe-eval for React Fast Refresh
