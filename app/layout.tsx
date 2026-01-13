@@ -5,6 +5,21 @@ import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
 import UmamiAnalytics from "../components/UmamiAnalytics";
 import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
+import { validateEnv } from "@/lib/config/envValidation";
+
+// Validate environment variables at app startup
+if (process.env.NODE_ENV !== "development") {
+	const envResult = validateEnv();
+	if (!envResult.success) {
+		console.error("❌ Environment variable validation failed:");
+		envResult.errors.forEach((error) => console.error(`   - ${error}`));
+		// In production, we should throw to prevent the app from starting with invalid config
+		// In development, we just warn to allow for easier local development
+		if (process.env.NODE_ENV === "production") {
+			throw new Error(`Environment variable validation failed: ${envResult.errors.join(", ")}`);
+		}
+	}
+}
 
 const inter = Inter({ subsets: ["latin"] });
 

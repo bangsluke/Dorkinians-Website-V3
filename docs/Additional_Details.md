@@ -23,6 +23,8 @@
     - [Production (Neo4j Aura)](#production-neo4j-aura)
   - [OpenAI Configuration](#openai-configuration)
   - [SMTP Configuration](#smtp-configuration)
+  - [CORS Configuration](#cors-configuration)
+  - [Environment Variable Validation](#environment-variable-validation)
   - [Installation](#installation)
 - [Schema Management](#schema-management)
   - [Schema Alignment Process](#schema-alignment-process)
@@ -79,13 +81,18 @@
     - [Environment Variables](#environment-variables)
     - [Obtaining Website ID and Script URL](#obtaining-website-id-and-script-url)
   - [Integration with Next.js](#integration-with-nextjs)
-  - [Troubleshooting](#troubleshooting-2)
+  - [Troubleshooting](#troubleshooting-1)
+    - [Common Issues](#common-issues)
+    - [Debugging Steps](#debugging-steps)
   - [Advanced: Self-Hosted Umami (Optional)](#advanced-self-hosted-umami-optional)
     - [Self-Hosted with Docker](#self-hosted-with-docker)
     - [Vercel Deployment](#vercel-deployment)
     - [Railway Deployment](#railway-deployment)
     - [DigitalOcean App Platform](#digitalocean-app-platform)
     - [Database Setup](#database-setup)
+      - [PostgreSQL Setup](#postgresql-setup)
+      - [MySQL Setup](#mysql-setup)
+    - [Self-Hosted Security Best Practices](#self-hosted-security-best-practices)
 - [Chatbot Question Processing Guide](#chatbot-question-processing-guide)
   - [Overview](#overview-1)
   - [Question Flow Overview](#question-flow-overview)
@@ -114,7 +121,7 @@
   - [Conclusion](#conclusion)
 - [Maintenance](#maintenance)
   - [Regular Tasks](#regular-tasks)
-  - [Troubleshooting](#troubleshooting-1)
+  - [Troubleshooting](#troubleshooting-2)
 - [Contributing](#contributing)
   - [Development Guidelines](#development-guidelines)
   - [Repository Structure](#repository-structure)
@@ -364,6 +371,81 @@ SMTP_USERNAME=your-email@gmail.com
 SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### CORS Configuration
+
+The application uses environment-based CORS configuration for security. The `ALLOWED_ORIGIN` environment variable controls which origins are allowed to access the API endpoints.
+
+**Configuration:**
+
+```bash
+# CORS Configuration (optional - defaults to production URL)
+ALLOWED_ORIGIN=https://dorkinians-website-v3.netlify.app
+```
+
+**Implementation:**
+
+- CORS headers are configured in API routes using the `ALLOWED_ORIGIN` environment variable
+- Defaults to production URL if not specified: `https://dorkinians-website-v3.netlify.app`
+- All API routes use consistent CORS configuration for security
+- Wildcard (`*`) CORS is not used for security reasons
+
+**Files:**
+
+- `app/api/chatbot/route.ts` - Main chatbot endpoint with CORS configuration
+- Other API routes follow the same pattern
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Environment Variable Validation
+
+The application validates all required environment variables at startup using Zod schema validation. This ensures that the application fails fast with clear error messages if required configuration is missing.
+
+**Validation Implementation:**
+
+- **File**: `lib/config/envValidation.ts`
+- **Library**: Zod for schema validation
+- **Validation Point**: App startup in `app/layout.tsx`
+
+**Required Variables:**
+
+The following environment variables are validated as required:
+
+- `PROD_NEO4J_URI` - Neo4j database connection URI
+- `PROD_NEO4J_USER` - Neo4j database username
+- `PROD_NEO4J_PASSWORD` - Neo4j database password
+
+**Optional Variables:**
+
+The following variables are validated but optional:
+
+- `OPENAI_API_KEY` - OpenAI API key (only if used)
+- `ALLOWED_ORIGIN` - CORS allowed origin (defaults to production URL)
+- `SMTP_*` - Email configuration variables
+- `NEXT_PUBLIC_UMAMI_*` - Umami Analytics variables
+- `HEROKU_SEEDER_URL` - Heroku seeder service URL
+
+**Error Handling:**
+
+- In **production**: Application throws an error and fails to start if required variables are missing
+- In **development**: Application logs warnings but continues to allow for easier local development
+
+**Usage:**
+
+```typescript
+import { validateEnv, getValidatedEnv } from "@/lib/config/envValidation";
+
+// Validate and get errors (non-throwing)
+const result = validateEnv();
+if (!result.success) {
+  console.error("Validation errors:", result.errors);
+}
+
+// Validate and throw if invalid (for startup)
+const env = getValidatedEnv();
 ```
 
 > [Back to Table of Contents](#table-of-contents)

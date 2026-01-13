@@ -1,7 +1,7 @@
 const { neo4jService } = require("./lib/neo4j");
 
 const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
+	"Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app",
 	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
 	"Access-Control-Allow-Headers": "Content-Type, Authorization",
 };

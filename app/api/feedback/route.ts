@@ -29,6 +29,17 @@ function checkRateLimit(ip: string): boolean {
 	return true;
 }
 
+// Security: Sanitize HTML to prevent XSS attacks
+function sanitizeHtml(str: string): string {
+	return str
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#x27;')
+		.replace(/\//g, '&#x2F;');
+}
+
 // Simple email service for Next.js API routes
 class SimpleEmailService {
 	private config: any = null;
@@ -53,15 +64,13 @@ class SimpleEmailService {
 			try {
 				// Dynamic import for nodemailer (only available in production)
 				const nodemailer = require("nodemailer");
+				// Security: Use proper TLS validation - removed insecure certificate bypass
 				this.transporter = nodemailer.createTransport({
 					host: emailConfig.host,
 					port: emailConfig.port,
 					secure: emailConfig.secure,
 					auth: emailConfig.auth,
-					tls: {
-						rejectUnauthorized: false,
-						checkServerIdentity: () => undefined,
-					},
+					// TLS certificate validation is enabled by default for security
 				});
 				this.config = emailConfig;
 				console.log("📧 Email service configured successfully");
@@ -78,7 +87,12 @@ class SimpleEmailService {
 			throw new Error("Email service not configured");
 		}
 
-		const subject = `Dorkinians FC - ${data.type === "bug" ? "Bug Report" : "Feature Request"} from ${data.name}`;
+		// Security: Sanitize all user input to prevent XSS attacks
+		const sanitizedName = sanitizeHtml(data.name);
+		const sanitizedMessage = sanitizeHtml(data.message);
+		const sanitizedVersion = sanitizeHtml(data.version);
+		
+		const subject = `Dorkinians FC - ${data.type === "bug" ? "Bug Report" : "Feature Request"} from ${sanitizedName}`;
 		const html = `
 			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 				<h2 style="color: #1e40af;">Dorkinians FC - ${data.type === "bug" ? "Bug Report" : "Feature Request"}</h2>
@@ -86,14 +100,14 @@ class SimpleEmailService {
 				<div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
 					<h3 style="color: #374151; margin-top: 0;">Request Details</h3>
 					<p><strong>Type:</strong> ${data.type === "bug" ? "Bug Report" : "Feature Request"}</p>
-					<p><strong>Name:</strong> ${data.name}</p>
-					<p><strong>App Version:</strong> ${data.version}</p>
+					<p><strong>Name:</strong> ${sanitizedName}</p>
+					<p><strong>App Version:</strong> ${sanitizedVersion}</p>
 					<p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
 				</div>
 
 				<div style="background-color: #fef3c7; padding: 20px; border-radius: 8px; margin: 20px 0;">
 					<h3 style="color: #92400e; margin-top: 0;">Message</h3>
-					<p style="white-space: pre-wrap; margin: 0;">${data.message}</p>
+					<p style="white-space: pre-wrap; margin: 0;">${sanitizedMessage}</p>
 				</div>
 
 				<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;">
