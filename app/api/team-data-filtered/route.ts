@@ -4,6 +4,8 @@ import { buildFilterConditions } from "../player-data/route";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
+import { log, logError, logQuery } from "@/lib/utils/logger";
+import { csrfProtection } from "@/lib/middleware/csrf";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -265,10 +267,20 @@ function validateFilters(filters: any): string | null {
 
 export async function POST(request: NextRequest) {
 	// Apply rate limiting
-	const rateLimitResponse = dataApiRateLimiter(request);
+	const rateLimitResponse = await dataApiRateLimiter(request);
 	if (rateLimitResponse) {
 		return rateLimitResponse;
 	}
+
+	// CSRF protection for state-changing endpoint
+	const csrfResponse = csrfProtection(request);
+	if (csrfResponse) {
+		return csrfResponse;
+	}
+
+	// Input length validation constants
+	const MAX_TEAM_NAME_LENGTH = 200;
+	const MAX_FILTER_ARRAY_LENGTH = 100;
 
 	try {
 		const body = await request.json();
@@ -279,8 +291,30 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Valid team name is required" }, { status: 400, headers: corsHeaders });
 		}
 
+		// Validate team name length
+		if (teamName.length > MAX_TEAM_NAME_LENGTH) {
+			return NextResponse.json(
+				{ error: `Team name too long. Maximum ${MAX_TEAM_NAME_LENGTH} characters allowed.` },
+				{ status: 400, headers: corsHeaders }
+			);
+		}
+
 		if (!filters || typeof filters !== "object") {
 			return NextResponse.json({ error: "Filters object is required" }, { status: 400, headers: corsHeaders });
+		}
+
+		// Validate filter array lengths to prevent DoS
+		if (filters.teams && Array.isArray(filters.teams) && filters.teams.length > MAX_FILTER_ARRAY_LENGTH) {
+			return NextResponse.json(
+				{ error: `Too many teams in filter. Maximum ${MAX_FILTER_ARRAY_LENGTH} teams allowed.` },
+				{ status: 400, headers: corsHeaders }
+			);
+		}
+		if (filters.seasons && Array.isArray(filters.seasons) && filters.seasons.length > MAX_FILTER_ARRAY_LENGTH) {
+			return NextResponse.json(
+				{ error: `Too many seasons in filter. Maximum ${MAX_FILTER_ARRAY_LENGTH} seasons allowed.` },
+				{ status: 400, headers: corsHeaders }
+			);
 		}
 
 		// Validate filter structure
@@ -298,26 +332,28 @@ export async function POST(request: NextRequest) {
 		// Build query with filters using shared query builder
 		const { query, params } = buildTeamStatsQuery(teamName, filters);
 
-		// Create a copy-pasteable query for manual testing
-		const copyPasteQuery = query.replace(/\$(\w+)/g, (match, paramName) => {
-			const value = params[paramName];
-			if (Array.isArray(value)) {
-				return `[${value.map((v) => `"${v}"`).join(", ")}]`;
-			} else if (typeof value === "string") {
-				return `"${value}"`;
-			}
-			return value;
-		});
-		console.log(`[Team Filter API] COPY-PASTE QUERY FOR MANUAL TESTING:`);
-		console.log(copyPasteQuery);
+		// Log query (sanitized in production)
+		logQuery("Team data filtered query", query, params);
+
+		// Create a copy-pasteable query for manual testing (only in development)
+		let copyPasteQuery: string | undefined;
+		if (process.env.NODE_ENV === "development") {
+			copyPasteQuery = query.replace(/\$(\w+)/g, (match, paramName) => {
+				const value = params[paramName];
+				if (Array.isArray(value)) {
+					return `[${value.map((v) => `"${v}"`).join(", ")}]`;
+				} else if (typeof value === "string") {
+					return `"${value}"`;
+				}
+				return value;
+			});
+		}
 
 		let result;
 		try {
 			result = await neo4jService.runQuery(query, params);
 		} catch (queryError: any) {
-			console.error("Cypher query error:", queryError);
-			console.error("Query:", query);
-			console.error("Params:", JSON.stringify(params, null, 2));
+			logError("Cypher query error", queryError);
 			// Security: Don't expose error details to client
 			return NextResponse.json(
 				{ error: "Query execution failed. Please try again later." },
@@ -415,7 +451,7 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching filtered team data:", error);
+		logError("Error fetching filtered team data", error);
 		// Sanitize error for production
 		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
 		return NextResponse.json({ error: sanitized.message }, { status: 500, headers: corsHeaders });

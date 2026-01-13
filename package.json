@@ -52,6 +52,8 @@
 		"@types/papaparse": "^5.5.2",
 		"@types/react": "^18.3.27",
 		"@types/react-dom": "^18.2.18",
+		"@upstash/ratelimit": "^2.0.8",
+		"@upstash/redis": "^1.36.1",
 		"autoprefixer": "^10.4.23",
 		"compromise": "^14.14.5",
 		"dotenv": "^17.2.3",
