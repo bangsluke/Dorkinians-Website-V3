@@ -41,10 +41,24 @@ export async function POST(request: NextRequest) {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 			
+			// Security: Include API key for authentication
+			const seedApiKey = process.env.SEED_API_KEY;
+			if (!seedApiKey) {
+				console.error("❌ SECURITY: SEED_API_KEY not configured");
+				return NextResponse.json(
+					{
+						error: "Server configuration error",
+						message: "API key not configured",
+					},
+					{ status: 500 }
+				);
+			}
+
 			const herokuResponse = await fetch(`${cleanHerokuUrl}/seed`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					"X-API-Key": seedApiKey,
 				},
 				body: JSON.stringify({
 					environment,

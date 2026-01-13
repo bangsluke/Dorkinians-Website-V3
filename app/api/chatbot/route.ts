@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { chatbotService, QuestionContext } from "@/lib/services/chatbotService";
+import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 
-// CORS headers for production
+// CORS headers with security headers
 const corsHeaders = {
-	"Access-Control-Allow-Origin": process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app",
+	...getCorsHeadersWithSecurity(),
 	"Access-Control-Allow-Methods": "POST, OPTIONS",
 	"Access-Control-Allow-Headers": "Content-Type",
 };

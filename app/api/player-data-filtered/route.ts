@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildPlayerStatsQuery } from "../player-data/route";
+import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 
-const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeadersWithSecurity();
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -61,8 +58,9 @@ export async function POST(request: NextRequest) {
 			console.error("Cypher query error:", queryError);
 			console.error("Query:", query);
 			console.error("Params:", JSON.stringify(params, null, 2));
+			// Security: Don't expose error details to client
 			return NextResponse.json(
-				{ error: "Query execution failed", details: queryError.message },
+				{ error: "Query execution failed. Please try again later." },
 				{ status: 500, headers: corsHeaders }
 			);
 		}
