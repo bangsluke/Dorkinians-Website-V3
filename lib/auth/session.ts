@@ -1,9 +1,8 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "./config";
+import { auth } from "@/app/api/auth/[...nextauth]/route";
 
 // Get session server-side
 export async function getSession() {
-	return await getServerSession(authOptions);
+	return await auth();
 }
 
 // Check if user is authenticated and authorized
