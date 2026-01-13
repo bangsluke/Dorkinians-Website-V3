@@ -6,7 +6,7 @@ import { csrfProtection } from "@/lib/middleware/csrf";
 
 export async function POST(request: NextRequest) {
 	// Apply rate limiting
-	const rateLimitResponse = seedApiRateLimiter(request);
+	const rateLimitResponse = await seedApiRateLimiter(request);
 	if (rateLimitResponse) {
 		return rateLimitResponse;
 	}

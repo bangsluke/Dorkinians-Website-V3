@@ -7,31 +7,71 @@
 
 export function sanitizeError(error: unknown, isProduction: boolean): {
 	message: string;
-	code?: string;
+	details?: string;
 } {
 	if (isProduction) {
-		// Generic error messages in production
+		// In production, never expose error details
 		if (error instanceof Error) {
-			// Map known errors to safe messages
-			if (error.message.includes("Neo4j") || error.message.includes("database")) {
-				return { message: "Database operation failed. Please try again later." };
-			}
-			if (error.message.includes("timeout")) {
-				return { message: "Request timed out. Please try again." };
-			}
-			if (error.message.includes("connection")) {
-				return { message: "Connection error. Please try again later." };
-			}
-			if (error.message.includes("validation") || error.message.includes("invalid")) {
-				return { message: "Invalid request. Please check your input." };
-			}
+			// Log full error server-side but return generic message
+			console.error("Error details (server-side only):", {
+				message: error.message,
+				stack: error.stack,
+				name: error.name,
+			});
+			
+			// Return generic user-friendly message
+			return {
+				message: "An error occurred processing your request. Please try again later.",
+			};
 		}
-		return { message: "An error occurred. Please try again later." };
+		return {
+			message: "An error occurred processing your request. Please try again later.",
+		};
 	}
-
-	// Development: show actual errors for debugging
+	
+	// Development: show full error details
+	if (error instanceof Error) {
+		return {
+			message: error.message,
+			details: error.stack,
+		};
+	}
+	
 	return {
-		message: error instanceof Error ? error.message : String(error),
-		code: error instanceof Error && "code" in error ? String(error.code) : undefined,
+		message: String(error),
 	};
+}
+
+/**
+ * Sensitive patterns that should not appear in error responses
+ */
+const SENSITIVE_PATTERNS = [
+	/password/i,
+	/secret/i,
+	/api[_-]?key/i,
+	/token/i,
+	/credential/i,
+	/neo4j/i,
+	/database/i,
+	/connection/i,
+	/\.env/i,
+	/\/app\//i,
+	/\/home\//i,
+	/file:\/\//i,
+	/uri/i,
+	/url/i,
+];
+
+/**
+ * Validate error response to ensure no sensitive data leaks
+ * Returns true if response is safe, false if sensitive data detected
+ */
+export function validateErrorResponse(response: any): boolean {
+	try {
+		const responseStr = JSON.stringify(response).toLowerCase();
+		return !SENSITIVE_PATTERNS.some(pattern => pattern.test(responseStr));
+	} catch {
+		// If stringification fails, assume unsafe
+		return false;
+	}
 }

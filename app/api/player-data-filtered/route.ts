@@ -15,7 +15,7 @@ export async function OPTIONS() {
 
 export async function POST(request: NextRequest) {
 	// Apply rate limiting
-	const rateLimitResponse = dataApiRateLimiter(request);
+	const rateLimitResponse = await dataApiRateLimiter(request);
 	if (rateLimitResponse) {
 		return rateLimitResponse;
 	}

@@ -267,7 +267,7 @@ function validateFilters(filters: any): string | null {
 
 export async function POST(request: NextRequest) {
 	// Apply rate limiting
-	const rateLimitResponse = dataApiRateLimiter(request);
+	const rateLimitResponse = await dataApiRateLimiter(request);
 	if (rateLimitResponse) {
 		return rateLimitResponse;
 	}
