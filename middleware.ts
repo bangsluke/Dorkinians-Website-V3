@@ -8,6 +8,8 @@ export function middleware(request: NextRequest) {
 	const nonce = generateCSPNonce();
 	
 	// Script hashes for Next.js inline hydration scripts
+	// Note: These hashes change with each Next.js build. Consider using 'unsafe-inline' for script-src-elem
+	// if this becomes unmanageable, since 'strict-dynamic' in script-src already provides security.
 	const scriptHashes = [
 		"'sha256-Q+8tPsjVtiDsjF/Cv8FMOpg2Yg91oKFKDAJat1PPb2g='",
 		"'sha256-jc7XFOHixnFnymQQ1ejhrBa7Kgoniibf34byilvr3CU='",
@@ -21,6 +23,7 @@ export function middleware(request: NextRequest) {
 		"'sha256-Rq/c7HsTxjYvtu/HTT8rtUj4jf0OyslseDP3JCQmtOI='",
 		"'sha256-gYohaCRZkQk6ahFNUMWKE4PjjTiptCPt6sBP18Wkm4k='",
 		"'sha256-thPcge7komhZrsDFrKw/ET6++04qLBk3FeqHBYQ7BhQ='",
+		"'sha256-R8M6ajq7sD3c6zPybGiHqhSQNZ6dqfxgSTUetOywwKY='",
 	].join(' ');
 	
 	// In development, allow unsafe-eval for React Fast Refresh
