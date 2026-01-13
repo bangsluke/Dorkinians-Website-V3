@@ -17,6 +17,8 @@ export function middleware(request: NextRequest) {
 		"'sha256-icOUPQF1lsCsYH1prE9Pwc2LYzrDY0zUXJ0qZ4jevgU='",
 		"'sha256-YCY2bf5bcU2HcKPAnxlCMEjOkOA5LiZaS0pExKQrLGY='",
 		"'sha256-hgvJd27o01BU2afAw8APHsK434EDy+cwaRYn0JovZtE='",
+		"'sha256-5ydHU1LXj1KKDB5Nx74ydjKfvpPQ9Y5YpcPH0Utbl8g='",
+		"'sha256-Rq/c7HsTxjYvtu/HTT8rtUj4jf0OyslseDP3JCQmtOI='",
 	].join(' ');
 	
 	// In development, allow unsafe-eval for React Fast Refresh
@@ -24,9 +26,11 @@ export function middleware(request: NextRequest) {
 	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
 	
 	// Build CSP with nonce and script hashes
+	// Use script-src-elem to allow Next.js chunks from 'self' while keeping strict-dynamic for scripts loaded by nonce'd scripts
 	const csp = [
 		"default-src 'self'",
 		`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${scriptHashes} https://fonts.googleapis.com https://*.umami.is`,
+		`script-src-elem 'self' 'nonce-${nonce}' https://fonts.googleapis.com https://*.umami.is`,
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
