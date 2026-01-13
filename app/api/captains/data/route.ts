@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 
-const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+// Security: Use validated CORS headers instead of wildcard
+const corsHeaders = getCorsHeadersWithSecurity(
+	process.env.ALLOWED_ORIGIN || 'https://dorkinians-website-v3.netlify.app'
+);
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });

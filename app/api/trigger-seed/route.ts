@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { seedApiRateLimiter } from "@/lib/middleware/rateLimiter";
+import { sanitizeError } from "@/lib/utils/errorSanitizer";
 
 export async function POST(request: NextRequest) {
+	// Apply rate limiting
+	const rateLimitResponse = seedApiRateLimiter(request);
+	if (rateLimitResponse) {
+		return rateLimitResponse;
+	}
+
 	try {
 		// Force production environment for security
 		const environment = "production";
@@ -41,10 +49,24 @@ export async function POST(request: NextRequest) {
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 			
+			// Security: Include API key for authentication
+			const seedApiKey = process.env.SEED_API_KEY;
+			if (!seedApiKey) {
+				console.error("❌ SECURITY: SEED_API_KEY not configured");
+				return NextResponse.json(
+					{
+						error: "Server configuration error",
+						message: "API key not configured",
+					},
+					{ status: 500 }
+				);
+			}
+
 			const herokuResponse = await fetch(`${cleanHerokuUrl}/seed`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
+					"X-API-Key": seedApiKey,
 				},
 				body: JSON.stringify({
 					environment,
@@ -93,10 +115,13 @@ export async function POST(request: NextRequest) {
 	} catch (error) {
 		console.error("❌ ERROR: Main execution error:", error);
 
+		// Sanitize error for production
+		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
+
 		return NextResponse.json(
 			{
 				error: "Failed to start database seeding",
-				message: error instanceof Error ? error.message : "Unknown error",
+				message: sanitized.message,
 				timestamp: new Date().toISOString(),
 			},
 			{ status: 500 },

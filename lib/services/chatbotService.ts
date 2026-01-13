@@ -391,8 +391,11 @@ export class ChatbotService {
 						cypherQueries: processingDetails.cypherQueries,
 						processingSteps: processingDetails.processingSteps,
 						queryBreakdown: processingDetails.queryBreakdown,
-						error: error instanceof Error ? error.message : String(error),
-						errorStack: error instanceof Error ? error.stack : undefined,
+						// Security: Only include error details in development mode
+						error: process.env.NODE_ENV === 'development' 
+							? (error instanceof Error ? error.message : String(error))
+							: undefined,
+						// Security: Never include stack traces in client responses
 					},
 				},
 			};
@@ -1722,7 +1725,7 @@ export class ChatbotService {
 			case "general":
 				return await this.queryGeneralData();
 			default:
-				this.logToBoth(`🔍 Unknown question type: ${type}`, "warn");
+				this.logToBoth(`🔍 Unknown question type: ${type}`, null, "warn");
 				return { type: "unknown", data: [], message: "Unknown question type" };
 			}
 		} catch (error) {
