@@ -12,6 +12,7 @@ const nextJsScriptHashes = [
 	"'sha256-Dz9ipypSU+yio3ylyMbKtogFB8410FFouXf7cElQMQI='",
 	"'sha256-IQVKO6xMhtjOM5LYMSq+uj+749m8EEOlJfl0KEMWCK8='",
 	"'sha256-zC+saEQgolIrsqR7DoCcFPlvxlVEdb5rSPgk+MzQG0k='",
+	"'sha256-icOUPQF1lsCsYH1prE9Pwc2LYzrDY0zUXJ0qZ4jevgU='",
 ].join(' ');
 
 // Build base CSP (without nonce) - includes unsafe-eval in development for React Fast Refresh
