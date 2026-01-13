@@ -7,6 +7,9 @@ const envSchema = z.object({
 	PROD_NEO4J_USER: z.string().min(1, "PROD_NEO4J_USER is required"),
 	PROD_NEO4J_PASSWORD: z.string().min(1, "PROD_NEO4J_PASSWORD is required"),
 
+	// API Security (required)
+	SEED_API_KEY: z.string().min(32, "SEED_API_KEY must be at least 32 characters for security"),
+
 	// CORS Configuration (optional - defaults to production URL)
 	ALLOWED_ORIGIN: z.string().url("ALLOWED_ORIGIN must be a valid URL").optional(),
 

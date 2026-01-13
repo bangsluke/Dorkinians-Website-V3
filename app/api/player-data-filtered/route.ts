@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildPlayerStatsQuery } from "../player-data/route";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
+import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
+import { sanitizeError } from "@/lib/utils/errorSanitizer";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -10,6 +12,12 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+	// Apply rate limiting
+	const rateLimitResponse = dataApiRateLimiter(request);
+	if (rateLimitResponse) {
+		return rateLimitResponse;
+	}
+
 	try {
 		const body = await request.json();
 		const { playerName, filters } = body;
@@ -283,7 +291,9 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching filtered player data:", error);
-		return NextResponse.json({ error: "Failed to fetch filtered player data" }, { status: 500, headers: corsHeaders });
+		// Sanitize error for production
+		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
+		return NextResponse.json({ error: sanitized.message }, { status: 500, headers: corsHeaders });
 	}
 }
 

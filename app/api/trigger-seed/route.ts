@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { seedApiRateLimiter } from "@/lib/middleware/rateLimiter";
+import { sanitizeError } from "@/lib/utils/errorSanitizer";
 
 export async function POST(request: NextRequest) {
+	// Apply rate limiting
+	const rateLimitResponse = seedApiRateLimiter(request);
+	if (rateLimitResponse) {
+		return rateLimitResponse;
+	}
+
 	try {
 		// Force production environment for security
 		const environment = "production";
@@ -107,10 +115,13 @@ export async function POST(request: NextRequest) {
 	} catch (error) {
 		console.error("❌ ERROR: Main execution error:", error);
 
+		// Sanitize error for production
+		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
+
 		return NextResponse.json(
 			{
 				error: "Failed to start database seeding",
-				message: error instanceof Error ? error.message : "Unknown error",
+				message: sanitized.message,
 				timestamp: new Date().toISOString(),
 			},
 			{ status: 500 },

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "../player-data/route";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
+import { dataApiRateLimiter } from "@/lib/middleware/rateLimiter";
+import { sanitizeError } from "@/lib/utils/errorSanitizer";
 
 const corsHeaders = getCorsHeadersWithSecurity();
 
@@ -262,6 +264,12 @@ function validateFilters(filters: any): string | null {
 }
 
 export async function POST(request: NextRequest) {
+	// Apply rate limiting
+	const rateLimitResponse = dataApiRateLimiter(request);
+	if (rateLimitResponse) {
+		return rateLimitResponse;
+	}
+
 	try {
 		const body = await request.json();
 		const { teamName, filters } = body;
@@ -408,7 +416,9 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching filtered team data:", error);
-		return NextResponse.json({ error: "Failed to fetch filtered team data" }, { status: 500, headers: corsHeaders });
+		// Sanitize error for production
+		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
+		return NextResponse.json({ error: sanitized.message }, { status: 500, headers: corsHeaders });
 	}
 }
 
