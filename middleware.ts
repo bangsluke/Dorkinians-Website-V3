@@ -4,6 +4,19 @@ import { generateCSPNonce, getBaseSecurityHeaders } from "@/lib/utils/securityHe
 import { generateCsrfToken } from "@/lib/middleware/csrf";
 
 export function middleware(request: NextRequest) {
+	// Protect /admin route - require authentication
+	if (request.nextUrl.pathname.startsWith("/admin")) {
+		const sessionToken = request.cookies.get(
+			process.env.NODE_ENV === "production" ? "__Secure-next-auth.session-token" : "next-auth.session-token"
+		);
+
+		if (!sessionToken) {
+			// Redirect to sign-in page
+			const signInUrl = new URL("/api/auth/signin", request.url);
+			signInUrl.searchParams.set("callbackUrl", request.url);
+			return NextResponse.redirect(signInUrl);
+		}
+	}
 	// Generate nonce for this request
 	const nonce = generateCSPNonce();
 	
@@ -42,8 +55,8 @@ export function middleware(request: NextRequest) {
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
-		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io",
-		"frame-src 'self' https://docs.google.com",
+		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io https://accounts.google.com https://oauth2.googleapis.com",
+		"frame-src 'self' https://docs.google.com https://accounts.google.com",
 		"object-src 'none'",
 		"base-uri 'self'",
 		"form-action 'self'",

@@ -93,6 +93,20 @@
       - [PostgreSQL Setup](#postgresql-setup)
       - [MySQL Setup](#mysql-setup)
     - [Self-Hosted Security Best Practices](#self-hosted-security-best-practices)
+- [Google OAuth Setup Guide](#google-oauth-setup-guide)
+  - [Prerequisites](#prerequisites-1)
+  - [Step 1: Create Google Cloud Project](#step-1-create-google-cloud-project)
+  - [Step 2: Enable Google Identity API](#step-2-enable-google-identity-api)
+  - [Step 3: Create OAuth 2.0 Credentials](#step-3-create-oauth-20-credentials)
+  - [Step 4: Configure Authorized Redirect URIs](#step-4-configure-authorized-redirect-uris)
+  - [Step 5: Add Environment Variables](#step-5-add-environment-variables)
+  - [Step 6: Generate AUTH\_SECRET](#step-6-generate-auth_secret)
+  - [Troubleshooting](#troubleshooting-2)
+    - ["Invalid redirect URI" error](#invalid-redirect-uri-error)
+    - ["Access blocked: This app's request is invalid" error](#access-blocked-this-apps-request-is-invalid-error)
+    - ["Email not authorized" error](#email-not-authorized-error)
+    - [Session not persisting](#session-not-persisting)
+    - [Can't access /admin after authentication](#cant-access-admin-after-authentication)
 - [Chatbot Question Processing Guide](#chatbot-question-processing-guide)
   - [Overview](#overview-1)
   - [Question Flow Overview](#question-flow-overview)
@@ -121,7 +135,7 @@
   - [Conclusion](#conclusion)
 - [Maintenance](#maintenance)
   - [Regular Tasks](#regular-tasks)
-  - [Troubleshooting](#troubleshooting-2)
+  - [Troubleshooting](#troubleshooting-3)
 - [Contributing](#contributing)
   - [Development Guidelines](#development-guidelines)
   - [Repository Structure](#repository-structure)
@@ -1571,6 +1585,162 @@ mysql://umami:password@localhost:3306/umami
 7. **Network Security:**
    - Use firewall rules to restrict database access
    - Consider using VPN or private networks for database connections
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Google OAuth Setup Guide
+
+This guide will walk you through setting up Google OAuth authentication for the admin page.
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Prerequisites
+
+- A Google account (the one matching the contact email in `config/config.ts`)
+- Access to Google Cloud Console
+- Access to your application's environment variables
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 1: Create Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click on the project dropdown at the top
+3. Click "New Project"
+4. Enter a project name (e.g., "Dorkinians Website Admin")
+5. Click "Create"
+6. Wait for the project to be created and select it
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 2: Enable Google Identity API
+
+1. In the Google Cloud Console, navigate to "APIs & Services" > "Library"
+2. Search for "Google Identity API" or "Google+ API"
+3. Click on "Identity Toolkit API" (or "Google+ API" if that's what appears)
+4. Click "Enable"
+5. Wait for the API to be enabled
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 3: Create OAuth 2.0 Credentials
+
+1. Navigate to "APIs & Services" > "Credentials"
+2. Click "Create Credentials" > "OAuth client ID"
+3. If prompted, configure the OAuth consent screen:
+   - Choose "Internal" (if using Google Workspace) or "External" (for personal Google accounts)
+   - Fill in the required fields:
+     - App name: "Dorkinians Website Admin"
+     - User support email: Your email (bangsluke@gmail.com)
+     - Developer contact: Your email
+   - Click "Save and Continue"
+   - Add scopes: `email`, `profile`, `openid`
+   - Click "Save and Continue"
+   - Add test users if using "External" (add your email)
+   - Click "Save and Continue"
+   - Review and click "Back to Dashboard"
+4. Back at "Create OAuth client ID":
+   - Application type: Select "Web application"
+   - Name: "Dorkinians Admin Web Client"
+   - Click "Create"
+5. **Important**: Copy the Client ID and Client Secret immediately (you won't be able to see the secret again)
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 4: Configure Authorized Redirect URIs
+
+1. After creating the OAuth client, you'll see it in the credentials list
+2. Click on the OAuth client name to edit it
+3. Under "Authorized redirect URIs", click "Add URI"
+4. Add the following URIs:
+
+   **For Production:**
+   ```
+   https://dorkinians-website-v3.netlify.app/api/auth/callback/google
+   ```
+
+   **For Development:**
+   ```
+   http://localhost:3000/api/auth/callback/google
+   ```
+
+5. Click "Save"
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 5: Add Environment Variables
+
+Add the following environment variables to your `.env` file (or your hosting platform's environment variables):
+
+```env
+# Authentication
+AUTH_SECRET=<generated-secret-see-step-6>
+AUTH_GOOGLE_ID=<your-client-id-from-step-3>
+AUTH_GOOGLE_SECRET=<your-client-secret-from-step-3>
+AUTH_URL=https://dorkinians-website-v3.netlify.app
+```
+
+**For local development**, use:
+```env
+AUTH_URL=http://localhost:3000
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Step 6: Generate AUTH_SECRET
+
+Generate a secure random secret for session encryption:
+
+**On Linux/Mac:**
+```bash
+openssl rand -base64 32
+```
+
+**On Windows (PowerShell):**
+```powershell
+[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))
+```
+
+**Or use an online generator:**
+- Visit https://generate-secret.vercel.app/32
+- Copy the generated secret
+
+Add this to your `AUTH_SECRET` environment variable.
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Troubleshooting
+
+#### "Invalid redirect URI" error
+
+- Ensure the redirect URI in your OAuth client matches exactly: `{AUTH_URL}/api/auth/callback/google`
+- Check that `AUTH_URL` environment variable is set correctly
+- For production, use `https://`; for development, use `http://localhost:3000`
+
+#### "Access blocked: This app's request is invalid" error
+
+- Ensure you've completed the OAuth consent screen configuration
+- If using "External" app type, make sure your email is added as a test user
+- Wait a few minutes after making changes for them to propagate
+
+#### "Email not authorized" error
+
+- Only the email address in `config/config.ts` (`contact` field) can access the admin page
+- Ensure you're signing in with the correct Google account
+- The email comparison is case-insensitive
+
+#### Session not persisting
+
+- Check that `AUTH_SECRET` is set and is at least 32 characters
+- Ensure cookies are enabled in your browser
+- In production, ensure you're using HTTPS (required for secure cookies)
+
+#### Can't access /admin after authentication
+
+- Check browser console for errors
+- Verify all environment variables are set correctly
+- Check that the middleware is not blocking the route
+- Ensure NextAuth API routes are accessible at `/api/auth/*`
 
 > [Back to Table of Contents](#table-of-contents)
 

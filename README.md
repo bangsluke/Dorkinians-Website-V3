@@ -10,6 +10,7 @@
 
 <p align="center">
   <a href="https://dorkinians-website-v3.netlify.app">🌐 Live Demo</a> •
+  <a href="https://github.com/bangsluke/Dorkinians-Website-V3">💻 GitHub Repository</a> •
   <a href="#key-features">✨ Features</a> •
   <a href="#tech-stack">🛠️ Tech Stack</a> •
   <a href="#architecture">🏗️ Architecture</a> •
