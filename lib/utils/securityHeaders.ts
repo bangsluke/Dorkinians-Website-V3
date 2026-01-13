@@ -5,8 +5,6 @@
  * common web vulnerabilities including clickjacking, XSS, and content type sniffing.
  */
 
-import { randomBytes } from "crypto";
-
 // Base Content Security Policy (without nonce)
 // Uses 'strict-dynamic' to allow scripts loaded by nonce'd scripts (Next.js compatible)
 const baseContentSecurityPolicy = [
@@ -26,9 +24,14 @@ const baseContentSecurityPolicy = [
 
 /**
  * Generate a cryptographically secure CSP nonce
+ * Uses Web Crypto API (available in Edge Runtime) instead of Node.js crypto
  */
 export function generateCSPNonce(): string {
-	return randomBytes(16).toString('base64');
+	// Use Web Crypto API for Edge Runtime compatibility
+	const array = new Uint8Array(16);
+	crypto.getRandomValues(array);
+	// Convert to base64
+	return btoa(String.fromCharCode(...array));
 }
 
 /**
