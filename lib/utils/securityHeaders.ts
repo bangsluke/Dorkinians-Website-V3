@@ -17,6 +17,7 @@ const nextJsScriptHashes = [
 	"'sha256-hgvJd27o01BU2afAw8APHsK434EDy+cwaRYn0JovZtE='",
 	"'sha256-5ydHU1LXj1KKDB5Nx74ydjKfvpPQ9Y5YpcPH0Utbl8g='",
 	"'sha256-Rq/c7HsTxjYvtu/HTT8rtUj4jf0OyslseDP3JCQmtOI='",
+	"'sha256-gYohaCRZkQk6ahFNUMWKE4PjjTiptCPt6sBP18Wkm4k='",
 ].join(' ');
 
 // Build base CSP (without nonce) - includes unsafe-eval in development for React Fast Refresh
@@ -28,7 +29,7 @@ function buildBaseCSP(nonce?: string): string {
 	return [
 		"default-src 'self'",
 		`script-src 'self' 'strict-dynamic'${noncePart}${unsafeEval} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // strict-dynamic allows scripts loaded by nonce'd scripts
-		`script-src-elem 'self'${noncePart} https://fonts.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self'
+		`script-src-elem 'self'${noncePart} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self' and inline scripts via hashes
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
