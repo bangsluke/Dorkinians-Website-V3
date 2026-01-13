@@ -1,8 +1,8 @@
-import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { appConfig } from "@/config/config";
+import type { NextAuthConfig } from "next-auth";
 
-export const authOptions: NextAuthOptions = {
+export const authOptions: NextAuthConfig = {
 	providers: [
 		GoogleProvider({
 			clientId: process.env.AUTH_GOOGLE_ID!,
@@ -15,7 +15,7 @@ export const authOptions: NextAuthOptions = {
 		signIn: "/api/auth/signin",
 	},
 	callbacks: {
-		async signIn({ user, account, profile }) {
+		async signIn({ user, account, profile }: any) {
 			// Verify email matches the authorized contact email from config
 			if (!user.email) {
 				return false;
@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
 
 			return true;
 		},
-		async jwt({ token, user, account }) {
+		async jwt({ token, user, account }: any) {
 			// Initial sign in
 			if (account && user) {
 				token.email = user.email;
@@ -40,7 +40,7 @@ export const authOptions: NextAuthOptions = {
 			}
 			return token;
 		},
-		async session({ session, token }) {
+		async session({ session, token }: any) {
 			if (session.user) {
 				session.user.email = token.email as string;
 				session.user.name = token.name as string;
