@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import { headers } from "next/headers";
 import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
 import UmamiAnalytics from "../components/UmamiAnalytics";
@@ -74,6 +75,10 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
 	const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+	
+	// Read nonce from request headers set by middleware
+	const headersList = headers();
+	const nonce = headersList.get('x-csp-nonce') || '';
 
 	return (
 		<html lang='en'>
@@ -99,6 +104,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 							data-website-id={umamiWebsiteId}
 							src={umamiScriptUrl}
 							strategy='lazyOnload'
+							nonce={nonce}
 						/>
 					)}
 					<UmamiAnalytics />

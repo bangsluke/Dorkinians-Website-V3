@@ -472,10 +472,14 @@ export default function ClubStats() {
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
 			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
 				const response = await fetch("/api/team-data-filtered", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
+						...csrfHeaders,
 					},
 					body: JSON.stringify({
 						teamName: "Whole Club",
@@ -739,6 +743,9 @@ export default function ClubStats() {
 		const fetchTeamComparison = async () => {
 			setIsLoadingTeamComparison(true);
 			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
 				const teams = ["1st XI", "2nd XI", "3rd XI", "4th XI", "5th XI", "6th XI", "7th XI", "8th XI"];
 				const promises = teams.map(async (teamName) => {
 					try {
@@ -746,6 +753,7 @@ export default function ClubStats() {
 							method: "POST",
 							headers: {
 								"Content-Type": "application/json",
+								...csrfHeaders,
 							},
 							body: JSON.stringify({
 								teamName: teamName,
@@ -857,10 +865,14 @@ export default function ClubStats() {
 		const fetchPositionStats = async () => {
 			setIsLoadingPositionStats(true);
 			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
 				const response = await fetch("/api/club-position-stats", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
+						...csrfHeaders,
 					},
 					body: JSON.stringify({
 						filters: playerFilters,

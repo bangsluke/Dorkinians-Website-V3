@@ -5,22 +5,38 @@
  * common web vulnerabilities including clickjacking, XSS, and content type sniffing.
  */
 
-// Base Content Security Policy (without nonce)
+// Script hashes for Next.js inline hydration scripts
+const nextJsScriptHashes = [
+	"'sha256-Q+8tPsjVtiDsjF/Cv8FMOpg2Yg91oKFKDAJat1PPb2g='",
+	"'sha256-jc7XFOHixnFnymQQ1ejhrBa7Kgoniibf34byilvr3CU='",
+	"'sha256-Dz9ipypSU+yio3ylyMbKtogFB8410FFouXf7cElQMQI='",
+	"'sha256-IQVKO6xMhtjOM5LYMSq+uj+749m8EEOlJfl0KEMWCK8='",
+	"'sha256-zC+saEQgolIrsqR7DoCcFPlvxlVEdb5rSPgk+MzQG0k='",
+].join(' ');
+
+// Build base CSP (without nonce) - includes unsafe-eval in development for React Fast Refresh
+function buildBaseCSP(): string {
+	const isDevelopment = process.env.NODE_ENV === 'development';
+	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
+	
+	return [
+		"default-src 'self'",
+		`script-src 'self' 'strict-dynamic'${unsafeEval} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // strict-dynamic allows scripts loaded by nonce'd scripts
+		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
+		"font-src 'self' https://fonts.gstatic.com data:",
+		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
+		"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://api-gateway.umami.dev https://*.databases.neo4j.io",
+		"frame-src 'self' https://docs.google.com",
+		"object-src 'none'",
+		"base-uri 'self'",
+		"form-action 'self'",
+		"frame-ancestors 'none'",
+		"upgrade-insecure-requests",
+	].join('; ');
+}
+
+// Base Content Security Policy (without nonce) - use buildBaseCSP() function for runtime evaluation
 // Uses 'strict-dynamic' to allow scripts loaded by nonce'd scripts (Next.js compatible)
-const baseContentSecurityPolicy = [
-	"default-src 'self'",
-	"script-src 'self' 'strict-dynamic' https://fonts.googleapis.com https://*.umami.is", // strict-dynamic allows scripts loaded by nonce'd scripts
-	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
-	"font-src 'self' https://fonts.gstatic.com data:",
-	"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
-	"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://*.databases.neo4j.io",
-	"frame-src 'self' https://docs.google.com",
-	"object-src 'none'",
-	"base-uri 'self'",
-	"form-action 'self'",
-	"frame-ancestors 'none'",
-	"upgrade-insecure-requests",
-].join('; ');
 
 /**
  * Generate a cryptographically secure CSP nonce
@@ -38,14 +54,18 @@ export function generateCSPNonce(): string {
  * Build Content Security Policy with nonce
  */
 function buildCSP(nonce?: string): string {
+	const baseCSP = buildBaseCSP();
+	const isDevelopment = process.env.NODE_ENV === 'development';
+	const unsafeEval = isDevelopment ? " 'unsafe-eval'" : '';
+	
 	if (nonce) {
-		// Add nonce to script-src
-		return baseContentSecurityPolicy.replace(
-			"script-src 'self' 'strict-dynamic'",
-			`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'`
+		// Add nonce to script-src (hashes and unsafe-eval are already included in base policy)
+		return baseCSP.replace(
+			`script-src 'self' 'strict-dynamic'${unsafeEval} ${nextJsScriptHashes}`,
+			`script-src 'self' 'strict-dynamic' 'nonce-${nonce}'${unsafeEval} ${nextJsScriptHashes}`
 		);
 	}
-	return baseContentSecurityPolicy;
+	return baseCSP;
 }
 
 /**
@@ -65,10 +85,15 @@ export function getBaseSecurityHeaders(): Record<string, string> {
 /**
  * Get security headers with CSP (for API routes where nonce is not needed)
  */
-export const securityHeaders = {
-	...getBaseSecurityHeaders(),
-	'Content-Security-Policy': baseContentSecurityPolicy,
-};
+export function getSecurityHeaders(): Record<string, string> {
+	return {
+		...getBaseSecurityHeaders(),
+		'Content-Security-Policy': buildBaseCSP(),
+	};
+}
+
+// Legacy export for backwards compatibility
+export const securityHeaders = getSecurityHeaders();
 
 /**
  * Get CORS headers with security headers included
