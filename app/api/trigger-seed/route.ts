@@ -1,22 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { seedApiRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
+import { log, logError, logRequest } from "@/lib/utils/logger";
+import { csrfProtection } from "@/lib/middleware/csrf";
 
 export async function POST(request: NextRequest) {
 	// Apply rate limiting
-	const rateLimitResponse = seedApiRateLimiter(request);
+	const rateLimitResponse = await seedApiRateLimiter(request);
 	if (rateLimitResponse) {
 		return rateLimitResponse;
+	}
+
+	// CSRF protection for state-changing endpoint
+	const csrfResponse = csrfProtection(request);
+	if (csrfResponse) {
+		return csrfResponse;
 	}
 
 	try {
 		// Force production environment for security
 		const environment = "production";
-		console.log(`🚀 API ROUTE: Enforcing production environment for database seeding`);
+		log("info", "Enforcing production environment for database seeding");
 
 		// Generate unique job ID
 		const jobId = `seed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-		console.log("🆔 API ROUTE: Generated job ID:", jobId);
+		log("info", "Generated job ID", { jobId });
 
 		// Parse request body to get email and season configuration
 		const requestBody = await request.json();
@@ -31,17 +39,24 @@ export async function POST(request: NextRequest) {
 			fullRebuild: false,
 		};
 
-		console.log("📧 API ROUTE: Email configuration:", emailConfig);
-		console.log("🗓️ API ROUTE: Season configuration:", seasonConfig);
+		logRequest("Seed request received", {
+			hasEmailConfig: !!emailConfig,
+			hasSeasonConfig: !!seasonConfig,
+		});
 
 		// Trigger Heroku seeding service (fire-and-forget)
-		console.log("🌱 HEROKU: Starting Heroku seeding service...");
-		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+		log("info", "Starting Heroku seeding service");
+		const herokuUrl = process.env.HEROKU_SEEDER_URL;
+		if (!herokuUrl) {
+			logError("HEROKU_SEEDER_URL not configured", new Error("Missing Heroku URL"));
+			return NextResponse.json(
+				{ error: "Server configuration error", message: "Heroku URL not configured" },
+				{ status: 500 }
+			);
+		}
 		
 		// Clean URL to remove trailing slash to prevent double slashes
 		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, '');
-		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
-		console.log("🔗 HEROKU: Cleaned Heroku URL:", cleanHerokuUrl);
 
 		// Wait for Heroku response to capture SMTP errors (with timeout)
 		let smtpError = null;
@@ -52,7 +67,7 @@ export async function POST(request: NextRequest) {
 			// Security: Include API key for authentication
 			const seedApiKey = process.env.SEED_API_KEY;
 			if (!seedApiKey) {
-				console.error("❌ SECURITY: SEED_API_KEY not configured");
+				logError("SEED_API_KEY not configured", new Error("Missing API key"));
 				return NextResponse.json(
 					{
 						error: "Server configuration error",
@@ -83,24 +98,24 @@ export async function POST(request: NextRequest) {
 				const herokuData = await herokuResponse.json();
 				if (herokuData.smtpError) {
 					smtpError = herokuData.smtpError;
-					console.warn("⚠️ HEROKU: SMTP error detected:", smtpError);
+					log("warn", "SMTP error detected", { error: smtpError });
 				} else {
-					console.log("✅ HEROKU: Heroku seeding service started successfully");
+					log("info", "Heroku seeding service started successfully");
 				}
 			} else {
-				console.warn("⚠️ HEROKU: Heroku seeding service may have failed to start");
+				log("warn", "Heroku seeding service may have failed to start");
 			}
 		} catch (herokuError: any) {
 			// If timeout or network error, continue anyway (seeding may still start)
 			if (herokuError.name === 'AbortError') {
-				console.warn("⚠️ HEROKU: Request timeout - seeding may still have started");
+				log("warn", "Request timeout - seeding may still have started");
 			} else {
-				console.warn("⚠️ HEROKU: Failed to start Heroku seeding service:", herokuError.message);
+				logError("Failed to start Heroku seeding service", herokuError);
 			}
 		}
 
 		// Return response with SMTP error if present
-		console.log("✅ SUCCESS: Returning response");
+		log("info", "Returning seed response");
 		return NextResponse.json({
 			success: true,
 			message: "Database seeding started on Heroku",
@@ -109,11 +124,11 @@ export async function POST(request: NextRequest) {
 			timestamp: new Date().toISOString(),
 			status: "started",
 			note: "Seeding is running on Heroku. Check email for completion notification.",
-			herokuUrl: process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com",
+			herokuUrl: process.env.HEROKU_SEEDER_URL || "[configured]",
 			smtpError: smtpError || null, // Include SMTP error if any
 		});
 	} catch (error) {
-		console.error("❌ ERROR: Main execution error:", error);
+		logError("Main execution error in trigger-seed", error);
 
 		// Sanitize error for production
 		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
