@@ -81,7 +81,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 	const nonce = headersList.get('x-csp-nonce') || '';
 
 	return (
-		<html lang='en'>
+		<html lang='en' nonce={nonce}>
 			<head>
 				<meta name='apple-mobile-web-app-capable' content='yes' />
 				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
