@@ -5,12 +5,31 @@
  * common web vulnerabilities including clickjacking, XSS, and content type sniffing.
  */
 
+// Comprehensive Content Security Policy
+// Allows necessary external resources while maintaining security
+const contentSecurityPolicy = [
+	"default-src 'self'",
+	"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://fonts.googleapis.com https://*.umami.is", // unsafe-inline/eval needed for Next.js
+	"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com",
+	"font-src 'self' https://fonts.gstatic.com data:",
+	"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
+	"connect-src 'self' https://*.herokuapp.com https://*.netlify.app https://*.umami.is https://*.databases.neo4j.io",
+	"frame-src 'self' https://docs.google.com",
+	"object-src 'none'",
+	"base-uri 'self'",
+	"form-action 'self'",
+	"frame-ancestors 'none'",
+	"upgrade-insecure-requests",
+].join('; ');
+
 export const securityHeaders = {
 	'X-Frame-Options': 'DENY',
 	'X-Content-Type-Options': 'nosniff',
 	'X-XSS-Protection': '1; mode=block',
 	'Referrer-Policy': 'strict-origin-when-cross-origin',
-	'Content-Security-Policy': "default-src 'self'",
+	'Content-Security-Policy': contentSecurityPolicy,
+	'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+	'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
 };
 
 /**

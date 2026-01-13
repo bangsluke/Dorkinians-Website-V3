@@ -3,6 +3,7 @@ import { chatbotService, QuestionContext } from "@/lib/services/chatbotService";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 import { chatbotRateLimiter } from "@/lib/middleware/rateLimiter";
 import { sanitizeError } from "@/lib/utils/errorSanitizer";
+import { log, logError, logRequest } from "@/lib/utils/logger";
 
 // CORS headers with security headers
 const corsHeaders = {
@@ -22,6 +23,21 @@ export async function POST(request: NextRequest) {
 		return rateLimitResponse;
 	}
 
+	// Origin validation for public API (alternative to CSRF for stateless APIs)
+	const origin = request.headers.get("origin");
+	const referer = request.headers.get("referer");
+	const allowedOrigin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+	
+	// Allow requests from allowed origin or same-origin requests (no origin header)
+	if (origin && origin !== allowedOrigin) {
+		log("warn", "Blocked request from invalid origin", { origin, allowedOrigin });
+		return NextResponse.json({ error: "Invalid origin" }, { status: 403, headers: corsHeaders });
+	}
+
+	// Input length validation constants
+	const MAX_QUESTION_LENGTH = 1000;
+	const MAX_USER_CONTEXT_LENGTH = 200;
+
 	try {
 		const body: QuestionContext = await request.json();
 		const { question } = body;
@@ -30,7 +46,27 @@ export async function POST(request: NextRequest) {
 			return NextResponse.json({ error: "Question is required and must be a string" }, { status: 400, headers: corsHeaders });
 		}
 
-		console.log(`🤖 Received question: ${question}. User context: ${body.userContext || "None"}`);
+		// Validate question length
+		if (question.length > MAX_QUESTION_LENGTH) {
+			return NextResponse.json(
+				{ error: `Question too long. Maximum ${MAX_QUESTION_LENGTH} characters allowed.` },
+				{ status: 400, headers: corsHeaders }
+			);
+		}
+
+		// Validate user context length if provided
+		if (body.userContext && typeof body.userContext === "string" && body.userContext.length > MAX_USER_CONTEXT_LENGTH) {
+			return NextResponse.json(
+				{ error: `User context too long. Maximum ${MAX_USER_CONTEXT_LENGTH} characters allowed.` },
+				{ status: 400, headers: corsHeaders }
+			);
+		}
+
+		// Log request (sanitized in production)
+		logRequest("Chatbot question received", {
+			questionLength: question.length,
+			hasUserContext: !!body.userContext,
+		});
 
 		// Process the question
 		const response = await chatbotService.processQuestion(body);
@@ -64,7 +100,7 @@ export async function POST(request: NextRequest) {
 		// Production: return response without debug information
 		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
-		console.error("❌ Chatbot API error:", error);
+		logError("Chatbot API error", error);
 
 		// Sanitize error for production
 		const sanitized = sanitizeError(error, process.env.NODE_ENV === "production");
