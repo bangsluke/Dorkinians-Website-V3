@@ -235,12 +235,14 @@ export async function POST(request: NextRequest) {
 		const appearancesRaw = record.get("appearances");
 		const appearancesConverted = toNumber(appearancesRaw);
 		
+		// Get position counts
+		const gkRaw = record.get("gk");
+		const defRaw = record.get("def");
+		const midRaw = record.get("mid");
+		const fwdRaw = record.get("fwd");
+		
 		// Debug: Log position counts (only in development)
 		if (process.env.NODE_ENV === "development") {
-			const gkRaw = record.get("gk");
-			const defRaw = record.get("def");
-			const midRaw = record.get("mid");
-			const fwdRaw = record.get("fwd");
 			log("debug", "Filtered position counts", {
 				gk: gkRaw,
 				def: defRaw,
