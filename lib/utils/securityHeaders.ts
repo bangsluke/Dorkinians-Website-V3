@@ -33,7 +33,7 @@ function buildBaseCSP(nonce?: string): string {
 	return [
 		"default-src 'self'",
 		`script-src 'self' 'strict-dynamic'${noncePart}${unsafeEval} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // strict-dynamic allows scripts loaded by nonce'd scripts
-		`script-src-elem 'self'${noncePart} ${nextJsScriptHashes} https://fonts.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self' and inline scripts via hashes
+		`script-src-elem 'self' 'unsafe-inline'${noncePart} https://fonts.googleapis.com https://*.umami.is`, // Allow Next.js chunks from 'self' and inline scripts (Next.js generates different hashes per build)
 		"style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com", // Keep unsafe-inline for styles (Next.js requirement)
 		"font-src 'self' https://fonts.gstatic.com data:",
 		"img-src 'self' data: https://docs.google.com https://*.googleusercontent.com blob:",
