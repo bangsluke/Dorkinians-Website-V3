@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" width="100"/>
+  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" height="100"/>
 </p>
 
 <h1 align="center">Dorkinians FC Statistics Website</h1>
@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  <a href="https://app.netlify.com/projects/dorkinians-website-v3/deploys">
+  <a href="https://app.netlify.com/projects/dorkinians-website-v3/deploys" style="text-decoration: none;">
     <img src="https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status" alt="Netlify Status" />
   </a>
   <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js 14" />
