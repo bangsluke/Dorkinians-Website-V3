@@ -284,9 +284,9 @@ export default function ClubAwards() {
 								{awardsData.filter(item => item.receiver).map((item, index) => (
 									<tr key={index} className='border-b border-white/10 hover:bg-white/5 transition-colors'>
 										<td className='px-2 md:px-4 py-2 md:py-3 text-white text-xs md:text-sm'>{item.awardName}</td>
-										<td className='px-2 md:px-4 py-2 md:py-3'>
+										<td className='px-2 md:px-4 py-2 md:py-3 text-left'>
 											{item.receiver ? (
-												<div className='flex flex-wrap gap-1 md:gap-2'>
+												<div className='flex flex-wrap gap-1 md:gap-2 justify-start'>
 													{parseReceivers(item.receiver).map((playerName, playerIndex, players) => (
 														<span key={playerIndex} className='inline-flex items-center'>
 															<button
@@ -294,7 +294,7 @@ export default function ClubAwards() {
 																onMouseEnter={() => handlePlayerHover(playerName)}
 																onMouseLeave={handlePlayerHoverEnd}
 																onTouchStart={() => handlePlayerClick(playerName)}
-																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'
+																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer text-left'
 															>
 																{playerName}
 															</button>
@@ -365,14 +365,14 @@ export default function ClubAwards() {
 											{group.awards.map((entry, awardIndex) => (
 												<tr key={`award-${groupIndex}-${awardIndex}`} className='border-b border-white/10 hover:bg-white/5 transition-colors' style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)' }}>
 													<td className='px-2 md:px-4 py-2 md:py-3 text-white text-xs md:text-sm'>{entry.awardName}</td>
-													<td className='px-2 md:px-4 py-2 md:py-3'>
+													<td className='px-2 md:px-4 py-2 md:py-3 text-left'>
 														{entry.isPlayer ? (
 															<button
 																onClick={() => handlePlayerClick(entry.receiver)}
 																onMouseEnter={() => handlePlayerHover(entry.receiver)}
 																onMouseLeave={handlePlayerHoverEnd}
 																onTouchStart={() => handlePlayerClick(entry.receiver)}
-																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer'
+																className='text-white text-xs md:text-sm underline hover:text-dorkinians-yellow transition-colors cursor-pointer text-left block w-full'
 															>
 																{entry.receiver}
 															</button>

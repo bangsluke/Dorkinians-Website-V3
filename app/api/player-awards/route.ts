@@ -98,6 +98,29 @@ export async function GET(request: NextRequest) {
 			playerName,
 		});
 
+		// Query SeasonTOTW (TOTS) count
+		const totsQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_SEASON_TOTW]->(st:SeasonTOTW {graphLabel: $graphLabel})
+			RETURN count(DISTINCT st) as count
+		`;
+
+		const totsResult = await neo4jService.runQuery(totsQuery, {
+			graphLabel,
+			playerName,
+		});
+
+		// Query Player of the Month #1 count (when player is ranked first)
+		const potmFirstQuery = `
+			MATCH (pm:PlayersOfTheMonth {graphLabel: $graphLabel})
+			WHERE pm.player1Name = $playerName
+			RETURN count(DISTINCT pm) as count
+		`;
+
+		const potmFirstResult = await neo4jService.runQuery(potmFirstQuery, {
+			graphLabel,
+			playerName,
+		});
+
 		// Helper function to convert Neo4j Integer to JavaScript number
 		const toNumber = (value: any): number => {
 			if (value === null || value === undefined) return 0;
@@ -141,11 +164,21 @@ export async function GET(request: NextRequest) {
 			? toNumber(starManResult.records[0].get("count"))
 			: 0;
 
+		const totsCount = totsResult.records.length > 0
+			? toNumber(totsResult.records[0].get("count"))
+			: 0;
+
+		const playerOfMonthFirstCount = potmFirstResult.records.length > 0
+			? toNumber(potmFirstResult.records[0].get("count"))
+			: 0;
+
 		return NextResponse.json({
 			awards,
 			playerOfMonthCount,
 			starManCount,
 			totwCount,
+			totsCount,
+			playerOfMonthFirstCount,
 		}, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching player awards:", error);

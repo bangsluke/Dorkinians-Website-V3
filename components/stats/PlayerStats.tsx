@@ -1580,6 +1580,9 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+	// #region agent log
+	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:1585',message:'Component render entry',data:{selectedPlayer,hasCachedData:!!cachedPlayerData,isLoading:isLoadingPlayerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+	// #endregion
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -1614,6 +1617,16 @@ export default function PlayerStats() {
 	// State for awards data
 	const [awardsData, setAwardsData] = useState<any>(null);
 	const [isLoadingAwards, setIsLoadingAwards] = useState(false);
+
+	// State for captain history data
+	const [captainHistory, setCaptainHistory] = useState<Array<{ season: string; team: string }>>([]);
+	const [totalCaptaincies, setTotalCaptaincies] = useState<number>(0);
+	const [isLoadingCaptainHistory, setIsLoadingCaptainHistory] = useState(false);
+
+	// State for award history data
+	const [awardHistory, setAwardHistory] = useState<Array<{ season: string; awardName: string }>>([]);
+	const [totalAwards, setTotalAwards] = useState<number>(0);
+	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
@@ -2026,6 +2039,70 @@ export default function PlayerStats() {
 		fetchAwards();
 	}, [selectedPlayer]);
 
+	// Fetch captain history when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setCaptainHistory([]);
+			setTotalCaptaincies(0);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
+
+		const fetchCaptainHistory = async () => {
+			setIsLoadingCaptainHistory(true);
+			try {
+				const response = await fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setCaptainHistory(data.captaincies || []);
+					setTotalCaptaincies(data.totalCaptaincies || 0);
+				}
+			} catch (error) {
+				console.error("Error fetching captain history:", error);
+				setCaptainHistory([]);
+				setTotalCaptaincies(0);
+			} finally {
+				setIsLoadingCaptainHistory(false);
+			}
+		};
+
+		fetchCaptainHistory();
+	}, [selectedPlayer]);
+
+	// Fetch award history when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setAwardHistory([]);
+			setTotalAwards(0);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
+
+		const fetchAwardHistory = async () => {
+			setIsLoadingAwardHistory(true);
+			try {
+				const response = await fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setAwardHistory(data.awards || []);
+					setTotalAwards(data.totalAwards || 0);
+				}
+			} catch (error) {
+				console.error("Error fetching award history:", error);
+				setAwardHistory([]);
+				setTotalAwards(0);
+			} finally {
+				setIsLoadingAwardHistory(false);
+			}
+		};
+
+		fetchAwardHistory();
+	}, [selectedPlayer]);
+
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
@@ -2159,13 +2236,16 @@ export default function PlayerStats() {
 	}
 
 	if (isLoadingPlayerData || appConfig.forceSkeletonView) {
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:2161',message:'Rendering loading skeleton',data:{isLoadingPlayerData,forceSkeleton:appConfig.forceSkeletonView},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+		// #endregion
 		return (
 			<div data-testid="loading-skeleton">
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='h-full flex flex-col'>
 					<div className='flex-shrink-0 p-2 md:p-4'>
 						<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
+							<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
 							<button
 								onClick={handleEditClick}
 								className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
@@ -2195,6 +2275,9 @@ export default function PlayerStats() {
 	}
 
 	if (!cachedPlayerData || !playerData) {
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:2197',message:'Rendering no-data state',data:{hasCachedData:!!cachedPlayerData,hasPlayerData:!!playerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+		// #endregion
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
@@ -3271,60 +3354,118 @@ export default function PlayerStats() {
 				</div>
 			)}
 
-			{/* Awards and Achievements Section */}
+			{/* Captaincies, Awards and Achievements Section */}
 			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Awards and Achievements</h3>
-				{isLoadingAwards ? (
+				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Captaincies, Awards and Achievements</h3>
+				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 						<AwardsListSkeleton />
 					</SkeletonTheme>
-				) : awardsData ? (
+				) : (
 					<div className='space-y-4'>
-						{/* Awards List */}
-						{awardsData.awards && awardsData.awards.length > 0 && (
-							<div>
-								<h4 className='text-white font-medium text-xs md:text-sm mb-2'>Awards</h4>
-								<ul className='space-y-1'>
-									{awardsData.awards.map((award: any, index: number) => (
-										<li key={index} className='text-white text-xs md:text-sm'>
-											<span className='text-dorkinians-yellow font-bold'>{award.awardName}</span>
-											{award.season && <span className='text-white/70 ml-2'>({award.season})</span>}
-										</li>
-									))}
-								</ul>
-							</div>
-						)}
-						
-						{/* TOTW Count */}
+						{/* Captains Section */}
+						<div>
+							<h4 className='text-white font-medium text-xs md:text-sm mb-2'>
+								Captains - Total Captaincies: <span className='font-bold text-dorkinians-yellow'>{totalCaptaincies}</span>
+							</h4>
+							{totalCaptaincies > 0 && captainHistory.length > 0 && (
+								<div className='overflow-x-auto mt-2'>
+									<table className='w-full text-white'>
+										<thead>
+											<tr className='border-b-2 border-dorkinians-yellow'>
+												<th className='text-left py-2 px-2 text-xs md:text-sm'>Season</th>
+												<th className='text-left py-2 px-2 text-xs md:text-sm'>Team</th>
+											</tr>
+										</thead>
+										<tbody>
+											{captainHistory.map((item, index) => (
+												<tr key={index} className='border-b border-green-500'>
+													<td className='py-2 px-2 text-xs md:text-sm'>{item.season}</td>
+													<td className='py-2 px-2 text-xs md:text-sm'>{item.team}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)}
+						</div>
+
+						{/* Awards Section */}
 						<div className='pt-2 border-t border-white/10'>
-							<p className='text-white text-xs md:text-sm'>
-								<span className='text-white/70'>Number of times in TOTW: </span>
-								<span className='font-bold text-dorkinians-yellow'>{awardsData.totwCount || 0}</span>
-							</p>
+							<h4 className='text-white font-medium text-xs md:text-sm mb-2'>
+								Awards - Total Awards: <span className='font-bold text-dorkinians-yellow'>{totalAwards}</span>
+							</h4>
+							{totalAwards > 0 && awardHistory.length > 0 && (
+								<div className='overflow-x-auto mt-2'>
+									<table className='w-full text-white'>
+										<thead>
+											<tr className='border-b-2 border-dorkinians-yellow'>
+												<th className='text-left py-2 px-2 text-xs md:text-sm'>Season</th>
+												<th className='text-left py-2 px-2 text-xs md:text-sm'>Award</th>
+											</tr>
+										</thead>
+										<tbody>
+											{awardHistory.map((item, index) => (
+												<tr key={index} className='border-b border-green-500'>
+													<td className='py-2 px-2 text-xs md:text-sm'>{item.season}</td>
+													<td className='py-2 px-2 text-xs md:text-sm'>{item.awardName}</td>
+												</tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							)}
 						</div>
 
-						{/* Star Man Count */}
-						<div>
-							<p className='text-white text-xs md:text-sm'>
-								<span className='text-white/70'>Number of times as Star Man: </span>
-								<span className='font-bold text-dorkinians-yellow'>{awardsData.starManCount || 0}</span>
-							</p>
+						{/* Achievements Section */}
+						<div className='pt-2 border-t border-white/10'>
+							<h4 className='text-white font-medium text-xs md:text-sm mb-2'>Achievements</h4>
+							
+							{/* TOTW Count */}
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									<span className='text-white/70'>Number of times in TOTW: </span>
+									<span className='font-bold text-dorkinians-yellow'>{awardsData?.totwCount || 0}</span>
+								</p>
+							</div>
+
+							{/* Star Man Count */}
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									<span className='text-white/70'>Number of times as Star Man: </span>
+									<span className='font-bold text-dorkinians-yellow'>{awardsData?.starManCount || 0}</span>
+								</p>
+							</div>
+
+							{/* Player of the Month Count (Top 5) */}
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									<span className='text-white/70'>Number of times in Top 5 Players of the Month: </span>
+									<span className='font-bold text-dorkinians-yellow'>{awardsData?.playerOfMonthCount || 0}</span>
+								</p>
+							</div>
+
+							{/* Player of the Month #1 Count */}
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									<span className='text-white/70'>Number of times as Player of the Month: </span>
+									<span className='font-bold text-dorkinians-yellow'>{awardsData?.playerOfMonthFirstCount || 0}</span>
+								</p>
+							</div>
+
+							{/* TOTS Count */}
+							<div>
+								<p className='text-white text-xs md:text-sm'>
+									<span className='text-white/70'>Number of time in TOTS: </span>
+									<span className='font-bold text-dorkinians-yellow'>{awardsData?.totsCount || 0}</span>
+								</p>
+							</div>
 						</div>
 
-						{/* Player of the Month Count */}
-						<div>
-							<p className='text-white text-xs md:text-sm'>
-								<span className='text-white/70'>Number of times in Player of the Month: </span>
-								<span className='font-bold text-dorkinians-yellow'>{awardsData.playerOfMonthCount || 0}</span>
-							</p>
-						</div>
-
-						{(!awardsData.awards || awardsData.awards.length === 0) && awardsData.playerOfMonthCount === 0 && awardsData.starManCount === 0 && (awardsData.totwCount || 0) === 0 && (
-							<p className='text-white/70 text-xs md:text-sm'>No awards or achievements recorded.</p>
+						{totalCaptaincies === 0 && totalAwards === 0 && (awardsData?.playerOfMonthCount || 0) === 0 && (awardsData?.playerOfMonthFirstCount || 0) === 0 && (awardsData?.starManCount || 0) === 0 && (awardsData?.totwCount || 0) === 0 && (awardsData?.totsCount || 0) === 0 && (
+							<p className='text-white/70 text-xs md:text-sm'>No captaincies, awards or achievements recorded.</p>
 						)}
 					</div>
-				) : (
-					<p className='text-white/70 text-xs md:text-sm'>No awards data available.</p>
 				)}
 			</div>
 		</div>
@@ -3352,11 +3493,14 @@ export default function PlayerStats() {
 		</div>
 	);
 
+	// #region agent log
+	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:3355',message:'Rendering loaded state - heading missing test ID',data:{selectedPlayer,hasPlayerData:!!playerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+	// #endregion
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>Stats - {selectedPlayer}</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
 					<button
 						onClick={handleEditClick}
 						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
