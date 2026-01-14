@@ -292,7 +292,7 @@ exports.handler = async (event, context) => {
 		emailService.configure();
 
 		// Get Heroku URL
-		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, "");
 
 		// CRITICAL: Check Heroku health BEFORE attempting to start seeding
