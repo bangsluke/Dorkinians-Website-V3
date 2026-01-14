@@ -555,15 +555,26 @@ interface ChatbotResponse {
 **Required Environment Variables:**
 
 ```bash
-# Neo4j Database (required)
+# Dorkinians Website V3 .env
+
+# Main deployed website URL
+WEBSITE_URL=https://your-website-url.com/
+
+# Random generated seed for verifying the seeding process
+SEED_API_KEY=your-random-generated-seed
+
+# Production (Aura) Neo4j Configuration
 PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
 
 # CORS Configuration (optional - defaults to production URL)
-ALLOWED_ORIGIN=https://dorkinians-website-v3.netlify.app
+ALLOWED_ORIGIN=https://your-website-url.com
 
-# Email Configuration (optional - for notifications)
+# Heroku Database
+HEROKU_SEEDER_URL=https://your-heroku-app.herokuapp.com/
+
+# SMTP Configuration - These are required for the automated emailing
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL_SECURE=false
@@ -572,13 +583,29 @@ SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
 
-# Umami Analytics (optional)
+# Umami Analytics Configuration - https://cloud.umami.is/analytics/eu/websites/351bdc1f-abd3-4b55-8e6f-23b3693b13b4
 NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
+
+# App Version (auto-populated from package.json at build time)
 NEXT_PUBLIC_APP_VERSION=1.1.23
 
-# Heroku Seeder URL (optional)
-HEROKU_SEEDER_URL=https://database-dorkinians-4bac3364a645.herokuapp.com
+# Google Maps API Key - https://console.cloud.google.com/apis/credentials?project=dorkinians-website-v3
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=your-google-maps-map-id
+
+# Upstash Redis for distributed rate limiting - https://console.upstash.com/redis/7543a52e-83bf-4b7a-adbf-73e9b87e9414?teamid=0
+UPSTASH_REDIS_REST_URL=https://your-upstash-redis-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-token
+
+# Google Cloud Authentication - https://console.cloud.google.com/auth/clients?project=dorkinians-website-v3
+AUTH_SECRET=your-random-generated-secret
+AUTH_GOOGLE_ID=your-client-id
+AUTH_GOOGLE_SECRET=your-client-secret
+AUTH_URL=https://your-website-url.com
+
+# CORS Configuration (optional - defaults to production URL)
+ALLOWED_ORIGIN=https://your-website-url.com
 ```
 
 **Environment Variable Validation:**
