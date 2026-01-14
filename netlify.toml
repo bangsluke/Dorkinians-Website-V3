@@ -72,10 +72,12 @@
 #   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
+# Exclude /api/* routes which are handled by Next.js via @netlify/plugin-nextjs
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 [[headers]]
   for = "/*"

@@ -37,6 +37,8 @@ const envSchema = z.object({
 	AUTH_GOOGLE_ID: z.string().min(1, "AUTH_GOOGLE_ID is required"),
 	AUTH_GOOGLE_SECRET: z.string().min(1, "AUTH_GOOGLE_SECRET is required"),
 	AUTH_URL: z.string().url("AUTH_URL must be a valid URL"),
+	// NEXTAUTH_URL is optional - NextAuth v5 prefers AUTH_URL but will fall back to NEXTAUTH_URL
+	NEXTAUTH_URL: z.string().url("NEXTAUTH_URL must be a valid URL").optional(),
 });
 
 type Env = z.infer<typeof envSchema>;

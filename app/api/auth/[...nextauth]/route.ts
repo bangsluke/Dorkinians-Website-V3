@@ -3,4 +3,25 @@ import { authOptions } from "@/lib/auth/config";
 
 const { handlers, auth } = NextAuth(authOptions);
 
-export { handlers as GET, handlers as POST, auth };
+// Wrap handlers with error logging to capture 500 errors
+const GET = async (req: Request) => {
+	try {
+		return await handlers.GET(req);
+	} catch (error) {
+		console.error("NextAuth GET error:", error);
+		// Re-throw to maintain error response
+		throw error;
+	}
+};
+
+const POST = async (req: Request) => {
+	try {
+		return await handlers.POST(req);
+	} catch (error) {
+		console.error("NextAuth POST error:", error);
+		// Re-throw to maintain error response
+		throw error;
+	}
+};
+
+export { GET, POST, auth };
