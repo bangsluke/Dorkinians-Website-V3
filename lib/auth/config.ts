@@ -10,10 +10,11 @@ export const authOptions: NextAuthConfig = {
 		}),
 	],
 	secret: process.env.AUTH_SECRET,
-	trustHost: true, // Required for production deployments
-	pages: {
-		signIn: "/api/auth/signin",
-	},
+	trustHost: true, // Required for production deployments on Netlify
+	// NextAuth v5 uses AUTH_URL or NEXTAUTH_URL env var for base URL
+	// Ensure AUTH_URL is set to https://dorkinians-website-v3.netlify.app in production
+	// Remove pages.signIn override - NextAuth default is already /api/auth/signin
+	// Setting it explicitly can cause routing issues
 	callbacks: {
 		async signIn({ user, account, profile }: any) {
 			// Verify email matches the authorized contact email from config
