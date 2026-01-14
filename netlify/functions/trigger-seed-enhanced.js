@@ -387,6 +387,16 @@ exports.handler = async (event, context) => {
 			try {
 				console.log(`🌱 HEROKU: Attempt ${retryCount + 1}/${maxRetries + 1} to call Heroku...`);
 
+				// Security: Include API key for authentication
+				const seedApiKey = process.env.SEED_API_KEY;
+				if (!seedApiKey) {
+					console.error("❌ SECURITY: SEED_API_KEY not configured");
+					throw new Error("API key not configured");
+				}
+
+				// Get origin for CORS validation
+				const origin = process.env.ALLOWED_ORIGIN || "https://dorkinians-website-v3.netlify.app";
+
 				const response = await fetchWithTimeout(
 					fullUrl,
 					{
@@ -394,6 +404,8 @@ exports.handler = async (event, context) => {
 						headers: {
 							"Content-Type": "application/json",
 							"User-Agent": "Netlify-Function/1.0",
+							"X-API-Key": seedApiKey,
+							"Origin": origin,
 						},
 						body: JSON.stringify({
 							environment,

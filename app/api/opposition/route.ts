@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
+import { logError } from "@/lib/utils/logger";
 
-const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeadersWithSecurity();
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -49,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ opposition }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching opposition:", error);
+		logError("Error fetching opposition", error);
 		return NextResponse.json({ error: "Failed to fetch opposition" }, { status: 500, headers: corsHeaders });
 	}
 }

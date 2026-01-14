@@ -1336,28 +1336,46 @@ export default function AdminPanel() {
 										? data.warningsLogs 
 										: JSON.stringify(data.warningsLogs, null, 2);
 									
-									warningsWindow.document.write(`
-										<!DOCTYPE html>
-										<html>
-										<head>
-											<title>Warnings Log - ${jobId}</title>
-											<style>
-												body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
-												pre { white-space: pre-wrap; word-wrap: break-word; }
-												.header { background: #2d2d2d; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-												.warning { color: #ffa500; }
-											</style>
-										</head>
-										<body>
-											<div class="header">
-												<h1>⚠️ Warnings Log</h1>
-												<p>Job ID: ${jobId}</p>
-											</div>
-											<pre>${warningsContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
-										</body>
-										</html>
-									`);
-									warningsWindow.document.close();
+									// Use DOM manipulation instead of document.write() to avoid CSP violations
+									warningsWindow.document.open();
+									const doc = warningsWindow.document;
+									
+									// Create HTML structure using DOM methods
+									doc.documentElement.innerHTML = '';
+									const html = doc.createElement('html');
+									const head = doc.createElement('head');
+									const title = doc.createElement('title');
+									title.textContent = `Warnings Log - ${jobId}`;
+									head.appendChild(title);
+									
+									const style = doc.createElement('style');
+									style.textContent = `
+										body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+										pre { white-space: pre-wrap; word-wrap: break-word; }
+										.header { background: #2d2d2d; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+										.warning { color: #ffa500; }
+									`;
+									head.appendChild(style);
+									
+									const body = doc.createElement('body');
+									const headerDiv = doc.createElement('div');
+									headerDiv.className = 'header';
+									const h1 = doc.createElement('h1');
+									h1.textContent = '⚠️ Warnings Log';
+									const p = doc.createElement('p');
+									p.textContent = `Job ID: ${jobId}`;
+									headerDiv.appendChild(h1);
+									headerDiv.appendChild(p);
+									
+									const pre = doc.createElement('pre');
+									pre.textContent = warningsContent;
+									
+									body.appendChild(headerDiv);
+									body.appendChild(pre);
+									html.appendChild(head);
+									html.appendChild(body);
+									doc.appendChild(html);
+									doc.close();
 								}
 							} else {
 								setError(data.error || "No warnings log available for this job.");

@@ -1,20 +1,51 @@
 <p align="center">
-  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" width="200"/>
+  <img src="https://i.postimg.cc/rm1f3Kth/Dorkinians.png" alt="Dorkinians FC Logo" height="100"/>
 </p>
 
-# Dorkinians FC Statistics Website
+<h1 align="center">Dorkinians FC Statistics Website</h1>
 
-> Mobile-first PWA chatbot statistics website for Dorkinians FC with unified schema architecture.
+<p align="center">
+  <strong>Mobile-first PWA chatbot statistics website</strong> for Dorkinians FC with natural language processing, graph database architecture, and advanced data visualization
+</p>
 
-[![Netlify Status](https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status)](https://app.netlify.com/projects/dorkinians-website-v3/deploys)
+<p align="center">
+  <a href="https://dorkinians-website-v3.netlify.app">🌐 Live Demo</a> •
+  <a href="https://github.com/bangsluke/Dorkinians-Website-V3">💻 GitHub Repository</a> •
+  <a href="#key-features">✨ Features</a> •
+  <a href="#tech-stack">🛠️ Tech Stack</a> •
+  <a href="#architecture">🏗️ Architecture</a> •
+  <a href="https://bangsluke-documentation.netlify.app/docs/projects/dorkinians-website">📚 User Documentation</a>
+</p>
+
+<p align="center">
+  <a href="https://app.netlify.com/projects/dorkinians-website-v3/deploys" style="text-decoration: none;">
+    <img src="https://api.netlify.com/api/v1/badges/d6b1056f-438c-4a15-8c02-5c390705543e/deploy-status" alt="Netlify Status" />
+  </a>
+  <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js 14" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Neo4j-Aura-green?logo=neo4j" alt="Neo4j" />
+  <img src="https://img.shields.io/badge/PWA-enabled-purple?logo=pwa" alt="PWA" />
+  <img src="https://img.shields.io/badge/license-Proprietary-red" alt="License" />
+</p>
+
+<p align="center">
+  <img src="./public/screenshots/TeamStats.png" alt="Dorkinians Website Screenshot" height="550"/>
+</p>
 
 ## Table of Contents
 
 - [Table of Contents](#table-of-contents)
 - [Project Overview](#project-overview)
+  - [Live Demo](#live-demo)
   - [Key Features](#key-features)
-- [Chatbot Architecture](#chatbot-architecture)
-  - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
+  - [Tech Stack](#tech-stack)
+  - [Screenshots](#screenshots)
+    - [Home Page](#home-page)
+    - [Team Stats](#team-stats)
+    - [League Information](#league-information)
+- [Architecture](#architecture)
+  - [Chatbot Architecture](#chatbot-architecture)
+    - [Natural Language Processing \& Entity Extraction](#natural-language-processing--entity-extraction)
 - [Query Processing Pipeline](#query-processing-pipeline)
   - [Stage 1: Text Preprocessing](#stage-1-text-preprocessing)
   - [Stage 2: Entity Recognition](#stage-2-entity-recognition)
@@ -44,6 +75,14 @@
 
 **Mobile-first PWA chatbot statistics website** for Dorkinians FC that processes natural language queries and returns visualized data using reusable chart components.
 
+This project demonstrates modern full-stack development practices, combining advanced NLP techniques, graph database architecture, and progressive web app technologies to create an intuitive, performant user experience.
+
+### Live Demo
+
+🌐 **Production Site**: [https://dorkinians-website-v3.netlify.app](https://dorkinians-website-v3.netlify.app)
+
+> [Back to Table of Contents](#table-of-contents)
+
 ### Key Features
 
 - **Mobile-First Design**: Optimized for mobile devices with native app feel
@@ -63,11 +102,108 @@
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Chatbot Architecture
+### Tech Stack
+
+**Frontend:**
+- **Next.js 14** - React framework with App Router, Server Components, and optimized performance
+- **TypeScript** - Strict type safety throughout the codebase
+- **Tailwind CSS** - Utility-first CSS framework
+- **Zustand** - Lightweight state management
+- **Framer Motion** - Smooth animations and transitions
+- **Recharts** - Data visualization library
+
+**Backend & Database:**
+- **Google Sheets** - Data source for the chatbot and statistics
+- **Neo4j Aura** - Graph database for relationship-based queries
+- **Cypher** - Graph query language for complex statistical queries
+- **Next.js API Routes** - Serverless API endpoints
+
+**Natural Language Processing:**
+- **compromise** - Advanced text parsing and linguistic analysis
+- **natural** - Fuzzy string matching algorithms (Jaro-Winkler, Levenshtein, Dice)
+
+**Testing & Quality:**
+- **TypeScript** - Compile-time type checking
+- **Jest** - Unit and integration testing
+- **Playwright** - End-to-end browser testing
+
+**Deployment & DevOps:**
+- **Netlify** - Hosting and edge functions
+- **GitHub Actions** - CI/CD pipeline
+- **PWA** - Progressive Web App with service workers
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Screenshots
+
+#### Home Page
+
+<p align="center">
+  <img src="./public/screenshots/Homepage.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
+
+#### Team Stats
+
+<p align="center">
+  <img src="./public/screenshots/TeamStats.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
+
+#### League Information
+
+<p align="center">
+  <img src="./public/screenshots/LeagueInformation.png" alt="Dorkinians Website Screenshot" height="500"/>
+</p>
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Architecture
+
+The application follows a modern, scalable architecture:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Frontend (Next.js 14)                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐       │
+│  │   PWA UI     │  │  Chatbot     │  │  Stats       │       │
+│  │  Components  │  │  Interface   │  │  Visualizer  │       │
+│  └──────────────┘  └──────────────┘  └──────────────┘       │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  API Layer (Next.js Routes)                 │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  /api/chatbot - NLP Processing & Query Generation    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│              NLP Pipeline (Entity Extraction)               │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐     │
+│  │  Text    │→ │ Entity   │→ │  Fuzzy   │→ │ Question │     │
+│  │  Preproc │  │ Extract  │  │ Matching │  │ Analysis │     │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘     │
+└───────────────────────┬─────────────────────────────────────┘
+                        │
+                        ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Database Layer (Neo4j Aura)                    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  Graph Database with Cypher Query Execution          │   │
+│  │  - Players, Teams, Matches, Statistics               │   │
+│  │  - Relationship-based queries                        │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Chatbot Architecture
 
 The chatbot is the core functionality of the application, processing natural language queries about Dorkinians FC statistics and returning visualized responses.
 
-### Natural Language Processing & Entity Extraction
+#### Natural Language Processing & Entity Extraction
 
 The chatbot uses a sophisticated entity extraction pipeline for sports terminology:
 
@@ -419,15 +555,26 @@ interface ChatbotResponse {
 **Required Environment Variables:**
 
 ```bash
-# Neo4j Database
+# Dorkinians Website V3 .env
+
+# Main deployed website URL
+WEBSITE_URL=https://your-website-url.com/
+
+# Random generated seed for verifying the seeding process
+SEED_API_KEY=your-random-generated-seed
+
+# Production (Aura) Neo4j Configuration
 PROD_NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 PROD_NEO4J_USER=neo4j
 PROD_NEO4J_PASSWORD=your-aura-password
 
-# OpenAI API (for chatbot)
-OPENAI_API_KEY=your_openai_api_key_here
+# CORS Configuration (optional - defaults to production URL)
+ALLOWED_ORIGIN=https://your-website-url.com
 
-# Email Configuration (for notifications)
+# Heroku Database
+HEROKU_SEEDER_URL=https://your-heroku-app.herokuapp.com/
+
+# SMTP Configuration - These are required for the automated emailing
 SMTP_SERVER=smtp.gmail.com
 SMTP_PORT=587
 SMTP_EMAIL_SECURE=false
@@ -436,11 +583,36 @@ SMTP_PASSWORD=your-app-password
 SMTP_FROM_EMAIL=your-email@gmail.com
 SMTP_TO_EMAIL=recipient@example.com
 
-# Umami Analytics (optional)
+# Umami Analytics Configuration - https://cloud.umami.is/analytics/eu/websites/351bdc1f-abd3-4b55-8e6f-23b3693b13b4
 NEXT_PUBLIC_UMAMI_SCRIPT_URL=https://your-umami-instance.com/script.js
 NEXT_PUBLIC_UMAMI_WEBSITE_ID=your-website-id-here
-NEXT_PUBLIC_APP_VERSION=1.1.21
+
+# App Version (auto-populated from package.json at build time)
+NEXT_PUBLIC_APP_VERSION=1.1.23
+
+# Google Maps API Key - https://console.cloud.google.com/apis/credentials?project=dorkinians-website-v3
+NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-google-maps-api-key
+NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID=your-google-maps-map-id
+
+# Upstash Redis for distributed rate limiting - https://console.upstash.com/redis/7543a52e-83bf-4b7a-adbf-73e9b87e9414?teamid=0
+UPSTASH_REDIS_REST_URL=https://your-upstash-redis-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-upstash-redis-token
+
+# Google Cloud Authentication - https://console.cloud.google.com/auth/clients?project=dorkinians-website-v3
+AUTH_SECRET=your-random-generated-secret
+AUTH_GOOGLE_ID=your-client-id
+AUTH_GOOGLE_SECRET=your-client-secret
+AUTH_URL=https://your-website-url.com
+
+# CORS Configuration (optional - defaults to production URL)
+ALLOWED_ORIGIN=https://your-website-url.com
 ```
+
+**Environment Variable Validation:**
+
+The application validates all required environment variables at startup using Zod schema validation. Missing or invalid variables will cause the application to fail to start in production mode, with clear error messages indicating which variables are missing or invalid.
+
+See [Additional_Details.md](./docs/Additional_Details.md#environment-setup) for detailed environment configuration instructions.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -465,7 +637,7 @@ The project uses a unified schema system where configuration files are synchroni
 
 ### Chatbot Query Endpoint
 
-**Endpoint**: `/api/chatbot/query`
+**Endpoint**: `/api/chatbot`
 
 **Method**: POST
 
@@ -473,11 +645,8 @@ The project uses a unified schema system where configuration files are synchroni
 
 ```json
 {
-	"query": "How many goals has Luke Bangs scored this season?",
-	"context": {
-		"userId": "optional-user-id",
-		"sessionId": "optional-session-id"
-	}
+	"question": "How many goals has Luke Bangs scored this season?",
+	"userContext": "Luke Bangs"
 }
 ```
 
@@ -485,18 +654,21 @@ The project uses a unified schema system where configuration files are synchroni
 
 ```json
 {
-  "success": true,
-  "data": {
-    "answer": "Luke Bangs has scored 15 goals this season",
-    "visualization": {
-      "type": "bar-chart",
-      "data": [...],
-      "config": {...}
-    },
-    "entities": {
-      "players": ["Luke Bangs"],
-      "statType": "goals",
-      "timeframe": "this season"
+  "answer": "Luke Bangs has scored 15 goals this season",
+  "visualization": {
+    "type": "bar-chart",
+    "data": [...],
+    "config": {...}
+  },
+  "sources": ["Neo4j Database"],
+  "debug": {
+    "question": "How many goals has Luke Bangs scored this season?",
+    "userContext": "Luke Bangs",
+    "timestamp": "2024-01-01T06:00:00.000Z",
+    "processingDetails": {
+      "questionAnalysis": {...},
+      "cypherQueries": [...],
+      "processingSteps": [...]
     }
   }
 }
@@ -506,30 +678,43 @@ The project uses a unified schema system where configuration files are synchroni
 
 ### Database Seeding Endpoint
 
-**Endpoint**: `/.netlify/functions/trigger-seed`
+**Endpoint**: `/api/trigger-seed`
 
-**Method**: GET
+**Method**: POST
 
-**Query Parameters**:
+**Request Body**:
 
-- `environment`: "production" or "development"
+```json
+{
+	"emailConfig": {
+		"emailAddress": "your-email@example.com",
+		"sendEmailAtStart": false,
+		"sendEmailAtCompletion": true
+	},
+	"seasonConfig": {
+		"currentSeason": null,
+		"useSeasonOverride": false,
+		"fullRebuild": false
+	}
+}
+```
 
 **Response**:
 
 ```json
 {
 	"success": true,
-	"message": "Database seeding completed successfully",
+	"message": "Database seeding started on Heroku",
 	"environment": "production",
+	"jobId": "seed_1234567890_abc123",
 	"timestamp": "2024-01-01T06:00:00.000Z",
-	"result": {
-		"success": true,
-		"exitCode": 0,
-		"nodesCreated": 1500,
-		"relationshipsCreated": 3000
-	}
+	"status": "started",
+	"note": "Seeding is running on Heroku. Check email for completion notification.",
+	"herokuUrl": "https://database-dorkinians-4bac3364a645.herokuapp.com"
 }
 ```
+
+**Note**: The seeding process runs on Heroku and will send an email notification upon completion if email configuration is provided.
 
 > [Back to Table of Contents](#table-of-contents)
 

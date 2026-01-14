@@ -59,21 +59,25 @@
   to = "/.netlify/functions/trigger-seed"
   status = 200
 
-[[redirects]]
-  from = "/api/debug/*"
-  to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/:splat"
-  status = 200
+# Debug endpoints - only available in development
+# In production, these should be removed or secured with authentication
+# [[redirects]]
+#   from = "/api/debug/*"
+#   to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/:splat"
+#   status = 200
 
-[[redirects]]
-  from = "/api/storage/*"
-  to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/storage/:splat"
-  status = 200
+# [[redirects]]
+#   from = "/api/storage/*"
+#   to = "https://database-dorkinians-4bac3364a645.herokuapp.com/api/storage/:splat"
+#   status = 200
 
 # Handle all other routes - serve index.html for SPA routing
+# Exclude /api/* routes which are handled by Next.js via @netlify/plugin-nextjs
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 
 [[headers]]
   for = "/*"
@@ -81,3 +85,7 @@
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), interest-cohort=()"
+    # Content-Security-Policy is handled by Next.js middleware - do not set here to avoid conflicts

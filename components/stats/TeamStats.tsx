@@ -565,10 +565,14 @@ export default function TeamStats() {
 		const fetchTeamData = async () => {
 			setIsLoadingTeamData(true);
 			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
 				const response = await fetch("/api/team-data-filtered", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
+						...csrfHeaders,
 					},
 					body: JSON.stringify({
 						teamName: selectedTeam,
