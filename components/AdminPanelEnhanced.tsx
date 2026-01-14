@@ -93,11 +93,18 @@ export default function AdminPanelEnhanced() {
 	const startTimeRef = useRef<number | null>(null);
 	const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+	// Helper function to build Heroku API URLs with proper path handling
+	const buildHerokuUrl = (path: string): string => {
+		const baseUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com";
+		const cleanBaseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slashes
+		const cleanPath = path.startsWith("/") ? path : `/${path}`; // Ensure path starts with /
+		return `${cleanBaseUrl}${cleanPath}`;
+	};
+
 	// Enhanced health check function
 	const checkHerokuHealth = async () => {
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
-			const response = await fetch(`${herokuUrl}/health`, {
+			const response = await fetch(buildHerokuUrl("/health"), {
 				method: 'GET',
 				headers: { 'Content-Type': 'application/json' },
 				mode: 'cors',
@@ -366,7 +373,6 @@ export default function AdminPanelEnhanced() {
 		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 			controller = new AbortController();
 			timeoutId = setTimeout(() => {
 				if (controller && !controller.signal.aborted) {
@@ -374,7 +380,7 @@ export default function AdminPanelEnhanced() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
+			const response = await fetch(buildHerokuUrl(`/status/${jobId}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
