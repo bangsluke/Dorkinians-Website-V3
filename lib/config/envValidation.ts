@@ -7,6 +7,9 @@ const envSchema = z.object({
 	PROD_NEO4J_USER: z.string().min(1, "PROD_NEO4J_USER is required"),
 	PROD_NEO4J_PASSWORD: z.string().min(1, "PROD_NEO4J_PASSWORD is required"),
 
+	// API Security (required)
+	SEED_API_KEY: z.string().min(32, "SEED_API_KEY must be at least 32 characters for security"),
+
 	// CORS Configuration (optional - defaults to production URL)
 	ALLOWED_ORIGIN: z.string().url("ALLOWED_ORIGIN must be a valid URL").optional(),
 
@@ -28,6 +31,14 @@ const envSchema = z.object({
 
 	// Heroku Seeder URL (optional)
 	HEROKU_SEEDER_URL: z.string().url().optional(),
+
+	// Authentication (required for admin access)
+	AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters for security"),
+	AUTH_GOOGLE_ID: z.string().min(1, "AUTH_GOOGLE_ID is required"),
+	AUTH_GOOGLE_SECRET: z.string().min(1, "AUTH_GOOGLE_SECRET is required"),
+	AUTH_URL: z.string().url("AUTH_URL must be a valid URL"),
+	// NEXTAUTH_URL is optional - NextAuth v5 prefers AUTH_URL but will fall back to NEXTAUTH_URL
+	NEXTAUTH_URL: z.string().url("NEXTAUTH_URL must be a valid URL").optional(),
 });
 
 type Env = z.infer<typeof envSchema>;

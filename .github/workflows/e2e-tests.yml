@@ -2,8 +2,8 @@ name: E2E Tests - Weekly
 
 on:
   schedule:
-    # Run every Monday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
-    - cron: '0 2 * * 2'
+    # Run every Wednesday at 2:00 AM UTC (3:00 AM BST / 2:00 AM GMT)
+    - cron: '0 2 * * 3'
   workflow_dispatch: # Allow manual triggering
 
 jobs:

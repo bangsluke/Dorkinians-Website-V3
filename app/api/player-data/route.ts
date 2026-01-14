@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 
-const corsHeaders = {
-	"Access-Control-Allow-Origin": "*",
-	"Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-	"Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeadersWithSecurity();
 
 export async function OPTIONS() {
 	return new NextResponse(null, { status: 200, headers: corsHeaders });

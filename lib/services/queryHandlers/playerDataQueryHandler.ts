@@ -2287,13 +2287,21 @@ export class PlayerDataQueryHandler {
 
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
+				// Security: Only log in development mode and sanitize input to prevent log injection
+				const isDevelopment = process.env.NODE_ENV === 'development';
 				const chatbotService = ChatbotService.getInstance();
 				
-				// Create query with real values for client console display
-				const readyToExecuteQuery = query
-					.replace(/\$playerName/g, `'${actualPlayerName}'`)
-					.replace(/\$graphLabel/g, `'${neo4jService.getGraphLabel()}'`);
-				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				if (isDevelopment) {
+					// Sanitize playerName to prevent log injection (escape single quotes and special characters)
+					const sanitizedPlayerName = JSON.stringify(actualPlayerName).slice(1, -1); // Remove outer quotes from JSON.stringify
+					const sanitizedGraphLabel = JSON.stringify(neo4jService.getGraphLabel()).slice(1, -1);
+					
+					// Create query with real values for client console display (development only)
+					const readyToExecuteQuery = query
+						.replace(/\$playerName/g, `'${sanitizedPlayerName}'`)
+						.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`);
+					chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+				}
 
 			const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
 				playerName: actualPlayerName,
@@ -2852,13 +2860,24 @@ export class PlayerDataQueryHandler {
 		`;
 
 		// Store query for debugging
+		// Security: Only log in development mode and sanitize input to prevent log injection
+		const isDevelopment = process.env.NODE_ENV === 'development';
 		const chatbotService = ChatbotService.getInstance();
-		chatbotService.lastExecutedQueries.push(`HOME_AWAY_COMPARISON: ${query}`);
-		chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName, graphLabel })}`);
+		
+		if (isDevelopment) {
+			chatbotService.lastExecutedQueries.push(`HOME_AWAY_COMPARISON: ${query}`);
+			chatbotService.lastExecutedQueries.push(`PARAMS: ${JSON.stringify({ playerName, graphLabel })}`);
 
-		// Log copyable query for debugging
-		const readyToExecuteQuery = query.replace(/\$graphLabel/g, `'${graphLabel}'`).replace(/\$playerName/g, `'${playerName}'`);
-		chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+			// Sanitize inputs to prevent log injection
+			const sanitizedPlayerName = JSON.stringify(playerName).slice(1, -1);
+			const sanitizedGraphLabel = JSON.stringify(graphLabel).slice(1, -1);
+			
+			// Log copyable query for debugging (development only)
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`)
+				.replace(/\$playerName/g, `'${sanitizedPlayerName}'`);
+			chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		}
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });

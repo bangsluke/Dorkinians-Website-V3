@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
+import { headers } from "next/headers";
 import "./globals.css";
 import PWAUpdateNotification from "../components/PWAUpdateNotification";
 import UmamiAnalytics from "../components/UmamiAnalytics";
 import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
+import SessionProvider from "../components/SessionProvider";
 import { validateEnv } from "@/lib/config/envValidation";
 
 // Validate environment variables at app startup
@@ -74,9 +76,13 @@ export const viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
 	const umamiScriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL;
 	const umamiWebsiteId = process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+	
+	// Read nonce from request headers set by middleware
+	const headersList = headers();
+	const nonce = headersList.get('x-csp-nonce') || '';
 
 	return (
-		<html lang='en'>
+		<html lang='en' nonce={nonce}>
 			<head>
 				<meta name='apple-mobile-web-app-capable' content='yes' />
 				<meta name='apple-mobile-web-app-status-bar-style' content='default' />
@@ -90,18 +96,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 			</head>
 			<body className={inter.className} suppressHydrationWarning={true}>
 				<ErrorBoundaryWrapper>
-					{children}
-					<PWAUpdateNotification />
-					{umamiScriptUrl && umamiWebsiteId && (
-						<Script
-							async
-							defer
-							data-website-id={umamiWebsiteId}
-							src={umamiScriptUrl}
-							strategy='lazyOnload'
-						/>
-					)}
-					<UmamiAnalytics />
+					<SessionProvider>
+						{children}
+						<PWAUpdateNotification />
+						{umamiScriptUrl && umamiWebsiteId && (
+							<Script
+								async
+								defer
+								data-website-id={umamiWebsiteId}
+								src={umamiScriptUrl}
+								strategy='lazyOnload'
+								nonce={nonce}
+							/>
+						)}
+						<UmamiAnalytics />
+					</SessionProvider>
 				</ErrorBoundaryWrapper>
 			</body>
 		</html>
