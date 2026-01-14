@@ -521,7 +521,7 @@ exports.handler = async (event, context) => {
 
 		// Trigger Heroku seeding service
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
-		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
 		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, ""); // Remove one or more trailing slashes
 		console.log("🔗 HEROKU: Cleaned URL:", cleanHerokuUrl);

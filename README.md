@@ -710,7 +710,7 @@ The project uses a unified schema system where configuration files are synchroni
 	"timestamp": "2024-01-01T06:00:00.000Z",
 	"status": "started",
 	"note": "Seeding is running on Heroku. Check email for completion notification.",
-	"herokuUrl": "https://database-dorkinians-4bac3364a645.herokuapp.com"
+	"herokuUrl": "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/"
 }
 ```
 

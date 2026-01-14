@@ -21,7 +21,10 @@ export const killJob = async (
   let timeoutId: NodeJS.Timeout | null = null;
 
   try {
-    const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+    const baseUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com";
+    const cleanBaseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    const apiUrl = `${cleanBaseUrl}/jobs/${jobIdToKill}/kill`;
+    
     controller = new AbortController();
     timeoutId = setTimeout(() => {
       if (controller && !controller.signal.aborted) {
@@ -29,7 +32,7 @@ export const killJob = async (
       }
     }, 10000); // 10 second timeout
 
-    const response = await fetch(`${herokuUrl}/jobs/${jobIdToKill}/kill`, {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
