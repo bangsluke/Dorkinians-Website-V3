@@ -99,6 +99,14 @@ export default function AdminPanel() {
 	// Debug logs state
 	const [debugLogs, setDebugLogs] = useState<boolean>(false);
 
+	// Helper function to build Heroku API URLs with proper path handling
+	const buildHerokuUrl = (path: string): string => {
+		const baseUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com";
+		const cleanBaseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slashes
+		const cleanPath = path.startsWith("/") ? path : `/${path}`; // Ensure path starts with /
+		return `${cleanBaseUrl}${cleanPath}`;
+	};
+
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
@@ -522,7 +530,6 @@ export default function AdminPanel() {
 		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 			controller = new AbortController();
 			timeoutId = setTimeout(() => {
 				if (controller && !controller.signal.aborted) {
@@ -530,7 +537,7 @@ export default function AdminPanel() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
+			const response = await fetch(buildHerokuUrl(`/status/${jobId}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -626,7 +633,7 @@ export default function AdminPanel() {
 
 					// Try to get more information about what jobs exist
 					try {
-						const jobsResponse = await fetch(`${herokuUrl}/jobs`, {
+						const jobsResponse = await fetch(buildHerokuUrl("/jobs"), {
 							method: "GET",
 							headers: { "Content-Type": "application/json" },
 							mode: "cors",
@@ -723,7 +730,6 @@ export default function AdminPanel() {
 		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 			controller = new AbortController();
 			timeoutId = setTimeout(() => {
 				if (controller && !controller.signal.aborted) {
@@ -731,7 +737,7 @@ export default function AdminPanel() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(`${herokuUrl}/status/${specificJobId}`, {
+			const response = await fetch(buildHerokuUrl(`/status/${specificJobId}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -1306,8 +1312,7 @@ export default function AdminPanel() {
 						}
 
 						// Open log viewer in new tab
-						const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
-						window.open(`${herokuUrl}/logs/${jobId}/view`, '_blank');
+						window.open(buildHerokuUrl(`/logs/${jobId}/view`), '_blank');
 					}}
 					disabled={!jobId}
 					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
@@ -1324,8 +1329,7 @@ export default function AdminPanel() {
 
 						// Fetch warnings log and display in modal
 						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
-							const response = await fetch(`${herokuUrl}/logs/${jobId}/warnings`);
+							const response = await fetch(buildHerokuUrl(`/logs/${jobId}/warnings`));
 							const data = await response.json();
 							
 							if (data.success && data.warningsLogs) {
@@ -1399,7 +1403,6 @@ export default function AdminPanel() {
 						let timeoutId: NodeJS.Timeout | null = null;
 
 						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 							controller = new AbortController();
 							timeoutId = setTimeout(() => {
 								if (controller && !controller.signal.aborted) {
@@ -1407,7 +1410,7 @@ export default function AdminPanel() {
 								}
 							}, 10000); // 10 second timeout
 
-							const response = await fetch(`${herokuUrl}/jobs`, {
+							const response = await fetch(buildHerokuUrl("/jobs"), {
 								method: "GET",
 								headers: {
 									"Content-Type": "application/json",
