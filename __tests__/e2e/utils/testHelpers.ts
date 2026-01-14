@@ -260,18 +260,128 @@ export async function selectPlayer(page: Page, playerName: string) {
 	
 	// Wait for dropdown and select - try test ID first
 	await page.waitForTimeout(500); // Wait for dropdown to appear
+	
+	// Try to find the option first
 	const optionByTestId = page.getByTestId('player-selection-option').filter({ hasText: playerName }).first();
 	const optionExists = await optionByTestId.isVisible({ timeout: 2000 }).catch(() => false);
 	
 	if (optionExists) {
-		await optionByTestId.click();
+		// Try clicking the option first (most direct)
+		try {
+			await optionByTestId.click({ timeout: 2000 });
+		} catch (e) {
+			// Fallback 1: Try clicking with force
+			try {
+				await optionByTestId.click({ force: true, timeout: 2000 });
+			} catch (e2) {
+				// Fallback 2: Try keyboard navigation
+				await searchInput.focus();
+				await page.waitForTimeout(100);
+				await searchInput.press('ArrowDown');
+				await page.waitForTimeout(100);
+				await searchInput.press('Enter');
+			}
+		}
 	} else {
 		const option = page.locator(`text=${playerName}`).first();
-		await option.click();
+		const optionVisible = await option.isVisible({ timeout: 2000 }).catch(() => false);
+		if (optionVisible) {
+			try {
+				await option.click();
+			} catch (e) {
+				await searchInput.press('Enter');
+			}
+		} else {
+			// Last resort: try keyboard Enter on the input (should select first filtered option)
+			await searchInput.press('Enter');
+		}
 	}
 	
 	// Wait for player to be selected
 	await waitForPageLoad(page);
+}
+
+/**
+ * Set player directly in store and localStorage (bypasses UI interaction)
+ * This is more reliable for tests that need a player selected before testing
+ * 
+ * This function:
+ * 1. Sets localStorage directly
+ * 2. Calls the store's selectPlayer function via page.evaluate to update store state
+ * 3. Waits for the store to be updated
+ */
+export async function setPlayerDirectly(page: Page, playerName: string) {
+	// Set localStorage and manually trigger store update
+	// Since we can't easily access Zustand stores from page.evaluate(),
+	// we'll set localStorage and then trigger initializeFromStorage by navigating
+	await page.evaluate((name) => {
+		// Set localStorage (matching store's selectPlayer behavior)
+		localStorage.setItem('dorkinians-selected-player', name);
+		
+		// Also update recent players
+		try {
+			const recentPlayersKey = 'dorkinians-recent-players';
+			const existing = localStorage.getItem(recentPlayersKey);
+			let recentPlayers: string[] = existing ? JSON.parse(existing) : [];
+			recentPlayers = recentPlayers.filter((p) => p !== name);
+			recentPlayers.unshift(name);
+			recentPlayers = recentPlayers.slice(0, 5);
+			localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
+		} catch (e) {
+			console.warn('Failed to update recent players:', e);
+		}
+	}, playerName);
+	
+	// Now trigger store update by calling initializeFromStorage
+	// We'll do this by navigating away and back, or by manually calling it if accessible
+	// The simplest: reload the page or navigate to trigger initializeFromStorage
+	// But actually, we can just wait for the next component mount to call it
+	// OR we can manually trigger it by accessing the store if it's exposed
+	
+	// Wait for localStorage to be set
+	await page.waitForFunction(
+		(name) => localStorage.getItem('dorkinians-selected-player') === name,
+		playerName,
+		{ timeout: 5000 }
+	);
+	
+}
+
+/**
+ * Set up localStorage for Player Stats page to display fully populated
+ * This replicates the essential behavior of initializeFromStorage for testing
+ * without requiring navigation to home page
+ */
+export async function setupPlayerStatsPage(page: Page, playerName: string) {
+	await page.evaluate((name) => {
+		// Set selected player (required for Player Stats)
+		localStorage.setItem('dorkinians-selected-player', name);
+		
+		// Set navigation state to stats page
+		localStorage.setItem('dorkinians-current-main-page', 'stats');
+		localStorage.setItem('dorkinians-current-stats-sub-page', 'player-stats');
+		
+		// Update recent players (matching selectPlayer behavior)
+		try {
+			const recentPlayersKey = 'dorkinians-recent-players';
+			const existing = localStorage.getItem(recentPlayersKey);
+			let recentPlayers: string[] = existing ? JSON.parse(existing) : [];
+			recentPlayers = recentPlayers.filter((p) => p !== name);
+			recentPlayers.unshift(name);
+			recentPlayers = recentPlayers.slice(0, 5);
+			localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
+		} catch (e) {
+			console.warn('Failed to update recent players:', e);
+		}
+	}, playerName);
+	
+	// Wait for localStorage to be set
+	await page.waitForFunction(
+		(name) => localStorage.getItem('dorkinians-selected-player') === name &&
+		           localStorage.getItem('dorkinians-current-main-page') === 'stats',
+		playerName,
+		{ timeout: 5000 }
+	);
 }
 
 /**

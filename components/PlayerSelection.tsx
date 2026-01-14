@@ -130,17 +130,17 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				className='w-full max-w-md mx-auto'>
 				<div className='space-y-4'>
 					<div>
-						<Listbox
-							value={localSelectedPlayer}
-							onChange={(playerName) => {
-								const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
-								if (player) handlePlayerSelect(player);
-							}}>
-							<div className='relative'>
-								<Listbox.Button
-									data-testid="player-selection-button"
-									onClick={handleDropdownOpen}
-									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+				<Listbox
+					value={localSelectedPlayer}
+					onChange={(playerName) => {
+						const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
+						if (player) handlePlayerSelect(player);
+					}}>
+					<div className='relative'>
+						<Listbox.Button
+							data-testid="player-selection-button"
+							onClick={handleDropdownOpen}
+							className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
 										{localSelectedPlayer || "Choose a player..."}
 									</span>

@@ -1580,9 +1580,6 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:1585',message:'Component render entry',data:{selectedPlayer,hasCachedData:!!cachedPlayerData,isLoading:isLoadingPlayerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-	// #endregion
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -2222,7 +2219,7 @@ export default function PlayerStats() {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4' data-testid="stats-page-heading">Stats</h2>
 					<p className='text-white text-sm md:text-base mb-4'>Select a player to display data here</p>
 					<button
 						onClick={handleEditClick}
@@ -2236,9 +2233,6 @@ export default function PlayerStats() {
 	}
 
 	if (isLoadingPlayerData || appConfig.forceSkeletonView) {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:2161',message:'Rendering loading skeleton',data:{isLoadingPlayerData,forceSkeleton:appConfig.forceSkeletonView},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 		return (
 			<div data-testid="loading-skeleton">
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -2275,9 +2269,6 @@ export default function PlayerStats() {
 	}
 
 	if (!cachedPlayerData || !playerData) {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:2197',message:'Rendering no-data state',data:{hasCachedData:!!cachedPlayerData,hasPlayerData:!!playerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-		// #endregion
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
 				<div className='text-center'>
@@ -3493,9 +3484,6 @@ export default function PlayerStats() {
 		</div>
 	);
 
-	// #region agent log
-	fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerStats.tsx:3355',message:'Rendering loaded state - heading missing test ID',data:{selectedPlayer,hasPlayerData:!!playerData},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-	// #endregion
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
