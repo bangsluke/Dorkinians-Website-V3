@@ -38,9 +38,9 @@ jest.mock("../../lib/neo4j", () => ({
 	},
 }));
 
-import { ChatbotService, QuestionContext } from "../../lib/services/chatbotService";
-import { fetchTestData, getTestPlayerNames, generateTestQuestions, validateResponse, STAT_TEST_CONFIGS } from "../utils/testUtils";
-import { TestConfig } from "../../config/config";
+import { ChatbotService, QuestionContext } from "@/lib/services/chatbotService";
+import { fetchTestData, getTestPlayerNames, generateTestQuestions, validateResponse, STAT_TEST_CONFIGS } from "@/__tests__/utils/testUtils";
+import { TestConfig } from "@/config/config";
 
 // No mocking - testing against real production database
 // This tests actual chatbot performance with real data

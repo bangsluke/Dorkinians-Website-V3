@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "../player-data/route";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -104,7 +106,7 @@ export async function POST(request: NextRequest) {
 			"8th XI": "8s",
 		};
 
-		const distribution = result.records.map((record) => {
+		const distribution = result.records.map((record: Record) => {
 			const teamName = String(record.get("team") || "");
 			const count = toNumber(record.get("playerCount"));
 			return {
@@ -115,7 +117,7 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ distribution }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching club player distribution:", error);
+		logError("Error fetching club player distribution", error);
 		return NextResponse.json({ error: "Failed to fetch club player distribution" }, { status: 500, headers: corsHeaders });
 	}
 }

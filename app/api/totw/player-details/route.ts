@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { MatchDetail } from "@/types";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 
 		const queryResult = await neo4jService.runQuery(query, { graphLabel, seasonWeek, playerName });
 
-		const matchDetails = queryResult.records.map((record) => {
+		const matchDetails = queryResult.records.map((record: Record) => {
 			const mdNode = record.get("md");
 			const properties = mdNode.properties;
 			const matchSummary = record.get("matchSummary");

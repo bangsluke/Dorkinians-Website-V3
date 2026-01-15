@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -51,7 +52,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Map results to array with ranks
-		const rankings = result.records.map((record, index) => {
+		const rankings = result.records.map((record: Record, index: number) => {
 			const playerName = record.get("playerName");
 			const totalScore = record.get("totalScore");
 			

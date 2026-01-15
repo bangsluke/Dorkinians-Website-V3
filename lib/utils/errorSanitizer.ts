@@ -5,6 +5,8 @@
  * based on environment (production vs development)
  */
 
+import { logError } from './logger';
+
 export function sanitizeError(error: unknown, isProduction: boolean): {
 	message: string;
 	details?: string;
@@ -13,11 +15,7 @@ export function sanitizeError(error: unknown, isProduction: boolean): {
 		// In production, never expose error details
 		if (error instanceof Error) {
 			// Log full error server-side but return generic message
-			console.error("Error details (server-side only):", {
-				message: error.message,
-				stack: error.stack,
-				name: error.name,
-			});
+			logError("Error details (server-side only)", error);
 			
 			// Return generic user-friendly message
 			return {

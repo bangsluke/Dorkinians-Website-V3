@@ -63,6 +63,13 @@ const nextConfig = {
 	// }
 	env: {
 		NEXT_PUBLIC_APP_VERSION: appVersion,
+		NEXT_PUBLIC_CONSOLE_LOG_LEVEL: process.env.CONSOLE_LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'error' : 'info'),
+	},
+	// Remove console logs in production (except console.error which we sanitize at runtime)
+	compiler: {
+		removeConsole: process.env.NODE_ENV === 'production' ? {
+			exclude: ['error'],
+		} : false,
 	},
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js

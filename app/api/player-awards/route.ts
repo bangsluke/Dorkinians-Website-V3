@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -98,6 +100,29 @@ export async function GET(request: NextRequest) {
 			playerName,
 		});
 
+		// Query SeasonTOTW (TOTS) count
+		const totsQuery = `
+			MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[r:IN_SEASON_TOTW]->(st:SeasonTOTW {graphLabel: $graphLabel})
+			RETURN count(DISTINCT st) as count
+		`;
+
+		const totsResult = await neo4jService.runQuery(totsQuery, {
+			graphLabel,
+			playerName,
+		});
+
+		// Query Player of the Month #1 count (when player is ranked first)
+		const potmFirstQuery = `
+			MATCH (pm:PlayersOfTheMonth {graphLabel: $graphLabel})
+			WHERE pm.player1Name = $playerName
+			RETURN count(DISTINCT pm) as count
+		`;
+
+		const potmFirstResult = await neo4jService.runQuery(potmFirstQuery, {
+			graphLabel,
+			playerName,
+		});
+
 		// Helper function to convert Neo4j Integer to JavaScript number
 		const toNumber = (value: any): number => {
 			if (value === null || value === undefined) return 0;
@@ -123,7 +148,7 @@ export async function GET(request: NextRequest) {
 			return isNaN(num) ? 0 : num;
 		};
 
-		const awards = awardsResult.records.map((record) => ({
+		const awards = awardsResult.records.map((record: Record) => ({
 			awardName: record.get("awardName"),
 			season: record.get("season"),
 			awardType: record.get("awardType"),
@@ -141,14 +166,24 @@ export async function GET(request: NextRequest) {
 			? toNumber(starManResult.records[0].get("count"))
 			: 0;
 
+		const totsCount = totsResult.records.length > 0
+			? toNumber(totsResult.records[0].get("count"))
+			: 0;
+
+		const playerOfMonthFirstCount = potmFirstResult.records.length > 0
+			? toNumber(potmFirstResult.records[0].get("count"))
+			: 0;
+
 		return NextResponse.json({
 			awards,
 			playerOfMonthCount,
 			starManCount,
 			totwCount,
+			totsCount,
+			playerOfMonthFirstCount,
 		}, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching player awards:", error);
+		logError("Error fetching player awards", error);
 		return NextResponse.json({ error: "Failed to fetch player awards" }, { status: 500, headers: corsHeaders });
 	}
 }

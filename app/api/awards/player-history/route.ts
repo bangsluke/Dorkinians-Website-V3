@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
 		const playerNameLower = playerName.trim().toLowerCase();
 
 		// Process CaptainsAndAwards nodes
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ca");
 			const properties = node.properties;
 			const awardName = String(properties.itemName || "");
@@ -119,7 +121,7 @@ export async function GET(request: NextRequest) {
 		const historicalResult = await neo4jService.runQuery(historicalQuery, { graphLabel });
 
 		// Process HistoricalAward nodes
-		historicalResult.records.forEach((record) => {
+		historicalResult.records.forEach((record: Record) => {
 			const node = record.get("ha");
 			const properties = node.properties;
 			const awardName = String(properties.itemName || "");
@@ -180,7 +182,7 @@ export async function GET(request: NextRequest) {
 			{ headers: corsHeaders }
 		);
 	} catch (error) {
-		console.error("Error fetching player award history:", error);
+		logError("Error fetching player award history", error);
 		return NextResponse.json({ error: "Failed to fetch player award history" }, { status: 500, headers: corsHeaders });
 	}
 }

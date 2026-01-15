@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { logError } from "@/lib/utils/logger";
 
 // Environment variable validation schema
 const envSchema = z.object({
@@ -65,7 +66,7 @@ export function validateEnvOrThrow(): Env {
 	const result = validateEnv();
 	if (result.success === false) {
 		const errorMessage = `Environment variable validation failed:\n${result.errors.join("\n")}`;
-		console.error("❌", errorMessage);
+		logError("Environment variable validation failed", new Error(errorMessage));
 		throw new Error(errorMessage);
 	}
 	return result.env;

@@ -14,6 +14,7 @@ import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { LeagueTableSkeleton, ChartSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
+import { log } from "@/lib/utils/logger";
 
 interface LeagueTableEntry {
 	position: number;
@@ -219,7 +220,7 @@ export default function LeagueInformation() {
 			setError(null);
 			const newDataMap = new Map<string, SeasonLeagueData>();
 
-			console.log("🔍 [My Seasons] Starting fetch for player seasons:", playerSeasonsData);
+			log("info", "🔍 [My Seasons] Starting fetch for player seasons:", playerSeasonsData);
 
 			try {
 				// Fetch league data for each season
@@ -230,11 +231,11 @@ export default function LeagueInformation() {
 					}
 
 					try {
-						console.log(`📡 [My Seasons] Fetching league data for season: ${season}, team: ${team}`);
+						log("info", `📡 [My Seasons] Fetching league data for season: ${season}, team: ${team}`);
 						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
 						if (response.ok) {
 							const data = await response.json();
-							console.log(`✅ [My Seasons] Received data for season ${season}:`, {
+							log("info", `✅ [My Seasons] Received data for season ${season}:`, {
 								hasData: !!data.data,
 								seasonInData: data.data?.season,
 								teamsInData: data.data?.teams ? Object.keys(data.data.teams) : [],
@@ -245,20 +246,23 @@ export default function LeagueInformation() {
 								// Normalize season format for consistent map key (ensure hyphen format)
 								const normalizedSeason = season.replace("/", "-");
 								newDataMap.set(normalizedSeason, data.data);
-								console.log(`💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
+								log("info", `💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
 							} else {
-								console.warn(`⚠️ [My Seasons] No data.data for season ${season}`);
+								log("warn", `⚠️ [My Seasons] No data.data for season ${season}`);
 							}
 						} else {
-							console.error(`❌ [My Seasons] Failed to fetch season ${season}:`, response.status, response.statusText);
+							log("error", `❌ [My Seasons] Failed to fetch season ${season}:`, {
+								status: response.status,
+								statusText: response.statusText,
+							});
 						}
 					} catch (err) {
-						console.error(`Error fetching league data for season ${season}:`, err);
+						log("error", `Error fetching league data for season ${season}:`, err);
 					}
 				});
 
 				await Promise.all(fetchPromises);
-				console.log("🗺️ [My Seasons] Final data map:", {
+				log("info", "🗺️ [My Seasons] Final data map:", {
 					mapSize: newDataMap.size,
 					mapKeys: Array.from(newDataMap.keys()),
 					mapContents: Array.from(newDataMap.entries()).map(([key, value]) => ({
@@ -268,7 +272,7 @@ export default function LeagueInformation() {
 				});
 				setMySeasonsLeagueData(newDataMap);
 			} catch (err) {
-				console.error("Error fetching my seasons data:", err);
+				log("error", "Error fetching my seasons data:", err);
 				setError("Error loading my seasons data");
 			} finally {
 				setLoadingMySeasons(false);
@@ -308,14 +312,14 @@ export default function LeagueInformation() {
 							}
 						}
 					} catch (err) {
-						console.error(`Error fetching league data for season ${season}:`, err);
+						log("error", `Error fetching league data for season ${season}:`, err);
 					}
 				});
 
 				await Promise.all(fetchPromises);
 				setSeasonProgressData(newDataMap);
 			} catch (err) {
-				console.error("Error fetching season progress data:", err);
+				log("error", "Error fetching season progress data:", err);
 				setError("Error loading season progress data");
 			} finally {
 				setLoadingSeasonProgress(false);
@@ -702,10 +706,10 @@ export default function LeagueInformation() {
 						const normalizedSeason = season.replace("/", "-");
 						// Convert team display name to team key (e.g., "3rd XI" -> "3s")
 						const teamKey = getTeamKeyFromDisplayName(team);
-						console.log(`🔎 [My Seasons] Looking up data for season: ${season} (normalized: ${normalizedSeason}), team: ${team} (key: ${teamKey})`);
+						log("info", `🔎 [My Seasons] Looking up data for season: ${season} (normalized: ${normalizedSeason}), team: ${team} (key: ${teamKey})`);
 						const seasonData = mySeasonsLeagueData.get(normalizedSeason);
 						if (!seasonData) {
-							console.warn(`⚠️ [My Seasons] No season data found for season: ${normalizedSeason}. Available seasons:`, Array.from(mySeasonsLeagueData.keys()));
+							log("warn", `⚠️ [My Seasons] No season data found for season: ${normalizedSeason}. Available seasons:`, Array.from(mySeasonsLeagueData.keys()));
 							return (
 								<div key={season} className='text-center text-gray-400 py-4'>
 									No league table data available for {formatSeason(season)}
@@ -713,13 +717,16 @@ export default function LeagueInformation() {
 							);
 						}
 
-						console.log(`🔎 [My Seasons] Season data found. Available teams:`, Object.keys(seasonData.teams || {}), `Looking for team key: ${teamKey}`);
+						log("info", `🔎 [My Seasons] Season data found. Available teams:`, {
+							availableTeams: Object.keys(seasonData.teams || {}),
+							lookingForTeamKey: teamKey,
+						});
 						
 						// Get team data using the normalized team key
 						const teamData = seasonData.teams[teamKey];
 						
 						if (!teamData) {
-							console.warn(`⚠️ [My Seasons] No team data found for team: ${team} (key: ${teamKey}) in season: ${normalizedSeason}. Available teams:`, Object.keys(seasonData.teams || {}));
+							log("warn", `⚠️ [My Seasons] No team data found for team: ${team} (key: ${teamKey}) in season: ${normalizedSeason}. Available teams:`, Object.keys(seasonData.teams || {}));
 							return (
 								<div key={season} className='text-center text-gray-400 py-4'>
 									No league table data for {getTeamDisplayName(teamKey)} in {formatSeason(season)}

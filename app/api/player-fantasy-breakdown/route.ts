@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "../player-data/route";
+import type { Record as Neo4jRecord } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -284,7 +286,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Process matches
-		const matches: MatchDetail[] = result.records.map((record) => {
+		const matches: MatchDetail[] = result.records.map((record: Neo4jRecord) => {
 			const md = record.get("md");
 			const properties = md.properties;
 			const fixtureConceded = toNumber(record.get("fixtureConceded"));
@@ -412,7 +414,7 @@ export async function POST(request: NextRequest) {
 						weekAdjusted = String(weekResult.records[0].get("weekAdjusted") || weekNumber.toString());
 					}
 				} catch (error) {
-					console.error("Error fetching week dateLookup:", error);
+					logError("Error fetching week dateLookup", error);
 				}
 				
 				// Fallback to formatting first match date if dateLookup not available
@@ -438,7 +440,7 @@ export async function POST(request: NextRequest) {
 							formattedDate = `${dayName}, ${day} ${monthName} ${year}`;
 						}
 					} catch (error) {
-						console.error("Error formatting date:", error);
+						logError("Error formatting date", error);
 					}
 				}
 				
@@ -495,7 +497,7 @@ export async function POST(request: NextRequest) {
 							}
 						}
 					} catch (error) {
-						console.error("Error extracting month/year from date:", error);
+						logError("Error extracting month/year from date", error);
 					}
 				}
 				
@@ -590,7 +592,7 @@ export async function POST(request: NextRequest) {
 			{ headers: corsHeaders }
 		);
 	} catch (error) {
-		console.error("Error fetching fantasy breakdown:", error);
+		logError("Error fetching fantasy breakdown", error);
 		return NextResponse.json({ error: "Failed to fetch fantasy breakdown" }, { status: 500, headers: corsHeaders });
 	}
 }

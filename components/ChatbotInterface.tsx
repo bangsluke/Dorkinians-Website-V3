@@ -12,6 +12,7 @@ import Calendar from "./chatbot-response/Calendar";
 import Table from "./chatbot-response/Table";
 import Chart from "./chatbot-response/Chart";
 import ExampleQuestionsModal from "./modals/ExampleQuestionsModal";
+import { log } from "@/lib/utils/logger";
 
 interface SavedConversation {
 	question: string;
@@ -46,7 +47,6 @@ export default function ChatbotInterface() {
 
 	// Load conversation history from localStorage on component mount or when player changes
 	useEffect(() => {
-		// console.log(`🤖 Frontend: ChatbotInterface mounted, selectedPlayer: ${selectedPlayer}`);
 		if (typeof window !== "undefined") {
 			const saved = localStorage.getItem("chatbotConversations");
 			if (saved) {
@@ -74,7 +74,7 @@ export default function ChatbotInterface() {
 						}
 					}
 				} catch (err) {
-					console.error("Failed to parse saved conversations:", err);
+					log("error", "Failed to parse saved conversations:", err);
 					setShowExampleQuestions(true);
 				}
 			} else {
@@ -135,7 +135,7 @@ export default function ChatbotInterface() {
 		if (!questionToSubmit.trim() || isLoading) return; // If the question is empty or the chatbot is loading, return
 
 		// Client-side logging for debugging
-		console.log(`🤖 Frontend: Sending question: ${questionToSubmit.trim()}. Player context: ${selectedPlayer || "None"}`);
+		log("info", `🤖 Frontend: Sending question: ${questionToSubmit.trim()}. Player context: ${selectedPlayer || "None"}`);
 
 		setIsLoading(true);
 		setError(null);
@@ -144,25 +144,33 @@ export default function ChatbotInterface() {
 		// Try to send the question to the chatbot
 		try {
 			// Prepare conversation history for context
-			const historyForContext = conversationHistory.slice(-3).map((conv) => ({
-				question: conv.question,
-				entities: conv.response.debug?.processingDetails?.questionAnalysis?.entities || [],
-				metrics: conv.response.debug?.processingDetails?.questionAnalysis?.metrics || [],
-				timestamp: new Date(conv.timestamp).toISOString(),
-			}));
+			const historyForContext = conversationHistory
+				.slice(-3)
+				.filter((conv) => conv && conv.response && conv.question) // Filter out invalid entries
+				.map((conv) => {
+					const entities = conv.response?.debug?.processingDetails?.questionAnalysis?.entities;
+					const metrics = conv.response?.debug?.processingDetails?.questionAnalysis?.metrics;
+					return {
+						question: conv.question || "",
+						entities: Array.isArray(entities) ? entities : [],
+						metrics: Array.isArray(metrics) ? metrics : [],
+						timestamp: new Date(conv.timestamp || Date.now()).toISOString(),
+					};
+				});
 
 			// Send the question to the chatbot via the API endpoint with the player context sent as a parameter
+			const requestBody = {
+				question: questionToSubmit.trim(),
+				userContext: selectedPlayer || undefined,
+				sessionId: sessionId,
+				conversationHistory: historyForContext,
+			};
 			const res = await fetch("/api/chatbot", {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 				},
-				body: JSON.stringify({
-					question: questionToSubmit.trim(),
-					userContext: selectedPlayer || undefined,
-					sessionId: sessionId,
-					conversationHistory: historyForContext,
-				}),
+				body: JSON.stringify(requestBody),
 			});
 
 			if (!res.ok) {
@@ -170,10 +178,9 @@ export default function ChatbotInterface() {
 			}
 
 			const data: ChatbotResponse & { debug?: any } = await res.json(); // Parse the response as a ChatbotResponse object
-			// console.log(`🤖 Frontend: Received response:`, data);
 
 			// Log full debug info to the client
-			console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+			log("info", `🤖 [CLIENT] 🔍 DEBUG INFO:`, {
 				"1. question": data.debug.question,
 				"2. queryBreakdown": data.debug.processingDetails.queryBreakdown,
 				"3. processingSteps": data.debug.processingDetails.processingSteps,
@@ -192,8 +199,8 @@ export default function ChatbotInterface() {
 				if (readyToExecuteQueries.length > 0) {
 					readyToExecuteQueries.forEach((query: string) => {
 						const cleanQuery = query.replace(/^(READY_TO_EXECUTE|TOTW_READY_TO_EXECUTE):\s*/, "");
-						console.log(`🤖 [CLIENT] 📋 CYPHER QUERY (ready to execute):`);
-						console.log(cleanQuery);
+						log("info", `🤖 [CLIENT] 📋 CYPHER QUERY (ready to execute):`);
+						log("info", cleanQuery);
 					});
 				}
 				
@@ -209,39 +216,11 @@ export default function ChatbotInterface() {
 					parameterizedQueries.forEach((query: string) => {
 						// Extract query text by removing common prefixes
 						const cleanQuery = query.replace(/^(PLAYER_DATA|TOTW_DATA|STREAK_DATA|COMPARISON_DATA|TEMPORAL_DATA|TEAM_SPECIFIC_DATA|RANKING_DATA|GENERAL_PLAYERS):\s*/, "");
-						console.log(`🤖 [CLIENT] 📋 CYPHER QUERY (parameterized):`);
-						console.log(cleanQuery);
+						log("info", `🤖 [CLIENT] 📋 CYPHER QUERY (parameterized):`);
+						log("info", cleanQuery);
 					});
 				}
 			}
-
-			// Enhanced client-side logging for debugging
-			// if (data.debug) {
-			// 	console.log(`🤖 [CLIENT] 🔍 DEBUG INFO:`, {
-			// 		question: data.debug.question,
-			// 		userContext: data.debug.userContext,
-			// 		timestamp: data.debug.timestamp,
-			// 		serverLogs: data.debug.serverLogs,
-			// 	});
-
-			// 	// Log detailed processing information if available
-			// 	if (data.debug.processingDetails) {
-			// 		console.log(`🤖 [CLIENT] 🔍 QUESTION ANALYSIS:`, data.debug.processingDetails.questionAnalysis);
-
-			// 		// Enhanced Cypher query logging
-			// 		if (data.debug.processingDetails.cypherQueries && data.debug.processingDetails.cypherQueries.length > 0) {
-			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES (${data.debug.processingDetails.cypherQueries.length} executed):`);
-			// 			data.debug.processingDetails.cypherQueries.forEach((query: string, index: number) => {
-			// 				console.log(`🤖 [CLIENT] 📝 Query ${index + 1}:`, query);
-			// 			});
-			// 		} else {
-			// 			console.log(`🤖 [CLIENT] 🔍 CYPHER QUERIES: No queries executed`);
-			// 		}
-
-			// 		// console.log(`🤖 [CLIENT] 🔍 PROCESSING STEPS:`, data.debug.processingDetails.processingSteps);
-			// 		console.log(`🤖 [CLIENT] 🔍 QUERY BREAKDOWN:`, data.debug.processingDetails.queryBreakdown);
-			// 	}
-			// }
 
 			// Log the response structure for debugging
 			const questionAnalysis = data.debug?.processingDetails?.questionAnalysis;
@@ -254,7 +233,7 @@ export default function ChatbotInterface() {
 					? (data.visualization.data[0] as any)?.metric 
 					: undefined);
 
-			console.log(`🤖 [CLIENT] 📊 Response structure:`, {
+			log("info", `🤖 [CLIENT] 📊 Response structure:`, {
 				answer: data.answer,
 				answerValue: data.answerValue,
 				hasVisualization: !!data.visualization,
@@ -285,8 +264,9 @@ export default function ChatbotInterface() {
 			setQuestion(""); // Clear the question input
 		} catch (err) {
 			// If an error occurs, set the error state and log the error
-			console.error(`🤖 Frontend: Error occurred:`, err);
-			setError(err instanceof Error ? err.message : "An error occurred");
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			log("error", `🤖 Frontend: Error occurred:`, errorMessage);
+			setError(errorMessage);
 		} finally {
 			setIsLoading(false); // Finally, set the loading state to false
 		}

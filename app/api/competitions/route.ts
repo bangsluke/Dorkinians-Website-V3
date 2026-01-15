@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -43,14 +45,14 @@ export async function GET(request: NextRequest) {
 
 		const result = await neo4jService.runQuery(query, params);
 
-		const competitions = result.records.map((record) => ({
+		const competitions = result.records.map((record: Record) => ({
 			name: String(record.get("competitionName") || ""),
 			type: String(record.get("compType") || ""),
 		}));
 
 		return NextResponse.json({ competitions }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching competitions:", error);
+		logError("Error fetching competitions", error);
 		return NextResponse.json({ error: "Failed to fetch competitions" }, { status: 500, headers: corsHeaders });
 	}
 }

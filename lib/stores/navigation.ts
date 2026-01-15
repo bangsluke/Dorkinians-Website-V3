@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
+import { log } from "../utils/logger";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
@@ -563,7 +564,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 					}
 				}
 			} else {
-				console.log("ℹ️ [Player Selection] No saved player found in localStorage");
+				log("info", "ℹ️ [Player Selection] No saved player found in localStorage");
 			}
 
 			// Load filters per page if available
@@ -635,8 +636,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 	// Main page navigation
 	setMainPage: (page: MainPage) => {
-		console.log("🏠 [Navigation] setMainPage called with page:", page);
-		console.log("📊 [Navigation] Current state before change:", {
+		log("info", "🏠 [Navigation] setMainPage called with page:", page);
+		log("info", "📊 [Navigation] Current state before change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
 			currentMainPage: get().currentMainPage,
@@ -676,7 +677,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 			localStorage.setItem("dorkinians-current-main-page", page);
 		}
 
-		console.log("📊 [Navigation] State after change:", {
+		log("info", "📊 [Navigation] State after change:", {
 			selectedPlayer: get().selectedPlayer,
 			isPlayerSelected: get().isPlayerSelected,
 			currentMainPage: get().currentMainPage,
@@ -766,7 +767,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				
 				localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
 			} catch (e) {
-				console.warn("Failed to save recent players:", e);
+				log("warn", "Failed to save recent players:", e);
 			}
 		}
 		set({ selectedPlayer: playerName, isPlayerSelected: true, isEditMode: false });
@@ -827,10 +828,10 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 				set({ cachedPlayerData: cachedData });
 			} else {
-				console.error("Failed to fetch player data:", response.statusText);
+					log("error", "Failed to fetch player data:", response.statusText);
 			}
 		} catch (error) {
-			console.error("Error fetching player data:", error);
+			log("error", "Error fetching player data:", error);
 		} finally {
 			set({ isLoadingPlayerData: false });
 		}
@@ -850,7 +851,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		if (currentDate !== cachedDate) {
 			// Date has changed, refresh data
-			console.log(`Player data is stale (${cachedDate} vs ${currentDate}), refreshing...`);
+			log("info", `Player data is stale (${cachedDate} vs ${currentDate}), refreshing...`);
 			await get().fetchAndCachePlayerData(playerName);
 		}
 	},

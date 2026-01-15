@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
 
 const corsHeaders = getCorsHeadersWithSecurity();
@@ -28,11 +29,11 @@ export async function GET(request: NextRequest) {
 		const result = await neo4jService.runQuery(query, params);
 
 		const players = result.records
-			.map((record) => ({
+			.map((record: Record) => ({
 				playerName: String(record.get("playerName") || ""),
 				mostPlayedForTeam: String(record.get("mostPlayedForTeam") || ""),
 			}))
-			.filter((player) => player.playerName && player.playerName.trim() !== "");
+			.filter((player: { playerName: string }) => player.playerName && player.playerName.trim() !== "");
 
 		return NextResponse.json({ players }, { headers: corsHeaders });
 	} catch (error) {

@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type MainPage } from "@/lib/stores/navigation";
+import { log } from "@/lib/utils/logger";
 
 const navigationItems = [
 	{ id: "home" as MainPage, icon: HomeIcon, label: "Home" },
@@ -35,7 +36,7 @@ export default function FooterNavigation() {
 							key={item.id}
 							data-testid={`nav-footer-${item.id}`}
 							onClick={() => {
-								console.log("🔘 [FooterNavigation] Button clicked:", item.id);
+								log("info", "🔘 [FooterNavigation] Button clicked:", item.id);
 								setMainPage(item.id);
 							}}
 							className={`flex flex-1 items-center justify-center space-y-1 md:space-y-0 md:space-x-2 flex-col md:flex-row px-3 py-2 rounded-lg transition-colors ${

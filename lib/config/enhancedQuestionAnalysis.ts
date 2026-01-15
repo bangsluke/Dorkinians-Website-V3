@@ -61,11 +61,15 @@ export class EnhancedQuestionAnalyzer {
 			const entities = this.extractLegacyEntities(extractionResult);
 			const metrics = this.extractLegacyMetrics(extractionResult);
 			const timeRange = this.extractLegacyTimeRange(extractionResult);
-			const teamEntities = extractionResult.entities.filter((e) => e.type === "team").map((e) => e.value);
-			const oppositionEntities = extractionResult.entities.filter((e) => e.type === "opposition").map((e) => e.value);
-			const competitionTypes = extractionResult.competitionTypes.map((ct) => ct.value);
-			const competitions = extractionResult.competitions.map((c) => c.value);
-			const results = extractionResult.results.map((r) => r.value);
+			const entitiesArray = Array.isArray(extractionResult.entities) ? extractionResult.entities : [];
+			const competitionTypesArray = Array.isArray(extractionResult.competitionTypes) ? extractionResult.competitionTypes : [];
+			const competitionsArray = Array.isArray(extractionResult.competitions) ? extractionResult.competitions : [];
+			const resultsArray = Array.isArray(extractionResult.results) ? extractionResult.results : [];
+			const teamEntities = entitiesArray.filter((e) => e.type === "team").map((e) => e.value);
+			const oppositionEntities = entitiesArray.filter((e) => e.type === "opposition").map((e) => e.value);
+			const competitionTypes = competitionTypesArray.map((ct) => ct.value);
+			const competitions = competitionsArray.map((c) => c.value);
+			const results = resultsArray.map((r) => r.value);
 			const confidence = this.calculateConfidence(extractionResult, complexity, true);
 			const resultQuantity = this.detectResultQuantity();
 			
@@ -1357,7 +1361,8 @@ export class EnhancedQuestionAnalyzer {
 
 	private extractLegacyMetrics(extractionResult: EntityExtractionResult): string[] {
 		// Check cache first (cache key based on question and stat types)
-		const cacheKey = `${this.question.toLowerCase()}:${extractionResult.statTypes.map(s => s.value).join(',')}`;
+		const statTypesArray = Array.isArray(extractionResult.statTypes) ? extractionResult.statTypes : [];
+		const cacheKey = `${this.question.toLowerCase()}:${statTypesArray.map(s => s.value).join(',')}`;
 		const cached = EnhancedQuestionAnalyzer.metricCorrectionCache.get(cacheKey);
 		if (cached) {
 			// Apply priority logic even when returning from cache

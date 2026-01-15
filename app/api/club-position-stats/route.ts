@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "../player-data/route";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -116,15 +118,15 @@ export async function POST(request: NextRequest) {
 		};
 
 		const stats = result.records
-			.map((record) => {
+			.map((record: Record) => {
 				const positionClass = String(record.get("position") || "");
 				const value = toNumber(record.get("statValue"));
 				// Map common position class values
 				const position = positionMap[positionClass] || positionClass;
 				return { position, value };
 			})
-			.filter((item) => ["GK", "DEF", "MID", "FWD"].includes(item.position))
-			.sort((a, b) => {
+			.filter((item: { position: string; value: number }) => ["GK", "DEF", "MID", "FWD"].includes(item.position))
+			.sort((a: { position: string; value: number }, b: { position: string; value: number }) => {
 				// Sort: GK, DEF, MID, FWD
 				const order = { GK: 0, DEF: 1, MID: 2, FWD: 3 };
 				return (order[a.position as keyof typeof order] ?? 99) - (order[b.position as keyof typeof order] ?? 99);
@@ -132,7 +134,7 @@ export async function POST(request: NextRequest) {
 
 		return NextResponse.json({ stats }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching club position stats:", error);
+		logError("Error fetching club position stats", error);
 		return NextResponse.json({ error: "Failed to fetch club position stats" }, { status: 500, headers: corsHeaders });
 	}
 }
