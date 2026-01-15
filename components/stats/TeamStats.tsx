@@ -1310,7 +1310,7 @@ export default function TeamStats() {
 								{/* Top Players Table */}
 								<div id='team-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="team-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
 											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
 												<div className='relative'>

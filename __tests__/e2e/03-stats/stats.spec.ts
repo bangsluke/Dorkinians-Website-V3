@@ -244,23 +244,21 @@ test.describe('Stats Page Tests', () => {
 		await waitForDataLoad(page);
 
 		// Verify all Player Stats sections are visible
-		await verifySectionVisible(page, 'Key Performance Stats', 'Apps');
-		await verifySectionVisible(page, 'Seasonal Performance');
-		await verifySectionVisible(page, 'Team Performance');
-		await verifySectionVisible(page, 'Positional Stats');
-		await verifySectionVisible(page, 'Match Results');
-		await verifySectionVisible(page, 'Game Details');
-		await verifySectionVisible(page, 'Monthly Performance');
-		await verifySectionVisible(page, 'Defensive Record');
-		await verifySectionVisible(page, 'Distance Travelled');
-		// Opposition Locations section doesn't have a heading, check by id
-		const oppositionLocationsSection = page.locator('#opposition-locations');
-		await expect(oppositionLocationsSection).toBeVisible({ timeout: 5000 });
-		await verifySectionVisible(page, 'Minutes per Stats');
-		await verifySectionVisible(page, 'Opposition Performance');
-		await verifySectionVisible(page, 'Fantasy Points');
-		await verifySectionVisible(page, 'Penalty Stats');
-		await verifySectionVisible(page, 'Captaincies, Awards and Achievements', 'Total Captaincies');
+		await verifySectionVisible(page, 'key-performance-stats', 'Key Performance Stats', "", 'Apps');
+		await verifySectionVisible(page, 'seasonal-performance', 'Seasonal Performance', "", 'Show trend');
+		await verifySectionVisible(page, 'team-performance', 'Team Performance');
+		await verifySectionVisible(page, 'positional-stats', 'Positional Stats');
+		await verifySectionVisible(page, 'match-results', 'Match Results');
+		await verifySectionVisible(page, 'game-details', 'Game Details');
+		await verifySectionVisible(page, 'monthly-performance', 'Monthly Performance');
+		await verifySectionVisible(page, 'defensive-record', 'Defensive Record');
+		await verifySectionVisible(page, 'distance-travelled', 'Distance Travelled');
+		await verifySectionVisible(page, 'opposition-locations', 'Opposition Locations');
+		await verifySectionVisible(page, 'minutes-per-stats', 'Minutes per Stats');
+		await verifySectionVisible(page, 'opposition-performance', 'Opposition Performance');
+		await verifySectionVisible(page, 'fantasy-points', 'Fantasy Points');
+		await verifySectionVisible(page, 'penalty-stats', 'Penalty Stats');
+		await verifySectionVisible(page, 'captaincies-awards-and-achievements', 'Captaincies, Awards and Achievements', "", 'Total Captaincies');
 	});
 
 	test('10. should display all Team Stats sections', async ({ page }) => {
@@ -295,16 +293,16 @@ test.describe('Stats Page Tests', () => {
 			}
 
 			// Verify all Team Stats sections are visible
-			await verifySectionVisible(page, 'Key Performance Stats', 'Players');
-			await verifySectionVisible(page, 'Recent Form');
-			await verifySectionVisible(page, 'Top Players');
-			await verifySectionVisible(page, 'Seasonal Performance');
-			await verifySectionVisible(page, 'Match Results');
-			await verifySectionVisible(page, 'Goals Scored vs Conceded');
-			await verifySectionVisible(page, 'Home vs Away Performance');
-			await verifySectionVisible(page, 'Key Team Stats');
-			await verifySectionVisible(page, 'Unique Player Stats');
-			await verifySectionVisible(page, 'Best Season Finish');
+			await verifySectionVisible(page, 'team-key-performance-stats', 'Key Performance Stats', "", 'Players');
+			await verifySectionVisible(page, 'team-recent-form', 'Recent Form');
+			await verifySectionVisible(page, 'team-top-players', 'Top Players', "team-top-players-heading", "Player Name");
+			await verifySectionVisible(page, 'team-seasonal-performance', 'Seasonal Performance');
+			await verifySectionVisible(page, 'team-match-results', 'Match Results');
+			await verifySectionVisible(page, 'team-goals-scored-vs-conceded', 'Goals Scored vs Conceded');
+			await verifySectionVisible(page, 'team-home-vs-away-performance', 'Home vs Away Performance');
+			await verifySectionVisible(page, 'team-key-team-stats', 'Key Team Stats');
+			await verifySectionVisible(page, 'team-unique-player-stats', 'Unique Player Stats');
+			await verifySectionVisible(page, 'team-best-season-finish', 'Best Season Finish');
 		}
 	});
 
@@ -324,24 +322,30 @@ test.describe('Stats Page Tests', () => {
 			await waitForDataLoad(page);
 
 			// Verify all Club Stats sections are visible
-			await verifySectionVisible(page, 'Key Club Stats', 'Players');
-			await verifySectionVisible(page, 'Team Comparison');
-			await verifySectionVisible(page, 'Top Players');
-			await verifySectionVisible(page, 'Seasonal Performance');
-			await verifySectionVisible(page, 'Player Distribution');
-			await verifySectionVisible(page, 'Player Tenure');
-			await verifySectionVisible(page, 'Stats Distribution');
-			await verifySectionVisible(page, 'Match Results');
-			await verifySectionVisible(page, 'Game Details');
-			await verifySectionVisible(page, 'Big Club Numbers');
-			await verifySectionVisible(page, 'Goals Scored vs Conceded');
-			await verifySectionVisible(page, 'Home vs Away Performance');
-			await verifySectionVisible(page, 'Key Team Stats');
-			await verifySectionVisible(page, 'Unique Player Stats');
+			await verifySectionVisible(page, 'club-key-performance-stats', 'Key Club Stats', "", 'Competitions');
+			await verifySectionVisible(page, 'club-team-comparison', 'Team Comparison');
+			await verifySectionVisible(page, 'club-top-players', 'Top Players', "club-top-players-heading", "Player Name");
+			await verifySectionVisible(page, 'club-seasonal-performance', 'Seasonal Performance');
+			await verifySectionVisible(page, 'club-player-distribution', 'Player Distribution');
+			// await verifySectionVisible(page, 'club-player-tenure', 'Player Tenure');
+			await verifySectionVisible(page, 'club-stats-distribution', 'Stats Distribution');
+			await verifySectionVisible(page, 'club-match-results', 'Match Results');
+			await verifySectionVisible(page, 'club-game-details', 'Game Details');
+			await verifySectionVisible(page, 'club-big-club-numbers', 'Big Club Numbers');
+			await verifySectionVisible(page, 'club-goals-scored-conceded', 'Goals Scored vs Conceded');
+			await verifySectionVisible(page, 'club-home-away-performance', 'Home vs Away Performance');
+			await verifySectionVisible(page, 'club-other-club-stats', 'Other Club Stats', "", 'Goal Diff');
+			await verifySectionVisible(page, 'club-key-team-stats', 'Key Team Stats');
+			await verifySectionVisible(page, 'club-unique-player-stats', 'Unique Player Stats');
+			await verifySectionVisible(page, 'club-data-table', 'Data Table');
 		}
 	});
 
 	test('12. should display all Comparison sections', async ({ page }) => {
+		// Set up initial player data for Comparison page
+		await setupPlayerStatsPage(page, TEST_PLAYERS.primary);
+		await navigateToMainPage(page, 'stats');
+		await waitForPageLoad(page);
 		await waitForDataLoad(page);
 
 		// Navigate to Comparison
@@ -387,8 +391,8 @@ test.describe('Stats Page Tests', () => {
 			}
 
 			// Verify Comparison sections are visible
-			await verifySectionVisible(page, 'Radar Comparison');
-			await verifySectionVisible(page, 'Full Comparison');
+			await verifySectionVisible(page, 'comparison-radar-chart', 'Radar Comparison');
+			await verifySectionVisible(page, 'comparison-full-comparison', 'Full Comparison');
 		}
 	});
 

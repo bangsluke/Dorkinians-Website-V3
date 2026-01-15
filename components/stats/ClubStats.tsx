@@ -1734,7 +1734,7 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="club-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
 											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
 												<div className='relative'>
@@ -2179,10 +2179,10 @@ export default function ClubStats() {
 									</div>
 								)}
 
-								{/* Key Team Stats KPI Cards */}
+								{/* Other Club Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
+									<div id='club-other-club-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Other Club Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 												<div className='flex-shrink-0'>

@@ -2426,7 +2426,7 @@ export default function PlayerStats() {
 						selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
 					},
 				};
-			case "awards-and-achievements":
+			case "captaincies-awards-and-achievements":
 				return {
 					type: vizType,
 					data: awardsData,
@@ -3346,7 +3346,7 @@ export default function PlayerStats() {
 			)}
 
 			{/* Captaincies, Awards and Achievements Section */}
-			<div id='awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+			<div id='captaincies-awards-and-achievements' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
 				<h3 className='text-white font-semibold text-sm md:text-base mb-4'>Captaincies, Awards and Achievements</h3>
 				{isLoadingAwards || isLoadingCaptainHistory || isLoadingAwardHistory ? (
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">

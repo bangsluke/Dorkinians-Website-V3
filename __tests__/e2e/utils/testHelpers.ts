@@ -377,8 +377,7 @@ export async function setupPlayerStatsPage(page: Page, playerName: string) {
 	
 	// Wait for localStorage to be set
 	await page.waitForFunction(
-		(name) => localStorage.getItem('dorkinians-selected-player') === name &&
-		           localStorage.getItem('dorkinians-current-main-page') === 'stats',
+		(name) => localStorage.getItem('dorkinians-selected-player') === name && localStorage.getItem('dorkinians-current-main-page') === 'stats',
 		playerName,
 		{ timeout: 5000 }
 	);
@@ -479,18 +478,31 @@ export async function takeScreenshot(page: Page, name: string) {
 
 /**
  * Verify a section is visible by checking its heading and content
+ * page is the page object
+ * sectionName is the name of the section to verify
+ * dataTestId is the data-testid of the section to verify
+ * contentText is some additional text to verify within the section
  */
-export async function verifySectionVisible(page: Page, sectionName: string, contentText?: string) {
-	// Find section by heading (h3 element)
-	const heading = page.getByRole('heading', { name: new RegExp(sectionName, 'i') });
+export async function verifySectionVisible(page: Page, sectionId: string, sectionName: string, dataTestId?: string, contentText?: string) {
+	// Find section by heading (h3 element) or data-testid
+	const heading = dataTestId ? page.getByTestId(dataTestId) : page.getByRole('heading', { name: new RegExp(sectionName, 'i') });
 	await expect(heading).toBeVisible({ timeout: 10000 });
 	
 	// If content text is provided, verify it exists within the section
 	if (contentText) {
-		// Find the section container (parent of heading)
-		const sectionContainer = heading.locator('..');
-		const content = sectionContainer.getByText(new RegExp(contentText, 'i'));
-		await expect(content.first()).toBeVisible({ timeout: 5000 });
+		// Find the section container
+		const sectionContainer = heading.locator(`xpath=ancestor::*[@id="${sectionId}"]`);
+		// 1. Normal text match
+		const textMatch = sectionContainer.getByText(new RegExp(contentText, 'i'));
+		// 2. Label text match
+		const labelMatch = sectionContainer.locator('label', {
+			hasText: new RegExp(contentText, 'i'),
+		});
+		// 3. Combined locator: either text OR label
+		const combined = sectionContainer.locator(
+			`:is(:text("${contentText}"), label:has-text("${contentText}"))`
+		);
+		await expect(combined.first()).toBeVisible({ timeout: 5000 });
 	}
 }
 
