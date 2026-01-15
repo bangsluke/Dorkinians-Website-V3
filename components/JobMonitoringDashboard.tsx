@@ -70,10 +70,18 @@ const JobMonitoringDashboard: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('info');
 
+  // Helper function to build API URLs with proper path handling
+  const buildApiUrl = (path: string): string => {
+    const baseUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || 'https://dorkinians-database-v3-0e9a731483c7.herokuapp.com';
+    const cleanBaseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    const cleanPath = path.startsWith('/') ? path : `/${path}`; // Ensure path starts with /
+    return `${cleanBaseUrl}${cleanPath}`;
+  };
+
   // Fetch job analyses
   const fetchJobAnalyses = async () => {
     try {
-      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/jobs');
+      const response = await fetch(buildApiUrl('/api/debug/jobs'));
       if (response.ok) {
         const data = await response.json();
         setAnalyses(data.analyses || []);
@@ -89,7 +97,7 @@ const JobMonitoringDashboard: React.FC = () => {
   // Fetch storage statistics
   const fetchStorageStats = async () => {
     try {
-      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/api/storage/stats');
+      const response = await fetch(buildApiUrl('/api/storage/stats'));
       if (response.ok) {
         const data = await response.json();
         setStorageStats(data.stats);
@@ -104,7 +112,7 @@ const JobMonitoringDashboard: React.FC = () => {
   // Fetch current jobs
   const fetchCurrentJobs = async () => {
     try {
-      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/jobs');
+      const response = await fetch(buildApiUrl('/jobs'));
       if (response.ok) {
         const data = await response.json();
         setCurrentJobs(data.jobs || []);
@@ -130,7 +138,7 @@ const JobMonitoringDashboard: React.FC = () => {
   // Fetch detailed job analysis
   const fetchJobAnalysis = async (jobId: string) => {
     try {
-      const response = await fetch(`https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/jobs/${jobId}`);
+      const response = await fetch(buildApiUrl(`/api/debug/jobs/${jobId}`));
       if (response.ok) {
         const data = await response.json();
         setSelectedJob(data.analysis);
@@ -149,7 +157,7 @@ const JobMonitoringDashboard: React.FC = () => {
     setError(null);
     if (!jobId) return;
     try {
-      const res = await fetch(`https://database-dorkinians-4bac3364a645.herokuapp.com/status/${encodeURIComponent(jobId)}`);
+      const res = await fetch(buildApiUrl(`/status/${encodeURIComponent(jobId)}`));
       if (res.ok) {
         const data = await res.json();
         setLookupResult({ jobId, ...data });
@@ -256,7 +264,7 @@ const JobMonitoringDashboard: React.FC = () => {
     setError(null);
 
     try {
-      const response = await fetch('https://database-dorkinians-4bac3364a645.herokuapp.com/jobs/clear-all', {
+      const response = await fetch(buildApiUrl('/jobs/clear-all'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

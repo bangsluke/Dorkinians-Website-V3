@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 import { buildFilterConditions } from "../player-data/route";
 
 const corsHeaders = {
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
 		const result = await neo4jService.runQuery(query, params);
 
 		// Extract results with full fixture details
-		const fixtures = result.records.map((record) => {
+		const fixtures = result.records.map((record: Record) => {
 			const resultValue = record.get("result");
 			const date = record.get("date");
 			const opposition = record.get("opposition");

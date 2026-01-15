@@ -6,6 +6,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
+import { log } from "@/lib/utils/logger";
 
 interface Player {
 	playerName: string;
@@ -42,11 +43,11 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 					setAllPlayers(data.players || []);
 					setPlayersLoaded(true);
 				} else {
-					console.error("Failed to fetch players:", response.statusText);
+					log("error", "Failed to fetch players:", response.statusText);
 					setAllPlayers([]);
 				}
 			} catch (error) {
-				console.error("Error fetching players:", error);
+				log("error", "Error fetching players:", error);
 				setAllPlayers([]);
 			} finally {
 				setIsLoadingPlayers(false);
@@ -76,7 +77,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 	// Set local state when player is selected
 	useEffect(() => {
 		if (selectedPlayer && !isEditMode) {
-			console.log("✅ [PlayerSelection] Setting local state for selected player:", selectedPlayer);
+			log("info", "✅ [Player Selection] Setting local state for selected player:", selectedPlayer);
 			setLocalSelectedPlayer(selectedPlayer);
 			setIsSubmitted(true);
 		}
@@ -130,17 +131,17 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 				className='w-full max-w-md mx-auto'>
 				<div className='space-y-4'>
 					<div>
-						<Listbox
-							value={localSelectedPlayer}
-							onChange={(playerName) => {
-								const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
-								if (player) handlePlayerSelect(player);
-							}}>
-							<div className='relative'>
-								<Listbox.Button
-									data-testid="player-selection-button"
-									onClick={handleDropdownOpen}
-									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
+				<Listbox
+					value={localSelectedPlayer}
+					onChange={(playerName) => {
+						const player = allPlayers.find((p) => p.playerName && p.playerName === playerName);
+						if (player) handlePlayerSelect(player);
+					}}>
+					<div className='relative'>
+						<Listbox.Button
+							data-testid="player-selection-button"
+							onClick={handleDropdownOpen}
+							className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${localSelectedPlayer ? "text-white" : "text-yellow-300"}`}>
 										{localSelectedPlayer || "Choose a player..."}
 									</span>

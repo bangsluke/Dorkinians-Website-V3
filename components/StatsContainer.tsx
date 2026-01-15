@@ -8,6 +8,7 @@ import PlayerStats from "./stats/PlayerStats";
 import TeamStats from "./stats/TeamStats";
 import ClubStats from "./stats/ClubStats";
 import Comparison from "./stats/Comparison";
+import { log } from "@/lib/utils/logger";
 
 // Define page arrays outside component to avoid dependency issues
 const statsSubPages = [
@@ -29,7 +30,7 @@ export default function StatsContainer() {
 	// Auto-switch to Player Stats if current page is not found
 	useEffect(() => {
 		if (currentMainPage === "stats" && currentIndex < 0) {
-			console.log("🔄 [StatsContainer] Current page not found, switching to Player Stats");
+			log("info", "🔄 [StatsContainer] Current page not found, switching to Player Stats");
 			setStatsSubPage("player-stats");
 		}
 	}, [currentMainPage, currentIndex, setStatsSubPage]);

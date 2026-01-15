@@ -9,6 +9,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { MilestonesTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import SquadPlayersModal from "./SquadPlayersModal";
+import { log } from "@/lib/utils/logger";
 
 interface MilestoneEntry {
 	playerName: string;
@@ -117,17 +118,17 @@ export default function ClubInformation() {
 					
 					// Log closest players to milestones
 					if (data.closestToMilestone && data.closestToMilestone.length > 0) {
-						console.log("Players closest to milestones (even outside window):", data.closestToMilestone);
+						log("info", "Players closest to milestones (even outside window):", data.closestToMilestone);
 					}
 					
 					// Debug logging for MoMs achieved milestones
 					const allAchieved = data.achieved || [];
 					const momsAchieved = allAchieved.filter((e: MilestoneEntry) => e.statType === "MoMs");
-					console.log("=== MoMs Achieved Milestones Debug ===");
-					console.log("Total achieved entries:", allAchieved.length);
-					console.log("MoMs achieved entries:", momsAchieved.length);
+					log("info", "=== MoMs Achieved Milestones Debug ===");
+					log("info", "Total achieved entries:", allAchieved.length);
+					log("info", "MoMs achieved entries:", momsAchieved.length);
 					if (momsAchieved.length > 0) {
-						console.log("MoMs Achieved milestones:", momsAchieved.map((e: MilestoneEntry) => ({
+						log("info", "MoMs Achieved milestones:", momsAchieved.map((e: MilestoneEntry) => ({
 							player: e.playerName,
 							milestone: e.milestone,
 							value: e.currentValue,
@@ -135,9 +136,9 @@ export default function ClubInformation() {
 							mostRecentMatchDate: e.mostRecentMatchDate
 						})));
 					} else {
-						console.log("No MoMs achieved milestones found in API response");
+						log("info", "No MoMs achieved milestones found in API response");
 						// Check if there are any MoMs entries in the raw achieved data before filtering
-						console.log("All achieved entries by stat type:", {
+						log("info", "All achieved entries by stat type:", {
 							MoMs: allAchieved.filter((e: MilestoneEntry) => e.statType === "MoMs").length,
 							Goals: allAchieved.filter((e: MilestoneEntry) => e.statType === "Goals").length,
 							Assists: allAchieved.filter((e: MilestoneEntry) => e.statType === "Assists").length,
@@ -146,10 +147,10 @@ export default function ClubInformation() {
 					}
 					
 				} else {
-					console.error("Failed to fetch milestones");
+					log("error", "Failed to fetch milestones");
 				}
 			} catch (error) {
-				console.error("Error fetching milestones:", error);
+				log("error", "Error fetching milestones:", error);
 			} finally {
 				setLoading(false);
 			}
@@ -177,10 +178,10 @@ export default function ClubInformation() {
 					
 					setAchievements(achievementsWithTrophies);
 				} else {
-					console.error("Failed to fetch achievements");
+					log("error", "Failed to fetch achievements");
 				}
 			} catch (error) {
-				console.error("Error fetching achievements:", error);
+				log("error", "Error fetching achievements:", error);
 			} finally {
 				setAchievementsLoading(false);
 			}

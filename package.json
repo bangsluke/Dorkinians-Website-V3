@@ -1,10 +1,12 @@
 {
 	"name": "dorkinians-website-v3",
-	"version": "1.1.23",
+	"version": "1.1.24",
 	"description": "Dorkinians FC Statistics Website",
 	"private": true,
 	"scripts": {
-		"dev": "next dev",
+		"dev": "cross-env CONSOLE_LOG_LEVEL=info next dev",
+		"dev:debug": "cross-env CONSOLE_LOG_LEVEL=debug next dev",
+		"dev:quiet": "cross-env CONSOLE_LOG_LEVEL=error next dev",
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",

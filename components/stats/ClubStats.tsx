@@ -15,6 +15,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { log } from "@/lib/utils/logger";
 
 
 interface TopPlayer {
@@ -514,7 +515,7 @@ export default function ClubStats() {
 		
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
-				console.log(`[ClubStats] Fetching top players for statType: ${selectedStatType}`, {
+			log("info", `[ClubStats] Fetching top players for statType: ${selectedStatType}`, {
 				filters: playerFilters,
 				filtersKey,
 			});
@@ -533,15 +534,15 @@ export default function ClubStats() {
 
 				if (response.ok) {
 					const data = await response.json();
-					console.log(`[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
 					setTopPlayers(data.players || []);
 				} else {
 					const errorText = await response.text();
-					console.error(`[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					log("error", `[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
 					setTopPlayers([]);
 				}
 			} catch (error) {
-				console.error("[ClubStats] Error fetching top players:", error);
+				log("error", "[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
 			} finally {
 				setIsLoadingTopPlayers(false);
@@ -610,7 +611,7 @@ export default function ClubStats() {
 					setSeasonalStats(data.seasonalStats || []);
 				}
 			} catch (error) {
-				console.error("Error fetching seasonal stats:", error);
+				log("error", "Error fetching seasonal stats:", error);
 			} finally {
 				setIsLoadingSeasonalStats(false);
 			}
@@ -642,7 +643,7 @@ export default function ClubStats() {
 					setGameDetails(data);
 				}
 			} catch (error) {
-				console.error("Error fetching game details:", error);
+				log("error", "Error fetching game details:", error);
 				setGameDetails(null);
 			} finally {
 				setIsLoadingGameDetails(false);
@@ -675,7 +676,7 @@ export default function ClubStats() {
 					setUniquePlayerStats(data);
 				}
 			} catch (error) {
-				console.error("Error fetching unique player stats:", error);
+				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
 			} finally {
 				setIsLoadingUniqueStats(false);
@@ -767,7 +768,7 @@ export default function ClubStats() {
 						}
 						return null;
 					} catch (error) {
-						console.error(`Error fetching data for ${teamName}:`, error);
+						log("error", `Error fetching data for ${teamName}:`, error);
 						return null;
 					}
 				});
@@ -778,7 +779,7 @@ export default function ClubStats() {
 				// Initialize visible teams with all teams
 				setVisibleTeams(new Set(validResults.map((r: any) => r.team)));
 			} catch (error) {
-				console.error("Error fetching team comparison data:", error);
+				log("error", "Error fetching team comparison data:", error);
 				setTeamComparisonData([]);
 			} finally {
 				setIsLoadingTeamComparison(false);
@@ -809,11 +810,11 @@ export default function ClubStats() {
 					const data = await response.json();
 					setPlayerDistributionData(data);
 				} else {
-					console.error("Failed to fetch player distribution:", response.statusText);
+					log("error", "Failed to fetch player distribution:", response.statusText);
 					setPlayerDistributionData(null);
 				}
 			} catch (error) {
-				console.error("Error fetching player distribution:", error);
+				log("error", "Error fetching player distribution:", error);
 				setPlayerDistributionData(null);
 			} finally {
 				setIsLoadingPlayerDistribution(false);
@@ -844,11 +845,11 @@ export default function ClubStats() {
 					const data = await response.json();
 					setPlayerTenureData(data.tenures || []);
 				} else {
-					console.error("Failed to fetch player tenure:", response.statusText);
+					log("error", "Failed to fetch player tenure:", response.statusText);
 					setPlayerTenureData([]);
 				}
 			} catch (error) {
-				console.error("Error fetching player tenure:", error);
+				log("error", "Error fetching player tenure:", error);
 				setPlayerTenureData([]);
 			} finally {
 				setIsLoadingPlayerTenure(false);
@@ -884,11 +885,11 @@ export default function ClubStats() {
 					const data = await response.json();
 					setPositionStatsData(data.stats || []);
 				} else {
-					console.error("Failed to fetch position stats:", response.statusText);
+					log("error", "Failed to fetch position stats:", response.statusText);
 					setPositionStatsData([]);
 				}
 			} catch (error) {
-				console.error("Error fetching position stats:", error);
+				log("error", "Error fetching position stats:", error);
 				setPositionStatsData([]);
 			} finally {
 				setIsLoadingPositionStats(false);
@@ -1734,7 +1735,7 @@ export default function ClubStats() {
 								{!isDataTableMode && (
 								<div id='club-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Top 5 {getStatTypeLabel(selectedStatType)}</h3>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="club-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
 											<Listbox value={selectedStatType} onChange={handleStatTypeSelect}>
 												<div className='relative'>
@@ -2179,10 +2180,10 @@ export default function ClubStats() {
 									</div>
 								)}
 
-								{/* Key Team Stats KPI Cards */}
+								{/* Other Club Stats KPI Cards */}
 								{toNumber(teamData.gamesPlayed) > 0 && (
-									<div id='club-key-team-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
+									<div id='club-other-club-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Other Club Stats</h3>
 										<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
 											<div className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
 												<div className='flex-shrink-0'>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 import { buildFilterConditions } from "../player-data/route";
 
 const corsHeaders = {
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
 		};
 
 		// Extract player stats from results
-		const players = result.records.map((record) => {
+		const players = result.records.map((record: Record) => {
 			const player = {
 				playerName: String(record.get("playerName") || ""),
 				appearances: toNumber(record.get("appearances")),

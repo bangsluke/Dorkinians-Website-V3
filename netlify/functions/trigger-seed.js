@@ -521,7 +521,7 @@ exports.handler = async (event, context) => {
 
 		// Trigger Heroku seeding service
 		console.log("🌱 HEROKU: Starting Heroku seeding service...");
-		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
+		const herokuUrl = process.env.HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com/";
 		console.log("🔗 HEROKU: Raw HEROKU_SEEDER_URL:", herokuUrl);
 		const cleanHerokuUrl = herokuUrl.replace(/\/+$/, ""); // Remove one or more trailing slashes
 		console.log("🔗 HEROKU: Cleaned URL:", cleanHerokuUrl);
@@ -659,7 +659,7 @@ exports.handler = async (event, context) => {
 
 		// Start monitoring the job (this runs in background)
 		console.log("🔍 MONITORING: Starting background job monitoring...");
-		monitorHerokuJob(jobId, cleanHerokuUrl, 71 * 60 * 1000) // Monitor for up to 71 minutes
+		monitorHerokuJob(jobId, cleanHerokuUrl, 25 * 60 * 1000) // Monitor for up to 25 minutes
 			.then(async (monitoringResult) => {
 				console.log("🔍 MONITORING: Job monitoring completed:", monitoringResult);
 				
@@ -736,7 +736,7 @@ exports.handler = async (event, context) => {
 				herokuUrl: cleanHerokuUrl,
 				monitoring: {
 					enabled: true,
-					maxWaitTime: "71 minutes",
+					maxWaitTime: "25 minutes",
 					checkInterval: "30 seconds"
 				}
 			}),

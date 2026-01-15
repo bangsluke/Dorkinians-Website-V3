@@ -1183,7 +1183,7 @@ alwaysApply: true
   - Verify that frontend can successfully call new endpoints through the routing system
 - **Example**: 
   - Next.js route: `app/api/chatbot/route.ts` → no redirect needed
-  - External service: `/api/debug/*` → add redirect to `https://database-dorkinians-4bac3364a645.herokuapp.com/api/debug/:splat` in netlify.toml
+  - External service: `/api/debug/*` → add redirect to `https://dorkinians-database-v3-0e9a731483c7.herokuapp.com//api/debug/:splat` in netlify.toml
   - Netlify Function: `/api/trigger-seed` → add redirect to `/.netlify/functions/trigger-seed` in netlify.toml
 
 ## Graph Database Operations

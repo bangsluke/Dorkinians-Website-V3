@@ -99,6 +99,14 @@ export default function AdminPanel() {
 	// Debug logs state
 	const [debugLogs, setDebugLogs] = useState<boolean>(false);
 
+	// Helper function to build Heroku API URLs with proper path handling
+	const buildHerokuUrl = (path: string): string => {
+		const baseUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://dorkinians-database-v3-0e9a731483c7.herokuapp.com";
+		const cleanBaseUrl = baseUrl.replace(/\/+$/, ""); // Remove trailing slashes
+		const cleanPath = path.startsWith("/") ? path : `/${path}`; // Ensure path starts with /
+		return `${cleanBaseUrl}${cleanPath}`;
+	};
+
 	// Chatbot test state
 	const [chatbotTestLoading, setChatbotTestLoading] = useState(false);
 	const [chatbotTestResult, setChatbotTestResult] = useState<any>(null);
@@ -491,7 +499,7 @@ export default function AdminPanel() {
 				}
 			} else {
 				addDebugLog("❌ All function paths failed", 'error');
-				addDebugLog("💡 Check Heroku app status: https://dashboard.heroku.com/apps/database-dorkinians", 'info');
+				addDebugLog("💡 Check Heroku app status: https://dashboard.heroku.com/apps/dorkinians-database-v3", 'info');
 				addDebugLog("💡 The Netlify function is working but can't connect to Heroku", 'info');
 				throw new Error("Failed to trigger seeding - Heroku service is unreachable. Check Heroku dashboard for app status.");
 			}
@@ -522,7 +530,6 @@ export default function AdminPanel() {
 		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
 			controller = new AbortController();
 			timeoutId = setTimeout(() => {
 				if (controller && !controller.signal.aborted) {
@@ -530,7 +537,7 @@ export default function AdminPanel() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(`${herokuUrl}/status/${jobId}`, {
+			const response = await fetch(buildHerokuUrl(`/status/${jobId}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -626,7 +633,7 @@ export default function AdminPanel() {
 
 					// Try to get more information about what jobs exist
 					try {
-						const jobsResponse = await fetch(`${herokuUrl}/jobs`, {
+						const jobsResponse = await fetch(buildHerokuUrl("/jobs"), {
 							method: "GET",
 							headers: { "Content-Type": "application/json" },
 							mode: "cors",
@@ -723,7 +730,6 @@ export default function AdminPanel() {
 		let timeoutId: NodeJS.Timeout | null = null;
 
 		try {
-			const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
 			controller = new AbortController();
 			timeoutId = setTimeout(() => {
 				if (controller && !controller.signal.aborted) {
@@ -731,7 +737,7 @@ export default function AdminPanel() {
 				}
 			}, 10000); // 10 second timeout
 
-			const response = await fetch(`${herokuUrl}/status/${specificJobId}`, {
+			const response = await fetch(buildHerokuUrl(`/status/${specificJobId}`), {
 				method: "GET",
 				headers: {
 					"Content-Type": "application/json",
@@ -1306,8 +1312,7 @@ export default function AdminPanel() {
 						}
 
 						// Open log viewer in new tab
-						const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-						window.open(`${herokuUrl}/logs/${jobId}/view`, '_blank');
+						window.open(buildHerokuUrl(`/logs/${jobId}/view`), '_blank');
 					}}
 					disabled={!jobId}
 					className={`w-full sm:w-64 px-6 py-3 rounded-lg text-xs sm:text-sm font-semibold text-white transition-colors ${
@@ -1324,8 +1329,7 @@ export default function AdminPanel() {
 
 						// Fetch warnings log and display in modal
 						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
-							const response = await fetch(`${herokuUrl}/logs/${jobId}/warnings`);
+							const response = await fetch(buildHerokuUrl(`/logs/${jobId}/warnings`));
 							const data = await response.json();
 							
 							if (data.success && data.warningsLogs) {
@@ -1399,7 +1403,6 @@ export default function AdminPanel() {
 						let timeoutId: NodeJS.Timeout | null = null;
 
 						try {
-							const herokuUrl = process.env.NEXT_PUBLIC_HEROKU_SEEDER_URL || "https://database-dorkinians-4bac3364a645.herokuapp.com";
 							controller = new AbortController();
 							timeoutId = setTimeout(() => {
 								if (controller && !controller.signal.aborted) {
@@ -1407,7 +1410,7 @@ export default function AdminPanel() {
 								}
 							}, 10000); // 10 second timeout
 
-							const response = await fetch(`${herokuUrl}/jobs`, {
+							const response = await fetch(buildHerokuUrl("/jobs"), {
 								method: "GET",
 								headers: {
 									"Content-Type": "application/json",
@@ -1458,11 +1461,11 @@ export default function AdminPanel() {
 				<p className='text-sm text-gray-800 font-semibold mb-1'>Live Logs (Heroku CLI)</p>
 				<p className='text-xs text-gray-700'>While seeding is running, you can stream full backend logs locally:</p>
 				<div className='mt-2 relative'>
-					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app database-dorkinians</code></pre>
+					<pre className='p-2 bg-gray-900 text-gray-100 text-xs rounded pr-10'><code>heroku logs --tail --app dorkinians-database-v3</code></pre>
 					<button
 						onClick={async () => {
 							try {
-								await navigator.clipboard.writeText('heroku logs --tail --app database-dorkinians');
+								await navigator.clipboard.writeText('heroku logs --tail --app dorkinians-database-v3');
 								showToast('Command copied to clipboard!', 'success');
 							} catch (err) {
 								showToast('Failed to copy to clipboard', 'error');
@@ -1631,13 +1634,12 @@ export default function AdminPanel() {
 									<p className='text-xs text-blue-500 mt-2'>
 										Elapsed: {formatElapsedTime(elapsedTime)} | Expected duration:{" "}
 										{lastCompletedJobDuration !== null ? formatElapsedTime(lastCompletedJobDuration) : 
-											fullRebuild ? "~71 minutes" : "~71 minutes"}
+											fullRebuild ? "~20 minutes" : "~20 minutes"}
 										{result.timestamp && (
 											<> | Expected end: {(() => {
 												const startTime = new Date(result.timestamp);
 												const expectedDurationMinutes = lastCompletedJobDuration !== null ? 
-													Math.floor(lastCompletedJobDuration / 60) : 
-													(fullRebuild ? 40 : 20);
+													Math.floor(lastCompletedJobDuration / 60) : 20;
 												const expectedEndTime = new Date(startTime.getTime() + (expectedDurationMinutes * 60 * 1000));
 												return expectedEndTime.toLocaleTimeString();
 											})()}</>

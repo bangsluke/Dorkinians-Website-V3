@@ -12,7 +12,11 @@ export async function makeAPIRequest(
 ) {
 	const startTime = Date.now();
 	
-	const response = await request[method.toLowerCase()](url, {
+	const methodMap: Record<string, (url: string, options?: any) => Promise<any>> = {
+		get: request.get.bind(request),
+		post: request.post.bind(request),
+	};
+	const response = await methodMap[method.toLowerCase()](url, {
 		data: body,
 		headers: {
 			'Content-Type': 'application/json',

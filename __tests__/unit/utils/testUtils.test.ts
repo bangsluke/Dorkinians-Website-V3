@@ -1,5 +1,5 @@
-import { fetchTestData, getAllStatConfigs, validateResponse, TestPlayerData, STAT_TEST_CONFIGS } from "./testUtils";
-import { TestConfig } from "../../config/config";
+import { fetchTestData, getAllStatConfigs, validateResponse, TestPlayerData, STAT_TEST_CONFIGS } from "@/__tests__/utils/testUtils";
+import { TestConfig } from "@/config/config";
 
 describe("TestUtils Debug Tests", () => {
 	test("STAT_TEST_CONFIGS should have 70 entries", () => {
@@ -27,7 +27,7 @@ describe("TestUtils Debug Tests", () => {
 		console.log("🔍 getAllStatConfigs length:", configs.length);
 		console.log(
 			"🔍 getAllStatConfigs keys:",
-			configs.map((config) => config.key),
+			configs.map((config: TestConfig) => config.key),
 		);
 		expect(configs.length).toBe(70);
 	});
@@ -37,7 +37,7 @@ describe("TestUtils Debug Tests", () => {
 		console.log("🔍 fetchTestData length:", testData.length);
 		console.log(
 			"🔍 fetchTestData players:",
-			testData.map((p) => p.playerName),
+			testData.map((p: TestPlayerData) => p.playerName),
 		);
 		console.log("🔍 First player sample:", testData[0]);
 		expect(testData.length).toBeGreaterThan(0);

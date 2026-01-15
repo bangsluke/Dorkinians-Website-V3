@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 		const result = await neo4jService.runQuery(query, params);
 
-		const seasons = result.records.map((record) => ({
+		const seasons = result.records.map((record: Record) => ({
 			season: String(record.get("seasonName") || ""),
 			startDate: String(record.get("seasonStartDate") || ""),
 			endDate: String(record.get("seasonEndDate") || ""),

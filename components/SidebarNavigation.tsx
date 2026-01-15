@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon, HomeIcon, ChartBarIcon, TrophyIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type MainPage, type StatsSubPage, type TOTWSubPage, type ClubInfoSubPage } from "@/lib/stores/navigation";
 import Image from "next/image";
+import { log } from "@/lib/utils/logger";
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -156,7 +157,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								<motion.button
 									data-testid={`nav-sidebar-${item.id}`}
 									onClick={() => {
-										console.log("🔘 [SidebarNavigation] Button clicked:", item.id);
+										log("info", "🔘 [SidebarNavigation] Button clicked:", item.id);
 										setMainPage(item.id);
 									}}
 									className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
