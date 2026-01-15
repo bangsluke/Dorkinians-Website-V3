@@ -1,5 +1,5 @@
-import { ChatbotService, QuestionContext } from "../../lib/services/chatbotService";
-import { FALLBACK_TEST_DATA } from "../utils/testUtils";
+import { ChatbotService, QuestionContext } from "@/lib/services/chatbotService";
+import { FALLBACK_TEST_DATA } from "@/__tests__/utils/testUtils";
 
 describe("ChatbotService Basic Tests", () => {
 	let chatbotService: ChatbotService;

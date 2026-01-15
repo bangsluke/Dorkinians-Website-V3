@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
 			neo4jService.runQuery(currentSeasonQuery, { graphLabel }),
 		]);
 
-		const seasons = seasonsResult.records.map((record) => String(record.get("season") || ""));
+		const seasons = seasonsResult.records.map((record: Record) => String(record.get("season") || ""));
 		const currentSeasonRecord = currentSeasonResult.records[0];
 		const currentSeason = currentSeasonRecord ? String(currentSeasonRecord.get("currentSeason") || "") : null;
 		const latestGameweek = currentSeasonRecord ? String(currentSeasonRecord.get("latestGameweek") || "") : null;

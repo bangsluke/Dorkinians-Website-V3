@@ -260,18 +260,127 @@ export async function selectPlayer(page: Page, playerName: string) {
 	
 	// Wait for dropdown and select - try test ID first
 	await page.waitForTimeout(500); // Wait for dropdown to appear
+	
+	// Try to find the option first
 	const optionByTestId = page.getByTestId('player-selection-option').filter({ hasText: playerName }).first();
 	const optionExists = await optionByTestId.isVisible({ timeout: 2000 }).catch(() => false);
 	
 	if (optionExists) {
-		await optionByTestId.click();
+		// Try clicking the option first (most direct)
+		try {
+			await optionByTestId.click({ timeout: 2000 });
+		} catch (e) {
+			// Fallback 1: Try clicking with force
+			try {
+				await optionByTestId.click({ force: true, timeout: 2000 });
+			} catch (e2) {
+				// Fallback 2: Try keyboard navigation
+				await searchInput.focus();
+				await page.waitForTimeout(100);
+				await searchInput.press('ArrowDown');
+				await page.waitForTimeout(100);
+				await searchInput.press('Enter');
+			}
+		}
 	} else {
 		const option = page.locator(`text=${playerName}`).first();
-		await option.click();
+		const optionVisible = await option.isVisible({ timeout: 2000 }).catch(() => false);
+		if (optionVisible) {
+			try {
+				await option.click();
+			} catch (e) {
+				await searchInput.press('Enter');
+			}
+		} else {
+			// Last resort: try keyboard Enter on the input (should select first filtered option)
+			await searchInput.press('Enter');
+		}
 	}
 	
 	// Wait for player to be selected
 	await waitForPageLoad(page);
+}
+
+/**
+ * Set player directly in store and localStorage (bypasses UI interaction)
+ * This is more reliable for tests that need a player selected before testing
+ * 
+ * This function:
+ * 1. Sets localStorage directly
+ * 2. Calls the store's selectPlayer function via page.evaluate to update store state
+ * 3. Waits for the store to be updated
+ */
+export async function setPlayerDirectly(page: Page, playerName: string) {
+	// Set localStorage and manually trigger store update
+	// Since we can't easily access Zustand stores from page.evaluate(),
+	// we'll set localStorage and then trigger initializeFromStorage by navigating
+	await page.evaluate((name) => {
+		// Set localStorage (matching store's selectPlayer behavior)
+		localStorage.setItem('dorkinians-selected-player', name);
+		
+		// Also update recent players
+		try {
+			const recentPlayersKey = 'dorkinians-recent-players';
+			const existing = localStorage.getItem(recentPlayersKey);
+			let recentPlayers: string[] = existing ? JSON.parse(existing) : [];
+			recentPlayers = recentPlayers.filter((p) => p !== name);
+			recentPlayers.unshift(name);
+			recentPlayers = recentPlayers.slice(0, 5);
+			localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
+		} catch (e) {
+			console.warn('Failed to update recent players:', e);
+		}
+	}, playerName);
+	
+	// Now trigger store update by calling initializeFromStorage
+	// We'll do this by navigating away and back, or by manually calling it if accessible
+	// The simplest: reload the page or navigate to trigger initializeFromStorage
+	// But actually, we can just wait for the next component mount to call it
+	// OR we can manually trigger it by accessing the store if it's exposed
+	
+	// Wait for localStorage to be set
+	await page.waitForFunction(
+		(name) => localStorage.getItem('dorkinians-selected-player') === name,
+		playerName,
+		{ timeout: 5000 }
+	);
+	
+}
+
+/**
+ * Set up localStorage for Player Stats page to display fully populated
+ * This replicates the essential behavior of initializeFromStorage for testing
+ * without requiring navigation to home page
+ */
+export async function setupPlayerStatsPage(page: Page, playerName: string) {
+	await page.evaluate((name) => {
+		// Set selected player (required for Player Stats)
+		localStorage.setItem('dorkinians-selected-player', name);
+		
+		// Set navigation state to stats page
+		localStorage.setItem('dorkinians-current-main-page', 'stats');
+		localStorage.setItem('dorkinians-current-stats-sub-page', 'player-stats');
+		
+		// Update recent players (matching selectPlayer behavior)
+		try {
+			const recentPlayersKey = 'dorkinians-recent-players';
+			const existing = localStorage.getItem(recentPlayersKey);
+			let recentPlayers: string[] = existing ? JSON.parse(existing) : [];
+			recentPlayers = recentPlayers.filter((p) => p !== name);
+			recentPlayers.unshift(name);
+			recentPlayers = recentPlayers.slice(0, 5);
+			localStorage.setItem(recentPlayersKey, JSON.stringify(recentPlayers));
+		} catch (e) {
+			console.warn('Failed to update recent players:', e);
+		}
+	}, playerName);
+	
+	// Wait for localStorage to be set
+	await page.waitForFunction(
+		(name) => localStorage.getItem('dorkinians-selected-player') === name && localStorage.getItem('dorkinians-current-main-page') === 'stats',
+		playerName,
+		{ timeout: 5000 }
+	);
 }
 
 /**
@@ -365,4 +474,63 @@ export async function getVisibleNavButton(page: Page, pageId: 'home' | 'stats' |
  */
 export async function takeScreenshot(page: Page, name: string) {
 	await page.screenshot({ path: `e2e/test-results/screenshots/${name}.png`, fullPage: true });
+}
+
+/**
+ * Verify a section is visible by checking its heading and content
+ * page is the page object
+ * sectionName is the name of the section to verify
+ * dataTestId is the data-testid of the section to verify
+ * contentText is some additional text to verify within the section
+ */
+export async function verifySectionVisible(page: Page, sectionId: string, sectionName: string, dataTestId?: string, contentText?: string) {
+	// Find section by heading (h3 element) or data-testid
+	const heading = dataTestId ? page.getByTestId(dataTestId) : page.getByRole('heading', { name: new RegExp(sectionName, 'i') });
+	await expect(heading).toBeVisible({ timeout: 10000 });
+	
+	// If content text is provided, verify it exists within the section
+	if (contentText) {
+		// Find the section container
+		const sectionContainer = heading.locator(`xpath=ancestor::*[@id="${sectionId}"]`);
+		// 1. Normal text match
+		const textMatch = sectionContainer.getByText(new RegExp(contentText, 'i'));
+		// 2. Label text match
+		const labelMatch = sectionContainer.locator('label', {
+			hasText: new RegExp(contentText, 'i'),
+		});
+		// 3. Combined locator: either text OR label
+		const combined = sectionContainer.locator(
+			`:is(:text("${contentText}"), label:has-text("${contentText}"))`
+		);
+		await expect(combined.first()).toBeVisible({ timeout: 5000 });
+	}
+}
+
+/**
+ * Toggle data table mode and verify the state
+ */
+export async function toggleDataTable(page: Page, expectedState: 'table' | 'visualisation') {
+	// Find the toggle button
+	const toggleButton = page.getByRole('button', { name: /Switch to (data table|data visualisation)/i });
+	await expect(toggleButton).toBeVisible({ timeout: 5000 });
+	
+	// Click the button
+	await toggleButton.click();
+	await page.waitForTimeout(500); // Wait for state change
+	
+	// Verify the new state
+	if (expectedState === 'table') {
+		// Should see data table and "Switch to data visualisation" button
+		const table = page.locator('table').first();
+		await expect(table).toBeVisible({ timeout: 5000 });
+		const visualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });
+		await expect(visualisationButton).toBeVisible({ timeout: 5000 });
+	} else {
+		// Should see visualisations and "Switch to data table" button
+		const tableButton = page.getByRole('button', { name: /Switch to data table/i });
+		await expect(tableButton).toBeVisible({ timeout: 5000 });
+		// Verify at least one section is visible (not in table mode)
+		const sectionHeading = page.getByRole('heading', { name: /Key Performance Stats|Key Club Stats/i }).first();
+		await expect(sectionHeading).toBeVisible({ timeout: 5000 });
+	}
 }

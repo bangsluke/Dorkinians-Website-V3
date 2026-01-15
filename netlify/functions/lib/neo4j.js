@@ -29,28 +29,41 @@ class Neo4jService {
 			logDebug(`🔧 Username configured: ${username ? "Yes" : "No"}`);
 			logDebug(`🔧 Password configured: ${password ? "Yes" : "No"}`);
 
-			if (!uri || !username || !password) {
-				const missingVars = [];
-				if (!uri) missingVars.push("URI");
-				if (!username) missingVars.push("USER");
-				if (!password) missingVars.push("PASSWORD");
-				throw new Error(`Neo4j connection details not configured. Missing: ${missingVars.join(", ")}`);
+		if (!uri || !username || !password) {
+			const missingVars = [];
+			if (!uri) missingVars.push("URI");
+			if (!username) missingVars.push("USER");
+			if (!password) missingVars.push("PASSWORD");
+			throw new Error(`Neo4j connection details not configured. Missing: ${missingVars.join(", ")}`);
+		}
+
+		// Validate URI format for Aura (must use neo4j+s:// or neo4j+ssc://)
+		if (!uri.startsWith("neo4j+s://") && !uri.startsWith("neo4j+ssc://")) {
+			throw new Error(`Invalid Neo4j Aura URI format. Must use neo4j+s:// or neo4j+ssc:// scheme. Current: ${uri.substring(0, 20)}...`);
+		}
+
+		// Configure driver with encryption and connection pool settings for concurrent requests
+		this.driver = neo4j.driver(
+			uri,
+			neo4j.auth.basic(username, password),
+			{
+				maxConnectionPoolSize: 50, // Default is 50, good for concurrent requests
+				maxConnectionLifetime: 30 * 60 * 1000, // 30 minutes - prevents stale connections
+				connectionAcquisitionTimeout: 60000, // 60 seconds
+				connectionTimeout: 30000, // 30 seconds
+				maxTransactionRetryTime: 30000, // 30 seconds
+				disableLosslessIntegers: true,
+				// Encryption is automatically handled by neo4j+s:// URI scheme
 			}
+		);
 
-			// Configure driver with connection pool settings for concurrent requests
-			this.driver = neo4j.driver(
-				uri,
-				neo4j.auth.basic(username, password),
-				{
-					maxConnectionPoolSize: 50, // Default is 50, good for concurrent requests
-					connectionAcquisitionTimeout: 60000, // 60 seconds
-					connectionTimeout: 30000, // 30 seconds
-					disableLosslessIntegers: true,
-				}
-			);
-
-			// Test connection
-			await this.driver.verifyConnectivity();
+		// Test connection with timeout
+		await Promise.race([
+			this.driver.verifyConnectivity(),
+			new Promise((_, reject) => 
+				setTimeout(() => reject(new Error("Connection verification timeout after 30 seconds")), 30000)
+			)
+		]);
 			this.isConnected = true;
 
 			logDebug("✅ Neo4j connection established");
@@ -81,41 +94,99 @@ class Neo4jService {
 		return this.driver.session();
 	}
 
-	async executeQuery(query, params = {}) {
-		if (!this.driver || !this.isConnected) {
-			const connected = await this.connect();
-			if (!connected) {
-				throw new Error("Neo4j driver not initialized and connection failed");
-			}
-		}
-		const session = this.driver.session();
+	async executeQuery(query, params = {}, retryCount = 0) {
+		const maxRetries = 2;
+		
 		try {
-			const result = await session.run(query, params);
-			return result.records.map((record) => record.toObject());
+			if (!this.driver || !this.isConnected) {
+				const connected = await this.connect();
+				if (!connected) {
+					throw new Error("Neo4j driver not initialized and connection failed");
+				}
+			}
+			
+			const session = this.driver.session();
+			try {
+				const result = await session.run(query, params);
+				return result.records.map((record) => record.toObject());
+			} finally {
+				await session.close();
+			}
 		} catch (error) {
+			// Check if it's a connection error that should trigger retry
+			const isConnectionError = error?.code === 'SessionExpired' || 
+				error?.message?.includes('Failed to connect') ||
+				error?.message?.includes('TLS connection') ||
+				error?.message?.includes('network socket disconnected');
+			
+			if (isConnectionError && retryCount < maxRetries) {
+				console.warn(`⚠️ Connection error detected, retrying (${retryCount + 1}/${maxRetries})...`);
+				// Reset connection state
+				this.isConnected = false;
+				if (this.driver) {
+					try {
+						await this.driver.close();
+					} catch (closeError) {
+						// Ignore close errors
+					}
+					this.driver = null;
+				}
+				// Wait before retry (exponential backoff)
+				await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 5000)));
+				// Retry the query
+				return this.executeQuery(query, params, retryCount + 1);
+			}
+			
 			console.error("❌ Query execution failed:", error);
 			throw error;
-		} finally {
-			await session.close();
 		}
 	}
 
-	async runQuery(query, params = {}) {
-		if (!this.driver || !this.isConnected) {
-			const connected = await this.connect();
-			if (!connected) {
-				throw new Error("Neo4j driver not initialized and connection failed");
-			}
-		}
-		const session = this.driver.session();
+	async runQuery(query, params = {}, retryCount = 0) {
+		const maxRetries = 2;
+		
 		try {
-			const result = await session.run(query, params);
-			return result;
+			if (!this.driver || !this.isConnected) {
+				const connected = await this.connect();
+				if (!connected) {
+					throw new Error("Neo4j driver not initialized and connection failed");
+				}
+			}
+			
+			const session = this.driver.session();
+			try {
+				const result = await session.run(query, params);
+				return result;
+			} finally {
+				await session.close();
+			}
 		} catch (error) {
+			// Check if it's a connection error that should trigger retry
+			const isConnectionError = error?.code === 'SessionExpired' || 
+				error?.message?.includes('Failed to connect') ||
+				error?.message?.includes('TLS connection') ||
+				error?.message?.includes('network socket disconnected');
+			
+			if (isConnectionError && retryCount < maxRetries) {
+				console.warn(`⚠️ Connection error detected, retrying (${retryCount + 1}/${maxRetries})...`);
+				// Reset connection state
+				this.isConnected = false;
+				if (this.driver) {
+					try {
+						await this.driver.close();
+					} catch (closeError) {
+						// Ignore close errors
+					}
+					this.driver = null;
+				}
+				// Wait before retry (exponential backoff)
+				await new Promise(resolve => setTimeout(resolve, Math.min(1000 * Math.pow(2, retryCount), 5000)));
+				// Retry the query
+				return this.runQuery(query, params, retryCount + 1);
+			}
+			
 			console.error("❌ Query execution failed:", error);
 			throw error;
-		} finally {
-			await session.close();
 		}
 	}
 

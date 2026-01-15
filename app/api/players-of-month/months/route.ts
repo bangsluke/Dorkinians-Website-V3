@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 		// Extract month names from dates and create unique list
 		const monthMap = new Map<string, { monthName: string; date: string }>();
 		
-		monthsResult.records.forEach((record) => {
+		monthsResult.records.forEach((record: Record) => {
 			const dateValue = record.get("date");
 			if (!dateValue) return;
 

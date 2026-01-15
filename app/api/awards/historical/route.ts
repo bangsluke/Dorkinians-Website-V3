@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
 		const allEntries: HistoricalAwardEntry[] = [];
 		const seasonPattern = /^season(\d{4})(\d{2})$/;
 
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ha");
 			const properties = node.properties;
 			const awardName = String(properties.itemName || "");
@@ -100,7 +102,7 @@ export async function GET(request: NextRequest) {
 
 		const playerResult = await neo4jService.runQuery(playerQuery, { graphLabel });
 		const playerNames = new Set<string>();
-		playerResult.records.forEach((record) => {
+		playerResult.records.forEach((record: Record) => {
 			const playerName = record.get("playerName");
 			if (playerName) {
 				playerNames.add(String(playerName).trim().toLowerCase());
@@ -142,7 +144,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ awardsData: displayData }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching historical award data:", error);
+		logError("Error fetching historical award data", error);
 		return NextResponse.json({ error: "Failed to fetch historical award data" }, { status: 500, headers: corsHeaders });
 	}
 }

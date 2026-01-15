@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
 			const allResult = await neo4jService.runQuery(allMonthsQuery, { graphLabel, season });
 			
 			// Filter by month in JavaScript
-			const matchingRecord = allResult.records.find((record) => {
+			const matchingRecord = allResult.records.find((record: Record) => {
 				const pmNode = record.get("pm");
 				const dateValue = pmNode.properties.date;
 				if (!dateValue) return false;

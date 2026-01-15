@@ -10,10 +10,33 @@ type LogLevel = 'error' | 'warn' | 'info' | 'debug';
 const isProduction = process.env.NODE_ENV === 'production';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
+// Get console log level from environment variable
+// Defaults: development -> 'info', production -> 'error'
+// Backward compatibility: DISABLE_CONSOLE_LOGS=true -> 'error'
+const getConsoleLogLevel = (): 'error' | 'info' | 'debug' => {
+	const disableConsoleLogs = process.env.DISABLE_CONSOLE_LOGS === 'true';
+	if (disableConsoleLogs) {
+		return 'error'; // Backward compatibility
+	}
+	
+	const level = process.env.CONSOLE_LOG_LEVEL;
+	if (level === 'error' || level === 'info' || level === 'debug') {
+		return level;
+	}
+	
+	// Default behavior
+	if (isProduction) {
+		return 'error';
+	}
+	return 'info';
+};
+
+const consoleLogLevel = getConsoleLogLevel();
+
 /**
  * Sanitize sensitive data from log output
  */
-function sanitizeLogData(data: any): any {
+export function sanitizeLogData(data: any): any {
 	if (data === null || data === undefined) {
 		return data;
 	}
@@ -34,7 +57,24 @@ function sanitizeLogData(data: any): any {
 
 	if (typeof data === 'object') {
 		if (Array.isArray(data)) {
-			return data.map(sanitizeLogData).slice(0, 10); // Limit array size
+			// Always create a fresh array
+			let safeArray: any[];
+			try {
+				safeArray = Array.from(data);
+			} catch {
+				safeArray = [];
+			}
+			// Use manual loop instead of .map() to avoid any potential issues
+			const result: any[] = [];
+			const length = safeArray != null && typeof safeArray.length === 'number' ? Math.min(safeArray.length, 10) : 0;
+			for (let i = 0; i < length; i++) {
+				try {
+					result.push(sanitizeLogData(safeArray[i]));
+				} catch {
+					// Skip this item if sanitization fails
+				}
+			}
+			return result;
 		}
 
 		// Create sanitized copy of object
@@ -76,14 +116,29 @@ function sanitizeQuery(query: string): string {
  * Production-safe logging function
  */
 export function log(level: LogLevel, message: string, data?: any): void {
-	// Never log debug in production
-	if (isProduction && level === 'debug') {
-		return;
-	}
-
-	// In production, only log errors and warnings
-	if (isProduction && level === 'info') {
-		return;
+	// Check log level permissions
+	// error: Always allowed
+	// warn: Allowed if level is 'info' or 'debug'
+	// info: Allowed if level is 'info' or 'debug'
+	// debug: Allowed only if level is 'debug'
+	
+	if (level === 'error') {
+		// Always allow errors
+	} else if (level === 'warn') {
+		// Allow if level is 'info' or 'debug'
+		if (consoleLogLevel !== 'info' && consoleLogLevel !== 'debug') {
+			return;
+		}
+	} else if (level === 'info') {
+		// Allow if level is 'info' or 'debug'
+		if (consoleLogLevel !== 'info' && consoleLogLevel !== 'debug') {
+			return;
+		}
+	} else if (level === 'debug') {
+		// Only allow if level is 'debug'
+		if (consoleLogLevel !== 'debug') {
+			return;
+		}
 	}
 
 	const sanitized = data ? sanitizeLogData(data) : undefined;
@@ -99,9 +154,7 @@ export function log(level: LogLevel, message: string, data?: any): void {
 			console.log(`[${new Date().toISOString()}] ${message}`, sanitized);
 			break;
 		case 'debug':
-			if (isDevelopment) {
-				console.log(`[DEBUG ${new Date().toISOString()}] ${message}`, sanitized);
-			}
+			console.log(`[DEBUG ${new Date().toISOString()}] ${message}`, sanitized);
 			break;
 	}
 }
@@ -114,8 +167,8 @@ export function logError(message: string, error: unknown): void {
 		log('error', message, {
 			name: error.name,
 			message: error.message,
-			// Don't log stack traces in production
-			stack: isDevelopment ? error.stack : undefined,
+			// Only include stack traces if log level is 'info' or 'debug'
+			stack: (consoleLogLevel === 'info' || consoleLogLevel === 'debug') ? error.stack : undefined,
 		});
 	} else {
 		log('error', message, sanitizeLogData(error));

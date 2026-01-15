@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { buildFilterConditions } from "../player-data/route";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -79,13 +81,13 @@ export async function POST(request: NextRequest) {
 			return isNaN(num) ? 0 : num;
 		};
 
-		const tenures = result.records.map((record) => {
+		const tenures = result.records.map((record: Record) => {
 			return toNumber(record.get("tenure"));
 		});
 
 		return NextResponse.json({ tenures }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching club player tenure:", error);
+		logError("Error fetching club player tenure", error);
 		return NextResponse.json({ error: "Failed to fetch club player tenure" }, { status: 500, headers: corsHeaders });
 	}
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 import { buildFilterConditions } from "@/app/api/player-data/route";
 
 const corsHeaders = {
@@ -174,7 +175,7 @@ export async function POST(request: NextRequest) {
 			return isNaN(num) ? 0 : num;
 		};
 
-		const monthlyStats = result.records.map((record) => ({
+		const monthlyStats = result.records.map((record: Record) => ({
 			month: record.get("monthName"),
 			appearances: toNumber(record.get("appearances")),
 			minutes: toNumber(record.get("minutes")),
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
 
 		// Ensure all months are present (fill with zeros if missing)
 		const allMonths = monthNames.map(month => {
-			const existing = monthlyStats.find(stat => stat.month === month);
+			const existing = monthlyStats.find((stat: { month: string }) => stat.month === month);
 			if (existing) return existing;
 			return {
 				month,

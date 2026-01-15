@@ -66,7 +66,7 @@ const statsNavigationItems = [
 			{ id: "club-big-club-numbers", label: "Big Club Numbers" },
 			{ id: "club-goals-scored-conceded", label: "Goals Scored vs Conceded" },
 			{ id: "club-home-away-performance", label: "Home vs Away Performance" },
-			{ id: "club-key-team-stats", label: "Key Team Stats" },
+			{ id: "club-other-club-stats", label: "Other Club Stats" },
 			{ id: "club-unique-player-stats", label: "Unique Player Stats" },
 			{ id: "club-data-table", label: "Data Table", isDataTable: true },
 		],

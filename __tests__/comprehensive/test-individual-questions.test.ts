@@ -14,7 +14,7 @@
  *   3. Add any specific assertions needed
  */
 
-import { ChatbotService, QuestionContext } from "../lib/services/chatbotService";
+import { ChatbotService, QuestionContext } from "@/lib/services/chatbotService";
 
 interface TestCase {
 	question: string;

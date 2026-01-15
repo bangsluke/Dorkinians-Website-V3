@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { WeeklyTOTW } from "@/types";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 		};
 
 		// Build players map with FTP scores
-		const players = playersResult.records.map((record) => {
+		const players = playersResult.records.map((record: Record) => {
 			const ftpScore = record.get("ftpScore");
 			const ftpValue = ftpScore !== null && ftpScore !== undefined 
 				? (typeof ftpScore.toNumber === 'function' ? ftpScore.toNumber() : Number(ftpScore))
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
 			};
 		});
 
-		console.log(`[API] Players with FTP scores:`, players.map(p => `${p.playerName}: ${p.ftpScore}`));
+		console.log(`[API] Players with FTP scores:`, players.map((p: { playerName: string; ftpScore: number }) => `${p.playerName}: ${p.ftpScore}`));
 
 		return NextResponse.json({ totwData, players }, { headers: corsHeaders });
 	} catch (error) {

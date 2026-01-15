@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { getPWADebugInfo } from "@/lib/utils/pwaDebug";
 import { appConfig } from "@/config/config";
+import { logError } from "@/lib/utils/logger";
+import { sanitizeError } from "@/lib/utils/errorSanitizer";
 
 interface ErrorPageProps {
 	error: Error & { digest?: string };
@@ -18,9 +20,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 		const debugInfo = getPWADebugInfo();
 		setPwaDebugInfo(debugInfo);
 		
-		// Log error details
-		console.error("Next.js Error Page - Error:", error);
-		console.error("Next.js Error Page - PWA Debug Info:", debugInfo);
+		// Log error details using sanitized logger
+		logError("Next.js Error Page - Error", error);
+		if (debugInfo) {
+			logError("Next.js Error Page - PWA Debug Info", new Error(JSON.stringify(debugInfo)));
+		}
 	}, [error]);
 
 	const handleReload = () => {
@@ -35,9 +39,11 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
 		// Get selected player from localStorage
 		const selectedPlayer = localStorage.getItem("dorkinians-selected-player") || "None";
 
-		// Build email content
-		const errorMessage = error.message || "Unknown error";
-		const stackTrace = error.stack || "No stack trace available";
+		// Build email content - sanitize in production
+		const isProduction = process.env.NODE_ENV === 'production';
+		const sanitizedError = sanitizeError(error, isProduction);
+		const errorMessage = sanitizedError.message;
+		const stackTrace = isProduction ? "[Stack trace removed in production]" : (error.stack || "No stack trace available");
 		const environmentInfo = pwaDebugInfo ? JSON.stringify(pwaDebugInfo, null, 2) : "No environment info available";
 		const dateTime = new Date().toISOString();
 
@@ -81,7 +87,9 @@ Date/Time: ${dateTime}`;
 					<div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
 						<p className="text-red-200 font-semibold mb-2">Error Message:</p>
 						<p className="text-red-100 text-sm font-mono break-words">
-							{error.message || "Unknown error"}
+							{process.env.NODE_ENV === 'production' 
+								? sanitizeError(error, true).message
+								: (error.message || "Unknown error")}
 						</p>
 						{error.digest && (
 							<p className="text-red-300 text-xs mt-2">
@@ -90,38 +98,42 @@ Date/Time: ${dateTime}`;
 						)}
 					</div>
 
-					<button
-						onClick={() => setShowDetails(!showDetails)}
-						className="w-full text-left text-gray-300 cursor-pointer text-sm mb-2 hover:text-white flex items-center justify-between p-2 rounded bg-white/5 hover:bg-white/10 transition-colors"
-					>
-						<span>{showDetails ? "Hide" : "Show"} Error Details</span>
-						<span className="text-lg">{showDetails ? "−" : "+"}</span>
-					</button>
+					{process.env.NODE_ENV !== 'production' && (
+						<>
+							<button
+								onClick={() => setShowDetails(!showDetails)}
+								className="w-full text-left text-gray-300 cursor-pointer text-sm mb-2 hover:text-white flex items-center justify-between p-2 rounded bg-white/5 hover:bg-white/10 transition-colors"
+							>
+								<span>{showDetails ? "Hide" : "Show"} Error Details</span>
+								<span className="text-lg">{showDetails ? "−" : "+"}</span>
+							</button>
 
-					{showDetails && (
-						<div className="space-y-4">
-							{error.stack && (
-								<details className="mb-4">
-									<summary className="text-gray-300 cursor-pointer text-sm mb-2 hover:text-white">
-										Stack Trace
-									</summary>
-									<pre className="bg-black/50 rounded p-3 text-xs text-gray-400 overflow-x-auto max-h-48 overflow-y-auto">
-										{error.stack}
-									</pre>
-								</details>
-							)}
+							{showDetails && (
+								<div className="space-y-4">
+									{error.stack && (
+										<details className="mb-4">
+											<summary className="text-gray-300 cursor-pointer text-sm mb-2 hover:text-white">
+												Stack Trace
+											</summary>
+											<pre className="bg-black/50 rounded p-3 text-xs text-gray-400 overflow-x-auto max-h-48 overflow-y-auto">
+												{error.stack}
+											</pre>
+										</details>
+									)}
 
-							{pwaDebugInfo && (
-								<details className="mb-4">
-									<summary className="text-gray-300 cursor-pointer text-sm mb-2 hover:text-white">
-										Environment Info
-									</summary>
-									<div className="bg-black/50 rounded p-3 text-xs text-gray-400 overflow-x-auto">
-										<pre>{JSON.stringify(pwaDebugInfo, null, 2)}</pre>
-									</div>
-								</details>
+									{pwaDebugInfo && (
+										<details className="mb-4">
+											<summary className="text-gray-300 cursor-pointer text-sm mb-2 hover:text-white">
+												Environment Info
+											</summary>
+											<div className="bg-black/50 rounded p-3 text-xs text-gray-400 overflow-x-auto">
+												<pre>{JSON.stringify(pwaDebugInfo, null, 2)}</pre>
+											</div>
+										</details>
+									)}
+								</div>
 							)}
-						</div>
+						</>
 					)}
 				</div>
 

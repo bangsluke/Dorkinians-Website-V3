@@ -18,6 +18,7 @@ import UpdateToast from "@/components/UpdateToast";
 import DevClearStorageFAB from "@/components/DevClearStorageFAB";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
+import { log } from "@/lib/utils/logger";
 
 export default function HomePage() {
 	const {
@@ -37,13 +38,6 @@ export default function HomePage() {
 		loadFilterData,
 	} = useNavigationStore();
 
-	// console log the state of the home page
-	// console.log("🏠 [HomePage] Component rendered with state:", {
-	// 	currentMainPage,
-	// 	selectedPlayer,
-	// 	isPlayerSelected,
-	// 	isEditMode,
-	// });
 	const [showChatbot, setShowChatbot] = useState(false);
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
@@ -101,16 +95,8 @@ export default function HomePage() {
 
 	// Show chatbot when player is loaded from localStorage and not in edit mode
 	useEffect(() => {
-		// console.log("🤖 [HomePage] Chatbot useEffect triggered with:", {
-		// 	isPlayerSelected,
-		// 	selectedPlayer,
-		// 	isEditMode,
-		// 	showChatbot,
-		// 	currentMainPage,
-		// });
 
 		if (currentMainPage === "home" && isPlayerSelected && selectedPlayer && !isEditMode) {
-			// console.log("✅ [HomePage] Showing chatbot for player:", selectedPlayer);
 			setShowChatbot(true);
 		} else {
 			setShowChatbot(false);
@@ -284,7 +270,6 @@ export default function HomePage() {
 				);
 
 			case "stats":
-				// console.log("📊 [HomePage] Rendering stats page");
 				return (
 					<motion.div
 						key='stats'
@@ -297,7 +282,6 @@ export default function HomePage() {
 				);
 
 			case "totw":
-				// console.log("🏆 [HomePage] Rendering TOTW page");
 				return (
 					<motion.div key='totw' initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className='h-full'>
 						<TOTWContainer />
@@ -305,7 +289,6 @@ export default function HomePage() {
 				);
 
 			case "club-info":
-				// console.log("ℹ️ [HomePage] Rendering club-info page");
 				return (
 					<motion.div
 						key='club-info'
@@ -318,7 +301,6 @@ export default function HomePage() {
 				);
 
 			case "settings":
-				// console.log("⚙️ [HomePage] Rendering settings page");
 				return (
 					<motion.div
 						key='settings'
@@ -331,7 +313,7 @@ export default function HomePage() {
 				);
 
 			default:
-				console.log("❌ [HomePage] Unknown page:", currentMainPage);
+				log("error", "❌ [HomePage] Unknown page:", currentMainPage);
 				return null;
 		}
 	};
