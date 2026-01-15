@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { MatchDetail } from "@/types";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Map records
-		const allMatchDetails = queryResult.records.map((record) => {
+		const allMatchDetails = queryResult.records.map((record: Record) => {
 			const mdNode = record.get("md");
 			const properties = mdNode.properties;
 			const matchSummary = record.get("matchSummary");
@@ -150,18 +151,18 @@ export async function GET(request: NextRequest) {
 
 		// Calculate aggregated stats
 		const appearances = matchDetails.length;
-		const goals = matchDetails.reduce((sum, md) => sum + md.goals, 0);
-		const assists = matchDetails.reduce((sum, md) => sum + md.assists, 0);
-		const cleanSheets = matchDetails.reduce((sum, md) => sum + md.cleanSheets, 0);
-		const mom = matchDetails.reduce((sum, md) => sum + (md.mom ? 1 : 0), 0);
-		const yellowCards = matchDetails.reduce((sum, md) => sum + md.yellowCards, 0);
-		const redCards = matchDetails.reduce((sum, md) => sum + md.redCards, 0);
-		const saves = matchDetails.reduce((sum, md) => sum + md.saves, 0);
-		const ownGoals = matchDetails.reduce((sum, md) => sum + md.ownGoals, 0);
-		const conceded = matchDetails.reduce((sum, md) => sum + md.conceded, 0);
-		const penaltiesScored = matchDetails.reduce((sum, md) => sum + md.penaltiesScored, 0);
-		const penaltiesMissed = matchDetails.reduce((sum, md) => sum + md.penaltiesMissed, 0);
-		const penaltiesSaved = matchDetails.reduce((sum, md) => sum + md.penaltiesSaved, 0);
+		const goals = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.goals, 0);
+		const assists = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.assists, 0);
+		const cleanSheets = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.cleanSheets, 0);
+		const mom = matchDetails.reduce((sum: number, md: MatchDetail) => sum + (md.mom ? 1 : 0), 0);
+		const yellowCards = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.yellowCards, 0);
+		const redCards = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.redCards, 0);
+		const saves = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.saves, 0);
+		const ownGoals = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.ownGoals, 0);
+		const conceded = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.conceded, 0);
+		const penaltiesScored = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.penaltiesScored, 0);
+		const penaltiesMissed = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.penaltiesMissed, 0);
+		const penaltiesSaved = matchDetails.reduce((sum: number, md: MatchDetail) => sum + md.penaltiesSaved, 0);
 
 		return NextResponse.json(
 			{

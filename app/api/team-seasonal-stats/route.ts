@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 import { buildFilterConditions } from "@/app/api/player-data/route";
 
 const corsHeaders = {
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
 			return isNaN(num) ? 0 : num;
 		};
 
-		const seasonalStats = result.records.map((record) => ({
+		const seasonalStats = result.records.map((record: Record) => ({
 			season: record.get("season"),
 			gamesPlayed: toNumber(record.get("gamesPlayed")),
 			wins: toNumber(record.get("wins")),

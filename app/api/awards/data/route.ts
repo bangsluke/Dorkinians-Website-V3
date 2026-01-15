@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { log, logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -79,7 +81,7 @@ export async function GET(request: NextRequest) {
 			awardItems,
 		});
 
-		console.log(`[Awards API] Fetched ${result.records.length} records for season ${season} (property: ${seasonPropName})`);
+		log('info', `[Awards API] Fetched ${result.records.length} records for season ${season} (property: ${seasonPropName})`);
 
 		// Create a map of all award items to ensure we return all types
 		const allAwardItemsMap = new Map<string, { awardName: string; receiver: string | null }>();
@@ -91,7 +93,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Process results and populate the map
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ca");
 			const properties = node.properties;
 			const awardName = String(properties.itemName || "");
@@ -150,7 +152,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ awardsData }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching award data:", error);
+		logError("Error fetching award data", error);
 		return NextResponse.json({ error: "Failed to fetch award data" }, { status: 500, headers: corsHeaders });
 	}
 }

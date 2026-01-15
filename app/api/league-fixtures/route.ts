@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
 		const result = await neo4jService.runQuery(query, params);
 
 		// Process results
-		const fixtures = result.records.map((record) => {
+		const fixtures = result.records.map((record: Record) => {
 			const date = record.get("date");
 			const opposition = record.get("opposition");
 			const homeOrAway = record.get("homeOrAway");
@@ -135,7 +137,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ fixtures }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching league fixtures:", error);
+		logError("Error fetching league fixtures", error);
 		return NextResponse.json({ error: "Failed to fetch league fixtures" }, { status: 500, headers: corsHeaders });
 	}
 }

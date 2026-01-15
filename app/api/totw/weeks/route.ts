@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
 
 		console.log(`[API] Fetched ${weeksResult.records.length} weeks for season: ${season}`);
 
-		const weeks = weeksResult.records.map((record) => {
+		const weeks = weeksResult.records.map((record: Record) => {
 			const week = Number(record.get("week") || 0);
 			const dateLookup = String(record.get("dateLookup") || "");
 			const weekAdjusted = String(record.get("weekAdjusted") || String(week));

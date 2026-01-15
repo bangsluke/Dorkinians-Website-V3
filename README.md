@@ -521,6 +521,44 @@ interface ChatbotResponse {
 
 > [Back to Table of Contents](#table-of-contents)
 
+### Development Logging Modes
+
+The application supports three development modes with different console log levels:
+
+**Available Commands:**
+
+- **`npm run dev`** - Standard development mode
+  - Shows: `console.info`, `console.warn`, and `console.error` logs
+  - Use for: Normal development work with informative logging
+
+- **`npm run dev:quiet`** - Quiet development mode (mimics production)
+  - Shows: Only `console.error` logs
+  - Use for: Testing production-like behavior, reducing console noise
+
+- **`npm run dev:debug`** - Debug development mode
+  - Shows: All logs (`console.log`, `console.debug`, `console.info`, `console.warn`, `console.error`)
+  - Use for: Deep debugging with maximum visibility
+
+**Log Level Behavior:**
+
+- **`error` level** (dev:quiet): Only error logs are displayed
+- **`info` level** (dev): Info, warn, and error logs are displayed
+- **`debug` level** (dev:debug): All logs including debug and log are displayed
+
+**Log Sanitization:**
+
+All logs are automatically sanitized to remove sensitive information:
+- API keys, passwords, tokens, and secrets are redacted
+- Stack traces are conditionally included based on log level
+- Long strings and arrays are truncated
+- URLs with credentials are sanitized
+
+**Implementation:**
+
+The logging system uses environment variables (`CONSOLE_LOG_LEVEL` and `NEXT_PUBLIC_CONSOLE_LOG_LEVEL`) to control log visibility. The system works on both server-side and client-side, with automatic sanitization applied to all console output.
+
+> [Back to Table of Contents](#table-of-contents)
+
 ### Production Start
 
 1. Check that the [Neo4j Aura database](https://console-preview.neo4j.io/projects/7a5b41a0-6373-5c3c-9fcf-48b80d5d38f2/instances) is running

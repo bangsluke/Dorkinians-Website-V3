@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { Record } from "neo4j-driver";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -46,7 +47,7 @@ export async function GET(request: NextRequest) {
 		const result = await neo4jService.runQuery(query, { playerName, graphLabel });
 
 		const performanceData = result.records
-			.map((record) => {
+			.map((record: Record) => {
 				const appearances = record.get("appearances") ? parseInt(String(record.get("appearances")), 10) : 0;
 				const goals = record.get("goals") ? parseInt(String(record.get("goals")), 10) : 0;
 				const assists = record.get("assists") ? parseInt(String(record.get("assists")), 10) : 0;
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
 					assists,
 				};
 			})
-			.filter((item) => item !== null && (item.goals > 0 || item.assists > 0));
+			.filter((item: { goals: number; assists: number } | null) => item !== null && (item.goals > 0 || item.assists > 0));
 
 		return NextResponse.json({ performanceData }, { headers: corsHeaders });
 	} catch (error) {

@@ -1316,10 +1316,6 @@ export class EntityExtractor {
 	private async extractStatTypes(): Promise<StatTypeInfo[]> {
 		const statTypes: StatTypeInfo[] = [];
 
-		// Debug logging (commented out for production)
-		// console.log('🔍 Stat Type Debug - Question:', this.question);
-		// console.log('🔍 Stat Type Debug - Lower question:', this.lowerQuestion);
-
 		// CRITICAL FIX: Get player entities to filter out matches that are part of player names
 		const playerEntities = this.extractEntityInfo().filter(e => e.type === "player");
 		const playerNameWords = new Set<string>();
@@ -1363,10 +1359,6 @@ export class EntityExtractor {
 				}
 
 				const matches = this.findMatches(regex);
-				// if (matches.length > 0 && pseudonym.includes('appearance')) {
-				// 	console.log(`🔍 Stat Type Debug - Found matches for "${pseudonym}":`, matches);
-				// 	console.log(`🔍 Stat Type Debug - Regex:`, regex);
-				// }
 				matches.forEach((match) => {
 					// CRITICAL FIX: Skip matches that are part of player names
 					const matchTextLower = match.text.toLowerCase();
@@ -1386,7 +1378,6 @@ export class EntityExtractor {
 		// Add fuzzy matching for stat types
 		await this.addFuzzyStatTypeMatches(statTypes);
 
-		// console.log('🔍 Stat Type Debug - Final stat types:', statTypes);
 		return statTypes;
 	}
 
@@ -2016,11 +2007,6 @@ export class EntityExtractor {
 			// Get all nouns that might be player names
 			const nouns = this.nlpDoc.match("#Noun+").out("array");
 
-			// Debug logging (commented out for production)
-			// console.log('🔍 NLP Debug - Question:', this.question);
-			// console.log('🔍 NLP Debug - Proper nouns:', properNouns);
-			// console.log('🔍 NLP Debug - Nouns:', nouns);
-
 			// Combine and filter potential player names
 			const potentialNames = [...properNouns, ...nouns];
 
@@ -2238,7 +2224,6 @@ export class EntityExtractor {
 			// Remove duplicates and sort by position
 			const uniquePlayers = players.filter((player, index, self) => index === self.findIndex((p) => p.text === player.text));
 
-			// console.log('🔍 Player Debug - Final players:', uniquePlayers);
 			return uniquePlayers.sort((a, b) => a.position - b.position);
 		} catch (error) {
 			console.error("❌ NLP Processing Error:", error);

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -146,7 +148,7 @@ export async function GET(request: NextRequest) {
 			return isNaN(num) ? 0 : num;
 		};
 
-		const awards = awardsResult.records.map((record) => ({
+		const awards = awardsResult.records.map((record: Record) => ({
 			awardName: record.get("awardName"),
 			season: record.get("season"),
 			awardType: record.get("awardType"),
@@ -181,7 +183,7 @@ export async function GET(request: NextRequest) {
 			playerOfMonthFirstCount,
 		}, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching player awards:", error);
+		logError("Error fetching player awards", error);
 		return NextResponse.json({ error: "Failed to fetch player awards" }, { status: 500, headers: corsHeaders });
 	}
 }

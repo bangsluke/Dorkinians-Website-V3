@@ -6,6 +6,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
+import { log } from "@/lib/utils/logger";
 
 interface Player {
 	playerName: string;
@@ -42,11 +43,11 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 					setAllPlayers(data.players || []);
 					setPlayersLoaded(true);
 				} else {
-					console.error("Failed to fetch players:", response.statusText);
+					log("error", "Failed to fetch players:", response.statusText);
 					setAllPlayers([]);
 				}
 			} catch (error) {
-				console.error("Error fetching players:", error);
+				log("error", "Error fetching players:", error);
 				setAllPlayers([]);
 			} finally {
 				setIsLoadingPlayers(false);
@@ -76,7 +77,7 @@ export default function PlayerSelection({ onPlayerSelect, onEditClick, onClearPl
 	// Set local state when player is selected
 	useEffect(() => {
 		if (selectedPlayer && !isEditMode) {
-			console.log("✅ [PlayerSelection] Setting local state for selected player:", selectedPlayer);
+			log("info", "✅ [Player Selection] Setting local state for selected player:", selectedPlayer);
 			setLocalSelectedPlayer(selectedPlayer);
 			setIsSubmitted(true);
 		}

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
 import { getCorsHeadersWithSecurity } from "@/lib/utils/securityHeaders";
+import type { Record } from "neo4j-driver";
+import { log, logError } from "@/lib/utils/logger";
 
 // Security: Use validated CORS headers instead of wildcard
 const corsHeaders = getCorsHeadersWithSecurity(
@@ -58,14 +60,14 @@ export async function GET(request: NextRequest) {
 			captainItems,
 		});
 
-		console.log(`[Captains API] Fetched ${result.records.length} records for season ${season} (property: ${seasonPropName})`);
+		log('info', `[Captains API] Fetched ${result.records.length} records for season ${season} (property: ${seasonPropName})`);
 		
 		// Debug: Log what we got
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ca");
 			const properties = node.properties;
 			const availableProps = Object.keys(properties).filter(p => p.startsWith('season'));
-			console.log(`[Captains API] Node itemName: "${properties.itemName}", available season props: [${availableProps.join(', ')}], looking for: ${seasonPropName}, value: ${properties[seasonPropName]}`);
+			log('debug', `[Captains API] Node itemName: "${properties.itemName}", available season props: [${availableProps.join(', ')}], looking for: ${seasonPropName}, value: ${properties[seasonPropName]}`);
 		});
 
 		// Helper function to determine if captain value contains multiple players
@@ -109,7 +111,7 @@ export async function GET(request: NextRequest) {
 		});
 
 		// Process results and populate the map
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ca");
 			const properties = node.properties;
 			const team = String(properties.itemName || "");
@@ -167,7 +169,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ captainsData }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching captain data:", error);
+		logError("Error fetching captain data", error);
 		return NextResponse.json({ error: "Failed to fetch captain data" }, { status: 500, headers: corsHeaders });
 	}
 }

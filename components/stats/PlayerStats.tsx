@@ -22,6 +22,7 @@ import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { log } from "@/lib/utils/logger";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -1672,7 +1673,7 @@ export default function PlayerStats() {
 			const def = toNumber(playerData.def || 0);
 			const mid = toNumber(playerData.mid || 0);
 			const fwd = toNumber(playerData.fwd || 0);
-			console.log(`[Position Counts] ${selectedPlayer}:`, {
+			log("info", `[Position Counts] ${selectedPlayer}:`, {
 				GK: gk,
 				DEF: def,
 				MID: mid,
@@ -1800,7 +1801,7 @@ export default function PlayerStats() {
 					setSeasonalStats(data.seasonalStats || []);
 				}
 			} catch (error) {
-				console.error("Error fetching seasonal stats:", error);
+				log("error", "Error fetching seasonal stats:", error);
 			} finally {
 				setIsLoadingSeasonalStats(false);
 			}
@@ -1835,7 +1836,7 @@ export default function PlayerStats() {
 					setTeamStats(data.teamStats || []);
 				}
 			} catch (error) {
-				console.error("Error fetching team stats:", error);
+				log("error", "Error fetching team stats:", error);
 			} finally {
 				setIsLoadingTeamStats(false);
 			}
@@ -1870,7 +1871,7 @@ export default function PlayerStats() {
 					setMonthlyStats(data.monthlyStats || []);
 				}
 			} catch (error) {
-				console.error("Error fetching monthly stats:", error);
+				log("error", "Error fetching monthly stats:", error);
 			} finally {
 				setIsLoadingMonthlyStats(false);
 			}
@@ -1905,7 +1906,7 @@ export default function PlayerStats() {
 					setFantasyBreakdown(data);
 				}
 			} catch (error) {
-				console.error("Error fetching fantasy breakdown:", error);
+				log("error", "Error fetching fantasy breakdown:", error);
 			} finally {
 				setIsLoadingFantasyBreakdown(false);
 			}
@@ -1933,7 +1934,7 @@ export default function PlayerStats() {
 					setOppositionMapData(data.oppositions || []);
 				}
 			} catch (error) {
-				console.error("Error fetching opposition map data:", error);
+				log("error", "Error fetching opposition map data:", error);
 				setOppositionMapData([]);
 			} finally {
 				setIsLoadingOppositionMap(false);
@@ -1962,7 +1963,7 @@ export default function PlayerStats() {
 					setOppositionPerformanceData(data.performanceData || []);
 				}
 			} catch (error) {
-				console.error("Error fetching opposition performance data:", error);
+				log("error", "Error fetching opposition performance data:", error);
 				setOppositionPerformanceData([]);
 			} finally {
 				setIsLoadingOppositionPerformance(false);
@@ -1998,7 +1999,7 @@ export default function PlayerStats() {
 					setGameDetails(data);
 				}
 			} catch (error) {
-				console.error("Error fetching game details:", error);
+				log("error", "Error fetching game details:", error);
 				setGameDetails(null);
 			} finally {
 				setIsLoadingGameDetails(false);
@@ -2027,7 +2028,7 @@ export default function PlayerStats() {
 					setAwardsData(data);
 				}
 			} catch (error) {
-				console.error("Error fetching awards:", error);
+				log("error", "Error fetching awards:", error);
 			} finally {
 				setIsLoadingAwards(false);
 			}
@@ -2057,7 +2058,7 @@ export default function PlayerStats() {
 					setTotalCaptaincies(data.totalCaptaincies || 0);
 				}
 			} catch (error) {
-				console.error("Error fetching captain history:", error);
+				log("error", "Error fetching captain history:", error);
 				setCaptainHistory([]);
 				setTotalCaptaincies(0);
 			} finally {
@@ -2089,7 +2090,7 @@ export default function PlayerStats() {
 					setTotalAwards(data.totalAwards || 0);
 				}
 			} catch (error) {
-				console.error("Error fetching award history:", error);
+				log("error", "Error fetching award history:", error);
 				setAwardHistory([]);
 				setTotalAwards(0);
 			} finally {

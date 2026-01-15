@@ -15,6 +15,7 @@ import HomeAwayGauge from "./HomeAwayGauge";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { log } from "@/lib/utils/logger";
 
 
 interface TopPlayer {
@@ -498,7 +499,7 @@ export default function TeamStats() {
 			if (!success) {
 				// Log PWA debug info if localStorage write fails
 				const pwaDebugInfo = getPWADebugInfo();
-				console.warn('[TeamStats] Failed to save selected team to localStorage. PWA Debug Info:', pwaDebugInfo);
+				log("warn", '[TeamStats] Failed to save selected team to localStorage. PWA Debug Info:', pwaDebugInfo);
 			}
 		}
 	}, [selectedTeam, selectedPlayer]);
@@ -613,7 +614,7 @@ export default function TeamStats() {
 
 		const fetchTopPlayers = async () => {
 			setIsLoadingTopPlayers(true);
-			console.log(`[TeamStats] Fetching top players for statType: ${selectedStatType}`, {
+			log("info", `[TeamStats] Fetching top players for statType: ${selectedStatType}`, {
 				selectedTeam,
 				filters: apiFilters,
 			});
@@ -632,18 +633,18 @@ export default function TeamStats() {
 
 				if (response.ok) {
 					const data = await response.json();
-					console.log(`[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
 					setTopPlayers(data.players || []);
 				} else {
 					const errorText = await response.text();
-					console.error(`[TeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					log("error", `[TeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
 					setTopPlayers([]);
 				}
 			} catch (error) {
-				console.error("[TeamStats] Error fetching top players:", error);
+				log("error", "[TeamStats] Error fetching top players:", error);
 				// Log PWA debug info on error
 				const pwaDebugInfo = getPWADebugInfo();
-				console.error("[TeamStats] PWA Debug Info on top players fetch error:", pwaDebugInfo);
+				log("error", "[TeamStats] PWA Debug Info on top players fetch error:", pwaDebugInfo);
 				setTopPlayers([]);
 			} finally {
 				setIsLoadingTopPlayers(false);
@@ -724,7 +725,7 @@ export default function TeamStats() {
 					setSeasonalStats(data.seasonalStats || []);
 				}
 			} catch (error) {
-				console.error("Error fetching seasonal stats:", error);
+				log("error", "Error fetching seasonal stats:", error);
 			} finally {
 				setIsLoadingSeasonalStats(false);
 			}
@@ -756,7 +757,7 @@ export default function TeamStats() {
 					setUniquePlayerStats(data);
 				}
 			} catch (error) {
-				console.error("Error fetching unique player stats:", error);
+				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
 			} finally {
 				setIsLoadingUniqueStats(false);
@@ -804,7 +805,7 @@ export default function TeamStats() {
 					setBestSeasonFinishData(null);
 				}
 			} catch (error) {
-				console.error("Error fetching best season finish:", error);
+				log("error", "Error fetching best season finish:", error);
 				setBestSeasonFinishError("Failed to fetch best season finish");
 				setBestSeasonFinishData(null);
 			} finally {

@@ -3,6 +3,7 @@
 import React, { Component, ErrorInfo, ReactNode } from "react";
 import { getPWADebugInfo } from "@/lib/utils/pwaDebug";
 import { appConfig } from "@/config/config";
+import { logError } from "@/lib/utils/logger";
 
 interface Props {
 	children: ReactNode;
@@ -39,10 +40,12 @@ export class ErrorBoundary extends Component<Props, State> {
 		// Collect PWA debug info when error occurs
 		const pwaDebugInfo = getPWADebugInfo();
 		
-		// Log error details
-		console.error("ErrorBoundary caught an error:", error);
-		console.error("Error info:", errorInfo);
-		console.error("PWA Debug Info:", pwaDebugInfo);
+		// Log error details using sanitized logger
+		logError("ErrorBoundary caught an error", error);
+		logError("ErrorBoundary error info", new Error(`Component stack: ${errorInfo.componentStack}`));
+		if (pwaDebugInfo) {
+			logError("ErrorBoundary PWA Debug Info", new Error(JSON.stringify(pwaDebugInfo)));
+		}
 		
 		this.setState({
 			error,
@@ -113,11 +116,13 @@ Date/Time: ${dateTime}`;
 								<div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-4">
 									<p className="text-red-200 font-semibold mb-2">Error Message:</p>
 									<p className="text-red-100 text-sm font-mono break-words">
-										{this.state.error.message || "Unknown error"}
+										{process.env.NODE_ENV === 'production' 
+											? "An error occurred. Please try again or contact support."
+											: (this.state.error.message || "Unknown error")}
 									</p>
 								</div>
 
-								{this.state.errorInfo && (
+								{this.state.errorInfo && process.env.NODE_ENV !== 'production' && (
 									<details className="mb-4">
 										<summary className="text-gray-300 cursor-pointer text-sm mb-2 hover:text-white">
 											Stack Trace (click to expand)

@@ -13,6 +13,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { TOTWPitchSkeleton, TOTWPlayerDetailsSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
+import { log } from "@/lib/utils/logger";
 
 interface MatchDetailWithSummary extends MatchDetail {
 	matchSummary?: string | null;
@@ -130,16 +131,8 @@ export default function TeamOfTheWeek() {
 				}
 				const data = await response.json();
 				
-				console.log("=== Week Calculation Debug ===");
-				console.log("Selected Season:", selectedSeason);
-				console.log("Full API response:", data);
-				console.log("Weeks data:", data.weeks);
-				console.log("Weeks array length:", data.weeks?.length);
-				console.log("Current Week from API (last week in list):", data.currentWeek);
-				console.log("Expected: 44 (last week in season)");
-				
 				if (data.error) {
-					console.error("API Error:", data.error);
+					log("error", "API Error:", data.error);
 					setWeeks([]);
 					return;
 				}
@@ -152,31 +145,31 @@ export default function TeamOfTheWeek() {
 						const latestWeekNum = Number(data.latestGameweek);
 						if (!isNaN(latestWeekNum)) {
 							weekToSelect = latestWeekNum;
-							console.log("Setting week to latestGameweek from SiteDetail:", weekToSelect);
+							log("info", "Setting week to latestGameweek from SiteDetail:", weekToSelect);
 						}
 					}
 					if (weekToSelect === null && data.currentWeek !== null && data.currentWeek !== undefined) {
 						weekToSelect = data.currentWeek;
-						console.log("Setting week to currentWeek from API:", weekToSelect);
+						log("info", "Setting week to currentWeek from API:", weekToSelect);
 					}
 					if (weekToSelect === null && data.weeks.length > 0) {
 						weekToSelect = data.weeks[data.weeks.length - 1].week;
-						console.log("Setting week to last week in list:", weekToSelect);
+						log("info", "Setting week to last week in list:", weekToSelect);
 					}
 					if (weekToSelect !== null) {
 						setCurrentWeek(weekToSelect);
 						setSelectedWeek(weekToSelect);
 					} else {
-						console.log("No weeks found for season:", selectedSeason);
+						log("info", "No weeks found for season:", selectedSeason);
 						setWeeks([]);
 					}
 					cacheTOTWWeeks(selectedSeason, data.weeks, weekToSelect, data.latestGameweek);
 				} else {
-					console.error("Invalid weeks data format:", data);
+					log("error", "Invalid weeks data format:", data);
 					setWeeks([]);
 				}
 			} catch (error) {
-				console.error("Error fetching weeks:", error);
+				log("error", "Error fetching weeks:", error);
 				setWeeks([]);
 			}
 		};
@@ -207,18 +200,15 @@ export default function TeamOfTheWeek() {
 				);
 				
 				if (!response.ok) {
-					console.error(`[TOTW] Week-data API error: ${response.status} ${response.statusText}`);
+					log("error", `[TOTW] Week-data API error: ${response.status} ${response.statusText}`);
 					const errorData = await response.json().catch(() => ({}));
-					console.error(`[TOTW] Error details:`, errorData);
+					log("error", `[TOTW] Error details:`, errorData);
 					setTotwData(null);
 					setPlayers([]);
 					return;
 				}
 				
 				const data = await response.json();
-				console.log(`[TOTW] Week-data response:`, data);
-				console.log(`[TOTW] Players array:`, data.players);
-				console.log(`[TOTW] Players count:`, data.players?.length);
 				
 				if (data.totwData) {
 					setTotwData(data.totwData);
@@ -227,15 +217,15 @@ export default function TeamOfTheWeek() {
 					
 					// Log player matching for debugging
 					if (data.players && data.players.length > 0) {
-						console.log(`[TOTW] Player FTP scores:`, data.players.map((p: any) => `${p.playerName}: ${p.ftpScore}`));
+						log("info", `[TOTW] Player FTP scores:`, data.players.map((p: any) => `${p.playerName}: ${p.ftpScore}`));
 					}
 				} else {
-					console.log(`[TOTW] No TOTW data found for week ${selectedWeek}`);
+					log("info", `[TOTW] No TOTW data found for week ${selectedWeek}`);
 					setTotwData(null);
 					setPlayers([]);
 				}
 			} catch (error) {
-				console.error("[TOTW] Error fetching week data:", error);
+				log("error", "[TOTW] Error fetching week data:", error);
 				setTotwData(null);
 				setPlayers([]);
 			} finally {
@@ -273,7 +263,7 @@ export default function TeamOfTheWeek() {
 		if (!selectedSeason || !selectedWeek || !playerName) return;
 
 		const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
-		console.log("[TOTW] Player details query:", queryUrl);
+		log("info", "[TOTW] Player details query:", queryUrl);
 
 		setLoadingPlayerDetails(true);
 		setSelectedPlayer(playerName);
@@ -417,7 +407,7 @@ export default function TeamOfTheWeek() {
 		
 		const ftp = player?.ftpScore || 0;
 		if (ftp === 0 && playerName) {
-			console.log(`[TOTW] No FTP score found for player: ${playerName}. Available players:`, players.map(p => p.playerName));
+			log("info", `[TOTW] No FTP score found for player: ${playerName}. Available players:`, players.map(p => p.playerName));
 		}
 		return ftp;
 	};

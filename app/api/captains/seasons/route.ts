@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import type { Record } from "neo4j-driver";
+import { logError } from "@/lib/utils/logger";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
 		const seasonSet = new Set<string>();
 		const seasonPattern = /^season(\d{4})(\d{2})$/;
 
-		result.records.forEach((record) => {
+		result.records.forEach((record: Record) => {
 			const node = record.get("ca");
 			const properties = node.properties;
 
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
 
 		return NextResponse.json({ seasons }, { headers: corsHeaders });
 	} catch (error) {
-		console.error("Error fetching captain seasons:", error);
+		logError("Error fetching captain seasons", error);
 		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: corsHeaders });
 	}
 }
