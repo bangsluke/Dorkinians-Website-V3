@@ -476,3 +476,49 @@ export async function getVisibleNavButton(page: Page, pageId: 'home' | 'stats' |
 export async function takeScreenshot(page: Page, name: string) {
 	await page.screenshot({ path: `e2e/test-results/screenshots/${name}.png`, fullPage: true });
 }
+
+/**
+ * Verify a section is visible by checking its heading and content
+ */
+export async function verifySectionVisible(page: Page, sectionName: string, contentText?: string) {
+	// Find section by heading (h3 element)
+	const heading = page.getByRole('heading', { name: new RegExp(sectionName, 'i') });
+	await expect(heading).toBeVisible({ timeout: 10000 });
+	
+	// If content text is provided, verify it exists within the section
+	if (contentText) {
+		// Find the section container (parent of heading)
+		const sectionContainer = heading.locator('..');
+		const content = sectionContainer.getByText(new RegExp(contentText, 'i'));
+		await expect(content.first()).toBeVisible({ timeout: 5000 });
+	}
+}
+
+/**
+ * Toggle data table mode and verify the state
+ */
+export async function toggleDataTable(page: Page, expectedState: 'table' | 'visualisation') {
+	// Find the toggle button
+	const toggleButton = page.getByRole('button', { name: /Switch to (data table|data visualisation)/i });
+	await expect(toggleButton).toBeVisible({ timeout: 5000 });
+	
+	// Click the button
+	await toggleButton.click();
+	await page.waitForTimeout(500); // Wait for state change
+	
+	// Verify the new state
+	if (expectedState === 'table') {
+		// Should see data table and "Switch to data visualisation" button
+		const table = page.locator('table').first();
+		await expect(table).toBeVisible({ timeout: 5000 });
+		const visualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });
+		await expect(visualisationButton).toBeVisible({ timeout: 5000 });
+	} else {
+		// Should see visualisations and "Switch to data table" button
+		const tableButton = page.getByRole('button', { name: /Switch to data table/i });
+		await expect(tableButton).toBeVisible({ timeout: 5000 });
+		// Verify at least one section is visible (not in table mode)
+		const sectionHeading = page.getByRole('heading', { name: /Key Performance Stats|Key Club Stats/i }).first();
+		await expect(sectionHeading).toBeVisible({ timeout: 5000 });
+	}
+}

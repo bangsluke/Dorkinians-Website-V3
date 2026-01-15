@@ -1,7 +1,7 @@
 // @ts-check
 
 import { test, expect } from '@playwright/test';
-import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader, selectPlayer, setPlayerDirectly, setupPlayerStatsPage } from '../utils/testHelpers';
+import { navigateToMainPage, waitForPageLoad, waitForDataLoad, logSectionHeader, selectPlayer, setPlayerDirectly, setupPlayerStatsPage, verifySectionVisible, toggleDataTable } from '../utils/testHelpers';
 import { TEST_PLAYERS, TEST_TEAMS } from '../fixtures/testData';
 
 test.describe('Stats Page Tests', () => {
@@ -233,6 +233,294 @@ test.describe('Stats Page Tests', () => {
 
 			// Verify Comparison button is visible
 			await expect(page.getByTestId('stats-nav-menu-comparison').or(page.getByRole('button', { name: /Comparison/i }))).toBeVisible({ timeout: 10000 });
+		}
+	});
+
+	test('9. should display all Player Stats sections', async ({ page }) => {
+		// Set up Player Stats page
+		await setupPlayerStatsPage(page, TEST_PLAYERS.primary);
+		await navigateToMainPage(page, 'stats');
+		await waitForPageLoad(page);
+		await waitForDataLoad(page);
+
+		// Verify all Player Stats sections are visible
+		await verifySectionVisible(page, 'Key Performance Stats', 'Apps');
+		await verifySectionVisible(page, 'Seasonal Performance');
+		await verifySectionVisible(page, 'Team Performance');
+		await verifySectionVisible(page, 'Positional Stats');
+		await verifySectionVisible(page, 'Match Results');
+		await verifySectionVisible(page, 'Game Details');
+		await verifySectionVisible(page, 'Monthly Performance');
+		await verifySectionVisible(page, 'Defensive Record');
+		await verifySectionVisible(page, 'Distance Travelled');
+		// Opposition Locations section doesn't have a heading, check by id
+		const oppositionLocationsSection = page.locator('#opposition-locations');
+		await expect(oppositionLocationsSection).toBeVisible({ timeout: 5000 });
+		await verifySectionVisible(page, 'Minutes per Stats');
+		await verifySectionVisible(page, 'Opposition Performance');
+		await verifySectionVisible(page, 'Fantasy Points');
+		await verifySectionVisible(page, 'Penalty Stats');
+		await verifySectionVisible(page, 'Captaincies, Awards and Achievements', 'Total Captaincies');
+	});
+
+	test('10. should display all Team Stats sections', async ({ page }) => {
+		// Set up Player Stats page
+		await setupPlayerStatsPage(page, TEST_PLAYERS.primary);
+		await navigateToMainPage(page, 'stats');
+		await waitForPageLoad(page);
+		await waitForDataLoad(page);
+
+		// Navigate to Team Stats
+		const teamStatsButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('nav-sidebar-team-stats'))
+			.or(page.getByTestId('stats-subpage-indicator-1'))
+			.or(page.locator('button[aria-label*="Team Stats" i], button:has-text("Team Stats")'))
+			.first();
+		
+		if (await teamStatsButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await teamStatsButton.click();
+			await waitForPageLoad(page);
+			await waitForDataLoad(page);
+
+			// Select a team if team selector is present
+			const teamSelector = page.locator('select, [role="listbox"]').filter({ hasText: /1st|2nd|3rd/i }).first();
+			if (await teamSelector.isVisible({ timeout: 3000 }).catch(() => false)) {
+				await teamSelector.click();
+				await page.waitForTimeout(500);
+				const teamOption = page.getByText(TEST_TEAMS.first).first();
+				if (await teamOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+					await teamOption.click();
+					await waitForDataLoad(page);
+				}
+			}
+
+			// Verify all Team Stats sections are visible
+			await verifySectionVisible(page, 'Key Performance Stats', 'Players');
+			await verifySectionVisible(page, 'Recent Form');
+			await verifySectionVisible(page, 'Top Players');
+			await verifySectionVisible(page, 'Seasonal Performance');
+			await verifySectionVisible(page, 'Match Results');
+			await verifySectionVisible(page, 'Goals Scored vs Conceded');
+			await verifySectionVisible(page, 'Home vs Away Performance');
+			await verifySectionVisible(page, 'Key Team Stats');
+			await verifySectionVisible(page, 'Unique Player Stats');
+			await verifySectionVisible(page, 'Best Season Finish');
+		}
+	});
+
+	test('11. should display all Club Stats sections', async ({ page }) => {
+		await waitForDataLoad(page);
+
+		// Navigate to Club Stats
+		const clubStatsButton = page.getByTestId('stats-nav-menu-club-stats')
+			.or(page.getByTestId('nav-sidebar-club-stats'))
+			.or(page.getByTestId('stats-subpage-indicator-2'))
+			.or(page.locator('button[aria-label*="Club Stats" i], button:has-text("Club Stats")'))
+			.first();
+		
+		if (await clubStatsButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await clubStatsButton.click();
+			await waitForPageLoad(page);
+			await waitForDataLoad(page);
+
+			// Verify all Club Stats sections are visible
+			await verifySectionVisible(page, 'Key Club Stats', 'Players');
+			await verifySectionVisible(page, 'Team Comparison');
+			await verifySectionVisible(page, 'Top Players');
+			await verifySectionVisible(page, 'Seasonal Performance');
+			await verifySectionVisible(page, 'Player Distribution');
+			await verifySectionVisible(page, 'Player Tenure');
+			await verifySectionVisible(page, 'Stats Distribution');
+			await verifySectionVisible(page, 'Match Results');
+			await verifySectionVisible(page, 'Game Details');
+			await verifySectionVisible(page, 'Big Club Numbers');
+			await verifySectionVisible(page, 'Goals Scored vs Conceded');
+			await verifySectionVisible(page, 'Home vs Away Performance');
+			await verifySectionVisible(page, 'Key Team Stats');
+			await verifySectionVisible(page, 'Unique Player Stats');
+		}
+	});
+
+	test('12. should display all Comparison sections', async ({ page }) => {
+		await waitForDataLoad(page);
+
+		// Navigate to Comparison
+		const comparisonButton = page.getByTestId('stats-nav-menu-comparison')
+			.or(page.getByTestId('nav-sidebar-comparison'))
+			.or(page.getByTestId('stats-subpage-indicator-3'))
+			.or(page.locator('button[aria-label*="Comparison" i], button:has-text("Comparison")'))
+			.first();
+		
+		if (await comparisonButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await comparisonButton.click();
+			await waitForPageLoad(page);
+			await waitForDataLoad(page);
+
+			// Select players for comparison if selectors are present
+			const playerSelectors = page.locator('[data-testid*="player-selection"], button:has-text("Choose a player")');
+			const selectorCount = await playerSelectors.count();
+			
+			if (selectorCount >= 2) {
+				// Select first player
+				const firstSelector = playerSelectors.nth(0);
+				if (await firstSelector.isVisible({ timeout: 3000 }).catch(() => false)) {
+					await firstSelector.click();
+					await page.waitForTimeout(500);
+					const firstPlayerOption = page.getByText(TEST_PLAYERS.primary).first();
+					if (await firstPlayerOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+						await firstPlayerOption.click();
+						await waitForDataLoad(page);
+					}
+				}
+				
+				// Select second player
+				const secondSelector = playerSelectors.nth(1);
+				if (await secondSelector.isVisible({ timeout: 3000 }).catch(() => false)) {
+					await secondSelector.click();
+					await page.waitForTimeout(500);
+					const secondPlayerOption = page.getByText(TEST_PLAYERS.secondary).first();
+					if (await secondPlayerOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+						await secondPlayerOption.click();
+						await waitForDataLoad(page);
+					}
+				}
+			}
+
+			// Verify Comparison sections are visible
+			await verifySectionVisible(page, 'Radar Comparison');
+			await verifySectionVisible(page, 'Full Comparison');
+		}
+	});
+
+	test('13. should toggle data table on Player Stats', async ({ page }) => {
+		// Set up Player Stats page
+		await setupPlayerStatsPage(page, TEST_PLAYERS.primary);
+		await navigateToMainPage(page, 'stats');
+		await waitForPageLoad(page);
+		await waitForDataLoad(page);
+
+		// Verify "Switch to data table" button is visible
+		const switchToTableButton = page.getByRole('button', { name: /Switch to data table/i });
+		await expect(switchToTableButton).toBeVisible({ timeout: 5000 });
+
+		// Click to switch to data table
+		await switchToTableButton.click();
+		await page.waitForTimeout(500);
+		await waitForDataLoad(page);
+
+		// Verify data table appears
+		const dataTable = page.locator('table').first();
+		await expect(dataTable).toBeVisible({ timeout: 5000 });
+
+		// Verify "Switch to data visualisation" button appears
+		const switchToVisualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });
+		await expect(switchToVisualisationButton).toBeVisible({ timeout: 5000 });
+
+		// Click to switch back to visualisations
+		await switchToVisualisationButton.click();
+		await page.waitForTimeout(500);
+		await waitForDataLoad(page);
+
+		// Verify visualisations return (check for a section heading)
+		const sectionHeading = page.getByRole('heading', { name: /Key Performance Stats/i });
+		await expect(sectionHeading).toBeVisible({ timeout: 5000 });
+	});
+
+	test('14. should toggle data table on Team Stats', async ({ page }) => {
+		await waitForDataLoad(page);
+
+		// Navigate to Team Stats
+		const teamStatsButton = page.getByTestId('stats-nav-menu-team-stats')
+			.or(page.getByTestId('nav-sidebar-team-stats'))
+			.or(page.getByTestId('stats-subpage-indicator-1'))
+			.or(page.locator('button[aria-label*="Team Stats" i], button:has-text("Team Stats")'))
+			.first();
+		
+		if (await teamStatsButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await teamStatsButton.click();
+			await waitForPageLoad(page);
+			await waitForDataLoad(page);
+
+			// Select a team if team selector is present
+			const teamSelector = page.locator('select, [role="listbox"]').filter({ hasText: /1st|2nd|3rd/i }).first();
+			if (await teamSelector.isVisible({ timeout: 3000 }).catch(() => false)) {
+				await teamSelector.click();
+				await page.waitForTimeout(500);
+				const teamOption = page.getByText(TEST_TEAMS.first).first();
+				if (await teamOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+					await teamOption.click();
+					await waitForDataLoad(page);
+				}
+			}
+
+			// Verify "Switch to data table" button is visible
+			const switchToTableButton = page.getByRole('button', { name: /Switch to data table/i });
+			await expect(switchToTableButton).toBeVisible({ timeout: 5000 });
+
+			// Click to switch to data table
+			await switchToTableButton.click();
+			await page.waitForTimeout(500);
+			await waitForDataLoad(page);
+
+			// Verify data table appears
+			const dataTable = page.locator('table').first();
+			await expect(dataTable).toBeVisible({ timeout: 5000 });
+
+			// Verify "Switch to data visualisation" button appears
+			const switchToVisualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });
+			await expect(switchToVisualisationButton).toBeVisible({ timeout: 5000 });
+
+			// Click to switch back to visualisations
+			await switchToVisualisationButton.click();
+			await page.waitForTimeout(500);
+			await waitForDataLoad(page);
+
+			// Verify visualisations return (check for a section heading)
+			const sectionHeading = page.getByRole('heading', { name: /Key Performance Stats/i });
+			await expect(sectionHeading).toBeVisible({ timeout: 5000 });
+		}
+	});
+
+	test('15. should toggle data table on Club Stats', async ({ page }) => {
+		await waitForDataLoad(page);
+
+		// Navigate to Club Stats
+		const clubStatsButton = page.getByTestId('stats-nav-menu-club-stats')
+			.or(page.getByTestId('nav-sidebar-club-stats'))
+			.or(page.getByTestId('stats-subpage-indicator-2'))
+			.or(page.locator('button[aria-label*="Club Stats" i], button:has-text("Club Stats")'))
+			.first();
+		
+		if (await clubStatsButton.isVisible({ timeout: 5000 }).catch(() => false)) {
+			await clubStatsButton.click();
+			await waitForPageLoad(page);
+			await waitForDataLoad(page);
+
+			// Verify "Switch to data table" button is visible
+			const switchToTableButton = page.getByRole('button', { name: /Switch to data table/i });
+			await expect(switchToTableButton).toBeVisible({ timeout: 5000 });
+
+			// Click to switch to data table
+			await switchToTableButton.click();
+			await page.waitForTimeout(500);
+			await waitForDataLoad(page);
+
+			// Verify data table appears
+			const dataTable = page.locator('table').first();
+			await expect(dataTable).toBeVisible({ timeout: 5000 });
+
+			// Verify "Switch to data visualisation" button appears
+			const switchToVisualisationButton = page.getByRole('button', { name: /Switch to data visualisation/i });
+			await expect(switchToVisualisationButton).toBeVisible({ timeout: 5000 });
+
+			// Click to switch back to visualisations
+			await switchToVisualisationButton.click();
+			await page.waitForTimeout(500);
+			await waitForDataLoad(page);
+
+			// Verify visualisations return (check for a section heading)
+			const sectionHeading = page.getByRole('heading', { name: /Key Club Stats/i });
+			await expect(sectionHeading).toBeVisible({ timeout: 5000 });
 		}
 	});
 });
