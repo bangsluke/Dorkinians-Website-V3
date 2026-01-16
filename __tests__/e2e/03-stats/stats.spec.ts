@@ -321,13 +321,13 @@ test.describe('Stats Page Tests', () => {
 			await waitForPageLoad(page);
 			await waitForDataLoad(page);
 
-			// Verify all Club Stats sections are visible
+			// Verify all Club Stats sections are visible (order matches StatsNavigationMenu.tsx)
 			await verifySectionVisible(page, 'club-key-performance-stats', 'Key Club Stats', "", 'Competitions');
 			await verifySectionVisible(page, 'club-team-comparison', 'Team Comparison');
 			await verifySectionVisible(page, 'club-top-players', 'Top Players', "club-top-players-heading", "Player Name");
 			await verifySectionVisible(page, 'club-seasonal-performance', 'Seasonal Performance');
 			await verifySectionVisible(page, 'club-player-distribution', 'Player Distribution');
-			// await verifySectionVisible(page, 'club-player-tenure', 'Player Tenure');
+			await verifySectionVisible(page, 'club-player-tenure', 'Player Tenure');
 			await verifySectionVisible(page, 'club-stats-distribution', 'Stats Distribution');
 			await verifySectionVisible(page, 'club-match-results', 'Match Results');
 			await verifySectionVisible(page, 'club-game-details', 'Game Details');
@@ -335,7 +335,6 @@ test.describe('Stats Page Tests', () => {
 			await verifySectionVisible(page, 'club-goals-scored-conceded', 'Goals Scored vs Conceded');
 			await verifySectionVisible(page, 'club-home-away-performance', 'Home vs Away Performance');
 			await verifySectionVisible(page, 'club-other-club-stats', 'Other Club Stats', "", 'Goal Diff');
-			await verifySectionVisible(page, 'club-key-team-stats', 'Key Team Stats');
 			await verifySectionVisible(page, 'club-unique-player-stats', 'Unique Player Stats');
 			await verifySectionVisible(page, 'club-data-table', 'Data Table');
 		}
