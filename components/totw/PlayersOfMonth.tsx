@@ -388,6 +388,69 @@ export default function PlayersOfMonth() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedSeason, selectedMonth, months, isMonthValidating]);
 
+	// Priority 1: Above fold on mobile - Top 5 Players section (loaded via month data fetch above)
+
+	// Priority 2: Above fold on desktop - This Month FTP Ranking section
+	// Fetch month rankings when season and month change
+	useEffect(() => {
+		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
+			setMonthRankings([]);
+			return;
+		}
+
+		const fetchMonthRankings = async () => {
+			setLoadingMonthRankings(true);
+			try {
+				const response = await fetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setMonthRankings(data.rankings || []);
+				} else {
+					log("error", "Failed to fetch month rankings");
+					setMonthRankings([]);
+				}
+			} catch (error) {
+				log("error", "Error fetching month rankings:", error);
+				setMonthRankings([]);
+			} finally {
+				setLoadingMonthRankings(false);
+			}
+		};
+
+		fetchMonthRankings();
+	}, [selectedSeason, selectedMonth, selectedPlayer]);
+
+	// Priority 3: Below fold - This Season FTP Ranking section
+	// Fetch season rankings when season changes
+	useEffect(() => {
+		if (!selectedSeason || !selectedPlayer) {
+			setSeasonRankings([]);
+			return;
+		}
+
+		const fetchSeasonRankings = async () => {
+			setLoadingSeasonRankings(true);
+			try {
+				const response = await fetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonRankings(data.rankings || []);
+				} else {
+					log("error", "Failed to fetch season rankings");
+					setSeasonRankings([]);
+				}
+			} catch (error) {
+				log("error", "Error fetching season rankings:", error);
+				setSeasonRankings([]);
+			} finally {
+				setLoadingSeasonRankings(false);
+			}
+		};
+
+		fetchSeasonRankings();
+	}, [selectedSeason, selectedPlayer]);
+
+	// Priority 3: Below fold - Player stats for expanded rows
 	// Fetch stats for all players when players list changes - check cache first
 	useEffect(() => {
 		const playerNames = players.map(p => p.playerName).join(", ");
@@ -549,64 +612,6 @@ export default function PlayersOfMonth() {
 			setLoadingStats(true);
 		}
 	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
-
-	// Fetch month rankings when season and month change
-	useEffect(() => {
-		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
-			setMonthRankings([]);
-			return;
-		}
-
-		const fetchMonthRankings = async () => {
-			setLoadingMonthRankings(true);
-			try {
-				const response = await fetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setMonthRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch month rankings");
-					setMonthRankings([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching month rankings:", error);
-				setMonthRankings([]);
-			} finally {
-				setLoadingMonthRankings(false);
-			}
-		};
-
-		fetchMonthRankings();
-	}, [selectedSeason, selectedMonth, selectedPlayer]);
-
-	// Fetch season rankings when season changes
-	useEffect(() => {
-		if (!selectedSeason || !selectedPlayer) {
-			setSeasonRankings([]);
-			return;
-		}
-
-		const fetchSeasonRankings = async () => {
-			setLoadingSeasonRankings(true);
-			try {
-				const response = await fetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch season rankings");
-					setSeasonRankings([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching season rankings:", error);
-				setSeasonRankings([]);
-			} finally {
-				setLoadingSeasonRankings(false);
-			}
-		};
-
-		fetchSeasonRankings();
-	}, [selectedSeason, selectedPlayer]);
 
 	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
