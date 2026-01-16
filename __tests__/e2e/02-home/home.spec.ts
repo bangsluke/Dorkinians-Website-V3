@@ -200,4 +200,11 @@ test.describe('Home Page Tests', () => {
 		const inputValue = await chatbotInput.inputValue();
 		expect(inputValue).toBe('How many goals have I scored for the 3rd team?');
 	});
+
+	test('10. stats filter and stats navigation icons should not be visible', async ({ page }) => {
+		// TODO: Fail on purpose to show the test needs to be updated
+		await page.goto('https://example.com');
+  		// This assertion will always fail, but the test still compiles and runs.
+  		expect(1).toBe(2);
+	});
 });

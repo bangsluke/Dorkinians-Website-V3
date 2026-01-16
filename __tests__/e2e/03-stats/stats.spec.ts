@@ -526,4 +526,12 @@ test.describe('Stats Page Tests', () => {
 			await expect(sectionHeading).toBeVisible({ timeout: 5000 });
 		}
 	});
+
+	test('16. stats filter and stats navigation icons should be visible', async ({ page }) => {
+		// TODO: Fail on purpose to show the test needs to be updated
+		await page.goto('https://example.com');
+  		// This assertion will always fail, but the test still compiles and runs.
+  		expect(1).toBe(2);
+	});
+
 });
