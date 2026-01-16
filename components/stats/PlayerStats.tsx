@@ -1775,6 +1775,7 @@ export default function PlayerStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
+	// Priority 1: Above fold on mobile - Seasonal Performance section
 	// Fetch seasonal stats when all seasons are selected (must be before early returns)
 	useEffect(() => {
 		if (!selectedPlayer || !allSeasonsSelected) {
@@ -1810,6 +1811,7 @@ export default function PlayerStats() {
 		fetchSeasonalStats();
 	}, [selectedPlayer, allSeasonsSelected, playerFilters]);
 
+	// Priority 2: Above fold on desktop - Team Performance section
 	// Fetch team stats when all teams are selected (must be before early returns)
 	useEffect(() => {
 		if (!selectedPlayer || !allTeamsSelected) {
@@ -1845,6 +1847,67 @@ export default function PlayerStats() {
 		fetchTeamStats();
 	}, [selectedPlayer, allTeamsSelected, playerFilters]);
 
+	// Priority 2: Above fold on desktop - Opposition Locations section
+	// Fetch opposition map data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionMapData([]);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
+
+		const fetchOppositionMapData = async () => {
+			setIsLoadingOppositionMap(true);
+			try {
+				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionMapData(data.oppositions || []);
+				}
+			} catch (error) {
+				log("error", "Error fetching opposition map data:", error);
+				setOppositionMapData([]);
+			} finally {
+				setIsLoadingOppositionMap(false);
+			}
+		};
+
+		fetchOppositionMapData();
+	}, [selectedPlayer]);
+
+	// Priority 2: Above fold on desktop - Opposition Performance section
+	// Fetch opposition performance data when player is selected
+	useEffect(() => {
+		if (!selectedPlayer) {
+			setOppositionPerformanceData([]);
+			return;
+		}
+		if (appConfig.forceSkeletonView) {
+			return;
+		}
+
+		const fetchOppositionPerformanceData = async () => {
+			setIsLoadingOppositionPerformance(true);
+			try {
+				const response = await fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`);
+				if (response.ok) {
+					const data = await response.json();
+					setOppositionPerformanceData(data.performanceData || []);
+				}
+			} catch (error) {
+				log("error", "Error fetching opposition performance data:", error);
+				setOppositionPerformanceData([]);
+			} finally {
+				setIsLoadingOppositionPerformance(false);
+			}
+		};
+
+		fetchOppositionPerformanceData();
+	}, [selectedPlayer]);
+
+	// Priority 3: Below fold - Monthly Performance section
 	// Fetch monthly stats when player is selected
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -1880,6 +1943,7 @@ export default function PlayerStats() {
 		fetchMonthlyStats();
 	}, [selectedPlayer, playerFilters]);
 
+	// Priority 3: Below fold - Fantasy Points section
 	// Fetch fantasy breakdown when player or filters change
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -2009,6 +2073,7 @@ export default function PlayerStats() {
 		fetchGameDetails();
 	}, [selectedPlayer, playerFilters]);
 
+	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch awards data when player is selected
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -2037,6 +2102,7 @@ export default function PlayerStats() {
 		fetchAwards();
 	}, [selectedPlayer]);
 
+	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch captain history when player is selected
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -2069,6 +2135,7 @@ export default function PlayerStats() {
 		fetchCaptainHistory();
 	}, [selectedPlayer]);
 
+	// Priority 3: Below fold - Captaincies, Awards and Achievements section
 	// Fetch award history when player is selected
 	useEffect(() => {
 		if (!selectedPlayer) {
@@ -2257,11 +2324,19 @@ export default function PlayerStats() {
 						</div>
 						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
 					</div>
 				</div>
 				</SkeletonTheme>

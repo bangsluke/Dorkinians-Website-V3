@@ -106,6 +106,39 @@ export default function ClubInformation() {
 	const [achievements, setAchievements] = useState<ClubAchievement[]>([]);
 	const [achievementsLoading, setAchievementsLoading] = useState(true);
 
+	// Priority 1: Above fold on mobile - Club Achievements section
+	useEffect(() => {
+		const fetchAchievements = async () => {
+			try {
+				const response = await fetch("/api/club-achievements");
+				if (response.ok) {
+					const data = await response.json();
+					const achievementsData = data.achievements || [];
+					
+					// Shuffle trophy numbers and assign to achievements
+					const trophyNumbers = [1, 2, 3, 4, 5];
+					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
+					
+					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
+						...achievement,
+						trophyNumber: shuffled[index % 5],
+					}));
+					
+					setAchievements(achievementsWithTrophies);
+				} else {
+					log("error", "Failed to fetch achievements");
+				}
+			} catch (error) {
+				log("error", "Error fetching achievements:", error);
+			} finally {
+				setAchievementsLoading(false);
+			}
+		};
+
+		fetchAchievements();
+	}, []);
+
+	// Priority 2: Above fold on desktop - Milestones section
 	useEffect(() => {
 		const fetchMilestones = async () => {
 			try {
@@ -157,37 +190,6 @@ export default function ClubInformation() {
 		};
 
 		fetchMilestones();
-	}, []);
-
-	useEffect(() => {
-		const fetchAchievements = async () => {
-			try {
-				const response = await fetch("/api/club-achievements");
-				if (response.ok) {
-					const data = await response.json();
-					const achievementsData = data.achievements || [];
-					
-					// Shuffle trophy numbers and assign to achievements
-					const trophyNumbers = [1, 2, 3, 4, 5];
-					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
-					
-					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
-						...achievement,
-						trophyNumber: shuffled[index % 5],
-					}));
-					
-					setAchievements(achievementsWithTrophies);
-				} else {
-					log("error", "Failed to fetch achievements");
-				}
-			} catch (error) {
-				log("error", "Error fetching achievements:", error);
-			} finally {
-				setAchievementsLoading(false);
-			}
-		};
-
-		fetchAchievements();
 	}, []);
 
 	// Filter milestones based on selected filter

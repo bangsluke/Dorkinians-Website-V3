@@ -108,6 +108,18 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 		}
 	}, [isOpen, preloadStatsData]);
 
+	// Sync expansion state with current page when menu opens or page changes
+	useEffect(() => {
+		if (isOpen && currentStatsSubPage) {
+			setExpandedPages({
+				"player-stats": currentStatsSubPage === "player-stats",
+				"team-stats": currentStatsSubPage === "team-stats",
+				"club-stats": currentStatsSubPage === "club-stats",
+				"comparison": currentStatsSubPage === "comparison",
+			});
+		}
+	}, [isOpen, currentStatsSubPage]);
+
 	const togglePage = (pageId: string) => {
 		setExpandedPages((prev) => ({
 			...prev,
