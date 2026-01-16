@@ -458,6 +458,7 @@ export default function ClubStats() {
 		}
 	}, [selectedStatType]);
 
+	// Priority 1: Above fold on mobile - Key Club Stats section
 	// Fetch team data when filters are applied
 	// Use JSON.stringify to detect filter changes even if object reference doesn't change
 	const filtersKey = JSON.stringify(playerFilters || {});
@@ -509,234 +510,7 @@ export default function ClubStats() {
 		fetchTeamData();
 	}, [filtersKey, playerFilters]);
 
-	// Fetch top players when filters or stat type changes
-	useEffect(() => {
-		if (!playerFilters) return;
-		
-		const fetchTopPlayers = async () => {
-			setIsLoadingTopPlayers(true);
-			log("info", `[ClubStats] Fetching top players for statType: ${selectedStatType}`, {
-				filters: playerFilters,
-				filtersKey,
-			});
-			
-			try {
-				const response = await fetch("/api/top-players-stats", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-						statType: selectedStatType,
-					}),
-				});
-
-				if (response.ok) {
-					const data = await response.json();
-					log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-					setTopPlayers(data.players || []);
-				} else {
-					const errorText = await response.text();
-					log("error", `[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
-					setTopPlayers([]);
-				}
-			} catch (error) {
-				log("error", "[ClubStats] Error fetching top players:", error);
-				setTopPlayers([]);
-			} finally {
-				setIsLoadingTopPlayers(false);
-			}
-		};
-
-		fetchTopPlayers();
-	}, [filtersKey, selectedStatType, playerFilters]);
-
-	// Check if all seasons are selected
-	const allSeasonsSelected = useMemo(() => {
-		if (playerFilters?.timeRange?.type === "allTime") return true;
-		if (playerFilters?.timeRange?.type === "season" && filterData?.seasons) {
-			const selectedSeasons = playerFilters.timeRange.seasons || [];
-			const allSeasons = filterData.seasons.map((s: any) => s.season || s);
-			return selectedSeasons.length === allSeasons.length && 
-				allSeasons.every((season: string) => selectedSeasons.includes(season));
-		}
-		return false;
-	}, [playerFilters?.timeRange, filterData]);
-
-	// Stat options for seasonal chart dropdown
-	const statOptions = useMemo(() => [
-		{ value: "Games", label: "Games", statKey: "gamesPlayed" },
-		{ value: "Wins", label: "Wins", statKey: "wins" },
-		{ value: "Goals", label: "Goals", statKey: "goalsScored" },
-		{ value: "Goals Conceded", label: "Goals Conceded", statKey: "goalsConceded" },
-		{ value: "Clean Sheets", label: "Clean Sheets", statKey: "teamCleanSheets" },
-		{ value: "Appearances", label: "Appearances", statKey: "appearances" },
-		{ value: "Minutes", label: "Minutes", statKey: "minutes" },
-		{ value: "MoM", label: "MoM", statKey: "mom" },
-		{ value: "Assists", label: "Assists", statKey: "assists" },
-		{ value: "Fantasy Points", label: "Fantasy Points", statKey: "fantasyPoints" },
-		{ value: "Yellow Cards", label: "Yellow Cards", statKey: "yellowCards" },
-		{ value: "Red Cards", label: "Red Cards", statKey: "redCards" },
-		{ value: "Saves", label: "Saves", statKey: "saves" },
-		{ value: "Conceded", label: "Conceded", statKey: "conceded" },
-		{ value: "Own Goals", label: "Own Goals", statKey: "ownGoals" },
-		{ value: "Penalties Scored", label: "Penalties Scored", statKey: "penaltiesScored" },
-		{ value: "Penalties Missed", label: "Penalties Missed", statKey: "penaltiesMissed" },
-		{ value: "Penalties Conceded", label: "Penalties Conceded", statKey: "penaltiesConceded" },
-		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
-		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
-	], []);
-
-	// Fetch seasonal stats when all seasons selected
-	useEffect(() => {
-		if (!allSeasonsSelected || !playerFilters) {
-			setSeasonalStats([]);
-			return;
-		}
-
-		const fetchSeasonalStats = async () => {
-			setIsLoadingSeasonalStats(true);
-			try {
-				const response = await fetch("/api/team-seasonal-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching seasonal stats:", error);
-			} finally {
-				setIsLoadingSeasonalStats(false);
-			}
-		};
-
-		fetchSeasonalStats();
-	}, [allSeasonsSelected, playerFilters]);
-
-	// Fetch game details when filters change
-	useEffect(() => {
-		if (!playerFilters) {
-			setGameDetails(null);
-			return;
-		}
-
-		const fetchGameDetails = async () => {
-			setIsLoadingGameDetails(true);
-			try {
-				const response = await fetch("/api/team-game-details", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setGameDetails(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching game details:", error);
-				setGameDetails(null);
-			} finally {
-				setIsLoadingGameDetails(false);
-			}
-		};
-
-		fetchGameDetails();
-	}, [playerFilters]);
-
-	// Fetch unique player stats when filters change
-	useEffect(() => {
-		if (!playerFilters) {
-			setUniquePlayerStats(null);
-			return;
-		}
-
-		const fetchUniqueStats = async () => {
-			setIsLoadingUniqueStats(true);
-			try {
-				const response = await fetch("/api/unique-player-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setUniquePlayerStats(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching unique player stats:", error);
-				setUniquePlayerStats(null);
-			} finally {
-				setIsLoadingUniqueStats(false);
-			}
-		};
-
-		fetchUniqueStats();
-	}, [playerFilters]);
-
-	// Calculate linear regression for trendline
-	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
-		if (data.length < 2) return [];
-		
-		const n = data.length;
-		let sumX = 0;
-		let sumY = 0;
-		let sumXY = 0;
-		let sumX2 = 0;
-		
-		data.forEach((point, index) => {
-			const x = index;
-			const y = point.value;
-			sumX += x;
-			sumY += y;
-			sumXY += x * y;
-			sumX2 += x * x;
-		});
-		
-		const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-		const intercept = (sumY - slope * sumX) / n;
-		
-		return data.map((point, index) => ({
-			name: point.name,
-			value: slope * index + intercept,
-		}));
-	};
-
-	// Prepare seasonal chart data with trendline
-	const seasonalChartData = useMemo(() => {
-		if (!seasonalStats.length) return [];
-		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
-		if (!selectedOption) return [];
-		
-		const baseData = seasonalStats.map(stat => ({
-			name: stat.season,
-			value: toNumber(stat[selectedOption.statKey] || 0),
-		}));
-
-		// Add trendline values if enabled
-		if (showTrend && baseData.length >= 2) {
-			const trendlinePoints = calculateTrendline(baseData);
-			return baseData.map((point, index) => ({
-				...point,
-				trendline: trendlinePoints[index]?.value || 0,
-			}));
-		}
-
-		return baseData;
-	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
-
+	// Priority 1: Above fold on mobile - Team Comparison section
 	// Fetch team comparison data
 	useEffect(() => {
 		if (!playerFilters) return;
@@ -794,76 +568,51 @@ export default function ClubStats() {
 		fetchTeamComparison();
 	}, [filtersKey, playerFilters]);
 
-	// Fetch player distribution data
+	// Priority 2: Above fold on desktop - Top Players section
+	// Fetch top players when filters or stat type changes
 	useEffect(() => {
 		if (!playerFilters) return;
-
-		const fetchPlayerDistribution = async () => {
-			setIsLoadingPlayerDistribution(true);
+		
+		const fetchTopPlayers = async () => {
+			setIsLoadingTopPlayers(true);
+			log("info", `[ClubStats] Fetching top players for statType: ${selectedStatType}`, {
+				filters: playerFilters,
+				filtersKey,
+			});
+			
 			try {
-				const response = await fetch("/api/club-player-distribution", {
+				const response = await fetch("/api/top-players-stats", {
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
 					body: JSON.stringify({
 						filters: playerFilters,
+						statType: selectedStatType,
 					}),
 				});
 
 				if (response.ok) {
 					const data = await response.json();
-					setPlayerDistributionData(data);
+					log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+					setTopPlayers(data.players || []);
 				} else {
-					log("error", "Failed to fetch player distribution:", response.statusText);
-					setPlayerDistributionData(null);
+					const errorText = await response.text();
+					log("error", `[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
+					setTopPlayers([]);
 				}
 			} catch (error) {
-				log("error", "Error fetching player distribution:", error);
-				setPlayerDistributionData(null);
+				log("error", "[ClubStats] Error fetching top players:", error);
+				setTopPlayers([]);
 			} finally {
-				setIsLoadingPlayerDistribution(false);
+				setIsLoadingTopPlayers(false);
 			}
 		};
 
-		fetchPlayerDistribution();
-	}, [filtersKey, playerFilters]);
+		fetchTopPlayers();
+	}, [filtersKey, selectedStatType, playerFilters]);
 
-	// Fetch player tenure data
-	useEffect(() => {
-		if (!playerFilters) return;
-
-		const fetchPlayerTenure = async () => {
-			setIsLoadingPlayerTenure(true);
-			try {
-				const response = await fetch("/api/club-player-tenure", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-					}),
-				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerTenureData(data.tenures || []);
-				} else {
-					log("error", "Failed to fetch player tenure:", response.statusText);
-					setPlayerTenureData([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching player tenure:", error);
-				setPlayerTenureData([]);
-			} finally {
-				setIsLoadingPlayerTenure(false);
-			}
-		};
-
-		fetchPlayerTenure();
-	}, [filtersKey, playerFilters]);
-
+	// Priority 2: Above fold on desktop - Stats Distribution section
 	// Fetch position stats data
 	useEffect(() => {
 		if (!playerFilters) return;
@@ -903,6 +652,266 @@ export default function ClubStats() {
 
 		fetchPositionStats();
 	}, [filtersKey, selectedPositionStat, playerFilters]);
+
+	// Check if all seasons are selected
+	const allSeasonsSelected = useMemo(() => {
+		if (playerFilters?.timeRange?.type === "allTime") return true;
+		if (playerFilters?.timeRange?.type === "season" && filterData?.seasons) {
+			const selectedSeasons = playerFilters.timeRange.seasons || [];
+			const allSeasons = filterData.seasons.map((s: any) => s.season || s);
+			return selectedSeasons.length === allSeasons.length && 
+				allSeasons.every((season: string) => selectedSeasons.includes(season));
+		}
+		return false;
+	}, [playerFilters?.timeRange, filterData]);
+
+	// Stat options for seasonal chart dropdown
+	const statOptions = useMemo(() => [
+		{ value: "Games", label: "Games", statKey: "gamesPlayed" },
+		{ value: "Wins", label: "Wins", statKey: "wins" },
+		{ value: "Goals", label: "Goals", statKey: "goalsScored" },
+		{ value: "Goals Conceded", label: "Goals Conceded", statKey: "goalsConceded" },
+		{ value: "Clean Sheets", label: "Clean Sheets", statKey: "teamCleanSheets" },
+		{ value: "Appearances", label: "Appearances", statKey: "appearances" },
+		{ value: "Minutes", label: "Minutes", statKey: "minutes" },
+		{ value: "MoM", label: "MoM", statKey: "mom" },
+		{ value: "Assists", label: "Assists", statKey: "assists" },
+		{ value: "Fantasy Points", label: "Fantasy Points", statKey: "fantasyPoints" },
+		{ value: "Yellow Cards", label: "Yellow Cards", statKey: "yellowCards" },
+		{ value: "Red Cards", label: "Red Cards", statKey: "redCards" },
+		{ value: "Saves", label: "Saves", statKey: "saves" },
+		{ value: "Conceded", label: "Conceded", statKey: "conceded" },
+		{ value: "Own Goals", label: "Own Goals", statKey: "ownGoals" },
+		{ value: "Penalties Scored", label: "Penalties Scored", statKey: "penaltiesScored" },
+		{ value: "Penalties Missed", label: "Penalties Missed", statKey: "penaltiesMissed" },
+		{ value: "Penalties Conceded", label: "Penalties Conceded", statKey: "penaltiesConceded" },
+		{ value: "Penalties Saved", label: "Penalties Saved", statKey: "penaltiesSaved" },
+		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
+	], []);
+
+	// Priority 3: Below fold - Seasonal Performance section
+	// Fetch seasonal stats when all seasons selected
+	useEffect(() => {
+		if (!allSeasonsSelected || !playerFilters) {
+			setSeasonalStats([]);
+			return;
+		}
+
+		const fetchSeasonalStats = async () => {
+			setIsLoadingSeasonalStats(true);
+			try {
+				const response = await fetch("/api/team-seasonal-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonalStats(data.seasonalStats || []);
+				}
+			} catch (error) {
+				log("error", "Error fetching seasonal stats:", error);
+			} finally {
+				setIsLoadingSeasonalStats(false);
+			}
+		};
+
+		fetchSeasonalStats();
+	}, [allSeasonsSelected, playerFilters]);
+
+	// Priority 3: Below fold - Game Details section
+	// Fetch game details when filters change
+	useEffect(() => {
+		if (!playerFilters) {
+			setGameDetails(null);
+			return;
+		}
+
+		const fetchGameDetails = async () => {
+			setIsLoadingGameDetails(true);
+			try {
+				const response = await fetch("/api/team-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setGameDetails(data);
+				}
+			} catch (error) {
+				log("error", "Error fetching game details:", error);
+				setGameDetails(null);
+			} finally {
+				setIsLoadingGameDetails(false);
+			}
+		};
+
+		fetchGameDetails();
+	}, [playerFilters]);
+
+	// Priority 3: Below fold - Unique Player Stats section
+	// Fetch unique player stats when filters change
+	useEffect(() => {
+		if (!playerFilters) {
+			setUniquePlayerStats(null);
+			return;
+		}
+
+		const fetchUniqueStats = async () => {
+			setIsLoadingUniqueStats(true);
+			try {
+				const response = await fetch("/api/unique-player-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: "Whole Club",
+						filters: playerFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setUniquePlayerStats(data);
+				}
+			} catch (error) {
+				log("error", "Error fetching unique player stats:", error);
+				setUniquePlayerStats(null);
+			} finally {
+				setIsLoadingUniqueStats(false);
+			}
+		};
+
+		fetchUniqueStats();
+	}, [playerFilters]);
+
+	// Priority 3: Below fold - Player Distribution section
+	// Fetch player distribution data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerDistribution = async () => {
+			setIsLoadingPlayerDistribution(true);
+			try {
+				const response = await fetch("/api/club-player-distribution", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setPlayerDistributionData(data);
+				} else {
+					log("error", "Failed to fetch player distribution:", response.statusText);
+					setPlayerDistributionData(null);
+				}
+			} catch (error) {
+				log("error", "Error fetching player distribution:", error);
+				setPlayerDistributionData(null);
+			} finally {
+				setIsLoadingPlayerDistribution(false);
+			}
+		};
+
+		fetchPlayerDistribution();
+	}, [filtersKey, playerFilters]);
+
+	// Priority 3: Below fold - Player Tenure section
+	// Fetch player tenure data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerTenure = async () => {
+			setIsLoadingPlayerTenure(true);
+			try {
+				const response = await fetch("/api/club-player-tenure", {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						filters: playerFilters,
+					}),
+				});
+
+				if (response.ok) {
+					const data = await response.json();
+					setPlayerTenureData(data.tenures || []);
+				} else {
+					log("error", "Failed to fetch player tenure:", response.statusText);
+					setPlayerTenureData([]);
+				}
+			} catch (error) {
+				log("error", "Error fetching player tenure:", error);
+				setPlayerTenureData([]);
+			} finally {
+				setIsLoadingPlayerTenure(false);
+			}
+		};
+
+		fetchPlayerTenure();
+	}, [filtersKey, playerFilters]);
+
+	// Calculate linear regression for trendline
+	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
+		if (data.length < 2) return [];
+		
+		const n = data.length;
+		let sumX = 0;
+		let sumY = 0;
+		let sumXY = 0;
+		let sumX2 = 0;
+		
+		data.forEach((point, index) => {
+			const x = index;
+			const y = point.value;
+			sumX += x;
+			sumY += y;
+			sumXY += x * y;
+			sumX2 += x * x;
+		});
+		
+		const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+		const intercept = (sumY - slope * sumX) / n;
+		
+		return data.map((point, index) => ({
+			name: point.name,
+			value: slope * index + intercept,
+		}));
+	};
+
+	// Prepare seasonal chart data with trendline
+	const seasonalChartData = useMemo(() => {
+		if (!seasonalStats.length) return [];
+		const selectedOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+		if (!selectedOption) return [];
+		
+		const baseData = seasonalStats.map(stat => ({
+			name: stat.season,
+			value: toNumber(stat[selectedOption.statKey] || 0),
+		}));
+
+		// Add trendline values if enabled
+		if (showTrend && baseData.length >= 2) {
+			const trendlinePoints = calculateTrendline(baseData);
+			return baseData.map((point, index) => ({
+				...point,
+				trendline: trendlinePoints[index]?.value || 0,
+			}));
+		}
+
+		return baseData;
+	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
 
 
 	// Handle stat type selection

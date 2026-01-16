@@ -552,6 +552,7 @@ export default function TeamStats() {
 		};
 	}, [selectedTeam, playerFilters]);
 
+	// Priority 1: Above fold on mobile - Key Performance Stats and Recent Form sections
 	// Fetch team data when selected team or filters change
 	const filtersKey = JSON.stringify({ selectedTeam, playerFilters: apiFilters || {} });
 	
@@ -608,6 +609,7 @@ export default function TeamStats() {
 		fetchTeamData();
 	}, [filtersKey, selectedTeam, playerFilters]);
 
+	// Priority 1: Above fold on mobile - Top Players section
 	// Fetch top players when selected team, filters or stat type changes
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) return;
@@ -702,38 +704,7 @@ export default function TeamStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
-	// Fetch seasonal stats when team selected and all seasons selected
-	useEffect(() => {
-		if (!selectedTeam || !allSeasonsSelected || !apiFilters) {
-			setSeasonalStats([]);
-			return;
-		}
-
-		const fetchSeasonalStats = async () => {
-			setIsLoadingSeasonalStats(true);
-			try {
-				const response = await fetch("/api/team-seasonal-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: apiFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching seasonal stats:", error);
-			} finally {
-				setIsLoadingSeasonalStats(false);
-			}
-		};
-
-		fetchSeasonalStats();
-	}, [selectedTeam, allSeasonsSelected, apiFilters]);
-
+	// Priority 3: Below fold - Unique Player Stats section
 	// Fetch unique player stats when team selected and filters change
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) {
@@ -767,6 +738,7 @@ export default function TeamStats() {
 		fetchUniqueStats();
 	}, [selectedTeam, apiFilters]);
 
+	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
 	useEffect(() => {
 		if (!selectedTeam) {
@@ -815,6 +787,39 @@ export default function TeamStats() {
 
 		fetchBestSeasonFinish();
 	}, [selectedTeam, isSeasonFilter, isDateRangeFilter, playerFilters?.timeRange?.seasons]);
+
+	// Priority 3: Below fold - Seasonal Performance section
+	// Fetch seasonal stats when team selected and all seasons selected
+	useEffect(() => {
+		if (!selectedTeam || !allSeasonsSelected || !apiFilters) {
+			setSeasonalStats([]);
+			return;
+		}
+
+		const fetchSeasonalStats = async () => {
+			setIsLoadingSeasonalStats(true);
+			try {
+				const response = await fetch("/api/team-seasonal-stats", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						teamName: selectedTeam,
+						filters: apiFilters,
+					}),
+				});
+				if (response.ok) {
+					const data = await response.json();
+					setSeasonalStats(data.seasonalStats || []);
+				}
+			} catch (error) {
+				log("error", "Error fetching seasonal stats:", error);
+			} finally {
+				setIsLoadingSeasonalStats(false);
+			}
+		};
+
+		fetchSeasonalStats();
+	}, [selectedTeam, allSeasonsSelected, apiFilters]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {

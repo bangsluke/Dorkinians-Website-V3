@@ -774,7 +774,20 @@ export default function LeagueInformation() {
 							className={`sticky top-0 z-20 py-2 -mx-3 md:-mx-6 transition-all duration-200 ${isSticky ? 'bg-[#617867]' : ''}`}
 						>
 							<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
-								{Object.keys(leagueData?.teams || {}).sort().map((teamKey) => (
+								{(() => {
+									// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
+									const teamKeys = Object.keys(leagueData?.teams || {});
+									return teamKeys.sort((keyA, keyB) => {
+										// 1st XI always first
+										if (keyA === "1s") return -1;
+										if (keyB === "1s") return 1;
+										// 2nd XI always second
+										if (keyA === "2s") return -1;
+										if (keyB === "2s") return 1;
+										// Others in natural order
+										return keyA.localeCompare(keyB);
+									});
+								})().map((teamKey) => (
 									<button
 										key={teamKey}
 										onClick={() => scrollToTeam(teamKey)}
@@ -1576,8 +1589,20 @@ export default function LeagueInformation() {
 				<div className='space-y-8'>
 				{/* Display tables for each team */}
 				{(() => {
+					// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
 					const allTeams = Object.entries(leagueData.teams);
-					return allTeams.map(([teamKey, teamData], teamIndex) => {
+					// Sort teams: 1s first, 2s second, then others in order
+					const sortedTeams = allTeams.sort(([keyA], [keyB]) => {
+						// 1st XI always first
+						if (keyA === "1s") return -1;
+						if (keyB === "1s") return 1;
+						// 2nd XI always second
+						if (keyA === "2s") return -1;
+						if (keyB === "2s") return 1;
+						// Others in natural order
+						return keyA.localeCompare(keyB);
+					});
+					return sortedTeams.map(([teamKey, teamData], teamIndex) => {
 						const hasTableData = teamData && teamData.table && teamData.table.length > 0;
 						
 						// Find Dorkinians position (only if table data exists)
