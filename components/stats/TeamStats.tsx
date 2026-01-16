@@ -1180,16 +1180,19 @@ export default function TeamStats() {
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
 						<div className='md:break-inside-avoid md:mb-4'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
 							<StatCardSkeleton />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
 							<RecentGamesSkeleton />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
-							<TopPlayersTableSkeleton />
+							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+							<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
 						</div>
 					</div>
 				</SkeletonTheme>

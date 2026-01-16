@@ -33,8 +33,8 @@ const navigationItems = [
 		icon: TrophyIcon, 
 		label: "TOTW",
 		subPages: [
-			{ id: "team-of-the-week" as TOTWSubPage, label: "Team of the Week" },
-			{ id: "players-of-the-month" as TOTWSubPage, label: "Players of the Month" },
+			{ id: "totw" as TOTWSubPage, label: "Team of the Week" },
+			{ id: "players-of-month" as TOTWSubPage, label: "Players of the Month" },
 		]
 	},
 	{ 

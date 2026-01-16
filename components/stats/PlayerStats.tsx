@@ -2324,11 +2324,19 @@ export default function PlayerStats() {
 						</div>
 						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
 					</div>
 				</div>
 				</SkeletonTheme>
