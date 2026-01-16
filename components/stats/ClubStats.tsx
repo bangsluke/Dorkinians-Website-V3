@@ -750,6 +750,8 @@ export default function ClubStats() {
 				const teams = ["1st XI", "2nd XI", "3rd XI", "4th XI", "5th XI", "6th XI", "7th XI", "8th XI"];
 				const promises = teams.map(async (teamName) => {
 					try {
+						// Exclude teams filter to ensure teamName parameter is used for filtering
+						const { teams, ...filtersWithoutTeams } = playerFilters;
 						const response = await fetch("/api/team-data-filtered", {
 							method: "POST",
 							headers: {
@@ -758,7 +760,10 @@ export default function ClubStats() {
 							},
 							body: JSON.stringify({
 								teamName: teamName,
-								filters: playerFilters,
+								filters: {
+									...filtersWithoutTeams,
+									teams: [], // Explicitly set empty teams array
+								},
 							}),
 						});
 
