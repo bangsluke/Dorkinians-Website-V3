@@ -408,27 +408,29 @@
 	}
 
 	/* When single-column sections are present, use grid for better control */
-	.player-stats-masonry:has(.single-column-section) {
-		display: grid !important;
-		grid-template-columns: repeat(2, 1fr) !important;
-		grid-auto-flow: row dense !important;
-		gap: 1rem !important;
-		column-count: unset !important;
-		column-gap: unset !important;
+	/* On desktop: 2-column grid, all sections span 1 column */
+	/* On mobile: 1-column layout (handled by space-y-4 class) */
+	@media (min-width: 768px) {
+		.player-stats-masonry:has(.single-column-section) {
+			display: grid !important;
+			grid-template-columns: repeat(2, 1fr) !important;
+			grid-auto-flow: row dense !important;
+			gap: 1rem !important;
+			column-count: unset !important;
+			column-gap: unset !important;
+		}
+
+		.player-stats-masonry:has(.single-column-section) > * {
+			grid-column: span 1 !important;
+			margin-bottom: 0 !important;
+			box-sizing: border-box !important;
+		}
 	}
 
 	.player-stats-masonry .single-column-section {
-		grid-column: span 1 !important;
-		box-sizing: border-box !important;
-		margin-bottom: 0 !important;
 		break-inside: avoid !important;
 		page-break-inside: avoid !important;
 		-webkit-column-break-inside: avoid !important;
-	}
-
-	.player-stats-masonry:has(.single-column-section) > *:not(.single-column-section) {
-		grid-column: span 2 !important;
-		margin-bottom: 0 !important;
 	}
 }
 
