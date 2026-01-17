@@ -78,7 +78,8 @@ class PWAUpdateService {
 				}
 
 				try {
-					// Check if there's a waiting service worker
+					// First, check if there's already a waiting service worker (from previous update)
+					// This is the primary check - we want to detect updates that are already waiting
 					if (registration.waiting) {
 						this.updateAvailable = true;
 						resolve({
@@ -139,7 +140,10 @@ class PWAUpdateService {
 						}
 					}
 
-					// Force update check
+					// Only trigger a new update check if there's no waiting or installing worker
+					// This prevents automatic activation when user just wants to check for existing updates
+					// Note: registration.update() will check for new service worker versions but won't
+					// activate them automatically (skipWaiting: false in next.config.js)
 					registration.update().then(() => {
 						try {
 							// Check immediately after update
