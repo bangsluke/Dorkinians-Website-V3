@@ -79,6 +79,7 @@ export default function SettingsPage() {
 	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
+	const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
 	const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
 		isSiteNavigationExpanded: true,
 		versionReleaseDetails: false,
@@ -184,7 +185,7 @@ export default function SettingsPage() {
 		}
 	};
 
-	// Fetch site details on mount
+	// Fetch site details and last update date on mount
 	useEffect(() => {
 		const fetchSiteDetails = async () => {
 			try {
@@ -198,6 +199,18 @@ export default function SettingsPage() {
 			}
 		};
 		fetchSiteDetails();
+
+		// Load last update date
+		const loadLastUpdateDate = async () => {
+			try {
+				const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+				const date = pwaUpdateService.getLastUpdateDate();
+				setLastUpdateDate(date);
+			} catch (error) {
+				console.error("Failed to load last update date:", error);
+			}
+		};
+		loadLastUpdateDate();
 	}, []);
 
 	const formatDate = (dateString: string | null) => {
@@ -206,6 +219,18 @@ export default function SettingsPage() {
 			return new Date(dateString).toLocaleString();
 		} catch {
 			return dateString;
+		}
+	};
+
+	const formatLastUpdateDate = (date: Date | null): string => {
+		if (!date) return "";
+		try {
+			const day = String(date.getDate()).padStart(2, "0");
+			const month = String(date.getMonth() + 1).padStart(2, "0");
+			const year = date.getFullYear();
+			return `${day}/${month}/${year}`;
+		} catch {
+			return "";
 		}
 	};
 
@@ -558,7 +583,14 @@ export default function SettingsPage() {
 									)}
 								</motion.button>
 								{updateStatus === "No updates available" && (
-									<p className='text-sm text-gray-300'>{updateStatus}</p>
+									<div className='text-center'>
+										<p className='text-sm text-gray-300'>{updateStatus}</p>
+										{lastUpdateDate && (
+											<p className='text-xs text-gray-400 mt-1'>
+												Last version update was {formatLastUpdateDate(lastUpdateDate)}
+											</p>
+										)}
+									</div>
 								)}
 								{updateStatus && updateStatus !== "No updates available" && (
 									<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
