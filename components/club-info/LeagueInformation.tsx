@@ -6,6 +6,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import LeagueResultsModal from "./LeagueResultsModal";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
@@ -54,7 +55,7 @@ export default function LeagueInformation() {
 	const stickyNavRef = useRef<HTMLDivElement>(null);
 	const [isSticky, setIsSticky] = useState(false);
 	const [activeTeamLink, setActiveTeamLink] = useState<string | null>(null);
-	const { selectedPlayer } = useNavigationStore();
+	const { selectedPlayer, getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 	const [leagueData, setLeagueData] = useState<SeasonLeagueData | null>(null);
@@ -77,10 +78,15 @@ export default function LeagueInformation() {
 	useEffect(() => {
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/league-tables");
-				if (response.ok) {
-					const data = await response.json();
-					const seasonsList = data.seasons || [];
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "seasons", {});
+				const data = await cachedFetch("/api/league-tables", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				const seasonsList = data.seasons || [];
+				if (seasonsList.length > 0) {
 					// Add 2019-20 season if it doesn't exist
 					if (!seasonsList.includes("2019-20")) {
 						seasonsList.push("2019-20");
@@ -153,21 +159,16 @@ export default function LeagueInformation() {
 
 		const fetchPlayerSeasons = async () => {
 			try {
-				const response = await fetch("/api/player-seasons-teams", {
+				const requestBody = { playerName: selectedPlayer };
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "player-seasons-teams", requestBody);
+				const data = await cachedFetch("/api/player-seasons-teams", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ playerName: selectedPlayer }),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerSeasonsData(data.playerSeasons || []);
-				} else {
-					console.error("Failed to fetch player seasons");
-					setPlayerSeasonsData([]);
-				}
+				setPlayerSeasonsData(data.playerSeasons || []);
 			} catch (err) {
 				console.error("Error fetching player seasons:", err);
 				setPlayerSeasonsData([]);
@@ -193,17 +194,17 @@ export default function LeagueInformation() {
 			setLoading(true);
 			setError(null);
 			try {
-				const response = await fetch(`/api/league-tables?season=${encodeURIComponent(selectedSeason)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setLeagueData(data.data);
-				} else {
-					const errorData = await response.json();
-					setError(errorData.error || "Failed to fetch league table data");
-				}
-			} catch (err) {
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season: selectedSeason });
+				const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setLeagueData(data.data);
+			} catch (err: any) {
 				console.error("Error fetching league data:", err);
-				setError("Error loading league table data");
+				setError(err?.error || "Error loading league table data");
 			} finally {
 				setLoading(false);
 			}
@@ -235,29 +236,27 @@ export default function LeagueInformation() {
 
 					try {
 						log("info", `📡 [My Seasons] Fetching league data for season: ${season}, team: ${team}`);
-						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
-						if (response.ok) {
-							const data = await response.json();
-							log("info", `✅ [My Seasons] Received data for season ${season}:`, {
-								hasData: !!data.data,
-								seasonInData: data.data?.season,
-								teamsInData: data.data?.teams ? Object.keys(data.data.teams) : [],
-								requestedTeam: team,
-								hasRequestedTeam: data.data?.teams ? team in data.data.teams : false,
-							});
-							if (data.data) {
-								// Normalize season format for consistent map key (ensure hyphen format)
-								const normalizedSeason = season.replace("/", "-");
-								newDataMap.set(normalizedSeason, data.data);
-								log("info", `💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
-							} else {
-								log("warn", `⚠️ [My Seasons] No data.data for season ${season}`);
-							}
+						const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season });
+						const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(season)}`, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						log("info", `✅ [My Seasons] Received data for season ${season}:`, {
+							hasData: !!data.data,
+							seasonInData: data.data?.season,
+							teamsInData: data.data?.teams ? Object.keys(data.data.teams) : [],
+							requestedTeam: team,
+							hasRequestedTeam: data.data?.teams ? team in data.data.teams : false,
+						});
+						if (data.data) {
+							// Normalize season format for consistent map key (ensure hyphen format)
+							const normalizedSeason = season.replace("/", "-");
+							newDataMap.set(normalizedSeason, data.data);
+							log("info", `💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
 						} else {
-							log("error", `❌ [My Seasons] Failed to fetch season ${season}:`, {
-								status: response.status,
-								statusText: response.statusText,
-							});
+							log("warn", `⚠️ [My Seasons] No data.data for season ${season}`);
 						}
 					} catch (err) {
 						log("error", `Error fetching league data for season ${season}:`, err);
@@ -305,14 +304,17 @@ export default function LeagueInformation() {
 					}
 
 					try {
-						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
-						if (response.ok) {
-							const data = await response.json();
-							if (data.data) {
-								// Normalize season format for consistent map key (ensure hyphen format)
-								const normalizedSeason = season.replace("/", "-");
-								newDataMap.set(normalizedSeason, data.data);
-							}
+						const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season });
+						const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(season)}`, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						if (data.data) {
+							// Normalize season format for consistent map key (ensure hyphen format)
+							const normalizedSeason = season.replace("/", "-");
+							newDataMap.set(normalizedSeason, data.data);
 						}
 					} catch (err) {
 						log("error", `Error fetching league data for season ${season}:`, err);

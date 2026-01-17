@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { neo4jService } from "@/lib/neo4j";
+import { apiCache, getCacheTTL } from "@/lib/utils/apiCache";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -49,6 +50,24 @@ const toNumber = (value: any): number => {
 
 export async function GET(request: NextRequest) {
 	try {
+		// Check cache first
+		const cacheKey = apiCache.generateKey("/api/milestones");
+		const cached = apiCache.get<{
+			achieved: MilestoneEntry[];
+			nearing: MilestoneEntry[];
+			closestToMilestone: MilestoneEntry[];
+		}>(cacheKey);
+		if (cached) {
+			return NextResponse.json(
+				{
+					achieved: cached.achieved,
+					nearing: cached.nearing,
+					closestToMilestone: cached.closestToMilestone,
+				},
+				{ headers: corsHeaders }
+			);
+		}
+
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
@@ -78,27 +97,24 @@ export async function GET(request: NextRequest) {
 			cutoffDate1Year.setFullYear(cutoffDate1Year.getFullYear() - 1); // 1 year
 		}
 
-		// Query all players with their stats and match details ordered by date
+		// Optimized query: Use aggregation instead of collecting all match details
+		// Only fetch aggregated stats and most recent match date per player
 		const query = `
 			MATCH (p:Player {graphLabel: $graphLabel})
 			WHERE p.allowOnSite = true
 			MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
-			WITH p, md
-			ORDER BY md.date ASC
 			WITH p,
-				collect(md) as matchDetails
-			WITH p,
-				size(matchDetails) as appearances,
-				reduce(total = 0, md in matchDetails | total + coalesce(md.mom, 0)) as mom,
-				reduce(total = 0, md in matchDetails | total + coalesce(md.goals, 0)) as goals,
-				reduce(total = 0, md in matchDetails | total + coalesce(md.assists, 0)) as assists,
-				matchDetails
+				count(md) as appearances,
+				sum(coalesce(md.mom, 0)) as mom,
+				sum(coalesce(md.goals, 0)) as goals,
+				sum(coalesce(md.assists, 0)) as assists,
+				max(md.date) as mostRecentDate
 			RETURN p.playerName as playerName,
 				coalesce(appearances, 0) as appearances,
 				coalesce(mom, 0) as mom,
 				coalesce(goals, 0) as goals,
 				coalesce(assists, 0) as assists,
-				matchDetails
+				mostRecentDate
 			ORDER BY p.playerName
 		`;
 
@@ -106,50 +122,24 @@ export async function GET(request: NextRequest) {
 
 		const result = await neo4jService.runQuery(query, params);
 
-		// Process results
-		const players: Array<{
+		// Process results - much simpler now with aggregated data
+		type PlayerStats = {
 			playerName: string;
 			appearances: number;
 			goals: number;
 			assists: number;
 			mom: number;
-			matchDetails: Array<{
-				date: string;
-				mom: number;
-				goals: number;
-				assists: number;
-			}>;
-		}> = [];
+			mostRecentDate: string | null;
+		};
+
+		const players: PlayerStats[] = [];
 
 		for (const record of result.records) {
 			const playerName = String(record.get("playerName") || "");
 			if (!playerName || playerName.trim() === "") continue;
 
-			const matchDetailsRaw = record.get("matchDetails");
-			const matchDetails: Array<{
-				date: string;
-				mom: number;
-				goals: number;
-				assists: number;
-			}> = [];
-
-			if (matchDetailsRaw && Array.isArray(matchDetailsRaw)) {
-				for (const md of matchDetailsRaw) {
-					const properties = md.properties || md;
-					matchDetails.push({
-						date: String(properties.date || ""),
-						mom: toNumber(properties.mom || 0),
-						goals: toNumber(properties.goals || 0),
-						assists: toNumber(properties.assists || 0),
-					});
-				}
-				// Sort by date to ensure most recent is last (in case order wasn't preserved)
-				matchDetails.sort((a, b) => {
-					const dateA = new Date(a.date).getTime();
-					const dateB = new Date(b.date).getTime();
-					return dateA - dateB;
-				});
-			}
+			const mostRecentDate = record.get("mostRecentDate");
+			const mostRecentDateStr = mostRecentDate ? String(mostRecentDate) : null;
 
 			players.push({
 				playerName,
@@ -157,7 +147,7 @@ export async function GET(request: NextRequest) {
 				goals: toNumber(record.get("goals")),
 				assists: toNumber(record.get("assists")),
 				mom: toNumber(record.get("mom")),
-				matchDetails,
+				mostRecentDate: mostRecentDateStr,
 			});
 		}
 
@@ -184,11 +174,8 @@ export async function GET(request: NextRequest) {
 
 		// Process each player
 		for (const player of players) {
-			// Get most recent match date for this player
-			const mostRecentMatchDate =
-				player.matchDetails.length > 0
-					? player.matchDetails[player.matchDetails.length - 1]?.date
-					: undefined;
+			// Get most recent match date for this player (now directly from query)
+			const mostRecentMatchDate = player.mostRecentDate || undefined;
 
 			// Check each stat type for closest player tracking (all players, not just recent)
 			for (const statType of statTypes) {
@@ -394,14 +381,17 @@ export async function GET(request: NextRequest) {
 		// Convert closestToMilestone object to array
 		const closestPlayers = Object.values(closestToMilestone).filter((entry): entry is MilestoneEntry => entry !== null);
 
-		return NextResponse.json(
-			{
-				achieved: topAchieved,
-				nearing: topNearing,
-				closestToMilestone: closestPlayers,
-			},
-			{ headers: corsHeaders }
-		);
+		const response = {
+			achieved: topAchieved,
+			nearing: topNearing,
+			closestToMilestone: closestPlayers,
+		};
+
+		// Cache the response
+		const ttl = getCacheTTL("/api/milestones");
+		apiCache.set(cacheKey, response, ttl);
+
+		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error("Error fetching milestones:", error);
 		return NextResponse.json({ error: "Failed to fetch milestones" }, { status: 500, headers: corsHeaders });
