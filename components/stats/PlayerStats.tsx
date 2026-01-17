@@ -5,7 +5,8 @@ import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+// import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -13,11 +14,12 @@ import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
 import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
-import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
-import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
-import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
-import SharePreviewModal from "@/components/stats/SharePreviewModal";
-import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+// import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
+// import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
+// import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
+// import SharePreviewModal from "@/components/stats/SharePreviewModal";
+// import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
@@ -1643,15 +1645,16 @@ export default function PlayerStats() {
 		}
 	}, [isDataTableMode]);
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// State for share functionality
-	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
-	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
-	const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
-	const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
-	const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
-	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
-	const shareCardRef = useRef<HTMLDivElement>(null);
+	// const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	// const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+	// const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
+	// const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
+	// const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
+	// const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
+	// const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
+	// const shareCardRef = useRef<HTMLDivElement>(null);
 
 
 	// Get stats to display for current page
@@ -2244,43 +2247,44 @@ export default function PlayerStats() {
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
-	const availableVisualizations = useMemo(() => {
-		if (!playerData) return [];
-		return getAvailableVisualizations(
-			playerData,
-			playerFilters,
-			allSeasonsSelected,
-			allTeamsSelected,
-			seasonalChartData,
-			teamChartData,
-			isLoadingSeasonalStats,
-			isLoadingTeamStats,
-			oppositionMapData,
-			fantasyBreakdown,
-			isLoadingFantasyBreakdown,
-			gameDetails,
-			isLoadingGameDetails,
-			monthlyChartData,
-			isLoadingMonthlyStats,
-			awardsData,
-			isLoadingAwards
-		);
-	}, [
-		playerData,
-		playerFilters,
-		allSeasonsSelected,
-		allTeamsSelected,
-		seasonalChartData,
-		teamChartData,
-		isLoadingSeasonalStats,
-		isLoadingTeamStats,
-		oppositionMapData,
-		fantasyBreakdown,
-		isLoadingFantasyBreakdown,
-		gameDetails,
-		isLoadingGameDetails,
-	]);
+	// const availableVisualizations = useMemo(() => {
+	// 	if (!playerData) return [];
+	// 	return getAvailableVisualizations(
+	// 		playerData,
+	// 		playerFilters,
+	// 		allSeasonsSelected,
+	// 		allTeamsSelected,
+	// 		seasonalChartData,
+	// 		teamChartData,
+	// 		isLoadingSeasonalStats,
+	// 		isLoadingTeamStats,
+	// 		oppositionMapData,
+	// 		fantasyBreakdown,
+	// 		isLoadingFantasyBreakdown,
+	// 		gameDetails,
+	// 		isLoadingGameDetails,
+	// 		monthlyChartData,
+	// 		isLoadingMonthlyStats,
+	// 		awardsData,
+	// 		isLoadingAwards
+	// 	);
+	// }, [
+	// 	playerData,
+	// 	playerFilters,
+	// 	allSeasonsSelected,
+	// 	allTeamsSelected,
+	// 	seasonalChartData,
+	// 	teamChartData,
+	// 	isLoadingSeasonalStats,
+	// 	isLoadingTeamStats,
+	// 	oppositionMapData,
+	// 	fantasyBreakdown,
+	// 	isLoadingFantasyBreakdown,
+	// 	gameDetails,
+	// 	isLoadingGameDetails,
+	// ]);
 
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
@@ -2358,280 +2362,319 @@ export default function PlayerStats() {
 	// At this point, playerData is guaranteed to be non-null
 	const validPlayerData: PlayerData = playerData;
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Extract visualization data based on selection
-	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
-		switch (vizType) {
-			case "seasonal-performance":
-				const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
-				return {
-					type: vizType,
-					data: { 
-						chartData: seasonalChartData,
-						selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
-					},
-				};
-			case "team-performance":
-				const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
-				return {
-					type: vizType,
-					data: { 
-						chartData: teamChartData,
-						selectedStat: selectedTeamOption?.label || teamSelectedStat,
-					},
-				};
-			case "match-results":
-				const wins = toNumber(validPlayerData.wins || 0);
-				const draws = toNumber(validPlayerData.draws || 0);
-				const losses = toNumber(validPlayerData.losses || 0);
-				const pieData = [
-					{ name: "Wins", value: wins, color: "#22c55e" },
-					{ name: "Draws", value: draws, color: "#60a5fa" },
-					{ name: "Losses", value: losses, color: "#ef4444" },
-				].filter(item => item.value > 0);
-				return {
-					type: vizType,
-					data: { pieData },
-				};
-			case "positional-stats":
-				return {
-					type: vizType,
-					data: {
-						gk: toNumber(validPlayerData.gk),
-						def: toNumber(validPlayerData.def),
-						mid: toNumber(validPlayerData.mid),
-						fwd: toNumber(validPlayerData.fwd),
-						appearances: toNumber(validPlayerData.appearances),
-						gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
-						defMinutes: toNumber(validPlayerData.defMinutes || 0),
-						midMinutes: toNumber(validPlayerData.midMinutes || 0),
-						fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
-					},
-				};
-			case "defensive-record":
-				return {
-					type: vizType,
-					data: {
-						conceded: toNumber(validPlayerData.conceded),
-						cleanSheets: toNumber(validPlayerData.cleanSheets),
-						ownGoals: toNumber(validPlayerData.ownGoals),
-						appearances: toNumber(validPlayerData.appearances),
-						gk: toNumber(validPlayerData.gk),
-						saves: toNumber(validPlayerData.saves),
-						concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
-					},
-				};
-			case "card-stats":
-				return {
-					type: vizType,
-					data: {
-						yellowCards: toNumber(validPlayerData.yellowCards),
-						redCards: toNumber(validPlayerData.redCards),
-					},
-				};
-			case "penalty-stats":
-				return {
-					type: vizType,
-					data: {
-						scored: toNumber(validPlayerData.penaltiesScored),
-						missed: toNumber(validPlayerData.penaltiesMissed),
-						saved: toNumber(validPlayerData.penaltiesSaved),
-						conceded: toNumber(validPlayerData.penaltiesConceded),
-						penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
-						penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
-						penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
-					},
-				};
-			case "fantasy-points":
-				return {
-					type: vizType,
-					data: {
-						totalPoints: toNumber(validPlayerData.fantasyPoints),
-						breakdown: fantasyBreakdown?.breakdown || {},
-						breakdownValues: fantasyBreakdown?.breakdownValues || {},
-						playerName: selectedPlayer || "",
-					},
-				};
-			case "distance-travelled":
-				return {
-					type: vizType,
-					data: {
-						distance: toNumber(validPlayerData.distance),
-						awayGames: toNumber(validPlayerData.awayGames || 0),
-					},
-				};
-			case "minutes-per-stats":
-				const minutes = toNumber(validPlayerData.minutes);
-				const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
-				const assists = toNumber(validPlayerData.assists);
-				const mom = toNumber(validPlayerData.mom);
-				const cleanSheets = toNumber(validPlayerData.cleanSheets);
-				return {
-					type: vizType,
-					data: {
-						minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
-						minutesPerAssist: assists > 0 ? minutes / assists : 0,
-						minutesPerMoM: mom > 0 ? minutes / mom : 0,
-						minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
-					},
-				};
-			case "game-details":
-				return {
-					type: vizType,
-					data: {
-						leagueGames: gameDetails?.leagueGames || 0,
-						cupGames: gameDetails?.cupGames || 0,
-						friendlyGames: gameDetails?.friendlyGames || 0,
-						leagueWins: gameDetails?.leagueWins || 0,
-						cupWins: gameDetails?.cupWins || 0,
-						friendlyWins: gameDetails?.friendlyWins || 0,
-						homeGames: gameDetails?.homeGames || 0,
-						awayGames: gameDetails?.awayGames || 0,
-						homeWins: gameDetails?.homeWins || 0,
-						awayWins: gameDetails?.awayWins || 0,
-						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
-						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
-						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
-					},
-				};
-			case "monthly-performance":
-				const selectedMonthlyOption = statOptions.find(opt => opt.value === monthlySelectedStat);
-				return {
-					type: vizType,
-					data: {
-						chartData: monthlyChartData,
-						selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
-					},
-				};
-			case "captaincies-awards-and-achievements":
-				return {
-					type: vizType,
-					data: awardsData,
-				};
-			default:
-				return { type: vizType };
-		}
-	};
+	// const getVisualizationData = (vizType: string): { type: string; data?: any } => {
+	// 	switch (vizType) {
+			// case "seasonal-performance":
+			// 	const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { 
+			// 			chartData: seasonalChartData,
+			// 			selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
+			// 		},
+			// 	};
+			// case "team-performance":
+			// 	const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { 
+			// 			chartData: teamChartData,
+			// 			selectedStat: selectedTeamOption?.label || teamSelectedStat,
+			// 		},
+			// 	};
+			// case "match-results":
+			// 	const wins = toNumber(validPlayerData.wins || 0);
+			// 	const draws = toNumber(validPlayerData.draws || 0);
+			// 	const losses = toNumber(validPlayerData.losses || 0);
+			// 	const pieData = [
+			// 		{ name: "Wins", value: wins, color: "#22c55e" },
+			// 		{ name: "Draws", value: draws, color: "#60a5fa" },
+			// 		{ name: "Losses", value: losses, color: "#ef4444" },
+			// 	].filter(item => item.value > 0);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { pieData },
+			// 	};
+			// case "positional-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			gk: toNumber(validPlayerData.gk),
+			// 			def: toNumber(validPlayerData.def),
+			// 			mid: toNumber(validPlayerData.mid),
+			// 			fwd: toNumber(validPlayerData.fwd),
+			// 			appearances: toNumber(validPlayerData.appearances),
+			// 			gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
+			// 			defMinutes: toNumber(validPlayerData.defMinutes || 0),
+			// 			midMinutes: toNumber(validPlayerData.midMinutes || 0),
+			// 			fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
+			// 		},
+			// 	};
+			// case "defensive-record":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			conceded: toNumber(validPlayerData.conceded),
+			// 			cleanSheets: toNumber(validPlayerData.cleanSheets),
+			// 			ownGoals: toNumber(validPlayerData.ownGoals),
+			// 			appearances: toNumber(validPlayerData.appearances),
+			// 			gk: toNumber(validPlayerData.gk),
+			// 			saves: toNumber(validPlayerData.saves),
+			// 			concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
+			// 		},
+			// 	};
+			// case "card-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			yellowCards: toNumber(validPlayerData.yellowCards),
+			// 			redCards: toNumber(validPlayerData.redCards),
+			// 		},
+			// 	};
+			// case "penalty-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			scored: toNumber(validPlayerData.penaltiesScored),
+			// 			missed: toNumber(validPlayerData.penaltiesMissed),
+			// 			saved: toNumber(validPlayerData.penaltiesSaved),
+			// 			conceded: toNumber(validPlayerData.penaltiesConceded),
+			// 			penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
+			// 			penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
+			// 			penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
+			// 		},
+			// 	};
+			// case "fantasy-points":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			totalPoints: toNumber(validPlayerData.fantasyPoints),
+			// 			breakdown: fantasyBreakdown?.breakdown || {},
+			// 			breakdownValues: fantasyBreakdown?.breakdownValues || {},
+			// 			playerName: selectedPlayer || "",
+			// 		},
+			// 	};
+			// case "distance-travelled":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			distance: toNumber(validPlayerData.distance),
+			// 			awayGames: toNumber(validPlayerData.awayGames || 0),
+			// 		},
+			// 	};
+			// case "minutes-per-stats":
+			// 	const minutes = toNumber(validPlayerData.minutes);
+			// 	const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
+			// 	const assists = toNumber(validPlayerData.assists);
+			// 	const mom = toNumber(validPlayerData.mom);
+			// 	const cleanSheets = toNumber(validPlayerData.cleanSheets);
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
+			// 			minutesPerAssist: assists > 0 ? minutes / assists : 0,
+			// 			minutesPerMoM: mom > 0 ? minutes / mom : 0,
+			// 			minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
+			// 		},
+			// 	};
+			// case "game-details":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			leagueGames: gameDetails?.leagueGames || 0,
+			// 			cupGames: gameDetails?.cupGames || 0,
+			// 			friendlyGames: gameDetails?.friendlyGames || 0,
+			// 			leagueWins: gameDetails?.leagueWins || 0,
+			// 			cupWins: gameDetails?.cupWins || 0,
+			// 			friendlyWins: gameDetails?.friendlyWins || 0,
+			// 			homeGames: gameDetails?.homeGames || 0,
+			// 			awayGames: gameDetails?.awayGames || 0,
+			// 			homeWins: gameDetails?.homeWins || 0,
+			// 			awayWins: gameDetails?.awayWins || 0,
+			// 			uniqueOpponents: gameDetails?.uniqueOpponents || 0,
+			// 			uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
+			// 			uniqueTeammates: gameDetails?.uniqueTeammates || 0,
+			// 		},
+			// 	};
+			// case "monthly-performance":
+			// 	const selectedMonthlyOption = statOptions.find(opt => opt.value === monthlySelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			chartData: monthlyChartData,
+			// 			selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
+			// 		},
+			// 	};
+			// case "captaincies-awards-and-achievements":
+			// 	return {
+			// 		type: vizType,
+			// 		data: awardsData,
+			// 	};
+			// default:
+			// 	return { type: vizType };
+		// };
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Handle visualization selection
-	const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
+	// const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
 		// Set generating state immediately to show blackout overlay
-		setIsGeneratingShare(true);
+		// setIsGeneratingShare(true);
 		
-		const vizData = getVisualizationData(vizId);
-		setSelectedShareVisualization(vizData);
-		setShareBackgroundColor(backgroundColor);
+		// const vizData = getVisualizationData(vizId);
+		// setSelectedShareVisualization(vizData);
+		// setShareBackgroundColor(backgroundColor);
 		
 		// Close modal immediately - blackout overlay is already in place
-		setIsShareModalOpen(false);
+		// setIsShareModalOpen(false);
 		
-		// Wait for state update, then generate image
-		setTimeout(async () => {
-			if (!shareCardRef.current) {
-				setIsGeneratingShare(false);
-				return;
-			}
+		// Wait for React to render and element to be ready
+		// const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+		// 	for (let i = 0; i < maxAttempts; i++) {
+		// 		if (shareCardRef.current) {
+		// 			const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+		// 			if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+		// 				return true;
+		// 			}
+		// 		}
+		// 		await new Promise(resolve => setTimeout(resolve, 100));
+		// 	}
+		// 	return false;
+		// };
+
+		// const isReady = await waitForElement();
+		// if (!isReady || !shareCardRef.current) {
+		// 	console.error("[Share] Share card element not ready after waiting");
+		// 	alert("Failed to generate share image. The element is not ready. Please try again.");
+		// 	setIsGeneratingShare(false);
+		// 	setSelectedShareVisualization(null);
+		// 	return;
+		// }
+		
+		// try {
+		// 	const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+		// 	const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
 			
-			try {
-				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
-				
-				if (shareResult.needsIOSPreview) {
-					// Show iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else if (shareResult.needsPreview) {
-					// Show non-iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsNonIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else {
-					// Download fallback (no Web Share API) - clear immediately and remove blackout
-					setIsGeneratingShare(false);
-					setSelectedShareVisualization(null);
-				}
-			} catch (error) {
-				console.error("[Share] Error generating share image:", error);
-				alert("Failed to generate share image. Please try again.");
-				setIsGeneratingShare(false);
-				setSelectedShareVisualization(null);
-			}
-		}, 100);
-	};
+		// 	if (shareResult.needsIOSPreview) {
+		// 		// Show iOS preview modal - keep blackout visible
+		// 		setGeneratedImageDataUrl(imageDataUrl);
+		// 		setIsIOSPreviewOpen(true);
+		// 		// Don't clear selectedShareVisualization yet - wait for user action
+		// 		// Keep isGeneratingShare true to maintain blackout
+		// 	} else if (shareResult.needsPreview) {
+		// 		// Show non-iOS preview modal - keep blackout visible
+		// 		setGeneratedImageDataUrl(imageDataUrl);
+		// 		setIsNonIOSPreviewOpen(true);
+		// 		// Don't clear selectedShareVisualization yet - wait for user action
+		// 		// Keep isGeneratingShare true to maintain blackout
+		// 	} else {
+		// 		// Download fallback (no Web Share API) - clear immediately and remove blackout
+		// 		setIsGeneratingShare(false);
+		// 		setSelectedShareVisualization(null);
+		// 	}
+		// } catch (error) {
+		// 	console.error("[Share] Error generating share image:", error);
+		// 	const errorMessage = error instanceof Error ? error.message : "Unknown error";
+		// 	alert(`Failed to generate share image: ${errorMessage}. Please try again.`);
+		// 	setIsGeneratingShare(false);
+		// 	setSelectedShareVisualization(null);
+		// }
+	// };
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Regenerate image when background color changes in preview
-	const handleRegenerateImage = async (color: "yellow" | "green") => {
-		setShareBackgroundColor(color);
+	// const handleRegenerateImage = async (color: "yellow" | "green") => {
+		// setShareBackgroundColor(color);
 		
-		if (!shareCardRef.current) {
-			return;
-		}
-		
-		try {
-			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-			setGeneratedImageDataUrl(imageDataUrl);
-		} catch (error) {
-			console.error("[Share] Error regenerating image:", error);
-		}
-	};
+		// if (!shareCardRef.current) {
+		// 	return;
+		// }
 
-	// Handle iOS share continuation
-	const handleIOSShareContinue = async () => {
-		setIsIOSPreviewOpen(false);
+		// Wait for element to be ready
+		// const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+		// 	for (let i = 0; i < maxAttempts; i++) {
+		// 		if (shareCardRef.current) {
+		// 			const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+		// 			if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+		// 				return true;
+		// 			}
+		// 		}
+		// 		await new Promise(resolve => setTimeout(resolve, 100));
+		// 	}
+		// 	return false;
+		// };
+
+		// const isReady = await waitForElement();
+		// if (!isReady || !shareCardRef.current) {
+		// 	console.error("[Share] Share card element not ready for regeneration");
+		// 	return;
+		// }
 		
-		try {
-			await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
-		} catch (error) {
-			console.error("[Share] Error sharing image:", error);
-			alert("Failed to share image. Please try again.");
-		} finally {
-			setIsGeneratingShare(false);
-			setSelectedShareVisualization(null);
-			setGeneratedImageDataUrl("");
-		}
-	};
+		// try {
+		// 	const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+		// 	setGeneratedImageDataUrl(imageDataUrl);
+		// } catch (error) {
+		// 	console.error("[Share] Error regenerating image:", error);
+		// }
+	// };
+
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+	// Handle iOS share continuation
+	// const handleIOSShareContinue = async () => {
+	// 	setIsIOSPreviewOpen(false);
+		
+	// 	try {
+	// 		await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
+	// 	} catch (error) {
+	// 		console.error("[Share] Error sharing image:", error);
+	// 		alert("Failed to share image. Please try again.");
+	// 	} finally {
+	// 		setIsGeneratingShare(false);
+	// 		setSelectedShareVisualization(null);
+	// 		setGeneratedImageDataUrl("");
+	// 	}
+	// };
 
 	// Handle iOS share close
-	const handleIOSShareClose = () => {
-		setIsIOSPreviewOpen(false);
-		setIsGeneratingShare(false);
-		setSelectedShareVisualization(null);
-		setGeneratedImageDataUrl("");
-	};
+	// const handleIOSShareClose = () => {
+	// 	setIsIOSPreviewOpen(false);
+	// 	setIsGeneratingShare(false);
+	// 	setSelectedShareVisualization(null);
+	// 	setGeneratedImageDataUrl("");
+	// };
 
 	// Handle non-iOS share continuation
-	const handleNonIOSShareContinue = async () => {
-		setIsNonIOSPreviewOpen(false);
+	// const handleNonIOSShareContinue = async () => {
+	// 	setIsNonIOSPreviewOpen(false);
 		
-		try {
-			await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
-		} catch (error) {
-			console.error("[Share] Error sharing image:", error);
-			alert("Failed to share image. Please try again.");
-		} finally {
-			setIsGeneratingShare(false);
-			setSelectedShareVisualization(null);
-			setGeneratedImageDataUrl("");
-		}
-	};
+	// 	try {
+	// 		await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
+	// 	} catch (error) {
+	// 		console.error("[Share] Error sharing image:", error);
+	// 		alert("Failed to share image. Please try again.");
+	// 	} finally {
+	// 		setIsGeneratingShare(false);
+	// 		setSelectedShareVisualization(null);
+	// 		setGeneratedImageDataUrl("");
+	// 	}
+	// };
 
 	// Handle non-iOS share close
-	const handleNonIOSShareClose = () => {
-		setIsNonIOSPreviewOpen(false);
-		setIsGeneratingShare(false);
-		setSelectedShareVisualization(null);
-		setGeneratedImageDataUrl("");
-	};
+	// const handleNonIOSShareClose = () => {
+	// 	setIsNonIOSPreviewOpen(false);
+	// 	setIsGeneratingShare(false);
+	// 	setSelectedShareVisualization(null);
+	// 	setGeneratedImageDataUrl("");
+	// };
 
 	// Share handler - opens modal
-	const handleShare = () => {
-		if (!selectedPlayer || !validPlayerData) {
-			return;
-		}
-		setIsShareModalOpen(true);
-	};
+	// const handleShare = () => {
+	// 	if (!selectedPlayer || !validPlayerData) {
+	// 		return;
+	// 	}
+	// 	setIsShareModalOpen(true);
+	// };
 
 	const tooltipStyle = {
 		backgroundColor: 'rgb(14, 17, 15)',
@@ -3598,8 +3641,9 @@ export default function PlayerStats() {
 					)
 				)}
 				
+				{/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */}
 				{/* Share Button */}
-				{!isDataTableMode && (
+				{/* {!isDataTableMode && (
 					<div className='flex justify-center mt-1 mb-4'>
 						<button
 							onClick={handleShare}
@@ -3621,27 +3665,28 @@ export default function PlayerStats() {
 							)}
 						</button>
 					</div>
-				)}
+				)} */}
 			</div>
 
+			{/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */}
 			{/* Blackout overlay - covers full screen during entire share process */}
-			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
+			{/* {(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
 				<div className="fixed inset-0 bg-black z-[30]" style={{ pointerEvents: 'none', opacity: 1 }} />,
 				document.body
-			)}
+			)} */}
 
 			{/* Share Visualization Modal */}
-			<ShareVisualizationModal
+			{/* <ShareVisualizationModal
 				isOpen={isShareModalOpen}
 				onClose={() => setIsShareModalOpen(false)}
 				onSelect={handleVisualizationSelect}
 				options={availableVisualizations}
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
-			/>
+			/> */}
 
 			{/* iOS Share Preview Modal */}
-			<IOSSharePreviewModal
+			{/* <IOSSharePreviewModal
 				isOpen={isIOSPreviewOpen}
 				imageDataUrl={generatedImageDataUrl}
 				onContinue={handleIOSShareContinue}
@@ -3649,10 +3694,10 @@ export default function PlayerStats() {
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
 				onRegenerateImage={handleRegenerateImage}
-			/>
+			/> */}
 
 			{/* Non-iOS Share Preview Modal */}
-			<SharePreviewModal
+			{/* <SharePreviewModal
 				isOpen={isNonIOSPreviewOpen}
 				imageDataUrl={generatedImageDataUrl}
 				onContinue={handleNonIOSShareContinue}
@@ -3660,10 +3705,10 @@ export default function PlayerStats() {
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
 				onRegenerateImage={handleRegenerateImage}
-			/>
+			/> */}
 
 			{/* Hidden share card for image generation */}
-			{selectedPlayer && validPlayerData && (
+			{/* {selectedPlayer && validPlayerData && (
 				<div 
 					ref={shareCardRef}
 					style={{ 
@@ -3687,7 +3732,7 @@ export default function PlayerStats() {
 						backgroundColor={shareBackgroundColor}
 					/>
 				</div>
-			)}
+			)} */}
 		</div>
 	);
 }

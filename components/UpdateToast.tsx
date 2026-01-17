@@ -1,5 +1,9 @@
 "use client";
 
+// NOTE: This component remains ACTIVE and is used on the main page (app/page.tsx) for automatic update notifications.
+// Only the manual "Check for Updates" section on the Settings page has been disabled.
+// This component provides automatic update detection and notification functionality.
+
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { CheckIcon, XMarkIcon, ArrowPathIcon } from "@heroicons/react/24/outline";

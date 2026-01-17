@@ -534,4 +534,11 @@ test.describe('Stats Page Tests', () => {
   		expect(1).toBe(2);
 	});
 
+	test('17. all stats navigation links should correctly navigate to the correct page and section', async ({ page }) => {
+		// TODO: Fail on purpose to show the test needs to be updated
+		await page.goto('https://example.com');
+  		// This assertion will always fail, but the test still compiles and runs.
+  		expect(1).toBe(2);
+	});
+
 });
