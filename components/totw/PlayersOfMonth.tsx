@@ -994,7 +994,23 @@ export default function PlayersOfMonth() {
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
 					</div>
-					<PlayersTableSkeleton />
+					{/* This Months Top Players Section Skeleton */}
+					<div className='mt-8 mb-8'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<div className='mb-4'>
+								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+									<Skeleton height={24} width="60%" />
+								</h2>
+							</div>
+							<PlayersTableSkeleton />
+						</div>
+					</div>
+					{/* This Month FTP Ranking Section Skeleton */}
+					<div className='mt-8'>
+						<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+							<RankingTableSkeleton />
+						</div>
+					</div>
 				</SkeletonTheme>
 			)}
 
@@ -1092,14 +1108,37 @@ export default function PlayersOfMonth() {
 			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
 				<div data-testid="loading-skeleton">
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<PlayersTableSkeleton />
+						{/* This Months Top Players Section Skeleton */}
+						<div className='mt-8 mb-8'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='mb-4'>
+									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+										<Skeleton height={24} width="60%" />
+									</h2>
+								</div>
+								<PlayersTableSkeleton />
+							</div>
+						</div>
+						{/* This Month FTP Ranking Section Skeleton */}
+						<div className='mt-8'>
+							<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+								<RankingTableSkeleton />
+							</div>
+						</div>
 					</SkeletonTheme>
 				</div>
 			)}
 
 			{/* Players Table */}
 			{!loading && !loadingStats && players.length > 0 && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div>
+					
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div className='mb-4'>
+						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+							This Months Top Players
+						</h2>
+					</div>
 					<div className='overflow-x-auto'>
 						<table className='w-full text-white'>
 						<thead>
@@ -1272,6 +1311,7 @@ export default function PlayersOfMonth() {
 							})}
 						</tbody>
 					</table>
+					</div>
 					</div>
 				</div>
 			)}

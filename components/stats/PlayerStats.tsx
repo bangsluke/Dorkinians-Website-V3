@@ -1629,6 +1629,10 @@ export default function PlayerStats() {
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
+	// State for icon loading tracking in Key Performance Stats
+	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
+	const [allIconsLoaded, setAllIconsLoaded] = useState(false);
+
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
 		if (typeof window !== "undefined") {
@@ -1708,6 +1712,20 @@ export default function PlayerStats() {
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
 	}, [playerData, filterData]);
+
+	// Reset icon loading state when keyPerformanceData changes
+	useEffect(() => {
+		setLoadedIcons(new Set());
+		setAllIconsLoaded(false);
+	}, [keyPerformanceData]);
+
+	// Check when all icons are loaded
+	useEffect(() => {
+		const expectedIcons = keyPerformanceData.filter(item => typeof item.value === 'number' && item.value > 0).length;
+		if (loadedIcons.size === expectedIcons && expectedIcons > 0) {
+			setAllIconsLoaded(true);
+		}
+	}, [loadedIcons, keyPerformanceData]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -2661,48 +2679,68 @@ export default function PlayerStats() {
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) ? (
-				<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
-					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-						{keyPerformanceData.map((item) => {
-							let statKey = "APP";
-							if (item.name === "Apps") statKey = "APP";
-							else if (item.name === "Mins") statKey = "MIN";
-							else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
-							else if (item.name === "MoM") statKey = "MOM";
-							else if (item.name === "Goals") statKey = "AllGSC";
-							else if (item.name === "Assists") statKey = "A";
-							const stat = statObject[statKey as keyof typeof statObject];
-							// Use Goals-Icon specifically for Goals stat
-							const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-							return (
-								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-									<div className='flex-shrink-0'>
-										<Image
-											src={`/stat-icons/${iconName}.svg`}
-											alt={stat?.displayText || item.name}
-											width={40}
-											height={40}
-											className='w-8 h-8 md:w-10 md:h-10 object-contain'
-										/>
-									</div>
-									<div className='flex-1 min-w-0'>
-										<div className='text-white/70 text-sm md:text-base mb-1'>
-											{item.name}
+				<div className='md:break-inside-avoid md:mb-4 relative'>
+					{/* Skeleton - shown while loading or icons not loaded */}
+					{(isLoadingPlayerData || !allIconsLoaded) && (
+						<div className='absolute inset-0 z-10 bg-transparent'>
+							<StatCardSkeleton />
+						</div>
+					)}
+					{/* Actual content - always rendered so images can load */}
+					<div id='key-performance-stats' className={`bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 ${(isLoadingPlayerData || !allIconsLoaded) ? 'opacity-0' : 'opacity-100'}`}>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+							{keyPerformanceData.map((item, index) => {
+								let statKey = "APP";
+								if (item.name === "Apps") statKey = "APP";
+								else if (item.name === "Mins") statKey = "MIN";
+								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+								else if (item.name === "MoM") statKey = "MOM";
+								else if (item.name === "Goals") statKey = "AllGSC";
+								else if (item.name === "Assists") statKey = "A";
+								const stat = statObject[statKey as keyof typeof statObject];
+								// Use Goals-Icon specifically for Goals stat
+								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+								// Priority loading for first 3 icons (Apps, Mins, Goals)
+								const isPriority = index < 3;
+								return (
+									<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+										<div className='flex-shrink-0'>
+											<Image
+												src={`/stat-icons/${iconName}.svg`}
+												alt={stat?.displayText || item.name}
+												width={40}
+												height={40}
+												className='w-8 h-8 md:w-10 md:h-10 object-contain'
+												priority={isPriority}
+												loading="eager"
+												onLoad={() => {
+													setLoadedIcons(prev => new Set([...prev, iconName]));
+												}}
+												onError={() => {
+													// If icon fails to load, still mark it as "loaded" to prevent skeleton from showing forever
+													setLoadedIcons(prev => new Set([...prev, iconName]));
+												}}
+											/>
 										</div>
-										<div className='text-white font-bold text-xl md:text-2xl'>
-											{(item as any).isString ? item.value : (() => {
-												if (item.name === "Mins") {
-													// Format minutes with commas and without " mins" suffix
-													return Math.round(toNumber(item.value)).toLocaleString();
-												}
-												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
-											})()}
+										<div className='flex-1 min-w-0'>
+											<div className='text-white/70 text-sm md:text-base mb-1'>
+												{item.name}
+											</div>
+											<div className='text-white font-bold text-xl md:text-2xl'>
+												{(item as any).isString ? item.value : (() => {
+													if (item.name === "Mins") {
+														// Format minutes with commas and without " mins" suffix
+														return Math.round(toNumber(item.value)).toLocaleString();
+													}
+													return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+												})()}
+											</div>
 										</div>
 									</div>
-								</div>
-							);
-						})}
+								);
+							})}
+						</div>
 					</div>
 				</div>
 			) : null}
