@@ -79,6 +79,21 @@
   status = 200
   force = false
 
+# Service worker files must not be cached to ensure updates are detected
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
+[[headers]]
+  for = "/workbox-*.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
 [[headers]]
   for = "/*"
   [headers.values]

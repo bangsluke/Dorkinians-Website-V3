@@ -253,17 +253,29 @@ class PWAUpdateService {
 					// Add the listener BEFORE calling update()
 					registration.addEventListener("updatefound", updateFoundHandler);
 
-					// Trigger the update check
-					registration.update().catch((error) => {
-						console.error("[PWAUpdateService] Error in registration.update():", error);
-						// Remove listener on error
-						if (updateFoundHandler) {
-							registration.removeEventListener("updatefound", updateFoundHandler);
-						}
-						if (!resolved) {
-							resolveOnce({ isUpdateAvailable: false });
-						}
-					});
+					// Force a fresh fetch of the service worker file to bypass browser cache
+					// This ensures we detect updates even if the browser has cached the SW file
+					const swUrl = new URL("/sw.js", window.location.origin);
+					swUrl.searchParams.set("_", Date.now().toString()); // Cache-busting parameter
+					
+					// Fetch the service worker file directly to force a fresh check
+					fetch(swUrl.toString(), { cache: "no-store" })
+						.catch(() => {
+							// Ignore fetch errors - registration.update() will still work
+						})
+						.finally(() => {
+							// After fetching, trigger the update check
+							registration.update().catch((error) => {
+								console.error("[PWAUpdateService] Error in registration.update():", error);
+								// Remove listener on error
+								if (updateFoundHandler) {
+									registration.removeEventListener("updatefound", updateFoundHandler);
+								}
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
+							});
+						});
 
 					// Set a timeout to resolve if no update is found within reasonable time
 					// This handles the case where registration.update() completes but no updatefound event fires
