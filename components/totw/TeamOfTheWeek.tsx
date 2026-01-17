@@ -75,7 +75,7 @@ export default function TeamOfTheWeek() {
 				
 				// If we have cached season, try to fetch weeks and current week data in parallel
 				const cachedWeeks = getCachedTOTWWeeks(cachedSeasons.currentSeason);
-				if (cachedWeeks && cachedWeeks.currentWeek) {
+				if (cachedWeeks && cachedWeeks.currentWeek !== null && cachedSeasons.currentSeason) {
 					// We have weeks cached, fetch week data immediately
 					const cachedWeekData = getCachedTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek);
 					if (!cachedWeekData) {
@@ -83,7 +83,7 @@ export default function TeamOfTheWeek() {
 						fetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`)
 							.then(res => res.ok ? res.json() : null)
 							.then(data => {
-								if (data?.totwData) {
+								if (data?.totwData && cachedSeasons.currentSeason && cachedWeeks.currentWeek !== null) {
 									cacheTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek, data.totwData, data.players || []);
 								}
 							})

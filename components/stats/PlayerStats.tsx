@@ -4,6 +4,7 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
@@ -1582,7 +1583,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -1805,20 +1806,23 @@ export default function PlayerStats() {
 
 				// Seasonal stats (conditional)
 				if (allSeasonsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
 					fetchPromises.push(
-						fetch("/api/player-seasonal-stats", {
+						cachedFetch("/api/player-seasonal-stats", {
 							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({
+							body: {
 								playerName: selectedPlayer,
 								filters: playerFilters,
-							}),
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
 						})
-							.then(async (response) => {
-								if (response.ok) {
-									const data = await response.json();
-									setSeasonalStats(data.seasonalStats || []);
-								}
+							.then((data) => {
+								setSeasonalStats(data.seasonalStats || []);
 							})
 							.catch((error) => {
 								log("error", "Error fetching seasonal stats:", error);
@@ -1832,20 +1836,23 @@ export default function PlayerStats() {
 
 				// Team stats (conditional)
 				if (allTeamsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
 					fetchPromises.push(
-						fetch("/api/player-team-stats", {
+						cachedFetch("/api/player-team-stats", {
 							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({
+							body: {
 								playerName: selectedPlayer,
 								filters: playerFilters,
-							}),
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
 						})
-							.then(async (response) => {
-								if (response.ok) {
-									const data = await response.json();
-									setTeamStats(data.teamStats || []);
-								}
+							.then((data) => {
+								setTeamStats(data.teamStats || []);
 							})
 							.catch((error) => {
 								log("error", "Error fetching team stats:", error);
@@ -1858,13 +1865,18 @@ export default function PlayerStats() {
 				}
 
 				// Opposition map (always fetch)
+				const oppositionMapCacheKey = generatePageCacheKey("stats", "player-stats", "player-oppositions-map", {
+					playerName: selectedPlayer,
+				});
 				fetchPromises.push(
-					fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`)
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setOppositionMapData(data.oppositions || []);
-							}
+					cachedFetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionMapCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionMapData(data.oppositions || []);
 						})
 						.catch((error) => {
 							log("error", "Error fetching opposition map data:", error);
@@ -1874,13 +1886,18 @@ export default function PlayerStats() {
 				);
 
 				// Opposition performance (always fetch)
+				const oppositionPerfCacheKey = generatePageCacheKey("stats", "player-stats", "player-opposition-performance", {
+					playerName: selectedPlayer,
+				});
 				fetchPromises.push(
-					fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`)
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setOppositionPerformanceData(data.performanceData || []);
-							}
+					cachedFetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionPerfCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionPerformanceData(data.performanceData || []);
 						})
 						.catch((error) => {
 							log("error", "Error fetching opposition performance data:", error);
@@ -1919,22 +1936,23 @@ export default function PlayerStats() {
 			setIsLoadingGameDetails(true);
 
 			try {
+				const params = {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				};
+
 				// Execute all filter-dependent fetches in parallel
 				await Promise.all([
 					// Monthly stats
-					fetch("/api/player-monthly-stats", {
+					cachedFetch("/api/player-monthly-stats", {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							playerName: selectedPlayer,
-							filters: playerFilters,
-						}),
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-monthly-stats", params),
+						getCachedPageData,
+						setCachedPageData,
 					})
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setMonthlyStats(data.monthlyStats || []);
-							}
+						.then((data) => {
+							setMonthlyStats(data.monthlyStats || []);
 						})
 						.catch((error) => {
 							log("error", "Error fetching monthly stats:", error);
@@ -1942,19 +1960,15 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingMonthlyStats(false)),
 
 					// Fantasy breakdown
-					fetch("/api/player-fantasy-breakdown", {
+					cachedFetch("/api/player-fantasy-breakdown", {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							playerName: selectedPlayer,
-							filters: playerFilters,
-						}),
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-fantasy-breakdown", params),
+						getCachedPageData,
+						setCachedPageData,
 					})
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setFantasyBreakdown(data);
-							}
+						.then((data) => {
+							setFantasyBreakdown(data);
 						})
 						.catch((error) => {
 							log("error", "Error fetching fantasy breakdown:", error);
@@ -1962,19 +1976,15 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingFantasyBreakdown(false)),
 
 					// Game details
-					fetch("/api/player-game-details", {
+					cachedFetch("/api/player-game-details", {
 						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({
-							playerName: selectedPlayer,
-							filters: playerFilters,
-						}),
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-game-details", params),
+						getCachedPageData,
+						setCachedPageData,
 					})
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setGameDetails(data);
-							}
+						.then((data) => {
+							setGameDetails(data);
 						})
 						.catch((error) => {
 							log("error", "Error fetching game details:", error);
@@ -2012,15 +2022,18 @@ export default function PlayerStats() {
 			setIsLoadingAwardHistory(true);
 
 			try {
+				const playerParams = { playerName: selectedPlayer };
 				// Execute all awards-related fetches in parallel
 				await Promise.all([
 					// Awards data
-					fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`)
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setAwardsData(data);
-							}
+					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-awards", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardsData(data);
 						})
 						.catch((error) => {
 							log("error", "Error fetching awards:", error);
@@ -2028,13 +2041,15 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingAwards(false)),
 
 					// Captain history
-					fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setCaptainHistory(data.captaincies || []);
-								setTotalCaptaincies(data.totalCaptaincies || 0);
-							}
+					cachedFetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "captain-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setCaptainHistory(data.captaincies || []);
+							setTotalCaptaincies(data.totalCaptaincies || 0);
 						})
 						.catch((error) => {
 							log("error", "Error fetching captain history:", error);
@@ -2044,13 +2059,15 @@ export default function PlayerStats() {
 						.finally(() => setIsLoadingCaptainHistory(false)),
 
 					// Award history
-					fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
-						.then(async (response) => {
-							if (response.ok) {
-								const data = await response.json();
-								setAwardHistory(data.awards || []);
-								setTotalAwards(data.totalAwards || 0);
-							}
+					cachedFetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "award-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardHistory(data.awards || []);
+							setTotalAwards(data.totalAwards || 0);
 						})
 						.catch((error) => {
 							log("error", "Error fetching award history:", error);
