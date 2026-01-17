@@ -1,5 +1,9 @@
 import { appConfig } from "@/config/config";
 
+// NOTE: This service is still actively used by the UpdateToast component on the main page (app/page.tsx)
+// for automatic update notifications. Only the manual "Check for Updates" section on the Settings page
+// has been disabled. The checkForUpdates() method is still called by UpdateToast component.
+
 export interface UpdateInfo {
 	isUpdateAvailable: boolean;
 	version?: string;
@@ -63,6 +67,8 @@ class PWAUpdateService {
 		}
 	}
 
+	// NOTE: This method is still used by UpdateToast component on the main page for automatic update detection
+	// The manual "Check for Updates" button on Settings page has been disabled, but this method remains active
 	public checkForUpdates(): Promise<UpdateInfo> {
 		return new Promise((resolve) => {
 			// Only run on client side
@@ -360,6 +366,8 @@ class PWAUpdateService {
 		}
 	}
 
+	// NOTE: This method was only used by the manual "Check for Updates" section on Settings page (now disabled)
+	// It's kept here for potential future re-enablement. Currently not called by any active code.
 	public getLastUpdateDate(): Date | null {
 		// Only run on client side
 		if (typeof window === "undefined") {
@@ -378,6 +386,8 @@ class PWAUpdateService {
 		}
 	}
 
+	// NOTE: This method was only used by the manual "Check for Updates" section on Settings page (now disabled)
+	// It's kept here for potential future re-enablement. Currently only called internally by activateUpdate().
 	private setLastUpdateDate(date: Date): void {
 		// Only run on client side
 		if (typeof window === "undefined") {
