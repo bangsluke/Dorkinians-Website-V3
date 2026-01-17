@@ -1547,7 +1547,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				);
 			}
 
-			// Preload monthly stats
+			// Preload all stats data types in parallel
+			// Monthly stats
 			preloadPromises.push(
 				fetch("/api/player-monthly-stats", {
 					method: "POST",
@@ -1567,6 +1568,169 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 									playerStats: {
 										...state.preloadedStatsData.playerStats,
 										monthlyStats: data.monthlyStats || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition map (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionMap: data.oppositions || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition performance (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionPerformance: data.performanceData || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload fantasy breakdown
+			preloadPromises.push(
+				fetch("/api/player-fantasy-breakdown", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										fantasyBreakdown: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload game details
+			preloadPromises.push(
+				fetch("/api/player-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										gameDetails: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload awards (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										awards: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload captain history (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										captainHistory: data.captaincies || [],
+										totalCaptaincies: data.totalCaptaincies || 0,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload award history (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										awardHistory: data.awards || [],
+										totalAwards: data.totalAwards || 0,
 									},
 								},
 							});
