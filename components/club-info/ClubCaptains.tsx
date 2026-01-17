@@ -146,7 +146,7 @@ export default function ClubCaptains() {
 
 	return (
 		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-2 md:p-4'>
+			<div className='flex-shrink-0 p-2 md:p-4 md:max-w-md md:mx-auto w-full'>
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
 
 				{/* Season Dropdown */}

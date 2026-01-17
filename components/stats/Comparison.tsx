@@ -849,7 +849,7 @@ export default function Comparison() {
 
 	return (
 		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-2 md:p-4' style={{ overflow: 'visible' }}>
+			<div className='flex-shrink-0 p-2 md:p-4 md:max-w-md md:mx-auto w-full' style={{ overflow: 'visible' }}>
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Player Comparison</h2>
 				
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
