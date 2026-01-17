@@ -1,6 +1,6 @@
 // Mock the Neo4j service to avoid database connection issues
 // This must be at the top level before any imports
-jest.mock("../../lib/neo4j", () => ({
+jest.mock("@/lib/neo4j", () => ({
 	neo4jService: {
 		connect: jest.fn().mockResolvedValue(true),
 		disconnect: jest.fn().mockResolvedValue(undefined),
