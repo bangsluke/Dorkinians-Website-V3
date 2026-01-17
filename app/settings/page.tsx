@@ -21,7 +21,8 @@ import FeedbackModal from "@/components/modals/FeedbackModal";
 import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 
 // Dynamically import PWA components to avoid SSR issues
-const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
+// [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
+// const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
 const PWAInstallButton = dynamic(() => import("@/components/PWAInstallButton"), { ssr: false });
 
 const navigationItems = [
@@ -74,12 +75,14 @@ interface SiteDetails {
 
 export default function SettingsPage() {
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
-	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+	// [COMMENTED OUT: Check for Updates Section] - State variables for manual update check functionality
+	// const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+	// const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
-	const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
+	// [COMMENTED OUT: Check for Updates Section] - Last update date state (only used by manual check section)
+	// const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
 	const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
 		isSiteNavigationExpanded: true,
 		versionReleaseDetails: false,
@@ -133,29 +136,32 @@ export default function SettingsPage() {
 		window.location.href = "/";
 	};
 
-	const handleCheckForUpdate = async () => {
-		setIsCheckingUpdate(true);
-		setUpdateStatus(null);
+	// [COMMENTED OUT: Check for Updates Section] - Manual update check handler function
+	// To re-enable: Uncomment this function and restore the state variables above
+	// const handleCheckForUpdate = async () => {
+	// 	setIsCheckingUpdate(true);
+	// 	setUpdateStatus(null);
+	//
+	// 	try {
+	// 		// Dynamically import PWA service to avoid SSR issues
+	// 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+	// 		const updateInfo = await pwaUpdateService.checkForUpdates();
+	// 		if (updateInfo.isUpdateAvailable) {
+	// 			setUpdateStatus(`Update available: Version ${updateInfo.version}`);
+	// 			// Show update toast on settings page
+	// 			setShowUpdateToast(true);
+	// 		} else {
+	// 			setUpdateStatus("No updates available");
+	// 		}
+	// 	} catch (error) {
+	// 		setUpdateStatus("Error checking for updates");
+	// 	} finally {
+	// 		setIsCheckingUpdate(false);
+	// 	}
+	// };
 
-		try {
-			// Dynamically import PWA service to avoid SSR issues
-			const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
-			const updateInfo = await pwaUpdateService.checkForUpdates();
-			if (updateInfo.isUpdateAvailable) {
-				setUpdateStatus(`Update available: Version ${updateInfo.version}`);
-				// Show update toast on settings page
-				setShowUpdateToast(true);
-			} else {
-				setUpdateStatus("No updates available");
-			}
-		} catch (error) {
-			setUpdateStatus("Error checking for updates");
-		} finally {
-			setIsCheckingUpdate(false);
-		}
-	};
-
-	const [showUpdateToast, setShowUpdateToast] = useState(false);
+	// [COMMENTED OUT: Check for Updates Section] - Update toast state (only used by manual check section)
+	// const [showUpdateToast, setShowUpdateToast] = useState(false);
 	const [shareCopied, setShareCopied] = useState(false);
 
 	const handleShareSite = async () => {
@@ -200,17 +206,18 @@ export default function SettingsPage() {
 		};
 		fetchSiteDetails();
 
-		// Load last update date
-		const loadLastUpdateDate = async () => {
-			try {
-				const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
-				const date = pwaUpdateService.getLastUpdateDate();
-				setLastUpdateDate(date);
-			} catch (error) {
-				console.error("Failed to load last update date:", error);
-			}
-		};
-		loadLastUpdateDate();
+		// [COMMENTED OUT: Check for Updates Section] - Load last update date logic (only used by manual check section)
+		// To re-enable: Uncomment this block and restore the lastUpdateDate state variable
+		// const loadLastUpdateDate = async () => {
+		// 	try {
+		// 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+		// 		const date = pwaUpdateService.getLastUpdateDate();
+		// 		setLastUpdateDate(date);
+		// 	} catch (error) {
+		// 		console.error("Failed to load last update date:", error);
+		// 	}
+		// };
+		// loadLastUpdateDate();
 	}, []);
 
 	const formatDate = (dateString: string | null) => {
@@ -222,17 +229,19 @@ export default function SettingsPage() {
 		}
 	};
 
-	const formatLastUpdateDate = (date: Date | null): string => {
-		if (!date) return "";
-		try {
-			const day = String(date.getDate()).padStart(2, "0");
-			const month = String(date.getMonth() + 1).padStart(2, "0");
-			const year = date.getFullYear();
-			return `${day}/${month}/${year}`;
-		} catch {
-			return "";
-		}
-	};
+	// [COMMENTED OUT: Check for Updates Section] - Format last update date function (only used by manual check section)
+	// To re-enable: Uncomment this function and restore the lastUpdateDate state variable
+	// const formatLastUpdateDate = (date: Date | null): string => {
+	// 	if (!date) return "";
+	// 	try {
+	// 		const day = String(date.getDate()).padStart(2, "0");
+	// 		const month = String(date.getMonth() + 1).padStart(2, "0");
+	// 		const year = date.getFullYear();
+	// 		return `${day}/${month}/${year}`;
+	// 	} catch {
+	// 		return "";
+	// 	}
+	// };
 
 	const toggleCard = (cardKey: string) => {
 		setExpandedCards((prev) => ({
@@ -526,8 +535,9 @@ export default function SettingsPage() {
 						</div>
 					</div>
 
-						{/* Check for Updates */}
-						<div className='p-4 rounded-lg bg-white/10'>
+						{/* [COMMENTED OUT: Check for Updates Section] - Manual "Check for Updates" UI section */}
+						{/* To re-enable: Uncomment this entire section and restore all related state variables, functions, and imports above */}
+						{/* <div className='p-4 rounded-lg bg-white/10'>
 							<div className='flex flex-col items-center space-y-3'>
 								<div className='text-center'>
 									<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
@@ -565,7 +575,7 @@ export default function SettingsPage() {
 									<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
 								)}
 							</div>
-						</div>
+						</div> */}
 
 						{/* Database last updated - at bottom */}
 						<div className='w-full p-4 rounded-lg bg-white/10'>
@@ -589,8 +599,9 @@ export default function SettingsPage() {
 			</div>
 		</div>
 
-			{/* Update Toast */}
-			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
+			{/* [COMMENTED OUT: Check for Updates Section] - Update Toast render (only used by manual check section) */}
+			{/* To re-enable: Uncomment this line and restore the showUpdateToast state variable and UpdateToast import */}
+			{/* {showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />} */}
 
 			{/* Modals */}
 			<FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />
