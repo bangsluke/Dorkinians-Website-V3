@@ -676,21 +676,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		set({ currentMainPage: page });
 
-		// Reset sub-pages only when actually leaving those pages
-		// Don't reset sub-pages when navigating to/from settings (settings is a special case)
-		if (currentPage === "stats" && page !== "stats" && page !== "settings") {
-			set({ currentStatsSubPage: "player-stats" });
-		}
-		if (currentPage === "totw" && page !== "totw" && page !== "settings") {
-			set({ currentTOTWSubPage: "totw" });
-		}
-		if (currentPage === "club-info" && page !== "club-info" && page !== "settings") {
-			set({ currentClubInfoSubPage: "club-information" });
-		}
-		// When navigating FROM settings back to a page, don't reset sub-pages (they should be preserved)
-		if (currentPage === "settings" && page !== "settings") {
-			// Don't reset sub-pages - they should be restored from localStorage via initializeFromStorage
-		}
+		// Don't reset sub-pages when navigating between pages - they are preserved via localStorage
+		// Sub-pages are persisted in setStatsSubPage, setTOTWSubPage, and setClubInfoSubPage actions
+		// initializeFromStorage will restore the correct sub-page when returning to a page
 
 		// Persist to localStorage
 		if (typeof window !== "undefined") {

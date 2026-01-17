@@ -13,6 +13,7 @@ import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { createPortal } from "react-dom";
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from "@/lib/utils/pwaDebug";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer } from "recharts";
 import { RadarChartSkeleton } from "@/components/skeletons";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
@@ -477,7 +478,7 @@ function ComparisonStatRow({
 }
 
 export default function Comparison() {
-	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData } = useNavigationStore();
+	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData, getCachedPageData, setCachedPageData } = useNavigationStore();
 	
 	const [secondPlayer, setSecondPlayer] = useState<string | null>(() => {
 		if (typeof window !== "undefined") {
@@ -708,15 +709,15 @@ export default function Comparison() {
 
 			setIsLoadingPlayers(true);
 			try {
-				const response = await fetch("/api/players");
-				if (response.ok) {
-					const data = await response.json();
-					setAllPlayers(data.players || []);
-					setPlayersLoaded(true);
-				} else {
-					console.error("Failed to fetch players:", response.statusText);
-					setAllPlayers([]);
-				}
+				const cacheKey = generatePageCacheKey("stats", "comparison", "players", {});
+				const data = await cachedFetch("/api/players", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setAllPlayers(data.players || []);
+				setPlayersLoaded(true);
 			} catch (error) {
 				console.error("Error fetching players:", error);
 				setAllPlayers([]);
@@ -726,7 +727,7 @@ export default function Comparison() {
 		};
 
 		fetchAllPlayers();
-	}, [playersLoaded]);
+	}, [playersLoaded, getCachedPageData, setCachedPageData]);
 
 	useEffect(() => {
 		if (secondPlayer && typeof window !== "undefined") {
@@ -760,28 +761,20 @@ export default function Comparison() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/player-data-filtered", {
+				const requestBody = {
+					playerName: secondPlayer,
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "comparison", "player-data-filtered", requestBody);
+				const data = await cachedFetch("/api/player-data-filtered", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						playerName: secondPlayer,
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setSecondPlayerData(data.playerData);
-				} else {
-					console.error("Failed to fetch second player data:", response.statusText);
-					setSecondPlayerData(null);
-					if (typeof window !== "undefined") {
-						safeLocalStorageRemove("comparison-second-player-data");
-					}
-				}
+				setSecondPlayerData(data.playerData);
 			} catch (error) {
 				console.error("Error fetching second player data:", error);
 				setSecondPlayerData(null);
@@ -794,7 +787,7 @@ export default function Comparison() {
 		};
 
 		fetchSecondPlayerData();
-	}, [secondPlayer, playerFilters]);
+	}, [secondPlayer, playerFilters, getCachedPageData, setCachedPageData]);
 
 	const handleClearSecondPlayer = () => {
 		setSecondPlayer(null);
