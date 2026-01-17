@@ -2524,41 +2524,57 @@ export default function PlayerStats() {
 		// Close modal immediately - blackout overlay is already in place
 		setIsShareModalOpen(false);
 		
-		// Wait for state update, then generate image
-		setTimeout(async () => {
-			if (!shareCardRef.current) {
-				setIsGeneratingShare(false);
-				return;
-			}
-			
-			try {
-				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
-				
-				if (shareResult.needsIOSPreview) {
-					// Show iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else if (shareResult.needsPreview) {
-					// Show non-iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsNonIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else {
-					// Download fallback (no Web Share API) - clear immediately and remove blackout
-					setIsGeneratingShare(false);
-					setSelectedShareVisualization(null);
+		// Wait for React to render and element to be ready
+		const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+			for (let i = 0; i < maxAttempts; i++) {
+				if (shareCardRef.current) {
+					const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+					if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+						return true;
+					}
 				}
-			} catch (error) {
-				console.error("[Share] Error generating share image:", error);
-				alert("Failed to generate share image. Please try again.");
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+			return false;
+		};
+
+		const isReady = await waitForElement();
+		if (!isReady || !shareCardRef.current) {
+			console.error("[Share] Share card element not ready after waiting");
+			alert("Failed to generate share image. The element is not ready. Please try again.");
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+			return;
+		}
+		
+		try {
+			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+			const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
+			
+			if (shareResult.needsIOSPreview) {
+				// Show iOS preview modal - keep blackout visible
+				setGeneratedImageDataUrl(imageDataUrl);
+				setIsIOSPreviewOpen(true);
+				// Don't clear selectedShareVisualization yet - wait for user action
+				// Keep isGeneratingShare true to maintain blackout
+			} else if (shareResult.needsPreview) {
+				// Show non-iOS preview modal - keep blackout visible
+				setGeneratedImageDataUrl(imageDataUrl);
+				setIsNonIOSPreviewOpen(true);
+				// Don't clear selectedShareVisualization yet - wait for user action
+				// Keep isGeneratingShare true to maintain blackout
+			} else {
+				// Download fallback (no Web Share API) - clear immediately and remove blackout
 				setIsGeneratingShare(false);
 				setSelectedShareVisualization(null);
 			}
-		}, 100);
+		} catch (error) {
+			console.error("[Share] Error generating share image:", error);
+			const errorMessage = error instanceof Error ? error.message : "Unknown error";
+			alert(`Failed to generate share image: ${errorMessage}. Please try again.`);
+			setIsGeneratingShare(false);
+			setSelectedShareVisualization(null);
+		}
 	};
 
 	// Regenerate image when background color changes in preview
@@ -2566,6 +2582,26 @@ export default function PlayerStats() {
 		setShareBackgroundColor(color);
 		
 		if (!shareCardRef.current) {
+			return;
+		}
+
+		// Wait for element to be ready
+		const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+			for (let i = 0; i < maxAttempts; i++) {
+				if (shareCardRef.current) {
+					const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+					if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+						return true;
+					}
+				}
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+			return false;
+		};
+
+		const isReady = await waitForElement();
+		if (!isReady || !shareCardRef.current) {
+			console.error("[Share] Share card element not ready for regeneration");
 			return;
 		}
 		
