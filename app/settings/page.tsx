@@ -13,6 +13,7 @@ import {
 	BugAntIcon,
 	ShieldCheckIcon,
 	BookOpenIcon,
+	ShareIcon,
 } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
@@ -154,6 +155,34 @@ export default function SettingsPage() {
 	};
 
 	const [showUpdateToast, setShowUpdateToast] = useState(false);
+	const [shareCopied, setShareCopied] = useState(false);
+
+	const handleShareSite = async () => {
+		const url = window.location.origin; // Root URL, not settings page
+		
+		if (navigator.share) {
+			// Web Share API (mobile/iOS/Android)
+			try {
+				await navigator.share({
+					title: 'Dorkinians FC Statistics Website',
+					text: 'Check out the Dorkinians FC Statistics Website',
+					url: url,
+				});
+			} catch (error) {
+				// User cancelled or error occurred
+				console.log('Share cancelled');
+			}
+		} else {
+			// Fallback: Copy to clipboard (desktop)
+			try {
+				await navigator.clipboard.writeText(url);
+				setShareCopied(true);
+				setTimeout(() => setShareCopied(false), 2000);
+			} catch (error) {
+				console.error('Failed to copy URL:', error);
+			}
+		}
+	};
 
 	// Fetch site details on mount
 	useEffect(() => {
@@ -190,14 +219,17 @@ export default function SettingsPage() {
 	return (
 		<>
 			{/* Settings Content */}
-			<div className='h-full flex flex-col md:px-[15%]'>
+			<div className='h-full flex flex-col'>
 				{/* Header */}
 				<div className='flex items-center pt-2 pb-2 px-6'>
 					<h1 className='text-2xl font-bold text-white' data-testid="settings-heading">Settings</h1>
 				</div>
 
-				{/* Navigation List */}
+				{/* Navigation List - Two Column Layout on Desktop */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
+					<div className='grid grid-cols-1 md:grid-cols-2 md:gap-6'>
+						{/* Left Column */}
+						<div className='space-y-6'>
 					{/* Add App to Home Screen Button */}
 					<div className='mb-6'>
 						<PWAInstallButton />
@@ -307,10 +339,10 @@ export default function SettingsPage() {
 					</motion.div>
 					</div>
 
-					{/* Additional Settings Section */}
-					<div className='mt-12 space-y-4'>
-						<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
-						<div className='space-y-3'>
+						{/* Additional Settings Section */}
+						<div className='space-y-4'>
+							<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
+							<div className='space-y-3'>
 							{/* Version Release Details */}
 							<motion.div
 								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
@@ -398,6 +430,28 @@ export default function SettingsPage() {
 								)}
 							</motion.div>
 
+							{/* Share Site */}
+							<motion.button
+								onClick={handleShareSite}
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center space-x-3'>
+									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+										<ShareIcon className='w-5 h-5 text-dorkinians-yellow' />
+									</div>
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-white mb-1'>Share Site</h3>
+										<p className='text-sm text-gray-300'>{shareCopied ? 'Link copied to clipboard!' : 'Share this website with others'}</p>
+									</div>
+									<div className='text-dorkinians-yellow'>
+										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+										</svg>
+									</div>
+								</div>
+							</motion.button>
+
 							{/* Report Bug/Feature Request */}
 							<motion.button
 								onClick={() => setShowFeedbackModal(true)}
@@ -419,87 +473,107 @@ export default function SettingsPage() {
 									</div>
 								</div>
 							</motion.button>
-
-							{/* Database last updated */}
-							<motion.div
-								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
-								whileHover={{ scale: 1.02 }}
-								whileTap={{ scale: 0.98 }}>
-								<div className='flex items-center space-x-3'>
-									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-										<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
-									</div>
-									<div className='flex-1'>
-										<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
-										<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
-									</div>
-								</div>
-							</motion.div>
-
-							{/* Data & Privacy */}
-							<motion.button
-								onClick={() => setShowDataPrivacyModal(true)}
-								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
-								whileHover={{ scale: 1.02 }}
-								whileTap={{ scale: 0.98 }}>
-								<div className='flex items-center space-x-3'>
-									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-										<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
-									</div>
-									<div className='flex-1'>
-										<h3 className='text-lg font-semibold text-white mb-1'>Data & Privacy</h3>
-										<p className='text-sm text-gray-300'>Request data removal</p>
-									</div>
-									<div className='text-dorkinians-yellow'>
-										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
-										</svg>
-									</div>
-								</div>
-							</motion.button>
 						</div>
 					</div>
+					</div>
 
-					{/* Check for Updates */}
-					<div className='mt-8 p-4 rounded-lg bg-white/10'>
-						<div className='flex flex-col items-center space-y-3'>
-							<div className='text-center'>
-								<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
-								<p className='text-sm text-gray-300'>Check if a new version is available</p>
+					{/* Right Column */}
+					<div className='space-y-6 mt-6 md:mt-0'>
+						{/* Database last updated */}
+						<motion.div
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
+							whileHover={{ scale: 1.02 }}
+							whileTap={{ scale: 0.98 }}>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
+									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
+								</div>
 							</div>
-							<motion.button
-								onClick={handleCheckForUpdate}
-								disabled={isCheckingUpdate}
-								className='CTA w-fit'
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}>
-								{isCheckingUpdate ? (
-									<div className='flex items-center space-x-2'>
-										<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
-										<span>Checking...</span>
-									</div>
-								) : (
-									<div className='flex items-center space-x-2'>
-										<ArrowPathIcon className='w-4 h-4' />
-										<span>Check</span>
-									</div>
-								)}
-							</motion.button>
-							{updateStatus === "No updates available" && (
-								<p className='text-sm text-gray-300'>{updateStatus}</p>
-							)}
-							{updateStatus && updateStatus !== "No updates available" && (
-								<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
-							)}
-						</div>
-					</div>
+						</motion.div>
 
-					{/* Version Information */}
-					<div className='mt-8 text-center'>
-						<p className='text-xs text-gray-400'>Version {appConfig.version}</p>
+						{/* Data & Privacy */}
+						<motion.button
+							onClick={() => setShowDataPrivacyModal(true)}
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+							whileHover={{ scale: 1.02 }}
+							whileTap={{ scale: 0.98 }}>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Data & Privacy</h3>
+									<p className='text-sm text-gray-300'>Request data removal</p>
+								</div>
+								<div className='text-dorkinians-yellow'>
+									<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+									</svg>
+								</div>
+							</div>
+						</motion.button>
+						{/* Database last updated */}
+						<motion.div
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
+							whileHover={{ scale: 1.02 }}
+							whileTap={{ scale: 0.98 }}>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
+									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
+								</div>
+							</div>
+						</motion.div>
+
+						{/* Check for Updates */}
+						<div className='p-4 rounded-lg bg-white/10'>
+							<div className='flex flex-col items-center space-y-3'>
+								<div className='text-center'>
+									<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
+									<p className='text-sm text-gray-300'>Check if a new version is available</p>
+								</div>
+								<motion.button
+									onClick={handleCheckForUpdate}
+									disabled={isCheckingUpdate}
+									className='CTA w-fit'
+									whileHover={{ scale: 1.05 }}
+									whileTap={{ scale: 0.95 }}>
+									{isCheckingUpdate ? (
+										<div className='flex items-center space-x-2'>
+											<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
+											<span>Checking...</span>
+										</div>
+									) : (
+										<div className='flex items-center space-x-2'>
+											<ArrowPathIcon className='w-4 h-4' />
+											<span>Check</span>
+										</div>
+									)}
+								</motion.button>
+								{updateStatus === "No updates available" && (
+									<p className='text-sm text-gray-300'>{updateStatus}</p>
+								)}
+								{updateStatus && updateStatus !== "No updates available" && (
+									<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
+								)}
+							</div>
+						</div>
+
+						{/* Version Information */}
+						<div className='text-center'>
+							<p className='text-xs text-gray-400'>Version {appConfig.version}</p>
+						</div>
 					</div>
 				</div>
 			</div>
+		</div>
 
 			{/* Update Toast */}
 			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}

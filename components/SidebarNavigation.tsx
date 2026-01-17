@@ -70,6 +70,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 		} else if (mainPageId === "club-info") {
 			setClubInfoSubPage(subPageId as ClubInfoSubPage);
 		}
+		// Navigate to home page to show the selected sub-page
+		if (typeof window !== "undefined") {
+			window.location.href = "/";
+		}
 	};
 
 	const isSubPageActive = (mainPageId: MainPage, subPageId: string): boolean => {
@@ -136,11 +140,13 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						<motion.button
 							data-testid="nav-sidebar-settings"
 							onClick={onSettingsClick}
-							className='p-2 rounded-full hover:bg-white/20 transition-colors'
+							className={`p-2 rounded-full transition-colors ${
+								isSettingsPage ? "bg-yellow-400/20 hover:bg-yellow-400/30" : "hover:bg-white/20"
+							}`}
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-white' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
+							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-yellow-400' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
 						</motion.button>
 					</div>
 				</div>
@@ -149,7 +155,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 				<nav className='flex-1 flex flex-col px-3 py-4 space-y-2 overflow-y-auto'>
 					{navigationItems.map((item) => {
 						const Icon = item.icon;
-						const isActive = currentMainPage === item.id;
+						const isActive = currentMainPage === item.id && !isSettingsPage;
 						const hasSubPages = item.subPages && item.subPages.length > 0;
 
 						return (
@@ -171,7 +177,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								{hasSubPages && (
 									<div className='pl-4 space-y-1'>
 										{item.subPages.map((subPage) => {
-											const isSubActive = isSubPageActive(item.id, subPage.id);
+											const isSubActive = isSubPageActive(item.id, subPage.id) && !isSettingsPage;
 											return (
 												<motion.button
 													key={subPage.id}
