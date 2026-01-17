@@ -4,6 +4,7 @@ import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -343,6 +344,8 @@ export default function ClubStats() {
 		filterData,
 		shouldShowDataTable,
 		setDataTableMode,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -477,27 +480,24 @@ export default function ClubStats() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/team-data-filtered", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-data-filtered", requestBody);
+				
+				const data = await cachedFetch("/api/team-data-filtered", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setTeamData(data.teamData);
-					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
-				} else {
-					console.error("Failed to fetch team data:", response.statusText);
-					setTeamData(null);
-					lastFetchedFiltersRef.current = null;
-				}
+				
+				setTeamData(data.teamData);
+				lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 			} catch (error) {
 				console.error("Error fetching team data:", error);
 				setTeamData(null);
@@ -526,26 +526,26 @@ export default function ClubStats() {
 					try {
 						// Exclude teams filter to ensure teamName parameter is used for filtering
 						const { teams, ...filtersWithoutTeams } = playerFilters;
-						const response = await fetch("/api/team-data-filtered", {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								...csrfHeaders,
+						const requestBody = {
+							teamName: teamName,
+							filters: {
+								...filtersWithoutTeams,
+								teams: [], // Explicitly set empty teams array
 							},
-							body: JSON.stringify({
-								teamName: teamName,
-								filters: {
-									...filtersWithoutTeams,
-									teams: [], // Explicitly set empty teams array
-								},
-							}),
+						};
+						const cacheKey = generatePageCacheKey("stats", "club-stats", "team-comparison", {
+							...requestBody,
+							team: teamName,
 						});
-
-						if (response.ok) {
-							const data = await response.json();
-							return { team: teamName, data: data.teamData };
-						}
-						return null;
+						const data = await cachedFetch("/api/team-data-filtered", {
+							method: "POST",
+							body: requestBody,
+							headers: csrfHeaders,
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						return { team: teamName, data: data.teamData };
 					} catch (error) {
 						log("error", `Error fetching data for ${teamName}:`, error);
 						return null;
@@ -581,26 +581,20 @@ export default function ClubStats() {
 			});
 			
 			try {
-				const response = await fetch("/api/top-players-stats", {
+				const requestBody = {
+					filters: playerFilters,
+					statType: selectedStatType,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "top-players-stats", requestBody);
+				const data = await cachedFetch("/api/top-players-stats", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-						statType: selectedStatType,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-					setTopPlayers(data.players || []);
-				} else {
-					const errorText = await response.text();
-					log("error", `[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
-					setTopPlayers([]);
-				}
+				log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+				setTopPlayers(data.players || []);
 			} catch (error) {
 				log("error", "[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
@@ -623,25 +617,20 @@ export default function ClubStats() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/club-position-stats", {
+				const requestBody = {
+					filters: playerFilters,
+					statType: selectedPositionStat,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-position-stats", requestBody);
+				const data = await cachedFetch("/api/club-position-stats", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-						statType: selectedPositionStat,
-					}),
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPositionStatsData(data.stats || []);
-				} else {
-					log("error", "Failed to fetch position stats:", response.statusText);
-					setPositionStatsData([]);
-				}
+				setPositionStatsData(data.stats || []);
 			} catch (error) {
 				log("error", "Error fetching position stats:", error);
 				setPositionStatsData([]);
@@ -700,18 +689,19 @@ export default function ClubStats() {
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
 			try {
-				const response = await fetch("/api/team-seasonal-stats", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-seasonal-stats", requestBody);
+				const data = await cachedFetch("/api/team-seasonal-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
+				setSeasonalStats(data.seasonalStats || []);
 			} catch (error) {
 				log("error", "Error fetching seasonal stats:", error);
 			} finally {
@@ -733,18 +723,19 @@ export default function ClubStats() {
 		const fetchGameDetails = async () => {
 			setIsLoadingGameDetails(true);
 			try {
-				const response = await fetch("/api/team-game-details", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-game-details", requestBody);
+				const data = await cachedFetch("/api/team-game-details", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setGameDetails(data);
-				}
+				setGameDetails(data);
 			} catch (error) {
 				log("error", "Error fetching game details:", error);
 				setGameDetails(null);
@@ -767,18 +758,19 @@ export default function ClubStats() {
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
 			try {
-				const response = await fetch("/api/unique-player-stats", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "unique-player-stats", requestBody);
+				const data = await cachedFetch("/api/unique-player-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setUniquePlayerStats(data);
-				}
+				setUniquePlayerStats(data);
 			} catch (error) {
 				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
@@ -798,23 +790,18 @@ export default function ClubStats() {
 		const fetchPlayerDistribution = async () => {
 			setIsLoadingPlayerDistribution(true);
 			try {
-				const response = await fetch("/api/club-player-distribution", {
+				const requestBody = {
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-player-distribution", requestBody);
+				const data = await cachedFetch("/api/club-player-distribution", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerDistributionData(data);
-				} else {
-					log("error", "Failed to fetch player distribution:", response.statusText);
-					setPlayerDistributionData(null);
-				}
+				setPlayerDistributionData(data);
 			} catch (error) {
 				log("error", "Error fetching player distribution:", error);
 				setPlayerDistributionData(null);
@@ -834,23 +821,18 @@ export default function ClubStats() {
 		const fetchPlayerTenure = async () => {
 			setIsLoadingPlayerTenure(true);
 			try {
-				const response = await fetch("/api/club-player-tenure", {
+				const requestBody = {
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-player-tenure", requestBody);
+				const data = await cachedFetch("/api/club-player-tenure", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerTenureData(data.tenures || []);
-				} else {
-					log("error", "Failed to fetch player tenure:", response.statusText);
-					setPlayerTenureData([]);
-				}
+				setPlayerTenureData(data.tenures || []);
 			} catch (error) {
 				log("error", "Error fetching player tenure:", error);
 				setPlayerTenureData([]);

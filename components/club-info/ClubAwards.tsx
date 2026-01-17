@@ -5,7 +5,8 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import AwardHistoryPopup from "./AwardHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
-import { getCachedAwardsData } from "@/lib/services/awardsPreloadService";
+import { useNavigationStore } from "@/lib/stores/navigation";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { AwardsTableSkeleton } from "@/components/skeletons";
@@ -33,6 +34,7 @@ type AwardDisplayItem = AwardData | HistoricalAwardEntry | SeasonBreaker;
 const AWARDS_SELECTED_SEASON_KEY = "dorkinians-awards-selected-season";
 
 export default function ClubAwards() {
+	const { getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
 	const [awardsData, setAwardsData] = useState<AwardData[]>([]);
@@ -61,11 +63,13 @@ export default function ClubAwards() {
 	useEffect(() => {
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/awards/seasons");
-				if (!response.ok) {
-					throw new Error("Failed to fetch seasons");
-				}
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("club-info", "club-awards", "seasons", {});
+				const data = await cachedFetch("/api/awards/seasons", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.seasons && data.seasons.length > 0) {
 					const currentSeason = getCurrentSeasonFromStorage();
 					let filteredSeasons = data.seasons;
@@ -121,11 +125,13 @@ export default function ClubAwards() {
 			// Handle historical awards separately
 			if (selectedSeason === "Historical Awards") {
 				try {
-					const response = await fetch(`/api/awards/historical`);
-					if (!response.ok) {
-						throw new Error("Failed to fetch historical award data");
-					}
-					const data = await response.json();
+					const cacheKey = generatePageCacheKey("club-info", "club-awards", "historical-awards", {});
+					const data = await cachedFetch(`/api/awards/historical`, {
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					});
 					setHistoricalAwardsData(data.awardsData || []);
 					setAwardsData([]);
 				} catch (error) {
@@ -138,10 +144,11 @@ export default function ClubAwards() {
 				return;
 			}
 
-			// Regular awards - check cache first
-			const cachedData = getCachedAwardsData(selectedSeason);
-			if (cachedData) {
-				setAwardsData(cachedData);
+			// Regular awards - check page cache first (with 10-minute TTL)
+			const cacheKey = generatePageCacheKey("club-info", "club-awards", "awards-data", { season: selectedSeason });
+			const cached = getCachedPageData(cacheKey);
+			if (cached) {
+				setAwardsData(cached.data.awardsData || cached.data || []);
 				setHistoricalAwardsData([]);
 				setLoading(false);
 				return;
@@ -149,11 +156,12 @@ export default function ClubAwards() {
 
 			// If not in cache, fetch from API
 			try {
-				const response = await fetch(`/api/awards/data?season=${encodeURIComponent(selectedSeason)}`);
-				if (!response.ok) {
-					throw new Error("Failed to fetch award data");
-				}
-				const data = await response.json();
+				const data = await cachedFetch(`/api/awards/data?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				setAwardsData(data.awardsData || []);
 				setHistoricalAwardsData([]);
 			} catch (error) {
