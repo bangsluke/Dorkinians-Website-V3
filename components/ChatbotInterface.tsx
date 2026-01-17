@@ -13,6 +13,7 @@ import Table from "./chatbot-response/Table";
 import Chart from "./chatbot-response/Chart";
 import ExampleQuestionsModal from "./modals/ExampleQuestionsModal";
 import { log } from "@/lib/utils/logger";
+import { LRUCache } from "@/lib/utils/lruCache";
 
 interface SavedConversation {
 	question: string;
@@ -20,6 +21,15 @@ interface SavedConversation {
 	timestamp: number;
 	playerContext?: string;
 }
+
+// LRU cache for chatbot responses (max 50 entries, 10 minute TTL)
+interface CachedResponse {
+	response: ChatbotResponse;
+	timestamp: number;
+}
+
+const chatbotCache = new LRUCache<string, CachedResponse>(50);
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export default function ChatbotInterface() {
 	const { selectedPlayer, setMainPage, setStatsSubPage } = useNavigationStore();
@@ -137,6 +147,27 @@ export default function ChatbotInterface() {
 		// Client-side logging for debugging
 		log("info", `🤖 Frontend: Sending question: ${questionToSubmit.trim()}. Player context: ${selectedPlayer || "None"}`);
 
+		// Check cache first
+		const cacheKey = `${questionToSubmit.trim().toLowerCase()}_${selectedPlayer || "none"}`;
+		const cached = chatbotCache.get(cacheKey);
+		
+		if (cached && (Date.now() - cached.timestamp) < CACHE_TTL_MS) {
+			log("info", "🤖 [Cache Hit] Using cached response");
+			setResponse(cached.response);
+			setIsLoading(false);
+			setError(null);
+			
+			// Add to conversation history
+			const newConversation: SavedConversation = {
+				question: questionToSubmit.trim(),
+				response: cached.response,
+				timestamp: Date.now(),
+				playerContext: selectedPlayer || undefined,
+			};
+			setConversationHistory((prev) => [...prev, newConversation]);
+			return;
+		}
+
 		setIsLoading(true);
 		setError(null);
 		setResponse(null);
@@ -245,6 +276,13 @@ export default function ChatbotInterface() {
 			});
 
 			setResponse(data);
+
+			// Cache the response
+			chatbotCache.set(cacheKey, {
+				response: data,
+				timestamp: Date.now(),
+			});
+			log("info", "🤖 [Cache] Response cached");
 
 			// Save to conversation history with player context
 			// Use the merged question from the response if available (for clarification merges), otherwise use the original input

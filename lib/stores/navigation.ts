@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { WeeklyTOTW } from "@/types";
 import { log } from "../utils/logger";
+import { CachedPageData, CACHE_TTL, isCacheValid, generatePageCacheKey } from "../utils/pageCache";
 
 export type MainPage = "home" | "stats" | "totw" | "club-info" | "settings";
 export type StatsSubPage = "player-stats" | "team-stats" | "club-stats" | "comparison";
@@ -276,6 +277,8 @@ interface NavigationState {
 		teamStats: Record<string, any>;
 		clubStats: Record<string, any>;
 	};
+	// Page data cache with 10-minute TTL
+	pageDataCache: Record<string, CachedPageData>;
 	// Navigation actions
 	setMainPage: (page: MainPage) => void;
 	setStatsSubPage: (page: StatsSubPage) => void;
@@ -334,6 +337,11 @@ interface NavigationState {
 	// Stats preload actions
 	preloadStatsData: () => Promise<void>;
 	getPreloadedData: (page: StatsSubPage, key: string) => any;
+	// Page data cache actions
+	getCachedPageData: (pageKey: string) => CachedPageData | null;
+	setCachedPageData: (pageKey: string, data: any) => void;
+	clearExpiredPageCache: () => void;
+	clearPageCache: (pageKey?: string) => void;
 }
 
 export const useNavigationStore = create<NavigationState>((set, get) => ({
@@ -487,9 +495,21 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 		teamStats: {},
 		clubStats: {},
 	},
+	// Page data cache initial state
+	pageDataCache: {},
 
 	// Initialize from localStorage after mount
 	initializeFromStorage: () => {
+		// Clear expired cache entries on initialization
+		get().clearExpiredPageCache();
+		
+		// Set up periodic cache cleanup (every 5 minutes)
+		if (typeof window !== "undefined") {
+			setInterval(() => {
+				get().clearExpiredPageCache();
+			}, 5 * 60 * 1000); // 5 minutes
+		}
+		
 		if (typeof window !== "undefined") {
 			// Load navigation state from localStorage
 			const savedMainPage = localStorage.getItem("dorkinians-current-main-page");
@@ -656,21 +676,9 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		set({ currentMainPage: page });
 
-		// Reset sub-pages only when actually leaving those pages
-		// Don't reset sub-pages when navigating to/from settings (settings is a special case)
-		if (currentPage === "stats" && page !== "stats" && page !== "settings") {
-			set({ currentStatsSubPage: "player-stats" });
-		}
-		if (currentPage === "totw" && page !== "totw" && page !== "settings") {
-			set({ currentTOTWSubPage: "totw" });
-		}
-		if (currentPage === "club-info" && page !== "club-info" && page !== "settings") {
-			set({ currentClubInfoSubPage: "club-information" });
-		}
-		// When navigating FROM settings back to a page, don't reset sub-pages (they should be preserved)
-		if (currentPage === "settings" && page !== "settings") {
-			// Don't reset sub-pages - they should be restored from localStorage via initializeFromStorage
-		}
+		// Don't reset sub-pages when navigating between pages - they are preserved via localStorage
+		// Sub-pages are persisted in setStatsSubPage, setTOTWSubPage, and setClubInfoSubPage actions
+		// initializeFromStorage will restore the correct sub-page when returning to a page
 
 		// Persist to localStorage
 		if (typeof window !== "undefined") {
@@ -1372,6 +1380,11 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	cacheTOTWWeekData: (season: string, week: number, totwData: WeeklyTOTW, players: TOTWPlayer[]) => {
 		const { cachedTOTWWeekData } = get();
 		const cacheKey = `${season}:${week}`;
+		
+		// Store in both old cache (for backward compatibility) and new page cache (with TTL)
+		const pageCacheKey = generatePageCacheKey("totw", "totw", "week-data", { season, week });
+		get().setCachedPageData(pageCacheKey, { totwData, players });
+		
 		set({
 			cachedTOTWWeekData: {
 				...cachedTOTWWeekData,
@@ -1395,7 +1408,21 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	getCachedTOTWWeekData: (season: string, week: number) => {
 		const { cachedTOTWWeekData } = get();
 		const cacheKey = `${season}:${week}`;
-		return cachedTOTWWeekData[cacheKey] || null;
+		
+		// Check page cache first (with TTL)
+		const pageCacheKey = generatePageCacheKey("totw", "totw", "week-data", { season, week });
+		const cached = get().getCachedPageData(pageCacheKey);
+		if (cached) {
+			// Return in TOTW format
+			return {
+				totwData: cached.data.totwData,
+				players: cached.data.players,
+			};
+		}
+		
+		// Fallback to old cache (no TTL, but keep for backward compatibility)
+		const totwCache = cachedTOTWWeekData[cacheKey];
+		return totwCache || null;
 	},
 
 	// Players of the Month cache actions
@@ -1547,7 +1574,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				);
 			}
 
-			// Preload monthly stats
+			// Preload all stats data types in parallel
+			// Monthly stats
 			preloadPromises.push(
 				fetch("/api/player-monthly-stats", {
 					method: "POST",
@@ -1567,6 +1595,169 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 									playerStats: {
 										...state.preloadedStatsData.playerStats,
 										monthlyStats: data.monthlyStats || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition map (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionMap: data.oppositions || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload opposition performance (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										oppositionPerformance: data.performanceData || [],
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload fantasy breakdown
+			preloadPromises.push(
+				fetch("/api/player-fantasy-breakdown", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										fantasyBreakdown: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload game details
+			preloadPromises.push(
+				fetch("/api/player-game-details", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						playerName: selectedPlayer,
+						filters: playerFiltersForPreload,
+					}),
+				})
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										gameDetails: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload awards (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										awards: data,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload captain history (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										captainHistory: data.captaincies || [],
+										totalCaptaincies: data.totalCaptaincies || 0,
+									},
+								},
+							});
+						}
+					})
+					.catch(() => {})
+			);
+
+			// Preload award history (no filters needed)
+			preloadPromises.push(
+				fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`)
+					.then(res => res.ok ? res.json() : null)
+					.then(data => {
+						if (data) {
+							const state = get();
+							set({
+								preloadedStatsData: {
+									...state.preloadedStatsData,
+									playerStats: {
+										...state.preloadedStatsData.playerStats,
+										awardHistory: data.awards || [],
+										totalAwards: data.totalAwards || 0,
 									},
 								},
 							});
@@ -2056,6 +2247,62 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				return preloadedStatsData.clubStats[key] || null;
 			default:
 				return null;
+		}
+	},
+
+	// Page data cache actions
+	getCachedPageData: (pageKey: string) => {
+		const { pageDataCache } = get();
+		const cached = pageDataCache[pageKey];
+		if (cached && isCacheValid(cached)) {
+			return cached;
+		}
+		// Remove expired entry
+		if (cached && !isCacheValid(cached)) {
+			set({
+				pageDataCache: Object.fromEntries(
+					Object.entries(pageDataCache).filter(([key]) => key !== pageKey)
+				),
+			});
+		}
+		return null;
+	},
+
+	setCachedPageData: (pageKey: string, data: any) => {
+		const { pageDataCache } = get();
+		set({
+			pageDataCache: {
+				...pageDataCache,
+				[pageKey]: {
+					data,
+					timestamp: Date.now(),
+					ttl: CACHE_TTL,
+				},
+			},
+		});
+	},
+
+	clearExpiredPageCache: () => {
+		const { pageDataCache } = get();
+		const now = Date.now();
+		const validCache: Record<string, CachedPageData> = {};
+		
+		for (const [key, cached] of Object.entries(pageDataCache)) {
+			if (isCacheValid(cached)) {
+				validCache[key] = cached;
+			}
+		}
+		
+		set({ pageDataCache: validCache });
+	},
+
+	clearPageCache: (pageKey?: string) => {
+		if (pageKey) {
+			const { pageDataCache } = get();
+			const { [pageKey]: removed, ...rest } = pageDataCache;
+			set({ pageDataCache: rest });
+		} else {
+			set({ pageDataCache: {} });
 		}
 	},
 }));

@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { RecentGamesSkeleton } from "@/components/skeletons";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface Fixture {
 	result: string;
@@ -22,6 +24,7 @@ interface RecentGamesFormProps {
 }
 
 export default function RecentGamesForm({ teamName, filters }: RecentGamesFormProps) {
+	const { getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [fixtures, setFixtures] = useState<Fixture[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -71,32 +74,26 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 			setIsLoading(true);
 			setError(null);
 			try {
-				const response = await fetch("/api/team-recent-fixtures", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
+				const requestBody = {
+					teamName,
+					filters: {
+						...(filters || {}),
+						teams: [], // Don't pass teams in filters, use teamName instead
 					},
-					body: JSON.stringify({
-						teamName,
-						filters: {
-							...(filters || {}),
-							teams: [], // Don't pass teams in filters, use teamName instead
-						},
-					}),
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-recent-fixtures", requestBody);
+				const data = await cachedFetch("/api/team-recent-fixtures", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					// Reverse fixtures so most recent is on the right
-					setFixtures((data.fixtures || []).reverse());
-				} else {
-					const errorData = await response.json();
-					setError(errorData.error || "Failed to fetch recent fixtures");
-					setFixtures([]);
-				}
-			} catch (err) {
+				// Reverse fixtures so most recent is on the right
+				setFixtures((data.fixtures || []).reverse());
+			} catch (err: any) {
 				console.error("Error fetching recent fixtures:", err);
-				setError("Error loading recent fixtures");
+				setError(err?.error || "Error loading recent fixtures");
 				setFixtures([]);
 			} finally {
 				setIsLoading(false);

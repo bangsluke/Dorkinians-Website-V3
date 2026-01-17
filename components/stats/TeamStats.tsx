@@ -4,6 +4,7 @@ import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -363,6 +364,8 @@ export default function TeamStats() {
 		filterData,
 		shouldShowDataTable,
 		setDataTableMode,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	// Initialize selected team from localStorage, player's most played team, or first available team
@@ -570,30 +573,30 @@ export default function TeamStats() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/team-data-filtered", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: {
+						...playerFilters,
+						teams: [], // Don't pass teams in filters, use teamName instead
 					},
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: {
-							...playerFilters,
-							teams: [], // Don't pass teams in filters, use teamName instead
-						},
-					}),
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-data-filtered", {
+					teamName: selectedTeam,
+					filters: requestBody.filters,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setTeamData(data.teamData);
-					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
-				} else {
-					console.error("Failed to fetch team data:", response.statusText);
-					setTeamData(null);
-					lastFetchedFiltersRef.current = null;
-				}
+				
+				const data = await cachedFetch("/api/team-data-filtered", {
+					method: "POST",
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				
+				setTeamData(data.teamData);
+				lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 			} catch (error) {
 				console.error("Error fetching team data:", error);
 				// Log PWA debug info on error
@@ -622,26 +625,26 @@ export default function TeamStats() {
 			});
 			
 			try {
-				const response = await fetch("/api/top-players-stats", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: apiFilters,
-						statType: selectedStatType,
-					}),
+				const requestBody = {
+					filters: apiFilters,
+					statType: selectedStatType,
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "top-players-stats", {
+					...requestBody,
+					selectedTeam,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-					setTopPlayers(data.players || []);
-				} else {
-					const errorText = await response.text();
-					log("error", `[TeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
-					setTopPlayers([]);
-				}
+				
+				const data = await cachedFetch("/api/top-players-stats", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				
+				log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+				setTopPlayers(data.players || []);
 			} catch (error) {
 				log("error", "[TeamStats] Error fetching top players:", error);
 				// Log PWA debug info on error
@@ -715,18 +718,19 @@ export default function TeamStats() {
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
 			try {
-				const response = await fetch("/api/unique-player-stats", {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: apiFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "unique-player-stats", requestBody);
+				const data = await cachedFetch("/api/unique-player-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: apiFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setUniquePlayerStats(data);
-				}
+				setUniquePlayerStats(data);
 			} catch (error) {
 				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
@@ -759,26 +763,22 @@ export default function TeamStats() {
 			setBestSeasonFinishError(null);
 			try {
 				const season = isSeasonFilter ? playerFilters?.timeRange?.seasons?.[0] : null;
-				const response = await fetch("/api/team-best-season-finish", {
+				const requestBody = {
+					teamName: selectedTeam,
+					season: season || undefined,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-best-season-finish", requestBody);
+				const data = await cachedFetch("/api/team-best-season-finish", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						season: season || undefined,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setBestSeasonFinishData(data);
-				} else {
-					const errorData = await response.json();
-					setBestSeasonFinishError(errorData.error || "Failed to fetch best season finish");
-					setBestSeasonFinishData(null);
-				}
-			} catch (error) {
+				setBestSeasonFinishData(data);
+			} catch (error: any) {
 				log("error", "Error fetching best season finish:", error);
-				setBestSeasonFinishError("Failed to fetch best season finish");
+				setBestSeasonFinishError(error?.error || "Failed to fetch best season finish");
 				setBestSeasonFinishData(null);
 			} finally {
 				setIsLoadingBestSeasonFinish(false);
@@ -799,18 +799,19 @@ export default function TeamStats() {
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
 			try {
-				const response = await fetch("/api/team-seasonal-stats", {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: apiFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-seasonal-stats", requestBody);
+				const data = await cachedFetch("/api/team-seasonal-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: apiFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
+				setSeasonalStats(data.seasonalStats || []);
 			} catch (error) {
 				log("error", "Error fetching seasonal stats:", error);
 			} finally {

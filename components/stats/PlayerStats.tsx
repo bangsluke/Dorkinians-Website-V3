@@ -4,6 +4,7 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
@@ -1582,7 +1583,7 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -1778,112 +1779,13 @@ export default function PlayerStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
-	// Priority 1: Above fold on mobile - Seasonal Performance section
-	// Fetch seasonal stats when all seasons are selected (must be before early returns)
+	// Priority 1 & 2: Parallelized data fetching for above-the-fold content
+	// Fetch seasonal stats, team stats, opposition map, and opposition performance in parallel
 	useEffect(() => {
-		if (!selectedPlayer || !allSeasonsSelected) {
+		if (!selectedPlayer) {
 			setSeasonalStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchSeasonalStats = async () => {
-			setIsLoadingSeasonalStats(true);
-			try {
-				const response = await fetch("/api/player-seasonal-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching seasonal stats:", error);
-			} finally {
-				setIsLoadingSeasonalStats(false);
-			}
-		};
-
-		fetchSeasonalStats();
-	}, [selectedPlayer, allSeasonsSelected, playerFilters]);
-
-	// Priority 2: Above fold on desktop - Team Performance section
-	// Fetch team stats when all teams are selected (must be before early returns)
-	useEffect(() => {
-		if (!selectedPlayer || !allTeamsSelected) {
 			setTeamStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchTeamStats = async () => {
-			setIsLoadingTeamStats(true);
-			try {
-				const response = await fetch("/api/player-team-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setTeamStats(data.teamStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching team stats:", error);
-			} finally {
-				setIsLoadingTeamStats(false);
-			}
-		};
-
-		fetchTeamStats();
-	}, [selectedPlayer, allTeamsSelected, playerFilters]);
-
-	// Priority 2: Above fold on desktop - Opposition Locations section
-	// Fetch opposition map data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setOppositionMapData([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchOppositionMapData = async () => {
-			setIsLoadingOppositionMap(true);
-			try {
-				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionMapData(data.oppositions || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching opposition map data:", error);
-				setOppositionMapData([]);
-			} finally {
-				setIsLoadingOppositionMap(false);
-			}
-		};
-
-		fetchOppositionMapData();
-	}, [selectedPlayer]);
-
-	// Priority 2: Above fold on desktop - Opposition Performance section
-	// Fetch opposition performance data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setOppositionPerformanceData([]);
 			return;
 		}
@@ -1891,158 +1793,135 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchOppositionPerformanceData = async () => {
+		const fetchAllAboveFoldData = async () => {
+			// Set loading states
+			setIsLoadingSeasonalStats(allSeasonsSelected);
+			setIsLoadingTeamStats(allTeamsSelected);
+			setIsLoadingOppositionMap(true);
 			setIsLoadingOppositionPerformance(true);
+
 			try {
-				const response = await fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionPerformanceData(data.performanceData || []);
+				// Build parallel fetch promises
+				const fetchPromises: Promise<void>[] = [];
+
+				// Seasonal stats (conditional)
+				if (allSeasonsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-seasonal-stats", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setSeasonalStats(data.seasonalStats || []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching seasonal stats:", error);
+							})
+							.finally(() => setIsLoadingSeasonalStats(false))
+					);
+				} else {
+					setSeasonalStats([]);
+					setIsLoadingSeasonalStats(false);
 				}
+
+				// Team stats (conditional)
+				if (allTeamsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-team-stats", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setTeamStats(data.teamStats || []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching team stats:", error);
+							})
+							.finally(() => setIsLoadingTeamStats(false))
+					);
+				} else {
+					setTeamStats([]);
+					setIsLoadingTeamStats(false);
+				}
+
+				// Opposition map (always fetch)
+				const oppositionMapCacheKey = generatePageCacheKey("stats", "player-stats", "player-oppositions-map", {
+					playerName: selectedPlayer,
+				});
+				fetchPromises.push(
+					cachedFetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionMapCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionMapData(data.oppositions || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching opposition map data:", error);
+							setOppositionMapData([]);
+						})
+						.finally(() => setIsLoadingOppositionMap(false))
+				);
+
+				// Opposition performance (always fetch)
+				const oppositionPerfCacheKey = generatePageCacheKey("stats", "player-stats", "player-opposition-performance", {
+					playerName: selectedPlayer,
+				});
+				fetchPromises.push(
+					cachedFetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionPerfCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionPerformanceData(data.performanceData || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching opposition performance data:", error);
+							setOppositionPerformanceData([]);
+						})
+						.finally(() => setIsLoadingOppositionPerformance(false))
+				);
+
+				// Execute all fetches in parallel
+				await Promise.all(fetchPromises);
 			} catch (error) {
-				log("error", "Error fetching opposition performance data:", error);
-				setOppositionPerformanceData([]);
-			} finally {
-				setIsLoadingOppositionPerformance(false);
+				log("error", "Error in parallel data fetching:", error);
 			}
 		};
 
-		fetchOppositionPerformanceData();
-	}, [selectedPlayer]);
+		fetchAllAboveFoldData();
+	}, [selectedPlayer, allSeasonsSelected, allTeamsSelected, playerFilters]);
 
-	// Priority 3: Below fold - Monthly Performance section
-	// Fetch monthly stats when player is selected
+	// Priority 3: Below fold - Parallelized data fetching for filter-dependent content
+	// Fetch monthly stats, fantasy breakdown, and game details in parallel
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setMonthlyStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchMonthlyStats = async () => {
-			setIsLoadingMonthlyStats(true);
-			try {
-				const response = await fetch("/api/player-monthly-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setMonthlyStats(data.monthlyStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching monthly stats:", error);
-			} finally {
-				setIsLoadingMonthlyStats(false);
-			}
-		};
-
-		fetchMonthlyStats();
-	}, [selectedPlayer, playerFilters]);
-
-	// Priority 3: Below fold - Fantasy Points section
-	// Fetch fantasy breakdown when player or filters change
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setFantasyBreakdown(null);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchFantasyBreakdown = async () => {
-			setIsLoadingFantasyBreakdown(true);
-			try {
-				const response = await fetch("/api/player-fantasy-breakdown", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setFantasyBreakdown(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching fantasy breakdown:", error);
-			} finally {
-				setIsLoadingFantasyBreakdown(false);
-			}
-		};
-
-		fetchFantasyBreakdown();
-	}, [selectedPlayer, playerFilters]);
-
-	// Fetch opposition map data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
-			setOppositionMapData([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchOppositionMapData = async () => {
-			setIsLoadingOppositionMap(true);
-			try {
-				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionMapData(data.oppositions || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching opposition map data:", error);
-				setOppositionMapData([]);
-			} finally {
-				setIsLoadingOppositionMap(false);
-			}
-		};
-
-		fetchOppositionMapData();
-	}, [selectedPlayer]);
-
-	// Fetch opposition performance data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
-			setOppositionPerformanceData([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchOppositionPerformanceData = async () => {
-			setIsLoadingOppositionPerformance(true);
-			try {
-				const response = await fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionPerformanceData(data.performanceData || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching opposition performance data:", error);
-				setOppositionPerformanceData([]);
-			} finally {
-				setIsLoadingOppositionPerformance(false);
-			}
-		};
-
-		fetchOppositionPerformanceData();
-	}, [selectedPlayer]);
-
-	// Fetch game details when player or filters change
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setGameDetails(null);
 			return;
 		}
@@ -2050,98 +1929,84 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchGameDetails = async () => {
+		const fetchAllBelowFoldData = async () => {
+			// Set loading states
+			setIsLoadingMonthlyStats(true);
+			setIsLoadingFantasyBreakdown(true);
 			setIsLoadingGameDetails(true);
+
 			try {
-				const response = await fetch("/api/player-game-details", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setGameDetails(data);
-				}
+				const params = {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				};
+
+				// Execute all filter-dependent fetches in parallel
+				await Promise.all([
+					// Monthly stats
+					cachedFetch("/api/player-monthly-stats", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-monthly-stats", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setMonthlyStats(data.monthlyStats || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching monthly stats:", error);
+						})
+						.finally(() => setIsLoadingMonthlyStats(false)),
+
+					// Fantasy breakdown
+					cachedFetch("/api/player-fantasy-breakdown", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-fantasy-breakdown", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setFantasyBreakdown(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching fantasy breakdown:", error);
+						})
+						.finally(() => setIsLoadingFantasyBreakdown(false)),
+
+					// Game details
+					cachedFetch("/api/player-game-details", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-game-details", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setGameDetails(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching game details:", error);
+							setGameDetails(null);
+						})
+						.finally(() => setIsLoadingGameDetails(false)),
+				]);
 			} catch (error) {
-				log("error", "Error fetching game details:", error);
-				setGameDetails(null);
-			} finally {
-				setIsLoadingGameDetails(false);
+				log("error", "Error in parallel below-fold data fetching:", error);
 			}
 		};
 
-		fetchGameDetails();
+		fetchAllBelowFoldData();
 	}, [selectedPlayer, playerFilters]);
 
 	// Priority 3: Below fold - Captaincies, Awards and Achievements section
-	// Fetch awards data when player is selected
+	// Fetch awards, captain history, and award history in parallel
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setAwardsData(null);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchAwards = async () => {
-			setIsLoadingAwards(true);
-			try {
-				const response = await fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setAwardsData(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching awards:", error);
-			} finally {
-				setIsLoadingAwards(false);
-			}
-		};
-
-		fetchAwards();
-	}, [selectedPlayer]);
-
-	// Priority 3: Below fold - Captaincies, Awards and Achievements section
-	// Fetch captain history when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setCaptainHistory([]);
 			setTotalCaptaincies(0);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchCaptainHistory = async () => {
-			setIsLoadingCaptainHistory(true);
-			try {
-				const response = await fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setCaptainHistory(data.captaincies || []);
-					setTotalCaptaincies(data.totalCaptaincies || 0);
-				}
-			} catch (error) {
-				log("error", "Error fetching captain history:", error);
-				setCaptainHistory([]);
-				setTotalCaptaincies(0);
-			} finally {
-				setIsLoadingCaptainHistory(false);
-			}
-		};
-
-		fetchCaptainHistory();
-	}, [selectedPlayer]);
-
-	// Priority 3: Below fold - Captaincies, Awards and Achievements section
-	// Fetch award history when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setAwardHistory([]);
 			setTotalAwards(0);
 			return;
@@ -2150,25 +2015,73 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchAwardHistory = async () => {
+		const fetchAllAwardsData = async () => {
+			// Set loading states
+			setIsLoadingAwards(true);
+			setIsLoadingCaptainHistory(true);
 			setIsLoadingAwardHistory(true);
+
 			try {
-				const response = await fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setAwardHistory(data.awards || []);
-					setTotalAwards(data.totalAwards || 0);
-				}
+				const playerParams = { playerName: selectedPlayer };
+				// Execute all awards-related fetches in parallel
+				await Promise.all([
+					// Awards data
+					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-awards", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardsData(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching awards:", error);
+						})
+						.finally(() => setIsLoadingAwards(false)),
+
+					// Captain history
+					cachedFetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "captain-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setCaptainHistory(data.captaincies || []);
+							setTotalCaptaincies(data.totalCaptaincies || 0);
+						})
+						.catch((error) => {
+							log("error", "Error fetching captain history:", error);
+							setCaptainHistory([]);
+							setTotalCaptaincies(0);
+						})
+						.finally(() => setIsLoadingCaptainHistory(false)),
+
+					// Award history
+					cachedFetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "award-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardHistory(data.awards || []);
+							setTotalAwards(data.totalAwards || 0);
+						})
+						.catch((error) => {
+							log("error", "Error fetching award history:", error);
+							setAwardHistory([]);
+							setTotalAwards(0);
+						})
+						.finally(() => setIsLoadingAwardHistory(false)),
+				]);
 			} catch (error) {
-				log("error", "Error fetching award history:", error);
-				setAwardHistory([]);
-				setTotalAwards(0);
-			} finally {
-				setIsLoadingAwardHistory(false);
+				log("error", "Error in parallel awards data fetching:", error);
 			}
 		};
 
-		fetchAwardHistory();
+		fetchAllAwardsData();
 	}, [selectedPlayer]);
 
 
