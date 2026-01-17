@@ -254,14 +254,14 @@ export default function SettingsPage() {
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
 					<div className='grid grid-cols-1 md:grid-cols-2 md:gap-6'>
 						{/* Left Column */}
-						<div className='space-y-6'>
+						<div className='space-y-4'>
 					{/* Add App to Home Screen Button */}
-					<div className='mb-6'>
+					<div>
 						<PWAInstallButton />
 					</div>
 
 					{/* Documentation Link */}
-					<div className='mb-6'>
+					<div>
 						<motion.a
 							href={appConfig.documentationUrl}
 							target='_blank'
@@ -363,8 +363,11 @@ export default function SettingsPage() {
 					)}
 					</motion.div>
 					</div>
+					</div>
 
-						{/* Additional Settings Section */}
+					{/* Right Column */}
+					<div className='space-y-4 mt-6 md:mt-0'>
+						{/* App Settings Section */}
 						<div className='space-y-4'>
 							<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
 							<div className='space-y-3'>
@@ -498,64 +501,30 @@ export default function SettingsPage() {
 									</div>
 								</div>
 							</motion.button>
+
+							{/* Data & Privacy */}
+							<motion.button
+								onClick={() => setShowDataPrivacyModal(true)}
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center space-x-3'>
+									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+										<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
+									</div>
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-white mb-1'>Data & Privacy</h3>
+										<p className='text-sm text-gray-300'>Request data removal</p>
+									</div>
+									<div className='text-dorkinians-yellow'>
+										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+										</svg>
+									</div>
+								</div>
+							</motion.button>
 						</div>
 					</div>
-					</div>
-
-					{/* Right Column */}
-					<div className='space-y-6 mt-6 md:mt-0'>
-						{/* Database last updated */}
-						<motion.div
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}>
-							<div className='flex items-center space-x-3'>
-								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
-								</div>
-								<div className='flex-1'>
-									<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
-									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
-								</div>
-							</div>
-						</motion.div>
-
-						{/* Data & Privacy */}
-						<motion.button
-							onClick={() => setShowDataPrivacyModal(true)}
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}>
-							<div className='flex items-center space-x-3'>
-								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-									<ShieldCheckIcon className='w-5 h-5 text-dorkinians-yellow' />
-								</div>
-								<div className='flex-1'>
-									<h3 className='text-lg font-semibold text-white mb-1'>Data & Privacy</h3>
-									<p className='text-sm text-gray-300'>Request data removal</p>
-								</div>
-								<div className='text-dorkinians-yellow'>
-									<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
-									</svg>
-								</div>
-							</div>
-						</motion.button>
-						{/* Database last updated */}
-						<motion.div
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
-							whileHover={{ scale: 1.02 }}
-							whileTap={{ scale: 0.98 }}>
-							<div className='flex items-center space-x-3'>
-								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
-								</div>
-								<div className='flex-1'>
-									<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
-									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
-								</div>
-							</div>
-						</motion.div>
 
 						{/* Check for Updates */}
 						<div className='p-4 rounded-lg bg-white/10'>
@@ -598,9 +567,22 @@ export default function SettingsPage() {
 							</div>
 						</div>
 
+						{/* Database last updated - at bottom */}
+						<div className='w-full p-4 rounded-lg bg-white/10'>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Database Last Updated</h3>
+									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
+								</div>
+							</div>
+						</div>
+
 						{/* Version Information */}
 						<div className='text-center'>
-							<p className='text-xs text-gray-400'>Version {appConfig.version}</p>
+							<p className='text-xs text-white'>Version {appConfig.version}</p>
 						</div>
 					</div>
 				</div>

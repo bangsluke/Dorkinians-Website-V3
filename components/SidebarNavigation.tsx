@@ -165,6 +165,20 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 									onClick={() => {
 										log("info", "🔘 [SidebarNavigation] Button clicked:", item.id);
 										setMainPage(item.id);
+										
+										// Set default sub-page for pages with sub-pages
+										if (item.id === "stats") {
+											setStatsSubPage("player-stats");
+										} else if (item.id === "totw") {
+											setTOTWSubPage("totw");
+										} else if (item.id === "club-info") {
+											setClubInfoSubPage("club-information");
+										}
+										
+										// Navigate to home page
+										if (typeof window !== "undefined") {
+											window.location.href = "/";
+										}
 									}}
 									className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
 										isActive ? "text-yellow-400 bg-yellow-400/20" : "text-white hover:text-yellow-300 hover:bg-white/20"
