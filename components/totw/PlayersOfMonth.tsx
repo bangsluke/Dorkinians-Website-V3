@@ -11,6 +11,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 
 interface Player {
 	rank: number;
@@ -79,6 +80,8 @@ export default function PlayersOfMonth() {
 		selectedPlayer,
 		enterEditMode,
 		setMainPage,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	const [seasons, setSeasons] = useState<string[]>([]);
@@ -114,8 +117,13 @@ export default function PlayersOfMonth() {
 
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/players-of-month/seasons");
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "seasons", {});
+				const data = await cachedFetch("/api/players-of-month/seasons", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.seasons) {
 					setSeasons(data.seasons);
 					// Use currentSeason from localStorage, or first season
@@ -212,8 +220,13 @@ export default function PlayersOfMonth() {
 		const fetchMonths = async () => {
 			log("info", `[PlayersOfMonth] Fetching months from API for season ${selectedSeason}`);
 			try {
-				const response = await fetch(`/api/players-of-month/months?season=${encodeURIComponent(selectedSeason)}`);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "months", { season: selectedSeason });
+				const data = await cachedFetch(`/api/players-of-month/months?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.months) {
 					log("info", `[PlayersOfMonth] Received ${data.months.length} months from API`);
 					setMonths(data.months);
@@ -360,8 +373,13 @@ export default function PlayersOfMonth() {
 			const apiUrl = `/api/players-of-month/month-data?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(monthToUse)}`;
 			log("info", `[PlayersOfMonth] Fetching data from API: ${apiUrl}`);
 			try {
-				const response = await fetch(apiUrl);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-data", { season: selectedSeason, month: monthToUse });
+				const data = await cachedFetch(apiUrl, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				
 				if (data.players) {
 					log("info", `[PlayersOfMonth] Received ${data.players.length} players for ${monthToUse} ${selectedSeason}: [${data.players.map((p: Player) => p.playerName).join(", ")}]`);
@@ -401,14 +419,18 @@ export default function PlayersOfMonth() {
 		const fetchMonthRankings = async () => {
 			setLoadingMonthRankings(true);
 			try {
-				const response = await fetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setMonthRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch month rankings");
-					setMonthRankings([]);
-				}
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-rankings", { 
+					season: selectedSeason, 
+					month: selectedMonth,
+					playerName: selectedPlayer,
+				});
+				const data = await cachedFetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setMonthRankings(data.rankings || []);
 			} catch (error) {
 				log("error", "Error fetching month rankings:", error);
 				setMonthRankings([]);
@@ -431,14 +453,17 @@ export default function PlayersOfMonth() {
 		const fetchSeasonRankings = async () => {
 			setLoadingSeasonRankings(true);
 			try {
-				const response = await fetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch season rankings");
-					setSeasonRankings([]);
-				}
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "season-rankings", { 
+					season: selectedSeason,
+					playerName: selectedPlayer,
+				});
+				const data = await cachedFetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setSeasonRankings(data.rankings || []);
 			} catch (error) {
 				log("error", "Error fetching season rankings:", error);
 				setSeasonRankings([]);
@@ -498,18 +523,21 @@ export default function PlayersOfMonth() {
 			const newStats: Record<string, PlayerStats> = {};
 			
 			const statsPromises = players.map(async (player) => {
-				// Always fetch fresh stats from API (no caching)
 				const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(player.playerName)}`;
 				log("info", `[PlayersOfMonth] Fetching stats from API for ${player.playerName}: ${apiUrl}`);
 				
 				try {
-					const response = await fetch(apiUrl);
-					if (!response.ok) {
-						log("error", `[PlayersOfMonth] Failed to fetch stats for ${player.playerName}`);
-						return;
-					}
-
-					const data = await response.json();
+					const cacheKey = generatePageCacheKey("totw", "players-of-month", "player-stats", { 
+						season: selectedSeason, 
+						month: selectedMonth,
+						playerName: player.playerName,
+					});
+					const data = await cachedFetch(apiUrl, {
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					});
 					log("info", `[PlayersOfMonth] Received stats for ${player.playerName}: goals=${data.goals}, assists=${data.assists}, appearances=${data.appearances}`);
 					if (data.matchDetails) {
 						const stats: PlayerStats = {
@@ -530,7 +558,6 @@ export default function PlayersOfMonth() {
 						};
 
 						newStats[player.playerName] = stats;
-						// No caching - always fetch fresh stats
 					}
 				} catch (error) {
 					log("error", `[PlayersOfMonth] Error fetching stats for ${player.playerName}:`, error);
