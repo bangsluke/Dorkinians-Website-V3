@@ -205,7 +205,7 @@ export default function ClubInformation() {
 
 	return (
 		<div 
-			className='p-2 md:p-4 overflow-y-auto'
+			className='p-2 md:p-4 overflow-y-auto md:max-w-md md:mx-auto w-full'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Information</h2>
 

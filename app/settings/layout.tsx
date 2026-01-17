@@ -31,6 +31,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 			{/* Desktop Sidebar Navigation */}
 			<SidebarNavigation 
 				onSettingsClick={handleSettingsClick} 
+				isSettingsPage={true}
 				onFilterClick={handleFilterClick} 
 				showFilterIcon={false}
 				onMenuClick={handleMenuClick}
