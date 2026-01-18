@@ -1721,7 +1721,8 @@ export default function PlayerStats() {
 
 	// Check when all icons are loaded
 	useEffect(() => {
-		const expectedIcons = keyPerformanceData.filter(item => typeof item.value === 'number' && item.value > 0).length;
+		// Count all items that are actually rendered (all items in keyPerformanceData are rendered)
+		const expectedIcons = keyPerformanceData.length;
 		if (loadedIcons.size === expectedIcons && expectedIcons > 0) {
 			setAllIconsLoaded(true);
 		}
