@@ -98,17 +98,18 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 				{/* Header Section */}
 				<div className='flex flex-col items-center px-4 py-6 border-b border-white/10'>
 					{/* Club Logo */}
-					<motion.div
-						className='flex flex-col items-center space-y-3 cursor-pointer mb-4'
+					<motion.button
+						className='flex flex-col items-center space-y-3 cursor-pointer mb-4 bg-transparent border-none p-0'
 						whileHover={{ scale: 1.05 }}
 						whileTap={{ scale: 0.95 }}
 						onClick={handleLogoClick}
-						title='Click to return to homepage'>
+						title='Click to return to homepage'
+						aria-label='Return to homepage'>
 					<div className='w-[72px] h-[72px] flex items-center justify-center'>
 						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={66} height={66} className='rounded-full' />
 					</div>
 					<span className='font-bold text-[22px] text-white text-center'>Dorkinians FC</span>
-					</motion.div>
+					</motion.button>
 
 					{/* Action Icons */}
 					<div className='flex items-center justify-center space-x-2 w-full'>
@@ -120,7 +121,8 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								className='p-2 rounded-full hover:bg-white/20 transition-colors'
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
-								title='Open stats navigation'>
+								title='Open stats navigation'
+								aria-label='Open stats navigation'>
 								<Bars3Icon className='w-8 h-8 text-white' />
 							</motion.button>
 						)}
@@ -132,7 +134,8 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 								className='p-2 rounded-full hover:bg-white/20 transition-colors'
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
-								title='Open filters'>
+								title='Open filters'
+								aria-label='Open filters'>
 								<FunnelIcon className='w-8 h-8 text-white' />
 							</motion.button>
 						)}
@@ -145,7 +148,8 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							}`}
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
-							title={isSettingsPage ? "Close settings" : "Open settings"}>
+							title={isSettingsPage ? "Close settings" : "Open settings"}
+							aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
 							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-yellow-400' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
 						</motion.button>
 					</div>

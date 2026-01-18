@@ -32,17 +32,18 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 			transition={isSettingsPage ? {} : { type: "spring", stiffness: 300, damping: 30 }}>
 			<div className='flex items-center justify-between px-4 md:px-[15%] py-3'>
 				{/* Club Logo */}
-				<motion.div
-					className='flex items-center space-x-2 cursor-pointer'
+				<motion.button
+					className='flex items-center space-x-2 cursor-pointer bg-transparent border-none p-0'
 					whileHover={{ scale: 1.05 }}
 					whileTap={{ scale: 0.95 }}
 					onClick={handleLogoClick}
-					title='Click to return to homepage'>
+					title='Click to return to homepage'
+					aria-label='Return to homepage'>
 					<div className='w-8 h-8 flex items-center justify-center'>
 						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
 					</div>
 					<span className='font-bold text-xl text-white'>Dorkinians FC</span>
-				</motion.div>
+				</motion.button>
 
 				{/* Right side icons */}
 				<div className='flex items-center space-x-2'>
@@ -54,7 +55,8 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 							className='p-2 rounded-full hover:bg-white/20 transition-colors'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
-							title='Open stats navigation'>
+							title='Open stats navigation'
+							aria-label='Open stats navigation'>
 							<Bars3Icon className='w-6 h-6 text-white' />
 						</motion.button>
 					)}
@@ -66,7 +68,8 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 							className='p-2 rounded-full hover:bg-white/20 transition-colors'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
-							title='Open filters'>
+							title='Open filters'
+							aria-label='Open filters'>
 							<FunnelIcon className='w-6 h-6 text-white' />
 						</motion.button>
 					)}
@@ -78,7 +81,8 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 						className='p-2 rounded-full hover:bg-white/20 transition-colors'
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.9 }}
-						title={isSettingsPage ? "Close settings" : "Open settings"}>
+						title={isSettingsPage ? "Close settings" : "Open settings"}
+						aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
 						{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-white' /> : <Cog6ToothIcon className='w-6 h-6 text-white' />}
 					</motion.button>
 				</div>

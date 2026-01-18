@@ -107,7 +107,8 @@ export default function Settings() {
 						onClick={handleBackClick}
 						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
 						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.9 }}>
+						whileTap={{ scale: 0.9 }}
+						aria-label='Go back to home'>
 						<ArrowLeftIcon className='w-6 h-6 text-white' />
 					</motion.button>
 					<h1 data-testid="settings-heading" className='text-3xl font-bold text-white'>Settings</h1>

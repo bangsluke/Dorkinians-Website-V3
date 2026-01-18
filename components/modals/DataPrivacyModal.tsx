@@ -88,7 +88,8 @@ export default function DataPrivacyModal({ isOpen, onClose }: DataPrivacyModalPr
 					<button
 						onClick={handleClose}
 						disabled={isSubmitting}
-						className='text-white hover:text-gray-200 ml-4 flex-shrink-0 disabled:opacity-50'>
+						className='text-white hover:text-gray-200 ml-4 flex-shrink-0 disabled:opacity-50'
+						aria-label='Close data privacy modal'>
 						<XMarkIcon className='w-6 h-6' />
 					</button>
 				</div>

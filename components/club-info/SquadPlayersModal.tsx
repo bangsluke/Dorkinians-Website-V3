@@ -120,7 +120,8 @@ export default function SquadPlayersModal({
 								</div>
 								<button
 									onClick={handleClose}
-									className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+									className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'
+									aria-label={`Close ${teamDisplayName} squad players modal`}>
 									<XMarkIcon className='w-5 h-5' />
 								</button>
 							</div>
@@ -195,4 +196,3 @@ export default function SquadPlayersModal({
 
 	return createPortal(modalContent, document.body);
 }
-

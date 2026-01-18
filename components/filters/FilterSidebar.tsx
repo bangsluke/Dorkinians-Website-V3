@@ -585,7 +585,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 										className='px-3 py-1 text-sm text-white/80 hover:text-white hover:bg-white/20 rounded transition-colors'>
 										Reset
 									</button>
-									<button data-testid="filter-sidebar-close" onClick={onClose} className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+									<button data-testid="filter-sidebar-close" onClick={onClose} className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors' aria-label='Close filter sidebar'>
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>

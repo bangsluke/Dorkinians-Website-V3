@@ -261,7 +261,8 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 							<button
 								data-testid="totw-player-modal-close"
 								onClick={handleClose}
-								className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors ml-4 flex-shrink-0'>
+								className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors ml-4 flex-shrink-0'
+								aria-label={`Close ${playerName} player details modal`}>
 								<XMarkIcon className='w-5 h-5' />
 							</button>
 						</div>

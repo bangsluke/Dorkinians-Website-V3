@@ -60,7 +60,8 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 								</div>
 								<button
 									onClick={handleClose}
-									className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+									className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'
+									aria-label='Close example questions modal'>
 									<XMarkIcon className='w-5 h-5' />
 								</button>
 							</div>

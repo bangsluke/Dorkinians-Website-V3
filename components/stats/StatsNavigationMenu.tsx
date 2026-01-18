@@ -308,7 +308,8 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 									className='p-2 rounded-full hover:bg-white/20 transition-colors'
 									whileHover={{ scale: 1.1 }}
 									whileTap={{ scale: 0.9 }}
-									title='Close menu'>
+									title='Close menu'
+									aria-label='Close stats navigation menu'>
 									<XMarkIcon className='w-6 h-6 text-white' />
 								</motion.button>
 							</div>
