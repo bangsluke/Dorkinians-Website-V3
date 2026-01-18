@@ -161,6 +161,13 @@ test.describe('Stats Page Tests', () => {
 		}
 	});
 
+	test('4.1. should display tooltips on the data table', async ({ page }) => {
+		// TODO: Fail on purpose to show the test needs to be updated
+		await page.goto('https://example.com');
+  		// This assertion will always fail, but the test still compiles and runs.
+  		expect(1).toBe(2);
+	});
+
 	test('5. should display charts', async ({ page }) => {
 		await waitForDataLoad(page);
 		await page.waitForTimeout(2000);
