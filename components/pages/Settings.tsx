@@ -164,12 +164,12 @@ export default function Settings() {
 										className='w-full p-2 text-left'>
 										<div className='flex items-center space-x-4'>
 											<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-												<Icon className='w-3 h-3 text-dorkinians-yellow' />
+												<Icon className='w-3 h-3 text-dorkinians-yellow-text' />
 											</div>
 											<div className='flex-1'>
 												<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
 											</div>
-											<div className='text-dorkinians-yellow'>
+											<div className='text-dorkinians-yellow-text'>
 												<svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 													<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
 												</svg>
@@ -194,7 +194,7 @@ export default function Settings() {
 													<div className='flex items-center space-x-3'>
 														<div className='w-2 h-2 rounded-full bg-dorkinians-yellow/60'></div>
 														<span className='text-sm text-gray-300'>{subPage.label}</span>
-														<div className='text-dorkinians-yellow/60'>
+														<div className='text-dorkinians-yellow-text/60'>
 															<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 																<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
 															</svg>

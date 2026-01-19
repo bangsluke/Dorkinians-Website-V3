@@ -7,9 +7,12 @@ module.exports = {
 				"dorkinians-green": "#1C8841",
 				"dorkinians-green-dark": "#1a7a3a",
 				"dorkinians-green-darker": "#156b32",
+				"dorkinians-green-text": "#66BB6A", // WCAG-compliant text color
 				"dorkinians-yellow": "#F9ED32",
 				"dorkinians-yellow-dark": "#e5d12e",
 				"dorkinians-yellow-darker": "#cfbf29",
+				"dorkinians-yellow-text": "#FFF176", // WCAG-compliant text color
+				"dorkinians-yellow-text-hover": "#FFEB3B", // Hover state variant
 			},
 			fontFamily: {
 				sans: ["Inter", "system-ui", "sans-serif"],

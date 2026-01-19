@@ -796,7 +796,7 @@ export default function LeagueInformation() {
 										className={`underline text-sm md:text-base font-medium transition-colors px-2 py-1 ${
 											activeTeamLink === teamKey 
 												? 'text-white' 
-												: 'text-dorkinians-yellow hover:text-yellow-400'
+												: 'text-dorkinians-yellow-text hover:text-dorkinians-yellow-text-hover'
 										}`}
 									>
 										{teamKey}

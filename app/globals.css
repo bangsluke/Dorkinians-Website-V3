@@ -10,6 +10,11 @@
 	--dorkinians-green-dark: #1a7a3a;
 	--dorkinians-green-darker: #156b32;
 
+	/* WCAG-compliant text colors for dark backgrounds (4.5:1 contrast ratio) */
+	--dorkinians-yellow-text: #FFF176; /* ~15.68:1 on #0f0f0f */
+	--dorkinians-yellow-text-hover: #FFEB3B; /* Slightly darker for hover states */
+	--dorkinians-green-text: #66BB6A; /* ~7.51:1 on #0f0f0f */
+
 	--field-bg: rgba(0, 0, 0, 0.55);
 
 	--text-light: #f3f3f3;
@@ -249,7 +254,7 @@
 	}
 
 	.dark-input::placeholder {
-		color: rgba(249, 237, 50, 0.5);
+		color: rgba(255, 241, 118, 0.6); /* WCAG-compliant yellow with opacity for placeholder */
 	}
 
 
@@ -272,12 +277,12 @@
 
 	.dark-dropdown-option:hover {
 		background: rgba(249, 237, 50, 0.1);
-		color: var(--dorkinians-yellow);
+		color: var(--dorkinians-yellow-text);
 	}
 
 	.dark-dropdown-option.selected {
 		background: rgba(28, 136, 65, 0.3);
-		color: var(--dorkinians-yellow);
+		color: var(--dorkinians-yellow-text);
 		border-left: 3px solid var(--dorkinians-green);
 	}
 

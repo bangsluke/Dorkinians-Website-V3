@@ -151,7 +151,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							whileTap={{ scale: 0.9 }}
 							title={isSettingsPage ? "Close settings" : "Open settings"}
 							aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-yellow-400' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
+							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-dorkinians-yellow-text' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
 						</motion.button>
 					</div>
 				</div>
@@ -189,10 +189,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 											}
 										}}
 										className={`group w-full flex items-center space-x-3 px-4 py-3 justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-											isActive ? "text-dorkinians-yellow bg-[#5E7F1C]" : "text-white hover:bg-white/20"
+											isActive ? "text-dorkinians-yellow-text bg-[#5E7F1C]" : "text-white hover:bg-white/20"
 										}`}>
-										<Icon className={`w-8 h-8 flex-shrink-0 ${isActive ? "text-dorkinians-yellow" : "text-white group-hover:text-dorkinians-yellow"}`} />
-										<span className={`text-[16px] font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow" : "text-white group-hover:text-dorkinians-yellow"}`}>{item.label}</span>
+										<Icon className={`w-8 h-8 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`} />
+										<span className={`text-[16px] font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>
 									</button>
 								</motion.div>
 								{hasSubPages && (
@@ -209,10 +209,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 														onClick={() => handleSubPageClick(item.id, subPage.id)}
 														className={`group w-full flex items-center px-4 py-2 text-left justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 															isSubActive
-																? "text-dorkinians-yellow bg-[#4A6816]"
+																? "text-dorkinians-yellow-text bg-[#4A6816]"
 																: "text-white hover:bg-white/20"
 														}`}>
-														<span className={`text-[14px] font-medium ${isSubActive ? "text-dorkinians-yellow" : "text-white group-hover:text-dorkinians-yellow"}`}>{subPage.label}</span>
+														<span className={`text-[14px] font-medium ${isSubActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`}>{subPage.label}</span>
 													</button>
 												</motion.div>
 											);

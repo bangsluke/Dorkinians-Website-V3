@@ -40,7 +40,7 @@ export default function Tabs({ tabs, defaultTab, storageKey }: TabsProps) {
 							onClick={() => setActiveTab(tab.id)}
 							className={`flex-1 text-center px-4 py-2 text-sm md:text-base font-medium transition-colors ${
 								activeTab === tab.id
-									? "text-dorkinians-yellow border-b-2 border-dorkinians-yellow"
+									? "text-dorkinians-yellow-text border-b-2 border-dorkinians-yellow-text"
 									: "text-white/70 hover:text-white hover:bg-white/5"
 							}`}>
 							{tab.label}
