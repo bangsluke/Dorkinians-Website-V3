@@ -15,6 +15,7 @@ import ExampleQuestionsModal from "../modals/ExampleQuestionsModal";
 import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
 import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
 
 interface SavedConversation {
 	question: string;
@@ -401,13 +402,14 @@ export default function ChatbotInterface() {
 			{/* Question Input */}
 			<form onSubmit={handleSubmit} className='space-y-3 md:space-y-4'>
 				<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
-					<input
+					<Input
 						data-testid="chatbot-input"
 						type='text'
 						value={question}
 						onChange={(e) => setQuestion(e.target.value)}
 						placeholder='Ask me about player, club or team stats...'
-						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
+						className='w-full'
+						size="md"
 						disabled={isLoading}
 					/>
 					{/* Desktop button - hidden on mobile */}

@@ -740,7 +740,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{scored > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-success)] mr-2'></span>
 									Penalties Scored
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{scored}</td>
@@ -749,7 +749,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{missed > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-error)] mr-2'></span>
 									Penalties Missed
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{missed}</td>
@@ -758,7 +758,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{saved > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-info)] mr-2'></span>
 									Penalties Saved
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{saved}</td>

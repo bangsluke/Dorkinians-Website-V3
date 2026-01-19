@@ -303,7 +303,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						<div className='flex-1 overflow-y-auto p-4 md:p-6 pb-24'>
 							{/* Header */}
 							<div className='flex items-center justify-between mb-6'>
-								<h2 className='text-2xl font-bold text-white'>Stats Navigation</h2>
+								<h2 className='text-2xl font-bold text-[var(--color-text-primary)]'>Stats Navigation</h2>
 								<motion.div
 									whileHover={{ scale: 1.1 }}
 									whileTap={{ scale: 0.9 }}>
@@ -312,7 +312,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 										onClick={onClose}
 										title='Close menu'
 										aria-label='Close stats navigation menu'
-										icon={<XMarkIcon className='w-6 h-6 text-white' />} />
+										icon={<XMarkIcon className='w-6 h-6 text-[var(--color-text-primary)]' />} />
 								</motion.div>
 							</div>
 
@@ -338,13 +338,13 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 															handleSectionClick(item.id);
 														}
 													}}
-													className={`w-full p-3 text-left rounded-2xl transition-all ${
+													className={`w-full p-3 text-left rounded-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 														isActive && isExpanded 
-															? "bg-white/15 ring-2 ring-dorkinians-yellow" 
-															: "bg-white/10 hover:bg-white/15"
+															? "bg-[var(--color-surface-elevated)] ring-2 ring-dorkinians-yellow" 
+															: "bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)]"
 													}`}>
 													<div className='flex items-center justify-between'>
-														<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
+														<h3 className='text-lg font-semibold text-[var(--color-text-primary)]'>{item.label}</h3>
 														{hasSections && (
 															<div className='text-dorkinians-yellow-text'>
 																<svg
@@ -370,7 +370,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 															whileTap={{ scale: 0.99 }}>
 															<button
 																onClick={() => handleSectionClick(item.id, section.id, (section as any).isDataTable)}
-																className='w-full p-3 bg-white/5 hover:bg-white/15 text-left rounded-2xl transition-all'>
+																className='w-full p-3 bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-elevated)] text-left rounded-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 																<div className='flex items-center justify-between'>
 																	<div className='flex items-center space-x-3'>
 																		<div className='w-2 h-2 rounded-full bg-dorkinians-yellow flex-shrink-0'></div>
@@ -394,7 +394,7 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						</div>
 						
 						{/* Yellow Close Button at Bottom - Always Visible */}
-						<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20' style={{ backgroundColor: '#0f0f0f' }}>
+						<div className='flex-shrink-0 flex justify-center p-4 border-t border-[var(--color-border)]' style={{ backgroundColor: 'var(--color-background)' }}>
 							<motion.div
 								whileHover={{ scale: 1.02 }}
 								whileTap={{ scale: 0.98 }}>

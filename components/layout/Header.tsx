@@ -39,11 +39,11 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					onClick={handleLogoClick}
 					title='Click to return to homepage'
 					aria-label='Return to homepage'
-					className="flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto">
+					className="flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
 					<div className='w-8 h-8 flex items-center justify-center flex-shrink-0'>
 						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
 					</div>
-					<span className='font-bold text-xl text-white whitespace-nowrap flex-shrink-0'>Dorkinians FC</span>
+					<span className='font-bold text-xl text-[var(--color-text-primary)] whitespace-nowrap flex-shrink-0'>Dorkinians FC</span>
 				</motion.button>
 
 				{/* Right side icons */}
@@ -53,12 +53,12 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 						<motion.button
 							data-testid="header-menu"
 							onClick={onMenuClick}
-							className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
+							className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title='Open stats navigation'
 							aria-label='Open stats navigation'>
-							<Bars3Icon className='w-6 h-6 text-white' />
+							<Bars3Icon className='w-6 h-6 text-[var(--color-text-primary)]' />
 						</motion.button>
 					)}
 					{/* Filter Icon - only show on stats pages */}
@@ -66,12 +66,12 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 						<motion.button
 							data-testid="header-filter"
 							onClick={onFilterClick}
-							className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
+							className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title='Open filters'
 							aria-label='Open filters'>
-							<FunnelIcon className='w-6 h-6 text-white' />
+							<FunnelIcon className='w-6 h-6 text-[var(--color-text-primary)]' />
 						</motion.button>
 					)}
 
@@ -79,12 +79,12 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					<motion.button
 						data-testid="header-settings"
 						onClick={onSettingsClick}
-						className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
+						className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center'
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.9 }}
 						title={isSettingsPage ? "Close settings" : "Open settings"}
 						aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
-						{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-white' /> : <Cog6ToothIcon className='w-6 h-6 text-white' />}
+						{isSettingsPage ? <XMarkIcon className='w-6 h-6 text-[var(--color-text-primary)]' /> : <Cog6ToothIcon className='w-6 h-6 text-[var(--color-text-primary)]' />}
 					</motion.button>
 				</div>
 			</div>

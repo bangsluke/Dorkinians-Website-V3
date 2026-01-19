@@ -46,7 +46,7 @@ const Button = forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
 		ref
 	) => {
 		// Base classes
-		const baseClasses = "inline-flex items-center justify-center font-medium transition-all duration-200 ease-out cursor-pointer border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
+		const baseClasses = "inline-flex items-center justify-center font-medium transition-all duration-200 ease-out cursor-pointer border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent";
 
 		// Variant classes
 		const variantClasses = {

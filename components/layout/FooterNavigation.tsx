@@ -44,10 +44,10 @@ export default function FooterNavigation() {
 									setMainPage(item.id);
 								}}
 								className={`w-full flex flex-col items-center justify-center space-y-1.5 md:space-y-0 md:space-x-2 md:flex-row px-4 py-2 rounded-xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-									isActive ? "text-dorkinians-yellow-text bg-yellow-400/20" : "text-white hover:text-dorkinians-yellow-text-hover hover:bg-white/20"
+									isActive ? "text-dorkinians-yellow-text bg-[var(--color-secondary)]/20" : "text-[var(--color-text-primary)] hover:text-dorkinians-yellow-text-hover hover:bg-[var(--color-surface)]"
 								}`}>
-								<Icon className={`w-6 h-6 ${isActive ? "text-dorkinians-yellow-text" : "text-white"}`} />
-								<span className={`text-sm font-medium whitespace-nowrap ${isActive ? "text-dorkinians-yellow-text" : "text-white"}`}>{item.label}</span>
+								<Icon className={`w-6 h-6 ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`} />
+								<span className={`text-sm font-medium whitespace-nowrap ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)]"}`}>{item.label}</span>
 							</button>
 						</motion.div>
 					);
