@@ -56,12 +56,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
 			"focus:ring-2 focus:ring-[var(--color-field-focus-ring)]",
 			"disabled:opacity-50 disabled:cursor-not-allowed",
 			sizeClasses[size],
-			iconLeft && "pl-10",
-			iconRight && "pr-10",
-			fullWidth && "w-full",
-			error && "border-[var(--color-error)]",
-			error && "focus:border-[var(--color-error)]",
-			error && "focus:ring-[var(--color-error-bg)]",
+			iconLeft ? "pl-10" : undefined,
+			iconRight ? "pr-10" : undefined,
+			fullWidth ? "w-full" : undefined,
+			error ? "border-[var(--color-error)]" : undefined,
+			error ? "focus:border-[var(--color-error)]" : undefined,
+			error ? "focus:ring-[var(--color-error-bg)]" : undefined,
 			className
 		);
 
