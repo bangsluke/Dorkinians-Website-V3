@@ -2,6 +2,8 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { FocusTrap } from "@headlessui/react";
+import { useEffect, useRef } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { allExampleQuestions } from "@/config/config";
 
@@ -12,6 +14,41 @@ interface ExampleQuestionsModalProps {
 }
 
 export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestion }: ExampleQuestionsModalProps) {
+	const previousActiveElementRef = useRef<HTMLElement | null>(null);
+	const firstQuestionRef = useRef<HTMLDivElement>(null);
+
+	// Track the element that had focus before modal opened
+	useEffect(() => {
+		if (isOpen) {
+			previousActiveElementRef.current = document.activeElement as HTMLElement;
+		}
+	}, [isOpen]);
+
+	// Handle ESC key
+	useEffect(() => {
+		if (!isOpen) return;
+
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				onClose();
+			}
+		};
+
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [isOpen, onClose]);
+
+	// Return focus to previous element when modal closes
+	useEffect(() => {
+		if (!isOpen && previousActiveElementRef.current) {
+			setTimeout(() => {
+				previousActiveElementRef.current?.focus();
+			}, 0);
+		}
+	}, [isOpen]);
+
 	const handleClose = () => {
 		onClose();
 	};
@@ -37,16 +74,22 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						onClick={handleClose}
+						aria-hidden="true"
 					/>
 
-					{/* Full-screen modal */}
-					<motion.div
-						className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
-						style={{ backgroundColor: '#0f0f0f' }}
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+					{/* Full-screen modal with Focus Trap */}
+					<FocusTrap initialFocus={firstQuestionRef}>
+						<motion.div
+							role="dialog"
+							aria-modal="true"
+							aria-label="Example Questions"
+							className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
+							style={{ backgroundColor: '#0f0f0f' }}
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ type: "spring", stiffness: 300, damping: 30 }}
+							onClick={(e) => e.stopPropagation()}>
 						<div className='h-full flex flex-col'>
 							{/* Header */}
 							<div className='flex items-center justify-between p-4 border-b border-[var(--color-border)]'>
@@ -73,12 +116,15 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 								{allExampleQuestions.map((question, index) => (
 									<motion.div
 										key={index}
+										ref={index === 0 ? firstQuestionRef : undefined}
 										initial={{ opacity: 0, x: -20 }}
 										animate={{ opacity: 1, x: 0 }}
 										transition={{ delay: index * 0.02 }}
 										className='rounded-lg p-3 md:p-4 cursor-pointer hover:bg-yellow-400/5 transition-colors bg-gradient-to-b from-white/[0.22] to-white/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 										onClick={() => handleQuestionClick(question)}
-										tabIndex={0}>
+										tabIndex={0}
+										role="button"
+										aria-label={`Select question: ${question}`}>
 										<div className='flex items-start gap-3'>
 											<span className='flex-shrink-0 w-6 h-6 rounded-full bg-dorkinians-yellow text-black text-xs font-semibold flex items-center justify-center'>
 												{index + 1}
@@ -100,6 +146,7 @@ export default function ExampleQuestionsModal({ isOpen, onClose, onSelectQuestio
 							</div>
 						</div>
 					</motion.div>
+					</FocusTrap>
 				</>
 			)}
 		</AnimatePresence>

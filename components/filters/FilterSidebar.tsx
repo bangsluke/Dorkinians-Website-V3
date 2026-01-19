@@ -548,18 +548,53 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 								exit={{ opacity: 0, scale: 0.9 }}
 								onClick={(e) => e.stopPropagation()}>
 								<div className='bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-6 max-w-md w-full'>
-									<h3 className='text-lg font-semibold text-[var(--color-text-primary)] mb-4'>Missing Required Filters</h3>
+									<h3 className='text-lg font-semibold text-[var(--color-text-primary)] mb-4'>Please Complete Required Filters</h3>
 									<p className='text-[var(--color-text-primary)]/80 mb-4'>
-										You must select at least one option from each section. The following sections are missing selections:
+										To apply filters and view accurate statistics, you need to select at least one option from each section. This ensures the results are properly filtered.
 									</p>
-									<ul className='list-disc list-inside text-[var(--color-text-primary)]/80 mb-6 space-y-1'>
-										{validationWarning.map((section) => (
-											<li key={section}>{section}</li>
-										))}
+									<p className='text-sm text-[var(--color-text-primary)]/70 mb-4'>
+										The following sections need selections:
+									</p>
+									<ul className='mb-6 space-y-2'>
+										{validationWarning.map((section) => {
+											const sectionIdMap: Record<string, string> = {
+												"Team": "team",
+												"Position": "position",
+												"Time Range": "timeRange",
+												"Location": "location",
+												"Opposition": "opposition",
+												"Competition": "competition",
+												"Result": "result",
+											};
+											const sectionId = sectionIdMap[section];
+											return (
+												<li key={section} className='flex items-center justify-between'>
+													<span className='text-[var(--color-text-primary)]/80'>{section}</span>
+													{sectionId && (
+														<button
+															onClick={() => {
+																setValidationWarning(null);
+																// Open the accordion section
+																toggleAccordion(sectionId);
+																// Scroll to the section after a brief delay
+																setTimeout(() => {
+																	const sectionElement = document.querySelector(`[data-testid="filter-${sectionId}"]`);
+																	if (sectionElement) {
+																		sectionElement.scrollIntoView({ behavior: "smooth", block: "center" });
+																	}
+																}, 100);
+															}}
+															className='text-dorkinians-yellow hover:text-dorkinians-yellow/80 underline text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+															Go to section
+														</button>
+													)}
+												</li>
+											);
+										})}
 									</ul>
 									<button
 										onClick={() => setValidationWarning(null)}
-										className='w-full px-4 py-2 bg-dorkinians-yellow text-black font-medium rounded-md hover:bg-dorkinians-yellow/90 transition-colors'>
+										className='w-full px-4 py-2 bg-dorkinians-yellow text-black font-medium rounded-md hover:bg-dorkinians-yellow/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 										OK
 									</button>
 								</div>

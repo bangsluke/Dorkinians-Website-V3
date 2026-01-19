@@ -55,6 +55,8 @@ const navigationItems = [
 
 export default function SidebarNavigation({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false, onMenuClick, showMenuIcon = false }: SidebarNavigationProps) {
 	const { currentMainPage, setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage, currentStatsSubPage, currentTOTWSubPage, currentClubInfoSubPage } = useNavigationStore();
+	const [showTooltip, setShowTooltip] = useState(false);
+	const [hasAnimated, setHasAnimated] = useState(false);
 	
 	// Check if sidebar has been animated before in this session
 	const [shouldAnimate, setShouldAnimate] = useState<boolean>(() => {
@@ -71,6 +73,33 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 			sessionStorage.setItem("sidebar-animated", "true");
 		}
 	}, [shouldAnimate]);
+
+	// Check if tooltip should be shown on first visit
+	useEffect(() => {
+		if (showMenuIcon && typeof window !== "undefined") {
+			const hasSeenTooltip = localStorage.getItem("stats-nav-menu-tooltip-seen");
+			if (!hasSeenTooltip) {
+				setShowTooltip(true);
+				// Hide tooltip after 5 seconds
+				const timer = setTimeout(() => {
+					setShowTooltip(false);
+					localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
+				}, 5000);
+				return () => clearTimeout(timer);
+			}
+		}
+	}, [showMenuIcon]);
+
+	// Add animation on first visit
+	useEffect(() => {
+		if (showMenuIcon && typeof window !== "undefined" && !hasAnimated) {
+			const hasAnimatedBefore = localStorage.getItem("stats-nav-menu-animated");
+			if (!hasAnimatedBefore) {
+				setHasAnimated(true);
+				localStorage.setItem("stats-nav-menu-animated", "true");
+			}
+		}
+	}, [showMenuIcon, hasAnimated]);
 
 	const handleLogoClick = () => {
 		setMainPage("home");
@@ -127,16 +156,35 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 					<div className='flex items-center justify-center space-x-2 w-full'>
 						{/* Burger Menu Icon - only show on stats pages */}
 						{showMenuIcon && onMenuClick && (
-							<motion.button
-								data-testid="nav-sidebar-menu"
-								onClick={onMenuClick}
-								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.9 }}
-								title='Open stats navigation'
-								aria-label='Open stats navigation'>
-								<Bars3Icon className='w-7 h-7 text-[var(--color-text-primary)]' />
-							</motion.button>
+							<div className='relative'>
+								<motion.button
+									data-testid="nav-sidebar-menu"
+									onClick={() => {
+										setShowTooltip(false);
+										onMenuClick();
+									}}
+									className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+									whileHover={{ scale: 1.1 }}
+									whileTap={{ scale: 0.9 }}
+									initial={hasAnimated ? {} : { scale: 1 }}
+									animate={hasAnimated ? {} : { scale: [1, 1.15, 1] }}
+									transition={hasAnimated ? {} : { duration: 0.6, repeat: 2, delay: 0.5 }}
+									title={showTooltip ? "Click to navigate sections" : "Open stats navigation"}
+									aria-label='Open stats navigation'>
+									<Bars3Icon className='w-7 h-7 text-[var(--color-text-primary)]' />
+								</motion.button>
+								{/* Tooltip */}
+								{showTooltip && (
+									<motion.div
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'>
+										Click to navigate sections
+										<div className='absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-dorkinians-yellow' />
+									</motion.div>
+								)}
+							</div>
 						)}
 						{/* Filter Icon - only show on stats pages */}
 						{showFilterIcon && onFilterClick && (

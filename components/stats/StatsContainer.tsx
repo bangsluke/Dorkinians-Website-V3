@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import PlayerStats from "./PlayerStats";
 import TeamStats from "./TeamStats";
@@ -20,8 +20,49 @@ const statsSubPages = [
 
 export default function StatsContainer() {
 	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
+	const [showSwipeTooltip, setShowSwipeTooltip] = useState(false);
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
+
+	// Check if swipe tooltip should be shown on mobile (after filter tooltip)
+	useEffect(() => {
+		if (typeof window !== "undefined" && window.innerWidth < 768) {
+			const checkAndShow = () => {
+				const hasSeenSwipeTooltip = localStorage.getItem("stats-nav-swipe-tooltip-seen");
+				const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
+				
+				if (!hasSeenSwipeTooltip && hasSeenFilterTooltip) {
+					// Wait 500ms after filter tooltip disappears, then show swipe tooltip
+					setTimeout(() => {
+						setShowSwipeTooltip(true);
+						setTimeout(() => {
+							setShowSwipeTooltip(false);
+							localStorage.setItem("stats-nav-swipe-tooltip-seen", "true");
+						}, 5000);
+					}, 500);
+					return true;
+				}
+				return false;
+			};
+			
+			// Check immediately
+			if (!checkAndShow()) {
+				// If filter tooltip not seen yet, check periodically
+				const interval = setInterval(() => {
+					if (checkAndShow()) {
+						clearInterval(interval);
+					}
+				}, 500);
+				
+				// Stop checking after 15 seconds
+				const timeout = setTimeout(() => clearInterval(interval), 15000);
+				return () => {
+					clearInterval(interval);
+					clearTimeout(timeout);
+				};
+			}
+		}
+	}, []);
 
 	// If current page is not found, default to the first page (Player Stats)
 	const validCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
@@ -91,12 +132,15 @@ export default function StatsContainer() {
 	return (
 		<div className='h-full overflow-hidden'>
 			{/* Stats Sub-Page Dot Indicators - Mobile only */}
-			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0'>
+			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0 relative'>
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
 						data-testid={`stats-subpage-indicator-${index}`}
-						onClick={() => setStatsSubPage(page.id)}
+						onClick={() => {
+							setShowSwipeTooltip(false);
+							setStatsSubPage(page.id);
+						}}
 						className={`w-[6.4px] h-[6.4px] rounded-full transition-all transition-normal ${
 							currentStatsSubPage === page.id
 								? "bg-dorkinians-yellow scale-125"
@@ -105,6 +149,17 @@ export default function StatsContainer() {
 						aria-label={`Go to ${page.label}`}
 					/>
 				))}
+				{/* Swipe Tooltip - appears below dots on mobile */}
+				{showSwipeTooltip && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+						className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'>
+						Swipe left or right to navigate
+						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-1 border-4 border-transparent border-b-dorkinians-yellow' />
+					</motion.div>
+				)}
 			</div>
 
 			{/* Swipeable Content */}

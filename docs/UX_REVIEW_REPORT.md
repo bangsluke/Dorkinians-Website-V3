@@ -1542,11 +1542,125 @@ Key focus areas:
 
 Implementation should follow the phased approach, starting with critical fixes and progressing through high, medium, and low priority items. Regular user testing and analytics monitoring will validate improvements and guide future iterations.
 
+## Implementation Plan for Issues #006 - #010
+
+### Issue #006: Mobile Sub-Page Navigation Touch Targets
+
+**Objective:** Increase touch target size for stats sub-page indicators to meet 44x44px minimum, while ensuring no overlap with adjacent elements.
+
+**Implementation Steps:**
+1. Modify `StatsContainer.tsx` to increase button container size to 44x44px
+2. Keep visual dot at 6.4px but center it within the larger clickable area
+3. Adjust spacing between indicators to prevent overlap (calculate based on 44px width + gap)
+4. Add proper padding and ensure touch target meets accessibility standards
+5. Test on mobile viewport to verify no overlap occurs
+
+**Files to Modify:**
+- `components/stats/StatsContainer.tsx` (lines 94-108)
+
+**Technical Details:**
+- Current: `w-[6.4px] h-[6.4px]` button with `space-x-3` (12px gap)
+- Target: `min-w-[44px] min-h-[44px]` button with visual dot centered
+- Spacing: Calculate gap to ensure 44px buttons don't overlap (minimum 8px gap = 52px total per indicator)
+
+---
+
+### Issue #007: Modal Focus Management
+
+**Objective:** Implement proper focus trapping, keyboard navigation, and ESC key handling for all modals.
+
+**Implementation Steps:**
+1. Create a reusable `ModalWrapper` component using `@headlessui/react` FocusTrap
+2. Add ESC key handler that closes modals consistently
+3. Implement focus return to trigger element on modal close
+4. Add `aria-modal="true"` and proper ARIA labels to all modals
+5. Update all modal components to use the new wrapper
+
+**Files to Modify:**
+- `components/modals/ExampleQuestionsModal.tsx`
+- `components/modals/FeedbackModal.tsx`
+- `components/modals/DataPrivacyModal.tsx`
+- Create: `components/modals/ModalWrapper.tsx` (reusable wrapper)
+
+**Technical Details:**
+- Use `@headlessui/react` FocusTrap component
+- Track trigger element ref before opening modal
+- Return focus on close using `useRef` and `useEffect`
+- Add `role="dialog"` and `aria-modal="true"` attributes
+- Ensure ESC key handler is consistent across all modals
+
+---
+
+### Issue #008: Filter Validation Message Clarity
+
+**Objective:** Improve validation message to explain why filters are required and provide actionable guidance.
+
+**Implementation Steps:**
+1. Update validation message text to explain why filters are required
+2. Add clickable links to scroll to missing sections in the filter sidebar
+3. Use more actionable language ("Please select..." instead of "Missing...")
+4. Consider adding inline validation indicators (optional enhancement)
+
+**Files to Modify:**
+- `components/filters/FilterSidebar.tsx` (lines 534-568)
+
+**Technical Details:**
+- Update heading: "Please Complete Required Filters"
+- Update description: "To apply filters, you need to select at least one option from each section. This ensures accurate results."
+- Add scroll-to-section functionality for each missing section
+- Make section names clickable to jump to that accordion section
+
+---
+
+### Issue #009: Player Selection Button Affordance
+
+**Objective:** Improve visual affordance of player selection dropdown to make it more obvious it's interactive.
+
+**Implementation Steps:**
+1. Add search icon to the button (left side)
+2. Improve hover state with more visible background change
+3. Add tooltip: "Type to search and select a player"
+4. Enhance visual treatment with subtle border or shadow on hover
+
+**Files to Modify:**
+- `components/PlayerSelection.tsx` (lines 256-266)
+
+**Technical Details:**
+- Add `MagnifyingGlassIcon` from `@heroicons/react` to left side of button
+- Update hover state: `hover:bg-yellow-400/10 hover:border-yellow-400/30`
+- Add `title` attribute for tooltip
+- Consider adding `focus-visible` ring for keyboard users
+
+---
+
+### Issue #010: Stats Navigation Menu Discoverability
+
+**Objective:** Improve discoverability of stats navigation menu (hamburger icon) to help users find section navigation.
+
+**Implementation Steps:**
+1. Add tooltip on first visit using localStorage to track if user has seen it
+2. Improve icon visibility with subtle animation on page load (first visit only)
+3. Add pulse animation or scale effect to draw attention
+4. Consider adding a badge indicator on first visit (optional)
+
+**Files to Modify:**
+- `components/layout/Header.tsx` (lines 52-63)
+- `components/layout/SidebarNavigation.tsx` (lines 129-140)
+- Add: `lib/hooks/useFirstVisit.ts` (optional, for tracking first visit)
+
+**Technical Details:**
+- Use `localStorage` to track if tooltip has been shown
+- Add `motion` animation with `initial`, `animate` props for attention-grabbing effect
+- Tooltip text: "Click to navigate sections"
+- Animation: Subtle scale or pulse on first load, then normal state
+
+---
+
 ## Implementation Checklist
 
 ### Critical Priority Issues
 
-- [ ] **Issue #002: Filter Sidebar Close Button Affordance**
+- [x] **Issue #002: Filter Sidebar Close Button Affordance**
   - Increase button size to minimum 44x44px
   - Add padding around icon
   - Improve hover state visibility
@@ -1556,7 +1670,7 @@ Implementation should follow the phased approach, starting with critical fixes a
 
 ### High Priority Issues
 
-- [ ] **Issue #001: Chatbot Input Discoverability**
+- [x] **Issue #001: Chatbot Input Discoverability**
   - Add prominent border or background treatment
   - Increase input size to `lg`
   - Add visual label above input ("Ask a Question")
@@ -1565,7 +1679,7 @@ Implementation should follow the phased approach, starting with critical fixes a
   - **File:** `components/chatbot/ChatbotInterface.tsx`
   - **Estimated Time:** 2 hours
 
-- [ ] **Issue #003: Footer Navigation Accessibility**
+- [x] **Issue #003: Footer Navigation Accessibility**
   - Add `aria-label` to all footer buttons
   - Add `aria-current="page"` to active button
   - Ensure proper focus order
@@ -1573,7 +1687,7 @@ Implementation should follow the phased approach, starting with critical fixes a
   - **File:** `components/layout/FooterNavigation.tsx`
   - **Estimated Time:** 1 hour
 
-- [ ] **Issue #005: Filter Application Feedback**
+- [x] **Issue #005: Filter Application Feedback**
   - Add toast notification: "Filters applied successfully"
   - Show active filter count in filter icon badge
   - Display filter pills when sidebar is closed
@@ -1581,7 +1695,7 @@ Implementation should follow the phased approach, starting with critical fixes a
   - **Files:** `components/filters/FilterSidebar.tsx`, `lib/hooks/useToast.ts`
   - **Estimated Time:** 2 hours
 
-- [ ] **Issue #007: Modal Focus Management**
+- [x] **Issue #007: Modal Focus Management**
   - Implement focus trap using `@headlessui/react` FocusTrap
   - Ensure ESC key closes all modals
   - Return focus to trigger element on close
@@ -1589,7 +1703,7 @@ Implementation should follow the phased approach, starting with critical fixes a
   - **Files:** All modal components (ExampleQuestionsModal, FeedbackModal, DataPrivacyModal, etc.)
   - **Estimated Time:** 4 hours
 
-- [ ] **Issue #010: Stats Navigation Menu Discoverability**
+- [x] **Issue #010: Stats Navigation Menu Discoverability**
   - Add tooltip on first visit: "Click to navigate sections"
   - Improve icon visibility
   - Add animation on page load to draw attention
@@ -1599,7 +1713,7 @@ Implementation should follow the phased approach, starting with critical fixes a
 
 ### Medium Priority Issues
 
-- [ ] **Issue #004: Loading Message Clarity**
+- [x] **Issue #004: Loading Message Clarity**
   - Revise loading messages to be more professional but friendly
   - Add progress indicator for long operations
   - Provide estimated wait time
@@ -1607,15 +1721,15 @@ Implementation should follow the phased approach, starting with critical fixes a
   - **File:** `components/chatbot/ChatbotInterface.tsx`
   - **Estimated Time:** 1 hour
 
-- [ ] **Issue #006: Mobile Sub-Page Navigation Touch Targets**
-  - Increase touch target to 44x44px
+- [x] **Issue #006: Mobile Sub-Page Navigation Touch Targets**
+  - Increase touch target to 44x44px (only until it doesn't overlap with other elements)
   - Keep visual dot small but increase clickable area
   - Add labels on long-press
   - Consider alternative navigation pattern for mobile
   - **File:** `components/stats/StatsContainer.tsx`
   - **Estimated Time:** 2 hours
 
-- [ ] **Issue #008: Filter Validation Message Clarity**
+- [x] **Issue #008: Filter Validation Message Clarity**
   - Explain why filters are required
   - Provide direct links to missing sections
   - Use more actionable language
@@ -1625,7 +1739,7 @@ Implementation should follow the phased approach, starting with critical fixes a
 
 ### Low Priority Issues
 
-- [ ] **Issue #009: Player Selection Button Affordance**
+- [x] **Issue #009: Player Selection Button Affordance**
   - Add clearer dropdown indicator
   - Improve hover state
   - Add tooltip explaining the interaction
