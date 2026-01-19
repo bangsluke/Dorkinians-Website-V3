@@ -178,9 +178,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {

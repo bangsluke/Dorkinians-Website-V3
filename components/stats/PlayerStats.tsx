@@ -27,6 +27,8 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
+import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -216,9 +218,10 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -236,6 +239,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-touch (500ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 500);
@@ -1585,6 +1589,8 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
+	const { showError } = useToast();
+	const [error, setError] = useState<string | null>(null);
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -2281,13 +2287,37 @@ export default function PlayerStats() {
 		);
 	}
 
+	if (error) {
+		return (
+			<div className='h-full flex items-center justify-center p-4'>
+				<ErrorState 
+					message="Failed to load player stats" 
+					error={error}
+					onShowToast={showError}
+					showToast={true}
+					onRetry={() => {
+						setError(null);
+						// Data will refresh automatically when selectedPlayer changes
+					}}
+				/>
+			</div>
+		);
+	}
+
 	if (!cachedPlayerData || !playerData) {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
-					<p className='text-white text-sm md:text-base'>No player data available. Please try selecting the player again.</p>
-				</div>
+				<EmptyState 
+					title="No player data available"
+					message="Please select a player to view their statistics."
+					action={selectedPlayer ? undefined : {
+						label: "Select Player",
+						onClick: () => {
+							enterEditMode();
+							setMainPage("stats");
+						}
+					}}
+				/>
 			</div>
 		);
 	}

@@ -43,7 +43,7 @@ export default function TOTWContainer() {
 						key={page.id}
 						data-testid={`totw-subpage-indicator-${page.id}`}
 						onClick={() => setTOTWSubPage(page.id)}
-						className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
+						className={`w-[6.4px] h-[6.4px] rounded-full transition-all transition-normal ${
 							currentTOTWSubPage === page.id
 								? "bg-dorkinians-yellow scale-125"
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"

@@ -82,6 +82,22 @@
 	/* Skeleton Colors */
 	--skeleton-base: #637469;
 	--skeleton-highlight: #6B6E6C;
+	
+	/* Animation Tokens */
+	--duration-fast: 150ms;
+	--duration-normal: 200ms;
+	--duration-slow: 300ms;
+	--duration-slower: 500ms;
+	
+	/* Easing */
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
+	--ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+	
+	/* Delays */
+	--delay-tooltip-mouse: 300ms;
+	--delay-tooltip-touch: 500ms;
 }
 
 @layer base {
@@ -286,9 +302,16 @@
 		backdrop-filter: blur(30px);
 		-webkit-backdrop-filter: blur(30px);
 	}
+	
+	/* Animation utility classes using design tokens */
+	.transition-normal {
+		transition-duration: var(--duration-normal);
+		transition-timing-function: var(--ease-out);
+	}
 
 	.btn-secondary {
-		@apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+		@apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.card {
@@ -305,7 +328,7 @@
 		background: var(--color-field-bg);
 		color: var(--color-text-primary);
 		@apply rounded-2xl px-4 py-3;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-input:focus {
@@ -333,7 +356,7 @@
 		background: var(--color-dropdown-bg);
 		color: var(--color-text-primary);
 		@apply px-4 py-3;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-dropdown-option:hover {
@@ -353,7 +376,7 @@
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
 		color: var(--color-text-primary);
 		@apply rounded-2xl p-4;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-chat-input:focus {

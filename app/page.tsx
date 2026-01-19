@@ -16,6 +16,8 @@ import ChatbotInterface from "@/components/chatbot/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
+import ToastContainer from "@/components/ui/ToastContainer";
+import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 import { log } from "@/lib/utils/logger";
@@ -42,6 +44,7 @@ export default function HomePage() {
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
+	const { toasts, dismissToast } = useToast();
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
@@ -365,6 +368,9 @@ export default function HomePage() {
 
 			{/* Update Toast */}
 			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
+
+			{/* Toast Notifications */}
+			<ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
 			{/* Development Clear Storage FAB */}
 			<DevClearStorageFAB />

@@ -139,6 +139,11 @@
 - [Contributing](#contributing)
   - [Development Guidelines](#development-guidelines)
   - [Repository Structure](#repository-structure)
+- [Design System & Component Usage](#design-system--component-usage)
+  - [Design Tokens](#design-tokens)
+  - [UI Components](#ui-components)
+  - [State Patterns](#state-patterns)
+  - [Animation Guidelines](#animation-guidelines)
 - [Support](#support)
 
 ## Architecture Details
@@ -2208,6 +2213,426 @@ Understanding this priority order helps identify where optimizations can be made
 - **Services**: Business logic and data processing
 - **Configuration**: Environment and schema configuration
 - **Documentation**: Project documentation and guides
+
+> [Back to Table of Contents](#table-of-contents)
+
+## Design System & Component Usage
+
+This section provides guidance on using the design system, design tokens, and UI components in the Dorkinians website.
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Design Tokens
+
+All design tokens are defined as CSS variables in `app/globals.css`. Use these tokens instead of hardcoded values.
+
+#### Color Tokens
+
+**Primary Colors:**
+- `var(--color-primary)` - Dorkinians Green (#1C8841)
+- `var(--color-primary-dark)` - Darker green variant
+- `var(--color-primary-darker)` - Darkest green variant
+- `var(--color-secondary)` - Dorkinians Yellow (#F9ED32)
+- `var(--color-secondary-dark)` - Darker yellow variant
+- `var(--color-secondary-darker)` - Darkest yellow variant
+
+**Semantic Colors:**
+- `var(--color-success)` - Success state (#10b981)
+- `var(--color-error)` - Error state (#ef4444)
+- `var(--color-warning)` - Warning state (#f59e0b)
+- `var(--color-info)` - Info state (#3b82f6)
+
+**Text Colors:**
+- `var(--color-text-primary)` - Primary text (#f3f3f3)
+- `var(--color-text-secondary)` - Secondary text (80% opacity)
+- `var(--color-text-tertiary)` - Tertiary text (60% opacity)
+
+**Example:**
+```tsx
+<div style={{ color: 'var(--color-text-primary)' }}>
+  Text content
+</div>
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Typography Tokens
+
+Font sizes and weights are defined in `tailwind.config.js` and available as Tailwind classes.
+
+**Font Sizes:**
+- `text-xs` - 0.75rem (12px)
+- `text-sm` - 0.875rem (14px)
+- `text-base` - 1rem (16px) - WCAG compliant
+- `text-lg` - 1.125rem (18px)
+- `text-xl` - 1.25rem (20px)
+- `text-2xl` - 1.5rem (24px)
+- `text-3xl` - 1.875rem (30px)
+- `text-4xl` - 2.25rem (36px)
+
+**Font Weights:**
+- `font-normal` - 400
+- `font-medium` - 500
+- `font-semibold` - 600
+- `font-bold` - 700
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Spacing Tokens
+
+Use Tailwind spacing scale (multiples of 4px):
+- `p-1` - 0.25rem (4px)
+- `p-2` - 0.5rem (8px)
+- `p-3` - 0.75rem (12px)
+- `p-4` - 1rem (16px)
+- `p-6` - 1.5rem (24px)
+- `p-8` - 2rem (32px)
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Animation Tokens
+
+Animation timing values are defined as CSS variables in `app/globals.css`.
+
+**Durations:**
+- `var(--duration-fast)` - 150ms
+- `var(--duration-normal)` - 200ms
+- `var(--duration-slow)` - 300ms
+- `var(--duration-slower)` - 500ms
+
+**Easing Functions:**
+- `var(--ease-in)` - cubic-bezier(0.4, 0, 1, 1)
+- `var(--ease-out)` - cubic-bezier(0, 0, 0.2, 1)
+- `var(--ease-in-out)` - cubic-bezier(0.4, 0, 0.2, 1)
+- `var(--ease-spring)` - cubic-bezier(0.68, -0.55, 0.265, 1.55)
+
+**Example:**
+```css
+.transition-example {
+  transition: all var(--duration-normal) var(--ease-out);
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Border Radius Tokens
+
+Border radius values are defined in `tailwind.config.js`:
+- `rounded-md` - 0.5rem (8px)
+- `rounded-lg` - 0.75rem (12px)
+- `rounded-2xl` - 0.875rem (14px)
+- `rounded-full` - 9999px
+
+> [Back to Table of Contents](#table-of-contents)
+
+### UI Components
+
+#### Button Component
+
+Located in `components/ui/Button.tsx`. Use this component for all buttons.
+
+**Variants:**
+- `primary` - Green gradient button (default)
+- `secondary` - Gray button
+- `tertiary` - Outlined button
+- `ghost` - Transparent button
+- `icon` - Icon-only button
+
+**Example:**
+```tsx
+import Button from "@/components/ui/Button";
+
+<Button variant="primary" onClick={handleClick}>
+  Click Me
+</Button>
+
+<Button variant="primary" loading={isLoading} iconLeft={<Icon />}>
+  Save
+</Button>
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Input Component
+
+Located in `components/ui/Input.tsx`. Use this component for all text inputs.
+
+**Example:**
+```tsx
+import Input from "@/components/ui/Input";
+
+<Input
+  label="Player Name"
+  value={playerName}
+  onChange={(e) => setPlayerName(e.target.value)}
+  error={errorMessage}
+  required
+/>
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### State Components
+
+Located in `components/ui/StateComponents.tsx`. Use these for consistent loading, error, and empty states.
+
+**LoadingState:**
+
+Shows a loading spinner or skeleton loader.
+
+```tsx
+import { LoadingState } from "@/components/ui/StateComponents";
+
+// Spinner variant
+<LoadingState message="Loading data..." variant="spinner" />
+
+// Skeleton variant (pass children for custom skeleton)
+<LoadingState variant="skeleton">
+  <CustomSkeletonContent />
+</LoadingState>
+```
+
+**ErrorState:**
+
+Shows an error message with optional retry button. Automatically shows toast notification.
+
+```tsx
+import { ErrorState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
+
+const { showError } = useToast();
+
+<ErrorState
+  message="Failed to load data"
+  error={errorMessage}
+  onShowToast={showError}
+  showToast={true}
+  onRetry={handleRetry}
+  retryLabel="Try Again"
+/>
+```
+
+**EmptyState:**
+
+Shows an empty state message with optional action button.
+
+```tsx
+import { EmptyState } from "@/components/ui/StateComponents";
+
+<EmptyState
+  title="No data available"
+  message="There is no data to display at this time."
+  action={{
+    label: "Refresh",
+    onClick: handleRefresh
+  }}
+/>
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Toast Component
+
+Located in `components/ui/Toast.tsx` and `components/ui/ToastContainer.tsx`. Use the `useToast` hook to show toast notifications.
+
+**Setup:**
+Add `ToastContainer` to your main page component:
+
+```tsx
+import ToastContainer from "@/components/ui/ToastContainer";
+import { useToast } from "@/lib/hooks/useToast";
+
+function MyPage() {
+  const { toasts, dismissToast } = useToast();
+  
+  return (
+    <>
+      {/* Your content */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+    </>
+  );
+}
+```
+
+**Usage:**
+```tsx
+import { useToast } from "@/lib/hooks/useToast";
+
+function MyComponent() {
+  const { showSuccess, showError, showInfo, showWarning } = useToast();
+  
+  const handleAction = async () => {
+    try {
+      await doSomething();
+      showSuccess("Action completed successfully!");
+    } catch (error) {
+      showError("Failed to complete action");
+    }
+  };
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Modal Patterns
+
+Modals should use Headless UI Dialog component or follow the pattern in existing modals.
+
+**Example:**
+```tsx
+import { Dialog } from "@headlessui/react";
+
+<Dialog open={isOpen} onClose={onClose}>
+  <Dialog.Panel>
+    {/* Modal content */}
+  </Dialog.Panel>
+</Dialog>
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### State Patterns
+
+#### Loading States
+
+**When to use:**
+- Spinner: For action buttons or small inline loading
+- Skeleton: For content areas that are loading
+
+**Pattern:**
+```tsx
+if (isLoading) {
+  return <LoadingState message="Loading..." variant="spinner" />;
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Error States
+
+**When to use:**
+- API failures
+- Network errors
+- Data fetch errors
+
+**Pattern:**
+```tsx
+import { ErrorState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
+
+const { showError } = useToast();
+
+if (error) {
+  return (
+    <ErrorState
+      message="Failed to load data"
+      error={error}
+      onShowToast={showError}
+      showToast={true}
+      onRetry={handleRetry}
+    />
+  );
+}
+```
+
+**Note:** ErrorState automatically shows a toast notification when `showToast={true}` and `onShowToast` is provided.
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Empty States
+
+**When to use:**
+- No data available
+- No results from search/filter
+- User hasn't selected required options
+
+**Pattern:**
+```tsx
+import { EmptyState } from "@/components/ui/StateComponents";
+
+if (data.length === 0) {
+  return (
+    <EmptyState
+      title="No results found"
+      message="Try adjusting your filters or search terms."
+      action={{
+        label: "Clear Filters",
+        onClick: handleClearFilters
+      }}
+    />
+  );
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Toast Notifications
+
+**When to use:**
+- Success messages (auto-dismiss after 3 seconds)
+- Error messages (auto-dismiss after 5 seconds)
+- Info messages (auto-dismiss after 4 seconds)
+- Warning messages (auto-dismiss after 5 seconds)
+
+**Best Practices:**
+- Keep messages concise
+- Use appropriate toast type
+- Don't show toasts for every action (only important ones)
+- ErrorState automatically shows error toasts
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Animation Guidelines
+
+#### Timing Durations
+
+**When to use which duration:**
+- `--duration-fast` (150ms): Micro-interactions, hover states
+- `--duration-normal` (200ms): Standard transitions, page changes
+- `--duration-slow` (300ms): Modals, complex animations
+- `--duration-slower` (500ms): Tooltip delays, long transitions
+
+**Framer Motion:**
+```tsx
+<motion.div
+  transition={{ duration: 0.2 }} // Matches --duration-normal
+  // ...
+/>
+```
+
+**CSS:**
+```css
+.element {
+  transition: all var(--duration-normal) var(--ease-out);
+}
+```
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Easing Functions
+
+**When to use which easing:**
+- `--ease-out`: Most common, feels natural (use for most transitions)
+- `--ease-in`: Accelerating animations (rarely used)
+- `--ease-in-out`: Symmetric animations
+- `--ease-spring`: Bouncy, playful animations
+
+> [Back to Table of Contents](#table-of-contents)
+
+#### Spring Animations
+
+For Framer Motion spring animations, use consistent config:
+
+```tsx
+<motion.div
+  transition={{ 
+    type: "spring", 
+    stiffness: 300, 
+    damping: 30 
+  }}
+  // ...
+/>
+```
 
 > [Back to Table of Contents](#table-of-contents)
 

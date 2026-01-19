@@ -16,6 +16,8 @@ import HomeAwayGauge from "./HomeAwayGauge";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 
@@ -198,9 +200,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -382,6 +385,8 @@ export default function TeamStats() {
 	});
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const { showError } = useToast();
 	
 	// Top players table state
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
@@ -599,6 +604,8 @@ export default function TeamStats() {
 				setTeamData(data.teamData);
 				lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : "Failed to load team data";
+				setError(errorMessage);
 				console.error("Error fetching team data:", error);
 				// Log PWA debug info on error
 				const pwaDebugInfo = getPWADebugInfo();
@@ -1118,6 +1125,62 @@ export default function TeamStats() {
 		}
 		return null;
 	};
+
+	// Show loading state
+	if (isLoadingTeamData && !teamData) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4'>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<StatCardSkeleton />
+					</SkeletonTheme>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state
+	if (error && !teamData) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4 flex items-center justify-center'>
+					<ErrorState 
+						message="Failed to load team stats" 
+						error={error}
+						onShowToast={showError}
+						showToast={true}
+						onRetry={() => {
+							setError(null);
+							// Data will refresh when selectedTeam or filters change
+						}}
+					/>
+				</div>
+			</div>
+		);
+	}
+
+	// Show empty state if no team selected
+	if (!selectedTeam) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4 flex items-center justify-center'>
+					<EmptyState 
+						title="No team selected"
+						message="Please select a team from the dropdown above to view team statistics."
+					/>
+				</div>
+			</div>
+		);
+	}
 
 	return (
 		<div className='h-full flex flex-col'>

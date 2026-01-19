@@ -16,6 +16,8 @@ import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { LoadingState, ErrorState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 
 interface SavedConversation {
 	question: string;
@@ -35,6 +37,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export default function ChatbotInterface() {
 	const { selectedPlayer, setMainPage, setStatsSubPage } = useNavigationStore();
+	const { showError } = useToast();
 	const isDevelopment = process.env.NODE_ENV === "development";
 	const [question, setQuestion] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
@@ -442,22 +445,16 @@ export default function ChatbotInterface() {
 			<div className='mt-3 md:mt-4'>
 				<AnimatePresence mode='wait'>
 				{isLoading && (
-					<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className='text-center py-8'>
-						<div className='inline-flex items-center space-x-2'>
-							<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400'></div>
-							<span className='text-yellow-300'>{loadingMessage}</span>
-						</div>
-					</motion.div>
+					<LoadingState message={loadingMessage} variant="spinner" />
 				)}
 
 				{error && (
-					<motion.div
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-						className='bg-red-900/20 border border-red-400/30 rounded-lg p-4 mb-4'>
-						<p className='text-red-300 text-sm'>❌ {error}</p>
-					</motion.div>
+					<ErrorState 
+						message="Failed to get response" 
+						error={error}
+						onShowToast={showError}
+						showToast={true}
+					/>
 				)}
 
 				{response && (
