@@ -7,10 +7,12 @@ import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation"
 import { statsPageConfig } from "@/config/config";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { useToast } from "@/lib/hooks/useToast";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
 	onClose: () => void;
+	onSuccess?: (message: string) => void;
 }
 
 interface AccordionSection {
@@ -19,7 +21,7 @@ interface AccordionSection {
 	isOpen: boolean;
 }
 
-export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
+export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSidebarProps) {
 	const {
 		playerFilters,
 		updatePlayerFilters,
@@ -31,6 +33,8 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		loadFilterData,
 		currentStatsSubPage,
 	} = useNavigationStore();
+	const { showSuccess: localShowSuccess } = useToast();
+	const showSuccess = onSuccess || localShowSuccess;
 
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
@@ -437,6 +441,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		setInitialFilterSnapshot(null);
 		snapshotCapturedRef.current = false;
 		userClearedRef.current = {};
+		
+		// Show success toast and close sidebar
+		showSuccess("Filters applied successfully");
+		onClose();
 	};
 
 	const handleReset = () => {
@@ -587,7 +595,12 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 										className='px-3 py-1 text-sm text-[var(--color-text-primary)]/80 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 										Reset
 									</button>
-									<button data-testid="filter-sidebar-close" onClick={onClose} className='p-2 text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' aria-label='Close filter sidebar'>
+									<button 
+										data-testid="filter-sidebar-close" 
+										onClick={onClose} 
+										className='min-w-[44px] min-h-[44px] p-3 flex items-center justify-center text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' 
+										aria-label='Close filter sidebar'
+										title="Close filters">
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>

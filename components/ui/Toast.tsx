@@ -16,19 +16,23 @@ export interface ToastProps {
 
 const toastStyles = {
 	success: {
-		bg: 'bg-green-500',
+		bg: 'bg-dorkinians-yellow',
+		text: 'text-black',
 		icon: '✅',
 	},
 	error: {
 		bg: 'bg-red-500',
+		text: 'text-white',
 		icon: '❌',
 	},
 	info: {
 		bg: 'bg-blue-500',
+		text: 'text-white',
 		icon: 'ℹ️',
 	},
 	warning: {
 		bg: 'bg-yellow-500',
+		text: 'text-white',
 		icon: '⚠️',
 	},
 };
@@ -48,14 +52,14 @@ export default function Toast({ message, type, duration = 5000, onDismiss, id }:
 	return (
 		<motion.div
 			key={id}
-			initial={{ opacity: 0, y: -20, x: 20 }}
-			animate={{ opacity: 1, y: 0, x: 0 }}
-			exit={{ opacity: 0, y: -20, x: 20 }}
+			initial={{ opacity: 0, y: -100 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -100 }}
 			transition={{ 
 				duration: 0.2, // Matches --duration-normal
 				ease: [0, 0, 0.2, 1] // Matches --ease-out
 			}}
-			className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg transition-all max-w-[calc(100vw-1rem)] sm:max-w-md ${style.bg} text-white`}
+			className={`fixed top-4 right-2 sm:right-4 z-50 p-3 sm:p-4 rounded-lg shadow-lg transition-all max-w-[calc(100vw-1rem)] sm:max-w-md ${style.bg} ${style.text}`}
 		>
 			<div className="flex items-center gap-2">
 				<span className="flex-shrink-0">{style.icon}</span>
@@ -63,7 +67,11 @@ export default function Toast({ message, type, duration = 5000, onDismiss, id }:
 				{onDismiss && (
 					<button
 						onClick={onDismiss}
-						className="flex-shrink-0 p-1 hover:bg-white/20 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+						className={`flex-shrink-0 p-1 rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+							type === 'success' 
+								? 'hover:bg-black/20 focus-visible:ring-black' 
+								: 'hover:bg-white/20 focus-visible:ring-white'
+						}`}
 						aria-label="Dismiss notification"
 					>
 						<XMarkIcon className="w-4 h-4" />

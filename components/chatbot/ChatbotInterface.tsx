@@ -132,13 +132,13 @@ export default function ChatbotInterface() {
 			const elapsed = (Date.now() - startTime) / 1000;
 
 			if (elapsed >= 40) {
-				setLoadingMessage("I'm probably stuck and not going to answer.");
+				setLoadingMessage("This is taking longer than expected. Please wait or try rephrasing your question.");
 			} else if (elapsed >= 20) {
-				setLoadingMessage("Real challenging question this...");
+				setLoadingMessage("Processing your question... This may take a few more seconds.");
 			} else if (elapsed >= 10) {
-				setLoadingMessage("Tricky question this one...");
+				setLoadingMessage("Processing your question... This may take a few seconds.");
 			} else if (elapsed >= 5) {
-				setLoadingMessage("Thinking really hard...");
+				setLoadingMessage("Processing your question... This may take a few seconds.");
 			}
 		}, 100);
 
@@ -404,41 +404,35 @@ export default function ChatbotInterface() {
 		<div className='w-full max-w-2xl'>
 			{/* Question Input */}
 			<form onSubmit={handleSubmit} className='space-y-3 md:space-y-4'>
-				<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
-					<Input
-						data-testid="chatbot-input"
-						type='text'
-						value={question}
-						onChange={(e) => setQuestion(e.target.value)}
-						placeholder='Ask me about player, club or team stats...'
-						className='w-full'
-						size="md"
-						disabled={isLoading}
-					/>
-					{/* Desktop button - hidden on mobile */}
-					<Button
-						data-testid="chatbot-submit"
-						type='submit'
-						variant="secondary"
-						size="md"
-						disabled={!question.trim() || isLoading}
-						loading={isLoading}
-						icon={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
-						className='hidden md:block' />
+				<div className='space-y-2'>
+					<label htmlFor="chatbot-input" className='block text-sm font-medium text-dorkinians-yellow'>
+						Ask a Question
+					</label>
+					<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
+						<Input
+							id="chatbot-input"
+							data-testid="chatbot-input"
+							type='text'
+							value={question}
+							onChange={(e) => setQuestion(e.target.value)}
+							placeholder='Ask me about player, club or team stats...'
+							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
+							size="lg"
+							disabled={isLoading}
+						/>
+						<Button
+							data-testid="chatbot-submit"
+							type='submit'
+							variant="secondary"
+							size="md"
+							disabled={!question.trim() || isLoading}
+							loading={isLoading}
+							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
+							className='w-full md:w-auto'>
+							{isLoading ? "Searching..." : "Search"}
+						</Button>
+					</div>
 				</div>
-				{/* Mobile button - shown below input on mobile screens */}
-				<Button
-					data-testid="chatbot-submit"
-					type='submit'
-					variant="secondary"
-					size="sm"
-					disabled={!question.trim() || isLoading}
-					loading={isLoading}
-					fullWidth
-					iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
-					className='md:hidden'>
-					{isLoading ? "Searching..." : "Search"}
-				</Button>
 			</form>
 
 			{/* Response Display */}

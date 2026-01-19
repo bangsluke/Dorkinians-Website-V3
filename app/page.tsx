@@ -44,7 +44,7 @@ export default function HomePage() {
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
-	const { toasts, dismissToast } = useToast();
+	const { toasts, dismissToast, showSuccess } = useToast();
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
@@ -360,7 +360,7 @@ export default function HomePage() {
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}
-				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} />
+				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} onSuccess={showSuccess} />
 				
 				{/* Stats Navigation Menu */}
 				<StatsNavigationMenu isOpen={showStatsMenu} onClose={() => setShowStatsMenu(false)} />
