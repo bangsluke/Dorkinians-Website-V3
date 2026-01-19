@@ -6,6 +6,7 @@ import { useNavigationStore, type MainPage, type StatsSubPage, type TOTWSubPage,
 import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
+import { useState, useEffect } from "react";
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -54,12 +55,25 @@ const navigationItems = [
 
 export default function SidebarNavigation({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false, onMenuClick, showMenuIcon = false }: SidebarNavigationProps) {
 	const { currentMainPage, setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage, currentStatsSubPage, currentTOTWSubPage, currentClubInfoSubPage } = useNavigationStore();
+	
+	// Check if sidebar has been animated before in this session
+	const [shouldAnimate, setShouldAnimate] = useState<boolean>(() => {
+		if (typeof window !== "undefined") {
+			const hasAnimated = sessionStorage.getItem("sidebar-animated");
+			return !hasAnimated;
+		}
+		return true; // Default to animating on SSR
+	});
+
+	// Mark as animated in sessionStorage after mount
+	useEffect(() => {
+		if (typeof window !== "undefined" && shouldAnimate) {
+			sessionStorage.setItem("sidebar-animated", "true");
+		}
+	}, [shouldAnimate]);
 
 	const handleLogoClick = () => {
 		setMainPage("home");
-		if (typeof window !== "undefined") {
-			window.location.href = "/";
-		}
 	};
 
 	const handleSubPageClick = (mainPageId: MainPage, subPageId: string) => {
@@ -70,10 +84,6 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 			setTOTWSubPage(subPageId as TOTWSubPage);
 		} else if (mainPageId === "club-info") {
 			setClubInfoSubPage(subPageId as ClubInfoSubPage);
-		}
-		// Navigate to home page to show the selected sub-page
-		if (typeof window !== "undefined") {
-			window.location.href = "/";
 		}
 	};
 
@@ -91,9 +101,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 	return (
 		<motion.aside
 			className='hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-[220px] flex-col'
-			initial={{ x: -220 }}
+			style={shouldAnimate ? undefined : { transform: 'translateX(0)' }}
+			initial={shouldAnimate ? { x: -220 } : { x: 0 }}
 			animate={{ x: 0 }}
-			transition={{ type: "spring", stiffness: 300, damping: 30 }}>
+			transition={shouldAnimate ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
 			{/* Sidebar container */}
 			<div className='h-full w-full flex flex-col'>
 				{/* Header Section */}
@@ -105,11 +116,11 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						onClick={handleLogoClick}
 						title='Click to return to homepage'
 						aria-label='Return to homepage'
-						className='flex flex-col items-center space-y-3 mb-4 p-0 bg-transparent border-none h-auto w-full'>
+						className='flex flex-col items-center space-y-3 mb-4 p-0 bg-transparent border-none h-auto w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 						<div className='w-[72px] h-[72px] flex items-center justify-center'>
 							<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={66} height={66} className='rounded-full' />
 						</div>
-						<span className='font-bold text-[22px] text-white text-center whitespace-nowrap'>Dorkinians FC</span>
+						<span className='font-bold text-[22px] text-[var(--color-text-primary)] text-center whitespace-nowrap'>Dorkinians FC</span>
 					</motion.button>
 
 					{/* Action Icons */}
@@ -119,12 +130,12 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							<motion.button
 								data-testid="nav-sidebar-menu"
 								onClick={onMenuClick}
-								className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
+								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open stats navigation'
 								aria-label='Open stats navigation'>
-								<Bars3Icon className='w-8 h-8 text-white' />
+								<Bars3Icon className='w-8 h-8 text-[var(--color-text-primary)]' />
 							</motion.button>
 						)}
 						{/* Filter Icon - only show on stats pages */}
@@ -132,12 +143,12 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							<motion.button
 								data-testid="nav-sidebar-filter"
 								onClick={onFilterClick}
-								className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
+								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 								whileHover={{ scale: 1.1 }}
 								whileTap={{ scale: 0.9 }}
 								title='Open filters'
 								aria-label='Open filters'>
-								<FunnelIcon className='w-8 h-8 text-white' />
+								<FunnelIcon className='w-8 h-8 text-[var(--color-text-primary)]' />
 							</motion.button>
 						)}
 						{/* Settings Icon */}
@@ -145,13 +156,13 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 							data-testid="nav-sidebar-settings"
 							onClick={onSettingsClick}
 							className={`p-2 rounded-full transition-colors flex items-center justify-center ${
-								isSettingsPage ? "bg-yellow-400/20 hover:bg-yellow-400/30" : "hover:bg-white/20"
+								isSettingsPage ? "bg-[var(--color-secondary)]/20 hover:bg-[var(--color-secondary)]/30" : "hover:bg-[var(--color-surface)]"
 							}`}
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title={isSettingsPage ? "Close settings" : "Open settings"}
 							aria-label={isSettingsPage ? "Close settings" : "Open settings"}>
-							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-dorkinians-yellow-text' /> : <Cog6ToothIcon className='w-8 h-8 text-white' />}
+							{isSettingsPage ? <XMarkIcon className='w-8 h-8 text-dorkinians-yellow-text' /> : <Cog6ToothIcon className='w-8 h-8 text-[var(--color-text-primary)]' />}
 						</motion.button>
 					</div>
 				</div>
@@ -171,7 +182,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 									<button
 										data-testid={`nav-sidebar-${item.id}`}
 										onClick={() => {
-											log("info", "🔘 [SidebarNavigation] Button clicked:", item.id);
+											log("info", "?? [SidebarNavigation] Button clicked:", item.id);
 											setMainPage(item.id);
 											
 											// Set default sub-page for pages with sub-pages
@@ -182,17 +193,12 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 											} else if (item.id === "club-info") {
 												setClubInfoSubPage("club-information");
 											}
-											
-											// Navigate to home page
-											if (typeof window !== "undefined") {
-												window.location.href = "/";
-											}
 										}}
 										className={`group w-full flex items-center space-x-3 px-4 py-3 justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-											isActive ? "text-dorkinians-yellow-text bg-[#5E7F1C]" : "text-white hover:bg-white/20"
+											isActive ? "text-dorkinians-yellow-text bg-[var(--color-primary)]/40" : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 										}`}>
-										<Icon className={`w-8 h-8 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`} />
-										<span className={`text-[16px] font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>
+										<Icon className={`w-8 h-8 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`} />
+										<span className={`text-[16px] font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>
 									</button>
 								</motion.div>
 								{hasSubPages && (
@@ -209,10 +215,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 														onClick={() => handleSubPageClick(item.id, subPage.id)}
 														className={`group w-full flex items-center px-4 py-2 text-left justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 															isSubActive
-																? "text-dorkinians-yellow-text bg-[#4A6816]"
-																: "text-white hover:bg-white/20"
+																? "text-dorkinians-yellow-text bg-[var(--color-primary)]/35"
+																: "text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 														}`}>
-														<span className={`text-[14px] font-medium ${isSubActive ? "text-dorkinians-yellow-text" : "text-white group-hover:text-dorkinians-yellow-text-hover"}`}>{subPage.label}</span>
+														<span className={`text-[14px] font-medium ${isSubActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{subPage.label}</span>
 													</button>
 												</motion.div>
 											);
