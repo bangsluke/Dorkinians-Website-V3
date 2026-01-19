@@ -241,7 +241,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
 							src={`/stat-icons/${stat.iconName}.svg`}
@@ -252,10 +252,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 						/>
 					</div>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
+				<td className='px-3 md:px-4 py-2 md:py-3 text-right'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
 					</span>

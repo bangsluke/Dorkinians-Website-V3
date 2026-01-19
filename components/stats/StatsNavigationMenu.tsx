@@ -362,19 +362,19 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 
 											{/* Sections - Nested with proper indentation */}
 											{hasSections && isExpanded && (
-												<div className='space-y-2 pl-4'>
-													{item.sections.map((section) => (
+												<div className='space-y-1 pl-4'>
+													{item.sections.map((section, index) => (
 														<motion.div
 															key={section.id}
 															whileHover={{ scale: 1.01 }}
 															whileTap={{ scale: 0.99 }}>
 															<button
 																onClick={() => handleSectionClick(item.id, section.id, (section as any).isDataTable)}
-																className='w-full p-3 bg-[var(--color-surface)]/50 hover:bg-[var(--color-surface-elevated)] text-left rounded-2xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+																className='w-full p-3 bg-[var(--color-border-subtle)] hover:bg-[var(--color-surface-elevated)] text-left rounded-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 																<div className='flex items-center justify-between'>
 																	<div className='flex items-center space-x-3'>
 																		<div className='w-2 h-2 rounded-full bg-dorkinians-yellow flex-shrink-0'></div>
-																		<span className='text-sm text-gray-300'>{section.label}</span>
+																		<span className='text-sm text-[var(--color-text-primary)]'>{section.label}</span>
 																	</div>
 																	<div className='text-dorkinians-yellow-text flex-shrink-0'>
 																		<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>

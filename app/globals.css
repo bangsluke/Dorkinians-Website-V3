@@ -89,10 +89,10 @@
 		font-family: "Inter", system-ui, sans-serif;
 	}
 
-	/* Desktop font size reduction (30% smaller) */
+	/* Desktop font size reduction (15% smaller) */
 	@media (min-width: 768px) {
 		html {
-			font-size: 70%;
+			font-size: 85%;
 		}
 	}
 

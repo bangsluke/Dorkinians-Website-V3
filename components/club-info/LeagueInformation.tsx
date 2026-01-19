@@ -944,16 +944,16 @@ export default function LeagueInformation() {
 											<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 												<thead className='sticky top-0 z-10'>
 													<tr className='bg-white/20'>
-														<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-														<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+														<th className='w-8 px-3 py-2 md:px-4 md:py-3 text-left text-white font-semibold text-xs md:text-sm'></th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -970,16 +970,16 @@ export default function LeagueInformation() {
 																			: ""
 																} hover:bg-white/5`}
 															>
-																<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-white text-xs md:text-sm'>{entry.position}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-white text-xs md:text-sm'>{entry.team}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
 																	{entry.points}
 																</td>
 															</tr>

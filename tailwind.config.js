@@ -38,14 +38,10 @@ module.exports = {
 				xl: "0.75rem", // 12px
 				"2xl": "0.875rem", // 14px - matches existing design
 			},
-			screens: {
-				xs: "475px",
-			},
-			spacing: {
-				18: "4.5rem",
-				88: "22rem",
-			},
-			animation: {
+		screens: {
+			xs: "475px",
+		},
+		animation: {
 				"slide-in": "slideIn 0.3s ease-out",
 				"slide-out": "slideOut 0.3s ease-in",
 			},
