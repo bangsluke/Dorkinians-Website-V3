@@ -26,6 +26,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -2684,7 +2685,9 @@ export default function PlayerStats() {
 					{/* Skeleton - shown while loading or icons not loaded */}
 					{(isLoadingPlayerData || !allIconsLoaded) && (
 						<div className='absolute inset-0 z-10 bg-transparent'>
-							<StatCardSkeleton />
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<StatCardSkeleton />
+							</SkeletonTheme>
 						</div>
 					)}
 					{/* Actual content - always rendered so images can load */}
@@ -3560,19 +3563,22 @@ export default function PlayerStats() {
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-					<button
+					<Button
+						variant="icon"
+						size="sm"
 						onClick={handleEditClick}
-						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Edit player selection'>
-						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+						title='Edit player selection'
+						className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
+						icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>

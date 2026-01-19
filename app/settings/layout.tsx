@@ -1,8 +1,8 @@
 "use client";
 
-import SidebarNavigation from "@/components/SidebarNavigation";
-import Header from "@/components/Header";
-import FooterNavigation from "@/components/FooterNavigation";
+import SidebarNavigation from "@/components/layout/SidebarNavigation";
+import Header from "@/components/layout/Header";
+import FooterNavigation from "@/components/layout/FooterNavigation";
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
 	const handleSettingsClick = () => {

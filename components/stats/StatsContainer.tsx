@@ -4,10 +4,10 @@ import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useEffect } from "react";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
-import PlayerStats from "./stats/PlayerStats";
-import TeamStats from "./stats/TeamStats";
-import ClubStats from "./stats/ClubStats";
-import Comparison from "./stats/Comparison";
+import PlayerStats from "./PlayerStats";
+import TeamStats from "./TeamStats";
+import ClubStats from "./ClubStats";
+import Comparison from "./Comparison";
 import { log } from "@/lib/utils/logger";
 
 // Define page arrays outside component to avoid dependency issues

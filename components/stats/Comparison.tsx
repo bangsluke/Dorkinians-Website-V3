@@ -18,6 +18,7 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip,
 import { RadarChartSkeleton } from "@/components/skeletons";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import Button from "@/components/ui/Button";
 
 interface Player {
 	playerName: string;
@@ -853,12 +854,13 @@ export default function Comparison() {
 					<div className='flex-1' style={{ flexBasis: '40%', minWidth: 0 }}>
 						<div className='flex items-center gap-2 mb-2'>
 							<span className='text-sm md:text-base text-white/70'>Player 1</span>
-							<button
+							<Button
+								variant="icon"
+								size="sm"
 								onClick={handleEditClick}
-								className='flex items-center justify-center w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors flex-shrink-0'
-								title='Edit player selection'>
-								<PenOnPaperIcon className='h-3 w-3 md:h-4 md:w-4' />
-							</button>
+								title='Edit player selection'
+								className='w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 flex-shrink-0'
+								icon={<PenOnPaperIcon className='h-3 w-3 md:h-4 md:w-4' />} />
 						</div>
 						<div className='py-3 text-left text-yellow-300 text-sm md:text-base truncate'>
 							{selectedPlayer}

@@ -7,13 +7,14 @@ import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
-import NumberCard from "./chatbot-response/NumberCard";
-import Calendar from "./chatbot-response/Calendar";
-import Table from "./chatbot-response/Table";
-import Chart from "./chatbot-response/Chart";
-import ExampleQuestionsModal from "./modals/ExampleQuestionsModal";
+import NumberCard from "./NumberCard";
+import Calendar from "./Calendar";
+import Table from "./Table";
+import Chart from "./Chart";
+import ExampleQuestionsModal from "../modals/ExampleQuestionsModal";
 import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
+import Button from "@/components/ui/Button";
 
 interface SavedConversation {
 	question: string;
@@ -410,38 +411,29 @@ export default function ChatbotInterface() {
 						disabled={isLoading}
 					/>
 					{/* Desktop button - hidden on mobile */}
-					<button
+					<Button
 						data-testid="chatbot-submit"
 						type='submit'
+						variant="secondary"
+						size="md"
 						disabled={!question.trim() || isLoading}
-						className='CTA px-3 md:px-4 py-2 md:py-2 text-base w-full md:w-auto hidden md:block'>
-						{isLoading ? (
-							<svg className='animate-spin h-4 w-4 md:h-5 md:w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
-							</svg>
-						) : (
-							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
-						)}
-					</button>
+						loading={isLoading}
+						icon={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
+						className='hidden md:block' />
 				</div>
 				{/* Mobile button - shown below input on mobile screens */}
-				<button data-testid="chatbot-submit" type='submit' disabled={!question.trim() || isLoading} className='CTA px-4 py-2 text-sm w-full md:hidden'>
-					{isLoading ? (
-						<div className='flex items-center justify-center space-x-2'>
-							<svg className='animate-spin h-4 w-4' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
-							</svg>
-							<span className='text-black font-medium'>Searching...</span>
-						</div>
-					) : (
-						<div className='flex items-center justify-center space-x-2'>
-							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
-							<span className='text-black font-medium'>Search</span>
-						</div>
-					)}
-				</button>
+				<Button
+					data-testid="chatbot-submit"
+					type='submit'
+					variant="secondary"
+					size="sm"
+					disabled={!question.trim() || isLoading}
+					loading={isLoading}
+					fullWidth
+					iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
+					className='md:hidden'>
+					{isLoading ? "Searching..." : "Search"}
+				</Button>
 			</form>
 
 			{/* Response Display */}
@@ -486,14 +478,16 @@ export default function ChatbotInterface() {
 						{/* Navigation button for full stats question */}
 						{response.answer.includes("Player Stats page") && (
 							<div className='mb-3 md:mb-4 flex justify-center'>
-								<button
+								<Button
+									variant="secondary"
+									size="md"
 									onClick={() => {
 										setMainPage("stats");
 										setStatsSubPage("player-stats");
 									}}
-									className='CTA px-4 py-2 text-sm md:text-base w-full md:w-auto'>
-									<span className='text-black font-medium'>View Player Stats</span>
-								</button>
+									className='w-full md:w-auto'>
+									View Player Stats
+								</Button>
 							</div>
 						)}
 
@@ -542,12 +536,14 @@ export default function ChatbotInterface() {
 							))}
 						</div>
 						<div className='flex justify-center mt-2 mb-4'>
-							<button
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={() => setShowExampleQuestionsModal(true)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
-								data-testid="chatbot-show-more-example-questions">
+								data-testid="chatbot-show-more-example-questions"
+								className="underline text-yellow-300 hover:text-yellow-200">
 								Show more example questions
-							</button>
+							</Button>
 						</div>
 					</div>
 				)}
@@ -557,11 +553,13 @@ export default function ChatbotInterface() {
 					<div>
 						<div className='flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4'>
 							<h3 className='font-semibold text-white text-base whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
-							<button
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+								className="underline text-yellow-300 hover:text-yellow-200">
 								{showExampleQuestions ? "Hide" : "Show"} example questions
-							</button>
+							</Button>
 						</div>
 
 						{/* Show past conversations or example questions based on toggle */}
@@ -622,11 +620,13 @@ export default function ChatbotInterface() {
 						)}
 						{showExampleQuestions && (
 							<div className='flex justify-center mt-2 mb-4'>
-								<button
+								<Button
+									variant="ghost"
+									size="sm"
 									onClick={() => setShowExampleQuestionsModal(true)}
-									className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+									className="underline text-yellow-300 hover:text-yellow-200">
 									Show more example questions
-								</button>
+								</Button>
 							</div>
 						)}
 					</div>

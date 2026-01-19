@@ -3,8 +3,8 @@
 import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type TOTWSubPage } from "@/lib/stores/navigation";
-import TeamOfTheWeek from "./totw/TeamOfTheWeek";
-import PlayersOfMonth from "./totw/PlayersOfMonth";
+import TeamOfTheWeek from "./TeamOfTheWeek";
+import PlayersOfMonth from "./PlayersOfMonth";
 
 const totwSubPages = [
 	{ id: "totw" as TOTWSubPage, component: TeamOfTheWeek, label: "Team of the Week" },

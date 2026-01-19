@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation";
 import { statsPageConfig } from "@/config/config";
+import Button from "@/components/ui/Button";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
@@ -644,23 +645,25 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													{filterData.seasons.length === 0 ? (
 														<div className='text-sm text-white/60'>Loading seasons...</div>
 													) : (
-														<div className='relative'>
-															<div className='max-h-32 overflow-y-auto'>
-																<div className='grid grid-cols-2 gap-1'>
-																	{filterData.seasons.map((season) => (
-																		<label key={season.season} className='flex items-center min-h-[36px]'>
-																			<input
-																				type='checkbox'
-																				checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
-																				onChange={() => handleSeasonToggle(season.season)}
-																				className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
-																			/>
-																			<span className='text-base md:text-sm text-white/80'>{season.season}</span>
-																		</label>
-																	))}
-																</div>
+														<div 
+															className='max-h-32 overflow-y-scroll'
+															style={{
+																scrollbarWidth: 'thin',
+																scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+															}}>
+															<div className='grid grid-cols-2 gap-1'>
+																{filterData.seasons.map((season) => (
+																	<label key={season.season} className='flex items-center min-h-[36px]'>
+																		<input
+																			type='checkbox'
+																			checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
+																			onChange={() => handleSeasonToggle(season.season)}
+																			className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																		/>
+																		<span className='text-base md:text-sm text-white/80'>{season.season}</span>
+																	</label>
+																))}
 															</div>
-															<div className='absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f0f0f] to-transparent pointer-events-none' />
 														</div>
 													)}
 												</div>
@@ -1073,18 +1076,22 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 												))}
 											</div>
 											<div className='flex gap-2'>
-												<button
-													type='button'
+												<Button
+													variant="tertiary"
+													size="sm"
 													onClick={handlePositionCheckAll}
-													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													fullWidth
+													className="flex-1">
 													Check all
-												</button>
-												<button
-													type='button'
+												</Button>
+												<Button
+													variant="tertiary"
+													size="sm"
 													onClick={handlePositionClearAll}
-													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													fullWidth
+													className="flex-1">
 													Clear all
-												</button>
+												</Button>
 											</div>
 										</div>
 									)}
@@ -1095,21 +1102,21 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 							{/* Footer */}
 							<div className='border-t border-white/20 p-4' style={{ marginBottom: '10px' }}>
 								<div className='flex space-x-3'>
-									<button
+									<Button
+										variant="tertiary"
+										size="md"
 										onClick={onClose}
-										className='flex-1 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+										fullWidth>
 										Close
-									</button>
-									<button
+									</Button>
+									<Button
+										variant="secondary"
+										size="md"
 										onClick={handleApply}
 										disabled={!hasFilterChanges()}
-										className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-											hasFilterChanges()
-												? "bg-dorkinians-yellow text-black hover:bg-dorkinians-yellow/90"
-												: "bg-white/10 text-white/40 cursor-not-allowed"
-										}`}>
+										fullWidth>
 										Apply Filters
-									</button>
+									</Button>
 								</div>
 							</div>
 						</div>

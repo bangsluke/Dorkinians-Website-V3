@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Cog6ToothIcon, XMarkIcon, FunnelIcon, Bars3Icon } from "@heroicons/react/24/outline";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Image from "next/image";
+import Button from "@/components/ui/Button";
 
 interface HeaderProps {
 	onSettingsClick: () => void;
@@ -30,29 +31,29 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 			initial={isSettingsPage ? { y: 0 } : { y: -100 }}
 			animate={{ y: 0 }}
 			transition={isSettingsPage ? {} : { type: "spring", stiffness: 300, damping: 30 }}>
-			<div className='flex items-center justify-between px-4 md:px-[15%] py-3'>
-				{/* Club Logo */}
+			<div className='flex items-center justify-between px-4 md:px-[15%] py-3 min-w-0'>
+				{/* Club Logo and Dorkinians FC Text */}
 				<motion.button
-					className='flex items-center space-x-2 cursor-pointer bg-transparent border-none p-0'
 					whileHover={{ scale: 1.05 }}
 					whileTap={{ scale: 0.95 }}
 					onClick={handleLogoClick}
 					title='Click to return to homepage'
-					aria-label='Return to homepage'>
-					<div className='w-8 h-8 flex items-center justify-center'>
+					aria-label='Return to homepage'
+					className="flex-shrink-0 min-w-fit inline-flex items-center space-x-2 p-0 bg-transparent border-none h-auto">
+					<div className='w-8 h-8 flex items-center justify-center flex-shrink-0'>
 						<Image src='/icons/icon-96x96.png' alt='Dorkinians FC Logo' width={32} height={32} className='rounded-full' />
 					</div>
-					<span className='font-bold text-xl text-white'>Dorkinians FC</span>
+					<span className='font-bold text-xl text-white whitespace-nowrap flex-shrink-0'>Dorkinians FC</span>
 				</motion.button>
 
 				{/* Right side icons */}
-				<div className='flex items-center space-x-2'>
+				<div className='flex items-center space-x-2 flex-shrink-0'>
 					{/* Burger Menu Icon - only show on stats pages */}
 					{showMenuIcon && onMenuClick && (
 						<motion.button
 							data-testid="header-menu"
 							onClick={onMenuClick}
-							className='p-2 rounded-full hover:bg-white/20 transition-colors'
+							className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title='Open stats navigation'
@@ -65,7 +66,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 						<motion.button
 							data-testid="header-filter"
 							onClick={onFilterClick}
-							className='p-2 rounded-full hover:bg-white/20 transition-colors'
+							className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 							title='Open filters'
@@ -78,7 +79,7 @@ export default function Header({ onSettingsClick, isSettingsPage = false, onFilt
 					<motion.button
 						data-testid="header-settings"
 						onClick={onSettingsClick}
-						className='p-2 rounded-full hover:bg-white/20 transition-colors'
+						className='p-2 rounded-full hover:bg-white/20 transition-colors flex items-center justify-center'
 						whileHover={{ scale: 1.1 }}
 						whileTap={{ scale: 0.9 }}
 						title={isSettingsPage ? "Close settings" : "Open settings"}

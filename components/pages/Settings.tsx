@@ -3,8 +3,9 @@
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import PWAInstallButton from "@/components/PWAInstallButton";
+import PWAInstallButton from "@/components/admin/PWAInstallButton";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
+import Button from "@/components/ui/Button";
 import {
 	HomeIcon,
 	ChartBarIcon,
@@ -103,25 +104,29 @@ export default function Settings() {
 			{/* Header */}
 			<div className='flex items-center justify-between mb-4 p-4 pb-0 pl-6'>
 				<div className='flex items-center'>
-					<motion.button
-						onClick={handleBackClick}
-						className='p-2 rounded-full hover:bg-white/20 transition-colors mr-4'
+					<motion.div
 						whileHover={{ scale: 1.1 }}
-						whileTap={{ scale: 0.9 }}
-						aria-label='Go back to home'>
-						<ArrowLeftIcon className='w-6 h-6 text-white' />
-					</motion.button>
+						whileTap={{ scale: 0.9 }}>
+						<Button
+							variant="icon"
+							onClick={handleBackClick}
+							aria-label='Go back to home'
+							className="mr-4"
+							icon={<ArrowLeftIcon className='w-6 h-6 text-white' />} />
+					</motion.div>
 					<h1 data-testid="settings-heading" className='text-3xl font-bold text-white'>Settings</h1>
 				</div>
 				{/* Desktop Close Button */}
-				<motion.button
-					onClick={handleCloseClick}
-					className='hidden md:flex p-2 rounded-full hover:bg-white/20 transition-colors'
+				<motion.div
+					className="hidden md:flex"
 					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.9 }}
-					aria-label="Close settings">
-					<XMarkIcon className='w-6 h-6 text-white' />
-				</motion.button>
+					whileTap={{ scale: 0.9 }}>
+					<Button
+						variant="icon"
+						onClick={handleCloseClick}
+						aria-label="Close settings"
+						icon={<XMarkIcon className='w-6 h-6 text-white' />} />
+				</motion.div>
 			</div>
 
 			{/* Navigation List */}
@@ -129,16 +134,18 @@ export default function Settings() {
 				className='flex-1 px-6 pb-6 overflow-y-auto'
 				style={{ WebkitOverflowScrolling: 'touch' }}>
 				<div className='space-y-4'>
-					<button
+					<Button
+						variant="ghost"
+						fullWidth
 						onClick={() => setIsAvailableScreensExpanded(!isAvailableScreensExpanded)}
-						className='flex items-center justify-between w-full text-left mb-6'>
+						className='flex items-center justify-between text-left mb-6'>
 						<h2 className='text-xl font-semibold text-white'>Available Screens</h2>
 						{isAvailableScreensExpanded ? (
 							<ChevronUpIcon className='w-5 h-5 text-white' />
 						) : (
 							<ChevronDownIcon className='w-5 h-5 text-white' />
 						)}
-					</button>
+					</Button>
 					{isAvailableScreensExpanded && (
 						<div className='space-y-4 mb-6'>
 							{navigationItems.map((item) => {
@@ -146,47 +153,55 @@ export default function Settings() {
 						return (
 							<div key={item.id} className='space-y-2'>
 								{/* Main Navigation Item */}
-								<motion.button
-									data-testid={`settings-nav-${item.id}`}
-									onClick={() => handleNavigationClick(item.id)}
-									className='w-full p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								<motion.div
 									whileHover={{ scale: 1.02 }}
 									whileTap={{ scale: 0.98 }}>
-									<div className='flex items-center space-x-4'>
-										<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-											<Icon className='w-3 h-3 text-dorkinians-yellow' />
+									<Button
+										variant="tertiary"
+										fullWidth
+										data-testid={`settings-nav-${item.id}`}
+										onClick={() => handleNavigationClick(item.id)}
+										className='w-full p-2 text-left'>
+										<div className='flex items-center space-x-4'>
+											<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+												<Icon className='w-3 h-3 text-dorkinians-yellow' />
+											</div>
+											<div className='flex-1'>
+												<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
+											</div>
+											<div className='text-dorkinians-yellow'>
+												<svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+													<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+												</svg>
+											</div>
 										</div>
-										<div className='flex-1'>
-											<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
-										</div>
-										<div className='text-dorkinians-yellow'>
-											<svg className='w-3 h-3' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-												<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
-											</svg>
-										</div>
-									</div>
-								</motion.button>
+									</Button>
+								</motion.div>
 
 								{/* Sub-pages */}
 								{item.subPages.length > 0 && (
 									<div className='ml-12 space-y-2'>
 										{item.subPages.map((subPage) => (
-											<motion.button
+											<motion.div
 												key={subPage.id}
-												onClick={() => handleSubPageClick(item.id, subPage.id)}
-												className='w-full p-2 rounded-lg bg-white/5 hover:bg-white/15 transition-all duration-200 text-left'
 												whileHover={{ scale: 1.01 }}
 												whileTap={{ scale: 0.99 }}>
-												<div className='flex items-center space-x-3'>
-													<div className='w-2 h-2 rounded-full bg-dorkinians-yellow/60'></div>
-													<span className='text-sm text-gray-300'>{subPage.label}</span>
-													<div className='text-dorkinians-yellow/60'>
-														<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-															<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
-														</svg>
+												<Button
+													variant="ghost"
+													fullWidth
+													onClick={() => handleSubPageClick(item.id, subPage.id)}
+													className='w-full p-2 bg-white/5 hover:bg-white/15 text-left'>
+													<div className='flex items-center space-x-3'>
+														<div className='w-2 h-2 rounded-full bg-dorkinians-yellow/60'></div>
+														<span className='text-sm text-gray-300'>{subPage.label}</span>
+														<div className='text-dorkinians-yellow/60'>
+															<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+																<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+															</svg>
+														</div>
 													</div>
-												</div>
-											</motion.button>
+												</Button>
+											</motion.div>
 										))}
 									</div>
 								)}

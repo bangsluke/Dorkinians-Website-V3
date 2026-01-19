@@ -17,6 +17,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
 
 
 interface TopPlayer {
@@ -1464,11 +1465,13 @@ export default function ClubStats() {
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>

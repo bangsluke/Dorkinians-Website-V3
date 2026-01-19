@@ -3,11 +3,11 @@
 import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
-import ClubInformation from "./club-info/ClubInformation";
-import LeagueInformation from "./club-info/LeagueInformation";
-import ClubCaptains from "./club-info/ClubCaptains";
-import ClubAwards from "./club-info/ClubAwards";
-import UsefulLinks from "./club-info/UsefulLinks";
+import ClubInformation from "./ClubInformation";
+import LeagueInformation from "./LeagueInformation";
+import ClubCaptains from "./ClubCaptains";
+import ClubAwards from "./ClubAwards";
+import UsefulLinks from "./UsefulLinks";
 
 const clubInfoSubPages = [
 	{ id: "club-information" as ClubInfoSubPage, component: ClubInformation, label: "Club Information" },

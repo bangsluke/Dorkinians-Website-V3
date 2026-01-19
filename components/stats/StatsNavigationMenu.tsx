@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type StatsSubPage } from "@/lib/stores/navigation";
 import { useState, useEffect } from "react";
+import Button from "@/components/ui/Button";
 
 interface StatsNavigationMenuProps {
 	isOpen: boolean;
@@ -303,15 +304,16 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 							{/* Header */}
 							<div className='flex items-center justify-between mb-6'>
 								<h2 className='text-2xl font-bold text-white'>Stats Navigation</h2>
-								<motion.button
-									onClick={onClose}
-									className='p-2 rounded-full hover:bg-white/20 transition-colors'
+								<motion.div
 									whileHover={{ scale: 1.1 }}
-									whileTap={{ scale: 0.9 }}
-									title='Close menu'
-									aria-label='Close stats navigation menu'>
-									<XMarkIcon className='w-6 h-6 text-white' />
-								</motion.button>
+									whileTap={{ scale: 0.9 }}>
+									<Button
+										variant="icon"
+										onClick={onClose}
+										title='Close menu'
+										aria-label='Close stats navigation menu'
+										icon={<XMarkIcon className='w-6 h-6 text-white' />} />
+								</motion.div>
 							</div>
 
 							{/* Navigation Items */}
@@ -319,62 +321,69 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 								{statsNavigationItems.map((item) => {
 									const isExpanded = expandedPages[item.id];
 									const hasSections = item.sections.length > 0;
+									const isActive = currentStatsSubPage === item.id;
 
 									return (
 										<div key={item.id} className='space-y-2'>
 											{/* Main Page Button */}
-											<motion.button
-												data-testid={`stats-nav-menu-${item.id}`}
-												onClick={() => {
-													if (hasSections) {
-														togglePage(item.id);
-													} else {
-														handleSectionClick(item.id);
-													}
-												}}
-												className={`w-full p-3 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left ${
-													currentStatsSubPage === item.id ? "ring-2 ring-dorkinians-yellow" : ""
-												}`}
+											<motion.div
 												whileHover={{ scale: 1.02 }}
 												whileTap={{ scale: 0.98 }}>
-												<div className='flex items-center justify-between'>
-													<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
-													{hasSections && (
-														<div className='text-dorkinians-yellow'>
-															<svg
-																className={`w-5 h-5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-																fill='none'
-																stroke='currentColor'
-																viewBox='0 0 24 24'>
-																<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
-															</svg>
-														</div>
-													)}
-												</div>
-											</motion.button>
+												<button
+													data-testid={`stats-nav-menu-${item.id}`}
+													onClick={() => {
+														if (hasSections) {
+															togglePage(item.id);
+														} else {
+															handleSectionClick(item.id);
+														}
+													}}
+													className={`w-full p-3 text-left rounded-2xl transition-all ${
+														isActive && isExpanded 
+															? "bg-white/15 ring-2 ring-dorkinians-yellow" 
+															: "bg-white/10 hover:bg-white/15"
+													}`}>
+													<div className='flex items-center justify-between'>
+														<h3 className='text-lg font-semibold text-white'>{item.label}</h3>
+														{hasSections && (
+															<div className='text-dorkinians-yellow'>
+																<svg
+																	className={`w-5 h-5 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+																	fill='none'
+																	stroke='currentColor'
+																	viewBox='0 0 24 24'>
+																	<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M19 9l-7 7-7-7' />
+																</svg>
+															</div>
+														)}
+													</div>
+												</button>
+											</motion.div>
 
-											{/* Sections */}
+											{/* Sections - Nested with proper indentation */}
 											{hasSections && isExpanded && (
-												<div className='space-y-2 ml-4'>
+												<div className='space-y-2 pl-4'>
 													{item.sections.map((section) => (
-														<motion.button
+														<motion.div
 															key={section.id}
-															onClick={() => handleSectionClick(item.id, section.id, (section as any).isDataTable)}
-															className='w-full p-3 rounded-lg bg-white/5 hover:bg-white/15 transition-all duration-200 text-left'
 															whileHover={{ scale: 1.01 }}
 															whileTap={{ scale: 0.99 }}>
-															<div className='flex items-center justify-between'>
-																<div className='flex items-center space-x-3'>
-																	<div className='w-2 h-2 rounded-full bg-dorkinians-yellow/60'></div>
-																	<span className='text-sm text-gray-300'>{section.label}</span>
+															<button
+																onClick={() => handleSectionClick(item.id, section.id, (section as any).isDataTable)}
+																className='w-full p-3 bg-white/5 hover:bg-white/15 text-left rounded-2xl transition-all'>
+																<div className='flex items-center justify-between'>
+																	<div className='flex items-center space-x-3'>
+																		<div className='w-2 h-2 rounded-full bg-dorkinians-yellow flex-shrink-0'></div>
+																		<span className='text-sm text-gray-300'>{section.label}</span>
+																	</div>
+																	<div className='text-dorkinians-yellow flex-shrink-0'>
+																		<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+																			<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+																		</svg>
+																	</div>
 																</div>
-																<div className='text-dorkinians-yellow/60'>
-																	<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-																		<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
-																	</svg>
-																</div>
-															</div>
-														</motion.button>
+															</button>
+														</motion.div>
 													))}
 												</div>
 											)}
@@ -386,13 +395,16 @@ export default function StatsNavigationMenu({ isOpen, onClose }: StatsNavigation
 						
 						{/* Yellow Close Button at Bottom - Always Visible */}
 						<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20' style={{ backgroundColor: '#0f0f0f' }}>
-							<motion.button
-								onClick={onClose}
-								className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'
+							<motion.div
 								whileHover={{ scale: 1.02 }}
 								whileTap={{ scale: 0.98 }}>
-								Close
-							</motion.button>
+								<Button
+									variant="secondary"
+									size="sm"
+									onClick={onClose}>
+									Close
+								</Button>
+							</motion.div>
 						</div>
 					</motion.div>
 				</>
