@@ -620,6 +620,7 @@ export default function TeamStats() {
 		fetchTeamData();
 	}, [filtersKey, selectedTeam, playerFilters]);
 
+
 	// Priority 1: Above fold on mobile - Top Players section
 	// Fetch top players when selected team, filters or stat type changes
 	useEffect(() => {
@@ -1127,20 +1128,7 @@ export default function TeamStats() {
 	};
 
 	// Show loading state
-	if (isLoadingTeamData && !teamData) {
-		return (
-			<div className='h-full flex flex-col'>
-				<div className='flex-shrink-0 p-2 md:p-4'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
-				</div>
-				<div className='flex-1 px-2 md:px-4 pb-4'>
-					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<StatCardSkeleton />
-					</SkeletonTheme>
-				</div>
-			</div>
-		);
-	}
+	// Removed early return - now handled in main render with full skeleton layout
 
 	// Show error state
 	if (error && !teamData) {
@@ -1244,25 +1232,27 @@ export default function TeamStats() {
 					</div>
 				</div>
 			) : (isLoadingTeamData || appConfig.forceSkeletonView) ? (
-				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<TopPlayersTableSkeleton />
+				<div data-testid="loading-skeleton" className='flex-1 flex flex-col md:min-h-0'>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<div className='flex-1 px-2 md:px-4 pb-4 md:overflow-y-auto md:min-h-0 player-stats-masonry'>
+							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+								<TopPlayersTableSkeleton />
+							</div>
+							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+								<StatCardSkeleton />
+							</div>
+							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+								<RecentGamesSkeleton />
+							</div>
+							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+								<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+							</div>
+							<div className='mb-4 md:break-inside-avoid md:mb-4'>
+								<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
+							</div>
 						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<StatCardSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<RecentGamesSkeleton />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
-						</div>
-						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
-						</div>
-					</div>
-				</SkeletonTheme>
+					</SkeletonTheme>
+				</div>
 			) : !teamData ? (
 				<div className='flex-1 flex items-center justify-center p-4'>
 					<div className='text-center'>

@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			const errorHeaders = {
+				...corsHeaders,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+			};
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: errorHeaders });
 		}
 
 		// Fetch all seasons from Fixture data
@@ -40,9 +44,19 @@ export async function GET(request: NextRequest) {
 			endDate: String(record.get("seasonEndDate") || ""),
 		}));
 
-		return NextResponse.json({ seasons }, { headers: corsHeaders });
+		// Add Cache-Control header for BFCache compatibility (seasons change infrequently)
+		const responseHeaders = {
+			...corsHeaders,
+			"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+		};
+
+		return NextResponse.json({ seasons }, { headers: responseHeaders });
 	} catch (error) {
 		console.error("Error fetching seasons:", error);
-		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: corsHeaders });
+		const errorHeaders = {
+			...corsHeaders,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		};
+		return NextResponse.json({ error: "Failed to fetch seasons" }, { status: 500, headers: errorHeaders });
 	}
 }

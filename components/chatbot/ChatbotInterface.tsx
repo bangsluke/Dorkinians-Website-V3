@@ -1,17 +1,22 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
-import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
 import NumberCard from "./NumberCard";
 import Calendar from "./Calendar";
 import Table from "./Table";
-import Chart from "./Chart";
+import dynamic from "next/dynamic";
 import ExampleQuestionsModal from "../modals/ExampleQuestionsModal";
+
+// Dynamically import Chart component to reduce initial bundle size
+const Chart = dynamic(() => import("./Chart"), {
+	loading: () => <div className="text-white/60 text-sm">Loading chart...</div>,
+	ssr: false,
+});
 import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
 import Button from "@/components/ui/Button";
@@ -451,7 +456,6 @@ export default function ChatbotInterface() {
 							variant="secondary"
 							size="md"
 							disabled={!question.trim() || isLoading}
-							loading={isLoading}
 							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
 							className='w-full md:w-auto'>
 							{isLoading ? "Searching..." : "Search"}
@@ -507,27 +511,6 @@ export default function ChatbotInterface() {
 							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
 
-						{/* Suggestions when response indicates failure */}
-						{response.suggestions && response.suggestions.length > 0 && (
-							<div className='mb-3 md:mb-4'>
-								<p className='text-white/80 text-sm mb-3'>Try asking one of these instead:</p>
-								<div className='space-y-2'>
-									{response.suggestions.map((suggestion, index) => (
-										<button
-											key={index}
-											onClick={() => {
-												setResponse(null);
-												setQuestion(suggestion);
-												submitQuestion(suggestion);
-											}}
-											className='w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-											{suggestion}
-										</button>
-									))}
-								</div>
-							</div>
-						)}
-
 						{/* Navigation button for full stats question */}
 						{response.answer.includes("Player Stats page") && (
 							<div className='mb-3 md:mb-4 flex justify-center'>
@@ -557,6 +540,58 @@ export default function ChatbotInterface() {
 							response.visualization.type === "Chart" ? <Chart visualization={response.visualization} /> :
 							null
 						)}
+
+						{/* Suggestions when response indicates failure - appears after visualization */}
+						{response.suggestions && response.suggestions.length > 0 && (() => {
+							// Check if the answer indicates failure
+							const answer = response.answer || "";
+							const answerLower = answer.toLowerCase();
+							const noDataPatterns = [
+								"i couldn't find relevant information",
+								"no data found",
+								"couldn't find any",
+								"no information",
+								"no data",
+								"doesn't exist",
+								"couldn't find any matches",
+								"player not found",
+								"team not found",
+								"database error",
+								"database connection error"
+							];
+							const isFailedAnswer = noDataPatterns.some(pattern => answerLower.includes(pattern));
+							
+							// Only show suggestions if the answer indicates failure
+							if (!isFailedAnswer) {
+								return null;
+							}
+							
+							// Filter out the current question from suggestions (case-insensitive)
+							const currentQuestion = response.debug?.question || "";
+							const filteredSuggestions = response.suggestions.filter(
+								suggestion => suggestion.toLowerCase().trim() !== currentQuestion.toLowerCase().trim()
+							);
+							
+							return filteredSuggestions.length > 0 && (
+								<div className='mb-3 md:mb-4 mt-3 md:mt-4'>
+									<p className='text-white/80 text-sm mb-3'>Try asking one of these instead:</p>
+									<div className='space-y-2'>
+										{filteredSuggestions.map((suggestion, index) => (
+											<button
+												key={index}
+												onClick={() => {
+													setResponse(null);
+													setQuestion(suggestion);
+													submitQuestion(suggestion);
+												}}
+												className='w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+												{suggestion}
+											</button>
+										))}
+									</div>
+								</div>
+							);
+						})()}
 					</motion.div>
 				)}
 			</AnimatePresence>
@@ -691,6 +726,7 @@ export default function ChatbotInterface() {
 				isOpen={showExampleQuestionsModal}
 				onClose={() => setShowExampleQuestionsModal(false)}
 				onSelectQuestion={(question) => {
+					scrollToTop();
 					setQuestion(question);
 					setShowExampleQuestionsModal(false);
 					// Focus the input after setting the question

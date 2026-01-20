@@ -385,6 +385,8 @@ function WeekSquare({ week, maxValue, opacity }: WeekSquareProps) {
 
 export default function Calendar({ visualization }: CalendarProps) {
 	const [showFullCalendar, setShowFullCalendar] = useState(false);
+	const containerRef = useRef<HTMLDivElement>(null);
+	const [weeksPerRow, setWeeksPerRow] = useState(10);
 	
 	if (!visualization) return null;
 
@@ -836,8 +838,43 @@ export default function Calendar({ visualization }: CalendarProps) {
 		yearMonthLabels.set(year, monthLabels);
 	}
 
+	// Calculate weeksPerRow based on container width
+	useEffect(() => {
+		const calculateWeeksPerRow = () => {
+			if (!containerRef.current) return;
+			
+			// Get container width, accounting for padding (p-4 = 16px on each side = 32px total)
+			const containerWidth = containerRef.current.offsetWidth;
+			const padding = 32; // 16px padding on each side
+			const availableWidth = containerWidth - padding;
+			
+			// Each week box is 24px (w-6) + 2px gap (gap-0.5) = 26px total
+			const boxWidth = 24;
+			const gap = 2;
+			const boxWithGap = boxWidth + gap;
+			
+			// Calculate how many boxes fit
+			const calculatedWeeksPerRow = Math.floor(availableWidth / boxWithGap);
+			
+			// Ensure minimum of 5 and maximum of 15 weeks per row
+			const clampedWeeksPerRow = Math.max(5, Math.min(15, calculatedWeeksPerRow));
+			
+			setWeeksPerRow(clampedWeeksPerRow);
+		};
+
+		calculateWeeksPerRow();
+
+		// Recalculate on window resize
+		const handleResize = () => {
+			calculateWeeksPerRow();
+		};
+
+		window.addEventListener('resize', handleResize);
+		return () => window.removeEventListener('resize', handleResize);
+	}, []);
+
 	return (
-		<div className='mt-4 space-y-6'>
+		<div ref={containerRef} className='mt-4 space-y-6'>
 			{years.map((year) => {
 				const weeks = yearWeeks.get(year);
 				const monthLabels = yearMonthLabels.get(year) || [];
@@ -847,9 +884,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 				// Calculate max value for opacity scaling
 				const maxValue = Math.max(...weeks.map((w) => w.value), 1);
 
-				// Group weeks into rows (approximately 10 weeks per row for better visibility)
-				// This can be adjusted based on container width, but 10 is a good default
-				const weeksPerRow = 10;
+				// Group weeks into rows based on calculated weeksPerRow
 				const weekRows: WeekData[][] = [];
 				for (let i = 0; i < weeks.length; i += weeksPerRow) {
 					weekRows.push(weeks.slice(i, i + weeksPerRow));
@@ -873,11 +908,16 @@ export default function Calendar({ visualization }: CalendarProps) {
 									return label.startWeekIndex >= startWeekIndex && label.startWeekIndex <= endWeekIndex;
 								});
 
+								const boxWidth = 24;
+								const gap = 2;
+								const boxWithGap = boxWidth + gap;
+								const rowWidth = rowWeeks.length * boxWithGap - gap; // Total width of the row
+
 								return (
-									<div key={rowIndex} className='space-y-1'>
+									<div key={rowIndex} className='space-y-1 flex flex-col items-center'>
 										{/* Month Labels Row for this week row */}
 										{rowMonthLabels.length > 0 && (
-											<div className='relative h-4' style={{ width: `${rowWeeks.length * 26}px` }}>
+											<div className='relative h-4' style={{ width: `${rowWidth}px` }}>
 												{rowMonthLabels.map((label, labelIdx) => {
 													// Calculate position relative to this row
 													const labelStartInRow = Math.max(0, label.startWeekIndex - startWeekIndex);
@@ -885,8 +925,8 @@ export default function Calendar({ visualization }: CalendarProps) {
 													
 													if (labelEndInRow < 0 || labelStartInRow >= rowWeeks.length) return null;
 
-													const left = labelStartInRow * 26;
-													const width = (labelEndInRow - labelStartInRow + 1) * 26 - 2;
+													const left = labelStartInRow * boxWithGap;
+													const width = (labelEndInRow - labelStartInRow + 1) * boxWithGap - gap;
 
 													return (
 														<div
@@ -905,7 +945,7 @@ export default function Calendar({ visualization }: CalendarProps) {
 										)}
 
 										{/* Week Tiles Row */}
-										<div className='flex gap-0.5'>
+										<div className='flex gap-0.5' style={{ width: `${rowWidth}px` }}>
 											{rowWeeks.map((week, idx) => {
 												const globalIdx = startWeekIndex + idx;
 												// Calculate opacity: more value = more opaque (lower transparency)

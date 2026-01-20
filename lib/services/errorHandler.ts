@@ -226,31 +226,37 @@ export class ErrorHandler {
 			return allExampleQuestions.slice(0, 5);
 		}
 
-		const questionLower = question.toLowerCase();
+		const questionLower = question.toLowerCase().trim();
 		const questionWords = questionLower.split(/\s+/).filter(word => word.length > 2);
 
 		// Score questions based on keyword matches
-		const scoredQuestions = allExampleQuestions.map(example => {
-			const exampleLower = example.toLowerCase();
-			let score = 0;
+		const scoredQuestions = allExampleQuestions
+			.filter(example => {
+				// Filter out the current question (case-insensitive comparison)
+				const exampleLower = example.toLowerCase().trim();
+				return exampleLower !== questionLower;
+			})
+			.map(example => {
+				const exampleLower = example.toLowerCase();
+				let score = 0;
 
-			// Count matching words
-			questionWords.forEach(word => {
-				if (exampleLower.includes(word)) {
-					score += 1;
+				// Count matching words
+				questionWords.forEach(word => {
+					if (exampleLower.includes(word)) {
+						score += 1;
+					}
+				});
+
+				// Boost score for questions with similar structure
+				if (errorType === "entity_not_found") {
+					// Prefer questions about goals, appearances, stats
+					if (exampleLower.includes("goal") || exampleLower.includes("appearance") || exampleLower.includes("stat")) {
+						score += 0.5;
+					}
 				}
+
+				return { question: example, score };
 			});
-
-			// Boost score for questions with similar structure
-			if (errorType === "entity_not_found") {
-				// Prefer questions about goals, appearances, stats
-				if (exampleLower.includes("goal") || exampleLower.includes("appearance") || exampleLower.includes("stat")) {
-					score += 0.5;
-				}
-			}
-
-			return { question: example, score };
-		});
 
 		// Sort by score and return top 5
 		return scoredQuestions

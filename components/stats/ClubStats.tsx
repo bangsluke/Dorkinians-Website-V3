@@ -10,12 +10,26 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ComposedChart, Line, LabelList } from "recharts";
-import { ResponsiveSankey } from "@nivo/sankey";
+import dynamic from "next/dynamic";
 import HomeAwayGauge from "./HomeAwayGauge";
+
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
+
+// Dynamically import ResponsiveSankey to reduce initial bundle size (151 KB -> only loads when needed)
+const ResponsiveSankey = dynamic(
+	() => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
+	{
+		loading: () => (
+			<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+				<SankeyChartSkeleton />
+			</SkeletonTheme>
+		),
+		ssr: false,
+	}
+);
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
 

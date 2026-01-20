@@ -799,6 +799,217 @@ export class AwardsQueryHandler {
 			return { type: "error", data: [], error: "Error querying WeeklyTOTW data" };
 		}
 	}
+
+	/**
+	 * Query SeasonTOTW (Team of the Season) data for a specific season
+	 * @param season Optional season string (e.g., "2023/24"). If not provided, uses current season.
+	 */
+	static async querySeasonTOTW(season?: string): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying SeasonTOTW for season: ${season || "current"}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+
+		try {
+			// If no season provided, get current season from SiteDetail
+			let targetSeason = season;
+			if (!targetSeason) {
+				const currentSeasonQuery = `
+					MATCH (sd:SiteDetail {graphLabel: $graphLabel})
+					RETURN sd.currentSeason as currentSeason
+					LIMIT 1
+				`;
+				
+				const seasonResult = await neo4jService.executeQuery(currentSeasonQuery, { graphLabel });
+				if (seasonResult && seasonResult.length > 0 && seasonResult[0].currentSeason) {
+					targetSeason = seasonResult[0].currentSeason;
+					loggingService.log(`🔍 Using current season: ${targetSeason}`, null, "log");
+				} else {
+					// Fallback: get most recent SeasonTOTW season
+					const recentSeasonQuery = `
+						MATCH (st:SeasonTOTW {graphLabel: $graphLabel})
+						WHERE st.season IS NOT NULL AND st.season <> ''
+						WITH DISTINCT st.season as season
+						ORDER BY season DESC
+						LIMIT 1
+						RETURN season
+					`;
+					const recentResult = await neo4jService.executeQuery(recentSeasonQuery, { graphLabel });
+					if (recentResult && recentResult.length > 0 && recentResult[0].season) {
+						targetSeason = recentResult[0].season;
+						loggingService.log(`🔍 Using most recent SeasonTOTW season: ${targetSeason}`, null, "log");
+					} else {
+						return { 
+							type: "error", 
+							data: [], 
+							error: "Could not determine season for Team of the Season query" 
+						};
+					}
+				}
+			}
+
+			// Normalize season format (handle "22/23" -> "2022/23")
+			if (targetSeason && targetSeason.match(/^\d{2}\/\d{2}$/)) {
+				const parts = targetSeason.split("/");
+				targetSeason = `20${parts[0]}/${parts[1]}`;
+			}
+
+			// Query SeasonTOTW node for the specified season
+			const totwQuery = `
+				MATCH (st:SeasonTOTW {graphLabel: $graphLabel, season: $season})
+				RETURN st
+				LIMIT 1
+			`;
+
+			// Push query to chatbotService for extraction
+			try {
+				const chatbotService = ChatbotService.getInstance();
+				const readyToExecuteQuery = totwQuery
+					.replace(/\$graphLabel/g, `'${graphLabel}'`)
+					.replace(/\$season/g, `'${targetSeason}'`);
+				chatbotService.lastExecutedQueries.push(`SEASON_TOTW_QUERY: ${totwQuery}`);
+				chatbotService.lastExecutedQueries.push(`SEASON_TOTW_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+			} catch (error) {
+				// Ignore if chatbotService not available
+			}
+
+			const totwResult = await neo4jService.executeQuery(totwQuery, { graphLabel, season: targetSeason });
+
+			if (!totwResult || totwResult.length === 0) {
+				return { 
+					type: "season_totw_not_found", 
+					data: [], 
+					season: targetSeason,
+					message: `No Team of the Season data found for ${targetSeason}` 
+				};
+			}
+
+			// Extract SeasonTOTW properties
+			const totwRecord = totwResult[0];
+			const st = totwRecord.st || totwRecord;
+			const stProperties = st?.properties || st;
+
+			// Get bestFormation to determine which players to include
+			const bestFormation = stProperties.bestFormation || "";
+
+			// Parse bestFormation to determine which positions to include
+			// Format is typically "DEF-MID-FWD" (e.g., "4-4-2")
+			let numDef = 4; // Default
+			let numMid = 4; // Default
+			let numFwd = 2; // Default
+
+			if (bestFormation) {
+				const formationParts = bestFormation.split("-");
+				if (formationParts.length >= 3) {
+					numDef = parseInt(formationParts[0], 10) || 4;
+					numMid = parseInt(formationParts[1], 10) || 4;
+					numFwd = parseInt(formationParts[2], 10) || 2;
+				} else if (formationParts.length === 2) {
+					// Handle formats like "4-4" (assume 2 forwards)
+					numDef = parseInt(formationParts[0], 10) || 4;
+					numMid = parseInt(formationParts[1], 10) || 4;
+					numFwd = 2;
+				}
+			}
+
+			// Clamp values to valid ranges
+			numDef = Math.max(0, Math.min(5, numDef));
+			numMid = Math.max(0, Math.min(5, numMid));
+			numFwd = Math.max(0, Math.min(3, numFwd));
+
+			// Build position fields based on bestFormation (only 11 players total)
+			const positionFields: Array<{ field: string; position: string }> = [];
+
+			// Always include goalkeeper
+			positionFields.push({ field: "gk1", position: "GK" });
+
+			// Add defenders based on formation
+			for (let i = 1; i <= numDef; i++) {
+				positionFields.push({ field: `def${i}`, position: "DEF" });
+			}
+
+			// Add midfielders based on formation
+			for (let i = 1; i <= numMid; i++) {
+				positionFields.push({ field: `mid${i}`, position: "MID" });
+			}
+
+			// Add forwards based on formation
+			for (let i = 1; i <= numFwd; i++) {
+				positionFields.push({ field: `fwd${i}`, position: "FWD" });
+			}
+
+			const players: Array<{ playerName: string; position: string; ftpScore: number }> = [];
+
+			// Helper function to calculate FTP score for a player in a season
+			const calculateFtpScore = async (playerName: string): Promise<number> => {
+				if (!playerName || String(playerName).trim() === "") return 0;
+
+				const ftpQuery = `
+					MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})
+					MATCH (p)-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel, season: $season})
+					RETURN sum(COALESCE(md.fantasyPoints, 0)) as totalFtpScore
+				`;
+
+				try {
+					const ftpResult = await neo4jService.executeQuery(ftpQuery, { 
+						graphLabel, 
+						playerName, 
+						season: targetSeason 
+					});
+
+					if (ftpResult && ftpResult.length > 0 && ftpResult[0].totalFtpScore !== undefined) {
+						const score = ftpResult[0].totalFtpScore;
+						if (typeof score === 'number') {
+							return Math.round(score);
+						}
+						if (score && typeof score === 'object') {
+							if (typeof score.toNumber === 'function') {
+								return Math.round(score.toNumber());
+							}
+							if (score.low !== undefined || score.high !== undefined) {
+								return Math.round((score.low || 0) + (score.high || 0) * 4294967296);
+							}
+						}
+						return Math.round(Number(score) || 0);
+					}
+				} catch (error) {
+					loggingService.log(`❌ Error calculating FTP score for ${playerName}:`, error, "error");
+				}
+				return 0;
+			};
+
+			// Process each position
+			for (const { field, position } of positionFields) {
+				const playerName = stProperties[field];
+				if (playerName && String(playerName).trim() !== "") {
+					const ftpScore = await calculateFtpScore(String(playerName));
+					players.push({
+						playerName: String(playerName),
+						position: position,
+						ftpScore: ftpScore
+					});
+				}
+			}
+
+			if (players.length === 0) {
+				return { 
+					type: "season_totw_no_players", 
+					data: [], 
+					season: targetSeason,
+					message: `No players found in Team of the Season for ${targetSeason}` 
+				};
+			}
+
+			return {
+				type: "season_totw",
+				data: {
+					season: targetSeason,
+					players: players
+				}
+			};
+		} catch (error) {
+			loggingService.log(`❌ Error in SeasonTOTW query:`, error, "error");
+			return { type: "error", data: [], error: "Error querying SeasonTOTW data" };
+		}
+	}
 }
 
 export const awardsQueryHandler = new AwardsQueryHandler();

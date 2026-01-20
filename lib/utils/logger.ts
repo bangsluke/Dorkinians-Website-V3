@@ -13,13 +13,30 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 // Get console log level from environment variable
 // Defaults: development -> 'info', production -> 'error'
 // Backward compatibility: DISABLE_CONSOLE_LOGS=true -> 'error'
+// On client side, check NEXT_PUBLIC_CONSOLE_LOG_LEVEL first (set by next.config.js)
 const getConsoleLogLevel = (): 'error' | 'info' | 'debug' => {
+	// Check for disable flag (client-side first, then server-side)
+	if (typeof window !== 'undefined') {
+		const clientDisableLogs = (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_DISABLE_CONSOLE_LOGS === 'true';
+		if (clientDisableLogs) {
+			return 'error';
+		}
+	}
 	const disableConsoleLogs = process.env.DISABLE_CONSOLE_LOGS === 'true';
 	if (disableConsoleLogs) {
 		return 'error'; // Backward compatibility
 	}
 	
-	const level = process.env.CONSOLE_LOG_LEVEL;
+	// Check NEXT_PUBLIC_CONSOLE_LOG_LEVEL first (for client-side), then CONSOLE_LOG_LEVEL (for server-side)
+	let level: string | undefined;
+	if (typeof window !== 'undefined') {
+		// Client-side: check window.__NEXT_DATA__.env
+		level = (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_CONSOLE_LOG_LEVEL;
+	} else {
+		// Server-side: check process.env
+		level = process.env.NEXT_PUBLIC_CONSOLE_LOG_LEVEL || process.env.CONSOLE_LOG_LEVEL;
+	}
+	
 	if (level === 'error' || level === 'info' || level === 'debug') {
 		return level;
 	}
@@ -31,7 +48,10 @@ const getConsoleLogLevel = (): 'error' | 'info' | 'debug' => {
 	return 'info';
 };
 
-const consoleLogLevel = getConsoleLogLevel();
+// Get log level at runtime (not module load time) to support client-side access
+const getCurrentLogLevel = (): 'error' | 'info' | 'debug' => {
+	return getConsoleLogLevel();
+};
 
 /**
  * Sanitize sensitive data from log output
@@ -116,6 +136,9 @@ function sanitizeQuery(query: string): string {
  * Production-safe logging function
  */
 export function log(level: LogLevel, message: string, data?: any): void {
+	// Get current log level at runtime (supports client-side window access)
+	const consoleLogLevel = getCurrentLogLevel();
+	
 	// Check log level permissions
 	// error: Always allowed
 	// warn: Allowed if level is 'info' or 'debug'
@@ -143,6 +166,8 @@ export function log(level: LogLevel, message: string, data?: any): void {
 
 	const sanitized = data ? sanitizeLogData(data) : undefined;
 	
+	// Use appropriate console method based on level
+	// Note: console override in layout.tsx filters these, so we use the correct method
 	switch (level) {
 		case 'error':
 			console.error(`[${new Date().toISOString()}] ${message}`, sanitized);
@@ -151,9 +176,11 @@ export function log(level: LogLevel, message: string, data?: any): void {
 			console.warn(`[${new Date().toISOString()}] ${message}`, sanitized);
 			break;
 		case 'info':
-			console.log(`[${new Date().toISOString()}] ${message}`, sanitized);
+			// Use console.info for 'info' level (console override allows info/debug levels)
+			console.info(`[${new Date().toISOString()}] ${message}`, sanitized);
 			break;
 		case 'debug':
+			// Use console.log for 'debug' level (console override only allows debug level)
 			console.log(`[DEBUG ${new Date().toISOString()}] ${message}`, sanitized);
 			break;
 	}
@@ -163,6 +190,7 @@ export function log(level: LogLevel, message: string, data?: any): void {
  * Log error with sanitization
  */
 export function logError(message: string, error: unknown): void {
+	const consoleLogLevel = getCurrentLogLevel();
 	if (error instanceof Error) {
 		log('error', message, {
 			name: error.name,

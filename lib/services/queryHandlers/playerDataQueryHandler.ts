@@ -871,7 +871,8 @@ export class PlayerDataQueryHandler {
 			
 			// Check for cup game filter in "played with" or "shared the pitch" questions
 			let compType: string | null = null;
-			let requestedLimit: number | undefined = undefined;
+			// Default to 5 for all "most played with" questions (expandable to 10)
+			let requestedLimit: number = 5;
 			const isCupGameQuestion = 
 				questionLower.includes("cup") && 
 				(questionLower.includes("played with") || questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"));
@@ -1154,12 +1155,17 @@ export class PlayerDataQueryHandler {
 		}
 
 		// Check for "goals against opposition" questions (must come before general opposition most check)
+		// Handles variations: "Which team have I scored the most against?" and similar
 		const isOppositionGoalsQuestion = 
 			(questionLower.includes("opposition") && questionLower.includes("goals") && questionLower.includes("most")) ||
 			(questionLower.includes("scored") && questionLower.includes("most") && questionLower.includes("goals") && questionLower.includes("against")) ||
 			(questionLower.includes("most goals") && questionLower.includes("against")) ||
 			(questionLower.includes("what opposition") && questionLower.includes("scored") && questionLower.includes("goals")) ||
-			(questionLower.includes("which opposition") && questionLower.includes("scored") && questionLower.includes("goals"));
+			(questionLower.includes("which opposition") && questionLower.includes("scored") && questionLower.includes("goals")) ||
+			((questionLower.includes("which team") || questionLower.includes("what team") || questionLower.includes("which opposition") || questionLower.includes("what opposition")) && 
+			 questionLower.includes("scored") && questionLower.includes("most") && questionLower.includes("against")) ||
+			(questionLower.includes("against") && (questionLower.includes("which team") || questionLower.includes("what team")) && 
+			 questionLower.includes("scored") && questionLower.includes("most"));
 
 		loggingService.log(`🔍 Checking for "opposition goals" question. Question: "${questionLower}", isOppositionGoalsQuestion: ${isOppositionGoalsQuestion}`, null, "log");
 
@@ -1197,6 +1203,143 @@ export class PlayerDataQueryHandler {
 				
 				loggingService.log(`🔍 Resolved player name from context: ${resolvedPlayerName}, calling queryPlayerGoalsAgainstOpposition`, null, "log");
 				return await RelationshipQueryHandler.queryPlayerGoalsAgainstOpposition(resolvedPlayerName);
+			}
+		}
+
+		// Check for "clean sheets against opposition" questions (must come before general opposition most check)
+		// Handles variations: "Which/What team/opposition have I kept the most clean sheets against?"
+		// and "Against which team have I kept the most clean sheets?"
+		const isOppositionCleanSheetsQuestion = 
+			(questionLower.includes("clean sheet") && questionLower.includes("against") && questionLower.includes("most")) ||
+			(questionLower.includes("kept") && questionLower.includes("most") && questionLower.includes("clean sheet") && questionLower.includes("against")) ||
+			(questionLower.includes("most clean sheet") && questionLower.includes("against")) ||
+			((questionLower.includes("which team") || questionLower.includes("what team") || questionLower.includes("which opposition") || questionLower.includes("what opposition")) && 
+			 questionLower.includes("kept") && questionLower.includes("clean sheet")) ||
+			(questionLower.includes("against") && (questionLower.includes("which team") || questionLower.includes("what team")) && 
+			 questionLower.includes("kept") && questionLower.includes("clean sheet"));
+
+		loggingService.log(`🔍 Checking for "opposition clean sheets" question. Question: "${questionLower}", isOppositionCleanSheetsQuestion: ${isOppositionCleanSheetsQuestion}`, null, "log");
+
+		// If this is a "clean sheets against opposition" question, handle it specially
+		if (isOppositionCleanSheetsQuestion) {
+			let playerName = entities.length > 0 ? entities[0] : undefined;
+			
+			// If entity is "I" or "my" (from "my", "I", etc.), use userContext instead
+			if (playerName && (playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my")) {
+				if (userContext) {
+					playerName = userContext;
+				} else {
+					// No userContext available for "I" or "my"
+					return {
+						type: "no_context",
+						data: [],
+						message: "Please specify which player you're asking about, or log in to use 'I' in your question.",
+					};
+				}
+			}
+			
+			// If we have a player name (either from entities or userContext), resolve and query
+			if (playerName) {
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(playerName);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${playerName}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${playerName}". Please check the spelling or try a different player name.`,
+						playerName,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name: ${resolvedPlayerName}, calling queryPlayerCleanSheetsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerCleanSheetsAgainstOpposition(resolvedPlayerName);
+			} else if (userContext) {
+				// Use userContext if no player entity found
+				const resolvedPlayerName = await EntityResolutionUtils.resolvePlayerName(userContext);
+				
+				if (!resolvedPlayerName) {
+					loggingService.log(`❌ Player not found: ${userContext}`, null, "error");
+					return {
+						type: "player_not_found",
+						data: [],
+						message: `I couldn't find a player named "${userContext}". Please check the spelling or try a different player name.`,
+						playerName: userContext,
+					};
+				}
+				
+				loggingService.log(`🔍 Resolved player name from context: ${resolvedPlayerName}, calling queryPlayerCleanSheetsAgainstOpposition`, null, "log");
+				return await RelationshipQueryHandler.queryPlayerCleanSheetsAgainstOpposition(resolvedPlayerName);
+			} else {
+				// No player entity found and no userContext available
+				return {
+					type: "no_context",
+					data: [],
+					message: "Please specify which player you're asking about, or log in to use 'I' in your question.",
+				};
+			}
+		}
+
+		// Check for generic stat type against opposition questions (assists, saves, cards, etc.)
+		// Pattern: "Which/What team/opposition have I [stat] the most against?"
+		// Exclude goals and clean sheets (already handled above)
+		const hasStatKeyword = questionLower.includes("assist") || questionLower.includes("save") || 
+			questionLower.includes("yellow card") || questionLower.includes("booking") ||
+			questionLower.includes("red card") || questionLower.includes("man of the match") ||
+			questionLower.includes("mom") || (questionLower.includes("appearance") && !questionLower.includes("clean sheet")) || 
+			(questionLower.includes("game") && !questionLower.includes("clean sheet") && !questionLower.includes("goal")) || 
+			questionLower.includes("own goal") || questionLower.includes("penalt");
+		
+		const isGenericStatAgainstOpposition = 
+			!isOppositionGoalsQuestion && !isOppositionCleanSheetsQuestion &&
+			((questionLower.includes("which team") || questionLower.includes("what team") || 
+			  questionLower.includes("which opposition") || questionLower.includes("what opposition") ||
+			  (questionLower.includes("against") && (questionLower.includes("which team") || questionLower.includes("what team")))) &&
+			 questionLower.includes("most") && questionLower.includes("against") &&
+			 hasStatKeyword);
+
+		if (isGenericStatAgainstOpposition) {
+			let playerName = entities.length > 0 ? entities[0] : undefined;
+			
+			// If entity is "I" or "my", use userContext instead
+			if (playerName && (playerName.toLowerCase() === "i" || playerName.toLowerCase() === "my")) {
+				if (userContext) {
+					playerName = userContext;
+				} else {
+					return {
+						type: "no_context",
+						data: [],
+						message: "Please specify which player you're asking about, or log in to use 'I' in your question.",
+					};
+				}
+			}
+			
+			// Resolve player name
+			const resolvedPlayerName = playerName 
+				? await EntityResolutionUtils.resolvePlayerName(playerName)
+				: userContext 
+					? await EntityResolutionUtils.resolvePlayerName(userContext)
+					: null;
+			
+			if (!resolvedPlayerName) {
+				const nameToCheck = playerName || userContext || "Unknown";
+				loggingService.log(`❌ Player not found: ${nameToCheck}`, null, "error");
+				return {
+					type: "player_not_found",
+					data: [],
+					message: `I couldn't find a player named "${nameToCheck}". Please check the spelling or try a different player name.`,
+					playerName: nameToCheck,
+				};
+			}
+			
+			// Use generic query method to detect and query the stat type
+			const result = await RelationshipQueryHandler.queryPlayerStatAgainstOppositionFromQuestion(
+				resolvedPlayerName,
+				questionLower
+			);
+			
+			if (result) {
+				return result;
 			}
 		}
 

@@ -13,7 +13,13 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
-import OppositionMap from "@/components/maps/OppositionMap";
+import dynamic from "next/dynamic";
+
+// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
+const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
+	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
+	ssr: false,
+});
 import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
@@ -1781,8 +1787,14 @@ export default function PlayerStats() {
 
 	// Check if all teams are selected (must be before early returns)
 	const allTeamsSelected = useMemo(() => {
-		return playerFilters.teams.length === 0;
-	}, [playerFilters.teams]);
+		if (!filterData?.teams) return playerFilters.teams.length === 0;
+		const allTeams = filterData.teams.map(team => team.name || team);
+		// Empty array means all teams selected (default behavior)
+		if (playerFilters.teams.length === 0) return true;
+		// Check if selected teams array contains all available teams
+		return playerFilters.teams.length === allTeams.length && 
+		       allTeams.every(team => playerFilters.teams.includes(team));
+	}, [playerFilters.teams, filterData]);
 
 	// Stat options for dropdowns (must be before early returns)
 	const statOptions = useMemo(() => [

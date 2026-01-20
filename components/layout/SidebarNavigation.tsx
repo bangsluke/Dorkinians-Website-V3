@@ -58,6 +58,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [hasAnimated, setHasAnimated] = useState(false);
+	const [isMounted, setIsMounted] = useState(false);
 
 	// Calculate active filter count
 	const activeFilterCount = useMemo(() => {
@@ -120,21 +121,25 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 		return count;
 	}, [playerFilters, filterData]);
 	
+	// Track client-side mount to prevent hydration mismatch
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
 	// Check if sidebar has been animated before in this session
-	const [shouldAnimate, setShouldAnimate] = useState<boolean>(() => {
+	// Always start as false during SSR to prevent hydration mismatch
+	const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
+
+	// Check sessionStorage after mount to determine if we should animate
+	useEffect(() => {
 		if (typeof window !== "undefined") {
 			const hasAnimated = sessionStorage.getItem("sidebar-animated");
-			return !hasAnimated;
+			if (!hasAnimated) {
+				setShouldAnimate(true);
+				sessionStorage.setItem("sidebar-animated", "true");
+			}
 		}
-		return true; // Default to animating on SSR
-	});
-
-	// Mark as animated in sessionStorage after mount
-	useEffect(() => {
-		if (typeof window !== "undefined" && shouldAnimate) {
-			sessionStorage.setItem("sidebar-animated", "true");
-		}
-	}, [shouldAnimate]);
+	}, []);
 
 	// Check if tooltip should be shown on first visit
 	useEffect(() => {
@@ -218,10 +223,9 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 	return (
 		<motion.aside
 			className='hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-[220px] flex-col'
-			style={shouldAnimate ? undefined : { transform: 'translateX(0)' }}
-			initial={shouldAnimate ? { x: -220 } : { x: 0 }}
+			initial={{ x: 0 }}
 			animate={{ x: 0 }}
-			transition={shouldAnimate ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
+			transition={{ duration: 0 }}>
 			{/* Sidebar container */}
 			<div className='h-full w-full flex flex-col'>
 				{/* Header Section */}
@@ -336,8 +340,11 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 				<nav className='flex-1 flex flex-col px-3 py-3 space-y-1.5 overflow-y-auto'>
 					{navigationItems.map((item) => {
 						const Icon = item.icon;
-						const isActive = currentMainPage === item.id && !isSettingsPage;
 						const hasSubPages = item.subPages && item.subPages.length > 0;
+						// Check if any sub-page is active for this parent
+						const hasActiveSubPage = hasSubPages && item.subPages.some(subPage => isSubPageActive(item.id, subPage.id));
+						// Parent is active if it's the current main page OR if any of its sub-pages is active
+						const isActive = (currentMainPage === item.id || hasActiveSubPage) && !isSettingsPage;
 
 						return (
 							<div key={item.id} className='space-y-1'>
@@ -360,7 +367,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 											}
 										}}
 										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-											isActive ? "text-dorkinians-yellow-text bg-[var(--color-primary)]/40" : "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+											isActive ? "text-dorkinians-yellow-text bg-dorkinians-yellow/20" : "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 										}`}>
 										<Icon className={`w-7 h-7 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`} />
 										<span className={`text-base font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>
@@ -378,10 +385,10 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 													<button
 														data-testid={`nav-sidebar-${subPage.id}`}
 														onClick={() => handleSubPageClick(item.id, subPage.id)}
-														className={`group w-full flex items-center px-3 py-1.5 text-left justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+														className={`group w-full flex items-center px-3 py-1.5 text-left justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 															isSubActive
-																? "text-dorkinians-yellow-text bg-[var(--color-primary)]/35"
-																: "text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+																? "text-dorkinians-yellow-text bg-dorkinians-yellow/20"
+																: "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 														}`}>
 														<span className={`text-sm font-medium ${isSubActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{subPage.label}</span>
 													</button>
