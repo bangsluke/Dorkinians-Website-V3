@@ -76,6 +76,9 @@ const nextConfig = {
 	images: {
 		domains: ["docs.google.com"],
 		formats: ['image/avif', 'image/webp'],
+		// Disable image optimization on Netlify to avoid 400 errors with static assets
+		// Netlify sets NETLIFY=true automatically, or we can use NEXT_PUBLIC_UNOPTIMIZED env var
+		unoptimized: !!process.env.NETLIFY || process.env.NEXT_PUBLIC_UNOPTIMIZED === 'true',
 	},
 	// TypeScript configuration will be handled via tsconfig files
 	// Enable API routes for development and production
