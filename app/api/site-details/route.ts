@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			const errorHeaders = {
+				...corsHeaders,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+			};
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: errorHeaders });
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
@@ -28,7 +32,11 @@ export async function GET(request: NextRequest) {
 		const siteDetailResult = await neo4jService.runQuery(siteDetailQuery, { graphLabel });
 
 		if (siteDetailResult.records.length === 0) {
-			return NextResponse.json({ error: "SiteDetail node not found" }, { status: 404, headers: corsHeaders });
+			const errorHeaders = {
+				...corsHeaders,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+			};
+			return NextResponse.json({ error: "SiteDetail node not found" }, { status: 404, headers: errorHeaders });
 		}
 
 		const siteDetailNode = siteDetailResult.records[0].get("sd");
@@ -45,10 +53,20 @@ export async function GET(request: NextRequest) {
 			currentSeason: properties.currentSeason || null,
 		};
 
-		return NextResponse.json(siteDetails, { headers: corsHeaders });
+		// Add Cache-Control header for BFCache compatibility
+		const responseHeaders = {
+			...corsHeaders,
+			"Cache-Control": "public, max-age=300, stale-while-revalidate=3600",
+		};
+
+		return NextResponse.json(siteDetails, { headers: responseHeaders });
 	} catch (error) {
 		console.error("Error fetching site details:", error);
-		return NextResponse.json({ error: "Failed to fetch site details" }, { status: 500, headers: corsHeaders });
+		const errorHeaders = {
+			...corsHeaders,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		};
+		return NextResponse.json({ error: "Failed to fetch site details" }, { status: 500, headers: errorHeaders });
 	}
 }
 

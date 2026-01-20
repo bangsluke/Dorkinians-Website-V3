@@ -16,7 +16,13 @@ const FilterSidebar = dynamic(() => import("@/components/filters/FilterSidebar")
 const StatsNavigationMenu = dynamic(() => import("@/components/stats/StatsNavigationMenu"), {
 	ssr: false,
 });
-import ChatbotInterface from "@/components/chatbot/ChatbotInterface";
+
+// Dynamically import ChatbotInterface to reduce initial bundle size (only loads when player is selected)
+const ChatbotInterface = dynamic(() => import("@/components/chatbot/ChatbotInterface"), {
+	loading: () => <LoadingState message="Loading chatbot..." />,
+	ssr: false,
+});
+
 import PlayerSelection from "@/components/PlayerSelection";
 import { LoadingState } from "@/components/ui/StateComponents";
 
@@ -44,6 +50,7 @@ const Settings = dynamic(() => import("@/components/pages/Settings"), {
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";
+import Neo4jPreWarm from "@/components/Neo4jPreWarm";
 import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
@@ -401,6 +408,9 @@ export default function HomePage() {
 
 			{/* Development Clear Storage FAB */}
 			<DevClearStorageFAB />
+
+			{/* Pre-warm Neo4j connection when chatbot becomes visible */}
+			{showChatbot && <Neo4jPreWarm />}
 		</>
 	);
 }

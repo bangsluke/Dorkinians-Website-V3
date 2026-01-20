@@ -67,7 +67,8 @@ export default function TOTWContainer() {
 					onDragEnd={handleDragEnd}
 					style={{ 
 						position: 'relative',
-						touchAction: 'pan-y pinch-zoom'
+						touchAction: 'pan-y pinch-zoom',
+						willChange: 'transform'
 					}}
 					className='w-full'>
 					{totwSubPages[currentIndex] ? React.createElement(totwSubPages[currentIndex].component) : null}

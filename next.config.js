@@ -76,6 +76,8 @@ const nextConfig = {
 			exclude: ['error'],
 		} : false,
 	},
+	// SWC minification is already default in Next.js 14
+	swcMinify: true,
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js
 		config.plugins.push(

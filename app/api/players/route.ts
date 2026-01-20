@@ -14,7 +14,11 @@ export async function GET(request: NextRequest) {
 		// Connect to Neo4j
 		const connected = await neo4jService.connect();
 		if (!connected) {
-			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: corsHeaders });
+			const errorHeaders = {
+				...corsHeaders,
+				"Cache-Control": "no-cache, no-store, must-revalidate",
+			};
+			return NextResponse.json({ error: "Database connection failed" }, { status: 500, headers: errorHeaders });
 		}
 
 		// Fetch all players that are allowed on site
@@ -35,8 +39,18 @@ export async function GET(request: NextRequest) {
 			}))
 			.filter((player: { playerName: string }) => player.playerName && player.playerName.trim() !== "");
 
-		return NextResponse.json({ players }, { headers: corsHeaders });
+		// Add Cache-Control header for BFCache compatibility
+		const responseHeaders = {
+			...corsHeaders,
+			"Cache-Control": "public, max-age=3600, stale-while-revalidate=86400",
+		};
+
+		return NextResponse.json({ players }, { headers: responseHeaders });
 	} catch (error) {
-		return NextResponse.json({ error: "Failed to fetch players" }, { status: 500, headers: corsHeaders });
+		const errorHeaders = {
+			...corsHeaders,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		};
+		return NextResponse.json({ error: "Failed to fetch players" }, { status: 500, headers: errorHeaders });
 	}
 }
