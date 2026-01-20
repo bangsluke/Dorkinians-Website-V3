@@ -1811,9 +1811,9 @@ Implementation should follow the phased approach, starting with critical fixes a
 - [ ] Improve filter discoverability with badge indicator
 
 #### Task 3: Compare Players
-- [ ] Add clear labels ("Select First Player", "Select Second Player")
+- [x] Add clear labels ("Select First Player", "Select Second Player")
 - [ ] Add "Compare Players" button that appears when both players selected
-- [ ] Improve comparison interface clarity
+- [x] Improve comparison interface clarity
 
 #### Task 4: Filter and Explore Stats
 - [ ] Add toast notification on filter application
@@ -1821,9 +1821,9 @@ Implementation should follow the phased approach, starting with critical fixes a
 - [ ] Display filter pills when sidebar is closed
 
 #### Task 5: View Team of the Week
-- [ ] Add hover states to pitch players (cursor-pointer, hover:opacity-80)
-- [ ] Add transition-opacity for smooth hover effect
-- [ ] Make player clickability more obvious
+- [x] Add hover states to pitch players (cursor-pointer, hover:opacity-80)
+- [x] Add transition-opacity for smooth hover effect
+- [x] Make player clickability more obvious
 
 ### Clickability Audit Fixes
 

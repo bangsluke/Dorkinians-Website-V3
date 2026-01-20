@@ -854,14 +854,14 @@ export default function Comparison() {
 					{/* Player 1 (Current Selection) - 40% width */}
 					<div className='flex-1' style={{ flexBasis: '40%', minWidth: 0 }}>
 						<div className='flex items-center gap-2 mb-2'>
-							<span className='text-sm md:text-base text-white/70'>Player 1</span>
+							<label className='text-sm md:text-base font-medium text-white/90'>First Player</label>
 							<Button
 								variant="icon"
 								size="sm"
 								onClick={handleEditClick}
 								title='Edit player selection'
-								className='w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 flex-shrink-0'
-								icon={<PenOnPaperIcon className='h-3 w-3 md:h-4 md:w-4' />} />
+								className='w-8 h-8 md:w-8 md:h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 flex-shrink-0'
+								icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 						</div>
 						<div className='py-3 text-left text-yellow-300 text-sm md:text-base truncate'>
 							{selectedPlayer}
@@ -871,7 +871,7 @@ export default function Comparison() {
 					{/* Player 2 Selection - 60% width */}
 					<div className='flex-1' style={{ flexBasis: '60%', minWidth: 0 }}>
 						<div className='flex items-center gap-2 mb-2'>
-							<span className='text-sm md:text-base text-white/70'>Player 2</span>
+							<label className='text-sm md:text-base font-medium text-white/90 mt-1 mb-2'>Select Second Player</label>
 							{secondPlayer && (
 								<button
 									onClick={handleClearSecondPlayer}
@@ -887,6 +887,7 @@ export default function Comparison() {
 							<div className='relative w-full'>
 								<Listbox.Button 
 									onClick={handleDropdownOpen}
+									aria-label="Select Second Player"
 									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-1 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-1 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${secondPlayer ? "text-white" : "text-yellow-300"}`}>
 										{secondPlayer || "Choose a player..."}
@@ -962,7 +963,7 @@ export default function Comparison() {
 					</div>
 				) : !secondPlayer ? (
 					<div className='flex items-center justify-center h-full'>
-						<p className='text-white text-sm md:text-base text-center'>Select a Player 2 to begin the comparison</p>
+						<p className='text-white text-sm md:text-base text-center'>Select Second Player to begin the comparison</p>
 					</div>
 				) : (
 					<div className='space-y-1'>
