@@ -65,6 +65,14 @@ const withPWA = require("next-pwa")({
 
 const nextConfig = {
 	// output: 'export', // Disabled to enable API routes
+	typescript: {
+		// Skip type checking during build (types are checked in CI/local dev)
+		ignoreBuildErrors: true,
+	},
+	eslint: {
+		// Skip ESLint during build (linting is done in CI/local dev)
+		ignoreDuringBuilds: true,
+	},
 	images: {
 		domains: ["docs.google.com"],
 		formats: ['image/avif', 'image/webp'],
