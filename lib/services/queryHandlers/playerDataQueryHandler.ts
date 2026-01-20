@@ -871,7 +871,8 @@ export class PlayerDataQueryHandler {
 			
 			// Check for cup game filter in "played with" or "shared the pitch" questions
 			let compType: string | null = null;
-			let requestedLimit: number | undefined = undefined;
+			// Default to 5 for all "most played with" questions (expandable to 10)
+			let requestedLimit: number = 5;
 			const isCupGameQuestion = 
 				questionLower.includes("cup") && 
 				(questionLower.includes("played with") || questionLower.includes("shared the pitch") || questionLower.includes("shared pitch"));

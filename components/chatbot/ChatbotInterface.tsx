@@ -726,6 +726,7 @@ export default function ChatbotInterface() {
 				isOpen={showExampleQuestionsModal}
 				onClose={() => setShowExampleQuestionsModal(false)}
 				onSelectQuestion={(question) => {
+					scrollToTop();
 					setQuestion(question);
 					setShowExampleQuestionsModal(false);
 					// Focus the input after setting the question
