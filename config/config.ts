@@ -247,6 +247,7 @@ export type QuestionType =
 	| "ranking"
 	| "league_table"
 	| "milestone"
+	| "season_totw"
 	| "clarification_needed";
 
 export const questionTypes: Record<
@@ -323,6 +324,12 @@ export const questionTypes: Record<
 		description: "Questions about players closest to reaching milestones",
 		hasVisualization: true,
 		visualizationType: "NumberCard",
+	},
+	season_totw: {
+		displayName: "Team of the Season",
+		description: "Questions about team of the season selections and awards",
+		hasVisualization: true,
+		visualizationType: "Table",
 	},
 	clarification_needed: {
 		displayName: "Clarification Required",

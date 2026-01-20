@@ -10,8 +10,14 @@ import { homepageQuestions, questionTypes, QuestionType } from "@/config/config"
 import NumberCard from "./NumberCard";
 import Calendar from "./Calendar";
 import Table from "./Table";
-import Chart from "./Chart";
+import dynamic from "next/dynamic";
 import ExampleQuestionsModal from "../modals/ExampleQuestionsModal";
+
+// Dynamically import Chart component to reduce initial bundle size
+const Chart = dynamic(() => import("./Chart"), {
+	loading: () => <div className="text-white/60 text-sm">Loading chart...</div>,
+	ssr: false,
+});
 import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
 import Button from "@/components/ui/Button";

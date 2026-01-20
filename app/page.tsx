@@ -4,16 +4,43 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import Header from "@/components/layout/Header";
-import FilterSidebar from "@/components/filters/FilterSidebar";
-import StatsNavigationMenu from "@/components/stats/StatsNavigationMenu";
 import FooterNavigation from "@/components/layout/FooterNavigation";
 import SidebarNavigation from "@/components/layout/SidebarNavigation";
-import StatsContainer from "@/components/stats/StatsContainer";
-import TOTWContainer from "@/components/totw/TOTWContainer";
-import ClubInfoContainer from "@/components/club-info/ClubInfoContainer";
-import Settings from "@/components/pages/Settings";
+import dynamic from "next/dynamic";
+
+// Dynamically import sidebar/menu components - only load when opened
+const FilterSidebar = dynamic(() => import("@/components/filters/FilterSidebar"), {
+	ssr: false,
+});
+
+const StatsNavigationMenu = dynamic(() => import("@/components/stats/StatsNavigationMenu"), {
+	ssr: false,
+});
 import ChatbotInterface from "@/components/chatbot/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
+import { LoadingState } from "@/components/ui/StateComponents";
+
+// Dynamically import page containers to reduce initial bundle size
+// These are only loaded when their respective pages are accessed
+const StatsContainer = dynamic(() => import("@/components/stats/StatsContainer"), {
+	loading: () => <LoadingState message="Loading stats..." />,
+	ssr: false,
+});
+
+const TOTWContainer = dynamic(() => import("@/components/totw/TOTWContainer"), {
+	loading: () => <LoadingState message="Loading Team of the Week..." />,
+	ssr: false,
+});
+
+const ClubInfoContainer = dynamic(() => import("@/components/club-info/ClubInfoContainer"), {
+	loading: () => <LoadingState message="Loading club information..." />,
+	ssr: false,
+});
+
+const Settings = dynamic(() => import("@/components/pages/Settings"), {
+	loading: () => <LoadingState message="Loading settings..." />,
+	ssr: false,
+});
 import UpdateToast from "@/components/admin/UpdateToast";
 import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
 import ToastContainer from "@/components/ui/ToastContainer";

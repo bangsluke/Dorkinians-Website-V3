@@ -3463,7 +3463,7 @@ export class ChatbotService {
 					},
 				};
 			}
-		} else if (data && data.type && data.type.startsWith("opposition_") && data.type !== "opposition_goals" && data.type !== "opposition_clean_sheets") {
+		} else if (data && data.type && typeof data.type === "string" && data.type.startsWith("opposition_") && data.type !== "opposition_goals" && data.type !== "opposition_clean_sheets") {
 			// Handle generic stat types against opposition (assists, saves, cards, mom, appearances, etc.)
 			const playerName = (data.playerName as string) || "";
 			const statType = (data.statType as string) || "";
