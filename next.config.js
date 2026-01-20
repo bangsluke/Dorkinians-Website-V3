@@ -93,6 +93,13 @@ const nextConfig = {
 				resourceRegExp: /^webworker-threads$/,
 			})
 		);
+		
+		// Ensure path aliases are resolved correctly
+		config.resolve.alias = {
+			...config.resolve.alias,
+			"@": path.resolve(__dirname),
+		};
+		
 		return config;
 	},
 };
