@@ -18,6 +18,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { LoadingState, ErrorState } from "@/components/ui/StateComponents";
 import { useToast } from "@/lib/hooks/useToast";
+import ProgressIndicator from "@/components/ui/ProgressIndicator";
 
 interface SavedConversation {
 	question: string;
@@ -47,6 +48,8 @@ export default function ChatbotInterface() {
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
 	const [showExampleQuestionsModal, setShowExampleQuestionsModal] = useState(false);
+	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+	const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
 	const previousPlayerRef = useRef<string | null>(null);
 	const [sessionId] = useState(() => {
 		if (typeof window !== "undefined") {
@@ -118,18 +121,27 @@ export default function ChatbotInterface() {
 		}
 	}, [conversationHistory]);
 
-	// Progressive loading message based on elapsed time
+	// Progressive loading message based on elapsed time and show progress indicator after 3 seconds
 	useEffect(() => {
 		if (!isLoading) {
 			setLoadingMessage("Thinking...");
+			setShowProgressIndicator(false);
+			setLoadingStartTime(null);
 			return;
 		}
 
 		const startTime = Date.now();
+		setLoadingStartTime(startTime);
 		setLoadingMessage("Thinking...");
+		setShowProgressIndicator(false);
 
 		const interval = setInterval(() => {
 			const elapsed = (Date.now() - startTime) / 1000;
+
+			// Show progress indicator after 3 seconds
+			if (elapsed >= 3 && !showProgressIndicator) {
+				setShowProgressIndicator(true);
+			}
 
 			if (elapsed >= 40) {
 				setLoadingMessage("This is taking longer than expected. Please wait or try rephrasing your question.");
@@ -143,7 +155,7 @@ export default function ChatbotInterface() {
 		}, 100);
 
 		return () => clearInterval(interval);
-	}, [isLoading]);
+	}, [isLoading, showProgressIndicator]);
 
 	// Submit question to chatbot (extracted logic)
 	const submitQuestion = async (questionToSubmit: string) => {
@@ -417,7 +429,7 @@ export default function ChatbotInterface() {
 							onChange={(e) => setQuestion(e.target.value)}
 							placeholder='Ask me about player, club or team stats...'
 							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
-							size="lg"
+							size="md"
 							disabled={isLoading}
 						/>
 						<Button
@@ -439,7 +451,15 @@ export default function ChatbotInterface() {
 			<div className='mt-3 md:mt-4'>
 				<AnimatePresence mode='wait'>
 				{isLoading && (
-					<LoadingState message={loadingMessage} variant="spinner" />
+					<div className='space-y-3'>
+						<LoadingState message={loadingMessage} variant="spinner" />
+						<ProgressIndicator 
+							isVisible={showProgressIndicator}
+							message={showProgressIndicator ? undefined : undefined}
+							size="md"
+							className="mt-2"
+						/>
+					</div>
 				)}
 
 				{error && (

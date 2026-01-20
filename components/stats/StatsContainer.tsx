@@ -21,8 +21,19 @@ const statsSubPages = [
 export default function StatsContainer() {
 	const { currentStatsSubPage, setStatsSubPage, nextStatsSubPage, previousStatsSubPage, currentMainPage } = useNavigationStore();
 	const [showSwipeTooltip, setShowSwipeTooltip] = useState(false);
+	const swipeTooltipTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
 	const currentIndex = statsSubPages.findIndex((page) => page.id === currentStatsSubPage);
+
+	// Dismiss tooltip on click/touch
+	const dismissSwipeTooltip = () => {
+		if (swipeTooltipTimeoutRef.current) {
+			clearTimeout(swipeTooltipTimeoutRef.current);
+			swipeTooltipTimeoutRef.current = null;
+		}
+		setShowSwipeTooltip(false);
+		localStorage.setItem("stats-nav-swipe-tooltip-seen", "true");
+	};
 
 	// Check if swipe tooltip should be shown on mobile (after filter tooltip)
 	useEffect(() => {
@@ -35,9 +46,8 @@ export default function StatsContainer() {
 					// Wait 500ms after filter tooltip disappears, then show swipe tooltip
 					setTimeout(() => {
 						setShowSwipeTooltip(true);
-						setTimeout(() => {
-							setShowSwipeTooltip(false);
-							localStorage.setItem("stats-nav-swipe-tooltip-seen", "true");
+						swipeTooltipTimeoutRef.current = setTimeout(() => {
+							dismissSwipeTooltip();
 						}, 5000);
 					}, 500);
 					return true;
@@ -63,6 +73,23 @@ export default function StatsContainer() {
 			}
 		}
 	}, []);
+
+	// Handle click/touch to dismiss tooltip
+	useEffect(() => {
+		if (!showSwipeTooltip) return;
+
+		const handleClick = () => {
+			dismissSwipeTooltip();
+		};
+
+		document.addEventListener('click', handleClick, true);
+		document.addEventListener('touchstart', handleClick, true);
+
+		return () => {
+			document.removeEventListener('click', handleClick, true);
+			document.removeEventListener('touchstart', handleClick, true);
+		};
+	}, [showSwipeTooltip]);
 
 	// If current page is not found, default to the first page (Player Stats)
 	const validCurrentIndex = currentIndex >= 0 ? currentIndex : 0;
@@ -131,18 +158,34 @@ export default function StatsContainer() {
 
 	return (
 		<div className='h-full overflow-hidden'>
+			{/* Backdrop overlay when tooltip is showing */}
+			{showSwipeTooltip && (
+				<motion.div
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					exit={{ opacity: 0 }}
+					className='fixed inset-0 bg-black/20 z-40'
+					onClick={dismissSwipeTooltip}
+					onTouchStart={dismissSwipeTooltip}
+				/>
+			)}
+
 			{/* Stats Sub-Page Dot Indicators - Mobile only */}
-			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0 relative'>
+			<div className='md:hidden flex justify-center space-x-3 pt-2.5 pb-0 relative z-50'>
 				{statsSubPages.map((page, index) => (
 					<button
 						key={page.id}
 						data-testid={`stats-subpage-indicator-${index}`}
 						onClick={() => {
-							setShowSwipeTooltip(false);
+							dismissSwipeTooltip();
 							setStatsSubPage(page.id);
 						}}
 						className={`w-[6.4px] h-[6.4px] rounded-full transition-all transition-normal ${
-							currentStatsSubPage === page.id
+							showSwipeTooltip
+								? currentStatsSubPage === page.id
+									? "bg-dorkinians-yellow scale-150 border-2 border-dorkinians-yellow"
+									: "bg-dorkinians-yellow/70 scale-125 border-2 border-dorkinians-yellow/60"
+								: currentStatsSubPage === page.id
 								? "bg-dorkinians-yellow scale-125"
 								: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"
 						}`}
@@ -155,9 +198,11 @@ export default function StatsContainer() {
 						initial={{ opacity: 0, y: -10 }}
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
-						className='absolute top-full left-1/2 transform -translate-x-1/2 mt-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'>
+						className='absolute top-full mt-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'
+						style={{ left: 'calc(50% - 40px)', transform: 'translateX(-50%)' }}
+						onClick={(e) => e.stopPropagation()}>
 						Swipe left or right to navigate
-						<div className='absolute bottom-full left-1/2 transform -translate-x-1/2 -mb-1 border-4 border-transparent border-b-dorkinians-yellow' />
+						<div className='absolute bottom-full -mb-1 border-4 border-transparent border-b-dorkinians-yellow' style={{ left: '50%', transform: 'translateX(-50%)' }} />
 					</motion.div>
 				)}
 			</div>

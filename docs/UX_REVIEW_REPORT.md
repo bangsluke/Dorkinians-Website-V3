@@ -171,12 +171,10 @@ The dot indicators for stats sub-pages are very small (6.4px) and difficult to t
 ### 2. Match Between System and Real World
 
 **Issues:**
-- "TOTW" abbreviation may not be clear to all users
 - Filter terminology could be more user-friendly
 - Some technical terms in chatbot responses
 
 **Recommendations:**
-- Add tooltip explaining "TOTW" on first visit
 - Use "Home vs Away" instead of "Location"
 - Simplify technical language in chatbot responses
 
@@ -1750,19 +1748,18 @@ Implementation should follow the phased approach, starting with critical fixes a
 ### Heuristic Evaluation Recommendations
 
 #### Visibility of System Status
-- [ ] Add toast notification when filters are applied
-- [ ] Show active filter count in filter icon badge
-- [ ] Display loading progress for operations >3 seconds
+- [x] Add toast notification when filters are applied
+- [x] Show active filter count in filter icon badge
+- [x] Display loading progress for operations >3 seconds
 
 #### Match Between System and Real World
-- [ ] Add tooltip explaining "TOTW" on first visit
-- [ ] Use "Home vs Away" instead of "Location" in filter labels
-- [ ] Simplify technical language in chatbot responses
+- [x] Use "Home vs Away" instead of "Location" in filter labels
+- [x] Simplify technical language in chatbot responses
 
 #### User Control and Freedom
-- [ ] Implement consistent unsaved changes warning for filter sidebar
-- [ ] Add "Clear All" button to filter sidebar header
-- [ ] Ensure all modals can be closed with ESC key
+- [x] Implement consistent unsaved changes warning for filter sidebar
+- [x] Add "Clear All" button to filter sidebar header
+- [x] Ensure all modals can be closed with ESC key
 
 #### Consistency and Standards
 - [ ] Standardize button sizes using design tokens

@@ -74,6 +74,22 @@ export default function SquadPlayersModal({
 		onClose();
 	};
 
+	// Handle ESC key
+	useEffect(() => {
+		if (!isOpen) return;
+
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				handleClose();
+			}
+		};
+
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [isOpen]);
+
 	if (typeof window === 'undefined') {
 		return null;
 	}

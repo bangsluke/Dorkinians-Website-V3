@@ -4,6 +4,7 @@ import { MatchDetail } from "@/types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
+import { useEffect } from "react";
 
 interface FTPBreakdown {
 	stat: string;
@@ -232,6 +233,20 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 	const handleClose = () => {
 		onClose();
 	};
+
+	// Handle ESC key
+	useEffect(() => {
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				handleClose();
+			}
+		};
+
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, []);
 
 	const modalContent = (
 		<AnimatePresence>

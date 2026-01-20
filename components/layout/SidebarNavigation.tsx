@@ -6,7 +6,7 @@ import { useNavigationStore, type MainPage, type StatsSubPage, type TOTWSubPage,
 import Image from "next/image";
 import { log } from "@/lib/utils/logger";
 import Button from "@/components/ui/Button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface SidebarNavigationProps {
 	onSettingsClick: () => void;
@@ -54,9 +54,71 @@ const navigationItems = [
 ];
 
 export default function SidebarNavigation({ onSettingsClick, isSettingsPage = false, onFilterClick, showFilterIcon = false, onMenuClick, showMenuIcon = false }: SidebarNavigationProps) {
-	const { currentMainPage, setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage, currentStatsSubPage, currentTOTWSubPage, currentClubInfoSubPage } = useNavigationStore();
+	const { currentMainPage, setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage, currentStatsSubPage, currentTOTWSubPage, currentClubInfoSubPage, playerFilters, filterData } = useNavigationStore();
 	const [showTooltip, setShowTooltip] = useState(false);
+	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [hasAnimated, setHasAnimated] = useState(false);
+
+	// Calculate active filter count
+	const activeFilterCount = useMemo(() => {
+		if (!playerFilters) return 0;
+		let count = 0;
+		const filterChecks: Record<string, { counted: boolean; reason?: string; value?: any }> = {};
+		
+		// Count timeRange if not "allTime"
+		const timeRangeCounted = playerFilters.timeRange?.type && playerFilters.timeRange.type !== "allTime";
+		if (timeRangeCounted) count++;
+		filterChecks.timeRange = { counted: timeRangeCounted, value: playerFilters.timeRange?.type, reason: timeRangeCounted ? `type is ${playerFilters.timeRange?.type}` : 'type is allTime or missing' };
+		
+		// Count teams if selection deviates from "all teams" (similar to position/result/competition)
+		// Empty array = all teams (no filter), so don't count
+		// Non-empty array = check if it's all teams or a subset
+		const allTeams = filterData?.teams?.map(team => team.name) || [];
+		const teams = playerFilters.teams || [];
+		const hasAllTeams = teams.length === 0 || (allTeams.length > 0 && teams.length === allTeams.length && allTeams.every(team => teams.includes(team)));
+		const teamsCounted = !hasAllTeams && teams.length > 0;
+		if (teamsCounted) count++;
+		filterChecks.teams = { counted: teamsCounted, value: playerFilters.teams, reason: teamsCounted ? `teams selection is subset (${teams.length}/${allTeams.length})` : hasAllTeams ? 'all teams selected (no filter)' : 'teams array is empty or missing' };
+		
+		// Count location if not both Home and Away selected (length < 2 means filter is active)
+		const locationCounted = !!(playerFilters.location?.length && playerFilters.location.length < 2);
+		if (locationCounted) count++;
+		filterChecks.location = { counted: locationCounted, value: playerFilters.location, reason: locationCounted ? `location array has ${playerFilters.location?.length} items (need 2)` : `location array has ${playerFilters.location?.length || 0} items (both selected)` };
+		
+		// Count opposition if allOpposition is explicitly false or searchTerm has value
+		const oppositionAllOpp = playerFilters.opposition?.allOpposition;
+		const oppositionSearchTerm = playerFilters.opposition?.searchTerm;
+		const oppositionSearchTermTrimmed = oppositionSearchTerm?.trim() || "";
+		const oppositionCounted = !!(playerFilters.opposition && (oppositionAllOpp === false || (oppositionSearchTerm && oppositionSearchTermTrimmed !== "")));
+		if (oppositionCounted) count++;
+		filterChecks.opposition = { counted: oppositionCounted, value: { allOpposition: oppositionAllOpp, searchTerm: oppositionSearchTerm, searchTermTrimmed: oppositionSearchTermTrimmed }, reason: oppositionCounted ? (oppositionAllOpp === false ? 'allOpposition is false' : `searchTerm has value: "${oppositionSearchTermTrimmed}"`) : 'allOpposition is true and searchTerm is empty' };
+		
+		// Count competition if types array has fewer than all 3 types (default is all 3) or searchTerm has value
+		const defaultCompetitionTypes: ("League" | "Cup" | "Friendly")[] = ["League", "Cup", "Friendly"];
+		const competitionTypes = playerFilters.competition?.types || [];
+		const hasAllCompetitionTypes = defaultCompetitionTypes.every(type => competitionTypes.includes(type as any)) && competitionTypes.length === defaultCompetitionTypes.length;
+		const competitionCounted = !!(playerFilters.competition && ((!hasAllCompetitionTypes && competitionTypes.length > 0) || (playerFilters.competition.searchTerm && playerFilters.competition.searchTerm.trim() !== "")));
+		if (competitionCounted) count++;
+		filterChecks.competition = { counted: competitionCounted, value: { types: competitionTypes, hasAll: hasAllCompetitionTypes, searchTerm: playerFilters.competition?.searchTerm }, reason: competitionCounted ? (!hasAllCompetitionTypes ? `missing types (has ${competitionTypes.length}/3)` : `searchTerm has value: "${playerFilters.competition?.searchTerm}"`) : 'all 3 types selected and searchTerm empty' };
+		
+		// Count result if array has fewer than all 3 results (default is all 3)
+		const defaultResults: ("Win" | "Draw" | "Loss")[] = ["Win", "Draw", "Loss"];
+		const results = playerFilters.result || [];
+		const hasAllResults = defaultResults.every(result => results.includes(result as any)) && results.length === defaultResults.length;
+		const resultCounted = !hasAllResults && results.length > 0;
+		if (resultCounted) count++;
+		filterChecks.result = { counted: resultCounted, value: results, reason: resultCounted ? `missing results (has ${results.length}/3)` : `all 3 results selected (${results.length}/3)` };
+		
+		// Count position if array has fewer than all 4 positions (default is all 4)
+		const defaultPositions: ("GK" | "DEF" | "MID" | "FWD")[] = ["GK", "DEF", "MID", "FWD"];
+		const positions = playerFilters.position || [];
+		const hasAllPositions = defaultPositions.every(pos => positions.includes(pos as any)) && positions.length === defaultPositions.length;
+		const positionCounted = !hasAllPositions && positions.length > 0;
+		if (positionCounted) count++;
+		filterChecks.position = { counted: positionCounted, value: positions, reason: positionCounted ? `missing positions (has ${positions.length}/4)` : `all 4 positions selected (${positions.length}/4)` };
+		
+		return count;
+	}, [playerFilters, filterData]);
 	
 	// Check if sidebar has been animated before in this session
 	const [shouldAnimate, setShouldAnimate] = useState<boolean>(() => {
@@ -80,15 +142,41 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 			const hasSeenTooltip = localStorage.getItem("stats-nav-menu-tooltip-seen");
 			if (!hasSeenTooltip) {
 				setShowTooltip(true);
-				// Hide tooltip after 5 seconds
+				// Hide tooltip after 5 seconds, then show filter tooltip
 				const timer = setTimeout(() => {
 					setShowTooltip(false);
 					localStorage.setItem("stats-nav-menu-tooltip-seen", "true");
+					
+					// Show filter tooltip after a brief delay
+					if (showFilterIcon) {
+						const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
+						if (!hasSeenFilterTooltip) {
+							setTimeout(() => {
+								setShowFilterTooltip(true);
+								const filterTimer = setTimeout(() => {
+									setShowFilterTooltip(false);
+									localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
+								}, 5000);
+								return () => clearTimeout(filterTimer);
+							}, 500);
+						}
+					}
 				}, 5000);
 				return () => clearTimeout(timer);
+			} else if (showFilterIcon) {
+				// If menu tooltip was already seen, check for filter tooltip
+				const hasSeenFilterTooltip = localStorage.getItem("stats-nav-filter-tooltip-seen");
+				if (!hasSeenFilterTooltip) {
+					setShowFilterTooltip(true);
+					const filterTimer = setTimeout(() => {
+						setShowFilterTooltip(false);
+						localStorage.setItem("stats-nav-filter-tooltip-seen", "true");
+					}, 5000);
+					return () => clearTimeout(filterTimer);
+				}
 			}
 		}
-	}, [showMenuIcon]);
+	}, [showMenuIcon, showFilterIcon]);
 
 	// Add animation on first visit
 	useEffect(() => {
@@ -163,7 +251,9 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 										setShowTooltip(false);
 										onMenuClick();
 									}}
-									className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+										showTooltip ? 'bg-dorkinians-yellow/20' : ''
+									}`}
 									whileHover={{ scale: 1.1 }}
 									whileTap={{ scale: 0.9 }}
 									initial={hasAnimated ? {} : { scale: 1 }}
@@ -171,7 +261,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 									transition={hasAnimated ? {} : { duration: 0.6, repeat: 2, delay: 0.5 }}
 									title={showTooltip ? "Click to navigate sections" : "Open stats navigation"}
 									aria-label='Open stats navigation'>
-									<Bars3Icon className='w-7 h-7 text-[var(--color-text-primary)]' />
+									<Bars3Icon className={`w-7 h-7 ${showTooltip ? 'text-dorkinians-yellow' : 'text-[var(--color-text-primary)]'}`} />
 								</motion.button>
 								{/* Tooltip */}
 								{showTooltip && (
@@ -188,16 +278,43 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 						)}
 						{/* Filter Icon - only show on stats pages */}
 						{showFilterIcon && onFilterClick && (
-							<motion.button
-								data-testid="nav-sidebar-filter"
-								onClick={onFilterClick}
-								className='p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.9 }}
-								title='Open filters'
-								aria-label='Open filters'>
-								<FunnelIcon className='w-7 h-7 text-[var(--color-text-primary)]' />
-							</motion.button>
+							<div className='relative'>
+								<motion.button
+									data-testid="nav-sidebar-filter"
+									onClick={() => {
+										setShowFilterTooltip(false);
+										onFilterClick();
+									}}
+									className={`p-2 rounded-full hover:bg-[var(--color-surface)] transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+										showFilterTooltip ? 'bg-dorkinians-yellow/20' : ''
+									}`}
+									whileHover={{ scale: 1.1 }}
+									whileTap={{ scale: 0.9 }}
+									initial={showFilterTooltip ? { scale: 1 } : {}}
+									animate={showFilterTooltip ? { scale: [1, 1.15, 1] } : {}}
+									transition={showFilterTooltip ? { duration: 0.6, repeat: Infinity } : {}}
+									title={showFilterTooltip ? "Click to open filters" : "Open filters"}
+									aria-label='Open filters'>
+									<FunnelIcon className={`w-7 h-7 ${showFilterTooltip ? 'text-dorkinians-yellow' : 'text-[var(--color-text-primary)]'}`} />
+								{/* Active filter count badge */}
+								{activeFilterCount > 0 && (
+									<span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center bg-dorkinians-yellow text-black text-xs font-bold rounded-full">
+										{activeFilterCount > 99 ? '99+' : activeFilterCount}
+									</span>
+								)}
+								</motion.button>
+								{/* Filter Tooltip */}
+								{showFilterTooltip && (
+									<motion.div
+										initial={{ opacity: 0, y: -10 }}
+										animate={{ opacity: 1, y: 0 }}
+										exit={{ opacity: 0, y: -10 }}
+										className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-dorkinians-yellow text-black text-xs font-medium rounded-lg shadow-lg whitespace-nowrap z-50'>
+										Click to open stats filters
+										<div className='absolute top-full left-1/2 transform -translate-x-1/2 -mt-1 border-4 border-transparent border-t-dorkinians-yellow' />
+									</motion.div>
+								)}
+							</div>
 						)}
 						{/* Settings Icon */}
 						<motion.button
@@ -242,8 +359,8 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 												setClubInfoSubPage("club-information");
 											}
 										}}
-										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-											isActive ? "text-dorkinians-yellow-text bg-[var(--color-primary)]/40" : "text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
+											isActive ? "text-dorkinians-yellow-text bg-[var(--color-primary)]/40" : "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 										}`}>
 										<Icon className={`w-7 h-7 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`} />
 										<span className={`text-base font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>

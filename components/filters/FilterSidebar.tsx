@@ -8,6 +8,8 @@ import { statsPageConfig } from "@/config/config";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/lib/hooks/useToast";
+import ProgressIndicator from "@/components/ui/ProgressIndicator";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
@@ -39,15 +41,37 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
 	const [showCompetitionDropdown, setShowCompetitionDropdown] = useState(false);
+	// State for clear all confirmation modal
+	const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+	// State for unsaved changes confirmation modal
+	const [showUnsavedChangesConfirm, setShowUnsavedChangesConfirm] = useState(false);
 	
 	// State to track initial filter state when sidebar opens
 	const [initialFilterSnapshot, setInitialFilterSnapshot] = useState<PlayerFilters | null>(null);
 	// Ref to track if snapshot has been captured for current sidebar opening
 	const snapshotCapturedRef = useRef(false);
 	// Ref to track user-initiated clears to prevent auto-initialization
-	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>({});
+	// Also check localStorage for persisted cleared state (survives page reloads)
+	const getClearedState = (): { teams?: boolean; position?: boolean } => {
+		if (typeof window === "undefined") return {};
+		try {
+			const stored = localStorage.getItem("dorkinians-filters-cleared");
+			return stored ? JSON.parse(stored) : {};
+		} catch {
+			return {};
+		}
+	};
+	const setClearedState = (state: { teams?: boolean; position?: boolean }) => {
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-filters-cleared", JSON.stringify(state));
+		}
+	};
+	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>(getClearedState());
 	// State for validation warning modal
 	const [validationWarning, setValidationWarning] = useState<string[] | null>(null);
+	// State for progress indicator
+	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+	const [applyStartTime, setApplyStartTime] = useState<number | null>(null);
 
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
@@ -60,7 +84,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		() => [
 			{ id: "timeRange", title: "Time Range", isOpen: true },
 			{ id: "team", title: "Team", isOpen: false },
-			{ id: "location", title: "Location", isOpen: false },
+			{ id: "location", title: "Home vs Away", isOpen: false },
 			{ id: "opposition", title: "Opposition", isOpen: false },
 			{ id: "competition", title: "Competition", isOpen: false },
 			{ id: "result", title: "Result", isOpen: false },
@@ -126,6 +150,22 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				needsUpdate = true;
 			}
 
+			// Initialize seasons to all seasons if timeRange type is "season" and seasons array is empty
+			if (playerFilters.timeRange?.type === "season" && (playerFilters.timeRange?.seasons?.length || 0) === 0 && filterData.seasons.length > 0) {
+				updates.timeRange = {
+					...(playerFilters.timeRange || {
+						type: "season",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: "",
+						endDate: "",
+					}),
+					seasons: filterData.seasons.map(season => season.season),
+				};
+				needsUpdate = true;
+			}
+
 			if (needsUpdate) {
 				updatePlayerFilters(updates);
 			}
@@ -173,10 +213,57 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			setInitialFilterSnapshot(snapshot);
 			snapshotCapturedRef.current = true;
 		} else if (!isOpen) {
+			// When sidebar closes, check if teams/position were auto-initialized and revert them
+			// Auto-initialized means: they were empty in the snapshot but have values now
+			const updates: Partial<PlayerFilters> = {};
+			let needsRevert = false;
+			
+			if (initialFilterSnapshot) {
+				// If teams were empty in snapshot but have values now, they were auto-initialized
+				// Always revert auto-initialized filters when sidebar closes without applying
+				const teamsWereEmpty = (initialFilterSnapshot.teams?.length || 0) === 0;
+				const teamsNowHaveValues = (playerFilters?.teams?.length || 0) > 0;
+				if (teamsWereEmpty && teamsNowHaveValues) {
+					updates.teams = [];
+					needsRevert = true;
+					// Set cleared flag so auto-init doesn't happen on next open
+					userClearedRef.current.teams = true;
+				}
+				// If position was empty in snapshot but has values now, it was auto-initialized
+				const positionWasEmpty = (initialFilterSnapshot.position?.length || 0) === 0;
+				const positionNowHasValues = (playerFilters?.position?.length || 0) > 0;
+				if (positionWasEmpty && positionNowHasValues) {
+					updates.position = [];
+					needsRevert = true;
+					// Set cleared flag so auto-init doesn't happen on next open
+					userClearedRef.current.position = true;
+				}
+			}
+			
+			// Revert auto-initialized filters if needed (this will update playerFilters and trigger badge recalculation)
+			if (needsRevert) {
+				// Update only teams/position to empty, preserving other filters
+				updatePlayerFilters(updates);
+				// Apply to ensure badge updates and state is persisted
+				applyPlayerFilters();
+			}
+			
 			// Clear snapshot and reset refs when sidebar closes
 			setInitialFilterSnapshot(null);
 			snapshotCapturedRef.current = false;
-			userClearedRef.current = {};
+			// Only reset userClearedRef flags if the corresponding filters have values (and weren't just reverted)
+			// This preserves the cleared state (empty arrays) so auto-initialization doesn't happen on next open
+			const finalFilters = needsRevert ? { ...playerFilters, teams: [], position: [] } : playerFilters;
+			const clearedState = { ...userClearedRef.current };
+			if (finalFilters?.teams && finalFilters.teams.length > 0) {
+				delete clearedState.teams;
+			}
+			if (finalFilters?.position && finalFilters.position.length > 0) {
+				delete clearedState.position;
+			}
+			// Update both ref and localStorage to persist cleared state across page reloads
+			userClearedRef.current = clearedState;
+			setClearedState(clearedState);
 			setValidationWarning(null);
 		}
 	}, [isOpen, isFilterDataLoaded, filterData, playerFilters]);
@@ -414,7 +501,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		}
 		
 		if (availableFilters.includes("location") && (playerFilters?.location?.length || 0) === 0) {
-			missingSections.push("Location");
+			missingSections.push("Home vs Away");
 		}
 		
 		if (availableFilters.includes("result") && (playerFilters?.result?.length || 0) === 0) {
@@ -436,19 +523,68 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			return;
 		}
 		
-		await applyPlayerFilters();
-		// Reset snapshot and cleared flags after applying filters
-		setInitialFilterSnapshot(null);
-		snapshotCapturedRef.current = false;
-		userClearedRef.current = {};
+		// Track start time and show progress indicator after 3 seconds
+		const startTime = Date.now();
+		setApplyStartTime(startTime);
+		setShowProgressIndicator(false);
 		
-		// Show success toast and close sidebar
-		showSuccess("Filters applied successfully");
-		onClose();
+		// Check if operation takes longer than 3 seconds
+		const progressCheck = setTimeout(() => {
+			if (Date.now() - startTime >= 3000) {
+				setShowProgressIndicator(true);
+			}
+		}, 3000);
+		
+		try {
+			await applyPlayerFilters();
+			// Reset snapshot and cleared flags after applying filters
+			setInitialFilterSnapshot(null);
+			snapshotCapturedRef.current = false;
+			userClearedRef.current = {};
+			setClearedState({});
+			
+			// Show success toast and close sidebar
+			showSuccess("Filters applied successfully");
+			onClose();
+		} finally {
+			clearTimeout(progressCheck);
+			setShowProgressIndicator(false);
+			setApplyStartTime(null);
+		}
 	};
 
-	const handleReset = () => {
+	const handleClearAll = () => {
+		if (hasActiveFilters()) {
+			setShowClearAllConfirm(true);
+		} else {
+			// If no active filters, clear directly without confirmation
+			handleClearAllConfirm();
+		}
+	};
+
+	const handleClearAllConfirm = async () => {
+		// Mark teams and position as user-cleared to prevent auto-initialization when sidebar reopens
+		// Persist to localStorage so it survives page reloads
+		userClearedRef.current = { teams: true, position: true };
+		setClearedState({ teams: true, position: true });
 		resetPlayerFilters();
+		await applyPlayerFilters();
+		showSuccess("All filters cleared");
+		setShowClearAllConfirm(false);
+	};
+
+	const handleClose = () => {
+		// Check if there are actual filter changes using the snapshot comparison
+		if (hasFilterChanges()) {
+			setShowUnsavedChangesConfirm(true);
+		} else {
+			onClose();
+		}
+	};
+
+	const handleUnsavedChangesConfirm = () => {
+		setShowUnsavedChangesConfirm(false);
+		onClose();
 	};
 
 	const hasActiveFilters = () => {
@@ -528,6 +664,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	};
 
 	return (
+		<>
 		<AnimatePresence>
 			{isOpen && (
 				<>
@@ -561,7 +698,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 												"Team": "team",
 												"Position": "position",
 												"Time Range": "timeRange",
-												"Location": "location",
+												"Home vs Away": "location",
 												"Opposition": "opposition",
 												"Competition": "competition",
 												"Result": "result",
@@ -608,7 +745,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						onClick={onClose}
+						onClick={handleClose}
 					/>
 
 					{/* Sidebar */}
@@ -625,14 +762,17 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 							<div className='flex items-center justify-between p-4 border-b border-[var(--color-border)]'>
 								<h2 className='text-lg font-semibold text-[var(--color-text-primary)]'>Filter Options</h2>
 								<div className='flex items-center space-x-2'>
-									<button
-										onClick={handleReset}
-										className='px-3 py-1 text-sm text-[var(--color-text-primary)]/80 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										Reset
-									</button>
+									<Button
+										variant="tertiary"
+										size="sm"
+										onClick={handleClearAll}
+										className='text-sm'
+										title="Clear all filters">
+										Clear All
+									</Button>
 									<button 
 										data-testid="filter-sidebar-close" 
-										onClick={onClose} 
+										onClick={handleClose} 
 										className='min-w-[44px] min-h-[44px] p-3 flex items-center justify-center text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' 
 										aria-label='Close filter sidebar'
 										title="Close filters">
@@ -882,7 +1022,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 									<button
 										onClick={() => toggleAccordion("location")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Location</span>
+										<span className='font-medium text-[var(--color-text-primary)]'>Home vs Away</span>
 										{accordionSections.find((s) => s.id === "location")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1148,11 +1288,19 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 							{/* Footer */}
 							<div className='border-t border-[var(--color-border)] p-4' style={{ marginBottom: '10px' }}>
+								{showProgressIndicator && (
+									<div className='mb-3'>
+										<ProgressIndicator 
+											isVisible={showProgressIndicator}
+											size="md"
+										/>
+									</div>
+								)}
 								<div className='flex space-x-3'>
 									<Button
 										variant="tertiary"
 										size="md"
-										onClick={onClose}
+										onClick={handleClose}
 										fullWidth>
 										Close
 									</Button>
@@ -1171,5 +1319,22 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 				</>
 			)}
 		</AnimatePresence>
+		{/* Clear All Confirmation Modal */}
+		<ConfirmModal
+			isOpen={showClearAllConfirm}
+			onClose={() => setShowClearAllConfirm(false)}
+			onConfirm={handleClearAllConfirm}
+			title="Confirm"
+			message="Are you sure you want to clear all filters?"
+		/>
+		{/* Unsaved Changes Confirmation Modal */}
+		<ConfirmModal
+			isOpen={showUnsavedChangesConfirm}
+			onClose={() => setShowUnsavedChangesConfirm(false)}
+			onConfirm={handleUnsavedChangesConfirm}
+			title="Unsaved Changes"
+			message="You have unsaved filter changes. Are you sure you want to close without applying them?"
+		/>
+		</>
 	);
 }

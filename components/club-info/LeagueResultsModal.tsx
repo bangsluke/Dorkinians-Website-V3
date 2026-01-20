@@ -76,6 +76,22 @@ export default function LeagueResultsModal({
 		fetchFixtures();
 	}, [isOpen, teamKey, season]);
 
+	// Handle ESC key
+	useEffect(() => {
+		if (!isOpen) return;
+
+		const handleEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				onClose();
+			}
+		};
+
+		document.addEventListener("keydown", handleEscape);
+		return () => {
+			document.removeEventListener("keydown", handleEscape);
+		};
+	}, [isOpen, onClose]);
+
 	// Format season for display (2019-20 -> 2019/20)
 	const formatSeason = (season: string) => {
 		return season.replace("-", "/");
