@@ -3,9 +3,15 @@
 import { useEffect } from "react";
 import { log } from "@/lib/utils/logger";
 
-// Pre-warm Neo4j connection on app startup
-export default function Neo4jPreWarm() {
+interface Neo4jPreWarmProps {
+	enabled?: boolean;
+}
+
+// Pre-warm Neo4j connection when chatbot becomes visible
+export default function Neo4jPreWarm({ enabled = true }: Neo4jPreWarmProps) {
 	useEffect(() => {
+		if (!enabled) return;
+
 		// Pre-warm connection in background (non-blocking)
 		const prewarmConnection = async () => {
 			try {
@@ -28,7 +34,7 @@ export default function Neo4jPreWarm() {
 		const timeoutId = setTimeout(prewarmConnection, 1000);
 		
 		return () => clearTimeout(timeoutId);
-	}, []);
+	}, [enabled]);
 
 	return null; // This component doesn't render anything
 }

@@ -58,6 +58,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 	const [showTooltip, setShowTooltip] = useState(false);
 	const [showFilterTooltip, setShowFilterTooltip] = useState(false);
 	const [hasAnimated, setHasAnimated] = useState(false);
+	const [isMounted, setIsMounted] = useState(false);
 
 	// Calculate active filter count
 	const activeFilterCount = useMemo(() => {
@@ -120,21 +121,25 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 		return count;
 	}, [playerFilters, filterData]);
 	
+	// Track client-side mount to prevent hydration mismatch
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
 	// Check if sidebar has been animated before in this session
-	const [shouldAnimate, setShouldAnimate] = useState<boolean>(() => {
+	// Always start as false during SSR to prevent hydration mismatch
+	const [shouldAnimate, setShouldAnimate] = useState<boolean>(false);
+
+	// Check sessionStorage after mount to determine if we should animate
+	useEffect(() => {
 		if (typeof window !== "undefined") {
 			const hasAnimated = sessionStorage.getItem("sidebar-animated");
-			return !hasAnimated;
+			if (!hasAnimated) {
+				setShouldAnimate(true);
+				sessionStorage.setItem("sidebar-animated", "true");
+			}
 		}
-		return true; // Default to animating on SSR
-	});
-
-	// Mark as animated in sessionStorage after mount
-	useEffect(() => {
-		if (typeof window !== "undefined" && shouldAnimate) {
-			sessionStorage.setItem("sidebar-animated", "true");
-		}
-	}, [shouldAnimate]);
+	}, []);
 
 	// Check if tooltip should be shown on first visit
 	useEffect(() => {
@@ -218,10 +223,9 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 	return (
 		<motion.aside
 			className='hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-[220px] flex-col'
-			style={shouldAnimate ? undefined : { transform: 'translateX(0)' }}
-			initial={shouldAnimate ? { x: -220 } : { x: 0 }}
+			initial={{ x: 0 }}
 			animate={{ x: 0 }}
-			transition={shouldAnimate ? { type: "spring", stiffness: 300, damping: 30 } : { duration: 0 }}>
+			transition={{ duration: 0 }}>
 			{/* Sidebar container */}
 			<div className='h-full w-full flex flex-col'>
 				{/* Header Section */}

@@ -124,7 +124,12 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Production: return response without debug information
-		return NextResponse.json(response, { headers: corsHeaders });
+		// Add Cache-Control header for BFCache compatibility (no-cache for dynamic content)
+		const responseHeaders = {
+			...corsHeaders,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		};
+		return NextResponse.json(response, { headers: responseHeaders });
 	} catch (error) {
 		logError("Chatbot API error", error);
 
@@ -139,6 +144,10 @@ export async function POST(request: NextRequest) {
 			...(process.env.NODE_ENV === "development" ? { error: sanitized.message, details: sanitized.details } : {}),
 		};
 
-		return NextResponse.json(errorResponse, { status: 500, headers: corsHeaders });
+		const errorHeaders = {
+			...corsHeaders,
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		};
+		return NextResponse.json(errorResponse, { status: 500, headers: errorHeaders });
 	}
 }
