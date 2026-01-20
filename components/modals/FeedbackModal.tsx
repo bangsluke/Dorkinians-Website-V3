@@ -1,11 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useState, useEffect, useRef } from "react";
-import { FocusTrap } from "@headlessui/react";
+import { useState, useRef } from "react";
 import { XMarkIcon, BugAntIcon, LightBulbIcon } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import Input, { Textarea } from "@/components/ui/Input";
+import ModalWrapper from "./ModalWrapper";
 
 interface FeedbackModalProps {
 	isOpen: boolean;
@@ -20,40 +19,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 	const [message, setMessage] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [submitStatus, setSubmitStatus] = useState<"idle" | "success" | "error">("idle");
-	const previousActiveElementRef = useRef<HTMLElement | null>(null);
 	const nameInputRef = useRef<HTMLInputElement>(null);
-
-	// Track the element that had focus before modal opened
-	useEffect(() => {
-		if (isOpen) {
-			previousActiveElementRef.current = document.activeElement as HTMLElement;
-		}
-	}, [isOpen]);
-
-	// Handle ESC key
-	useEffect(() => {
-		if (!isOpen) return;
-
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && !isSubmitting) {
-				onClose();
-			}
-		};
-
-		document.addEventListener("keydown", handleEscape);
-		return () => {
-			document.removeEventListener("keydown", handleEscape);
-		};
-	}, [isOpen, onClose, isSubmitting]);
-
-	// Return focus to previous element when modal closes
-	useEffect(() => {
-		if (!isOpen && previousActiveElementRef.current) {
-			setTimeout(() => {
-				previousActiveElementRef.current?.focus();
-			}, 0);
-		}
-	}, [isOpen]);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -115,30 +81,16 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 	if (!isOpen) return null;
 
 	return (
-		<>
-			{/* Backdrop */}
-			<motion.div
-				className='fixed inset-0 z-50'
-				style={{ backgroundColor: 'rgba(15, 15, 15, 0.5)' }}
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				exit={{ opacity: 0 }}
-				onClick={handleClose}
-				aria-hidden="true"
-			/>
-
-			{/* Modal with Focus Trap */}
-			<FocusTrap initialFocus={nameInputRef}>
-				<motion.div
-					role="dialog"
-					aria-modal="true"
-					aria-label={feedbackType === "bug" ? "Report a Bug" : "Request a Feature"}
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 1, scale: 1 }}
-					exit={{ opacity: 0, scale: 0.95 }}
-					className='fixed inset-0 z-50 flex flex-col'
-					style={{ backgroundColor: 'rgb(14, 17, 15)' }}
-					onClick={(e) => e.stopPropagation()}>
+		<ModalWrapper
+			isOpen={isOpen}
+			onClose={handleClose}
+			backdropClassName="fixed inset-0 z-50"
+			modalClassName="fixed inset-0 z-50 flex flex-col"
+			ariaLabel={feedbackType === "bug" ? "Report a Bug" : "Request a Feature"}
+			initialFocusRef={nameInputRef}>
+			<div 
+				className='flex flex-col h-full'
+				style={{ backgroundColor: 'rgb(14, 17, 15)' }}>
 				{/* Header */}
 				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-[var(--color-border)]'>
 					<div className='flex items-center space-x-3 flex-1 justify-center'>
@@ -154,7 +106,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 					<button
 						onClick={handleClose}
 						disabled={isSubmitting}
-						className='text-[var(--color-text-primary)] hover:text-gray-200 ml-4 flex-shrink-0 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+						className='min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-[var(--color-surface-elevated)] transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 						aria-label='Close feedback modal'>
 						<XMarkIcon className='w-6 h-6' />
 					</button>
@@ -259,8 +211,7 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 						Close
 					</button>
 				</div>
-			</motion.div>
-			</FocusTrap>
-		</>
+			</div>
+		</ModalWrapper>
 	);
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation";
 import { statsPageConfig } from "@/config/config";
 import Button from "@/components/ui/Button";
@@ -67,8 +67,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		}
 	};
 	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>(getClearedState());
-	// State for validation warning modal
-	const [validationWarning, setValidationWarning] = useState<string[] | null>(null);
+	// State for validation errors (inline display)
+	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+	// State for date validation errors
+	const [dateValidationErrors, setDateValidationErrors] = useState<{
+		beforeDate?: string;
+		afterDate?: string;
+		startDate?: string;
+		endDate?: string;
+	}>({});
 	// State for progress indicator
 	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
 	const [applyStartTime, setApplyStartTime] = useState<number | null>(null);
@@ -79,16 +86,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		return config?.availableFilters ? [...config.availableFilters] : [];
 	}, [currentStatsSubPage]);
 
-	// All possible accordion sections
+	// All possible accordion sections - Common filters open by default, advanced collapsed
 	const allAccordionSections: AccordionSection[] = useMemo(
 		() => [
-			{ id: "timeRange", title: "Time Range", isOpen: true },
-			{ id: "team", title: "Team", isOpen: false },
-			{ id: "location", title: "Home vs Away", isOpen: false },
-			{ id: "opposition", title: "Opposition", isOpen: false },
-			{ id: "competition", title: "Competition", isOpen: false },
-			{ id: "result", title: "Result", isOpen: false },
-			{ id: "position", title: "Position", isOpen: false },
+			{ id: "timeRange", title: "Time Range", isOpen: true }, // Common - always open
+			{ id: "team", title: "Team", isOpen: true }, // Common - open by default
+			{ id: "location", title: "Home vs Away", isOpen: true }, // Common - open by default
+			{ id: "opposition", title: "Opposition", isOpen: false }, // Advanced - collapsed
+			{ id: "competition", title: "Competition", isOpen: false }, // Advanced - collapsed
+			{ id: "result", title: "Result", isOpen: false }, // Advanced - collapsed
+			{ id: "position", title: "Position", isOpen: false }, // Advanced - collapsed
 		],
 		[],
 	);
@@ -116,6 +123,50 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			loadFilterData();
 		}
 	}, [isOpen, isFilterDataLoaded, loadFilterData]);
+
+	// Validate date ranges when they change
+	useEffect(() => {
+		if (isOpen && playerFilters?.timeRange) {
+			const errors = validateDateRanges();
+			setDateValidationErrors(errors);
+		} else {
+			setDateValidationErrors({});
+		}
+	}, [playerFilters?.timeRange, isOpen]);
+
+	// Update inline validation errors when filters change
+	useEffect(() => {
+		if (isOpen) {
+			const missingSections = validateRequiredFilters();
+			const dateErrors = validateDateRanges();
+			const errors: Record<string, string> = {};
+
+			// Map missing sections to section IDs
+			const sectionIdMap: Record<string, string> = {
+				"Team": "team",
+				"Position": "position",
+				"Home vs Away": "location",
+				"Result": "result",
+				"Competition": "competition",
+			};
+
+			missingSections.forEach((section) => {
+				const sectionId = sectionIdMap[section];
+				if (sectionId) {
+					errors[sectionId] = `Please select at least one option in ${section}`;
+				}
+			});
+
+			// Add date range errors
+			if (Object.keys(dateErrors).length > 0) {
+				errors.timeRange = "Please fix date range errors above";
+			}
+
+			setValidationErrors(errors);
+		} else {
+			setValidationErrors({});
+		}
+	}, [playerFilters, isOpen, dateValidationErrors]);
 
 	// Initialize default values when sidebar opens
 	useEffect(() => {
@@ -264,12 +315,86 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			// Update both ref and localStorage to persist cleared state across page reloads
 			userClearedRef.current = clearedState;
 			setClearedState(clearedState);
-			setValidationWarning(null);
 		}
 	}, [isOpen, isFilterDataLoaded, filterData, playerFilters]);
 
 	const toggleAccordion = (sectionId: string) => {
 		setAccordionSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, isOpen: !section.isOpen } : section)));
+	};
+
+	// Apply filter preset
+	const applyPreset = (presetName: "thisSeason" | "allTime" | "last30Days" | "lastSeason") => {
+		if (!filterData || filterData.seasons.length === 0) return;
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		switch (presetName) {
+			case "thisSeason": {
+				// Get current season (first season in the list, which should be the most recent)
+				const currentSeason = filterData.seasons[0]?.season;
+				if (currentSeason) {
+					updatePlayerFilters({
+						timeRange: {
+							type: "season",
+							seasons: [currentSeason],
+							beforeDate: "",
+							afterDate: "",
+							startDate: "",
+							endDate: "",
+						},
+					});
+				}
+				break;
+			}
+			case "allTime": {
+				updatePlayerFilters({
+					timeRange: {
+						type: "allTime",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: "",
+						endDate: "",
+					},
+				});
+				break;
+			}
+			case "last30Days": {
+				const endDate = new Date(today);
+				const startDate = new Date(today);
+				startDate.setDate(startDate.getDate() - 30);
+				
+				updatePlayerFilters({
+					timeRange: {
+						type: "betweenDates",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: startDate.toISOString().split('T')[0],
+						endDate: endDate.toISOString().split('T')[0],
+					},
+				});
+				break;
+			}
+			case "lastSeason": {
+				// Get previous season (second season in the list)
+				const lastSeason = filterData.seasons[1]?.season;
+				if (lastSeason) {
+					updatePlayerFilters({
+						timeRange: {
+							type: "season",
+							seasons: [lastSeason],
+							beforeDate: "",
+							afterDate: "",
+							startDate: "",
+							endDate: "",
+						},
+					});
+				}
+				break;
+			}
+		}
 	};
 
 	const handleTimeRangeTypeChange = (type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates") => {
@@ -489,6 +614,67 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		});
 	};
 
+	// Validate date ranges
+	const validateDateRanges = (): { [key: string]: string } => {
+		const errors: { [key: string]: string } = {};
+		const timeRange = playerFilters?.timeRange;
+		if (!timeRange) return errors;
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		// Validate betweenDates
+		if (timeRange.type === "betweenDates") {
+			const startDate = timeRange.startDate;
+			const endDate = timeRange.endDate;
+
+			if (startDate && endDate) {
+				const start = new Date(startDate);
+				const end = new Date(endDate);
+
+				if (start > end) {
+					errors.endDate = "End date must be after start date";
+				}
+
+				if (start > today) {
+					errors.startDate = "Start date cannot be in the future";
+				}
+
+				if (end > today) {
+					errors.endDate = errors.endDate || "End date cannot be in the future";
+				}
+			} else if (startDate && !endDate) {
+				const start = new Date(startDate);
+				if (start > today) {
+					errors.startDate = "Start date cannot be in the future";
+				}
+			} else if (endDate && !startDate) {
+				const end = new Date(endDate);
+				if (end > today) {
+					errors.endDate = "End date cannot be in the future";
+				}
+			}
+		}
+
+		// Validate beforeDate
+		if (timeRange.type === "beforeDate" && timeRange.beforeDate) {
+			const before = new Date(timeRange.beforeDate);
+			if (before > today) {
+				errors.beforeDate = "Date cannot be in the future";
+			}
+		}
+
+		// Validate afterDate
+		if (timeRange.type === "afterDate" && timeRange.afterDate) {
+			const after = new Date(timeRange.afterDate);
+			if (after > today) {
+				errors.afterDate = "Date cannot be in the future";
+			}
+		}
+
+		return errors;
+	};
+
 	const validateRequiredFilters = (): string[] => {
 		const missingSections: string[] = [];
 		
@@ -515,11 +701,38 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		return missingSections;
 	};
 
-	const handleApply = async () => {
+	// Check if filters are valid (required filters selected and date ranges valid)
+	const isFilterValid = (): boolean => {
 		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		return missingSections.length === 0 && Object.keys(dateErrors).length === 0;
+	};
+
+	// Get validation message explaining why filters are invalid
+	const getValidationMessage = (): string | null => {
+		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		const messages: string[] = [];
 		
 		if (missingSections.length > 0) {
-			setValidationWarning(missingSections);
+			messages.push(`Please select at least one option in: ${missingSections.join(", ")}`);
+		}
+		
+		if (Object.keys(dateErrors).length > 0) {
+			messages.push(`Please fix date range errors`);
+		}
+		
+		return messages.length > 0 ? messages.join(". ") : null;
+	};
+
+	const handleApply = async () => {
+		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		if (missingSections.length > 0 || Object.keys(dateErrors).length > 0) {
+			// Errors will be shown inline via useEffect
 			return;
 		}
 		
@@ -563,13 +776,26 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	};
 
 	const handleClearAllConfirm = async () => {
-		// Mark teams and position as user-cleared to prevent auto-initialization when sidebar reopens
-		// Persist to localStorage so it survives page reloads
-		userClearedRef.current = { teams: true, position: true };
-		setClearedState({ teams: true, position: true });
-		resetPlayerFilters();
+		// Reset filters: Set Time range to "All Time" and select all Teams
+		if (!playerFilters || !filterData) return;
+		
+		const allTeams = filterData.teams.map(team => team.name);
+		userClearedRef.current.teams = false;
+		
+		updatePlayerFilters({
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: allTeams,
+		});
+		
 		await applyPlayerFilters();
-		showSuccess("All filters cleared");
+		showSuccess("Filters reset");
 		setShowClearAllConfirm(false);
 	};
 
@@ -668,76 +894,6 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 		<AnimatePresence>
 			{isOpen && (
 				<>
-					{/* Validation Warning Modal */}
-					{validationWarning && (
-						<>
-							<motion.div
-								className='fixed inset-0 bg-black/70 z-[60]'
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								onClick={() => setValidationWarning(null)}
-							/>
-							<motion.div
-								className='fixed inset-0 z-[70] flex items-center justify-center p-4'
-								initial={{ opacity: 0, scale: 0.9 }}
-								animate={{ opacity: 1, scale: 1 }}
-								exit={{ opacity: 0, scale: 0.9 }}
-								onClick={(e) => e.stopPropagation()}>
-								<div className='bg-[var(--color-background)] border border-[var(--color-border)] rounded-lg p-6 max-w-md w-full'>
-									<h3 className='text-lg font-semibold text-[var(--color-text-primary)] mb-4'>Please Complete Required Filters</h3>
-									<p className='text-[var(--color-text-primary)]/80 mb-4'>
-										To apply filters and view accurate statistics, you need to select at least one option from each section. This ensures the results are properly filtered.
-									</p>
-									<p className='text-sm text-[var(--color-text-primary)]/70 mb-4'>
-										The following sections need selections:
-									</p>
-									<ul className='mb-6 space-y-2'>
-										{validationWarning.map((section) => {
-											const sectionIdMap: Record<string, string> = {
-												"Team": "team",
-												"Position": "position",
-												"Time Range": "timeRange",
-												"Home vs Away": "location",
-												"Opposition": "opposition",
-												"Competition": "competition",
-												"Result": "result",
-											};
-											const sectionId = sectionIdMap[section];
-											return (
-												<li key={section} className='flex items-center justify-between'>
-													<span className='text-[var(--color-text-primary)]/80'>{section}</span>
-													{sectionId && (
-														<button
-															onClick={() => {
-																setValidationWarning(null);
-																// Open the accordion section
-																toggleAccordion(sectionId);
-																// Scroll to the section after a brief delay
-																setTimeout(() => {
-																	const sectionElement = document.querySelector(`[data-testid="filter-${sectionId}"]`);
-																	if (sectionElement) {
-																		sectionElement.scrollIntoView({ behavior: "smooth", block: "center" });
-																	}
-																}, 100);
-															}}
-															className='text-dorkinians-yellow hover:text-dorkinians-yellow/80 underline text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-															Go to section
-														</button>
-													)}
-												</li>
-											);
-										})}
-									</ul>
-									<button
-										onClick={() => setValidationWarning(null)}
-										className='w-full px-4 py-2 bg-dorkinians-yellow text-black font-medium rounded-md hover:bg-dorkinians-yellow/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										OK
-									</button>
-								</div>
-							</motion.div>
-						</>
-					)}
 
 					{/* Backdrop */}
 					<motion.div
@@ -767,8 +923,8 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 										size="sm"
 										onClick={handleClearAll}
 										className='text-sm'
-										title="Clear all filters">
-										Clear All
+										title="Reset filters to defaults">
+										Reset Filters
 									</Button>
 									<button 
 										data-testid="filter-sidebar-close" 
@@ -785,13 +941,55 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 							<div 
 								className='flex-1 overflow-y-auto p-4 space-y-2'
 								style={{ WebkitOverflowScrolling: 'touch' }}>
+								{/* Filter Presets */}
+								{isFilterDataLoaded && filterData && filterData.seasons.length > 0 && (
+									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50 p-4 mb-2'>
+										<label className='block text-sm font-medium text-[var(--color-text-primary)]/90 mb-2'>Quick Filters</label>
+										<div className='grid grid-cols-2 gap-2'>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("thisSeason")}
+												className='text-sm'>
+												This Season
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("allTime")}
+												className='text-sm'>
+												All Time
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("last30Days")}
+												className='text-sm'>
+												Last 30 Days
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("lastSeason")}
+												className='text-sm'>
+												Last Season
+											</Button>
+										</div>
+									</div>
+								)}
+
 								{/* Time Range Section */}
 								{availableFilters.includes("timeRange") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-timeRange">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.timeRange ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-timeRange">
 									<button
 										onClick={() => toggleAccordion("timeRange")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Time Range</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Time Range</span>
+											{validationErrors.timeRange && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "timeRange")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -860,101 +1058,130 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 											{/* Date Inputs */}
 											{(playerFilters?.timeRange?.type || "allTime") === "beforeDate" && (
-												<Input
-													type='date'
-													label='Before Date'
-													value={playerFilters?.timeRange?.beforeDate || ""}
-													onChange={(e) =>
-														updatePlayerFilters({
-															timeRange: { 
-																...(playerFilters?.timeRange || {
-																	type: "beforeDate",
-																	seasons: [],
-																	beforeDate: "",
-																	afterDate: "",
-																	startDate: "",
-																	endDate: "",
-																}), 
-																beforeDate: e.target.value 
-															},
-														})
-													}
-													size="md"
-													className='w-[95%] md:w-full'
-												/>
+												<div className='space-y-1'>
+													<Input
+														type='date'
+														label='Before Date'
+														value={playerFilters?.timeRange?.beforeDate || ""}
+														onChange={(e) =>
+															updatePlayerFilters({
+																timeRange: { 
+																	...(playerFilters?.timeRange || {
+																		type: "beforeDate",
+																		seasons: [],
+																		beforeDate: "",
+																		afterDate: "",
+																		startDate: "",
+																		endDate: "",
+																	}), 
+																	beforeDate: e.target.value 
+																},
+															})
+														}
+														size="md"
+														className='w-[95%] md:w-full'
+													/>
+													{dateValidationErrors.beforeDate && (
+														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.beforeDate}</p>
+													)}
+												</div>
 											)}
 
 											{(playerFilters?.timeRange?.type || "allTime") === "afterDate" && (
-												<Input
-													type='date'
-													label='After Date'
-													value={playerFilters?.timeRange?.afterDate || ""}
-													onChange={(e) =>
-														updatePlayerFilters({
-															timeRange: { 
-																...(playerFilters?.timeRange || {
-																	type: "afterDate",
-																	seasons: [],
-																	beforeDate: "",
-																	afterDate: "",
-																	startDate: "",
-																	endDate: "",
-																}), 
-																afterDate: e.target.value 
-															},
-														})
-													}
-													size="md"
-													className='w-[95%] md:w-full'
-												/>
+												<div className='space-y-1'>
+													<Input
+														type='date'
+														label='After Date'
+														value={playerFilters?.timeRange?.afterDate || ""}
+														onChange={(e) =>
+															updatePlayerFilters({
+																timeRange: { 
+																	...(playerFilters?.timeRange || {
+																		type: "afterDate",
+																		seasons: [],
+																		beforeDate: "",
+																		afterDate: "",
+																		startDate: "",
+																		endDate: "",
+																	}), 
+																	afterDate: e.target.value 
+																},
+															})
+														}
+														size="md"
+														className='w-[95%] md:w-full'
+													/>
+													{dateValidationErrors.afterDate && (
+														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.afterDate}</p>
+													)}
+												</div>
 											)}
 
 											{(playerFilters?.timeRange?.type || "allTime") === "betweenDates" && (
 												<div className='space-y-1'>
-													<Input
-														type='date'
-														label='Start Date'
-														value={playerFilters?.timeRange?.startDate || ""}
-														onChange={(e) =>
-															updatePlayerFilters({
-																timeRange: { 
-																	...(playerFilters?.timeRange || {
-																		type: "betweenDates",
-																		seasons: [],
-																		beforeDate: "",
-																		afterDate: "",
-																		startDate: "",
-																		endDate: "",
-																	}), 
-																	startDate: e.target.value 
-																},
-															})
-														}
-														size="md"
-														className='w-[95%] md:w-full'
-													/>
-													<Input
-														type='date'
-														label='End Date'
-														value={playerFilters?.timeRange?.endDate || ""}
-														onChange={(e) =>
-															updatePlayerFilters({
-																timeRange: { 
-																	...(playerFilters?.timeRange || {
-																		type: "betweenDates",
-																		seasons: [],
-																		beforeDate: "",
-																		afterDate: "",
-																		startDate: "",
-																		endDate: "",
-																	}), 
-																	endDate: e.target.value 
-																},
-															})
-														}
-														size="md"
-														className='w-[95%] md:w-full'
-													/>
+													<div className='space-y-1'>
+														<Input
+															type='date'
+															label='Start Date'
+															value={playerFilters?.timeRange?.startDate || ""}
+															onChange={(e) =>
+																updatePlayerFilters({
+																	timeRange: { 
+																		...(playerFilters?.timeRange || {
+																			type: "betweenDates",
+																			seasons: [],
+																			beforeDate: "",
+																			afterDate: "",
+																			startDate: "",
+																			endDate: "",
+																		}), 
+																		startDate: e.target.value 
+																	},
+																})
+															}
+															size="md"
+															className='w-[95%] md:w-full'
+														/>
+														{dateValidationErrors.startDate && (
+															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.startDate}</p>
+														)}
+													</div>
+													<div className='space-y-1'>
+														<Input
+															type='date'
+															label='End Date'
+															value={playerFilters?.timeRange?.endDate || ""}
+															onChange={(e) =>
+																updatePlayerFilters({
+																	timeRange: { 
+																		...(playerFilters?.timeRange || {
+																			type: "betweenDates",
+																			seasons: [],
+																			beforeDate: "",
+																			afterDate: "",
+																			startDate: "",
+																			endDate: "",
+																		}), 
+																		endDate: e.target.value 
+																	},
+																})
+															}
+															size="md"
+															className='w-[95%] md:w-full'
+														/>
+														{dateValidationErrors.endDate && (
+															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.endDate}</p>
+														)}
+													</div>
+												</div>
+											)}
+											{/* Inline validation error for Time Range */}
+											{validationErrors.timeRange && (
+												<div className='px-4 pb-2 pt-2'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.timeRange}
+													</p>
 												</div>
 											)}
 										</div>
@@ -964,11 +1191,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 								{/* Team Section */}
 								{availableFilters.includes("team") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-team">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.team ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-team">
 									<button
 										onClick={() => toggleAccordion("team")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Team</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Team</span>
+											{validationErrors.team && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "team")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1011,6 +1243,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 													</div>
 												</>
 											)}
+											{/* Inline validation error for Team */}
+											{validationErrors.team && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.team}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1018,11 +1259,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 								{/* Location Section */}
 								{availableFilters.includes("location") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-location">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.location ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-location">
 									<button
 										onClick={() => toggleAccordion("location")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Home vs Away</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Home vs Away</span>
+											{validationErrors.location && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "location")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1045,6 +1291,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 													</label>
 												))}
 											</div>
+											{/* Inline validation error for Location */}
+											{validationErrors.location && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.location}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1123,11 +1378,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 								{/* Competition Section */}
 								{availableFilters.includes("competition") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-competition">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.competition ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-competition">
 									<button
 										onClick={() => toggleAccordion("competition")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Competition</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Competition</span>
+											{validationErrors.competition && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "competition")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1187,6 +1447,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 													</div>
 												)}
 											</div>
+											{/* Inline validation error for Competition */}
+											{validationErrors.competition && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.competition}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1194,11 +1463,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 								{/* Result Section */}
 								{availableFilters.includes("result") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-result">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.result ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-result">
 									<button
 										onClick={() => toggleAccordion("result")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Result</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Result</span>
+											{validationErrors.result && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "result")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1221,6 +1495,15 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 													</label>
 												))}
 											</div>
+											{/* Inline validation error for Result */}
+											{validationErrors.result && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.result}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1228,11 +1511,16 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 
 								{/* Position Section */}
 								{availableFilters.includes("position") && (
-									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-position">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.position ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-position">
 									<button
 										onClick={() => toggleAccordion("position")}
 										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
-										<span className='font-medium text-[var(--color-text-primary)]'>Position</span>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Position</span>
+											{validationErrors.position && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "position")?.isOpen ? (
 											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
@@ -1301,17 +1589,23 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 										variant="tertiary"
 										size="md"
 										onClick={handleClose}
-										fullWidth>
+										className='flex-1'>
 										Close
 									</Button>
-									<Button
-										variant="secondary"
-										size="md"
-										onClick={handleApply}
-										disabled={!hasFilterChanges()}
-										fullWidth>
-										Apply Filters
-									</Button>
+									<div className="relative flex-1">
+										<Button
+											variant="secondary"
+											size="md"
+											onClick={handleApply}
+											disabled={!hasFilterChanges() || !isFilterValid()}
+											className='w-full whitespace-nowrap'
+											title={!isFilterValid() ? getValidationMessage() || "Please fix validation errors" : undefined}>
+											Apply Filters
+										</Button>
+										{!isFilterValid() && !hasFilterChanges() && (
+											<p className="text-xs text-red-400 mt-1 text-center">{getValidationMessage()}</p>
+										)}
+									</div>
 								</div>
 							</div>
 						</div>
@@ -1325,7 +1619,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			onClose={() => setShowClearAllConfirm(false)}
 			onConfirm={handleClearAllConfirm}
 			title="Confirm"
-			message="Are you sure you want to clear all filters?"
+			message="Are you sure you want to reset filters to defaults (All Time, All Teams)?"
 		/>
 		{/* Unsaved Changes Confirmation Modal */}
 		<ConfirmModal

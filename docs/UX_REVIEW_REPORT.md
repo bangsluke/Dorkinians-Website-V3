@@ -1764,12 +1764,12 @@ Implementation should follow the phased approach, starting with critical fixes a
 #### Consistency and Standards
 - [ ] Standardize button sizes using design tokens
 - [ ] Create icon + text pattern for all icon buttons
-- [ ] Unify modal close patterns across all modals
+- [x] Unify modal close patterns across all modals
 
 #### Error Prevention
-- [ ] Add inline validation for date ranges in filters
-- [ ] Disable apply button when filters are invalid
-- [ ] Prevent empty chatbot submissions
+- [x] Add inline validation for date ranges in filters
+- [x] Disable apply button when filters are invalid
+- [x] Prevent empty chatbot submissions
 
 #### Recognition Rather Than Recall
 - [ ] Show active filter pills when sidebar is closed
@@ -1778,18 +1778,18 @@ Implementation should follow the phased approach, starting with critical fixes a
 
 #### Flexibility and Efficiency of Use
 - [ ] Add keyboard shortcuts (e.g., / for search, f for filters)
-- [ ] Add filter presets (e.g., "This Season", "All Time")
+- [x] Add filter presets (e.g., "This Season", "All Time")
 - [ ] Quick access to common filter combinations
 
 #### Aesthetic and Minimalist Design
-- [ ] Use progressive disclosure more effectively in filters
+- [x] Use progressive disclosure more effectively in filters
 - [ ] Increase whitespace on dense pages
 - [ ] Simplify mobile navigation indicators
 
 #### Help Users Recognize, Diagnose, and Recover from Errors
-- [ ] Make error messages more specific and actionable
-- [ ] Show validation errors inline in filter sidebar
-- [ ] Suggest similar questions when chatbot fails
+- [x] Make error messages more specific and actionable
+- [x] Show validation errors inline in filter sidebar
+- [x] Suggest similar questions when chatbot fails
 
 #### Help and Documentation
 - [ ] Add first-time user onboarding flow

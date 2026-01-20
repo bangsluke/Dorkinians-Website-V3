@@ -369,7 +369,7 @@ export class ChatbotService {
 
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
-			const errorMessage = await errorHandler.generateErrorResponse(errorObj, {
+			const errorResponse = await errorHandler.generateErrorResponse(errorObj, {
 				question: context.question,
 				analysis: this.lastQuestionAnalysis || undefined,
 			});
@@ -378,9 +378,10 @@ export class ChatbotService {
 			const processingDetails = await this.getProcessingDetails();
 
 			return {
-				answer: errorMessage,
+				answer: errorResponse.message,
 				sources: [],
 				cypherQuery: "N/A",
+				suggestions: errorResponse.suggestions,
 				debug: {
 					question: context.question,
 					userContext: context.userContext,
@@ -7654,6 +7655,12 @@ export class ChatbotService {
 		// Extract Cypher query: prefer data?.cypherQuery, fallback to lastExecutedQueries
 		const cypherQuery = this.extractCypherQuery(data?.cypherQuery as string | undefined, question);
 
+		// Add suggestions if answer indicates failure
+		let suggestions: string[] | undefined = undefined;
+		if (isNoDataAnswer(answer) || hasNoData) {
+			suggestions = errorHandler.getSimilarQuestions(question);
+		}
+
 		return {
 			answer,
 			data: data?.data,
@@ -7661,6 +7668,7 @@ export class ChatbotService {
 			sources,
 			answerValue,
 			cypherQuery,
+			suggestions,
 			debug: {
 				question,
 				timestamp: new Date().toISOString(),

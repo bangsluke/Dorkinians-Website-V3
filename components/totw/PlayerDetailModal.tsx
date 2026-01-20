@@ -2,9 +2,8 @@
 
 import { MatchDetail } from "@/types";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { useEffect } from "react";
+import ModalWrapper from "@/components/modals/ModalWrapper";
 
 interface FTPBreakdown {
 	stat: string;
@@ -230,57 +229,27 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 		return null;
 	}
 
-	const handleClose = () => {
-		onClose();
-	};
-
-	// Handle ESC key
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				handleClose();
-			}
-		};
-
-		document.addEventListener("keydown", handleEscape);
-		return () => {
-			document.removeEventListener("keydown", handleEscape);
-		};
-	}, []);
-
 	const modalContent = (
-		<AnimatePresence>
-			<>
-				{/* Backdrop */}
-				<motion.div
-					className='fixed inset-0 bg-black/50 z-[9999]'
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					exit={{ opacity: 0 }}
-					onClick={handleClose}
-				/>
-
-				{/* Full-screen modal */}
-				<motion.div
-					data-testid="totw-player-modal"
-					className='fixed inset-0 h-screen w-screen z-[10000] shadow-xl'
-					style={{ backgroundColor: '#0f0f0f' }}
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					exit={{ opacity: 0 }}
-					transition={{ type: "spring", stiffness: 300, damping: 30 }}>
-					<div className='h-full flex flex-col'>
-						{/* Header with Close button */}
-						<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
-							<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
-							<button
-								data-testid="totw-player-modal-close"
-								onClick={handleClose}
-								className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors ml-4 flex-shrink-0'
-								aria-label={`Close ${playerName} player details modal`}>
-								<XMarkIcon className='w-5 h-5' />
-							</button>
-						</div>
+		<ModalWrapper
+			isOpen={true}
+			onClose={onClose}
+			backdropClassName="fixed inset-0 bg-black/50 z-[9999]"
+			modalClassName="fixed inset-0 h-screen w-screen z-[10000] shadow-xl"
+			ariaLabel={`${playerName} player details`}>
+			<div 
+				className='h-full flex flex-col'
+				style={{ backgroundColor: '#0f0f0f' }}>
+				{/* Header with Close button */}
+				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
+					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
+					<button
+						data-testid="totw-player-modal-close"
+						onClick={onClose}
+						className='min-w-[44px] min-h-[44px] p-2 rounded-full hover:bg-white/20 transition-colors ml-4 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
+						aria-label={`Close ${playerName} player details modal`}>
+						<XMarkIcon className='w-6 h-6 text-white' />
+					</button>
+				</div>
 
 						{/* Scrollable content */}
 						<div 
@@ -387,19 +356,17 @@ export default function PlayerDetailModal({ playerName, matchDetails, totwAppear
 							)}
 						</div>
 
-						{/* Close Button at Bottom */}
-						<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
-							<button
-								type='button'
-								onClick={handleClose}
-								className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors'>
-								Close
-							</button>
-						</div>
-					</div>
-				</motion.div>
-			</>
-		</AnimatePresence>
+				{/* Close Button at Bottom */}
+				<div className='flex-shrink-0 flex justify-center p-4 border-t border-white/20'>
+					<button
+						type='button'
+						onClick={onClose}
+						className='px-5 py-2 bg-dorkinians-yellow text-black text-sm font-semibold rounded-lg hover:bg-dorkinians-yellow/90 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+						Close
+					</button>
+				</div>
+			</div>
+		</ModalWrapper>
 	);
 
 	return createPortal(modalContent, document.body);

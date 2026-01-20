@@ -408,6 +408,12 @@ export default function ChatbotInterface() {
 	// Handle the chatbot question submission
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault(); // Prevent the default form submission behavior
+		
+		// Prevent empty submissions
+		if (!question.trim() || isLoading) {
+			return;
+		}
+		
 		await submitQuestion(question);
 	};
 
@@ -431,6 +437,13 @@ export default function ChatbotInterface() {
 							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
 							size="md"
 							disabled={isLoading}
+							required
+							onKeyDown={(e) => {
+								// Prevent Enter key submission when input is empty
+								if (e.key === 'Enter' && !question.trim()) {
+									e.preventDefault();
+								}
+							}}
 						/>
 						<Button
 							data-testid="chatbot-submit"
@@ -468,6 +481,12 @@ export default function ChatbotInterface() {
 						error={error}
 						onShowToast={showError}
 						showToast={true}
+						suggestions={response?.suggestions}
+						onSuggestionClick={(suggestion) => {
+							setError(null);
+							setQuestion(suggestion);
+							submitQuestion(suggestion);
+						}}
 					/>
 				)}
 
@@ -487,6 +506,27 @@ export default function ChatbotInterface() {
 							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>
 							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
+
+						{/* Suggestions when response indicates failure */}
+						{response.suggestions && response.suggestions.length > 0 && (
+							<div className='mb-3 md:mb-4'>
+								<p className='text-white/80 text-sm mb-3'>Try asking one of these instead:</p>
+								<div className='space-y-2'>
+									{response.suggestions.map((suggestion, index) => (
+										<button
+											key={index}
+											onClick={() => {
+												setResponse(null);
+												setQuestion(suggestion);
+												submitQuestion(suggestion);
+											}}
+											className='w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+											{suggestion}
+										</button>
+									))}
+								</div>
+							</div>
+						)}
 
 						{/* Navigation button for full stats question */}
 						{response.answer.includes("Player Stats page") && (

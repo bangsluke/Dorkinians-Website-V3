@@ -35,6 +35,8 @@ export interface ErrorStateProps {
 	showToast?: boolean; // Whether to show toast notification
 	toastMessage?: string; // Custom toast message
 	onShowToast?: (message: string) => void; // Optional callback to show toast
+	suggestions?: string[]; // Suggested similar questions or actions
+	onSuggestionClick?: (suggestion: string) => void; // Callback when suggestion is clicked
 }
 
 export function ErrorState({ 
@@ -44,7 +46,9 @@ export function ErrorState({
 	retryLabel = "Try Again",
 	showToast = true,
 	toastMessage,
-	onShowToast
+	onShowToast,
+	suggestions = [],
+	onSuggestionClick
 }: ErrorStateProps) {
 	// Show toast notification when error occurs
 	useEffect(() => {
@@ -65,6 +69,24 @@ export function ErrorState({
 			{errorMessage && errorMessage !== message && (
 				<p className="text-white/70 text-sm md:text-base mb-6 max-w-md">{errorMessage}</p>
 			)}
+			
+			{/* Similar Questions Suggestions */}
+			{suggestions.length > 0 && onSuggestionClick && (
+				<div className="mb-6 w-full max-w-md">
+					<p className="text-white/80 text-sm mb-3">Try asking one of these instead:</p>
+					<div className="space-y-2">
+						{suggestions.map((suggestion, index) => (
+							<button
+								key={index}
+								onClick={() => onSuggestionClick(suggestion)}
+								className="w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent">
+								{suggestion}
+							</button>
+						))}
+					</div>
+				</div>
+			)}
+			
 			{onRetry && (
 				<Button
 					variant="primary"
