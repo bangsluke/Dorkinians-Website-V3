@@ -364,7 +364,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 											}
 										}}
 										className={`group w-full flex items-center space-x-3 px-3 py-2.5 justify-start rounded-2xl border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
-											isActive ? "text-dorkinians-yellow-text bg-[var(--color-primary)]/40" : "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
+											isActive ? "text-dorkinians-yellow-text bg-dorkinians-yellow/20" : "bg-transparent text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 										}`}>
 										<Icon className={`w-7 h-7 flex-shrink-0 ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`} />
 										<span className={`text-base font-medium flex-1 text-left ${isActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{item.label}</span>
@@ -384,7 +384,7 @@ export default function SidebarNavigation({ onSettingsClick, isSettingsPage = fa
 														onClick={() => handleSubPageClick(item.id, subPage.id)}
 														className={`group w-full flex items-center px-3 py-1.5 text-left justify-start rounded-2xl bg-transparent border-none outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${
 															isSubActive
-																? "text-dorkinians-yellow-text bg-[var(--color-primary)]/35"
+																? "text-dorkinians-yellow-text bg-dorkinians-yellow/20"
 																: "text-[var(--color-text-primary)] hover:bg-[var(--color-surface)]"
 														}`}>
 														<span className={`text-sm font-medium ${isSubActive ? "text-dorkinians-yellow-text" : "text-[var(--color-text-primary)] group-hover:text-dorkinians-yellow-text-hover"}`}>{subPage.label}</span>

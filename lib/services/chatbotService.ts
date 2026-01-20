@@ -3534,11 +3534,11 @@ export class ChatbotService {
 			const oppositionData = (data.data as Array<{ opposition: string; gamesPlayed: number }>) || [];
 			
 			if (oppositionData.length === 0) {
-				answer = `${playerName} have not played against any opposition.`;
+				answer = `${playerName} has not played against any opposition.`;
 				answerValue = null;
 			} else {
 				const topOpposition = oppositionData[0];
-				answer = `${playerName} have played against ${topOpposition.opposition} the most, with ${topOpposition.gamesPlayed} ${topOpposition.gamesPlayed === 1 ? "game" : "games"}.`;
+				answer = `${playerName} has played against ${topOpposition.opposition} the most, with ${topOpposition.gamesPlayed} ${topOpposition.gamesPlayed === 1 ? "game" : "games"}.`;
 				answerValue = topOpposition.opposition;
 				
 				// Format data for table visualization
@@ -5435,7 +5435,7 @@ export class ChatbotService {
 			const season = data.season as string | undefined;
 			const compType = data.compType as string | undefined;
 			const isCupQuery = data.type === "most_played_with_cup";
-			const requestedLimit = (data.requestedLimit as number) || 10;
+			const requestedLimit = (data.requestedLimit as number) || 5;
 			const expandableLimit = (data.expandableLimit as number) || 10;
 			const fullData = (data.fullData as Array<{ teammateName: string; gamesTogether: number }>) || [];
 			const resultData = (data.data as Array<{ teammateName: string; gamesTogether: number }>) || [];
