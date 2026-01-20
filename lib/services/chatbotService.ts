@@ -1723,6 +1723,22 @@ export class ChatbotService {
 				return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
 			case "league_table":
 				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis, userContext);
+			case "season_totw":
+				// Extract season from timeRange or question text
+				let season = analysis.timeRange || "";
+				if (!season && analysis.question) {
+					// Try to extract season from question (e.g., "2023/24", "22/23")
+					const seasonMatch = analysis.question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2}|\d{2}[/-]\d{2})\b/);
+					if (seasonMatch) {
+						season = seasonMatch[1].replace("-", "/");
+						// Normalize "22/23" to "2022/23"
+						if (season.match(/^\d{2}\/\d{2}$/)) {
+							const parts = season.split("/");
+							season = `20${parts[0]}/${parts[1]}`;
+						}
+					}
+				}
+				return await AwardsQueryHandler.querySeasonTOTW(season || undefined);
 			case "general":
 				return await this.queryGeneralData();
 			default:
@@ -4553,6 +4569,46 @@ export class ChatbotService {
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = answer;
 			}
+		} else if (data && data.type === "season_totw") {
+			// Handle Team of the Season queries
+			const totwData = data.data as {
+				season: string;
+				players: Array<{
+					playerName: string;
+					position: string;
+					ftpScore: number;
+				}>;
+			} | null;
+
+			if (!totwData || !totwData.players || totwData.players.length === 0) {
+				answer = (data.message as string) || `No Team of the Season data found${totwData?.season ? ` for ${totwData.season}` : ""}.`;
+			} else {
+				const season = totwData.season || "the current season";
+				answer = `The Team of the Season for ${season} consisted of ${totwData.players.length} players.`;
+				
+				// Create table visualization
+				const tableData = totwData.players.map((player) => ({
+					Position: player.position,
+					"Player Name": player.playerName,
+					"FTP Points": player.ftpScore
+				}));
+
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Position", label: "Pos" },
+							{ key: "Player Name", label: "Player" },
+							{ key: "FTP Points", label: "FTP" }
+						]
+					}
+				};
+			}
+		} else if (data && (data.type === "season_totw_not_found" || data.type === "season_totw_no_players")) {
+			// Handle Team of the Season error cases
+			const season = (data.season as string) || "the specified season";
+			answer = (data.message as string) || `No Team of the Season data found for ${season}.`;
 		} else if (data && data.type === "highest_team_goals_in_player_game") {
 			// Handle highest team goals in games where player was playing queries
 			const gameData = data.data as {

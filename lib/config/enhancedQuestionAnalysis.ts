@@ -845,6 +845,18 @@ export class EnhancedQuestionAnalyzer {
 		const hasMultipleEntities = extractionResult.entities.length > 1;
 		const hasTimeFrames = extractionResult.timeFrames.length > 0;
 
+		// Check for team of the season (TOTS) queries - must be checked early to avoid misclassification
+		if (
+			(lowerQuestion.includes("team of the season") || 
+			 lowerQuestion.includes("tots") ||
+			 lowerQuestion.includes("season totw") ||
+			 (lowerQuestion.includes("who") && lowerQuestion.includes("team of the season")) ||
+			 (lowerQuestion.includes("who") && lowerQuestion.includes("tots"))) &&
+			!(lowerQuestion.includes("weekly") || lowerQuestion.includes("week"))
+		) {
+			return "season_totw";
+		}
+
 		// Check for streak patterns FIRST (before player check) - highest priority for streak questions
 		if (
 			lowerQuestion.includes("streak") || 
