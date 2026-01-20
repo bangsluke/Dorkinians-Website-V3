@@ -925,7 +925,7 @@ export default function TeamOfTheWeek() {
 								<div
 									key={`${player.name}-${index}`}
 									data-testid="totw-player"
-									className='absolute cursor-pointer hover:scale-110 transition-transform z-10'
+									className='absolute cursor-pointer hover:scale-110 hover:opacity-80 transition-transform transition-opacity z-10'
 									style={{
 										left: `${adjustedX}%`,
 										top: `${position.y}%`,

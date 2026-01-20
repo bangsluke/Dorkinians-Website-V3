@@ -969,11 +969,8 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 	},
 
 	closeFilterSidebar: () => {
-		const { hasUnsavedFilters } = get();
-		if (hasUnsavedFilters) {
-			const confirmed = window.confirm("You have unsaved filter changes. Are you sure you want to close without applying them?");
-			if (!confirmed) return;
-		}
+		// The unsaved changes check is now handled in FilterSidebar component
+		// using hasFilterChanges() to compare with snapshot
 		set({ isFilterSidebarOpen: false, hasUnsavedFilters: false });
 	},
 
@@ -1064,7 +1061,6 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 
 		resetPlayerFilters: () => {
 		const currentPage = get().currentStatsSubPage;
-		const { filterData } = get();
 		const defaultFilters: PlayerFilters = {
 			timeRange: {
 				type: "allTime",
@@ -1074,7 +1070,7 @@ export const useNavigationStore = create<NavigationState>((set, get) => ({
 				startDate: "",
 				endDate: "",
 			},
-			teams: filterData?.teams?.map(team => team.name) || [],
+			teams: [],
 			location: ["Home", "Away"],
 			opposition: {
 				allOpposition: true,

@@ -102,7 +102,7 @@ export default function PWAUpdateNotification({ onUpdate }: PWAUpdateNotificatio
 						</button>
 					</div>
 				</div>
-				<button onClick={handleDismiss} className='text-blue-200 hover:text-white ml-2'>
+				<button onClick={handleDismiss} className='text-blue-200 hover:text-white ml-2' aria-label='Dismiss update notification'>
 					<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
 						<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M6 18L18 6M6 6l12 12' />
 					</svg>

@@ -58,7 +58,7 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 				{/* Header - Fixed at top */}
 				<div className='flex-shrink-0 flex justify-between items-center p-4 border-b border-white/20'>
 					<h2 className='text-2xl font-bold text-white uppercase flex-1 text-center'>{playerName}</h2>
-					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0'>
+					<button onClick={onClose} className='text-white hover:text-gray-200 ml-4 flex-shrink-0' aria-label={`Close ${playerName} captain history`}>
 						<XMarkIcon className='h-6 w-6' />
 					</button>
 				</div>
@@ -126,4 +126,3 @@ export default function CaptainHistoryPopup({ playerName, onClose }: CaptainHist
 		</div>
 	);
 }
-

@@ -93,7 +93,8 @@ export default function UpdateToast({ onClose }: UpdateToastProps) {
 									onClick={handleDismiss}
 									className='p-2 text-white/80 hover:text-white transition-colors'
 									whileHover={{ scale: 1.05 }}
-									whileTap={{ scale: 0.95 }}>
+									whileTap={{ scale: 0.95 }}
+									aria-label='Dismiss update notification'>
 									<XMarkIcon className='w-5 h-5' />
 								</motion.button>
 							</div>

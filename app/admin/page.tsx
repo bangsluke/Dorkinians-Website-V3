@@ -3,7 +3,7 @@
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import AdminPanel from "@/components/AdminPanel";
+import AdminPanel from "@/components/admin/AdminPanel";
 
 export default function AdminPage() {
 	const { data: session, status } = useSession();

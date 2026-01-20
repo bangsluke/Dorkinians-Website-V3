@@ -3,11 +3,11 @@
 import React from "react";
 import { motion, PanInfo, AnimatePresence } from "framer-motion";
 import { useNavigationStore, type ClubInfoSubPage } from "@/lib/stores/navigation";
-import ClubInformation from "./club-info/ClubInformation";
-import LeagueInformation from "./club-info/LeagueInformation";
-import ClubCaptains from "./club-info/ClubCaptains";
-import ClubAwards from "./club-info/ClubAwards";
-import UsefulLinks from "./club-info/UsefulLinks";
+import ClubInformation from "./ClubInformation";
+import LeagueInformation from "./LeagueInformation";
+import ClubCaptains from "./ClubCaptains";
+import ClubAwards from "./ClubAwards";
+import UsefulLinks from "./UsefulLinks";
 
 const clubInfoSubPages = [
 	{ id: "club-information" as ClubInfoSubPage, component: ClubInformation, label: "Club Information" },
@@ -67,7 +67,7 @@ export default function ClubInfoContainer() {
 								key={page.id}
 								data-testid={`club-info-subpage-indicator-${index}`}
 								onClick={() => setClubInfoSubPage(page.id)}
-								className={`w-[6.4px] h-[6.4px] rounded-full transition-all duration-200 ${
+								className={`w-[6.4px] h-[6.4px] rounded-full transition-all transition-normal ${
 									currentClubInfoSubPage === page.id
 										? "bg-dorkinians-yellow scale-125"
 										: "bg-gray-400 border-2 border-gray-400 hover:bg-gray-300 hover:border-gray-300"

@@ -110,9 +110,9 @@ export default function Table({ visualization }: TableProps) {
 								<th
 									key={index}
 									className={`${isNumeric ? "text-center" : "text-left"} ${
-										isPositionColumn ? "px-1.5" : "px-1.5"
-									} py-1.5 text-white font-semibold ${
-										isPositionColumn ? "text-[10px] md:text-xs" : "text-[10px] md:text-xs"
+										isPositionColumn ? "px-2 md:px-3" : "px-2 md:px-3"
+									} py-2 md:py-2 text-white font-semibold ${
+										isPositionColumn ? "text-xs md:text-sm" : "text-xs md:text-sm"
 									}`}>
 									{label}
 								</th>
@@ -149,9 +149,9 @@ export default function Table({ visualization }: TableProps) {
 										<td 
 											key={colIndex} 
 											className={`${isNumeric ? "text-center" : "text-left"} ${
-												isPositionColumn ? "px-1.5" : isTeamColumn ? "px-1.5" : "px-1.5"
-											} py-1.5 text-white ${
-												isPositionColumn ? "text-[10px] md:text-xs" : "text-[10px] md:text-xs"
+												isPositionColumn ? "px-2 md:px-3" : isTeamColumn ? "px-2 md:px-3" : "px-2 md:px-3"
+											} py-2 md:py-2 text-white ${
+												isPositionColumn ? "text-xs md:text-sm" : "text-xs md:text-sm"
 											} ${isDorkinians && key === "Points" ? "text-dorkinians-yellow font-semibold" : ""}`}>
 											{row[key] ?? "-"}
 										</td>

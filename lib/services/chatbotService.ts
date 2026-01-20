@@ -369,7 +369,7 @@ export class ChatbotService {
 
 			// Use error handler for better error messages
 			const errorObj = error instanceof Error ? error : new Error(String(error));
-			const errorMessage = await errorHandler.generateErrorResponse(errorObj, {
+			const errorResponse = await errorHandler.generateErrorResponse(errorObj, {
 				question: context.question,
 				analysis: this.lastQuestionAnalysis || undefined,
 			});
@@ -378,9 +378,10 @@ export class ChatbotService {
 			const processingDetails = await this.getProcessingDetails();
 
 			return {
-				answer: errorMessage,
+				answer: errorResponse.message,
 				sources: [],
 				cypherQuery: "N/A",
+				suggestions: errorResponse.suggestions,
 				debug: {
 					question: context.question,
 					userContext: context.userContext,
@@ -2795,8 +2796,8 @@ export class ChatbotService {
 				"couldn't find any",
 				"no information",
 				"no data",
-				"doesn't exist in the database",
-				"didn't match any records"
+				"doesn't exist",
+				"couldn't find any matches"
 			];
 			return noDataPatterns.some(pattern => ans.toLowerCase().includes(pattern.toLowerCase()));
 		};
@@ -2809,22 +2810,22 @@ export class ChatbotService {
 
 		// Enhanced error handling with specific error messages
 		if (!data) {
-			answer = "Database connection error: Unable to connect to the club's database. Please try again later.";
+			answer = "I'm unable to access the club's records at the moment. Please try again later.";
 		} else if (data.type === "error") {
-			answer = `Database error: ${data.error || "An unknown error occurred while querying the database."}`;
+			answer = `I encountered an issue while retrieving the information. ${data.error || "Please try again or rephrase your question."}`;
 		} else if (data.type === "player_not_found") {
 			answer =
 				(data.message as string) ||
-				`Player not found: I couldn't find a player named "${data.playerName}" in the database. Please check the spelling or try a different player name.`;
+				`I couldn't find a player named "${data.playerName}". Please check the spelling or try a different player name.`;
 		} else if (data.type === "team_not_found") {
 			const availableTeams = (data.availableTeams as string[]) || [];
 			answer =
 				(data.message as string) ||
-				`Team not found: I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
+				`I couldn't find the team "${data.teamName}". Available teams are: ${availableTeams.join(", ")}.`;
 		} else if (data.type === "no_context") {
-			answer = "Missing context: Please specify which player or team you're asking about.";
+			answer = "Please specify which player or team you're asking about.";
 		} else if (data.type === "clarification_needed") {
-			answer = (data.message as string) || "Please clarify your question with more specific details.";
+			answer = (data.message as string) || "Could you provide more details to help me answer your question?";
 			// Set answerValue if not already set
 			if (data.answerValue) {
 				answerValue = data.answerValue as string;
@@ -5748,7 +5749,7 @@ export class ChatbotService {
 			}
 			// Check if this is a MatchDetail query that failed - try Player node fallback
 			else if (metric && ["CPERAPP", "FTPPERAPP", "GPERAPP", "MPERG", "MPERCLS"].includes((metric as string).toUpperCase())) {
-				answer = `MatchDetail data unavailable: The detailed match data needed for ${metric} calculations is not available in the database. This metric requires individual match records which appear to be missing.`;
+				answer = `I don't have the detailed match information needed to calculate ${metric}. This stat requires individual match records which aren't available.`;
 			} else {
 				const resolvedMetricKey =
 					typeof metric === "string" ? findMetricByAlias(metric)?.key || (metric as string) : "";
@@ -5765,7 +5766,7 @@ export class ChatbotService {
 				if (zeroResponse) {
 					answer = zeroResponse;
 				} else {
-					answer = `No data found: I couldn't find any ${metric} information for ${playerName}. This could mean the data doesn't exist in the database or the query didn't match any records.`;
+					answer = `I couldn't find any ${metric} information for ${playerName}. This stat may not be available for this player.`;
 				}
 			}
 		} else if (data && data.type === "penalties_taken") {
@@ -7547,8 +7548,8 @@ export class ChatbotService {
 			data?.type !== "team_not_found" &&
 			data?.type !== "no_context" &&
 			data?.type !== "error" &&
-			!answer.includes("Database connection error") &&
-			!answer.includes("Database error");
+			!answer.includes("unable to access") &&
+			!answer.includes("encountered an issue");
 
 		if (shouldAskForClarification) {
 			// Generate a contextual clarification message based on question type and extracted entities
@@ -7654,6 +7655,12 @@ export class ChatbotService {
 		// Extract Cypher query: prefer data?.cypherQuery, fallback to lastExecutedQueries
 		const cypherQuery = this.extractCypherQuery(data?.cypherQuery as string | undefined, question);
 
+		// Add suggestions if answer indicates failure
+		let suggestions: string[] | undefined = undefined;
+		if (isNoDataAnswer(answer) || hasNoData) {
+			suggestions = errorHandler.getSimilarQuestions(question);
+		}
+
 		return {
 			answer,
 			data: data?.data,
@@ -7661,6 +7668,7 @@ export class ChatbotService {
 			sources,
 			answerValue,
 			cypherQuery,
+			suggestions,
 			debug: {
 				question,
 				timestamp: new Date().toISOString(),

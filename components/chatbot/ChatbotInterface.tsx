@@ -7,13 +7,18 @@ import { AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
 import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
-import NumberCard from "./chatbot-response/NumberCard";
-import Calendar from "./chatbot-response/Calendar";
-import Table from "./chatbot-response/Table";
-import Chart from "./chatbot-response/Chart";
-import ExampleQuestionsModal from "./modals/ExampleQuestionsModal";
+import NumberCard from "./NumberCard";
+import Calendar from "./Calendar";
+import Table from "./Table";
+import Chart from "./Chart";
+import ExampleQuestionsModal from "../modals/ExampleQuestionsModal";
 import { log } from "@/lib/utils/logger";
 import { LRUCache } from "@/lib/utils/lruCache";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { LoadingState, ErrorState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
+import ProgressIndicator from "@/components/ui/ProgressIndicator";
 
 interface SavedConversation {
 	question: string;
@@ -33,6 +38,7 @@ const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export default function ChatbotInterface() {
 	const { selectedPlayer, setMainPage, setStatsSubPage } = useNavigationStore();
+	const { showError } = useToast();
 	const isDevelopment = process.env.NODE_ENV === "development";
 	const [question, setQuestion] = useState("");
 	const [isLoading, setIsLoading] = useState(false);
@@ -42,6 +48,8 @@ export default function ChatbotInterface() {
 	const [conversationHistory, setConversationHistory] = useState<SavedConversation[]>([]);
 	const [showExampleQuestions, setShowExampleQuestions] = useState(false);
 	const [showExampleQuestionsModal, setShowExampleQuestionsModal] = useState(false);
+	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+	const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null);
 	const previousPlayerRef = useRef<string | null>(null);
 	const [sessionId] = useState(() => {
 		if (typeof window !== "undefined") {
@@ -113,32 +121,41 @@ export default function ChatbotInterface() {
 		}
 	}, [conversationHistory]);
 
-	// Progressive loading message based on elapsed time
+	// Progressive loading message based on elapsed time and show progress indicator after 3 seconds
 	useEffect(() => {
 		if (!isLoading) {
 			setLoadingMessage("Thinking...");
+			setShowProgressIndicator(false);
+			setLoadingStartTime(null);
 			return;
 		}
 
 		const startTime = Date.now();
+		setLoadingStartTime(startTime);
 		setLoadingMessage("Thinking...");
+		setShowProgressIndicator(false);
 
 		const interval = setInterval(() => {
 			const elapsed = (Date.now() - startTime) / 1000;
 
+			// Show progress indicator after 3 seconds
+			if (elapsed >= 3 && !showProgressIndicator) {
+				setShowProgressIndicator(true);
+			}
+
 			if (elapsed >= 40) {
-				setLoadingMessage("I'm probably stuck and not going to answer.");
+				setLoadingMessage("This is taking longer than expected. Please wait or try rephrasing your question.");
 			} else if (elapsed >= 20) {
-				setLoadingMessage("Real challenging question this...");
+				setLoadingMessage("Processing your question... This may take a few more seconds.");
 			} else if (elapsed >= 10) {
-				setLoadingMessage("Tricky question this one...");
+				setLoadingMessage("Processing your question... This may take a few seconds.");
 			} else if (elapsed >= 5) {
-				setLoadingMessage("Thinking really hard...");
+				setLoadingMessage("Processing your question... This may take a few seconds.");
 			}
 		}, 100);
 
 		return () => clearInterval(interval);
-	}, [isLoading]);
+	}, [isLoading, showProgressIndicator]);
 
 	// Submit question to chatbot (extracted logic)
 	const submitQuestion = async (questionToSubmit: string) => {
@@ -391,6 +408,12 @@ export default function ChatbotInterface() {
 	// Handle the chatbot question submission
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault(); // Prevent the default form submission behavior
+		
+		// Prevent empty submissions
+		if (!question.trim() || isLoading) {
+			return;
+		}
+		
 		await submitQuestion(question);
 	};
 
@@ -399,71 +422,72 @@ export default function ChatbotInterface() {
 		<div className='w-full max-w-2xl'>
 			{/* Question Input */}
 			<form onSubmit={handleSubmit} className='space-y-3 md:space-y-4'>
-				<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
-					<input
-						data-testid="chatbot-input"
-						type='text'
-						value={question}
-						onChange={(e) => setQuestion(e.target.value)}
-						placeholder='Ask me about player, club or team stats...'
-						className='dark-chat-input w-full text-sm md:text-base text-white placeholder-white'
-						disabled={isLoading}
-					/>
-					{/* Desktop button - hidden on mobile */}
-					<button
-						data-testid="chatbot-submit"
-						type='submit'
-						disabled={!question.trim() || isLoading}
-						className='CTA px-3 md:px-4 py-2 md:py-2 text-base w-full md:w-auto hidden md:block'>
-						{isLoading ? (
-							<svg className='animate-spin h-4 w-4 md:h-5 md:w-5' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
-							</svg>
-						) : (
-							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
-						)}
-					</button>
+				<div className='space-y-2'>
+					<label htmlFor="chatbot-input" className='block text-sm font-medium text-dorkinians-yellow'>
+						Ask a Question
+					</label>
+					<div className='flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2'>
+						<Input
+							id="chatbot-input"
+							data-testid="chatbot-input"
+							type='text'
+							value={question}
+							onChange={(e) => setQuestion(e.target.value)}
+							placeholder='Ask me about player, club or team stats...'
+							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
+							size="md"
+							disabled={isLoading}
+							required
+							onKeyDown={(e) => {
+								// Prevent Enter key submission when input is empty
+								if (e.key === 'Enter' && !question.trim()) {
+									e.preventDefault();
+								}
+							}}
+						/>
+						<Button
+							data-testid="chatbot-submit"
+							type='submit'
+							variant="secondary"
+							size="md"
+							disabled={!question.trim() || isLoading}
+							loading={isLoading}
+							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
+							className='w-full md:w-auto'>
+							{isLoading ? "Searching..." : "Search"}
+						</Button>
+					</div>
 				</div>
-				{/* Mobile button - shown below input on mobile screens */}
-				<button data-testid="chatbot-submit" type='submit' disabled={!question.trim() || isLoading} className='CTA px-4 py-2 text-sm w-full md:hidden'>
-					{isLoading ? (
-						<div className='flex items-center justify-center space-x-2'>
-							<svg className='animate-spin h-4 w-4' xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24'>
-								<circle className='opacity-25' cx='12' cy='12' r='10' stroke='currentColor' strokeWidth='4'></circle>
-								<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M12 19l9 2-9-18-9 18 9-2zm0 0v-8' />
-							</svg>
-							<span className='text-black font-medium'>Searching...</span>
-						</div>
-					) : (
-						<div className='flex items-center justify-center space-x-2'>
-							<MagnifyingGlassIcon className='h-5 w-5 text-black' />
-							<span className='text-black font-medium'>Search</span>
-						</div>
-					)}
-				</button>
 			</form>
 
 			{/* Response Display */}
 			<div className='mt-3 md:mt-4'>
 				<AnimatePresence mode='wait'>
 				{isLoading && (
-					<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className='text-center py-8'>
-						<div className='inline-flex items-center space-x-2'>
-							<div className='animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400'></div>
-							<span className='text-yellow-300'>{loadingMessage}</span>
-						</div>
-					</motion.div>
+					<div className='space-y-3'>
+						<LoadingState message={loadingMessage} variant="spinner" />
+						<ProgressIndicator 
+							isVisible={showProgressIndicator}
+							message={showProgressIndicator ? undefined : undefined}
+							size="md"
+							className="mt-2"
+						/>
+					</div>
 				)}
 
 				{error && (
-					<motion.div
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-						className='bg-red-900/20 border border-red-400/30 rounded-lg p-4 mb-4'>
-						<p className='text-red-300 text-sm'>❌ {error}</p>
-					</motion.div>
+					<ErrorState 
+						message="Failed to get response" 
+						error={error}
+						onShowToast={showError}
+						showToast={true}
+						suggestions={response?.suggestions}
+						onSuggestionClick={(suggestion) => {
+							setError(null);
+							setQuestion(suggestion);
+							submitQuestion(suggestion);
+						}}
+					/>
 				)}
 
 				{response && (
@@ -483,17 +507,40 @@ export default function ChatbotInterface() {
 							<p className='text-yellow-100 text-base'>{response.answer}</p>
 						</div>
 
+						{/* Suggestions when response indicates failure */}
+						{response.suggestions && response.suggestions.length > 0 && (
+							<div className='mb-3 md:mb-4'>
+								<p className='text-white/80 text-sm mb-3'>Try asking one of these instead:</p>
+								<div className='space-y-2'>
+									{response.suggestions.map((suggestion, index) => (
+										<button
+											key={index}
+											onClick={() => {
+												setResponse(null);
+												setQuestion(suggestion);
+												submitQuestion(suggestion);
+											}}
+											className='w-full text-left px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dorkinians-yellow focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+											{suggestion}
+										</button>
+									))}
+								</div>
+							</div>
+						)}
+
 						{/* Navigation button for full stats question */}
 						{response.answer.includes("Player Stats page") && (
 							<div className='mb-3 md:mb-4 flex justify-center'>
-								<button
+								<Button
+									variant="secondary"
+									size="md"
 									onClick={() => {
 										setMainPage("stats");
 										setStatsSubPage("player-stats");
 									}}
-									className='CTA px-4 py-2 text-sm md:text-base w-full md:w-auto'>
-									<span className='text-black font-medium'>View Player Stats</span>
-								</button>
+									className='w-full md:w-auto'>
+									View Player Stats
+								</Button>
 							</div>
 						)}
 
@@ -542,12 +589,14 @@ export default function ChatbotInterface() {
 							))}
 						</div>
 						<div className='flex justify-center mt-2 mb-4'>
-							<button
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={() => setShowExampleQuestionsModal(true)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'
-								data-testid="chatbot-show-more-example-questions">
+								data-testid="chatbot-show-more-example-questions"
+								className="underline text-yellow-300 hover:text-yellow-200">
 								Show more example questions
-							</button>
+							</Button>
 						</div>
 					</div>
 				)}
@@ -557,11 +606,13 @@ export default function ChatbotInterface() {
 					<div>
 						<div className='flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4'>
 							<h3 className='font-semibold text-white text-base whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
-							<button
+							<Button
+								variant="ghost"
+								size="sm"
 								onClick={() => setShowExampleQuestions(!showExampleQuestions)}
-								className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+								className="underline text-yellow-300 hover:text-yellow-200">
 								{showExampleQuestions ? "Hide" : "Show"} example questions
-							</button>
+							</Button>
 						</div>
 
 						{/* Show past conversations or example questions based on toggle */}
@@ -622,11 +673,13 @@ export default function ChatbotInterface() {
 						)}
 						{showExampleQuestions && (
 							<div className='flex justify-center mt-2 mb-4'>
-								<button
+								<Button
+									variant="ghost"
+									size="sm"
 									onClick={() => setShowExampleQuestionsModal(true)}
-									className='text-xs text-yellow-300 hover:text-yellow-200 transition-colors underline'>
+									className="underline text-yellow-300 hover:text-yellow-200">
 									Show more example questions
-								</button>
+								</Button>
 							</div>
 						)}
 					</div>
