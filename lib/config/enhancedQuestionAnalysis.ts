@@ -984,6 +984,49 @@ export class EnhancedQuestionAnalyzer {
 			return "player";
 		}
 		
+		// Check for clean sheets against opposition queries (MUST come before ranking check)
+		// This prevents "Which team have I kept the most clean sheets against?" from being classified as ranking
+		// Handles variations: "Which/What team/opposition have I kept the most clean sheets against?"
+		// and "Against which team have I kept the most clean sheets?"
+		const hasCleanSheetAgainstOpposition = 
+			(lowerQuestion.includes("clean sheet") && lowerQuestion.includes("against") && (lowerQuestion.includes("most") || lowerQuestion.includes("kept"))) ||
+			(lowerQuestion.includes("kept") && lowerQuestion.includes("most") && lowerQuestion.includes("clean sheet") && lowerQuestion.includes("against")) ||
+			((lowerQuestion.includes("which team") || lowerQuestion.includes("what team") || lowerQuestion.includes("which opposition") || lowerQuestion.includes("what opposition")) && lowerQuestion.includes("kept") && lowerQuestion.includes("clean sheet")) ||
+			(lowerQuestion.includes("against") && (lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) && lowerQuestion.includes("kept") && lowerQuestion.includes("clean sheet"));
+		
+		if (hasCleanSheetAgainstOpposition) {
+			return "player"; // Route to player handler for clean sheets against opposition
+		}
+		
+		// Check for goals scored against opposition queries (MUST come before ranking check)
+		// Handles: "Which team have I scored the most against?"
+		const hasGoalsAgainstOpposition = 
+			((lowerQuestion.includes("which team") || lowerQuestion.includes("what team") || lowerQuestion.includes("which opposition") || lowerQuestion.includes("what opposition")) && 
+			 lowerQuestion.includes("scored") && lowerQuestion.includes("most") && lowerQuestion.includes("against")) ||
+			(lowerQuestion.includes("against") && (lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) && lowerQuestion.includes("scored") && lowerQuestion.includes("most"));
+		
+		if (hasGoalsAgainstOpposition) {
+			return "player"; // Route to player handler for goals against opposition
+		}
+		
+		// Check for generic stat types against opposition (assists, saves, cards, mom, appearances, etc.)
+		// Pattern: "Which/What team/opposition have I [stat] the most against?"
+		const hasGenericStatAgainstOpposition = 
+			((lowerQuestion.includes("which team") || lowerQuestion.includes("what team") || 
+			  lowerQuestion.includes("which opposition") || lowerQuestion.includes("what opposition") ||
+			  (lowerQuestion.includes("against") && (lowerQuestion.includes("which team") || lowerQuestion.includes("what team")))) &&
+			 lowerQuestion.includes("most") && lowerQuestion.includes("against") &&
+			 (lowerQuestion.includes("assist") || lowerQuestion.includes("save") || 
+			  lowerQuestion.includes("yellow card") || lowerQuestion.includes("booking") ||
+			  lowerQuestion.includes("red card") || lowerQuestion.includes("man of the match") ||
+			  lowerQuestion.includes("mom") || lowerQuestion.includes("appearance") || 
+			  lowerQuestion.includes("game") || lowerQuestion.includes("own goal") ||
+			  lowerQuestion.includes("penalt")));
+		
+		if (hasGenericStatAgainstOpposition) {
+			return "player"; // Route to player handler for generic stat types against opposition
+		}
+		
 		// Check for ranking queries (which player/team has the highest/most/fewest/least/worst...)
 		// CRITICAL: This must be checked BEFORE player entity check to avoid misclassification
 		// Special case: "worst penalty record" questions should be routed to ranking handler
@@ -1088,6 +1131,7 @@ export class EnhancedQuestionAnalyzer {
 
 		// Check for opposition-specific queries (goals against opposition, record vs opposition, etc.)
 		// This must be checked BEFORE general team queries to avoid false positives
+		// Note: Clean sheets against opposition is handled earlier (before ranking check)
 		const hasOppositionEntities = extractionResult.entities.some((e) => e.type === "opposition");
 		if (
 			hasOppositionEntities &&

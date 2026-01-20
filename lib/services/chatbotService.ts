@@ -3399,6 +3399,104 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "opposition_clean_sheets") {
+			// Handle clean sheets against opposition data
+			const playerName = (data.playerName as string) || "";
+			const oppositionCleanSheets = (data.data as Array<{ opposition: string; cleanSheets: number }>) || [];
+			
+			if (oppositionCleanSheets.length === 0) {
+				answer = "You have not kept any clean sheets against any opposition.";
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionCleanSheets[0];
+				answer = `You have kept the most clean sheets against ${topOpposition.opposition} with ${topOpposition.cleanSheets} ${topOpposition.cleanSheets === 1 ? "clean sheet" : "clean sheets"}.`;
+				answerValue = topOpposition.opposition;
+				
+				// Format data for table visualization
+				const tableData = oppositionCleanSheets.map((item) => ({
+					Opposition: item.opposition,
+					"Clean Sheets": item.cleanSheets,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Clean Sheets", label: "Clean Sheets" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type && data.type.startsWith("opposition_") && data.type !== "opposition_goals" && data.type !== "opposition_clean_sheets") {
+			// Handle generic stat types against opposition (assists, saves, cards, mom, appearances, etc.)
+			const playerName = (data.playerName as string) || "";
+			const statType = (data.statType as string) || "";
+			const oppositionData = (data.data as Array<{ opposition: string; [key: string]: any }>) || [];
+			
+			// Get the stat value from the first item to determine the field name
+			const firstItem = oppositionData.length > 0 ? oppositionData[0] : null;
+			const statField = firstItem ? Object.keys(firstItem).find(key => key !== "opposition") : null;
+			
+			// Map stat type to display name
+			const statDisplayNames: Record<string, string> = {
+				"assists": "Assists",
+				"saves": "Saves",
+				"yellowCards": "Yellow Cards",
+				"redCards": "Red Cards",
+				"mom": "Man of the Match",
+				"appearances": "Appearances",
+				"ownGoals": "Own Goals",
+				"penaltiesScored": "Penalties Scored",
+				"penaltiesSaved": "Penalties Saved",
+				"penaltiesMissed": "Penalties Missed",
+			};
+			
+			const displayName = statDisplayNames[statType] || (statType.charAt(0).toUpperCase() + statType.slice(1).replace(/([A-Z])/g, " $1").trim());
+			const singularName = displayName.endsWith("s") ? displayName.slice(0, -1) : displayName;
+			
+			// Determine verb based on stat type
+			const verb = statType === "appearances" ? "made" : 
+			            statType === "mom" ? "won" :
+			            statType === "yellowCards" || statType === "redCards" ? "received" :
+			            "recorded";
+			
+			if (oppositionData.length === 0) {
+				answer = `You have ${verb} no ${displayName.toLowerCase()} against any opposition.`;
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionData[0];
+				const topValue = statField ? topOpposition[statField] : 0;
+				answer = `You have ${verb} the most ${displayName.toLowerCase()} against ${topOpposition.opposition} with ${topValue} ${topValue === 1 ? singularName.toLowerCase() : displayName.toLowerCase()}.`;
+				answerValue = topOpposition.opposition;
+				
+				// Format data for table visualization
+				const tableData = oppositionData.map((item) => {
+					const value = statField ? item[statField] : 0;
+					return {
+						Opposition: item.opposition,
+						[displayName]: value,
+					};
+				});
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: displayName, label: displayName },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
 		} else if (data && data.type === "most_played_against") {
 			// Handle most played against opposition data
 			const playerName = (data.playerName as string) || "You";

@@ -2,6 +2,38 @@ import { neo4jService } from "../../../netlify/functions/lib/neo4j.js";
 import { loggingService } from "../loggingService";
 import { ChatbotService } from "../chatbotService";
 
+// Mapping of stat keywords to database field names and display names
+const STAT_TYPE_MAPPING: Record<string, { field: string; displayName: string; aggregation: "sum" | "count"; additionalWhere?: string }> = {
+	"goals": { field: "goals", displayName: "Goals", aggregation: "sum" },
+	"goal": { field: "goals", displayName: "Goals", aggregation: "sum" },
+	"assists": { field: "assists", displayName: "Assists", aggregation: "sum" },
+	"assist": { field: "assists", displayName: "Assists", aggregation: "sum" },
+	"saves": { field: "saves", displayName: "Saves", aggregation: "sum" },
+	"save": { field: "saves", displayName: "Saves", aggregation: "sum" },
+	"yellow card": { field: "yellowCards", displayName: "Yellow Cards", aggregation: "sum" },
+	"yellow cards": { field: "yellowCards", displayName: "Yellow Cards", aggregation: "sum" },
+	"booking": { field: "yellowCards", displayName: "Yellow Cards", aggregation: "sum" },
+	"bookings": { field: "yellowCards", displayName: "Yellow Cards", aggregation: "sum" },
+	"red card": { field: "redCards", displayName: "Red Cards", aggregation: "sum" },
+	"red cards": { field: "redCards", displayName: "Red Cards", aggregation: "sum" },
+	"man of the match": { field: "mom", displayName: "Man of the Match", aggregation: "sum" },
+	"mom": { field: "mom", displayName: "Man of the Match", aggregation: "sum" },
+	"appearances": { field: "id", displayName: "Appearances", aggregation: "count" },
+	"appearance": { field: "id", displayName: "Appearances", aggregation: "count" },
+	"games": { field: "id", displayName: "Games", aggregation: "count" },
+	"game": { field: "id", displayName: "Games", aggregation: "count" },
+	"own goal": { field: "ownGoals", displayName: "Own Goals", aggregation: "sum" },
+	"own goals": { field: "ownGoals", displayName: "Own Goals", aggregation: "sum" },
+	"penalties scored": { field: "penaltiesScored", displayName: "Penalties Scored", aggregation: "sum" },
+	"penalty scored": { field: "penaltiesScored", displayName: "Penalties Scored", aggregation: "sum" },
+	"penalties saved": { field: "penaltiesSaved", displayName: "Penalties Saved", aggregation: "sum" },
+	"penalty saved": { field: "penaltiesSaved", displayName: "Penalties Saved", aggregation: "sum" },
+	"penalties missed": { field: "penaltiesMissed", displayName: "Penalties Missed", aggregation: "sum" },
+	"penalty missed": { field: "penaltiesMissed", displayName: "Penalties Missed", aggregation: "sum" },
+	"clean sheet": { field: "conceded", displayName: "Clean Sheets", aggregation: "count", additionalWhere: "AND coalesce(f.conceded, 0) = 0" },
+	"clean sheets": { field: "conceded", displayName: "Clean Sheets", aggregation: "count", additionalWhere: "AND coalesce(f.conceded, 0) = 0" },
+};
+
 export class RelationshipQueryHandler {
 	/**
 	 * Query co-players data for a player
@@ -77,6 +109,7 @@ export class RelationshipQueryHandler {
 
 	/**
 	 * Query goals scored against each opposition for a player
+	 * Note: Goals includes both regular goals and penalties scored
 	 */
 	static async queryPlayerGoalsAgainstOpposition(playerName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying goals against opposition for player: ${playerName}`, null, "log");
@@ -107,11 +140,116 @@ export class RelationshipQueryHandler {
 
 		try {
 			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
-			return { type: "opposition_goals", data: result, playerName };
+			return { type: "opposition_goals", data: result, playerName, statType: "goals" };
 		} catch (error) {
 			loggingService.log(`❌ Error in goals against opposition query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying goals against opposition data" };
 		}
+	}
+
+	/**
+	 * Generic method to query any stat type against opposition for a player
+	 * @param playerName - The player's name
+	 * @param statType - The type identifier (e.g., "assists", "saves", "yellowCards")
+	 * @param fieldName - The MatchDetail field name (e.g., "assists", "saves", "yellowCards")
+	 * @param aggregationType - "sum" for cumulative stats, "count" for counting fixtures
+	 * @param additionalWhere - Optional additional WHERE clause (e.g., for clean sheets: "AND coalesce(f.conceded, 0) = 0")
+	 */
+	static async queryPlayerStatAgainstOpposition(
+		playerName: string,
+		statType: string,
+		fieldName: string,
+		aggregationType: "sum" | "count" = "sum",
+		additionalWhere: string = ""
+	): Promise<Record<string, unknown>> {
+		loggingService.log(`🔍 Querying ${statType} against opposition for player: ${playerName}`, null, "log");
+		const graphLabel = neo4jService.getGraphLabel();
+		
+		let aggregation: string;
+		if (aggregationType === "count") {
+			// For counting fixtures (like clean sheets or appearances)
+			// Always count distinct fixtures
+			aggregation = `count(DISTINCT f) as ${statType}`;
+		} else {
+			// For summing values (goals, assists, saves, etc.)
+			aggregation = `sum(coalesce(md.${fieldName}, 0)) as ${statType}`;
+		}
+		
+		const query = `
+			MATCH (p:Player {playerName: $playerName, graphLabel: $graphLabel})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+			MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+			WHERE f.opposition IS NOT NULL AND f.opposition <> "" ${additionalWhere}
+			WITH f.opposition as opposition, ${aggregation}
+			WHERE ${statType} > 0
+			ORDER BY ${statType} DESC
+			LIMIT 10
+			RETURN opposition, ${statType}
+		`;
+
+		// Push query to chatbotService for extraction
+		try {
+			const chatbotService = ChatbotService.getInstance();
+			const readyToExecuteQuery = query
+				.replace(/\$graphLabel/g, `'${graphLabel}'`)
+				.replace(/\$playerName/g, `'${playerName}'`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_${statType.toUpperCase()}_QUERY: ${query}`);
+			chatbotService.lastExecutedQueries.push(`OPPOSITION_${statType.toUpperCase()}_READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+		} catch (error) {
+			// Ignore if chatbotService not available
+		}
+
+		try {
+			const result = await neo4jService.executeQuery(query, { playerName, graphLabel });
+			return { type: `opposition_${statType}`, data: result, playerName, statType };
+		} catch (error) {
+			loggingService.log(`❌ Error in ${statType} against opposition query:`, error, "error");
+			return { type: "error", data: [], error: `Error querying ${statType} against opposition data` };
+		}
+	}
+
+	/**
+	 * Query clean sheets kept against each opposition for a player
+	 */
+	static async queryPlayerCleanSheetsAgainstOpposition(playerName: string): Promise<Record<string, unknown>> {
+		return await RelationshipQueryHandler.queryPlayerStatAgainstOpposition(
+			playerName,
+			"cleanSheets",
+			"conceded", // Not used for count aggregation, but required parameter
+			"count",
+			"AND coalesce(f.conceded, 0) = 0"
+		);
+	}
+
+	/**
+	 * Detect stat type from question and query against opposition
+	 * @param playerName - The player's name
+	 * @param questionLower - The question in lowercase
+	 * @returns Query result with stat type information
+	 */
+	static async queryPlayerStatAgainstOppositionFromQuestion(
+		playerName: string,
+		questionLower: string
+	): Promise<Record<string, unknown> | null> {
+		// Check each stat type mapping in order of specificity (longer phrases first)
+		const sortedKeys = Object.keys(STAT_TYPE_MAPPING).sort((a, b) => b.length - a.length);
+		
+		for (const key of sortedKeys) {
+			if (questionLower.includes(key)) {
+				const mapping = STAT_TYPE_MAPPING[key];
+				// Use the field name as the statType key (e.g., "assists", "saves", "yellowCards")
+				// This ensures the response can access the correct field
+				const statTypeKey = mapping.field === "id" ? "appearances" : mapping.field;
+				return await RelationshipQueryHandler.queryPlayerStatAgainstOpposition(
+					playerName,
+					statTypeKey,
+					mapping.field,
+					mapping.aggregation,
+					mapping.additionalWhere || ""
+				);
+			}
+		}
+		
+		return null;
 	}
 
 	/**

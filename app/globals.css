@@ -341,6 +341,29 @@
 		color: rgba(255, 241, 118, 0.6); /* WCAG-compliant yellow with opacity for placeholder */
 	}
 
+	/* Override browser autofill/autocomplete styling to maintain dark theme */
+	input:-webkit-autofill,
+	input:-webkit-autofill:hover,
+	input:-webkit-autofill:focus,
+	input:-webkit-autofill:active {
+		-webkit-box-shadow: 0 0 0 30px var(--color-field-bg) inset !important;
+		-webkit-text-fill-color: var(--color-text-primary) !important;
+		background-color: var(--color-field-bg) !important;
+		caret-color: var(--color-text-primary);
+		transition: background-color 5000s ease-in-out 0s, color 5000s ease-in-out 0s;
+	}
+
+	/* Ensure autofilled inputs maintain border styling */
+	input:-webkit-autofill {
+		border-color: var(--color-field-border) !important;
+	}
+
+	input:-webkit-autofill:focus {
+		border-color: var(--color-field-focus) !important;
+		box-shadow: 0 0 0 3px var(--color-field-focus-ring) !important;
+		-webkit-box-shadow: 0 0 0 30px var(--color-field-bg) inset, 0 0 0 3px var(--color-field-focus-ring) !important;
+	}
+
 
 	.dark-dropdown {
 		background: var(--color-dropdown-bg);

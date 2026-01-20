@@ -451,7 +451,6 @@ export default function ChatbotInterface() {
 							variant="secondary"
 							size="md"
 							disabled={!question.trim() || isLoading}
-							loading={isLoading}
 							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
 							className='w-full md:w-auto'>
 							{isLoading ? "Searching..." : "Search"}

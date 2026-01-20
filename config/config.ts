@@ -1,5 +1,5 @@
 export const appConfig = {
-	version: "1.1.30",
+	version: "1.1.31",
 	name: "Dorkinians FC",
 	description: "Comprehensive source for club statistics, player performance, and team insights",
 	author: "Luke Bangs",
@@ -168,7 +168,9 @@ export const allExampleQuestions: string[] = [
 	"How many games have I done for the 4s now?",
 	"What's the most goals we've scored in a game when I was playing?",
 	"How many goals did I get last season?",
-	"Which team have I kept the most clean sheets against?"
+	"Which team have I kept the most clean sheets against?",
+	"Who is in the team of the season?",
+	"How many times have I been the team of the season?"
 ];
 
 export const usefulLinks: UsefulLink[] = [
