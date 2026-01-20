@@ -106,12 +106,125 @@ export default function ClubInformation() {
 	const [achievements, setAchievements] = useState<ClubAchievement[]>([]);
 	const [achievementsLoading, setAchievementsLoading] = useState(true);
 
+	// Priority 1: Above fold on mobile - Club Achievements section
+	// Stale-while-revalidate: Show cached data immediately, fetch fresh in background
 	useEffect(() => {
+		const CACHE_KEY = "club-achievements-cache";
+		const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
+
+		// Check cache first
+		if (typeof window !== "undefined") {
+			try {
+				const cached = localStorage.getItem(CACHE_KEY);
+				if (cached) {
+					const { data, timestamp } = JSON.parse(cached);
+					if (Date.now() - timestamp < CACHE_TTL) {
+						// Use cached data immediately
+						const trophyNumbers = [1, 2, 3, 4, 5];
+						const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
+						const achievementsWithTrophies = data.map((achievement: ClubAchievement, index: number) => ({
+							...achievement,
+							trophyNumber: shuffled[index % 5],
+						}));
+						setAchievements(achievementsWithTrophies);
+						setAchievementsLoading(false);
+					}
+				}
+			} catch (e) {
+				// Cache read failed, continue to fetch
+			}
+		}
+
+		const fetchAchievements = async () => {
+			try {
+				const response = await fetch("/api/club-achievements");
+				if (response.ok) {
+					const data = await response.json();
+					const achievementsData = data.achievements || [];
+					
+					// Cache the data
+					if (typeof window !== "undefined") {
+						try {
+							localStorage.setItem(CACHE_KEY, JSON.stringify({
+								data: achievementsData,
+								timestamp: Date.now(),
+							}));
+						} catch (e) {
+							// Cache write failed, continue
+						}
+					}
+					
+					// Shuffle trophy numbers and assign to achievements
+					const trophyNumbers = [1, 2, 3, 4, 5];
+					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
+					
+					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
+						...achievement,
+						trophyNumber: shuffled[index % 5],
+					}));
+					
+					setAchievements(achievementsWithTrophies);
+				} else {
+					log("error", "Failed to fetch achievements");
+				}
+			} catch (error) {
+				log("error", "Error fetching achievements:", error);
+			} finally {
+				setAchievementsLoading(false);
+			}
+		};
+
+		// Always fetch fresh data in background (stale-while-revalidate)
+		fetchAchievements();
+	}, []);
+
+	// Priority 2: Above fold on desktop - Milestones section
+	// Stale-while-revalidate: Show cached data immediately, fetch fresh in background
+	useEffect(() => {
+		const CACHE_KEY = "milestones-cache";
+		const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+		// Check cache first
+		if (typeof window !== "undefined") {
+			try {
+				const cached = localStorage.getItem(CACHE_KEY);
+				if (cached) {
+					const { data, timestamp } = JSON.parse(cached);
+					if (Date.now() - timestamp < CACHE_TTL) {
+						// Use cached data immediately
+						setAchieved(data.achieved || []);
+						setNearing(data.nearing || []);
+						setClosestToMilestone(data.closestToMilestone || []);
+						setLoading(false);
+					}
+				}
+			} catch (e) {
+				// Cache read failed, continue to fetch
+			}
+		}
+
 		const fetchMilestones = async () => {
 			try {
 				const response = await fetch("/api/milestones");
 				if (response.ok) {
 					const data = await response.json();
+					
+					// Cache the data
+					if (typeof window !== "undefined") {
+						try {
+							localStorage.setItem(CACHE_KEY, JSON.stringify({
+								data: {
+									achieved: data.achieved || [],
+									nearing: data.nearing || [],
+									closestToMilestone: data.closestToMilestone || [],
+								},
+								timestamp: Date.now(),
+							}));
+						} catch (e) {
+							// Cache write failed, continue
+						}
+					}
+					
 					setAchieved(data.achieved || []);
 					setNearing(data.nearing || []);
 					setClosestToMilestone(data.closestToMilestone || []);
@@ -156,38 +269,8 @@ export default function ClubInformation() {
 			}
 		};
 
+		// Always fetch fresh data in background (stale-while-revalidate)
 		fetchMilestones();
-	}, []);
-
-	useEffect(() => {
-		const fetchAchievements = async () => {
-			try {
-				const response = await fetch("/api/club-achievements");
-				if (response.ok) {
-					const data = await response.json();
-					const achievementsData = data.achievements || [];
-					
-					// Shuffle trophy numbers and assign to achievements
-					const trophyNumbers = [1, 2, 3, 4, 5];
-					const shuffled = [...trophyNumbers].sort(() => Math.random() - 0.5);
-					
-					const achievementsWithTrophies = achievementsData.map((achievement: ClubAchievement, index: number) => ({
-						...achievement,
-						trophyNumber: shuffled[index % 5],
-					}));
-					
-					setAchievements(achievementsWithTrophies);
-				} else {
-					log("error", "Failed to fetch achievements");
-				}
-			} catch (error) {
-				log("error", "Error fetching achievements:", error);
-			} finally {
-				setAchievementsLoading(false);
-			}
-		};
-
-		fetchAchievements();
 	}, []);
 
 	// Filter milestones based on selected filter
@@ -203,7 +286,7 @@ export default function ClubInformation() {
 
 	return (
 		<div 
-			className='p-2 md:p-4 overflow-y-auto'
+			className='p-2 md:p-4 overflow-y-auto md:max-w-2xl md:mx-auto w-full'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 			<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Information</h2>
 

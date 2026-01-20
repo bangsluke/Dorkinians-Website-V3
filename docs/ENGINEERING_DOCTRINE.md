@@ -26,6 +26,11 @@
 - [Build \& Development Workflow](#build--development-workflow)
   - [TypeScript \& Build Safety](#typescript--build-safety)
   - [Component Architecture](#component-architecture)
+- [Design System Integration](#design-system-integration)
+  - [Using Design Tokens](#using-design-tokens)
+  - [State Pattern Implementation](#state-pattern-implementation)
+  - [Animation Timing Standards](#animation-timing-standards)
+  - [Component Composition Patterns](#component-composition-patterns)
 - [Documentation Standards](#documentation-standards)
   - [Markdown Documentation Protocol](#markdown-documentation-protocol)
   - [Documentation Integration Protocol](#documentation-integration-protocol)
@@ -280,6 +285,74 @@
 - **Rule**: Separate concerns between data fetching, state management, and presentation
 - **Rationale**: Makes components more testable and maintainable
 - **Implementation**: Use custom hooks for data fetching, Zustand for global state, and pure components for presentation
+
+## Design System Integration
+
+### Using Design Tokens
+
+- **Rule**: Always use CSS variable design tokens instead of hardcoded values
+- **Rationale**: Design tokens ensure consistency, enable theming, and simplify maintenance
+- **Implementation**:
+  - Use `var(--color-primary)` instead of `#1C8841`
+  - Use `var(--duration-normal)` instead of `200ms`
+  - Use `var(--spacing-4)` for spacing values
+  - Reference `docs/component-usage-guide.md` for available tokens
+- **Example**: `transition: all var(--duration-normal) var(--ease-out)` instead of `transition: all 0.2s ease`
+
+### State Pattern Implementation
+
+- **Rule**: Use standardized state components (LoadingState, ErrorState, EmptyState) for all data-fetching components
+- **Rationale**: Consistent state patterns improve UX and reduce code duplication
+- **Implementation**:
+  - Import state components from `@/components/ui/StateComponents`
+  - Use `LoadingState` with spinner variant for actions, skeleton variant for content
+  - Use `ErrorState` with `onShowToast` callback to automatically show toast notifications
+  - Use `EmptyState` when no data is available
+  - Always provide retry functionality for error states when applicable
+- **Example**:
+  ```tsx
+  import { ErrorState } from "@/components/ui/StateComponents";
+  import { useToast } from "@/lib/hooks/useToast";
+  
+  const { showError } = useToast();
+  
+  if (error) {
+    return (
+      <ErrorState
+        message="Failed to load data"
+        error={error}
+        onShowToast={showError}
+        showToast={true}
+        onRetry={handleRetry}
+      />
+    );
+  }
+  ```
+
+### Animation Timing Standards
+
+- **Rule**: Use animation timing tokens for all animations and transitions
+- **Rationale**: Consistent timing creates a cohesive user experience
+- **Implementation**:
+  - Use CSS variables for CSS transitions: `var(--duration-normal)`
+  - Use matching numeric values for Framer Motion: `duration: 0.2` (matches --duration-normal)
+  - Use `var(--delay-tooltip-mouse)` (300ms) and `var(--delay-tooltip-touch)` (500ms) for tooltip delays
+  - Reference `lib/constants/animations.ts` for TypeScript constants
+- **Example**: `transition={{ duration: 0.2 }}` in Framer Motion matches `var(--duration-normal)` in CSS
+
+### Component Composition Patterns
+
+- **Rule**: Compose UI components from reusable building blocks
+- **Rationale**: Component composition reduces duplication and ensures consistency
+- **Implementation**:
+  - Use Button component for all buttons (don't create custom button styles)
+  - Use Input component for all text inputs
+  - Use state components for loading/error/empty states
+  - Use ToastContainer and useToast hook for notifications
+  - Follow patterns established in `docs/component-usage-guide.md`
+- **Example**: Instead of creating custom error display, use `<ErrorState />` component
+
+> [Back to Table of Contents](#table-of-contents)
 
 ## Documentation Standards
 

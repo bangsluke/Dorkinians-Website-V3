@@ -59,7 +59,7 @@ export default function TeamOfTheWeek() {
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(800);
 
-	// Fetch seasons on mount - check cache first
+	// Fetch seasons on mount - check cache first, then parallelize with current week data if available
 	useEffect(() => {
 		if (appConfig.forceSkeletonView) {
 			setLoading(true);
@@ -72,34 +72,77 @@ export default function TeamOfTheWeek() {
 			if (cachedSeasons.currentSeason) {
 				setCurrentSeason(cachedSeasons.currentSeason);
 				setSelectedSeason(cachedSeasons.currentSeason);
+				
+				// If we have cached season, try to fetch weeks and current week data in parallel
+				const cachedWeeks = getCachedTOTWWeeks(cachedSeasons.currentSeason);
+				if (cachedWeeks && cachedWeeks.currentWeek !== null && cachedSeasons.currentSeason) {
+					// We have weeks cached, fetch week data immediately
+					const cachedWeekData = getCachedTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek);
+					if (!cachedWeekData) {
+						// Fetch week data in background
+						fetch(`/api/totw/week-data?season=${encodeURIComponent(cachedSeasons.currentSeason)}&week=${cachedWeeks.currentWeek}`)
+							.then(res => res.ok ? res.json() : null)
+							.then(data => {
+								if (data?.totwData && cachedSeasons.currentSeason && cachedWeeks.currentWeek !== null) {
+									cacheTOTWWeekData(cachedSeasons.currentSeason, cachedWeeks.currentWeek, data.totwData, data.players || []);
+								}
+							})
+							.catch(() => {});
+					}
+				}
 			} else if (cachedSeasons.seasons.length > 0) {
 				setSelectedSeason(cachedSeasons.seasons[0]);
 			}
 			return;
 		}
 
-		const fetchSeasons = async () => {
+		const fetchSeasonsAndCurrentWeek = async () => {
 			try {
-				const response = await fetch("/api/totw/seasons");
-				const data = await response.json();
-				if (data.seasons) {
-					setSeasons(data.seasons);
+				// Fetch seasons
+				const seasonsResponse = await fetch("/api/totw/seasons");
+				const seasonsData = await seasonsResponse.json();
+				
+				if (seasonsData.seasons) {
+					setSeasons(seasonsData.seasons);
 					// Use currentSeason from API, or fallback to localStorage, or first season
-					const seasonToUse = data.currentSeason || getCurrentSeasonFromStorage();
-					if (seasonToUse && data.seasons.includes(seasonToUse)) {
+					const seasonToUse = seasonsData.currentSeason || getCurrentSeasonFromStorage();
+					if (seasonToUse && seasonsData.seasons.includes(seasonToUse)) {
 						setCurrentSeason(seasonToUse);
 						setSelectedSeason(seasonToUse);
-					} else if (data.seasons.length > 0) {
-						setSelectedSeason(data.seasons[0]);
+						
+						// Parallelize: Fetch weeks for current season immediately
+						fetch(`/api/totw/weeks?season=${encodeURIComponent(seasonToUse)}`)
+							.then(res => res.ok ? res.json() : null)
+							.then(weeksData => {
+								if (weeksData?.weeks) {
+									const weekToSelect = weeksData.latestGameweek ? Number(weeksData.latestGameweek) : 
+										(weeksData.currentWeek ?? (weeksData.weeks.length > 0 ? weeksData.weeks[weeksData.weeks.length - 1].week : null));
+									if (weekToSelect) {
+										cacheTOTWWeeks(seasonToUse, weeksData.weeks, weekToSelect, weeksData.latestGameweek);
+										// Pre-fetch current week data in background
+										fetch(`/api/totw/week-data?season=${encodeURIComponent(seasonToUse)}&week=${weekToSelect}`)
+											.then(res => res.ok ? res.json() : null)
+											.then(weekData => {
+												if (weekData?.totwData) {
+													cacheTOTWWeekData(seasonToUse, weekToSelect, weekData.totwData, weekData.players || []);
+												}
+											})
+											.catch(() => {});
+									}
+								}
+							})
+							.catch(() => {});
+					} else if (seasonsData.seasons.length > 0) {
+						setSelectedSeason(seasonsData.seasons[0]);
 					}
-					cacheTOTWSeasons(data.seasons, data.currentSeason || getCurrentSeasonFromStorage() || null);
+					cacheTOTWSeasons(seasonsData.seasons, seasonsData.currentSeason || getCurrentSeasonFromStorage() || null);
 				}
 			} catch (error) {
 				console.error("Error fetching seasons:", error);
 			}
 		};
-		fetchSeasons();
-	}, [getCachedTOTWSeasons, cacheTOTWSeasons]);
+		fetchSeasonsAndCurrentWeek();
+	}, [getCachedTOTWSeasons, cacheTOTWSeasons, getCachedTOTWWeeks, cacheTOTWWeeks, getCachedTOTWWeekData, cacheTOTWWeekData]);
 
 	// Fetch weeks when season changes - check cache first
 	useEffect(() => {
@@ -665,7 +708,7 @@ export default function TeamOfTheWeek() {
 	}, [formation, playersInFormation, containerWidth]);
 
 	return (
-		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative'>
+		<div className='flex flex-col px-[11.2px] md:px-[16.8px] pt-2 md:pt-4 pb-4 md:pb-6 relative md:max-w-2xl md:mx-auto w-full'>
 			{/* Header */}
 			<div className='text-center mb-3 flex items-center justify-center gap-2'>
 				<h1 
@@ -882,7 +925,7 @@ export default function TeamOfTheWeek() {
 								<div
 									key={`${player.name}-${index}`}
 									data-testid="totw-player"
-									className='absolute cursor-pointer hover:scale-110 transition-transform z-10'
+									className='absolute cursor-pointer hover:scale-110 hover:opacity-80 transition-transform transition-opacity z-10'
 									style={{
 										left: `${adjustedX}%`,
 										top: `${position.y}%`,

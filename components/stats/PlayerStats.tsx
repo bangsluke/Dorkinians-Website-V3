@@ -4,8 +4,10 @@ import { useNavigationStore, type PlayerData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
-import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
+/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+// import { ArrowUpTrayIcon } from "@heroicons/react/24/outline";
 import PenOnPaperIcon from "@/components/icons/PenOnPaperIcon";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -13,16 +15,20 @@ import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
 import OppositionMap from "@/components/maps/OppositionMap";
 import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
-import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
-import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
-import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
-import SharePreviewModal from "@/components/stats/SharePreviewModal";
-import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
+/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+// import ShareableStatsCard from "@/components/stats/ShareableStatsCard";
+// import ShareVisualizationModal from "@/components/stats/ShareVisualizationModal";
+// import IOSSharePreviewModal from "@/components/stats/IOSSharePreviewModal";
+// import SharePreviewModal from "@/components/stats/SharePreviewModal";
+// import { generateShareImage, shareImage, performIOSShare, performNonIOSShare, getAvailableVisualizations } from "@/lib/utils/shareUtils";
 import { safeLocalStorageGet, safeLocalStorageSet } from "@/lib/utils/pwaDebug";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
+import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -212,9 +218,10 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -232,6 +239,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-touch (500ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 500);
@@ -255,7 +263,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
 							src={`/stat-icons/${stat.iconName}.svg`}
@@ -266,10 +274,10 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 						/>
 					</div>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
+				<td className='px-3 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{(() => {
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
@@ -736,7 +744,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{scored > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-success)] mr-2'></span>
 									Penalties Scored
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{scored}</td>
@@ -745,7 +753,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{missed > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-error)] mr-2'></span>
 									Penalties Missed
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{missed}</td>
@@ -754,7 +762,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{saved > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-info)] mr-2'></span>
 									Penalties Saved
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{saved}</td>
@@ -1580,7 +1588,9 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 }
 
 export default function PlayerStats() {
-	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData } = useNavigationStore();
+	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
+	const { showError } = useToast();
+	const [error, setError] = useState<string | null>(null);
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -1626,6 +1636,10 @@ export default function PlayerStats() {
 	const [totalAwards, setTotalAwards] = useState<number>(0);
 	const [isLoadingAwardHistory, setIsLoadingAwardHistory] = useState(false);
 
+	// State for icon loading tracking in Key Performance Stats
+	const [loadedIcons, setLoadedIcons] = useState<Set<string>>(new Set());
+	const [allIconsLoaded, setAllIconsLoaded] = useState(false);
+
 	// State for view mode toggle - initialize from localStorage
 	const [isDataTableMode, setIsDataTableMode] = useState<boolean>(() => {
 		if (typeof window !== "undefined") {
@@ -1643,15 +1657,16 @@ export default function PlayerStats() {
 		}
 	}, [isDataTableMode]);
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// State for share functionality
-	const [isGeneratingShare, setIsGeneratingShare] = useState(false);
-	const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-	const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
-	const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
-	const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
-	const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
-	const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
-	const shareCardRef = useRef<HTMLDivElement>(null);
+	// const [isGeneratingShare, setIsGeneratingShare] = useState(false);
+	// const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+	// const [selectedShareVisualization, setSelectedShareVisualization] = useState<{ type: string; data?: any } | null>(null);
+	// const [shareBackgroundColor, setShareBackgroundColor] = useState<"yellow" | "green">("yellow");
+	// const [isIOSPreviewOpen, setIsIOSPreviewOpen] = useState(false);
+	// const [isNonIOSPreviewOpen, setIsNonIOSPreviewOpen] = useState(false);
+	// const [generatedImageDataUrl, setGeneratedImageDataUrl] = useState<string>("");
+	// const shareCardRef = useRef<HTMLDivElement>(null);
 
 
 	// Get stats to display for current page
@@ -1704,6 +1719,21 @@ export default function PlayerStats() {
 			{ name: "Assists", value: toNumber(playerData.assists) },
 		];
 	}, [playerData, filterData]);
+
+	// Reset icon loading state when keyPerformanceData changes
+	useEffect(() => {
+		setLoadedIcons(new Set());
+		setAllIconsLoaded(false);
+	}, [keyPerformanceData]);
+
+	// Check when all icons are loaded
+	useEffect(() => {
+		// Count all items that are actually rendered (all items in keyPerformanceData are rendered)
+		const expectedIcons = keyPerformanceData.length;
+		if (loadedIcons.size === expectedIcons && expectedIcons > 0) {
+			setAllIconsLoaded(true);
+		}
+	}, [loadedIcons, keyPerformanceData]);
 
 	const cardData = useMemo(() => {
 		if (!playerData) return [];
@@ -1775,178 +1805,13 @@ export default function PlayerStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
-	// Fetch seasonal stats when all seasons are selected (must be before early returns)
+	// Priority 1 & 2: Parallelized data fetching for above-the-fold content
+	// Fetch seasonal stats, team stats, opposition map, and opposition performance in parallel
 	useEffect(() => {
-		if (!selectedPlayer || !allSeasonsSelected) {
+		if (!selectedPlayer) {
 			setSeasonalStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchSeasonalStats = async () => {
-			setIsLoadingSeasonalStats(true);
-			try {
-				const response = await fetch("/api/player-seasonal-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching seasonal stats:", error);
-			} finally {
-				setIsLoadingSeasonalStats(false);
-			}
-		};
-
-		fetchSeasonalStats();
-	}, [selectedPlayer, allSeasonsSelected, playerFilters]);
-
-	// Fetch team stats when all teams are selected (must be before early returns)
-	useEffect(() => {
-		if (!selectedPlayer || !allTeamsSelected) {
 			setTeamStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchTeamStats = async () => {
-			setIsLoadingTeamStats(true);
-			try {
-				const response = await fetch("/api/player-team-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setTeamStats(data.teamStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching team stats:", error);
-			} finally {
-				setIsLoadingTeamStats(false);
-			}
-		};
-
-		fetchTeamStats();
-	}, [selectedPlayer, allTeamsSelected, playerFilters]);
-
-	// Fetch monthly stats when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
-			setMonthlyStats([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchMonthlyStats = async () => {
-			setIsLoadingMonthlyStats(true);
-			try {
-				const response = await fetch("/api/player-monthly-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setMonthlyStats(data.monthlyStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching monthly stats:", error);
-			} finally {
-				setIsLoadingMonthlyStats(false);
-			}
-		};
-
-		fetchMonthlyStats();
-	}, [selectedPlayer, playerFilters]);
-
-	// Fetch fantasy breakdown when player or filters change
-	useEffect(() => {
-		if (!selectedPlayer) {
-			setFantasyBreakdown(null);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchFantasyBreakdown = async () => {
-			setIsLoadingFantasyBreakdown(true);
-			try {
-				const response = await fetch("/api/player-fantasy-breakdown", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setFantasyBreakdown(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching fantasy breakdown:", error);
-			} finally {
-				setIsLoadingFantasyBreakdown(false);
-			}
-		};
-
-		fetchFantasyBreakdown();
-	}, [selectedPlayer, playerFilters]);
-
-	// Fetch opposition map data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setOppositionMapData([]);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchOppositionMapData = async () => {
-			setIsLoadingOppositionMap(true);
-			try {
-				const response = await fetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionMapData(data.oppositions || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching opposition map data:", error);
-				setOppositionMapData([]);
-			} finally {
-				setIsLoadingOppositionMap(false);
-			}
-		};
-
-		fetchOppositionMapData();
-	}, [selectedPlayer]);
-
-	// Fetch opposition performance data when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setOppositionPerformanceData([]);
 			return;
 		}
@@ -1954,28 +1819,135 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchOppositionPerformanceData = async () => {
+		const fetchAllAboveFoldData = async () => {
+			// Set loading states
+			setIsLoadingSeasonalStats(allSeasonsSelected);
+			setIsLoadingTeamStats(allTeamsSelected);
+			setIsLoadingOppositionMap(true);
 			setIsLoadingOppositionPerformance(true);
+
 			try {
-				const response = await fetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setOppositionPerformanceData(data.performanceData || []);
+				// Build parallel fetch promises
+				const fetchPromises: Promise<void>[] = [];
+
+				// Seasonal stats (conditional)
+				if (allSeasonsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-seasonal-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-seasonal-stats", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setSeasonalStats(data.seasonalStats || []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching seasonal stats:", error);
+							})
+							.finally(() => setIsLoadingSeasonalStats(false))
+					);
+				} else {
+					setSeasonalStats([]);
+					setIsLoadingSeasonalStats(false);
 				}
+
+				// Team stats (conditional)
+				if (allTeamsSelected) {
+					const cacheKey = generatePageCacheKey("stats", "player-stats", "player-team-stats", {
+						playerName: selectedPlayer,
+						filters: playerFilters,
+					});
+					fetchPromises.push(
+						cachedFetch("/api/player-team-stats", {
+							method: "POST",
+							body: {
+								playerName: selectedPlayer,
+								filters: playerFilters,
+							},
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						})
+							.then((data) => {
+								setTeamStats(data.teamStats || []);
+							})
+							.catch((error) => {
+								log("error", "Error fetching team stats:", error);
+							})
+							.finally(() => setIsLoadingTeamStats(false))
+					);
+				} else {
+					setTeamStats([]);
+					setIsLoadingTeamStats(false);
+				}
+
+				// Opposition map (always fetch)
+				const oppositionMapCacheKey = generatePageCacheKey("stats", "player-stats", "player-oppositions-map", {
+					playerName: selectedPlayer,
+				});
+				fetchPromises.push(
+					cachedFetch(`/api/player-oppositions-map?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionMapCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionMapData(data.oppositions || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching opposition map data:", error);
+							setOppositionMapData([]);
+						})
+						.finally(() => setIsLoadingOppositionMap(false))
+				);
+
+				// Opposition performance (always fetch)
+				const oppositionPerfCacheKey = generatePageCacheKey("stats", "player-stats", "player-opposition-performance", {
+					playerName: selectedPlayer,
+				});
+				fetchPromises.push(
+					cachedFetch(`/api/player-opposition-performance?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: oppositionPerfCacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setOppositionPerformanceData(data.performanceData || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching opposition performance data:", error);
+							setOppositionPerformanceData([]);
+						})
+						.finally(() => setIsLoadingOppositionPerformance(false))
+				);
+
+				// Execute all fetches in parallel
+				await Promise.all(fetchPromises);
 			} catch (error) {
-				log("error", "Error fetching opposition performance data:", error);
-				setOppositionPerformanceData([]);
-			} finally {
-				setIsLoadingOppositionPerformance(false);
+				log("error", "Error in parallel data fetching:", error);
 			}
 		};
 
-		fetchOppositionPerformanceData();
-	}, [selectedPlayer]);
+		fetchAllAboveFoldData();
+	}, [selectedPlayer, allSeasonsSelected, allTeamsSelected, playerFilters]);
 
-	// Fetch game details when player or filters change
+	// Priority 3: Below fold - Parallelized data fetching for filter-dependent content
+	// Fetch monthly stats, fantasy breakdown, and game details in parallel
 	useEffect(() => {
 		if (!selectedPlayer) {
+			setMonthlyStats([]);
+			setFantasyBreakdown(null);
 			setGameDetails(null);
 			return;
 		}
@@ -1983,95 +1955,84 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchGameDetails = async () => {
+		const fetchAllBelowFoldData = async () => {
+			// Set loading states
+			setIsLoadingMonthlyStats(true);
+			setIsLoadingFantasyBreakdown(true);
 			setIsLoadingGameDetails(true);
+
 			try {
-				const response = await fetch("/api/player-game-details", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						playerName: selectedPlayer,
-						filters: playerFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setGameDetails(data);
-				}
+				const params = {
+					playerName: selectedPlayer,
+					filters: playerFilters,
+				};
+
+				// Execute all filter-dependent fetches in parallel
+				await Promise.all([
+					// Monthly stats
+					cachedFetch("/api/player-monthly-stats", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-monthly-stats", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setMonthlyStats(data.monthlyStats || []);
+						})
+						.catch((error) => {
+							log("error", "Error fetching monthly stats:", error);
+						})
+						.finally(() => setIsLoadingMonthlyStats(false)),
+
+					// Fantasy breakdown
+					cachedFetch("/api/player-fantasy-breakdown", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-fantasy-breakdown", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setFantasyBreakdown(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching fantasy breakdown:", error);
+						})
+						.finally(() => setIsLoadingFantasyBreakdown(false)),
+
+					// Game details
+					cachedFetch("/api/player-game-details", {
+						method: "POST",
+						body: params,
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-game-details", params),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setGameDetails(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching game details:", error);
+							setGameDetails(null);
+						})
+						.finally(() => setIsLoadingGameDetails(false)),
+				]);
 			} catch (error) {
-				log("error", "Error fetching game details:", error);
-				setGameDetails(null);
-			} finally {
-				setIsLoadingGameDetails(false);
+				log("error", "Error in parallel below-fold data fetching:", error);
 			}
 		};
 
-		fetchGameDetails();
+		fetchAllBelowFoldData();
 	}, [selectedPlayer, playerFilters]);
 
-	// Fetch awards data when player is selected
+	// Priority 3: Below fold - Captaincies, Awards and Achievements section
+	// Fetch awards, captain history, and award history in parallel
 	useEffect(() => {
 		if (!selectedPlayer) {
 			setAwardsData(null);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchAwards = async () => {
-			setIsLoadingAwards(true);
-			try {
-				const response = await fetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setAwardsData(data);
-				}
-			} catch (error) {
-				log("error", "Error fetching awards:", error);
-			} finally {
-				setIsLoadingAwards(false);
-			}
-		};
-
-		fetchAwards();
-	}, [selectedPlayer]);
-
-	// Fetch captain history when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setCaptainHistory([]);
 			setTotalCaptaincies(0);
-			return;
-		}
-		if (appConfig.forceSkeletonView) {
-			return;
-		}
-
-		const fetchCaptainHistory = async () => {
-			setIsLoadingCaptainHistory(true);
-			try {
-				const response = await fetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setCaptainHistory(data.captaincies || []);
-					setTotalCaptaincies(data.totalCaptaincies || 0);
-				}
-			} catch (error) {
-				log("error", "Error fetching captain history:", error);
-				setCaptainHistory([]);
-				setTotalCaptaincies(0);
-			} finally {
-				setIsLoadingCaptainHistory(false);
-			}
-		};
-
-		fetchCaptainHistory();
-	}, [selectedPlayer]);
-
-	// Fetch award history when player is selected
-	useEffect(() => {
-		if (!selectedPlayer) {
 			setAwardHistory([]);
 			setTotalAwards(0);
 			return;
@@ -2080,25 +2041,73 @@ export default function PlayerStats() {
 			return;
 		}
 
-		const fetchAwardHistory = async () => {
+		const fetchAllAwardsData = async () => {
+			// Set loading states
+			setIsLoadingAwards(true);
+			setIsLoadingCaptainHistory(true);
 			setIsLoadingAwardHistory(true);
+
 			try {
-				const response = await fetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setAwardHistory(data.awards || []);
-					setTotalAwards(data.totalAwards || 0);
-				}
+				const playerParams = { playerName: selectedPlayer };
+				// Execute all awards-related fetches in parallel
+				await Promise.all([
+					// Awards data
+					cachedFetch(`/api/player-awards?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "player-awards", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardsData(data);
+						})
+						.catch((error) => {
+							log("error", "Error fetching awards:", error);
+						})
+						.finally(() => setIsLoadingAwards(false)),
+
+					// Captain history
+					cachedFetch(`/api/captains/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "captain-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setCaptainHistory(data.captaincies || []);
+							setTotalCaptaincies(data.totalCaptaincies || 0);
+						})
+						.catch((error) => {
+							log("error", "Error fetching captain history:", error);
+							setCaptainHistory([]);
+							setTotalCaptaincies(0);
+						})
+						.finally(() => setIsLoadingCaptainHistory(false)),
+
+					// Award history
+					cachedFetch(`/api/awards/player-history?playerName=${encodeURIComponent(selectedPlayer)}`, {
+						method: "GET",
+						cacheKey: generatePageCacheKey("stats", "player-stats", "award-history", playerParams),
+						getCachedPageData,
+						setCachedPageData,
+					})
+						.then((data) => {
+							setAwardHistory(data.awards || []);
+							setTotalAwards(data.totalAwards || 0);
+						})
+						.catch((error) => {
+							log("error", "Error fetching award history:", error);
+							setAwardHistory([]);
+							setTotalAwards(0);
+						})
+						.finally(() => setIsLoadingAwardHistory(false)),
+				]);
 			} catch (error) {
-				log("error", "Error fetching award history:", error);
-				setAwardHistory([]);
-				setTotalAwards(0);
-			} finally {
-				setIsLoadingAwardHistory(false);
+				log("error", "Error in parallel awards data fetching:", error);
 			}
 		};
 
-		fetchAwardHistory();
+		fetchAllAwardsData();
 	}, [selectedPlayer]);
 
 
@@ -2177,43 +2186,44 @@ export default function PlayerStats() {
 		}));
 	}, [monthlyStats, monthlySelectedStat, statOptions]);
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Get available visualizations (must be before early returns)
-	const availableVisualizations = useMemo(() => {
-		if (!playerData) return [];
-		return getAvailableVisualizations(
-			playerData,
-			playerFilters,
-			allSeasonsSelected,
-			allTeamsSelected,
-			seasonalChartData,
-			teamChartData,
-			isLoadingSeasonalStats,
-			isLoadingTeamStats,
-			oppositionMapData,
-			fantasyBreakdown,
-			isLoadingFantasyBreakdown,
-			gameDetails,
-			isLoadingGameDetails,
-			monthlyChartData,
-			isLoadingMonthlyStats,
-			awardsData,
-			isLoadingAwards
-		);
-	}, [
-		playerData,
-		playerFilters,
-		allSeasonsSelected,
-		allTeamsSelected,
-		seasonalChartData,
-		teamChartData,
-		isLoadingSeasonalStats,
-		isLoadingTeamStats,
-		oppositionMapData,
-		fantasyBreakdown,
-		isLoadingFantasyBreakdown,
-		gameDetails,
-		isLoadingGameDetails,
-	]);
+	// const availableVisualizations = useMemo(() => {
+	// 	if (!playerData) return [];
+	// 	return getAvailableVisualizations(
+	// 		playerData,
+	// 		playerFilters,
+	// 		allSeasonsSelected,
+	// 		allTeamsSelected,
+	// 		seasonalChartData,
+	// 		teamChartData,
+	// 		isLoadingSeasonalStats,
+	// 		isLoadingTeamStats,
+	// 		oppositionMapData,
+	// 		fantasyBreakdown,
+	// 		isLoadingFantasyBreakdown,
+	// 		gameDetails,
+	// 		isLoadingGameDetails,
+	// 		monthlyChartData,
+	// 		isLoadingMonthlyStats,
+	// 		awardsData,
+	// 		isLoadingAwards
+	// 	);
+	// }, [
+	// 	playerData,
+	// 	playerFilters,
+	// 	allSeasonsSelected,
+	// 	allTeamsSelected,
+	// 	seasonalChartData,
+	// 	teamChartData,
+	// 	isLoadingSeasonalStats,
+	// 	isLoadingTeamStats,
+	// 	oppositionMapData,
+	// 	fantasyBreakdown,
+	// 	isLoadingFantasyBreakdown,
+	// 	gameDetails,
+	// 	isLoadingGameDetails,
+	// ]);
 
 	// Early returns after all hooks to avoid Rules of Hooks violations
 	if (!selectedPlayer) {
@@ -2257,11 +2267,19 @@ export default function PlayerStats() {
 						</div>
 						<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 					</div>
-					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4'>
-						<StatCardSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
-						<ChartSkeleton />
+					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<StatCardSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
+							<ChartSkeleton />
+						</div>
 					</div>
 				</div>
 				</SkeletonTheme>
@@ -2269,13 +2287,37 @@ export default function PlayerStats() {
 		);
 	}
 
+	if (error) {
+		return (
+			<div className='h-full flex items-center justify-center p-4'>
+				<ErrorState 
+					message="Failed to load player stats" 
+					error={error}
+					onShowToast={showError}
+					showToast={true}
+					onRetry={() => {
+						setError(null);
+						// Data will refresh automatically when selectedPlayer changes
+					}}
+				/>
+			</div>
+		);
+	}
+
 	if (!cachedPlayerData || !playerData) {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
-					<p className='text-white text-sm md:text-base'>No player data available. Please try selecting the player again.</p>
-				</div>
+				<EmptyState 
+					title="No player data available"
+					message="Please select a player to view their statistics."
+					action={selectedPlayer ? undefined : {
+						label: "Select Player",
+						onClick: () => {
+							enterEditMode();
+							setMainPage("stats");
+						}
+					}}
+				/>
 			</div>
 		);
 	}
@@ -2283,280 +2325,319 @@ export default function PlayerStats() {
 	// At this point, playerData is guaranteed to be non-null
 	const validPlayerData: PlayerData = playerData;
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Extract visualization data based on selection
-	const getVisualizationData = (vizType: string): { type: string; data?: any } => {
-		switch (vizType) {
-			case "seasonal-performance":
-				const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
-				return {
-					type: vizType,
-					data: { 
-						chartData: seasonalChartData,
-						selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
-					},
-				};
-			case "team-performance":
-				const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
-				return {
-					type: vizType,
-					data: { 
-						chartData: teamChartData,
-						selectedStat: selectedTeamOption?.label || teamSelectedStat,
-					},
-				};
-			case "match-results":
-				const wins = toNumber(validPlayerData.wins || 0);
-				const draws = toNumber(validPlayerData.draws || 0);
-				const losses = toNumber(validPlayerData.losses || 0);
-				const pieData = [
-					{ name: "Wins", value: wins, color: "#22c55e" },
-					{ name: "Draws", value: draws, color: "#60a5fa" },
-					{ name: "Losses", value: losses, color: "#ef4444" },
-				].filter(item => item.value > 0);
-				return {
-					type: vizType,
-					data: { pieData },
-				};
-			case "positional-stats":
-				return {
-					type: vizType,
-					data: {
-						gk: toNumber(validPlayerData.gk),
-						def: toNumber(validPlayerData.def),
-						mid: toNumber(validPlayerData.mid),
-						fwd: toNumber(validPlayerData.fwd),
-						appearances: toNumber(validPlayerData.appearances),
-						gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
-						defMinutes: toNumber(validPlayerData.defMinutes || 0),
-						midMinutes: toNumber(validPlayerData.midMinutes || 0),
-						fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
-					},
-				};
-			case "defensive-record":
-				return {
-					type: vizType,
-					data: {
-						conceded: toNumber(validPlayerData.conceded),
-						cleanSheets: toNumber(validPlayerData.cleanSheets),
-						ownGoals: toNumber(validPlayerData.ownGoals),
-						appearances: toNumber(validPlayerData.appearances),
-						gk: toNumber(validPlayerData.gk),
-						saves: toNumber(validPlayerData.saves),
-						concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
-					},
-				};
-			case "card-stats":
-				return {
-					type: vizType,
-					data: {
-						yellowCards: toNumber(validPlayerData.yellowCards),
-						redCards: toNumber(validPlayerData.redCards),
-					},
-				};
-			case "penalty-stats":
-				return {
-					type: vizType,
-					data: {
-						scored: toNumber(validPlayerData.penaltiesScored),
-						missed: toNumber(validPlayerData.penaltiesMissed),
-						saved: toNumber(validPlayerData.penaltiesSaved),
-						conceded: toNumber(validPlayerData.penaltiesConceded),
-						penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
-						penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
-						penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
-					},
-				};
-			case "fantasy-points":
-				return {
-					type: vizType,
-					data: {
-						totalPoints: toNumber(validPlayerData.fantasyPoints),
-						breakdown: fantasyBreakdown?.breakdown || {},
-						breakdownValues: fantasyBreakdown?.breakdownValues || {},
-						playerName: selectedPlayer || "",
-					},
-				};
-			case "distance-travelled":
-				return {
-					type: vizType,
-					data: {
-						distance: toNumber(validPlayerData.distance),
-						awayGames: toNumber(validPlayerData.awayGames || 0),
-					},
-				};
-			case "minutes-per-stats":
-				const minutes = toNumber(validPlayerData.minutes);
-				const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
-				const assists = toNumber(validPlayerData.assists);
-				const mom = toNumber(validPlayerData.mom);
-				const cleanSheets = toNumber(validPlayerData.cleanSheets);
-				return {
-					type: vizType,
-					data: {
-						minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
-						minutesPerAssist: assists > 0 ? minutes / assists : 0,
-						minutesPerMoM: mom > 0 ? minutes / mom : 0,
-						minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
-					},
-				};
-			case "game-details":
-				return {
-					type: vizType,
-					data: {
-						leagueGames: gameDetails?.leagueGames || 0,
-						cupGames: gameDetails?.cupGames || 0,
-						friendlyGames: gameDetails?.friendlyGames || 0,
-						leagueWins: gameDetails?.leagueWins || 0,
-						cupWins: gameDetails?.cupWins || 0,
-						friendlyWins: gameDetails?.friendlyWins || 0,
-						homeGames: gameDetails?.homeGames || 0,
-						awayGames: gameDetails?.awayGames || 0,
-						homeWins: gameDetails?.homeWins || 0,
-						awayWins: gameDetails?.awayWins || 0,
-						uniqueOpponents: gameDetails?.uniqueOpponents || 0,
-						uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
-						uniqueTeammates: gameDetails?.uniqueTeammates || 0,
-					},
-				};
-			case "monthly-performance":
-				const selectedMonthlyOption = statOptions.find(opt => opt.value === monthlySelectedStat);
-				return {
-					type: vizType,
-					data: {
-						chartData: monthlyChartData,
-						selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
-					},
-				};
-			case "captaincies-awards-and-achievements":
-				return {
-					type: vizType,
-					data: awardsData,
-				};
-			default:
-				return { type: vizType };
-		}
-	};
+	// const getVisualizationData = (vizType: string): { type: string; data?: any } => {
+	// 	switch (vizType) {
+			// case "seasonal-performance":
+			// 	const selectedSeasonalOption = statOptions.find(opt => opt.value === seasonalSelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { 
+			// 			chartData: seasonalChartData,
+			// 			selectedStat: selectedSeasonalOption?.label || seasonalSelectedStat,
+			// 		},
+			// 	};
+			// case "team-performance":
+			// 	const selectedTeamOption = statOptions.find(opt => opt.value === teamSelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { 
+			// 			chartData: teamChartData,
+			// 			selectedStat: selectedTeamOption?.label || teamSelectedStat,
+			// 		},
+			// 	};
+			// case "match-results":
+			// 	const wins = toNumber(validPlayerData.wins || 0);
+			// 	const draws = toNumber(validPlayerData.draws || 0);
+			// 	const losses = toNumber(validPlayerData.losses || 0);
+			// 	const pieData = [
+			// 		{ name: "Wins", value: wins, color: "#22c55e" },
+			// 		{ name: "Draws", value: draws, color: "#60a5fa" },
+			// 		{ name: "Losses", value: losses, color: "#ef4444" },
+			// 	].filter(item => item.value > 0);
+			// 	return {
+			// 		type: vizType,
+			// 		data: { pieData },
+			// 	};
+			// case "positional-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			gk: toNumber(validPlayerData.gk),
+			// 			def: toNumber(validPlayerData.def),
+			// 			mid: toNumber(validPlayerData.mid),
+			// 			fwd: toNumber(validPlayerData.fwd),
+			// 			appearances: toNumber(validPlayerData.appearances),
+			// 			gkMinutes: toNumber(validPlayerData.gkMinutes || 0),
+			// 			defMinutes: toNumber(validPlayerData.defMinutes || 0),
+			// 			midMinutes: toNumber(validPlayerData.midMinutes || 0),
+			// 			fwdMinutes: toNumber(validPlayerData.fwdMinutes || 0),
+			// 		},
+			// 	};
+			// case "defensive-record":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			conceded: toNumber(validPlayerData.conceded),
+			// 			cleanSheets: toNumber(validPlayerData.cleanSheets),
+			// 			ownGoals: toNumber(validPlayerData.ownGoals),
+			// 			appearances: toNumber(validPlayerData.appearances),
+			// 			gk: toNumber(validPlayerData.gk),
+			// 			saves: toNumber(validPlayerData.saves),
+			// 			concededPerApp: toNumber(validPlayerData.concededPerApp || 0),
+			// 		},
+			// 	};
+			// case "card-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			yellowCards: toNumber(validPlayerData.yellowCards),
+			// 			redCards: toNumber(validPlayerData.redCards),
+			// 		},
+			// 	};
+			// case "penalty-stats":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			scored: toNumber(validPlayerData.penaltiesScored),
+			// 			missed: toNumber(validPlayerData.penaltiesMissed),
+			// 			saved: toNumber(validPlayerData.penaltiesSaved),
+			// 			conceded: toNumber(validPlayerData.penaltiesConceded),
+			// 			penaltyShootoutScored: toNumber(validPlayerData.penaltyShootoutPenaltiesScored || 0),
+			// 			penaltyShootoutMissed: toNumber(validPlayerData.penaltyShootoutPenaltiesMissed || 0),
+			// 			penaltyShootoutSaved: toNumber(validPlayerData.penaltyShootoutPenaltiesSaved || 0),
+			// 		},
+			// 	};
+			// case "fantasy-points":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			totalPoints: toNumber(validPlayerData.fantasyPoints),
+			// 			breakdown: fantasyBreakdown?.breakdown || {},
+			// 			breakdownValues: fantasyBreakdown?.breakdownValues || {},
+			// 			playerName: selectedPlayer || "",
+			// 		},
+			// 	};
+			// case "distance-travelled":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			distance: toNumber(validPlayerData.distance),
+			// 			awayGames: toNumber(validPlayerData.awayGames || 0),
+			// 		},
+			// 	};
+			// case "minutes-per-stats":
+			// 	const minutes = toNumber(validPlayerData.minutes);
+			// 	const allGoalsScored = toNumber(validPlayerData.allGoalsScored);
+			// 	const assists = toNumber(validPlayerData.assists);
+			// 	const mom = toNumber(validPlayerData.mom);
+			// 	const cleanSheets = toNumber(validPlayerData.cleanSheets);
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			minutesPerGoal: allGoalsScored > 0 ? minutes / allGoalsScored : 0,
+			// 			minutesPerAssist: assists > 0 ? minutes / assists : 0,
+			// 			minutesPerMoM: mom > 0 ? minutes / mom : 0,
+			// 			minutesPerCleanSheet: cleanSheets > 0 ? minutes / cleanSheets : 0,
+			// 		},
+			// 	};
+			// case "game-details":
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			leagueGames: gameDetails?.leagueGames || 0,
+			// 			cupGames: gameDetails?.cupGames || 0,
+			// 			friendlyGames: gameDetails?.friendlyGames || 0,
+			// 			leagueWins: gameDetails?.leagueWins || 0,
+			// 			cupWins: gameDetails?.cupWins || 0,
+			// 			friendlyWins: gameDetails?.friendlyWins || 0,
+			// 			homeGames: gameDetails?.homeGames || 0,
+			// 			awayGames: gameDetails?.awayGames || 0,
+			// 			homeWins: gameDetails?.homeWins || 0,
+			// 			awayWins: gameDetails?.awayWins || 0,
+			// 			uniqueOpponents: gameDetails?.uniqueOpponents || 0,
+			// 			uniqueCompetitions: gameDetails?.uniqueCompetitions || 0,
+			// 			uniqueTeammates: gameDetails?.uniqueTeammates || 0,
+			// 		},
+			// 	};
+			// case "monthly-performance":
+			// 	const selectedMonthlyOption = statOptions.find(opt => opt.value === monthlySelectedStat);
+			// 	return {
+			// 		type: vizType,
+			// 		data: {
+			// 			chartData: monthlyChartData,
+			// 			selectedStat: selectedMonthlyOption?.label || monthlySelectedStat,
+			// 		},
+			// 	};
+			// case "captaincies-awards-and-achievements":
+			// 	return {
+			// 		type: vizType,
+			// 		data: awardsData,
+			// 	};
+			// default:
+			// 	return { type: vizType };
+		// };
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Handle visualization selection
-	const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
+	// const handleVisualizationSelect = async (vizId: string, backgroundColor: "yellow" | "green") => {
 		// Set generating state immediately to show blackout overlay
-		setIsGeneratingShare(true);
+		// setIsGeneratingShare(true);
 		
-		const vizData = getVisualizationData(vizId);
-		setSelectedShareVisualization(vizData);
-		setShareBackgroundColor(backgroundColor);
+		// const vizData = getVisualizationData(vizId);
+		// setSelectedShareVisualization(vizData);
+		// setShareBackgroundColor(backgroundColor);
 		
 		// Close modal immediately - blackout overlay is already in place
-		setIsShareModalOpen(false);
+		// setIsShareModalOpen(false);
 		
-		// Wait for state update, then generate image
-		setTimeout(async () => {
-			if (!shareCardRef.current) {
-				setIsGeneratingShare(false);
-				return;
-			}
+		// Wait for React to render and element to be ready
+		// const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+		// 	for (let i = 0; i < maxAttempts; i++) {
+		// 		if (shareCardRef.current) {
+		// 			const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+		// 			if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+		// 				return true;
+		// 			}
+		// 		}
+		// 		await new Promise(resolve => setTimeout(resolve, 100));
+		// 	}
+		// 	return false;
+		// };
+
+		// const isReady = await waitForElement();
+		// if (!isReady || !shareCardRef.current) {
+		// 	console.error("[Share] Share card element not ready after waiting");
+		// 	alert("Failed to generate share image. The element is not ready. Please try again.");
+		// 	setIsGeneratingShare(false);
+		// 	setSelectedShareVisualization(null);
+		// 	return;
+		// }
+		
+		// try {
+		// 	const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+		// 	const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
 			
-			try {
-				const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-				const shareResult = await shareImage(imageDataUrl, selectedPlayer || "");
-				
-				if (shareResult.needsIOSPreview) {
-					// Show iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else if (shareResult.needsPreview) {
-					// Show non-iOS preview modal - keep blackout visible
-					setGeneratedImageDataUrl(imageDataUrl);
-					setIsNonIOSPreviewOpen(true);
-					// Don't clear selectedShareVisualization yet - wait for user action
-					// Keep isGeneratingShare true to maintain blackout
-				} else {
-					// Download fallback (no Web Share API) - clear immediately and remove blackout
-					setIsGeneratingShare(false);
-					setSelectedShareVisualization(null);
-				}
-			} catch (error) {
-				console.error("[Share] Error generating share image:", error);
-				alert("Failed to generate share image. Please try again.");
-				setIsGeneratingShare(false);
-				setSelectedShareVisualization(null);
-			}
-		}, 100);
-	};
+		// 	if (shareResult.needsIOSPreview) {
+		// 		// Show iOS preview modal - keep blackout visible
+		// 		setGeneratedImageDataUrl(imageDataUrl);
+		// 		setIsIOSPreviewOpen(true);
+		// 		// Don't clear selectedShareVisualization yet - wait for user action
+		// 		// Keep isGeneratingShare true to maintain blackout
+		// 	} else if (shareResult.needsPreview) {
+		// 		// Show non-iOS preview modal - keep blackout visible
+		// 		setGeneratedImageDataUrl(imageDataUrl);
+		// 		setIsNonIOSPreviewOpen(true);
+		// 		// Don't clear selectedShareVisualization yet - wait for user action
+		// 		// Keep isGeneratingShare true to maintain blackout
+		// 	} else {
+		// 		// Download fallback (no Web Share API) - clear immediately and remove blackout
+		// 		setIsGeneratingShare(false);
+		// 		setSelectedShareVisualization(null);
+		// 	}
+		// } catch (error) {
+		// 	console.error("[Share] Error generating share image:", error);
+		// 	const errorMessage = error instanceof Error ? error.message : "Unknown error";
+		// 	alert(`Failed to generate share image: ${errorMessage}. Please try again.`);
+		// 	setIsGeneratingShare(false);
+		// 	setSelectedShareVisualization(null);
+		// }
+	// };
 
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 	// Regenerate image when background color changes in preview
-	const handleRegenerateImage = async (color: "yellow" | "green") => {
-		setShareBackgroundColor(color);
+	// const handleRegenerateImage = async (color: "yellow" | "green") => {
+		// setShareBackgroundColor(color);
 		
-		if (!shareCardRef.current) {
-			return;
-		}
-		
-		try {
-			const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
-			setGeneratedImageDataUrl(imageDataUrl);
-		} catch (error) {
-			console.error("[Share] Error regenerating image:", error);
-		}
-	};
+		// if (!shareCardRef.current) {
+		// 	return;
+		// }
 
-	// Handle iOS share continuation
-	const handleIOSShareContinue = async () => {
-		setIsIOSPreviewOpen(false);
+		// Wait for element to be ready
+		// const waitForElement = async (maxAttempts = 50): Promise<boolean> => {
+		// 	for (let i = 0; i < maxAttempts; i++) {
+		// 		if (shareCardRef.current) {
+		// 			const cardElement = shareCardRef.current.querySelector('.shareable-stats-card') as HTMLElement;
+		// 			if (cardElement && cardElement.offsetWidth > 0 && cardElement.offsetHeight > 0) {
+		// 				return true;
+		// 			}
+		// 		}
+		// 		await new Promise(resolve => setTimeout(resolve, 100));
+		// 	}
+		// 	return false;
+		// };
+
+		// const isReady = await waitForElement();
+		// if (!isReady || !shareCardRef.current) {
+		// 	console.error("[Share] Share card element not ready for regeneration");
+		// 	return;
+		// }
 		
-		try {
-			await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
-		} catch (error) {
-			console.error("[Share] Error sharing image:", error);
-			alert("Failed to share image. Please try again.");
-		} finally {
-			setIsGeneratingShare(false);
-			setSelectedShareVisualization(null);
-			setGeneratedImageDataUrl("");
-		}
-	};
+		// try {
+		// 	const imageDataUrl = await generateShareImage(shareCardRef.current, 2);
+		// 	setGeneratedImageDataUrl(imageDataUrl);
+		// } catch (error) {
+		// 	console.error("[Share] Error regenerating image:", error);
+		// }
+	// };
+
+	/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
+	// Handle iOS share continuation
+	// const handleIOSShareContinue = async () => {
+	// 	setIsIOSPreviewOpen(false);
+		
+	// 	try {
+	// 		await performIOSShare(generatedImageDataUrl, selectedPlayer || "");
+	// 	} catch (error) {
+	// 		console.error("[Share] Error sharing image:", error);
+	// 		alert("Failed to share image. Please try again.");
+	// 	} finally {
+	// 		setIsGeneratingShare(false);
+	// 		setSelectedShareVisualization(null);
+	// 		setGeneratedImageDataUrl("");
+	// 	}
+	// };
 
 	// Handle iOS share close
-	const handleIOSShareClose = () => {
-		setIsIOSPreviewOpen(false);
-		setIsGeneratingShare(false);
-		setSelectedShareVisualization(null);
-		setGeneratedImageDataUrl("");
-	};
+	// const handleIOSShareClose = () => {
+	// 	setIsIOSPreviewOpen(false);
+	// 	setIsGeneratingShare(false);
+	// 	setSelectedShareVisualization(null);
+	// 	setGeneratedImageDataUrl("");
+	// };
 
 	// Handle non-iOS share continuation
-	const handleNonIOSShareContinue = async () => {
-		setIsNonIOSPreviewOpen(false);
+	// const handleNonIOSShareContinue = async () => {
+	// 	setIsNonIOSPreviewOpen(false);
 		
-		try {
-			await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
-		} catch (error) {
-			console.error("[Share] Error sharing image:", error);
-			alert("Failed to share image. Please try again.");
-		} finally {
-			setIsGeneratingShare(false);
-			setSelectedShareVisualization(null);
-			setGeneratedImageDataUrl("");
-		}
-	};
+	// 	try {
+	// 		await performNonIOSShare(generatedImageDataUrl, selectedPlayer || "");
+	// 	} catch (error) {
+	// 		console.error("[Share] Error sharing image:", error);
+	// 		alert("Failed to share image. Please try again.");
+	// 	} finally {
+	// 		setIsGeneratingShare(false);
+	// 		setSelectedShareVisualization(null);
+	// 		setGeneratedImageDataUrl("");
+	// 	}
+	// };
 
 	// Handle non-iOS share close
-	const handleNonIOSShareClose = () => {
-		setIsNonIOSPreviewOpen(false);
-		setIsGeneratingShare(false);
-		setSelectedShareVisualization(null);
-		setGeneratedImageDataUrl("");
-	};
+	// const handleNonIOSShareClose = () => {
+	// 	setIsNonIOSPreviewOpen(false);
+	// 	setIsGeneratingShare(false);
+	// 	setSelectedShareVisualization(null);
+	// 	setGeneratedImageDataUrl("");
+	// };
 
 	// Share handler - opens modal
-	const handleShare = () => {
-		if (!selectedPlayer || !validPlayerData) {
-			return;
-		}
-		setIsShareModalOpen(true);
-	};
+	// const handleShare = () => {
+	// 	if (!selectedPlayer || !validPlayerData) {
+	// 		return;
+	// 	}
+	// 	setIsShareModalOpen(true);
+	// };
 
 	const tooltipStyle = {
 		backgroundColor: 'rgb(14, 17, 15)',
@@ -2630,48 +2711,70 @@ export default function PlayerStats() {
 		<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 			{/* Key Performance Stats Grid */}
 			{keyPerformanceData.some(item => typeof item.value === 'number' && item.value > 0) ? (
-				<div id='key-performance-stats' className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 md:break-inside-avoid md:mb-4'>
-					<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
-					<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
-						{keyPerformanceData.map((item) => {
-							let statKey = "APP";
-							if (item.name === "Apps") statKey = "APP";
-							else if (item.name === "Mins") statKey = "MIN";
-							else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
-							else if (item.name === "MoM") statKey = "MOM";
-							else if (item.name === "Goals") statKey = "AllGSC";
-							else if (item.name === "Assists") statKey = "A";
-							const stat = statObject[statKey as keyof typeof statObject];
-							// Use Goals-Icon specifically for Goals stat
-							const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
-							return (
-								<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
-									<div className='flex-shrink-0'>
-										<Image
-											src={`/stat-icons/${iconName}.svg`}
-											alt={stat?.displayText || item.name}
-											width={40}
-											height={40}
-											className='w-8 h-8 md:w-10 md:h-10 object-contain'
-										/>
-									</div>
-									<div className='flex-1 min-w-0'>
-										<div className='text-white/70 text-sm md:text-base mb-1'>
-											{item.name}
+				<div className='md:break-inside-avoid md:mb-4 relative'>
+					{/* Skeleton - shown while loading or icons not loaded */}
+					{(isLoadingPlayerData || !allIconsLoaded) && (
+						<div className='absolute inset-0 z-10 bg-transparent'>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<StatCardSkeleton />
+							</SkeletonTheme>
+						</div>
+					)}
+					{/* Actual content - always rendered so images can load */}
+					<div id='key-performance-stats' className={`bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4 ${(isLoadingPlayerData || !allIconsLoaded) ? 'opacity-0' : 'opacity-100'}`}>
+						<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Performance Stats</h3>
+						<div className='grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4'>
+							{keyPerformanceData.map((item, index) => {
+								let statKey = "APP";
+								if (item.name === "Apps") statKey = "APP";
+								else if (item.name === "Mins") statKey = "MIN";
+								else if (item.name === "Seasons") statKey = "NumberSeasonsPlayedFor";
+								else if (item.name === "MoM") statKey = "MOM";
+								else if (item.name === "Goals") statKey = "AllGSC";
+								else if (item.name === "Assists") statKey = "A";
+								const stat = statObject[statKey as keyof typeof statObject];
+								// Use Goals-Icon specifically for Goals stat
+								const iconName = item.name === "Goals" ? "Goals-Icon" : (stat?.iconName || "Appearance-Icon");
+								// Priority loading for first 3 icons (Apps, Mins, Goals)
+								const isPriority = index < 3;
+								return (
+									<div key={item.name} className='bg-white/5 rounded-lg p-2 md:p-3 flex items-center gap-3 md:gap-4'>
+										<div className='flex-shrink-0'>
+											<Image
+												src={`/stat-icons/${iconName}.svg`}
+												alt={stat?.displayText || item.name}
+												width={40}
+												height={40}
+												className='w-8 h-8 md:w-10 md:h-10 object-contain'
+												priority={isPriority}
+												loading="eager"
+												onLoad={() => {
+													setLoadedIcons(prev => new Set([...prev, iconName]));
+												}}
+												onError={() => {
+													// If icon fails to load, still mark it as "loaded" to prevent skeleton from showing forever
+													setLoadedIcons(prev => new Set([...prev, iconName]));
+												}}
+											/>
 										</div>
-										<div className='text-white font-bold text-xl md:text-2xl'>
-											{(item as any).isString ? item.value : (() => {
-												if (item.name === "Mins") {
-													// Format minutes with commas and without " mins" suffix
-													return Math.round(toNumber(item.value)).toLocaleString();
-												}
-												return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
-											})()}
+										<div className='flex-1 min-w-0'>
+											<div className='text-white/70 text-sm md:text-base mb-1'>
+												{item.name}
+											</div>
+											<div className='text-white font-bold text-xl md:text-2xl'>
+												{(item as any).isString ? item.value : (() => {
+													if (item.name === "Mins") {
+														// Format minutes with commas and without " mins" suffix
+														return Math.round(toNumber(item.value)).toLocaleString();
+													}
+													return formatStatValue(item.value, stat?.statFormat || "Integer", stat?.numberDecimalPlaces || 0, (stat as any)?.statUnit);
+												})()}
+											</div>
 										</div>
 									</div>
-								</div>
-							);
-						})}
+								);
+							})}
+						</div>
 					</div>
 				</div>
 			) : null}
@@ -3490,19 +3593,22 @@ export default function PlayerStats() {
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-					<button
+					<Button
+						variant="icon"
+						size="sm"
 						onClick={handleEditClick}
-						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Edit player selection'>
-						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+						title='Edit player selection'
+						className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
+						icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
@@ -3523,8 +3629,9 @@ export default function PlayerStats() {
 					)
 				)}
 				
+				{/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */}
 				{/* Share Button */}
-				{!isDataTableMode && (
+				{/* {!isDataTableMode && (
 					<div className='flex justify-center mt-1 mb-4'>
 						<button
 							onClick={handleShare}
@@ -3546,27 +3653,28 @@ export default function PlayerStats() {
 							)}
 						</button>
 					</div>
-				)}
+				)} */}
 			</div>
 
+			{/* COMMENTED OUT: Share Stats functionality - will be re-added in the future */}
 			{/* Blackout overlay - covers full screen during entire share process */}
-			{(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
+			{/* {(isShareModalOpen || isGeneratingShare || isIOSPreviewOpen || isNonIOSPreviewOpen) && typeof window !== 'undefined' && createPortal(
 				<div className="fixed inset-0 bg-black z-[30]" style={{ pointerEvents: 'none', opacity: 1 }} />,
 				document.body
-			)}
+			)} */}
 
 			{/* Share Visualization Modal */}
-			<ShareVisualizationModal
+			{/* <ShareVisualizationModal
 				isOpen={isShareModalOpen}
 				onClose={() => setIsShareModalOpen(false)}
 				onSelect={handleVisualizationSelect}
 				options={availableVisualizations}
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
-			/>
+			/> */}
 
 			{/* iOS Share Preview Modal */}
-			<IOSSharePreviewModal
+			{/* <IOSSharePreviewModal
 				isOpen={isIOSPreviewOpen}
 				imageDataUrl={generatedImageDataUrl}
 				onContinue={handleIOSShareContinue}
@@ -3574,10 +3682,10 @@ export default function PlayerStats() {
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
 				onRegenerateImage={handleRegenerateImage}
-			/>
+			/> */}
 
 			{/* Non-iOS Share Preview Modal */}
-			<SharePreviewModal
+			{/* <SharePreviewModal
 				isOpen={isNonIOSPreviewOpen}
 				imageDataUrl={generatedImageDataUrl}
 				onContinue={handleNonIOSShareContinue}
@@ -3585,10 +3693,10 @@ export default function PlayerStats() {
 				backgroundColor={shareBackgroundColor}
 				onBackgroundColorChange={setShareBackgroundColor}
 				onRegenerateImage={handleRegenerateImage}
-			/>
+			/> */}
 
 			{/* Hidden share card for image generation */}
-			{selectedPlayer && validPlayerData && (
+			{/* {selectedPlayer && validPlayerData && (
 				<div 
 					ref={shareCardRef}
 					style={{ 
@@ -3612,7 +3720,7 @@ export default function PlayerStats() {
 						backgroundColor={shareBackgroundColor}
 					/>
 				</div>
-			)}
+			)} */}
 		</div>
 	);
 }

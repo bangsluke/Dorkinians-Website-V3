@@ -46,6 +46,12 @@
   - [Chatbot Test Reports](#chatbot-test-reports)
     - [Chatbot Email Report](#chatbot-email-report)
     - [Questions Email Report](#questions-email-report)
+  - [Running All Tests](#running-all-tests)
+    - [Usage](#usage)
+    - [Execution Order](#execution-order)
+    - [Output Format](#output-format)
+    - [When to Use](#when-to-use)
+    - [Exit Codes](#exit-codes)
 - [Test Coverage Analysis](#test-coverage-analysis)
   - [Current Coverage](#current-coverage)
     - [Unit and Integration Tests](#unit-and-integration-tests-1)
@@ -759,6 +765,112 @@ npm run test:questions-report
 # Hide passed tests in report
 npm run test:questions-report:hide
 ```
+
+> [Back to Table of Contents](#table-of-contents)
+
+### Running All Tests
+
+The `test:all` command runs all test suites in sequence with clear differentiation between test types. This is the most comprehensive test command available and executes all testing layers.
+
+#### Usage
+
+```bash
+# Run all tests with suppressed console output (clean output)
+npm run test:all
+
+# Run all tests with full console output (debug mode)
+npm run test:all:debug
+```
+
+#### Execution Order
+
+The command runs tests in the following sequence:
+
+1. **Unit Tests** - Tests in `__tests__/unit/` directory
+   - Basic functionality tests
+   - Service unit tests
+   - Utility function tests
+
+2. **Integration Tests** - Tests in `__tests__/integration/` directory
+   - Full workflow validation
+   - Component interaction tests
+
+3. **Other Jest Tests** - All remaining Jest test categories:
+   - **Comprehensive Tests** (`__tests__/comprehensive/`) - Complete coverage of all 50+ statistical metrics
+   - **Advanced Tests** (`__tests__/advanced/`) - Complex query scenarios and natural language processing
+   - **Performance Tests** (`__tests__/performance/`) - Response time benchmarking and load testing
+   - **Validation Tests** (`__tests__/validation/`) - Data accuracy validation against reference data
+   - **UX Tests** (`__tests__/ux/`) - User experience and response quality testing
+   - **Security Tests** (`__tests__/security/`) - Input sanitization and edge case handling
+   - **Monitoring Tests** (`__tests__/monitoring/`) - Logging, metrics, and observability testing
+
+4. **E2E Tests** - Playwright browser automation tests
+   - Navigation tests
+   - Home page tests
+   - Stats page tests
+   - TOTW page tests
+   - Club Info page tests
+   - Settings page tests
+   - API endpoint tests
+   - Cross-cutting tests
+
+5. **Chatbot Report** - Runs comprehensive chatbot tests and generates email report
+
+6. **Questions Report** - Runs questions tests and generates email report
+
+#### Output Format
+
+The command provides clear visual separation between test types:
+
+- Each test suite is preceded by a section header (e.g., `=== UNIT TESTS ===`)
+- Color-coded output for success (green) and failure (red)
+- Final summary showing pass/fail status for each test suite
+- Total pass count and overall status
+
+#### Console Output Modes
+
+**Standard Mode (`test:all`)**:
+- Suppresses console logs from Jest tests using `--silent` flag
+- Uses minimal Playwright reporter (`--reporter=dot`) showing only test progress dots
+- Suppresses output from chatbot and questions report scripts
+- Provides clean, minimal output perfect for CI/CD and quick status checks
+
+**Debug Mode (`test:all:debug`)**:
+- Shows all console logs from Jest tests (no `--silent` flag)
+- Uses default Playwright reporter showing detailed test information
+- Shows full output from chatbot and questions report scripts
+- Provides comprehensive output for troubleshooting and detailed analysis
+
+#### When to Use
+
+Use `npm run test:all` when you want to:
+
+- Run the complete test suite before major releases
+- Verify all test categories pass after significant changes
+- Get a comprehensive overview of system health
+- Run all tests in a single command for CI/CD pipelines
+- Get clean, minimal output for quick status checks
+
+Use `npm run test:all:debug` when you want to:
+
+- Troubleshoot failing tests with detailed console output
+- See all console logs from test execution
+- Debug issues with specific test cases
+- Get comprehensive output for detailed analysis
+
+For faster feedback during development, use individual test commands:
+
+- `npm run test:unit` - Run only unit tests
+- `npm run test:integration` - Run only integration tests
+- `npm run test:e2e` - Run only E2E tests
+- `npm test -- --testPathPattern=comprehensive` - Run specific test category
+
+#### Exit Codes
+
+- **Exit code 0**: All test suites passed successfully
+- **Exit code 1**: One or more test suites failed
+
+The command will stop execution if any test suite fails, allowing you to identify and fix issues before proceeding.
 
 > [Back to Table of Contents](#table-of-contents)
 

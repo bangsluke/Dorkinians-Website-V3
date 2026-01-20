@@ -268,40 +268,83 @@ export async function generateShareImage(
 	element: HTMLElement,
 	scale: number = 2
 ): Promise<string> {
+	// Validate element exists
+	if (!element) {
+		throw new Error("Element is null or undefined");
+	}
+
+	// Find the actual card element (either the element itself or inside it)
+	const cardElement = element.classList.contains('shareable-stats-card') 
+		? element 
+		: (element.querySelector('.shareable-stats-card') as HTMLElement) || element;
+
+	// If element is a wrapper, ensure it's visible so the card inside can be captured
+	let originalWrapperStyle: { visibility: string; opacity: string } | null = null;
+	if (element !== cardElement) {
+		originalWrapperStyle = {
+			visibility: element.style.visibility,
+			opacity: element.style.opacity,
+		};
+		element.style.visibility = 'visible';
+		element.style.opacity = '1';
+	}
+
+	// Wait for card element to have dimensions (up to 5 seconds)
+	let attempts = 0;
+	while ((cardElement.offsetWidth === 0 || cardElement.offsetHeight === 0) && attempts < 50) {
+		await new Promise(resolve => setTimeout(resolve, 100));
+		attempts++;
+	}
+
+	if (cardElement.offsetWidth === 0 || cardElement.offsetHeight === 0) {
+		throw new Error(`Card element has invalid dimensions: ${cardElement.offsetWidth}x${cardElement.offsetHeight}`);
+	}
+
+	// Use the card element for capture
+	const targetElement = cardElement;
+
 	const html2canvas = (await import("html2canvas")).default;
 	
-	// Ensure element is visible for html2canvas
+	// Ensure target element is visible for html2canvas
 	const originalStyle = {
-		position: element.style.position,
-		left: element.style.left,
-		top: element.style.top,
-		visibility: element.style.visibility,
-		opacity: element.style.opacity,
-		zIndex: element.style.zIndex,
+		position: targetElement.style.position,
+		left: targetElement.style.left,
+		top: targetElement.style.top,
+		visibility: targetElement.style.visibility,
+		opacity: targetElement.style.opacity,
+		zIndex: targetElement.style.zIndex,
 	};
 
-	// Temporarily make element visible but keep it off-screen (html2canvas can capture off-screen elements)
+	// Temporarily make target element visible but keep it off-screen (html2canvas can capture off-screen elements)
 	// Don't change position or z-index - keep it hidden from user but visible to html2canvas
-	element.style.visibility = "visible";
-	element.style.opacity = "1";
+	targetElement.style.visibility = "visible";
+	targetElement.style.opacity = "1";
 	// Keep original position and z-index to stay below blackout
 
-	// Wait for any images to load - including stat icons
-	const images = element.querySelectorAll("img");
+	// Ensure all images have crossOrigin set and wait for them to load
+	const images = targetElement.querySelectorAll("img");
 	const imagePromises = Array.from(images).map((img) => {
-		if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+		// Ensure CORS is enabled for all images (critical for avoiding tainted canvas)
+		if (!img.crossOrigin) {
+			img.crossOrigin = 'anonymous';
+		}
 		
-		// Force reload if image failed or hasn't loaded
+		if (img.complete && img.naturalWidth > 0) {
+			return Promise.resolve();
+		}
+		
+		// Force reload if image failed or hasn't loaded, ensuring CORS is set
 		if (!img.complete || img.naturalWidth === 0) {
 			const src = img.src;
 			img.src = '';
+			img.crossOrigin = 'anonymous';
 			img.src = src;
 		}
 		
 		return new Promise<void>((resolve) => {
 			const timeout = setTimeout(() => {
 				resolve(); // Resolve after timeout even if image hasn't loaded
-			}, 3000);
+			}, 5000);
 			
 			img.onload = () => {
 				clearTimeout(timeout);
@@ -309,6 +352,7 @@ export async function generateShareImage(
 			};
 			img.onerror = () => {
 				clearTimeout(timeout);
+				// Don't hide on error - let html2canvas handle it
 				resolve(); // Resolve even on error to not block
 			};
 		});
@@ -317,84 +361,75 @@ export async function generateShareImage(
 	await Promise.all(imagePromises);
 	
 	// Additional delay to ensure all rendering is complete, especially for SVG icons
-	await new Promise(resolve => setTimeout(resolve, 300));
+	await new Promise(resolve => setTimeout(resolve, 500));
 
 	try {
-		const canvas = await html2canvas(element, {
+		const canvas = await html2canvas(targetElement, {
 			scale: scale,
 			backgroundColor: "#0f0f0f",
 			useCORS: true,
 			allowTaint: false,
 			logging: false,
-			width: element.offsetWidth,
-			height: element.offsetHeight,
-			windowWidth: element.offsetWidth,
-			windowHeight: element.offsetHeight,
-			onclone: (clonedDoc) => {
-				// Ensure filters are applied in cloned DOM and convert SVG icons to canvas
+			width: targetElement.offsetWidth,
+			height: targetElement.offsetHeight,
+			windowWidth: targetElement.offsetWidth,
+			windowHeight: targetElement.offsetHeight,
+			onclone: (clonedDoc, element) => {
+				// Ensure filters are applied in cloned DOM and handle CORS
 				const clonedElement = clonedDoc.querySelector('.shareable-stats-card');
 				if (clonedElement) {
-					// Handle logo
-					const logoImg = clonedElement.querySelector('img[alt="Dorkinians FC Logo"]') as HTMLImageElement;
-					if (logoImg) {
-						logoImg.style.filter = "grayscale(100%) brightness(0) invert(1)";
-					}
-					
-					// Convert all stat icon SVG images to canvas elements
-					const statIcons = clonedElement.querySelectorAll('img[src*="/stat-icons/"]') as NodeListOf<HTMLImageElement>;
-					statIcons.forEach((img) => {
-						if (img.src && img.src.includes('.svg') && img.complete && img.naturalWidth > 0) {
-							try {
-								const canvas = clonedDoc.createElement('canvas');
-								const width = img.naturalWidth || 42;
-								const height = img.naturalHeight || 42;
-								canvas.width = width;
-								canvas.height = height;
-								const ctx = canvas.getContext('2d');
-								
-								if (ctx) {
-									// Draw the image to canvas
-									ctx.drawImage(img, 0, 0, width, height);
-									
-									// Apply the filter effect (brightness(0) invert(1))
-									const imageData = ctx.getImageData(0, 0, width, height);
-									const data = imageData.data;
-									for (let i = 0; i < data.length; i += 4) {
-										// Invert colors
-										data[i] = 255 - data[i];     // R
-										data[i + 1] = 255 - data[i + 1]; // G
-										data[i + 2] = 255 - data[i + 2]; // B
-									}
-									ctx.putImageData(imageData, 0, 0);
-									
-									// Replace img with canvas
-									canvas.style.width = img.style.width || '42px';
-									canvas.style.height = img.style.height || '42px';
-									canvas.style.objectFit = 'contain';
-									img.parentNode?.replaceChild(canvas, img);
-								}
-							} catch (e) {
-								// If conversion fails, ensure the image is visible
-								img.style.display = 'block';
-								img.style.visibility = 'visible';
-								img.style.opacity = '1';
-							}
+					// Ensure all images have crossOrigin set for CORS
+					const allImages = clonedElement.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
+					allImages.forEach((img) => {
+						// Set CORS if not already set (critical for avoiding tainted canvas)
+						if (!img.crossOrigin) {
+							img.crossOrigin = 'anonymous';
 						}
+						// Ensure images are visible
+						img.style.display = 'block';
+						img.style.visibility = 'visible';
+						img.style.opacity = '1';
 					});
 				}
 			},
 		});
 
+		if (!canvas) {
+			throw new Error("html2canvas returned null or undefined");
+		}
+
 		return canvas.toDataURL("image/png", 1.0);
+	} catch (error) {
+		console.error("[Share] Error in generateShareImage:", error);
+		throw error;
 	} finally {
 		// Restore original styles
-		element.style.position = originalStyle.position;
-		element.style.left = originalStyle.left;
-		element.style.top = originalStyle.top;
-		element.style.visibility = originalStyle.visibility;
-		element.style.opacity = originalStyle.opacity;
-		element.style.zIndex = originalStyle.zIndex;
+		targetElement.style.position = originalStyle.position;
+		targetElement.style.left = originalStyle.left;
+		targetElement.style.top = originalStyle.top;
+		targetElement.style.visibility = originalStyle.visibility;
+		targetElement.style.opacity = originalStyle.opacity;
+		targetElement.style.zIndex = originalStyle.zIndex;
+		
+		// Restore wrapper styles if element was a wrapper
+		if (originalWrapperStyle) {
+			element.style.visibility = originalWrapperStyle.visibility;
+			element.style.opacity = originalWrapperStyle.opacity;
+		}
 	}
+}
+
+// Convert data URL to blob (without using fetch to avoid CSP violations)
+function dataURLtoBlob(dataURL: string): Blob {
+	const arr = dataURL.split(',');
+	const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+	const bstr = atob(arr[1]);
+	let n = bstr.length;
+	const u8arr = new Uint8Array(n);
+	while (n--) {
+		u8arr[n] = bstr.charCodeAt(n);
+	}
+	return new Blob([u8arr], { type: mime });
 }
 
 // Detect iOS devices
@@ -409,9 +444,8 @@ export async function shareImage(
 	playerName: string
 ): Promise<{ success: boolean; needsIOSPreview?: boolean; needsPreview?: boolean }> {
 	try {
-		// Convert data URL to blob
-		const response = await fetch(imageDataUrl);
-		const blob = await response.blob();
+		// Convert data URL to blob (without fetch to avoid CSP violations)
+		const blob = dataURLtoBlob(imageDataUrl);
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
 		// For iOS, return flag to show preview first
@@ -443,9 +477,8 @@ export async function performIOSShare(
 	playerName: string
 ): Promise<boolean> {
 	try {
-		// Convert data URL to blob
-		const response = await fetch(imageDataUrl);
-		const blob = await response.blob();
+		// Convert data URL to blob (without fetch to avoid CSP violations)
+		const blob = dataURLtoBlob(imageDataUrl);
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
 		if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -468,9 +501,8 @@ export async function performNonIOSShare(
 	playerName: string
 ): Promise<boolean> {
 	try {
-		// Convert data URL to blob
-		const response = await fetch(imageDataUrl);
-		const blob = await response.blob();
+		// Convert data URL to blob (without fetch to avoid CSP violations)
+		const blob = dataURLtoBlob(imageDataUrl);
 		const file = new File([blob], `${playerName}-stats.png`, { type: "image/png" });
 
 		// Try Web Share API first

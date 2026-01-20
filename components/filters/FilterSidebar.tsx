@@ -2,13 +2,19 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronDownIcon, ChevronUpIcon, CheckIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useNavigationStore, type PlayerFilters } from "@/lib/stores/navigation";
 import { statsPageConfig } from "@/config/config";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import { useToast } from "@/lib/hooks/useToast";
+import ProgressIndicator from "@/components/ui/ProgressIndicator";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 interface FilterSidebarProps {
 	isOpen: boolean;
 	onClose: () => void;
+	onSuccess?: (message: string) => void;
 }
 
 interface AccordionSection {
@@ -17,7 +23,7 @@ interface AccordionSection {
 	isOpen: boolean;
 }
 
-export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
+export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSidebarProps) {
 	const {
 		playerFilters,
 		updatePlayerFilters,
@@ -29,19 +35,50 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		loadFilterData,
 		currentStatsSubPage,
 	} = useNavigationStore();
+	const { showSuccess: localShowSuccess } = useToast();
+	const showSuccess = onSuccess || localShowSuccess;
 
 	// State for autocomplete dropdowns
 	const [showOppositionDropdown, setShowOppositionDropdown] = useState(false);
 	const [showCompetitionDropdown, setShowCompetitionDropdown] = useState(false);
+	// State for clear all confirmation modal
+	const [showClearAllConfirm, setShowClearAllConfirm] = useState(false);
+	// State for unsaved changes confirmation modal
+	const [showUnsavedChangesConfirm, setShowUnsavedChangesConfirm] = useState(false);
 	
 	// State to track initial filter state when sidebar opens
 	const [initialFilterSnapshot, setInitialFilterSnapshot] = useState<PlayerFilters | null>(null);
 	// Ref to track if snapshot has been captured for current sidebar opening
 	const snapshotCapturedRef = useRef(false);
 	// Ref to track user-initiated clears to prevent auto-initialization
-	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>({});
-	// State for validation warning modal
-	const [validationWarning, setValidationWarning] = useState<string[] | null>(null);
+	// Also check localStorage for persisted cleared state (survives page reloads)
+	const getClearedState = (): { teams?: boolean; position?: boolean } => {
+		if (typeof window === "undefined") return {};
+		try {
+			const stored = localStorage.getItem("dorkinians-filters-cleared");
+			return stored ? JSON.parse(stored) : {};
+		} catch {
+			return {};
+		}
+	};
+	const setClearedState = (state: { teams?: boolean; position?: boolean }) => {
+		if (typeof window !== "undefined") {
+			localStorage.setItem("dorkinians-filters-cleared", JSON.stringify(state));
+		}
+	};
+	const userClearedRef = useRef<{ teams?: boolean; position?: boolean }>(getClearedState());
+	// State for validation errors (inline display)
+	const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+	// State for date validation errors
+	const [dateValidationErrors, setDateValidationErrors] = useState<{
+		beforeDate?: string;
+		afterDate?: string;
+		startDate?: string;
+		endDate?: string;
+	}>({});
+	// State for progress indicator
+	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
+	const [applyStartTime, setApplyStartTime] = useState<number | null>(null);
 
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
@@ -49,16 +86,16 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		return config?.availableFilters ? [...config.availableFilters] : [];
 	}, [currentStatsSubPage]);
 
-	// All possible accordion sections
+	// All possible accordion sections - Common filters open by default, advanced collapsed
 	const allAccordionSections: AccordionSection[] = useMemo(
 		() => [
-			{ id: "timeRange", title: "Time Range", isOpen: true },
-			{ id: "team", title: "Team", isOpen: false },
-			{ id: "location", title: "Location", isOpen: false },
-			{ id: "opposition", title: "Opposition", isOpen: false },
-			{ id: "competition", title: "Competition", isOpen: false },
-			{ id: "result", title: "Result", isOpen: false },
-			{ id: "position", title: "Position", isOpen: false },
+			{ id: "timeRange", title: "Time Range", isOpen: true }, // Common - always open
+			{ id: "team", title: "Team", isOpen: true }, // Common - open by default
+			{ id: "location", title: "Home vs Away", isOpen: true }, // Common - open by default
+			{ id: "opposition", title: "Opposition", isOpen: false }, // Advanced - collapsed
+			{ id: "competition", title: "Competition", isOpen: false }, // Advanced - collapsed
+			{ id: "result", title: "Result", isOpen: false }, // Advanced - collapsed
+			{ id: "position", title: "Position", isOpen: false }, // Advanced - collapsed
 		],
 		[],
 	);
@@ -86,6 +123,50 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			loadFilterData();
 		}
 	}, [isOpen, isFilterDataLoaded, loadFilterData]);
+
+	// Validate date ranges when they change
+	useEffect(() => {
+		if (isOpen && playerFilters?.timeRange) {
+			const errors = validateDateRanges();
+			setDateValidationErrors(errors);
+		} else {
+			setDateValidationErrors({});
+		}
+	}, [playerFilters?.timeRange, isOpen]);
+
+	// Update inline validation errors when filters change
+	useEffect(() => {
+		if (isOpen) {
+			const missingSections = validateRequiredFilters();
+			const dateErrors = validateDateRanges();
+			const errors: Record<string, string> = {};
+
+			// Map missing sections to section IDs
+			const sectionIdMap: Record<string, string> = {
+				"Team": "team",
+				"Position": "position",
+				"Home vs Away": "location",
+				"Result": "result",
+				"Competition": "competition",
+			};
+
+			missingSections.forEach((section) => {
+				const sectionId = sectionIdMap[section];
+				if (sectionId) {
+					errors[sectionId] = `Please select at least one option in ${section}`;
+				}
+			});
+
+			// Add date range errors
+			if (Object.keys(dateErrors).length > 0) {
+				errors.timeRange = "Please fix date range errors above";
+			}
+
+			setValidationErrors(errors);
+		} else {
+			setValidationErrors({});
+		}
+	}, [playerFilters, isOpen, dateValidationErrors]);
 
 	// Initialize default values when sidebar opens
 	useEffect(() => {
@@ -116,6 +197,22 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				updates.competition = {
 					...(playerFilters.competition || { types: [], searchTerm: "" }),
 					types: ["League", "Cup", "Friendly"],
+				};
+				needsUpdate = true;
+			}
+
+			// Initialize seasons to all seasons if timeRange type is "season" and seasons array is empty
+			if (playerFilters.timeRange?.type === "season" && (playerFilters.timeRange?.seasons?.length || 0) === 0 && filterData.seasons.length > 0) {
+				updates.timeRange = {
+					...(playerFilters.timeRange || {
+						type: "season",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: "",
+						endDate: "",
+					}),
+					seasons: filterData.seasons.map(season => season.season),
 				};
 				needsUpdate = true;
 			}
@@ -167,16 +264,137 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 			setInitialFilterSnapshot(snapshot);
 			snapshotCapturedRef.current = true;
 		} else if (!isOpen) {
+			// When sidebar closes, check if teams/position were auto-initialized and revert them
+			// Auto-initialized means: they were empty in the snapshot but have values now
+			const updates: Partial<PlayerFilters> = {};
+			let needsRevert = false;
+			
+			if (initialFilterSnapshot) {
+				// If teams were empty in snapshot but have values now, they were auto-initialized
+				// Always revert auto-initialized filters when sidebar closes without applying
+				const teamsWereEmpty = (initialFilterSnapshot.teams?.length || 0) === 0;
+				const teamsNowHaveValues = (playerFilters?.teams?.length || 0) > 0;
+				if (teamsWereEmpty && teamsNowHaveValues) {
+					updates.teams = [];
+					needsRevert = true;
+					// Set cleared flag so auto-init doesn't happen on next open
+					userClearedRef.current.teams = true;
+				}
+				// If position was empty in snapshot but has values now, it was auto-initialized
+				const positionWasEmpty = (initialFilterSnapshot.position?.length || 0) === 0;
+				const positionNowHasValues = (playerFilters?.position?.length || 0) > 0;
+				if (positionWasEmpty && positionNowHasValues) {
+					updates.position = [];
+					needsRevert = true;
+					// Set cleared flag so auto-init doesn't happen on next open
+					userClearedRef.current.position = true;
+				}
+			}
+			
+			// Revert auto-initialized filters if needed (this will update playerFilters and trigger badge recalculation)
+			if (needsRevert) {
+				// Update only teams/position to empty, preserving other filters
+				updatePlayerFilters(updates);
+				// Apply to ensure badge updates and state is persisted
+				applyPlayerFilters();
+			}
+			
 			// Clear snapshot and reset refs when sidebar closes
 			setInitialFilterSnapshot(null);
 			snapshotCapturedRef.current = false;
-			userClearedRef.current = {};
-			setValidationWarning(null);
+			// Only reset userClearedRef flags if the corresponding filters have values (and weren't just reverted)
+			// This preserves the cleared state (empty arrays) so auto-initialization doesn't happen on next open
+			const finalFilters = needsRevert ? { ...playerFilters, teams: [], position: [] } : playerFilters;
+			const clearedState = { ...userClearedRef.current };
+			if (finalFilters?.teams && finalFilters.teams.length > 0) {
+				delete clearedState.teams;
+			}
+			if (finalFilters?.position && finalFilters.position.length > 0) {
+				delete clearedState.position;
+			}
+			// Update both ref and localStorage to persist cleared state across page reloads
+			userClearedRef.current = clearedState;
+			setClearedState(clearedState);
 		}
 	}, [isOpen, isFilterDataLoaded, filterData, playerFilters]);
 
 	const toggleAccordion = (sectionId: string) => {
 		setAccordionSections((prev) => prev.map((section) => (section.id === sectionId ? { ...section, isOpen: !section.isOpen } : section)));
+	};
+
+	// Apply filter preset
+	const applyPreset = (presetName: "thisSeason" | "allTime" | "last30Days" | "lastSeason") => {
+		if (!filterData || filterData.seasons.length === 0) return;
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		switch (presetName) {
+			case "thisSeason": {
+				// Get current season (first season in the list, which should be the most recent)
+				const currentSeason = filterData.seasons[0]?.season;
+				if (currentSeason) {
+					updatePlayerFilters({
+						timeRange: {
+							type: "season",
+							seasons: [currentSeason],
+							beforeDate: "",
+							afterDate: "",
+							startDate: "",
+							endDate: "",
+						},
+					});
+				}
+				break;
+			}
+			case "allTime": {
+				updatePlayerFilters({
+					timeRange: {
+						type: "allTime",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: "",
+						endDate: "",
+					},
+				});
+				break;
+			}
+			case "last30Days": {
+				const endDate = new Date(today);
+				const startDate = new Date(today);
+				startDate.setDate(startDate.getDate() - 30);
+				
+				updatePlayerFilters({
+					timeRange: {
+						type: "betweenDates",
+						seasons: [],
+						beforeDate: "",
+						afterDate: "",
+						startDate: startDate.toISOString().split('T')[0],
+						endDate: endDate.toISOString().split('T')[0],
+					},
+				});
+				break;
+			}
+			case "lastSeason": {
+				// Get previous season (second season in the list)
+				const lastSeason = filterData.seasons[1]?.season;
+				if (lastSeason) {
+					updatePlayerFilters({
+						timeRange: {
+							type: "season",
+							seasons: [lastSeason],
+							beforeDate: "",
+							afterDate: "",
+							startDate: "",
+							endDate: "",
+						},
+					});
+				}
+				break;
+			}
+		}
 	};
 
 	const handleTimeRangeTypeChange = (type: "allTime" | "season" | "beforeDate" | "afterDate" | "betweenDates") => {
@@ -396,6 +614,67 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		});
 	};
 
+	// Validate date ranges
+	const validateDateRanges = (): { [key: string]: string } => {
+		const errors: { [key: string]: string } = {};
+		const timeRange = playerFilters?.timeRange;
+		if (!timeRange) return errors;
+
+		const today = new Date();
+		today.setHours(0, 0, 0, 0);
+
+		// Validate betweenDates
+		if (timeRange.type === "betweenDates") {
+			const startDate = timeRange.startDate;
+			const endDate = timeRange.endDate;
+
+			if (startDate && endDate) {
+				const start = new Date(startDate);
+				const end = new Date(endDate);
+
+				if (start > end) {
+					errors.endDate = "End date must be after start date";
+				}
+
+				if (start > today) {
+					errors.startDate = "Start date cannot be in the future";
+				}
+
+				if (end > today) {
+					errors.endDate = errors.endDate || "End date cannot be in the future";
+				}
+			} else if (startDate && !endDate) {
+				const start = new Date(startDate);
+				if (start > today) {
+					errors.startDate = "Start date cannot be in the future";
+				}
+			} else if (endDate && !startDate) {
+				const end = new Date(endDate);
+				if (end > today) {
+					errors.endDate = "End date cannot be in the future";
+				}
+			}
+		}
+
+		// Validate beforeDate
+		if (timeRange.type === "beforeDate" && timeRange.beforeDate) {
+			const before = new Date(timeRange.beforeDate);
+			if (before > today) {
+				errors.beforeDate = "Date cannot be in the future";
+			}
+		}
+
+		// Validate afterDate
+		if (timeRange.type === "afterDate" && timeRange.afterDate) {
+			const after = new Date(timeRange.afterDate);
+			if (after > today) {
+				errors.afterDate = "Date cannot be in the future";
+			}
+		}
+
+		return errors;
+	};
+
 	const validateRequiredFilters = (): string[] => {
 		const missingSections: string[] = [];
 		
@@ -408,7 +687,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		}
 		
 		if (availableFilters.includes("location") && (playerFilters?.location?.length || 0) === 0) {
-			missingSections.push("Location");
+			missingSections.push("Home vs Away");
 		}
 		
 		if (availableFilters.includes("result") && (playerFilters?.result?.length || 0) === 0) {
@@ -422,23 +701,116 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 		return missingSections;
 	};
 
-	const handleApply = async () => {
+	// Check if filters are valid (required filters selected and date ranges valid)
+	const isFilterValid = (): boolean => {
 		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		return missingSections.length === 0 && Object.keys(dateErrors).length === 0;
+	};
+
+	// Get validation message explaining why filters are invalid
+	const getValidationMessage = (): string | null => {
+		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		const messages: string[] = [];
 		
 		if (missingSections.length > 0) {
-			setValidationWarning(missingSections);
+			messages.push(`Please select at least one option in: ${missingSections.join(", ")}`);
+		}
+		
+		if (Object.keys(dateErrors).length > 0) {
+			messages.push(`Please fix date range errors`);
+		}
+		
+		return messages.length > 0 ? messages.join(". ") : null;
+	};
+
+	const handleApply = async () => {
+		const missingSections = validateRequiredFilters();
+		const dateErrors = validateDateRanges();
+		
+		if (missingSections.length > 0 || Object.keys(dateErrors).length > 0) {
+			// Errors will be shown inline via useEffect
 			return;
 		}
 		
-		await applyPlayerFilters();
-		// Reset snapshot and cleared flags after applying filters
-		setInitialFilterSnapshot(null);
-		snapshotCapturedRef.current = false;
-		userClearedRef.current = {};
+		// Track start time and show progress indicator after 3 seconds
+		const startTime = Date.now();
+		setApplyStartTime(startTime);
+		setShowProgressIndicator(false);
+		
+		// Check if operation takes longer than 3 seconds
+		const progressCheck = setTimeout(() => {
+			if (Date.now() - startTime >= 3000) {
+				setShowProgressIndicator(true);
+			}
+		}, 3000);
+		
+		try {
+			await applyPlayerFilters();
+			// Reset snapshot and cleared flags after applying filters
+			setInitialFilterSnapshot(null);
+			snapshotCapturedRef.current = false;
+			userClearedRef.current = {};
+			setClearedState({});
+			
+			// Show success toast and close sidebar
+			showSuccess("Filters applied successfully");
+			onClose();
+		} finally {
+			clearTimeout(progressCheck);
+			setShowProgressIndicator(false);
+			setApplyStartTime(null);
+		}
 	};
 
-	const handleReset = () => {
-		resetPlayerFilters();
+	const handleClearAll = () => {
+		if (hasActiveFilters()) {
+			setShowClearAllConfirm(true);
+		} else {
+			// If no active filters, clear directly without confirmation
+			handleClearAllConfirm();
+		}
+	};
+
+	const handleClearAllConfirm = async () => {
+		// Reset filters: Set Time range to "All Time" and select all Teams
+		if (!playerFilters || !filterData) return;
+		
+		const allTeams = filterData.teams.map(team => team.name);
+		userClearedRef.current.teams = false;
+		
+		updatePlayerFilters({
+			timeRange: {
+				type: "allTime",
+				seasons: [],
+				beforeDate: "",
+				afterDate: "",
+				startDate: "",
+				endDate: "",
+			},
+			teams: allTeams,
+		});
+		
+		await applyPlayerFilters();
+		showSuccess("Filters reset");
+		setShowClearAllConfirm(false);
+	};
+
+	const handleClose = () => {
+		// Check if there are actual filter changes using the snapshot comparison
+		if (hasFilterChanges()) {
+			setShowUnsavedChangesConfirm(true);
+		} else {
+			onClose();
+		}
+	};
+
+	const handleUnsavedChangesConfirm = () => {
+		setShowUnsavedChangesConfirm(false);
+		onClose();
 	};
 
 	const hasActiveFilters = () => {
@@ -518,44 +890,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 	};
 
 	return (
+		<>
 		<AnimatePresence>
 			{isOpen && (
 				<>
-					{/* Validation Warning Modal */}
-					{validationWarning && (
-						<>
-							<motion.div
-								className='fixed inset-0 bg-black/70 z-[60]'
-								initial={{ opacity: 0 }}
-								animate={{ opacity: 1 }}
-								exit={{ opacity: 0 }}
-								onClick={() => setValidationWarning(null)}
-							/>
-							<motion.div
-								className='fixed inset-0 z-[70] flex items-center justify-center p-4'
-								initial={{ opacity: 0, scale: 0.9 }}
-								animate={{ opacity: 1, scale: 1 }}
-								exit={{ opacity: 0, scale: 0.9 }}
-								onClick={(e) => e.stopPropagation()}>
-								<div className='bg-[#0f0f0f] border border-white/20 rounded-lg p-6 max-w-md w-full'>
-									<h3 className='text-lg font-semibold text-white mb-4'>Missing Required Filters</h3>
-									<p className='text-white/80 mb-4'>
-										You must select at least one option from each section. The following sections are missing selections:
-									</p>
-									<ul className='list-disc list-inside text-white/80 mb-6 space-y-1'>
-										{validationWarning.map((section) => (
-											<li key={section}>{section}</li>
-										))}
-									</ul>
-									<button
-										onClick={() => setValidationWarning(null)}
-										className='w-full px-4 py-2 bg-dorkinians-yellow text-black font-medium rounded-md hover:bg-dorkinians-yellow/90 transition-colors'>
-										OK
-									</button>
-								</div>
-							</motion.div>
-						</>
-					)}
 
 					{/* Backdrop */}
 					<motion.div
@@ -563,7 +901,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						onClick={onClose}
+						onClick={handleClose}
 					/>
 
 					{/* Sidebar */}
@@ -577,15 +915,23 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 						transition={{ type: "spring", stiffness: 300, damping: 30 }}>
 						<div className='h-full flex flex-col'>
 							{/* Header */}
-							<div className='flex items-center justify-between p-4 border-b border-white/20'>
-								<h2 className='text-lg font-semibold text-white'>Filter Options</h2>
+							<div className='flex items-center justify-between p-4 border-b border-[var(--color-border)]'>
+								<h2 className='text-lg font-semibold text-[var(--color-text-primary)]'>Filter Options</h2>
 								<div className='flex items-center space-x-2'>
-									<button
-										onClick={handleReset}
-										className='px-3 py-1 text-sm text-white/80 hover:text-white hover:bg-white/20 rounded transition-colors'>
-										Reset
-									</button>
-									<button data-testid="filter-sidebar-close" onClick={onClose} className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+									<Button
+										variant="tertiary"
+										size="sm"
+										onClick={handleClearAll}
+										className='text-sm'
+										title="Reset filters to defaults">
+										Reset Filters
+									</Button>
+									<button 
+										data-testid="filter-sidebar-close" 
+										onClick={handleClose} 
+										className='min-w-[44px] min-h-[44px] p-3 flex items-center justify-center text-[var(--color-text-primary)]/60 hover:text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent' 
+										aria-label='Close filter sidebar'
+										title="Close filters">
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>
@@ -595,17 +941,59 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 							<div 
 								className='flex-1 overflow-y-auto p-4 space-y-2'
 								style={{ WebkitOverflowScrolling: 'touch' }}>
+								{/* Filter Presets */}
+								{isFilterDataLoaded && filterData && filterData.seasons.length > 0 && (
+									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50 p-4 mb-2'>
+										<label className='block text-sm font-medium text-[var(--color-text-primary)]/90 mb-2'>Quick Filters</label>
+										<div className='grid grid-cols-2 gap-2'>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("thisSeason")}
+												className='text-sm'>
+												This Season
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("allTime")}
+												className='text-sm'>
+												All Time
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("last30Days")}
+												className='text-sm'>
+												Last 30 Days
+											</Button>
+											<Button
+												variant="tertiary"
+												size="sm"
+												onClick={() => applyPreset("lastSeason")}
+												className='text-sm'>
+												Last Season
+											</Button>
+										</div>
+									</div>
+								)}
+
 								{/* Time Range Section */}
 								{availableFilters.includes("timeRange") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-timeRange">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.timeRange ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-timeRange">
 									<button
 										onClick={() => toggleAccordion("timeRange")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Time Range</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Time Range</span>
+											{validationErrors.timeRange && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "timeRange")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
@@ -613,7 +1001,7 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 										<div className='px-4 pb-4 space-y-2'>
 											{/* Time Range Type Selection */}
 											<div className='space-y-1'>
-												<label className='block text-sm font-medium text-white/90'>Time Range Type</label>
+												<label className='block text-sm font-medium text-[var(--color-text-primary)]/90'>Time Range Type</label>
 												<div className='space-y-1'>
 													{[
 														{ value: "allTime", label: "All Time" },
@@ -629,9 +1017,9 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																value={option.value}
 																checked={(playerFilters?.timeRange?.type || "allTime") === option.value}
 																onChange={() => handleTimeRangeTypeChange(option.value as any)}
-																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
 															/>
-															<span className='text-base md:text-sm text-white/80'>{option.label}</span>
+															<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{option.label}</span>
 														</label>
 													))}
 												</div>
@@ -640,27 +1028,29 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 											{/* Season Selection */}
 											{(playerFilters?.timeRange?.type || "allTime") === "season" && (
 												<div className='space-y-1'>
-													<label className='block text-sm font-medium text-white/90'>Seasons</label>
+													<label className='block text-sm font-medium text-[var(--color-text-primary)]/90'>Seasons</label>
 													{filterData.seasons.length === 0 ? (
-														<div className='text-sm text-white/60'>Loading seasons...</div>
+														<div className='text-sm text-[var(--color-text-primary)]/60'>Loading seasons...</div>
 													) : (
-														<div className='relative'>
-															<div className='max-h-32 overflow-y-auto'>
-																<div className='grid grid-cols-2 gap-1'>
-																	{filterData.seasons.map((season) => (
-																		<label key={season.season} className='flex items-center min-h-[36px]'>
-																			<input
-																				type='checkbox'
-																				checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
-																				onChange={() => handleSeasonToggle(season.season)}
-																				className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
-																			/>
-																			<span className='text-base md:text-sm text-white/80'>{season.season}</span>
-																		</label>
-																	))}
-																</div>
+														<div 
+															className='max-h-32 overflow-y-scroll'
+															style={{
+																scrollbarWidth: 'thin',
+																scrollbarColor: 'rgba(255, 255, 255, 0.2) transparent'
+															}}>
+															<div className='grid grid-cols-2 gap-1'>
+																{filterData.seasons.map((season) => (
+																	<label key={season.season} className='flex items-center min-h-[36px]'>
+																		<input
+																			type='checkbox'
+																			checked={(playerFilters?.timeRange?.seasons || []).includes(season.season)}
+																			onChange={() => handleSeasonToggle(season.season)}
+																			className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
+																		/>
+																		<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{season.season}</span>
+																	</label>
+																))}
 															</div>
-															<div className='absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#0f0f0f] to-transparent pointer-events-none' />
 														</div>
 													)}
 												</div>
@@ -668,10 +1058,10 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 											{/* Date Inputs */}
 											{(playerFilters?.timeRange?.type || "allTime") === "beforeDate" && (
-												<div>
-													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Before Date</label>
-													<input
+												<div className='space-y-1'>
+													<Input
 														type='date'
+														label='Before Date'
 														value={playerFilters?.timeRange?.beforeDate || ""}
 														onChange={(e) =>
 															updatePlayerFilters({
@@ -688,16 +1078,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																},
 															})
 														}
-														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+														size="md"
+														className='w-[95%] md:w-full'
 													/>
+													{dateValidationErrors.beforeDate && (
+														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.beforeDate}</p>
+													)}
 												</div>
 											)}
 
 											{(playerFilters?.timeRange?.type || "allTime") === "afterDate" && (
-												<div>
-													<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>After Date</label>
-													<input
+												<div className='space-y-1'>
+													<Input
 														type='date'
+														label='After Date'
 														value={playerFilters?.timeRange?.afterDate || ""}
 														onChange={(e) =>
 															updatePlayerFilters({
@@ -714,17 +1108,21 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																},
 															})
 														}
-														className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+														size="md"
+														className='w-[95%] md:w-full'
 													/>
+													{dateValidationErrors.afterDate && (
+														<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.afterDate}</p>
+													)}
 												</div>
 											)}
 
 											{(playerFilters?.timeRange?.type || "allTime") === "betweenDates" && (
 												<div className='space-y-1'>
-													<div>
-														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Start Date</label>
-														<input
+													<div className='space-y-1'>
+														<Input
 															type='date'
+															label='Start Date'
 															value={playerFilters?.timeRange?.startDate || ""}
 															onChange={(e) =>
 																updatePlayerFilters({
@@ -741,13 +1139,17 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	},
 																})
 															}
-															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+															size="md"
+															className='w-[95%] md:w-full'
 														/>
+														{dateValidationErrors.startDate && (
+															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.startDate}</p>
+														)}
 													</div>
-													<div>
-														<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>End Date</label>
-														<input
+													<div className='space-y-1'>
+														<Input
 															type='date'
+															label='End Date'
 															value={playerFilters?.timeRange?.endDate || ""}
 															onChange={(e) =>
 																updatePlayerFilters({
@@ -764,9 +1166,22 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	},
 																})
 															}
-															className='w-[95%] md:w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+															size="md"
+															className='w-[95%] md:w-full'
 														/>
+														{dateValidationErrors.endDate && (
+															<p className='text-sm text-red-400 mt-1'>{dateValidationErrors.endDate}</p>
+														)}
 													</div>
+												</div>
+											)}
+											{/* Inline validation error for Time Range */}
+											{validationErrors.timeRange && (
+												<div className='px-4 pb-2 pt-2'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.timeRange}
+													</p>
 												</div>
 											)}
 										</div>
@@ -776,22 +1191,27 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Team Section */}
 								{availableFilters.includes("team") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-team">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.team ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-team">
 									<button
 										onClick={() => toggleAccordion("team")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Team</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Team</span>
+											{validationErrors.team && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "team")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
 									{accordionSections.find((s) => s.id === "team")?.isOpen && (
 										<div className='px-4 pb-4'>
 											{filterData.teams.length === 0 ? (
-												<div className='text-sm text-white/60'>Loading teams...</div>
+												<div className='text-sm text-[var(--color-text-primary)]/60'>Loading teams...</div>
 											) : (
 												<>
 													<div className='grid grid-cols-2 gap-2 mb-3'>
@@ -801,9 +1221,9 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																	type='checkbox'
 																	checked={(playerFilters?.teams || []).includes(team.name)}
 																	onChange={() => handleTeamToggle(team.name)}
-																	className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																	className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
 																/>
-																<span className='text-base md:text-sm text-white/80'>{team.name}</span>
+																<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{team.name}</span>
 															</label>
 														))}
 													</div>
@@ -811,17 +1231,26 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 														<button
 															type='button'
 															onClick={handleTeamCheckAll}
-															className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+															className='flex-1 px-3 py-2 text-sm font-medium text-[var(--color-text-primary)]/80 bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 															Check all
 														</button>
 														<button
 															type='button'
 															onClick={handleTeamClearAll}
-															className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+															className='flex-1 px-3 py-2 text-sm font-medium text-[var(--color-text-primary)]/80 bg-[var(--color-surface)] hover:bg-[var(--color-surface-elevated)] rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
 															Clear all
 														</button>
 													</div>
 												</>
+											)}
+											{/* Inline validation error for Team */}
+											{validationErrors.team && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.team}
+													</p>
+												</div>
 											)}
 										</div>
 									)}
@@ -830,15 +1259,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Location Section */}
 								{availableFilters.includes("location") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-location">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.location ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-location">
 									<button
 										onClick={() => toggleAccordion("location")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Location</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Home vs Away</span>
+											{validationErrors.location && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "location")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
@@ -853,10 +1287,19 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 															onChange={() => handleLocationToggle(location as "Home" | "Away")}
 															className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 														/>
-														<span className='text-base md:text-sm text-white/80'>{location}</span>
+														<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{location}</span>
 													</label>
 												))}
 											</div>
+											{/* Inline validation error for Location */}
+											{validationErrors.location && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.location}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -864,15 +1307,15 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Opposition Section */}
 								{availableFilters.includes("opposition") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-opposition">
+									<div className='border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)]/50' data-testid="filter-opposition">
 									<button
 										onClick={() => toggleAccordion("opposition")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Opposition</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<span className='font-medium text-[var(--color-text-primary)]'>Opposition</span>
 										{accordionSections.find((s) => s.id === "opposition")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
@@ -892,35 +1335,36 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 													}
 													className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 												/>
-												<span className='text-base md:text-sm text-white/80'>All Opposition</span>
+												<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>All Opposition</span>
 											</label>
 
 											<div className='relative'>
-												<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Search Opposition</label>
-												<input
+												<Input
 													type='text'
+													label='Search Opposition'
 													placeholder='Search opposition teams...'
 													value={playerFilters?.opposition?.searchTerm || ""}
 													onChange={(e) => handleOppositionSearch(e.target.value)}
 													onFocus={() => setShowOppositionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowOppositionDropdown(false), 200)}
-													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+													size="md"
+													className='w-full'
 												/>
 												{showOppositionDropdown && (
-													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
+													<div className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
 														{filteredOpposition.length > 0 ? (
 															filteredOpposition.map((opp) => (
 																<button
 																	key={opp.name}
 																	type='button'
 																	onClick={() => handleOppositionSelect(opp.name)}
-																	className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+																	className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 																>
 																	{opp.name}
 																</button>
 															))
 														) : (
-															<div className='px-3 py-2 text-base md:text-sm text-white/60 text-center'>
+															<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
 																No results found
 															</div>
 														)}
@@ -934,22 +1378,27 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Competition Section */}
 								{availableFilters.includes("competition") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-competition">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.competition ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-competition">
 									<button
 										onClick={() => toggleAccordion("competition")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Competition</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Competition</span>
+											{validationErrors.competition && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "competition")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
 									{accordionSections.find((s) => s.id === "competition")?.isOpen && (
 										<div className='px-4 pb-4 space-y-1.5'>
 											<div>
-												<label className='block text-base md:text-sm font-medium text-white/90 mb-0.5'>Competition Types</label>
+												<label className='block text-base md:text-sm font-medium text-[var(--color-text-primary)]/90 mb-0.5'>Competition Types</label>
 												<div className='grid grid-cols-2 gap-1'>
 													{["League", "Cup", "Friendly"].map((type) => (
 														<label key={type} className='flex items-center min-h-[36px]'>
@@ -957,46 +1406,56 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 																type='checkbox'
 																checked={(playerFilters?.competition?.types || []).includes(type as any)}
 																onChange={() => handleCompetitionTypeToggle(type as any)}
-																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
+																className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4 focus:outline-none focus:ring-2 focus:ring-[var(--color-field-focus)] focus:ring-offset-2 focus:ring-offset-transparent'
 															/>
-															<span className='text-base md:text-sm text-white/80'>{type}</span>
+															<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{type}</span>
 														</label>
 													))}
 												</div>
 											</div>
 
 											<div className='relative'>
-												<label className='block text-base md:text-sm font-medium text-white/90 mb-1'>Search Competition</label>
-												<input
+												<Input
 													type='text'
+													label='Search Competition'
 													placeholder='Search competitions...'
 													value={playerFilters?.competition?.searchTerm || ""}
 													onChange={(e) => handleCompetitionSearch(e.target.value)}
 													onFocus={() => setShowCompetitionDropdown(true)}
 													onBlur={() => setTimeout(() => setShowCompetitionDropdown(false), 200)}
-													className='w-full px-3 py-3 md:py-2 bg-white/10 border border-white/20 rounded-md text-base md:text-sm text-white placeholder-white/60 focus:border-dorkinians-yellow focus:ring-1 focus:ring-dorkinians-yellow'
+													size="md"
+													className='w-full'
 												/>
 												{showCompetitionDropdown && (
-													<div className='absolute z-50 w-full mt-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md max-h-48 overflow-y-auto'>
+													<div className='absolute z-50 w-full mt-1 bg-[var(--color-surface)] backdrop-blur-sm border border-[var(--color-border)] rounded-md max-h-48 overflow-y-auto'>
 														{filteredCompetitions.length > 0 ? (
 															filteredCompetitions.map((comp, index) => (
 																<button
 																	key={`${comp.name}-${comp.type}-${index}`}
 																	type='button'
 																	onClick={() => handleCompetitionSelect(comp.name)}
-																	className='w-full text-left px-3 py-2 text-base md:text-sm text-white hover:bg-white/20 transition-colors'
+																	className='w-full text-left px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)] hover:bg-[var(--color-surface-elevated)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'
 																>
 																	{comp.name}
 																</button>
 															))
 														) : (
-															<div className='px-3 py-2 text-base md:text-sm text-white/60 text-center'>
+															<div className='px-3 py-2 text-base md:text-sm text-[var(--color-text-primary)]/60 text-center'>
 																No results found
 															</div>
 														)}
 													</div>
 												)}
 											</div>
+											{/* Inline validation error for Competition */}
+											{validationErrors.competition && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.competition}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1004,15 +1463,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Result Section */}
 								{availableFilters.includes("result") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-result">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.result ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-result">
 									<button
 										onClick={() => toggleAccordion("result")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Result</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Result</span>
+											{validationErrors.result && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "result")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
@@ -1027,10 +1491,19 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 															onChange={() => handleResultToggle(result as any)}
 															className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 														/>
-														<span className='text-base md:text-sm text-white/80'>{result}</span>
+														<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>{result}</span>
 													</label>
 												))}
 											</div>
+											{/* Inline validation error for Result */}
+											{validationErrors.result && (
+												<div className='px-4 pb-0 pt-4'>
+													<p className='text-sm text-red-400 flex items-center gap-1'>
+														<ExclamationTriangleIcon className='w-4 h-4' />
+														{validationErrors.result}
+													</p>
+												</div>
+											)}
 										</div>
 									)}
 									</div>
@@ -1038,15 +1511,20 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 
 								{/* Position Section */}
 								{availableFilters.includes("position") && (
-									<div className='border border-white/20 rounded-lg bg-white/5' data-testid="filter-position">
+									<div className={`border rounded-lg bg-[var(--color-surface)]/50 ${validationErrors.position ? 'border-red-500/50' : 'border-[var(--color-border)]'}`} data-testid="filter-position">
 									<button
 										onClick={() => toggleAccordion("position")}
-										className='w-full flex items-center justify-between p-4 text-left hover:bg-white/10 transition-colors'>
-										<span className='font-medium text-white'>Position</span>
+										className='w-full flex items-center justify-between p-4 text-left hover:bg-[var(--color-surface)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent'>
+										<div className='flex items-center gap-2'>
+											<span className='font-medium text-[var(--color-text-primary)]'>Position</span>
+											{validationErrors.position && (
+												<ExclamationTriangleIcon className='w-5 h-5 text-red-400' aria-label="Validation error" />
+											)}
+										</div>
 										{accordionSections.find((s) => s.id === "position")?.isOpen ? (
-											<ChevronUpIcon className='w-5 h-5 text-white/60' />
+											<ChevronUpIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										) : (
-											<ChevronDownIcon className='w-5 h-5 text-white/60' />
+											<ChevronDownIcon className='w-5 h-5 text-[var(--color-text-primary)]/60' />
 										)}
 									</button>
 
@@ -1066,25 +1544,29 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 															onChange={() => handlePositionToggle(position.value as any)}
 															className='mr-2 accent-dorkinians-yellow w-5 h-5 md:w-4 md:h-4'
 														/>
-														<span className='text-base md:text-sm text-white/80'>
+														<span className='text-base md:text-sm text-[var(--color-text-primary)]/80'>
 															{position.label}
 														</span>
 													</label>
 												))}
 											</div>
 											<div className='flex gap-2'>
-												<button
-													type='button'
+												<Button
+													variant="tertiary"
+													size="sm"
 													onClick={handlePositionCheckAll}
-													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													fullWidth
+													className="flex-1">
 													Check all
-												</button>
-												<button
-													type='button'
+												</Button>
+												<Button
+													variant="tertiary"
+													size="sm"
 													onClick={handlePositionClearAll}
-													className='flex-1 px-3 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+													fullWidth
+													className="flex-1">
 													Clear all
-												</button>
+												</Button>
 											</div>
 										</div>
 									)}
@@ -1093,23 +1575,37 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 							</div>
 
 							{/* Footer */}
-							<div className='border-t border-white/20 p-4' style={{ marginBottom: '10px' }}>
+							<div className='border-t border-[var(--color-border)] p-4' style={{ marginBottom: '10px' }}>
+								{showProgressIndicator && (
+									<div className='mb-3'>
+										<ProgressIndicator 
+											isVisible={showProgressIndicator}
+											size="md"
+										/>
+									</div>
+								)}
 								<div className='flex space-x-3'>
-									<button
-										onClick={onClose}
-										className='flex-1 px-4 py-2 text-sm font-medium text-white/80 bg-white/10 hover:bg-white/20 rounded-md transition-colors'>
+									<Button
+										variant="tertiary"
+										size="md"
+										onClick={handleClose}
+										className='flex-1'>
 										Close
-									</button>
-									<button
-										onClick={handleApply}
-										disabled={!hasFilterChanges()}
-										className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-											hasFilterChanges()
-												? "bg-dorkinians-yellow text-black hover:bg-dorkinians-yellow/90"
-												: "bg-white/10 text-white/40 cursor-not-allowed"
-										}`}>
-										Apply Filters
-									</button>
+									</Button>
+									<div className="relative flex-1">
+										<Button
+											variant="secondary"
+											size="md"
+											onClick={handleApply}
+											disabled={!hasFilterChanges() || !isFilterValid()}
+											className='w-full whitespace-nowrap'
+											title={!isFilterValid() ? getValidationMessage() || "Please fix validation errors" : undefined}>
+											Apply Filters
+										</Button>
+										{!isFilterValid() && !hasFilterChanges() && (
+											<p className="text-xs text-red-400 mt-1 text-center">{getValidationMessage()}</p>
+										)}
+									</div>
 								</div>
 							</div>
 						</div>
@@ -1117,5 +1613,22 @@ export default function FilterSidebar({ isOpen, onClose }: FilterSidebarProps) {
 				</>
 			)}
 		</AnimatePresence>
+		{/* Clear All Confirmation Modal */}
+		<ConfirmModal
+			isOpen={showClearAllConfirm}
+			onClose={() => setShowClearAllConfirm(false)}
+			onConfirm={handleClearAllConfirm}
+			title="Confirm"
+			message="Are you sure you want to reset filters to defaults (All Time, All Teams)?"
+		/>
+		{/* Unsaved Changes Confirmation Modal */}
+		<ConfirmModal
+			isOpen={showUnsavedChangesConfirm}
+			onClose={() => setShowUnsavedChangesConfirm(false)}
+			onConfirm={handleUnsavedChangesConfirm}
+			title="Unsaved Changes"
+			message="You have unsaved filter changes. Are you sure you want to close without applying them?"
+		/>
+		</>
 	);
 }

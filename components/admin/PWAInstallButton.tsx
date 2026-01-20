@@ -225,7 +225,8 @@ export default function PWAInstallButton() {
 									<h2 className='text-lg font-semibold text-white'>Add to Home Screen</h2>
 									<button
 										onClick={closeAndroidInstructions}
-										className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+										className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'
+										aria-label='Close Android installation instructions'>
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>
@@ -315,7 +316,8 @@ export default function PWAInstallButton() {
 									<h2 className='text-lg font-semibold text-white'>Add to Home Screen</h2>
 									<button
 										onClick={closeIOSInstructions}
-										className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'>
+										className='p-2 text-white/60 hover:text-white hover:bg-white/20 rounded-full transition-colors'
+										aria-label='Close iOS installation instructions'>
 										<XMarkIcon className='w-5 h-5' />
 									</button>
 								</div>

@@ -5,7 +5,8 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import CaptainHistoryPopup from "./CaptainHistoryPopup";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
-import { getCachedCaptainsData } from "@/lib/services/captainsPreloadService";
+import { useNavigationStore } from "@/lib/stores/navigation";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { CaptainsTableSkeleton } from "@/components/skeletons";
@@ -19,6 +20,7 @@ interface CaptainData {
 const CAPTAINS_SELECTED_SEASON_KEY = "dorkinians-captains-selected-season";
 
 export default function ClubCaptains() {
+	const { getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string>("");
 	const [captainsData, setCaptainsData] = useState<CaptainData[]>([]);
@@ -37,11 +39,13 @@ export default function ClubCaptains() {
 	useEffect(() => {
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/captains/seasons");
-				if (!response.ok) {
-					throw new Error("Failed to fetch seasons");
-				}
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("club-info", "club-captains", "seasons", {});
+				const data = await cachedFetch("/api/captains/seasons", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.seasons && data.seasons.length > 0) {
 					// Filter out seasons later than current season
 					const currentSeason = getCurrentSeasonFromStorage();
@@ -83,21 +87,23 @@ export default function ClubCaptains() {
 		const fetchCaptainsData = async () => {
 			setLoading(true);
 			
-			// Check cache first
-			const cachedData = getCachedCaptainsData(selectedSeason);
-			if (cachedData) {
-				setCaptainsData(cachedData);
+			// Check page cache first (with 10-minute TTL)
+			const cacheKey = generatePageCacheKey("club-info", "club-captains", "captains-data", { season: selectedSeason });
+			const cached = getCachedPageData(cacheKey);
+			if (cached) {
+				setCaptainsData(cached.data.captainsData || cached.data || []);
 				setLoading(false);
 				return;
 			}
 
 			// If not in cache, fetch from API
 			try {
-				const response = await fetch(`/api/captains/data?season=${encodeURIComponent(selectedSeason)}`);
-				if (!response.ok) {
-					throw new Error("Failed to fetch captain data");
-				}
-				const data = await response.json();
+				const data = await cachedFetch(`/api/captains/data?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				setCaptainsData(data.captainsData || []);
 			} catch (error) {
 				console.error("Error fetching captain data:", error);
@@ -146,7 +152,7 @@ export default function ClubCaptains() {
 
 	return (
 		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-2 md:p-4'>
+			<div className='flex-shrink-0 p-2 md:p-4 md:max-w-2xl md:mx-auto w-full'>
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Club Captains</h2>
 
 				{/* Season Dropdown */}

@@ -6,6 +6,7 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import { getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { useNavigationStore } from "@/lib/stores/navigation";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import LeagueResultsModal from "./LeagueResultsModal";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LabelList } from "recharts";
 import { getDivisionValueFromMapping, getStandardizedDivisionName } from "@/config/divisionMapping";
@@ -51,7 +52,10 @@ interface PlayerSeasonTeam {
 
 export default function LeagueInformation() {
 	const containerRef = useRef<HTMLDivElement>(null);
-	const { selectedPlayer } = useNavigationStore();
+	const stickyNavRef = useRef<HTMLDivElement>(null);
+	const [isSticky, setIsSticky] = useState(false);
+	const [activeTeamLink, setActiveTeamLink] = useState<string | null>(null);
+	const { selectedPlayer, getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [seasons, setSeasons] = useState<string[]>([]);
 	const [selectedSeason, setSelectedSeason] = useState<string | null>(null);
 	const [leagueData, setLeagueData] = useState<SeasonLeagueData | null>(null);
@@ -74,10 +78,15 @@ export default function LeagueInformation() {
 	useEffect(() => {
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/league-tables");
-				if (response.ok) {
-					const data = await response.json();
-					const seasonsList = data.seasons || [];
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "seasons", {});
+				const data = await cachedFetch("/api/league-tables", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				const seasonsList = data.seasons || [];
+				if (seasonsList.length > 0) {
 					// Add 2019-20 season if it doesn't exist
 					if (!seasonsList.includes("2019-20")) {
 						seasonsList.push("2019-20");
@@ -150,21 +159,16 @@ export default function LeagueInformation() {
 
 		const fetchPlayerSeasons = async () => {
 			try {
-				const response = await fetch("/api/player-seasons-teams", {
+				const requestBody = { playerName: selectedPlayer };
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "player-seasons-teams", requestBody);
+				const data = await cachedFetch("/api/player-seasons-teams", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({ playerName: selectedPlayer }),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerSeasonsData(data.playerSeasons || []);
-				} else {
-					console.error("Failed to fetch player seasons");
-					setPlayerSeasonsData([]);
-				}
+				setPlayerSeasonsData(data.playerSeasons || []);
 			} catch (err) {
 				console.error("Error fetching player seasons:", err);
 				setPlayerSeasonsData([]);
@@ -190,17 +194,17 @@ export default function LeagueInformation() {
 			setLoading(true);
 			setError(null);
 			try {
-				const response = await fetch(`/api/league-tables?season=${encodeURIComponent(selectedSeason)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setLeagueData(data.data);
-				} else {
-					const errorData = await response.json();
-					setError(errorData.error || "Failed to fetch league table data");
-				}
-			} catch (err) {
+				const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season: selectedSeason });
+				const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setLeagueData(data.data);
+			} catch (err: any) {
 				console.error("Error fetching league data:", err);
-				setError("Error loading league table data");
+				setError(err?.error || "Error loading league table data");
 			} finally {
 				setLoading(false);
 			}
@@ -232,29 +236,27 @@ export default function LeagueInformation() {
 
 					try {
 						log("info", `📡 [My Seasons] Fetching league data for season: ${season}, team: ${team}`);
-						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
-						if (response.ok) {
-							const data = await response.json();
-							log("info", `✅ [My Seasons] Received data for season ${season}:`, {
-								hasData: !!data.data,
-								seasonInData: data.data?.season,
-								teamsInData: data.data?.teams ? Object.keys(data.data.teams) : [],
-								requestedTeam: team,
-								hasRequestedTeam: data.data?.teams ? team in data.data.teams : false,
-							});
-							if (data.data) {
-								// Normalize season format for consistent map key (ensure hyphen format)
-								const normalizedSeason = season.replace("/", "-");
-								newDataMap.set(normalizedSeason, data.data);
-								log("info", `💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
-							} else {
-								log("warn", `⚠️ [My Seasons] No data.data for season ${season}`);
-							}
+						const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season });
+						const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(season)}`, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						log("info", `✅ [My Seasons] Received data for season ${season}:`, {
+							hasData: !!data.data,
+							seasonInData: data.data?.season,
+							teamsInData: data.data?.teams ? Object.keys(data.data.teams) : [],
+							requestedTeam: team,
+							hasRequestedTeam: data.data?.teams ? team in data.data.teams : false,
+						});
+						if (data.data) {
+							// Normalize season format for consistent map key (ensure hyphen format)
+							const normalizedSeason = season.replace("/", "-");
+							newDataMap.set(normalizedSeason, data.data);
+							log("info", `💾 [My Seasons] Stored data with key: ${normalizedSeason}`);
 						} else {
-							log("error", `❌ [My Seasons] Failed to fetch season ${season}:`, {
-								status: response.status,
-								statusText: response.statusText,
-							});
+							log("warn", `⚠️ [My Seasons] No data.data for season ${season}`);
 						}
 					} catch (err) {
 						log("error", `Error fetching league data for season ${season}:`, err);
@@ -302,14 +304,17 @@ export default function LeagueInformation() {
 					}
 
 					try {
-						const response = await fetch(`/api/league-tables?season=${encodeURIComponent(season)}`);
-						if (response.ok) {
-							const data = await response.json();
-							if (data.data) {
-								// Normalize season format for consistent map key (ensure hyphen format)
-								const normalizedSeason = season.replace("/", "-");
-								newDataMap.set(normalizedSeason, data.data);
-							}
+						const cacheKey = generatePageCacheKey("club-info", "league-information", "league-tables", { season });
+						const data = await cachedFetch(`/api/league-tables?season=${encodeURIComponent(season)}`, {
+							method: "GET",
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						if (data.data) {
+							// Normalize season format for consistent map key (ensure hyphen format)
+							const normalizedSeason = season.replace("/", "-");
+							newDataMap.set(normalizedSeason, data.data);
 						}
 					} catch (err) {
 						log("error", `Error fetching league data for season ${season}:`, err);
@@ -328,6 +333,59 @@ export default function LeagueInformation() {
 
 		fetchAllSeasonsData();
 	}, [isSeasonProgressMode, seasons]);
+
+	// Detect when sticky navigation becomes sticky using Intersection Observer
+	useEffect(() => {
+		if (!stickyNavRef.current) return;
+
+		// Create a sentinel element positioned just before the sticky element
+		const sentinel = document.createElement('div');
+		sentinel.style.position = 'absolute';
+		sentinel.style.top = '0';
+		sentinel.style.height = '1px';
+		sentinel.style.width = '1px';
+		sentinel.style.pointerEvents = 'none';
+		sentinel.style.visibility = 'hidden';
+
+		// Find the scrollable parent container for the Intersection Observer root
+		let scrollContainer: HTMLElement | null = null;
+		if (containerRef.current) {
+			let parent = containerRef.current.parentElement;
+			while (parent) {
+				if (parent.classList.contains('overflow-y-auto') && parent.scrollHeight > parent.clientHeight) {
+					scrollContainer = parent;
+					break;
+				}
+				parent = parent.parentElement;
+			}
+		}
+
+		// Insert sentinel before the sticky element
+		if (stickyNavRef.current.parentElement) {
+			stickyNavRef.current.parentElement.insertBefore(sentinel, stickyNavRef.current);
+		}
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				// When sentinel is not visible (scrolled past), sticky element is stuck
+				setIsSticky(!entry.isIntersecting);
+			},
+			{
+				root: scrollContainer,
+				rootMargin: '0px',
+				threshold: 0,
+			}
+		);
+
+		observer.observe(sentinel);
+
+		return () => {
+			observer.disconnect();
+			if (sentinel.parentElement) {
+				sentinel.parentElement.removeChild(sentinel);
+			}
+		};
+	}, [selectedSeason, leagueData]);
 
 	// Format season for display (2019-20 -> 2019/20)
 	const formatSeason = (season: string) => {
@@ -544,6 +602,33 @@ export default function LeagueInformation() {
 		window.scrollTo({ top: 0, behavior: "smooth" });
 	};
 
+	// Scroll to team section function
+	const scrollToTeam = (teamKey: string) => {
+		setActiveTeamLink(teamKey);
+		const element = document.getElementById(`team-${teamKey}`);
+		if (!element) return;
+
+		// Find the scrollable parent container
+		if (containerRef.current) {
+			let parent = containerRef.current.parentElement;
+			while (parent) {
+				if (parent.classList.contains('overflow-y-auto') && parent.scrollHeight > parent.clientHeight) {
+					const elementRect = element.getBoundingClientRect();
+					const parentRect = parent.getBoundingClientRect();
+					const offset = 60; // Offset for sticky navigation
+					const scrollPosition = parent.scrollTop + elementRect.top - parentRect.top - offset;
+					parent.scrollTo({ top: scrollPosition, behavior: "smooth" });
+					return;
+				}
+				parent = parent.parentElement;
+			}
+		}
+		// Fallback to window scroll
+		const elementRect = element.getBoundingClientRect();
+		const offset = 80;
+		window.scrollTo({ top: window.scrollY + elementRect.top - offset, behavior: "smooth" });
+	};
+
 	// Handle show results button click
 	const handleShowResults = (teamKey: string) => {
 		setSelectedTeamKey(teamKey);
@@ -583,14 +668,14 @@ export default function LeagueInformation() {
 	return (
 		<div 
 			ref={containerRef} 
-			className='px-3 md:px-6 pt-2 md:pt-4 pb-6 overflow-y-auto'
+			className='px-3 md:px-6 pt-2 md:pt-4 pb-6 md:max-w-2xl md:mx-auto w-full'
 			style={{ WebkitOverflowScrolling: 'touch' }}>
 		<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>
 			League Information
 		</h2>
 
 		{/* Season Selector */}
-			<div className='mb-6'>
+			<div>
 				{(loading || seasons.length === 0) ? (
 					<div className='w-[60%] md:w-full mx-auto'>
 						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
@@ -602,7 +687,7 @@ export default function LeagueInformation() {
 						value={selectedSeason || ""}
 						onChange={handleSeasonChange}
 						disabled={loading || seasons.length === 0}>
-						<div className='relative w-[60%] md:w-full mx-auto'>
+						<div className='relative w-[60%] md:w-full mx-auto mb-4'>
 							<Listbox.Button className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 								<span className={`block truncate ${selectedSeason ? "text-white" : "text-yellow-300"}`}>
 									{selectedSeason === "my-seasons" 
@@ -671,6 +756,57 @@ export default function LeagueInformation() {
 					</p>
 				)}
 			</div>
+
+			{/* Team Navigation - Sticky */}
+			{!isMySeasonsMode && !isSeasonProgressMode && selectedSeason && selectedSeason !== "2019-20" && selectedSeason !== "my-seasons" && selectedSeason !== "season-progress" && (
+				<>
+					{loading || appConfig.forceSkeletonView ? (
+						<div className='sticky top-0 z-20 py-2 -mx-3 md:-mx-6'>
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
+									{["1s", "2s", "3s", "4s", "5s", "6s", "7s", "8s"].map((teamKey) => (
+										<Skeleton key={teamKey} height={24} width={32} className='rounded' />
+									))}
+								</div>
+							</SkeletonTheme>
+						</div>
+					) : (
+						<div 
+							ref={stickyNavRef}
+							className={`sticky top-0 z-20 py-2 -mx-3 md:-mx-6 transition-all duration-200 ${isSticky ? 'bg-[#617867]' : ''}`}
+						>
+							<div className='flex flex-wrap justify-center gap-2 md:gap-3 px-2'>
+								{(() => {
+									// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
+									const teamKeys = Object.keys(leagueData?.teams || {});
+									return teamKeys.sort((keyA, keyB) => {
+										// 1st XI always first
+										if (keyA === "1s") return -1;
+										if (keyB === "1s") return 1;
+										// 2nd XI always second
+										if (keyA === "2s") return -1;
+										if (keyB === "2s") return 1;
+										// Others in natural order
+										return keyA.localeCompare(keyB);
+									});
+								})().map((teamKey) => (
+									<button
+										key={teamKey}
+										onClick={() => scrollToTeam(teamKey)}
+										className={`underline text-sm md:text-base font-medium transition-colors px-2 py-1 ${
+											activeTeamLink === teamKey 
+												? 'text-white' 
+												: 'text-dorkinians-yellow-text hover:text-dorkinians-yellow-text-hover'
+										}`}
+									>
+										{teamKey}
+									</button>
+								))}
+							</div>
+						</div>
+					)}
+				</>
+			)}
 
 			{/* Error Message */}
 			{error && (
@@ -808,16 +944,16 @@ export default function LeagueInformation() {
 											<table className='w-full bg-white/10 backdrop-blur-sm rounded-lg overflow-hidden'>
 												<thead className='sticky top-0 z-10'>
 													<tr className='bg-white/20'>
-														<th className='w-8 px-1.5 py-2 text-left text-white font-semibold text-[10px] md:text-xs'></th>
-														<th className='px-2 py-2 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>P</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>W</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>D</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>L</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>F</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>A</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
-														<th className='px-2 py-2 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
+														<th className='w-8 px-3 py-2 md:px-4 md:py-3 text-left text-white font-semibold text-xs md:text-sm'></th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-left text-white font-semibold text-xs md:text-sm'>Team</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>P</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>W</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>D</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>L</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>F</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>A</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>GD</th>
+														<th className='px-3 py-2 md:px-4 md:py-3 text-center text-white font-semibold text-xs md:text-sm'>Pts</th>
 													</tr>
 												</thead>
 												<tbody>
@@ -834,16 +970,16 @@ export default function LeagueInformation() {
 																			: ""
 																} hover:bg-white/5`}
 															>
-																<td className='px-1.5 py-2 text-white text-[10px] md:text-xs'>{entry.position}</td>
-																<td className='px-2 py-2 text-white text-xs md:text-sm'>{entry.team}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.played}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.won}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
-																<td className='px-2 py-2 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
-																<td className='px-2 py-2 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-white text-xs md:text-sm'>{entry.position}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-white text-xs md:text-sm'>{entry.team}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.played}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.won}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.drawn}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.lost}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalsFor}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalsAgainst}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center text-white text-xs md:text-sm'>{entry.goalDifference}</td>
+																<td className='px-3 py-2 md:px-4 md:py-3 text-center font-semibold text-dorkinians-yellow text-xs md:text-sm'>
 																	{entry.points}
 																</td>
 															</tr>
@@ -1455,8 +1591,20 @@ export default function LeagueInformation() {
 				<div className='space-y-8'>
 				{/* Display tables for each team */}
 				{(() => {
+					// Priority: 1st XI (P1), 2nd XI (P2), then others in order (P3)
 					const allTeams = Object.entries(leagueData.teams);
-					return allTeams.map(([teamKey, teamData], teamIndex) => {
+					// Sort teams: 1s first, 2s second, then others in order
+					const sortedTeams = allTeams.sort(([keyA], [keyB]) => {
+						// 1st XI always first
+						if (keyA === "1s") return -1;
+						if (keyB === "1s") return 1;
+						// 2nd XI always second
+						if (keyA === "2s") return -1;
+						if (keyB === "2s") return 1;
+						// Others in natural order
+						return keyA.localeCompare(keyB);
+					});
+					return sortedTeams.map(([teamKey, teamData], teamIndex) => {
 						const hasTableData = teamData && teamData.table && teamData.table.length > 0;
 						
 						// Find Dorkinians position (only if table data exists)
@@ -1500,7 +1648,7 @@ export default function LeagueInformation() {
 						return (
 							<Fragment key={teamKey}>
 							<div className='w-full'>
-								<h3 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
+								<h3 id={`team-${teamKey}`} className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-2 text-center'>
 									{teamDisplayName}
 									{teamData.division && teamData.division.trim() !== '' && (
 										<span className='ml-2 text-base text-gray-300 font-normal'>

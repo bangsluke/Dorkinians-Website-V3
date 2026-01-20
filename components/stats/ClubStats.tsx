@@ -4,6 +4,7 @@ import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -16,6 +17,7 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TopPlayersTableSkeleton, RadarChartSkeleton, SankeyChartSkeleton, GameDetailsTableSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
 
 
 interface TopPlayer {
@@ -176,9 +178,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -219,7 +222,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
 							src={`/stat-icons/${stat.iconName}.svg`}
@@ -230,10 +233,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 						/>
 					</div>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
+				<td className='px-3 md:px-4 py-2 md:py-3 text-right'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
 					</span>
@@ -343,6 +346,8 @@ export default function ClubStats() {
 		filterData,
 		shouldShowDataTable,
 		setDataTableMode,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
@@ -458,6 +463,7 @@ export default function ClubStats() {
 		}
 	}, [selectedStatType]);
 
+	// Priority 1: Above fold on mobile - Key Club Stats section
 	// Fetch team data when filters are applied
 	// Use JSON.stringify to detect filter changes even if object reference doesn't change
 	const filtersKey = JSON.stringify(playerFilters || {});
@@ -476,27 +482,24 @@ export default function ClubStats() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/team-data-filtered", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-data-filtered", requestBody);
+				
+				const data = await cachedFetch("/api/team-data-filtered", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setTeamData(data.teamData);
-					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
-				} else {
-					console.error("Failed to fetch team data:", response.statusText);
-					setTeamData(null);
-					lastFetchedFiltersRef.current = null;
-				}
+				
+				setTeamData(data.teamData);
+				lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 			} catch (error) {
 				console.error("Error fetching team data:", error);
 				setTeamData(null);
@@ -509,6 +512,65 @@ export default function ClubStats() {
 		fetchTeamData();
 	}, [filtersKey, playerFilters]);
 
+	// Priority 1: Above fold on mobile - Team Comparison section
+	// Fetch team comparison data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchTeamComparison = async () => {
+			setIsLoadingTeamComparison(true);
+			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
+				const teams = ["1st XI", "2nd XI", "3rd XI", "4th XI", "5th XI", "6th XI", "7th XI", "8th XI"];
+				const promises = teams.map(async (teamName) => {
+					try {
+						// Exclude teams filter to ensure teamName parameter is used for filtering
+						const { teams, ...filtersWithoutTeams } = playerFilters;
+						const requestBody = {
+							teamName: teamName,
+							filters: {
+								...filtersWithoutTeams,
+								teams: [], // Explicitly set empty teams array
+							},
+						};
+						const cacheKey = generatePageCacheKey("stats", "club-stats", "team-comparison", {
+							...requestBody,
+							team: teamName,
+						});
+						const data = await cachedFetch("/api/team-data-filtered", {
+							method: "POST",
+							body: requestBody,
+							headers: csrfHeaders,
+							cacheKey,
+							getCachedPageData,
+							setCachedPageData,
+						});
+						return { team: teamName, data: data.teamData };
+					} catch (error) {
+						log("error", `Error fetching data for ${teamName}:`, error);
+						return null;
+					}
+				});
+
+				const results = await Promise.all(promises);
+				const validResults = results.filter((r) => r !== null);
+				setTeamComparisonData(validResults);
+				// Initialize visible teams with all teams
+				setVisibleTeams(new Set(validResults.map((r: any) => r.team)));
+			} catch (error) {
+				log("error", "Error fetching team comparison data:", error);
+				setTeamComparisonData([]);
+			} finally {
+				setIsLoadingTeamComparison(false);
+			}
+		};
+
+		fetchTeamComparison();
+	}, [filtersKey, playerFilters]);
+
+	// Priority 2: Above fold on desktop - Top Players section
 	// Fetch top players when filters or stat type changes
 	useEffect(() => {
 		if (!playerFilters) return;
@@ -521,26 +583,20 @@ export default function ClubStats() {
 			});
 			
 			try {
-				const response = await fetch("/api/top-players-stats", {
+				const requestBody = {
+					filters: playerFilters,
+					statType: selectedStatType,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "top-players-stats", requestBody);
+				const data = await cachedFetch("/api/top-players-stats", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-						statType: selectedStatType,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-					setTopPlayers(data.players || []);
-				} else {
-					const errorText = await response.text();
-					log("error", `[ClubStats] Failed to fetch top players: ${response.statusText}`, errorText);
-					setTopPlayers([]);
-				}
+				log("info", `[ClubStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+				setTopPlayers(data.players || []);
 			} catch (error) {
 				log("error", "[ClubStats] Error fetching top players:", error);
 				setTopPlayers([]);
@@ -551,6 +607,42 @@ export default function ClubStats() {
 
 		fetchTopPlayers();
 	}, [filtersKey, selectedStatType, playerFilters]);
+
+	// Priority 2: Above fold on desktop - Stats Distribution section
+	// Fetch position stats data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPositionStats = async () => {
+			setIsLoadingPositionStats(true);
+			try {
+				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
+				const csrfHeaders = getCsrfHeaders();
+				
+				const requestBody = {
+					filters: playerFilters,
+					statType: selectedPositionStat,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-position-stats", requestBody);
+				const data = await cachedFetch("/api/club-position-stats", {
+					method: "POST",
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setPositionStatsData(data.stats || []);
+			} catch (error) {
+				log("error", "Error fetching position stats:", error);
+				setPositionStatsData([]);
+			} finally {
+				setIsLoadingPositionStats(false);
+			}
+		};
+
+		fetchPositionStats();
+	}, [filtersKey, selectedPositionStat, playerFilters]);
 
 	// Check if all seasons are selected
 	const allSeasonsSelected = useMemo(() => {
@@ -588,6 +680,7 @@ export default function ClubStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
+	// Priority 3: Below fold - Seasonal Performance section
 	// Fetch seasonal stats when all seasons selected
 	useEffect(() => {
 		if (!allSeasonsSelected || !playerFilters) {
@@ -598,18 +691,19 @@ export default function ClubStats() {
 		const fetchSeasonalStats = async () => {
 			setIsLoadingSeasonalStats(true);
 			try {
-				const response = await fetch("/api/team-seasonal-stats", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-seasonal-stats", requestBody);
+				const data = await cachedFetch("/api/team-seasonal-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
+				setSeasonalStats(data.seasonalStats || []);
 			} catch (error) {
 				log("error", "Error fetching seasonal stats:", error);
 			} finally {
@@ -620,6 +714,7 @@ export default function ClubStats() {
 		fetchSeasonalStats();
 	}, [allSeasonsSelected, playerFilters]);
 
+	// Priority 3: Below fold - Game Details section
 	// Fetch game details when filters change
 	useEffect(() => {
 		if (!playerFilters) {
@@ -630,18 +725,19 @@ export default function ClubStats() {
 		const fetchGameDetails = async () => {
 			setIsLoadingGameDetails(true);
 			try {
-				const response = await fetch("/api/team-game-details", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "team-game-details", requestBody);
+				const data = await cachedFetch("/api/team-game-details", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setGameDetails(data);
-				}
+				setGameDetails(data);
 			} catch (error) {
 				log("error", "Error fetching game details:", error);
 				setGameDetails(null);
@@ -653,6 +749,7 @@ export default function ClubStats() {
 		fetchGameDetails();
 	}, [playerFilters]);
 
+	// Priority 3: Below fold - Unique Player Stats section
 	// Fetch unique player stats when filters change
 	useEffect(() => {
 		if (!playerFilters) {
@@ -663,18 +760,19 @@ export default function ClubStats() {
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
 			try {
-				const response = await fetch("/api/unique-player-stats", {
+				const requestBody = {
+					teamName: "Whole Club",
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "unique-player-stats", requestBody);
+				const data = await cachedFetch("/api/unique-player-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: "Whole Club",
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setUniquePlayerStats(data);
-				}
+				setUniquePlayerStats(data);
 			} catch (error) {
 				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
@@ -685,6 +783,68 @@ export default function ClubStats() {
 
 		fetchUniqueStats();
 	}, [playerFilters]);
+
+	// Priority 3: Below fold - Player Distribution section
+	// Fetch player distribution data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerDistribution = async () => {
+			setIsLoadingPlayerDistribution(true);
+			try {
+				const requestBody = {
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-player-distribution", requestBody);
+				const data = await cachedFetch("/api/club-player-distribution", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setPlayerDistributionData(data);
+			} catch (error) {
+				log("error", "Error fetching player distribution:", error);
+				setPlayerDistributionData(null);
+			} finally {
+				setIsLoadingPlayerDistribution(false);
+			}
+		};
+
+		fetchPlayerDistribution();
+	}, [filtersKey, playerFilters]);
+
+	// Priority 3: Below fold - Player Tenure section
+	// Fetch player tenure data
+	useEffect(() => {
+		if (!playerFilters) return;
+
+		const fetchPlayerTenure = async () => {
+			setIsLoadingPlayerTenure(true);
+			try {
+				const requestBody = {
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "club-stats", "club-player-tenure", requestBody);
+				const data = await cachedFetch("/api/club-player-tenure", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setPlayerTenureData(data.tenures || []);
+			} catch (error) {
+				log("error", "Error fetching player tenure:", error);
+				setPlayerTenureData([]);
+			} finally {
+				setIsLoadingPlayerTenure(false);
+			}
+		};
+
+		fetchPlayerTenure();
+	}, [filtersKey, playerFilters]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
@@ -736,168 +896,6 @@ export default function ClubStats() {
 
 		return baseData;
 	}, [seasonalStats, seasonalSelectedStat, statOptions, showTrend]);
-
-	// Fetch team comparison data
-	useEffect(() => {
-		if (!playerFilters) return;
-
-		const fetchTeamComparison = async () => {
-			setIsLoadingTeamComparison(true);
-			try {
-				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
-				const csrfHeaders = getCsrfHeaders();
-				
-				const teams = ["1st XI", "2nd XI", "3rd XI", "4th XI", "5th XI", "6th XI", "7th XI", "8th XI"];
-				const promises = teams.map(async (teamName) => {
-					try {
-						const response = await fetch("/api/team-data-filtered", {
-							method: "POST",
-							headers: {
-								"Content-Type": "application/json",
-								...csrfHeaders,
-							},
-							body: JSON.stringify({
-								teamName: teamName,
-								filters: playerFilters,
-							}),
-						});
-
-						if (response.ok) {
-							const data = await response.json();
-							return { team: teamName, data: data.teamData };
-						}
-						return null;
-					} catch (error) {
-						log("error", `Error fetching data for ${teamName}:`, error);
-						return null;
-					}
-				});
-
-				const results = await Promise.all(promises);
-				const validResults = results.filter((r) => r !== null);
-				setTeamComparisonData(validResults);
-				// Initialize visible teams with all teams
-				setVisibleTeams(new Set(validResults.map((r: any) => r.team)));
-			} catch (error) {
-				log("error", "Error fetching team comparison data:", error);
-				setTeamComparisonData([]);
-			} finally {
-				setIsLoadingTeamComparison(false);
-			}
-		};
-
-		fetchTeamComparison();
-	}, [filtersKey, playerFilters]);
-
-	// Fetch player distribution data
-	useEffect(() => {
-		if (!playerFilters) return;
-
-		const fetchPlayerDistribution = async () => {
-			setIsLoadingPlayerDistribution(true);
-			try {
-				const response = await fetch("/api/club-player-distribution", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-					}),
-				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerDistributionData(data);
-				} else {
-					log("error", "Failed to fetch player distribution:", response.statusText);
-					setPlayerDistributionData(null);
-				}
-			} catch (error) {
-				log("error", "Error fetching player distribution:", error);
-				setPlayerDistributionData(null);
-			} finally {
-				setIsLoadingPlayerDistribution(false);
-			}
-		};
-
-		fetchPlayerDistribution();
-	}, [filtersKey, playerFilters]);
-
-	// Fetch player tenure data
-	useEffect(() => {
-		if (!playerFilters) return;
-
-		const fetchPlayerTenure = async () => {
-			setIsLoadingPlayerTenure(true);
-			try {
-				const response = await fetch("/api/club-player-tenure", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-					}),
-				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPlayerTenureData(data.tenures || []);
-				} else {
-					log("error", "Failed to fetch player tenure:", response.statusText);
-					setPlayerTenureData([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching player tenure:", error);
-				setPlayerTenureData([]);
-			} finally {
-				setIsLoadingPlayerTenure(false);
-			}
-		};
-
-		fetchPlayerTenure();
-	}, [filtersKey, playerFilters]);
-
-	// Fetch position stats data
-	useEffect(() => {
-		if (!playerFilters) return;
-
-		const fetchPositionStats = async () => {
-			setIsLoadingPositionStats(true);
-			try {
-				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
-				const csrfHeaders = getCsrfHeaders();
-				
-				const response = await fetch("/api/club-position-stats", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						filters: playerFilters,
-						statType: selectedPositionStat,
-					}),
-				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setPositionStatsData(data.stats || []);
-				} else {
-					log("error", "Failed to fetch position stats:", response.statusText);
-					setPositionStatsData([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching position stats:", error);
-				setPositionStatsData([]);
-			} finally {
-				setIsLoadingPositionStats(false);
-			}
-		};
-
-		fetchPositionStats();
-	}, [filtersKey, selectedPositionStat, playerFilters]);
 
 
 	// Handle stat type selection
@@ -1468,11 +1466,13 @@ export default function ClubStats() {
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center'>{pageHeading}</h2>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
@@ -1511,7 +1511,7 @@ export default function ClubStats() {
 							<div className='space-y-4 pb-4 md:space-y-0 player-stats-masonry'>
 								{/* Key Performance Stats */}
 								{!isDataTableMode && (
-									<div id='club-key-performance-stats' className='mb-4 md:break-inside-avoid md:mb-4'>
+									<div id='club-key-performance-stats' className='md:break-inside-avoid md:mb-4'>
 										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 							<h3 className='text-white font-semibold text-sm md:text-base mb-3'>Key Club Stats</h3>
 							<div className='grid grid-cols-2 md:grid-cols-2 gap-2 md:gap-4'>
@@ -1616,7 +1616,7 @@ export default function ClubStats() {
 							<RadarChartSkeleton />
 						</SkeletonTheme>
 					) : !isLoadingTeamComparison && teamComparisonData.length > 0 && (
-						<div id='club-team-comparison' className='mb-4 md:break-inside-avoid md:mb-4'>
+						<div id='club-team-comparison' className='md:break-inside-avoid md:mb-4'>
 							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Team Comparison</h3>
 								{/* Team visibility checkboxes */}
@@ -1733,7 +1733,7 @@ export default function ClubStats() {
 
 								{/* Top Players Table */}
 								{!isDataTableMode && (
-								<div id='club-top-players' className='mb-4 flex-shrink-0 md:break-inside-avoid md:mb-4'>
+								<div id='club-top-players' className='flex-shrink-0 md:break-inside-avoid md:mb-4'>
 									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
 										<h3 className='text-white font-semibold text-sm md:text-base mb-2' data-testid="club-top-players-heading">Top 5 {getStatTypeLabel(selectedStatType)}</h3>
 										<div className='mb-2'>
@@ -1847,6 +1847,330 @@ export default function ClubStats() {
 										) : (
 											<div className='p-4'>
 												<p className='text-white text-xs md:text-sm text-center'>No players found</p>
+											</div>
+										)}
+									</div>
+								</div>
+								)}
+
+								{/* Seasonal Performance Section */}
+								{!isDataTableMode && allSeasonsSelected && (
+									<div id='club-seasonal-performance' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<div className='flex items-center justify-between mb-2 gap-2'>
+												<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
+												<div className='flex-1 max-w-[45%]'>
+													<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
+														<div className='relative'>
+															<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+																<span className='block truncate text-white'>
+																	{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
+																</span>
+																<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+																	<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+																</span>
+															</Listbox.Button>
+															<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+																{statOptions.map((option) => (
+																	<Listbox.Option
+																		key={option.value}
+																		className={({ active }) =>
+																			`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																		}
+																		value={option.value}>
+																		{({ selected }) => (
+																			<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																				{option.label}
+																			</span>
+																		)}
+																	</Listbox.Option>
+																))}
+															</Listbox.Options>
+														</div>
+													</Listbox>
+												</div>
+											</div>
+											<div className='flex items-center justify-center gap-2 mb-2'>
+												<input 
+													type='checkbox' 
+													checked={showTrend} 
+													onChange={(e) => setShowTrend(e.target.checked)}
+													className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
+													id='show-trend-checkbox-club'
+													style={{ accentColor: '#f9ed32' }}
+												/>
+												<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
+											</div>
+											{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
+												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+													<ChartSkeleton />
+												</SkeletonTheme>
+											) : seasonalChartData.length > 0 ? (
+												<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+													<ResponsiveContainer width='100%' height={240}>
+														<ComposedChart 
+															data={seasonalChartData} 
+															margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
+														>
+															<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+															<XAxis dataKey='name' stroke='#fff' fontSize={12} />
+															<YAxis stroke='#fff' fontSize={12} />
+															<Tooltip content={customTooltip} />
+															<Bar 
+																dataKey='value' 
+																fill='#f9ed32' 
+																radius={[4, 4, 0, 0]} 
+																opacity={0.9} 
+																activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
+															/>
+															{showTrend && (
+																<Line 
+																	type='linear' 
+																	dataKey='trendline' 
+																	stroke='#ffffff' 
+																	strokeWidth={2}
+																	strokeDasharray='5 5'
+																	dot={false}
+																	activeDot={false}
+																	isAnimationActive={false}
+																	connectNulls={false}
+																/>
+															)}
+														</ComposedChart>
+													</ResponsiveContainer>
+												</div>
+											) : (
+												<div className='flex items-center justify-center h-64'>
+													<p className='text-white text-sm'>No seasonal data available</p>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Player Distribution Section */}
+								{!isDataTableMode && (isLoadingPlayerDistribution ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<SankeyChartSkeleton />
+											</div>
+										</div>
+									</SkeletonTheme>
+								) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
+									// Validate that all links reference existing nodes
+									const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
+									const validLinks = sankeyData.links.filter((link: any) => 
+										nodeIds.has(link.source) && nodeIds.has(link.target)
+									);
+									
+									if (validLinks.length === 0) return null;
+									
+									// Custom label layer component that shows player count for team nodes
+									const CustomLabelLayer = ({ nodes, links: nivoLinks }: any) => {
+										return (
+											<g>
+												{nodes.map((node: any) => {
+													const nodeX = (node.x0 + node.x1) / 2;
+													const nodeY = node.y0;
+													const nodeHeight = node.y1 - node.y0;
+													
+													if (node.id === "Players") {
+														// Look up original node from sankeyData to get label with count
+														const originalNode = sankeyData.nodes.find((n: any) => n.id === "Players");
+														const labelText = originalNode?.label || node.label || "Players";
+														
+														// For Players node, show horizontal label at the top
+														return (
+															<g key={node.id}>
+																<text
+																	x={nodeX}
+																	y={nodeY - 10}
+																	textAnchor="middle"
+																	dominantBaseline="middle"
+																	fill="#fff"
+																	fontSize={12}
+																	fontWeight="bold"
+																>
+																	{labelText}
+																</text>
+															</g>
+														);
+													}
+													// For team nodes, show label and player count below
+													// Find the link that targets this node to get the correct count
+													// First try to get from node's playerCount property (set in sankeyData)
+													// Then try from validLinks (original data)
+													// Finally try from Nivo's processed links
+													let playerCount = node.playerCount;
+													if (!playerCount) {
+														// Try from original validLinks first (most reliable)
+														const originalLink = validLinks.find((l: any) => l.target === node.id);
+														if (originalLink) {
+															playerCount = originalLink.value;
+														} else {
+															// Fall back to Nivo's processed links
+															const matchingLink = nivoLinks.find((link: any) => {
+																const targetId = typeof link.target === 'object' ? (link.target.id ?? link.target) : link.target;
+																return targetId === node.id;
+															});
+															playerCount = matchingLink?.data?.value ?? matchingLink?.value ?? matchingLink?.thickness ?? 0;
+														}
+													}
+													return (
+														<g key={node.id}>
+															<text
+																x={nodeX}
+																y={nodeY + nodeHeight + 25}
+																textAnchor="middle"
+																dominantBaseline="middle"
+																fill="#fff"
+																fontSize={12}
+																fontWeight="bold"
+															>
+																{node.label}
+															</text>
+															<text
+																x={nodeX}
+																y={nodeY + nodeHeight + 40}
+																textAnchor="middle"
+																dominantBaseline="middle"
+																fill="#fff"
+																fontSize={11}
+															>
+																{playerCount}
+															</text>
+														</g>
+													);
+												})}
+											</g>
+										);
+									};
+									
+						return (
+						<div id='club-player-distribution' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
+											<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
+												<ResponsiveSankey
+													data={{ nodes: sankeyData.nodes, links: validLinks }}
+													margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
+													layout="vertical"
+													align="justify"
+													colors={{ scheme: 'set3' }}
+													nodeOpacity={0.8}
+													nodeThickness={18}
+													nodeSpacing={24}
+													nodeBorderWidth={0}
+													nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
+													linkOpacity={0.4}
+													linkHoverOthersOpacity={0.1}
+													enableLinkGradient={true}
+													labelPosition="outside"
+													labelOrientation="horizontal"
+													labelPadding={8}
+													labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
+													nodeTooltip={() => null}
+													linkTooltip={() => null}
+													isInteractive={false}
+													layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
+													theme={{
+														text: { fill: '#fff', fontSize: 12 },
+													}}
+												/>
+											</div>
+										</div>
+									</div>
+									);
+								})())}
+
+								{/* Player Tenure Section */}
+								{!isDataTableMode && (isLoadingPlayerTenure ? (
+									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+										<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
+											<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+												<Skeleton height={20} width="40%" className="mb-2" />
+												<ChartSkeleton />
+											</div>
+										</div>
+									</SkeletonTheme>
+					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
+						<div id='club-player-tenure' className='md:break-inside-avoid md:mb-4'>
+										<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+											<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
+											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+												<ResponsiveContainer width='100%' height={300}>
+													<BarChart data={tenureHistogramData} layout="vertical" margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+														<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+														<XAxis type="number" stroke='#fff' fontSize={12} />
+														<YAxis type="category" dataKey='seasons' stroke='#fff' fontSize={12} width={120} />
+														<Tooltip content={tenureTooltip} />
+														<Bar dataKey='players' fill='#f9ed32' radius={[0, 4, 4, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+													</BarChart>
+												</ResponsiveContainer>
+											</div>
+										</div>
+									</div>
+								))}
+
+								{/* Stats Distribution Section */}
+								{!isDataTableMode && (
+								<div id='club-stats-distribution' className='md:break-inside-avoid md:mb-4'>
+									<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+										<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
+										<div className='mb-2'>
+											<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
+												<div className='relative'>
+													<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
+														<span className='block truncate text-white'>
+															{getPositionStatLabel(selectedPositionStat)}
+														</span>
+														<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
+															<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
+														</span>
+													</Listbox.Button>
+													<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
+														{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
+															<Listbox.Option
+																key={statType}
+																className={({ active }) =>
+																	`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+																}
+																value={statType}>
+																{({ selected }) => (
+																	<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
+																		{getPositionStatLabel(statType)}
+																	</span>
+																)}
+															</Listbox.Option>
+														))}
+													</Listbox.Options>
+												</div>
+											</Listbox>
+										</div>
+										{isLoadingPositionStats ? (
+											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+												<ChartSkeleton />
+											</SkeletonTheme>
+										) : positionStatsData.length > 0 ? (
+											<div className='chart-container' style={{ touchAction: 'pan-y' }}>
+												<ResponsiveContainer width='100%' height={300}>
+													<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+														<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
+														<XAxis dataKey='position' stroke='#fff' fontSize={12} />
+														<YAxis 
+															stroke='#fff' 
+															fontSize={12} 
+															tickFormatter={(value) => value.toLocaleString('en-US')}
+														/>
+														<Tooltip content={statsDistributionTooltip} />
+														<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
+													</BarChart>
+												</ResponsiveContainer>
+											</div>
+										) : (
+											<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
+												<p className='text-white text-sm'>No data available</p>
 											</div>
 										)}
 									</div>
@@ -2465,330 +2789,6 @@ export default function ClubStats() {
 							</>
 						);
 					})()}
-
-					{/* Seasonal Performance Section */}
-					{!isDataTableMode && allSeasonsSelected && (
-						<div id='club-seasonal-performance' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<div className='flex items-center justify-between mb-2 gap-2'>
-									<h3 className='text-white font-semibold text-sm md:text-base flex-shrink-0'>Seasonal Performance</h3>
-									<div className='flex-1 max-w-[45%]'>
-										<Listbox value={seasonalSelectedStat} onChange={setSeasonalSelectedStat}>
-											<div className='relative'>
-												<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-													<span className='block truncate text-white'>
-														{statOptions.find(opt => opt.value === seasonalSelectedStat)?.label || seasonalSelectedStat}
-													</span>
-													<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-														<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-													</span>
-												</Listbox.Button>
-												<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-													{statOptions.map((option) => (
-														<Listbox.Option
-															key={option.value}
-															className={({ active }) =>
-																`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-															}
-															value={option.value}>
-															{({ selected }) => (
-																<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-																	{option.label}
-																</span>
-															)}
-														</Listbox.Option>
-													))}
-												</Listbox.Options>
-											</div>
-										</Listbox>
-									</div>
-								</div>
-								<div className='flex items-center justify-center gap-2 mb-2'>
-									<input 
-										type='checkbox' 
-										checked={showTrend} 
-										onChange={(e) => setShowTrend(e.target.checked)}
-										className='w-4 h-4 accent-dorkinians-yellow cursor-pointer'
-										id='show-trend-checkbox-club'
-										style={{ accentColor: '#f9ed32' }}
-									/>
-									<label htmlFor='show-trend-checkbox-club' className='text-white text-xs md:text-sm cursor-pointer'>Show trend</label>
-								</div>
-								{(isLoadingSeasonalStats || appConfig.forceSkeletonView) ? (
-									<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-										<ChartSkeleton />
-									</SkeletonTheme>
-								) : seasonalChartData.length > 0 ? (
-									<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-										<ResponsiveContainer width='100%' height={240}>
-											<ComposedChart 
-												data={seasonalChartData} 
-												margin={{ top: 5, right: 5, left: -20, bottom: 5 }}
-											>
-												<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-												<XAxis dataKey='name' stroke='#fff' fontSize={12} />
-												<YAxis stroke='#fff' fontSize={12} />
-												<Tooltip content={customTooltip} />
-												<Bar 
-													dataKey='value' 
-													fill='#f9ed32' 
-													radius={[4, 4, 0, 0]} 
-													opacity={0.9} 
-													activeBar={{ fill: '#f9ed32', opacity: 1, stroke: 'none' }}
-												/>
-												{showTrend && (
-													<Line 
-														type='linear' 
-														dataKey='trendline' 
-														stroke='#ffffff' 
-														strokeWidth={2}
-														strokeDasharray='5 5'
-														dot={false}
-														activeDot={false}
-														isAnimationActive={false}
-														connectNulls={false}
-													/>
-												)}
-											</ComposedChart>
-										</ResponsiveContainer>
-									</div>
-								) : (
-									<div className='flex items-center justify-center h-64'>
-										<p className='text-white text-sm'>No seasonal data available</p>
-									</div>
-								)}
-							</div>
-						</div>
-					)}
-
-					{/* Player Distribution Section */}
-					{!isDataTableMode && (isLoadingPlayerDistribution ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<SankeyChartSkeleton />
-								</div>
-							</div>
-						</SkeletonTheme>
-					) : !isLoadingPlayerDistribution && sankeyData && sankeyData.nodes.length > 1 && sankeyData.links.length > 0 && (() => {
-						// Validate that all links reference existing nodes
-						const nodeIds = new Set(sankeyData.nodes.map((n: any) => n.id));
-						const validLinks = sankeyData.links.filter((link: any) => 
-							nodeIds.has(link.source) && nodeIds.has(link.target)
-						);
-						
-						if (validLinks.length === 0) return null;
-						
-						// Custom label layer component that shows player count for team nodes
-						const CustomLabelLayer = ({ nodes, links: nivoLinks }: any) => {
-							return (
-								<g>
-									{nodes.map((node: any) => {
-										const nodeX = (node.x0 + node.x1) / 2;
-										const nodeY = node.y0;
-										const nodeHeight = node.y1 - node.y0;
-										
-										if (node.id === "Players") {
-											// Look up original node from sankeyData to get label with count
-											const originalNode = sankeyData.nodes.find((n: any) => n.id === "Players");
-											const labelText = originalNode?.label || node.label || "Players";
-											
-											// For Players node, show horizontal label at the top
-											return (
-												<g key={node.id}>
-													<text
-														x={nodeX}
-														y={nodeY - 10}
-														textAnchor="middle"
-														dominantBaseline="middle"
-														fill="#fff"
-														fontSize={12}
-														fontWeight="bold"
-													>
-														{labelText}
-													</text>
-												</g>
-											);
-										}
-										// For team nodes, show label and player count below
-										// Find the link that targets this node to get the correct count
-										// First try to get from node's playerCount property (set in sankeyData)
-										// Then try from validLinks (original data)
-										// Finally try from Nivo's processed links
-										let playerCount = node.playerCount;
-										if (!playerCount) {
-											// Try from original validLinks first (most reliable)
-											const originalLink = validLinks.find((l: any) => l.target === node.id);
-											if (originalLink) {
-												playerCount = originalLink.value;
-											} else {
-												// Fall back to Nivo's processed links
-												const matchingLink = nivoLinks.find((link: any) => {
-													const targetId = typeof link.target === 'object' ? (link.target.id ?? link.target) : link.target;
-													return targetId === node.id;
-												});
-												playerCount = matchingLink?.data?.value ?? matchingLink?.value ?? matchingLink?.thickness ?? 0;
-											}
-										}
-										return (
-											<g key={node.id}>
-												<text
-													x={nodeX}
-													y={nodeY + nodeHeight + 25}
-													textAnchor="middle"
-													dominantBaseline="middle"
-													fill="#fff"
-													fontSize={12}
-													fontWeight="bold"
-												>
-													{node.label}
-												</text>
-												<text
-													x={nodeX}
-													y={nodeY + nodeHeight + 40}
-													textAnchor="middle"
-													dominantBaseline="middle"
-													fill="#fff"
-													fontSize={11}
-												>
-													{playerCount}
-												</text>
-											</g>
-										);
-									})}
-								</g>
-							);
-						};
-						
-						return (
-						<div id='club-player-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Distribution</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y', height: '320px' }}>
-									<ResponsiveSankey
-										data={{ nodes: sankeyData.nodes, links: validLinks }}
-										margin={{ top: 40, right: 20, bottom: 60, left: 20 }}
-										layout="vertical"
-										align="justify"
-										colors={{ scheme: 'set3' }}
-										nodeOpacity={0.8}
-										nodeThickness={18}
-										nodeSpacing={24}
-										nodeBorderWidth={0}
-										nodeBorderColor={{ from: 'color', modifiers: [['darker', 0.8]] }}
-										linkOpacity={0.4}
-										linkHoverOthersOpacity={0.1}
-										enableLinkGradient={true}
-										labelPosition="outside"
-										labelOrientation="horizontal"
-										labelPadding={8}
-										labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-										nodeTooltip={() => null}
-										linkTooltip={() => null}
-										isInteractive={false}
-										layers={['links', 'nodes', CustomLabelLayer as any, 'legends']}
-										theme={{
-											text: { fill: '#fff', fontSize: 12 },
-										}}
-									/>
-								</div>
-							</div>
-						</div>
-						);
-					})())}
-
-					{/* Player Tenure Section */}
-					{!isDataTableMode && (isLoadingPlayerTenure ? (
-						<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-							<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-								<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-									<Skeleton height={20} width="40%" className="mb-2" />
-									<ChartSkeleton />
-								</div>
-							</div>
-						</SkeletonTheme>
-					) : !isLoadingPlayerTenure && tenureHistogramData.length > 0 && (
-						<div id='club-player-tenure' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-								<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Player Tenure</h3>
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={tenureHistogramData} layout="vertical" margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis type="number" stroke='#fff' fontSize={12} />
-											<YAxis type="category" dataKey='seasons' stroke='#fff' fontSize={12} width={120} />
-											<Tooltip content={tenureTooltip} />
-											<Bar dataKey='players' fill='#f9ed32' radius={[0, 4, 4, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							</div>
-						</div>
-					))}
-
-					{/* Stats Distribution Section */}
-					{!isDataTableMode && (
-					<div id='club-stats-distribution' className='mb-4 md:break-inside-avoid md:mb-4 single-column-section'>
-						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
-							<h3 className='text-white font-semibold text-sm md:text-base mb-2'>Stats Distribution</h3>
-							<div className='mb-2'>
-								<Listbox value={selectedPositionStat} onChange={setSelectedPositionStat}>
-									<div className='relative'>
-										<Listbox.Button className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-xs md:text-sm'>
-											<span className='block truncate text-white'>
-												{getPositionStatLabel(selectedPositionStat)}
-											</span>
-											<span className='pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2'>
-												<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
-											</span>
-										</Listbox.Button>
-										<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-xs md:text-sm shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none'>
-											{["goals", "assists", "appearances", "cleanSheets", "saves", "yellowCards", "redCards", "penaltiesScored", "fantasyPoints", "minutes", "mom"].map((statType) => (
-												<Listbox.Option
-													key={statType}
-													className={({ active }) =>
-														`relative cursor-default select-none dark-dropdown-option ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-													}
-													value={statType}>
-													{({ selected }) => (
-														<span className={`block truncate py-1 px-2 ${selected ? "font-medium" : "font-normal"}`}>
-															{getPositionStatLabel(statType)}
-														</span>
-													)}
-												</Listbox.Option>
-											))}
-										</Listbox.Options>
-									</div>
-								</Listbox>
-							</div>
-							{isLoadingPositionStats ? (
-								<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-									<ChartSkeleton />
-								</SkeletonTheme>
-							) : positionStatsData.length > 0 ? (
-								<div className='chart-container' style={{ touchAction: 'pan-y' }}>
-									<ResponsiveContainer width='100%' height={300}>
-										<BarChart data={positionStatsData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-											<CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.1)' />
-											<XAxis dataKey='position' stroke='#fff' fontSize={12} />
-											<YAxis 
-												stroke='#fff' 
-												fontSize={12} 
-												tickFormatter={(value) => value.toLocaleString('en-US')}
-											/>
-											<Tooltip content={statsDistributionTooltip} />
-											<Bar dataKey='value' fill='#22c55e' radius={[4, 4, 0, 0]} opacity={0.8} activeBar={{ opacity: 0.5 }} />
-										</BarChart>
-									</ResponsiveContainer>
-								</div>
-							) : (
-								<div className='chart-container flex items-center justify-center' style={{ touchAction: 'pan-y', height: '300px' }}>
-									<p className='text-white text-sm'>No data available</p>
-								</div>
-							)}
-						</div>
-					</div>
-					)}
 				</div>
 			)}
 		</div>

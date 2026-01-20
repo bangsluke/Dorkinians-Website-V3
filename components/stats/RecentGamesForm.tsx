@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { RecentGamesSkeleton } from "@/components/skeletons";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
+import { useNavigationStore } from "@/lib/stores/navigation";
 
 interface Fixture {
 	result: string;
@@ -22,6 +24,7 @@ interface RecentGamesFormProps {
 }
 
 export default function RecentGamesForm({ teamName, filters }: RecentGamesFormProps) {
+	const { getCachedPageData, setCachedPageData } = useNavigationStore();
 	const [fixtures, setFixtures] = useState<Fixture[]>([]);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -71,32 +74,26 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 			setIsLoading(true);
 			setError(null);
 			try {
-				const response = await fetch("/api/team-recent-fixtures", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
+				const requestBody = {
+					teamName,
+					filters: {
+						...(filters || {}),
+						teams: [], // Don't pass teams in filters, use teamName instead
 					},
-					body: JSON.stringify({
-						teamName,
-						filters: {
-							...(filters || {}),
-							teams: [], // Don't pass teams in filters, use teamName instead
-						},
-					}),
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-recent-fixtures", requestBody);
+				const data = await cachedFetch("/api/team-recent-fixtures", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					// Reverse fixtures so most recent is on the right
-					setFixtures((data.fixtures || []).reverse());
-				} else {
-					const errorData = await response.json();
-					setError(errorData.error || "Failed to fetch recent fixtures");
-					setFixtures([]);
-				}
-			} catch (err) {
+				// Reverse fixtures so most recent is on the right
+				setFixtures((data.fixtures || []).reverse());
+			} catch (err: any) {
 				console.error("Error fetching recent fixtures:", err);
-				setError("Error loading recent fixtures");
+				setError(err?.error || "Error loading recent fixtures");
 				setFixtures([]);
 			} finally {
 				setIsLoading(false);
@@ -270,11 +267,11 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const getBoxColor = (result: string): string => {
 		switch (result) {
 			case "W":
-				return "bg-green-500";
+				return "bg-[var(--color-success)]";
 			case "D":
 				return "bg-gray-500";
 			case "L":
-				return "bg-red-500";
+				return "bg-[var(--color-error)]";
 			default:
 				return "bg-gray-700";
 		}
@@ -294,11 +291,11 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const getCompTypeColor = (compType: string): string => {
 		switch (compType) {
 			case "League":
-				return "bg-blue-600/30 text-blue-300";
+				return "bg-[var(--color-info)]/30 text-blue-300";
 			case "Cup":
 				return "bg-purple-600/30 text-purple-300";
 			case "Friendly":
-				return "bg-green-600/30 text-green-300";
+				return "bg-[var(--color-success)]/30 text-green-300";
 			default:
 				return "bg-gray-700 text-gray-300";
 		}

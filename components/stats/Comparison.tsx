@@ -13,10 +13,12 @@ import Image from "next/image";
 import { motion, useInView } from "framer-motion";
 import { createPortal } from "react-dom";
 import { safeLocalStorageGet, safeLocalStorageSet, safeLocalStorageRemove } from "@/lib/utils/pwaDebug";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Tooltip, ResponsiveContainer } from "recharts";
 import { RadarChartSkeleton } from "@/components/skeletons";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
+import Button from "@/components/ui/Button";
 
 interface Player {
 	playerName: string;
@@ -338,9 +340,10 @@ function ComparisonStatRow({
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -477,7 +480,7 @@ function ComparisonStatRow({
 }
 
 export default function Comparison() {
-	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData } = useNavigationStore();
+	const { selectedPlayer, enterEditMode, setMainPage, playerFilters, filterData, currentStatsSubPage, cachedPlayerData, getCachedPageData, setCachedPageData } = useNavigationStore();
 	
 	const [secondPlayer, setSecondPlayer] = useState<string | null>(() => {
 		if (typeof window !== "undefined") {
@@ -708,15 +711,15 @@ export default function Comparison() {
 
 			setIsLoadingPlayers(true);
 			try {
-				const response = await fetch("/api/players");
-				if (response.ok) {
-					const data = await response.json();
-					setAllPlayers(data.players || []);
-					setPlayersLoaded(true);
-				} else {
-					console.error("Failed to fetch players:", response.statusText);
-					setAllPlayers([]);
-				}
+				const cacheKey = generatePageCacheKey("stats", "comparison", "players", {});
+				const data = await cachedFetch("/api/players", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setAllPlayers(data.players || []);
+				setPlayersLoaded(true);
 			} catch (error) {
 				console.error("Error fetching players:", error);
 				setAllPlayers([]);
@@ -726,7 +729,7 @@ export default function Comparison() {
 		};
 
 		fetchAllPlayers();
-	}, [playersLoaded]);
+	}, [playersLoaded, getCachedPageData, setCachedPageData]);
 
 	useEffect(() => {
 		if (secondPlayer && typeof window !== "undefined") {
@@ -760,28 +763,20 @@ export default function Comparison() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/player-data-filtered", {
+				const requestBody = {
+					playerName: secondPlayer,
+					filters: playerFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "comparison", "player-data-filtered", requestBody);
+				const data = await cachedFetch("/api/player-data-filtered", {
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
-					},
-					body: JSON.stringify({
-						playerName: secondPlayer,
-						filters: playerFilters,
-					}),
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setSecondPlayerData(data.playerData);
-				} else {
-					console.error("Failed to fetch second player data:", response.statusText);
-					setSecondPlayerData(null);
-					if (typeof window !== "undefined") {
-						safeLocalStorageRemove("comparison-second-player-data");
-					}
-				}
+				setSecondPlayerData(data.playerData);
 			} catch (error) {
 				console.error("Error fetching second player data:", error);
 				setSecondPlayerData(null);
@@ -794,7 +789,7 @@ export default function Comparison() {
 		};
 
 		fetchSecondPlayerData();
-	}, [secondPlayer, playerFilters]);
+	}, [secondPlayer, playerFilters, getCachedPageData, setCachedPageData]);
 
 	const handleClearSecondPlayer = () => {
 		setSecondPlayer(null);
@@ -849,7 +844,7 @@ export default function Comparison() {
 
 	return (
 		<div className='h-full flex flex-col overflow-hidden'>
-			<div className='flex-shrink-0 p-2 md:p-4' style={{ overflow: 'visible' }}>
+			<div className='flex-shrink-0 p-2 md:p-4 md:max-w-2xl md:mx-auto w-full' style={{ overflow: 'visible' }}>
 				<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-4 text-center'>Player Comparison</h2>
 				
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
@@ -859,13 +854,14 @@ export default function Comparison() {
 					{/* Player 1 (Current Selection) - 40% width */}
 					<div className='flex-1' style={{ flexBasis: '40%', minWidth: 0 }}>
 						<div className='flex items-center gap-2 mb-2'>
-							<span className='text-sm md:text-base text-white/70'>Player 1</span>
-							<button
+							<label className='text-sm md:text-base font-medium text-white/90'>First Player</label>
+							<Button
+								variant="icon"
+								size="sm"
 								onClick={handleEditClick}
-								className='flex items-center justify-center w-5 h-5 md:w-6 md:h-6 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors flex-shrink-0'
-								title='Edit player selection'>
-								<PenOnPaperIcon className='h-3 w-3 md:h-4 md:w-4' />
-							</button>
+								title='Edit player selection'
+								className='w-8 h-8 md:w-8 md:h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 flex-shrink-0'
+								icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 						</div>
 						<div className='py-3 text-left text-yellow-300 text-sm md:text-base truncate'>
 							{selectedPlayer}
@@ -875,7 +871,7 @@ export default function Comparison() {
 					{/* Player 2 Selection - 60% width */}
 					<div className='flex-1' style={{ flexBasis: '60%', minWidth: 0 }}>
 						<div className='flex items-center gap-2 mb-2'>
-							<span className='text-sm md:text-base text-white/70'>Player 2</span>
+							<label className='text-sm md:text-base font-medium text-white/90 mt-1 mb-2'>Select Second Player</label>
 							{secondPlayer && (
 								<button
 									onClick={handleClearSecondPlayer}
@@ -891,6 +887,7 @@ export default function Comparison() {
 							<div className='relative w-full'>
 								<Listbox.Button 
 									onClick={handleDropdownOpen}
+									aria-label="Select Second Player"
 									className='relative w-full cursor-default dark-dropdown py-3 pl-4 pr-10 text-left shadow-md focus:outline-none focus-visible:ring-1 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-1 focus-visible:ring-offset-yellow-300 text-sm md:text-base'>
 									<span className={`block truncate ${secondPlayer ? "text-white" : "text-yellow-300"}`}>
 										{secondPlayer || "Choose a player..."}
@@ -966,7 +963,7 @@ export default function Comparison() {
 					</div>
 				) : !secondPlayer ? (
 					<div className='flex items-center justify-center h-full'>
-						<p className='text-white text-sm md:text-base text-center'>Select a Player 2 to begin the comparison</p>
+						<p className='text-white text-sm md:text-base text-center'>Select Second Player to begin the comparison</p>
 					</div>
 				) : (
 					<div className='space-y-1'>

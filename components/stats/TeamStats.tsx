@@ -4,6 +4,7 @@ import { useNavigationStore, type TeamData } from "@/lib/stores/navigation";
 import { statObject, statsPageConfig, appConfig } from "@/config/config";
 import Image from "next/image";
 import { useState, useMemo, useEffect, useRef } from "react";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 import { createPortal } from "react-dom";
 import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
@@ -15,7 +16,10 @@ import HomeAwayGauge from "./HomeAwayGauge";
 import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { StatCardSkeleton, ChartSkeleton, TableSkeleton, TopPlayersTableSkeleton, BestSeasonFinishSkeleton, RecentGamesSkeleton, DataTableSkeleton } from "@/components/skeletons";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
 
 
 interface TopPlayer {
@@ -196,9 +200,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -239,7 +244,7 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
 							src={`/stat-icons/${stat.iconName}.svg`}
@@ -250,10 +255,10 @@ function StatRow({ stat, value, teamData }: { stat: any; value: any; teamData: T
 						/>
 					</div>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right'>
+				<td className='px-3 md:px-4 py-2 md:py-3 text-right'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit)}
 					</span>
@@ -363,6 +368,8 @@ export default function TeamStats() {
 		filterData,
 		shouldShowDataTable,
 		setDataTableMode,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	// Initialize selected team from localStorage, player's most played team, or first available team
@@ -378,6 +385,8 @@ export default function TeamStats() {
 	});
 	const [teamData, setTeamData] = useState<TeamData | null>(null);
 	const [isLoadingTeamData, setIsLoadingTeamData] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const { showError } = useToast();
 	
 	// Top players table state
 	const [selectedStatType, setSelectedStatType] = useState<StatType>(() => {
@@ -552,6 +561,7 @@ export default function TeamStats() {
 		};
 	}, [selectedTeam, playerFilters]);
 
+	// Priority 1: Above fold on mobile - Key Performance Stats and Recent Form sections
 	// Fetch team data when selected team or filters change
 	const filtersKey = JSON.stringify({ selectedTeam, playerFilters: apiFilters || {} });
 	
@@ -569,31 +579,33 @@ export default function TeamStats() {
 				const { getCsrfHeaders } = await import("@/lib/middleware/csrf");
 				const csrfHeaders = getCsrfHeaders();
 				
-				const response = await fetch("/api/team-data-filtered", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						...csrfHeaders,
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: {
+						...playerFilters,
+						teams: [], // Don't pass teams in filters, use teamName instead
 					},
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: {
-							...playerFilters,
-							teams: [], // Don't pass teams in filters, use teamName instead
-						},
-					}),
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-data-filtered", {
+					teamName: selectedTeam,
+					filters: requestBody.filters,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setTeamData(data.teamData);
-					lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
-				} else {
-					console.error("Failed to fetch team data:", response.statusText);
-					setTeamData(null);
-					lastFetchedFiltersRef.current = null;
-				}
+				
+				const data = await cachedFetch("/api/team-data-filtered", {
+					method: "POST",
+					body: requestBody,
+					headers: csrfHeaders,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				
+				setTeamData(data.teamData);
+				lastFetchedFiltersRef.current = filtersKey; // Store the filters key for this data
 			} catch (error) {
+				const errorMessage = error instanceof Error ? error.message : "Failed to load team data";
+				setError(errorMessage);
 				console.error("Error fetching team data:", error);
 				// Log PWA debug info on error
 				const pwaDebugInfo = getPWADebugInfo();
@@ -608,6 +620,7 @@ export default function TeamStats() {
 		fetchTeamData();
 	}, [filtersKey, selectedTeam, playerFilters]);
 
+	// Priority 1: Above fold on mobile - Top Players section
 	// Fetch top players when selected team, filters or stat type changes
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) return;
@@ -620,26 +633,26 @@ export default function TeamStats() {
 			});
 			
 			try {
-				const response = await fetch("/api/top-players-stats", {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						filters: apiFilters,
-						statType: selectedStatType,
-					}),
+				const requestBody = {
+					filters: apiFilters,
+					statType: selectedStatType,
+				};
+				
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "top-players-stats", {
+					...requestBody,
+					selectedTeam,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
-					setTopPlayers(data.players || []);
-				} else {
-					const errorText = await response.text();
-					log("error", `[TeamStats] Failed to fetch top players: ${response.statusText}`, errorText);
-					setTopPlayers([]);
-				}
+				
+				const data = await cachedFetch("/api/top-players-stats", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				
+				log("info", `[TeamStats] Received ${data.players?.length || 0} players for statType: ${selectedStatType}`, data.players);
+				setTopPlayers(data.players || []);
 			} catch (error) {
 				log("error", "[TeamStats] Error fetching top players:", error);
 				// Log PWA debug info on error
@@ -702,38 +715,7 @@ export default function TeamStats() {
 		{ value: "Distance Travelled", label: "Distance Travelled", statKey: "distance" },
 	], []);
 
-	// Fetch seasonal stats when team selected and all seasons selected
-	useEffect(() => {
-		if (!selectedTeam || !allSeasonsSelected || !apiFilters) {
-			setSeasonalStats([]);
-			return;
-		}
-
-		const fetchSeasonalStats = async () => {
-			setIsLoadingSeasonalStats(true);
-			try {
-				const response = await fetch("/api/team-seasonal-stats", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: apiFilters,
-					}),
-				});
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonalStats(data.seasonalStats || []);
-				}
-			} catch (error) {
-				log("error", "Error fetching seasonal stats:", error);
-			} finally {
-				setIsLoadingSeasonalStats(false);
-			}
-		};
-
-		fetchSeasonalStats();
-	}, [selectedTeam, allSeasonsSelected, apiFilters]);
-
+	// Priority 3: Below fold - Unique Player Stats section
 	// Fetch unique player stats when team selected and filters change
 	useEffect(() => {
 		if (!selectedTeam || !apiFilters) {
@@ -744,18 +726,19 @@ export default function TeamStats() {
 		const fetchUniqueStats = async () => {
 			setIsLoadingUniqueStats(true);
 			try {
-				const response = await fetch("/api/unique-player-stats", {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: apiFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "unique-player-stats", requestBody);
+				const data = await cachedFetch("/api/unique-player-stats", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						filters: apiFilters,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-				if (response.ok) {
-					const data = await response.json();
-					setUniquePlayerStats(data);
-				}
+				setUniquePlayerStats(data);
 			} catch (error) {
 				log("error", "Error fetching unique player stats:", error);
 				setUniquePlayerStats(null);
@@ -767,6 +750,7 @@ export default function TeamStats() {
 		fetchUniqueStats();
 	}, [selectedTeam, apiFilters]);
 
+	// Priority 3: Below fold - Best Season Finish section
 	// Fetch best season finish data when team selected and filters change
 	useEffect(() => {
 		if (!selectedTeam) {
@@ -787,26 +771,22 @@ export default function TeamStats() {
 			setBestSeasonFinishError(null);
 			try {
 				const season = isSeasonFilter ? playerFilters?.timeRange?.seasons?.[0] : null;
-				const response = await fetch("/api/team-best-season-finish", {
+				const requestBody = {
+					teamName: selectedTeam,
+					season: season || undefined,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-best-season-finish", requestBody);
+				const data = await cachedFetch("/api/team-best-season-finish", {
 					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({
-						teamName: selectedTeam,
-						season: season || undefined,
-					}),
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
 				});
-
-				if (response.ok) {
-					const data = await response.json();
-					setBestSeasonFinishData(data);
-				} else {
-					const errorData = await response.json();
-					setBestSeasonFinishError(errorData.error || "Failed to fetch best season finish");
-					setBestSeasonFinishData(null);
-				}
-			} catch (error) {
+				setBestSeasonFinishData(data);
+			} catch (error: any) {
 				log("error", "Error fetching best season finish:", error);
-				setBestSeasonFinishError("Failed to fetch best season finish");
+				setBestSeasonFinishError(error?.error || "Failed to fetch best season finish");
 				setBestSeasonFinishData(null);
 			} finally {
 				setIsLoadingBestSeasonFinish(false);
@@ -815,6 +795,40 @@ export default function TeamStats() {
 
 		fetchBestSeasonFinish();
 	}, [selectedTeam, isSeasonFilter, isDateRangeFilter, playerFilters?.timeRange?.seasons]);
+
+	// Priority 3: Below fold - Seasonal Performance section
+	// Fetch seasonal stats when team selected and all seasons selected
+	useEffect(() => {
+		if (!selectedTeam || !allSeasonsSelected || !apiFilters) {
+			setSeasonalStats([]);
+			return;
+		}
+
+		const fetchSeasonalStats = async () => {
+			setIsLoadingSeasonalStats(true);
+			try {
+				const requestBody = {
+					teamName: selectedTeam,
+					filters: apiFilters,
+				};
+				const cacheKey = generatePageCacheKey("stats", "team-stats", "team-seasonal-stats", requestBody);
+				const data = await cachedFetch("/api/team-seasonal-stats", {
+					method: "POST",
+					body: requestBody,
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setSeasonalStats(data.seasonalStats || []);
+			} catch (error) {
+				log("error", "Error fetching seasonal stats:", error);
+			} finally {
+				setIsLoadingSeasonalStats(false);
+			}
+		};
+
+		fetchSeasonalStats();
+	}, [selectedTeam, allSeasonsSelected, apiFilters]);
 
 	// Calculate linear regression for trendline
 	const calculateTrendline = (data: Array<{ name: string; value: number }>) => {
@@ -1112,6 +1126,62 @@ export default function TeamStats() {
 		return null;
 	};
 
+	// Show loading state
+	if (isLoadingTeamData && !teamData) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4'>
+					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+						<StatCardSkeleton />
+					</SkeletonTheme>
+				</div>
+			</div>
+		);
+	}
+
+	// Show error state
+	if (error && !teamData) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4 flex items-center justify-center'>
+					<ErrorState 
+						message="Failed to load team stats" 
+						error={error}
+						onShowToast={showError}
+						showToast={true}
+						onRetry={() => {
+							setError(null);
+							// Data will refresh when selectedTeam or filters change
+						}}
+					/>
+				</div>
+			</div>
+		);
+	}
+
+	// Show empty state if no team selected
+	if (!selectedTeam) {
+		return (
+			<div className='h-full flex flex-col'>
+				<div className='flex-shrink-0 p-2 md:p-4'>
+					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center mb-4'>Team Stats</h2>
+				</div>
+				<div className='flex-1 px-2 md:px-4 pb-4 flex items-center justify-center'>
+					<EmptyState 
+						title="No team selected"
+						message="Please select a team from the dropdown above to view team statistics."
+					/>
+				</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className='h-full flex flex-col'>
 			<div className='flex-shrink-0 p-2 md:p-4'>
@@ -1156,11 +1226,13 @@ export default function TeamStats() {
 					</div>
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>
@@ -1175,16 +1247,19 @@ export default function TeamStats() {
 				<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 					<div className='flex-1 px-2 md:px-4 pb-4 min-h-0 overflow-y-auto space-y-4 md:space-y-0 player-stats-masonry'>
 						<div className='md:break-inside-avoid md:mb-4'>
+							<TopPlayersTableSkeleton />
+						</div>
+						<div className='md:break-inside-avoid md:mb-4'>
 							<StatCardSkeleton />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
 							<RecentGamesSkeleton />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
-							<TopPlayersTableSkeleton />
+							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
 						</div>
 						<div className='md:break-inside-avoid md:mb-4'>
-							<ChartSkeleton showDropdown={true} showTrend={true} noContainer={false} />
+							<ChartSkeleton showDropdown={false} showTrend={false} noContainer={false} />
 						</div>
 					</div>
 				</SkeletonTheme>

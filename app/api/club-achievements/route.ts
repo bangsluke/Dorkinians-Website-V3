@@ -3,6 +3,7 @@ import {
 	getAvailableSeasons,
 	getSeasonDataFromJSON,
 } from '@/lib/services/leagueTableService';
+import { apiCache, getCacheTTL } from '@/lib/utils/apiCache';
 
 const corsHeaders = {
 	'Access-Control-Allow-Origin': '*',
@@ -22,14 +23,24 @@ export async function OPTIONS() {
 
 export async function GET(request: NextRequest) {
 	try {
+		// Check cache first
+		const cacheKey = apiCache.generateKey("/api/club-achievements");
+		const cached = apiCache.get<{ achievements: ClubAchievement[] }>(cacheKey);
+		if (cached) {
+			return NextResponse.json(cached, { headers: corsHeaders });
+		}
+
 		const achievements: ClubAchievement[] = [];
 
 		// Get all seasons from JSON files
 		const seasons = await getAvailableSeasons();
 
-		// Scan all historical seasons
-		for (const season of seasons) {
-			const seasonData = await getSeasonDataFromJSON(season);
+		// Parallelize file reads for all seasons
+		const seasonDataPromises = seasons.map(season => getSeasonDataFromJSON(season));
+		const seasonDataResults = await Promise.all(seasonDataPromises);
+
+		// Process all season data in parallel
+		for (const seasonData of seasonDataResults) {
 			if (!seasonData) continue;
 
 			// Iterate through all teams in this season
@@ -77,7 +88,13 @@ export async function GET(request: NextRequest) {
 			return seasonB - seasonA;
 		});
 
-		return NextResponse.json({ achievements }, { headers: corsHeaders });
+		const response = { achievements };
+		
+		// Cache the response
+		const ttl = getCacheTTL("/api/club-achievements");
+		apiCache.set(cacheKey, response, ttl);
+		
+		return NextResponse.json(response, { headers: corsHeaders });
 	} catch (error) {
 		console.error('Error fetching club achievements:', error);
 		return NextResponse.json(

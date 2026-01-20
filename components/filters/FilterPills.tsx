@@ -212,7 +212,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 								</span>
 								<button
 									onClick={pill.onRemove}
-									className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0`}
+									className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`}
 									aria-label={`Remove ${pill.label} filter`}>
 									<XMarkIcon className='w-4 h-4' />
 								</button>
@@ -232,7 +232,7 @@ export default function FilterPills({ playerFilters, filterData, currentStatsSub
 									<span className='text-gray-900 whitespace-nowrap'>{pill.value}</span>
 									<button
 										onClick={pill.onRemove}
-										className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0`}
+										className={`flex items-center justify-center ${isHalfHeight ? "min-w-[24px] min-h-[24px]" : "min-w-[40px] min-h-[40px]"} text-gray-600 hover:text-gray-900 transition-colors flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-field-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`}
 										aria-label={`Remove ${pill.label} ${pill.value} filter`}>
 										<XMarkIcon className='w-4 h-4' />
 									</button>

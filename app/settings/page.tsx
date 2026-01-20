@@ -13,6 +13,7 @@ import {
 	BugAntIcon,
 	ShieldCheckIcon,
 	BookOpenIcon,
+	ShareIcon,
 } from "@heroicons/react/24/outline";
 import { appConfig } from "@/config/config";
 import dynamic from "next/dynamic";
@@ -20,8 +21,9 @@ import FeedbackModal from "@/components/modals/FeedbackModal";
 import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 
 // Dynamically import PWA components to avoid SSR issues
-const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
-const PWAInstallButton = dynamic(() => import("@/components/PWAInstallButton"), { ssr: false });
+// [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
+// const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
+const PWAInstallButton = dynamic(() => import("@/components/admin/PWAInstallButton"), { ssr: false });
 
 const navigationItems = [
 	{
@@ -73,11 +75,14 @@ interface SiteDetails {
 
 export default function SettingsPage() {
 	const { setMainPage, setStatsSubPage, setTOTWSubPage, setClubInfoSubPage } = useNavigationStore();
-	const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
-	const [updateStatus, setUpdateStatus] = useState<string | null>(null);
+	// [COMMENTED OUT: Check for Updates Section] - State variables for manual update check functionality
+	// const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+	// const [updateStatus, setUpdateStatus] = useState<string | null>(null);
 	const [showFeedbackModal, setShowFeedbackModal] = useState(false);
 	const [showDataPrivacyModal, setShowDataPrivacyModal] = useState(false);
 	const [siteDetails, setSiteDetails] = useState<SiteDetails | null>(null);
+	// [COMMENTED OUT: Check for Updates Section] - Last update date state (only used by manual check section)
+	// const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null);
 	const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
 		isSiteNavigationExpanded: true,
 		versionReleaseDetails: false,
@@ -131,31 +136,62 @@ export default function SettingsPage() {
 		window.location.href = "/";
 	};
 
-	const handleCheckForUpdate = async () => {
-		setIsCheckingUpdate(true);
-		setUpdateStatus(null);
+	// [COMMENTED OUT: Check for Updates Section] - Manual update check handler function
+	// To re-enable: Uncomment this function and restore the state variables above
+	// const handleCheckForUpdate = async () => {
+	// 	setIsCheckingUpdate(true);
+	// 	setUpdateStatus(null);
+	//
+	// 	try {
+	// 		// Dynamically import PWA service to avoid SSR issues
+	// 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+	// 		const updateInfo = await pwaUpdateService.checkForUpdates();
+	// 		if (updateInfo.isUpdateAvailable) {
+	// 			setUpdateStatus(`Update available: Version ${updateInfo.version}`);
+	// 			// Show update toast on settings page
+	// 			setShowUpdateToast(true);
+	// 		} else {
+	// 			setUpdateStatus("No updates available");
+	// 		}
+	// 	} catch (error) {
+	// 		setUpdateStatus("Error checking for updates");
+	// 	} finally {
+	// 		setIsCheckingUpdate(false);
+	// 	}
+	// };
 
-		try {
-			// Dynamically import PWA service to avoid SSR issues
-			const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
-			const updateInfo = await pwaUpdateService.checkForUpdates();
-			if (updateInfo.isUpdateAvailable) {
-				setUpdateStatus(`Update available: Version ${updateInfo.version}`);
-				// Show update toast on settings page
-				setShowUpdateToast(true);
-			} else {
-				setUpdateStatus("No updates available");
+	// [COMMENTED OUT: Check for Updates Section] - Update toast state (only used by manual check section)
+	// const [showUpdateToast, setShowUpdateToast] = useState(false);
+	const [shareCopied, setShareCopied] = useState(false);
+
+	const handleShareSite = async () => {
+		const url = window.location.origin; // Root URL, not settings page
+		
+		if (navigator.share) {
+			// Web Share API (mobile/iOS/Android)
+			try {
+				await navigator.share({
+					title: 'Dorkinians FC Statistics Website',
+					text: 'Check out the Dorkinians FC Statistics Website',
+					url: url,
+				});
+			} catch (error) {
+				// User cancelled or error occurred
+				console.log('Share cancelled');
 			}
-		} catch (error) {
-			setUpdateStatus("Error checking for updates");
-		} finally {
-			setIsCheckingUpdate(false);
+		} else {
+			// Fallback: Copy to clipboard (desktop)
+			try {
+				await navigator.clipboard.writeText(url);
+				setShareCopied(true);
+				setTimeout(() => setShareCopied(false), 2000);
+			} catch (error) {
+				console.error('Failed to copy URL:', error);
+			}
 		}
 	};
 
-	const [showUpdateToast, setShowUpdateToast] = useState(false);
-
-	// Fetch site details on mount
+	// Fetch site details and last update date on mount
 	useEffect(() => {
 		const fetchSiteDetails = async () => {
 			try {
@@ -169,6 +205,19 @@ export default function SettingsPage() {
 			}
 		};
 		fetchSiteDetails();
+
+		// [COMMENTED OUT: Check for Updates Section] - Load last update date logic (only used by manual check section)
+		// To re-enable: Uncomment this block and restore the lastUpdateDate state variable
+		// const loadLastUpdateDate = async () => {
+		// 	try {
+		// 		const { pwaUpdateService } = await import("@/lib/services/pwaUpdateService");
+		// 		const date = pwaUpdateService.getLastUpdateDate();
+		// 		setLastUpdateDate(date);
+		// 	} catch (error) {
+		// 		console.error("Failed to load last update date:", error);
+		// 	}
+		// };
+		// loadLastUpdateDate();
 	}, []);
 
 	const formatDate = (dateString: string | null) => {
@@ -180,6 +229,20 @@ export default function SettingsPage() {
 		}
 	};
 
+	// [COMMENTED OUT: Check for Updates Section] - Format last update date function (only used by manual check section)
+	// To re-enable: Uncomment this function and restore the lastUpdateDate state variable
+	// const formatLastUpdateDate = (date: Date | null): string => {
+	// 	if (!date) return "";
+	// 	try {
+	// 		const day = String(date.getDate()).padStart(2, "0");
+	// 		const month = String(date.getMonth() + 1).padStart(2, "0");
+	// 		const year = date.getFullYear();
+	// 		return `${day}/${month}/${year}`;
+	// 	} catch {
+	// 		return "";
+	// 	}
+	// };
+
 	const toggleCard = (cardKey: string) => {
 		setExpandedCards((prev) => ({
 			...prev,
@@ -190,39 +253,44 @@ export default function SettingsPage() {
 	return (
 		<>
 			{/* Settings Content */}
-			<div className='h-full flex flex-col md:px-[15%]'>
+			<div className='h-full flex flex-col'>
 				{/* Header */}
 				<div className='flex items-center pt-2 pb-2 px-6'>
 					<h1 className='text-2xl font-bold text-white' data-testid="settings-heading">Settings</h1>
 				</div>
 
-				{/* Navigation List */}
+				{/* Navigation List - Two Column Layout on Desktop */}
 				<div className='flex-1 px-6 pb-6 overflow-y-auto'>
+					<div className='grid grid-cols-1 md:grid-cols-2 md:gap-6'>
+						{/* Left Column */}
+						<div className='space-y-4'>
 					{/* Add App to Home Screen Button */}
-					<div className='mb-6'>
+					<div>
 						<PWAInstallButton />
 					</div>
 
 					{/* Documentation Link */}
-					<div className='mb-6'>
+					<div>
 						<motion.a
 							href={appConfig.documentationUrl}
 							target='_blank'
 							rel='noopener noreferrer'
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 flex items-center space-x-3'
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left block'
 							whileHover={{ scale: 1.02 }}
 							whileTap={{ scale: 0.98 }}>
-							<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-								<BookOpenIcon className='w-5 h-5 text-dorkinians-yellow' />
-							</div>
-							<div className='flex-1'>
-								<h3 className='text-sm font-semibold text-white'>Help</h3>
-								<p className='text-xs text-yellow-100/70'>Complete user guide and documentation</p>
-							</div>
-							<div className='text-dorkinians-yellow'>
-								<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-									<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
-								</svg>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<BookOpenIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Help</h3>
+									<p className='text-sm text-gray-300'>Complete user guide and documentation</p>
+								</div>
+								<div className='text-dorkinians-yellow'>
+									<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+									</svg>
+								</div>
 							</div>
 						</motion.a>
 					</div>
@@ -306,11 +374,14 @@ export default function SettingsPage() {
 					)}
 					</motion.div>
 					</div>
+					</div>
 
-					{/* Additional Settings Section */}
-					<div className='mt-12 space-y-4'>
-						<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
-						<div className='space-y-3'>
+					{/* Right Column */}
+					<div className='space-y-4 mt-6 md:mt-0'>
+						{/* App Settings Section */}
+						<div className='space-y-4'>
+							<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
+							<div className='space-y-3'>
 							{/* Version Release Details */}
 							<motion.div
 								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 cursor-pointer'
@@ -398,6 +469,28 @@ export default function SettingsPage() {
 								)}
 							</motion.div>
 
+							{/* Share Site */}
+							<motion.button
+								onClick={handleShareSite}
+								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left'
+								whileHover={{ scale: 1.02 }}
+								whileTap={{ scale: 0.98 }}>
+								<div className='flex items-center space-x-3'>
+									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+										<ShareIcon className='w-5 h-5 text-dorkinians-yellow' />
+									</div>
+									<div className='flex-1'>
+										<h3 className='text-lg font-semibold text-white mb-1'>Share Site</h3>
+										<p className='text-sm text-gray-300'>{shareCopied ? 'Link copied to clipboard!' : 'Share this website with others'}</p>
+									</div>
+									<div className='text-dorkinians-yellow'>
+										<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+											<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M9 5l7 7-7 7' />
+										</svg>
+									</div>
+								</div>
+							</motion.button>
+
 							{/* Report Bug/Feature Request */}
 							<motion.button
 								onClick={() => setShowFeedbackModal(true)}
@@ -419,22 +512,6 @@ export default function SettingsPage() {
 									</div>
 								</div>
 							</motion.button>
-
-							{/* Database last updated */}
-							<motion.div
-								className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200'
-								whileHover={{ scale: 1.02 }}
-								whileTap={{ scale: 0.98 }}>
-								<div className='flex items-center space-x-3'>
-									<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-										<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
-									</div>
-									<div className='flex-1'>
-										<h3 className='text-lg font-semibold text-white mb-1'>Database last updated</h3>
-										<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
-									</div>
-								</div>
-							</motion.div>
 
 							{/* Data & Privacy */}
 							<motion.button
@@ -460,49 +537,73 @@ export default function SettingsPage() {
 						</div>
 					</div>
 
-					{/* Check for Updates */}
-					<div className='mt-8 p-4 rounded-lg bg-white/10'>
-						<div className='flex flex-col items-center space-y-3'>
-							<div className='text-center'>
-								<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
-								<p className='text-sm text-gray-300'>Check if a new version is available</p>
-							</div>
-							<motion.button
-								onClick={handleCheckForUpdate}
-								disabled={isCheckingUpdate}
-								className='CTA w-fit'
-								whileHover={{ scale: 1.05 }}
-								whileTap={{ scale: 0.95 }}>
-								{isCheckingUpdate ? (
-									<div className='flex items-center space-x-2'>
-										<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
-										<span>Checking...</span>
-									</div>
-								) : (
-									<div className='flex items-center space-x-2'>
-										<ArrowPathIcon className='w-4 h-4' />
-										<span>Check</span>
+						{/* [COMMENTED OUT: Check for Updates Section] - Manual "Check for Updates" UI section */}
+						{/* To re-enable: Uncomment this entire section and restore all related state variables, functions, and imports above */}
+						{/* <div className='p-4 rounded-lg bg-white/10'>
+							<div className='flex flex-col items-center space-y-3'>
+								<div className='text-center'>
+									<h3 className='text-lg font-semibold text-white mb-2'>Check for Updates</h3>
+									<p className='text-sm text-gray-300'>Check if a new version is available</p>
+								</div>
+								<motion.button
+									onClick={handleCheckForUpdate}
+									disabled={isCheckingUpdate}
+									className='CTA w-fit'
+									whileHover={{ scale: 1.05 }}
+									whileTap={{ scale: 0.95 }}>
+									{isCheckingUpdate ? (
+										<div className='flex items-center space-x-2'>
+											<div className='w-4 h-4 border-2 border-dorkinians-blue border-t-transparent rounded-full animate-spin'></div>
+											<span>Checking...</span>
+										</div>
+									) : (
+										<div className='flex items-center space-x-2'>
+											<ArrowPathIcon className='w-4 h-4' />
+											<span>Check</span>
+										</div>
+									)}
+								</motion.button>
+								{updateStatus === "No updates available" && (
+									<div className='text-center'>
+										<p className='text-sm text-gray-300'>{updateStatus}</p>
+										{lastUpdateDate && (
+											<p className='text-xs text-gray-400 mt-1'>
+												Last version update was {formatLastUpdateDate(lastUpdateDate)}
+											</p>
+										)}
 									</div>
 								)}
-							</motion.button>
-							{updateStatus === "No updates available" && (
-								<p className='text-sm text-gray-300'>{updateStatus}</p>
-							)}
-							{updateStatus && updateStatus !== "No updates available" && (
-								<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
-							)}
-						</div>
-					</div>
+								{updateStatus && updateStatus !== "No updates available" && (
+									<p className='text-xs text-dorkinians-yellow'>{updateStatus}</p>
+								)}
+							</div>
+						</div> */}
 
-					{/* Version Information */}
-					<div className='mt-8 text-center'>
-						<p className='text-xs text-gray-400'>Version {appConfig.version}</p>
+						{/* Database last updated - at bottom */}
+						<div className='w-full p-4 rounded-lg bg-white/10'>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<ArrowPathIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Database Last Updated</h3>
+									<p className='text-sm text-gray-300'>{formatDate(siteDetails?.lastSeededStats || null)}</p>
+								</div>
+							</div>
+						</div>
+
+						{/* Version Information */}
+						<div className='text-center'>
+							<p className='text-xs text-white'>Version {appConfig.version}</p>
+						</div>
 					</div>
 				</div>
 			</div>
+		</div>
 
-			{/* Update Toast */}
-			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
+			{/* [COMMENTED OUT: Check for Updates Section] - Update Toast render (only used by manual check section) */}
+			{/* To re-enable: Uncomment this line and restore the showUpdateToast state variable and UpdateToast import */}
+			{/* {showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />} */}
 
 			{/* Modals */}
 			<FeedbackModal isOpen={showFeedbackModal} onClose={() => setShowFeedbackModal(false)} />

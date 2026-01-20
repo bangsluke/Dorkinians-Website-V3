@@ -11,6 +11,7 @@ import "react-loading-skeleton/dist/skeleton.css";
 import { PlayersTableSkeleton, PlayerStatsExpansionSkeleton, RankingTableSkeleton } from "@/components/skeletons";
 import { appConfig } from "@/config/config";
 import { log } from "@/lib/utils/logger";
+import { cachedFetch, generatePageCacheKey } from "@/lib/utils/pageCache";
 
 interface Player {
 	rank: number;
@@ -79,6 +80,8 @@ export default function PlayersOfMonth() {
 		selectedPlayer,
 		enterEditMode,
 		setMainPage,
+		getCachedPageData,
+		setCachedPageData,
 	} = useNavigationStore();
 
 	const [seasons, setSeasons] = useState<string[]>([]);
@@ -114,8 +117,13 @@ export default function PlayersOfMonth() {
 
 		const fetchSeasons = async () => {
 			try {
-				const response = await fetch("/api/players-of-month/seasons");
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "seasons", {});
+				const data = await cachedFetch("/api/players-of-month/seasons", {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.seasons) {
 					setSeasons(data.seasons);
 					// Use currentSeason from localStorage, or first season
@@ -212,8 +220,13 @@ export default function PlayersOfMonth() {
 		const fetchMonths = async () => {
 			log("info", `[PlayersOfMonth] Fetching months from API for season ${selectedSeason}`);
 			try {
-				const response = await fetch(`/api/players-of-month/months?season=${encodeURIComponent(selectedSeason)}`);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "months", { season: selectedSeason });
+				const data = await cachedFetch(`/api/players-of-month/months?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				if (data.months) {
 					log("info", `[PlayersOfMonth] Received ${data.months.length} months from API`);
 					setMonths(data.months);
@@ -360,8 +373,13 @@ export default function PlayersOfMonth() {
 			const apiUrl = `/api/players-of-month/month-data?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(monthToUse)}`;
 			log("info", `[PlayersOfMonth] Fetching data from API: ${apiUrl}`);
 			try {
-				const response = await fetch(apiUrl);
-				const data = await response.json();
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-data", { season: selectedSeason, month: monthToUse });
+				const data = await cachedFetch(apiUrl, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
 				
 				if (data.players) {
 					log("info", `[PlayersOfMonth] Received ${data.players.length} players for ${monthToUse} ${selectedSeason}: [${data.players.map((p: Player) => p.playerName).join(", ")}]`);
@@ -388,6 +406,76 @@ export default function PlayersOfMonth() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [selectedSeason, selectedMonth, months, isMonthValidating]);
 
+	// Priority 1: Above fold on mobile - Top 5 Players section (loaded via month data fetch above)
+
+	// Priority 2: Above fold on desktop - This Month FTP Ranking section
+	// Fetch month rankings when season and month change
+	useEffect(() => {
+		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
+			setMonthRankings([]);
+			return;
+		}
+
+		const fetchMonthRankings = async () => {
+			setLoadingMonthRankings(true);
+			try {
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "month-rankings", { 
+					season: selectedSeason, 
+					month: selectedMonth,
+					playerName: selectedPlayer,
+				});
+				const data = await cachedFetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setMonthRankings(data.rankings || []);
+			} catch (error) {
+				log("error", "Error fetching month rankings:", error);
+				setMonthRankings([]);
+			} finally {
+				setLoadingMonthRankings(false);
+			}
+		};
+
+		fetchMonthRankings();
+	}, [selectedSeason, selectedMonth, selectedPlayer]);
+
+	// Priority 3: Below fold - This Season FTP Ranking section
+	// Fetch season rankings when season changes
+	useEffect(() => {
+		if (!selectedSeason || !selectedPlayer) {
+			setSeasonRankings([]);
+			return;
+		}
+
+		const fetchSeasonRankings = async () => {
+			setLoadingSeasonRankings(true);
+			try {
+				const cacheKey = generatePageCacheKey("totw", "players-of-month", "season-rankings", { 
+					season: selectedSeason,
+					playerName: selectedPlayer,
+				});
+				const data = await cachedFetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`, {
+					method: "GET",
+					cacheKey,
+					getCachedPageData,
+					setCachedPageData,
+				});
+				setSeasonRankings(data.rankings || []);
+			} catch (error) {
+				log("error", "Error fetching season rankings:", error);
+				setSeasonRankings([]);
+			} finally {
+				setLoadingSeasonRankings(false);
+			}
+		};
+
+		fetchSeasonRankings();
+	}, [selectedSeason, selectedPlayer]);
+
+	// Priority 3: Below fold - Player stats for expanded rows
 	// Fetch stats for all players when players list changes - check cache first
 	useEffect(() => {
 		const playerNames = players.map(p => p.playerName).join(", ");
@@ -435,18 +523,21 @@ export default function PlayersOfMonth() {
 			const newStats: Record<string, PlayerStats> = {};
 			
 			const statsPromises = players.map(async (player) => {
-				// Always fetch fresh stats from API (no caching)
 				const apiUrl = `/api/players-of-month/player-stats?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}&playerName=${encodeURIComponent(player.playerName)}`;
 				log("info", `[PlayersOfMonth] Fetching stats from API for ${player.playerName}: ${apiUrl}`);
 				
 				try {
-					const response = await fetch(apiUrl);
-					if (!response.ok) {
-						log("error", `[PlayersOfMonth] Failed to fetch stats for ${player.playerName}`);
-						return;
-					}
-
-					const data = await response.json();
+					const cacheKey = generatePageCacheKey("totw", "players-of-month", "player-stats", { 
+						season: selectedSeason, 
+						month: selectedMonth,
+						playerName: player.playerName,
+					});
+					const data = await cachedFetch(apiUrl, {
+						method: "GET",
+						cacheKey,
+						getCachedPageData,
+						setCachedPageData,
+					});
 					log("info", `[PlayersOfMonth] Received stats for ${player.playerName}: goals=${data.goals}, assists=${data.assists}, appearances=${data.appearances}`);
 					if (data.matchDetails) {
 						const stats: PlayerStats = {
@@ -467,7 +558,6 @@ export default function PlayersOfMonth() {
 						};
 
 						newStats[player.playerName] = stats;
-						// No caching - always fetch fresh stats
 					}
 				} catch (error) {
 					log("error", `[PlayersOfMonth] Error fetching stats for ${player.playerName}:`, error);
@@ -549,64 +639,6 @@ export default function PlayersOfMonth() {
 			setLoadingStats(true);
 		}
 	}, [playerStats, players, selectedSeason, selectedMonth, isFetchingMonthData, isMonthValidating]);
-
-	// Fetch month rankings when season and month change
-	useEffect(() => {
-		if (!selectedSeason || !selectedMonth || !selectedPlayer) {
-			setMonthRankings([]);
-			return;
-		}
-
-		const fetchMonthRankings = async () => {
-			setLoadingMonthRankings(true);
-			try {
-				const response = await fetch(`/api/players-of-month/month-rankings?season=${encodeURIComponent(selectedSeason)}&month=${encodeURIComponent(selectedMonth)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setMonthRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch month rankings");
-					setMonthRankings([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching month rankings:", error);
-				setMonthRankings([]);
-			} finally {
-				setLoadingMonthRankings(false);
-			}
-		};
-
-		fetchMonthRankings();
-	}, [selectedSeason, selectedMonth, selectedPlayer]);
-
-	// Fetch season rankings when season changes
-	useEffect(() => {
-		if (!selectedSeason || !selectedPlayer) {
-			setSeasonRankings([]);
-			return;
-		}
-
-		const fetchSeasonRankings = async () => {
-			setLoadingSeasonRankings(true);
-			try {
-				const response = await fetch(`/api/players-of-month/season-rankings?season=${encodeURIComponent(selectedSeason)}`);
-				if (response.ok) {
-					const data = await response.json();
-					setSeasonRankings(data.rankings || []);
-				} else {
-					log("error", "Failed to fetch season rankings");
-					setSeasonRankings([]);
-				}
-			} catch (error) {
-				log("error", "Error fetching season rankings:", error);
-				setSeasonRankings([]);
-			} finally {
-				setLoadingSeasonRankings(false);
-			}
-		};
-
-		fetchSeasonRankings();
-	}, [selectedSeason, selectedPlayer]);
 
 	// Fetch player stats when row is expanded - check cache first
 	const handleRowExpand = async (playerName: string) => {
@@ -945,7 +977,7 @@ export default function PlayersOfMonth() {
 	const isInitialLoading = seasons.length === 0;
 
 	return (
-		<div className='flex flex-col p-2 md:p-4 relative'>
+		<div className='flex flex-col p-2 md:p-4 relative md:max-w-2xl md:mx-auto w-full'>
 			{/* Header */}
 			<div className='text-center mb-3'>
 				<h1 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-1'>Players of the Month</h1>
@@ -962,7 +994,23 @@ export default function PlayersOfMonth() {
 							<Skeleton height={36} width="100%" className="rounded-md" />
 						</div>
 					</div>
-					<PlayersTableSkeleton />
+					{/* This Months Top Players Section Skeleton */}
+					<div className='mt-8 mb-8'>
+						<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+							<div className='mb-4'>
+								<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+									<Skeleton height={24} width="60%" />
+								</h2>
+							</div>
+							<PlayersTableSkeleton />
+						</div>
+					</div>
+					{/* This Month FTP Ranking Section Skeleton */}
+					<div className='mt-8'>
+						<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+							<RankingTableSkeleton />
+						</div>
+					</div>
 				</SkeletonTheme>
 			)}
 
@@ -1060,14 +1108,37 @@ export default function PlayersOfMonth() {
 			{!isInitialLoading && (loading || loadingStats || appConfig.forceSkeletonView) && (
 				<div data-testid="loading-skeleton">
 					<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-						<PlayersTableSkeleton />
+						{/* This Months Top Players Section Skeleton */}
+						<div className='mt-8 mb-8'>
+							<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+								<div className='mb-4'>
+									<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+										<Skeleton height={24} width="60%" />
+									</h2>
+								</div>
+								<PlayersTableSkeleton />
+							</div>
+						</div>
+						{/* This Month FTP Ranking Section Skeleton */}
+						<div className='mt-8'>
+							<div className='bg-white/10 rounded-lg p-4 md:p-6'>
+								<RankingTableSkeleton />
+							</div>
+						</div>
 					</SkeletonTheme>
 				</div>
 			)}
 
 			{/* Players Table */}
 			{!loading && !loadingStats && players.length > 0 && (
-				<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+				<div>
+					
+					<div className='bg-white/10 backdrop-blur-sm rounded-lg p-2 md:p-4'>
+					<div className='mb-4'>
+						<h2 className='text-lg md:text-xl font-bold text-dorkinians-yellow mb-1'>
+							This Months Top Players
+						</h2>
+					</div>
 					<div className='overflow-x-auto'>
 						<table className='w-full text-white'>
 						<thead>
@@ -1240,6 +1311,7 @@ export default function PlayersOfMonth() {
 							})}
 						</tbody>
 					</table>
+					</div>
 					</div>
 				</div>
 			)}

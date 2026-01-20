@@ -1,5 +1,9 @@
 import { appConfig } from "@/config/config";
 
+// NOTE: This service is still actively used by the UpdateToast component on the main page (app/page.tsx)
+// for automatic update notifications. Only the manual "Check for Updates" section on the Settings page
+// has been disabled. The checkForUpdates() method is still called by UpdateToast component.
+
 export interface UpdateInfo {
 	isUpdateAvailable: boolean;
 	version?: string;
@@ -63,6 +67,8 @@ class PWAUpdateService {
 		}
 	}
 
+	// NOTE: This method is still used by UpdateToast component on the main page for automatic update detection
+	// The manual "Check for Updates" button on Settings page has been disabled, but this method remains active
 	public checkForUpdates(): Promise<UpdateInfo> {
 		return new Promise((resolve) => {
 			// Only run on client side
@@ -78,7 +84,8 @@ class PWAUpdateService {
 				}
 
 				try {
-					// Check if there's a waiting service worker
+					// First, check if there's already a waiting service worker (from previous update)
+					// This is the primary check - we want to detect updates that are already waiting
 					if (registration.waiting) {
 						this.updateAvailable = true;
 						resolve({
@@ -91,9 +98,21 @@ class PWAUpdateService {
 
 					// Track if we've already resolved to avoid multiple resolutions
 					let resolved = false;
+					let updateCheckTimeout: ReturnType<typeof setTimeout> | null = null;
+					let updateFoundHandler: (() => void) | null = null;
+					
 					const resolveOnce = (info: UpdateInfo) => {
 						if (!resolved) {
 							resolved = true;
+							// Clean up listeners and timeouts
+							if (updateCheckTimeout) {
+								clearTimeout(updateCheckTimeout);
+								updateCheckTimeout = null;
+							}
+							if (updateFoundHandler) {
+								registration.removeEventListener("updatefound", updateFoundHandler);
+								updateFoundHandler = null;
+							}
 							resolve(info);
 						}
 					};
@@ -139,27 +158,28 @@ class PWAUpdateService {
 						}
 					}
 
-					// Force update check
-					registration.update().then(() => {
+					// Only trigger a new update check if there's no waiting or installing worker
+					// This prevents automatic activation when user just wants to check for existing updates
+					// Note: registration.update() will check for new service worker versions but won't
+					// activate them automatically (skipWaiting: false in next.config.js)
+					
+					// Set up updatefound listener BEFORE calling registration.update()
+					// This ensures we catch the event when a new service worker is found
+					updateFoundHandler = () => {
 						try {
-							// Check immediately after update
-							if (registration.waiting) {
-								this.updateAvailable = true;
-								resolveOnce({
-									isUpdateAvailable: true,
-									version: appConfig.version,
-									releaseNotes: "Bug fixes and performance improvements",
-								});
+							const installingWorker = registration.installing;
+							if (!installingWorker) {
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
 								return;
 							}
 
-							// If there's an installing worker, wait for it
-							if (registration.installing) {
-							const installingWorker = registration.installing;
-							
+							// Wait for the installing worker to reach "installed" state
 							const stateChangeHandler = () => {
 								try {
 									if (installingWorker?.state === "installed" && navigator.serviceWorker?.controller) {
+										// Worker is now waiting - update available!
 										this.updateAvailable = true;
 										resolveOnce({
 											isUpdateAvailable: true,
@@ -167,7 +187,7 @@ class PWAUpdateService {
 											releaseNotes: "Bug fixes and performance improvements",
 										});
 									} else if (installingWorker?.state === "activated") {
-										// No update available
+										// Worker activated immediately (no update needed, or first install)
 										if (!resolved) {
 											resolveOnce({ isUpdateAvailable: false });
 										}
@@ -177,13 +197,23 @@ class PWAUpdateService {
 								}
 							};
 
-							if (installingWorker) {
-								installingWorker.addEventListener("statechange", stateChangeHandler);
+							// Check current state in case it's already installed
+							if (installingWorker.state === "installed" && navigator.serviceWorker?.controller) {
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+								return;
 							}
-						
-							// Set a timeout to check periodically (in case statechange doesn't fire)
+
+							// Listen for state changes
+							installingWorker.addEventListener("statechange", stateChangeHandler);
+
+							// Also poll periodically as a fallback (in case statechange doesn't fire)
 							let checkCount = 0;
-							const maxChecks = 10; // Check up to 10 times (5 seconds total)
+							const maxChecks = 20; // Check up to 20 times (10 seconds total)
 							const checkInterval = setInterval(() => {
 								try {
 									checkCount++;
@@ -196,7 +226,15 @@ class PWAUpdateService {
 											version: appConfig.version,
 											releaseNotes: "Bug fixes and performance improvements",
 										});
-									} else if (checkCount >= maxChecks || !registration.installing) {
+									} else if (installingWorker?.state === "installed" && navigator.serviceWorker?.controller) {
+										clearInterval(checkInterval);
+										this.updateAvailable = true;
+										resolveOnce({
+											isUpdateAvailable: true,
+											version: appConfig.version,
+											releaseNotes: "Bug fixes and performance improvements",
+										});
+									} else if (installingWorker?.state === "activated" || checkCount >= maxChecks) {
 										clearInterval(checkInterval);
 										if (!resolved) {
 											resolveOnce({ isUpdateAvailable: false });
@@ -210,87 +248,70 @@ class PWAUpdateService {
 									}
 								}
 							}, 500);
-							
-							// Also set a final timeout as fallback
-							setTimeout(() => {
-								try {
-									clearInterval(checkInterval);
-									if (registration.waiting) {
-										this.updateAvailable = true;
-										resolveOnce({
-											isUpdateAvailable: true,
-											version: appConfig.version,
-											releaseNotes: "Bug fixes and performance improvements",
-										});
-									} else if (!resolved) {
-										resolveOnce({ isUpdateAvailable: false });
-									}
-								} catch (error) {
-									console.error("[PWAUpdateService] Error in final timeout:", error);
-									if (!resolved) {
-										resolveOnce({ isUpdateAvailable: false });
-									}
-								}
-							}, 5000);
-						} else {
-							// No installing worker, check periodically for a short time
-							let checkCount = 0;
-							const maxChecks = 6; // Check up to 6 times (3 seconds total)
-							const checkInterval = setInterval(() => {
-								try {
-									checkCount++;
-									
-									if (registration.waiting) {
-										clearInterval(checkInterval);
-										this.updateAvailable = true;
-										resolveOnce({
-											isUpdateAvailable: true,
-											version: appConfig.version,
-											releaseNotes: "Bug fixes and performance improvements",
-										});
-									} else if (checkCount >= maxChecks) {
-										clearInterval(checkInterval);
-										if (!resolved) {
-											resolveOnce({ isUpdateAvailable: false });
-										}
-									}
-								} catch (error) {
-									console.error("[PWAUpdateService] Error in checkInterval:", error);
-									clearInterval(checkInterval);
-									if (!resolved) {
-										resolveOnce({ isUpdateAvailable: false });
-									}
-								}
-							}, 500);
-							
-							// Final timeout as fallback
-							setTimeout(() => {
-								try {
-									clearInterval(checkInterval);
-									if (!resolved) {
-										resolveOnce({ isUpdateAvailable: false });
-									}
-								} catch (error) {
-									console.error("[PWAUpdateService] Error in final timeout:", error);
-									if (!resolved) {
-										resolveOnce({ isUpdateAvailable: false });
-									}
-								}
-							}, 3000);
-							}
 						} catch (error) {
-							console.error("[PWAUpdateService] Error in update check:", error);
+							console.error("[PWAUpdateService] Error in updatefound handler:", error);
 							if (!resolved) {
 								resolveOnce({ isUpdateAvailable: false });
 							}
 						}
-					}).catch((error) => {
-						// If update check fails, resolve with no update
-						console.error("[PWAUpdateService] Error in registration.update():", error);
-						if (!resolved) {
-							resolveOnce({ isUpdateAvailable: false });
+					};
+
+					// Add the listener BEFORE calling update()
+					registration.addEventListener("updatefound", updateFoundHandler);
+
+					// Force a fresh fetch of the service worker file to bypass browser cache
+					// This ensures we detect updates even if the browser has cached the SW file
+					const swUrl = new URL("/sw.js", window.location.origin);
+					swUrl.searchParams.set("_", Date.now().toString()); // Cache-busting parameter
+					
+					// Fetch the service worker file directly to force a fresh check
+					fetch(swUrl.toString(), { cache: "no-store" })
+						.catch(() => {
+							// Ignore fetch errors - registration.update() will still work
+						})
+						.finally(() => {
+							// After fetching, trigger the update check
+							registration.update().catch((error) => {
+								console.error("[PWAUpdateService] Error in registration.update():", error);
+								// Remove listener on error
+								if (updateFoundHandler) {
+									registration.removeEventListener("updatefound", updateFoundHandler);
+								}
+								if (!resolved) {
+									resolveOnce({ isUpdateAvailable: false });
+								}
+							});
+						});
+
+					// Set a timeout to resolve if no update is found within reasonable time
+					// This handles the case where registration.update() completes but no updatefound event fires
+					updateCheckTimeout = setTimeout(() => {
+						try {
+							// Check if a waiting worker appeared
+							if (registration.waiting) {
+								this.updateAvailable = true;
+								resolveOnce({
+									isUpdateAvailable: true,
+									version: appConfig.version,
+									releaseNotes: "Bug fixes and performance improvements",
+								});
+							} else if (!resolved) {
+								// No update found - remove listener and resolve
+								if (updateFoundHandler) {
+									registration.removeEventListener("updatefound", updateFoundHandler);
+								}
+								resolveOnce({ isUpdateAvailable: false });
+							}
+						} catch (error) {
+							console.error("[PWAUpdateService] Error in update check timeout:", error);
+							if (updateFoundHandler) {
+								registration.removeEventListener("updatefound", updateFoundHandler);
+							}
+							if (!resolved) {
+								resolveOnce({ isUpdateAvailable: false });
+							}
 						}
-					});
+					}, 10000); // 10 second timeout for update check
 				} catch (error) {
 					console.error("[PWAUpdateService] Error in update check:", error);
 					resolve({ isUpdateAvailable: false });
@@ -329,6 +350,8 @@ class PWAUpdateService {
 		try {
 			const registration = await navigator.serviceWorker.getRegistration();
 			if (registration?.waiting) {
+				// Store the update date before reloading
+				this.setLastUpdateDate(new Date());
 				// Send message to waiting service worker to skip waiting
 				if (registration.waiting.postMessage) {
 					registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -340,6 +363,41 @@ class PWAUpdateService {
 			}
 		} catch (error) {
 			console.error("[PWAUpdateService] Error activating update:", error);
+		}
+	}
+
+	// NOTE: This method was only used by the manual "Check for Updates" section on Settings page (now disabled)
+	// It's kept here for potential future re-enablement. Currently not called by any active code.
+	public getLastUpdateDate(): Date | null {
+		// Only run on client side
+		if (typeof window === "undefined") {
+			return null;
+		}
+
+		try {
+			const dateString = localStorage.getItem("dorkinians-last-update-date");
+			if (!dateString) {
+				return null;
+			}
+			return new Date(dateString);
+		} catch (error) {
+			console.error("[PWAUpdateService] Error getting last update date:", error);
+			return null;
+		}
+	}
+
+	// NOTE: This method was only used by the manual "Check for Updates" section on Settings page (now disabled)
+	// It's kept here for potential future re-enablement. Currently only called internally by activateUpdate().
+	private setLastUpdateDate(date: Date): void {
+		// Only run on client side
+		if (typeof window === "undefined") {
+			return;
+		}
+
+		try {
+			localStorage.setItem("dorkinians-last-update-date", date.toISOString());
+		} catch (error) {
+			console.error("[PWAUpdateService] Error setting last update date:", error);
 		}
 	}
 }
