@@ -12,6 +12,7 @@ export interface ChatbotResponse {
 	sources: string[];
 	cypherQuery?: string;
 	answerValue?: number | string | null;
+	suggestions?: string[]; // Suggested similar questions when chatbot fails
 	debug?: {
 		question?: string;
 		userContext?: string;

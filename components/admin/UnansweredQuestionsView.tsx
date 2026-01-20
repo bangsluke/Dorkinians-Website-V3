@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { LoadingState, ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 
 interface UnansweredQuestion {
 	id: string;
@@ -26,6 +28,7 @@ export default function UnansweredQuestionsView() {
 	const [questions, setQuestions] = useState<UnansweredQuestion[]>([]);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const { showError } = useToast();
 	const [filters, setFilters] = useState({
 		handled: undefined as boolean | undefined,
 		confidenceMin: undefined as number | undefined,
@@ -177,19 +180,26 @@ export default function UnansweredQuestionsView() {
 
 			{/* Error Display */}
 			{error && (
-				<div className='mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-600'>
-					{error}
-				</div>
+				<ErrorState 
+					message="Failed to load questions" 
+					error={error}
+					onShowToast={showError}
+					showToast={true}
+					onRetry={fetchQuestions}
+				/>
 			)}
 
 			{/* Loading State */}
-			{loading && <div className='text-center py-4'>Loading...</div>}
+			{loading && <LoadingState message="Loading questions..." variant="spinner" />}
 
 			{/* Questions List */}
-			{!loading && (
+			{!loading && !error && (
 				<div className='space-y-4'>
 					{questions.length === 0 ? (
-						<div className='text-center py-8 text-gray-500'>No unanswered questions found.</div>
+						<EmptyState 
+							title="No unanswered questions"
+							message="All questions have been answered or no questions match the current filters."
+						/>
 					) : (
 						questions.map((question) => {
 							const playerName = question.playerName || question.userContext || "Blank";

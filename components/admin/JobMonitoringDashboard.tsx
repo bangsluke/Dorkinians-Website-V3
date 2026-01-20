@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { killJob as killJobUtil } from '../lib/jobUtils';
+import { killJob as killJobUtil } from '@/lib/jobUtils';
 
 interface JobAnalysis {
   jobId: string;

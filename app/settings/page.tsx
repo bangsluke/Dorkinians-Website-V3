@@ -23,7 +23,7 @@ import DataPrivacyModal from "@/components/modals/DataPrivacyModal";
 // Dynamically import PWA components to avoid SSR issues
 // [COMMENTED OUT: Check for Updates Section] - UpdateToast import disabled as it's only used for manual check on Settings page
 // const UpdateToast = dynamic(() => import("@/components/UpdateToast"), { ssr: false });
-const PWAInstallButton = dynamic(() => import("@/components/PWAInstallButton"), { ssr: false });
+const PWAInstallButton = dynamic(() => import("@/components/admin/PWAInstallButton"), { ssr: false });
 
 const navigationItems = [
 	{
@@ -275,20 +275,22 @@ export default function SettingsPage() {
 							href={appConfig.documentationUrl}
 							target='_blank'
 							rel='noopener noreferrer'
-							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 flex items-center space-x-3'
+							className='w-full p-4 rounded-lg bg-white/10 hover:bg-white/20 transition-all duration-200 text-left block'
 							whileHover={{ scale: 1.02 }}
 							whileTap={{ scale: 0.98 }}>
-							<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
-								<BookOpenIcon className='w-5 h-5 text-dorkinians-yellow' />
-							</div>
-							<div className='flex-1'>
-								<h3 className='text-sm font-semibold text-white'>Help</h3>
-								<p className='text-xs text-yellow-100/70'>Complete user guide and documentation</p>
-							</div>
-							<div className='text-dorkinians-yellow'>
-								<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
-									<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
-								</svg>
+							<div className='flex items-center space-x-3'>
+								<div className='p-2 rounded-full bg-dorkinians-yellow/20'>
+									<BookOpenIcon className='w-5 h-5 text-dorkinians-yellow' />
+								</div>
+								<div className='flex-1'>
+									<h3 className='text-lg font-semibold text-white mb-1'>Help</h3>
+									<p className='text-sm text-gray-300'>Complete user guide and documentation</p>
+								</div>
+								<div className='text-dorkinians-yellow'>
+									<svg className='w-4 h-4' fill='none' stroke='currentColor' viewBox='0 0 24 24'>
+										<path strokeLinecap='round' strokeLinejoin='round' strokeWidth={2} d='M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14' />
+									</svg>
+								</div>
 							</div>
 						</motion.a>
 					</div>

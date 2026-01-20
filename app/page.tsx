@@ -3,19 +3,21 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import Header from "@/components/Header";
+import Header from "@/components/layout/Header";
 import FilterSidebar from "@/components/filters/FilterSidebar";
 import StatsNavigationMenu from "@/components/stats/StatsNavigationMenu";
-import FooterNavigation from "@/components/FooterNavigation";
-import SidebarNavigation from "@/components/SidebarNavigation";
-import StatsContainer from "@/components/StatsContainer";
-import TOTWContainer from "@/components/TOTWContainer";
-import ClubInfoContainer from "@/components/ClubInfoContainer";
+import FooterNavigation from "@/components/layout/FooterNavigation";
+import SidebarNavigation from "@/components/layout/SidebarNavigation";
+import StatsContainer from "@/components/stats/StatsContainer";
+import TOTWContainer from "@/components/totw/TOTWContainer";
+import ClubInfoContainer from "@/components/club-info/ClubInfoContainer";
 import Settings from "@/components/pages/Settings";
-import ChatbotInterface from "@/components/ChatbotInterface";
+import ChatbotInterface from "@/components/chatbot/ChatbotInterface";
 import PlayerSelection from "@/components/PlayerSelection";
-import UpdateToast from "@/components/UpdateToast";
-import DevClearStorageFAB from "@/components/DevClearStorageFAB";
+import UpdateToast from "@/components/admin/UpdateToast";
+import DevClearStorageFAB from "@/components/admin/DevClearStorageFAB";
+import ToastContainer from "@/components/ui/ToastContainer";
+import { useToast } from "@/lib/hooks/useToast";
 import { initializeCurrentSeason, getCurrentSeasonFromStorage } from "@/lib/services/currentSeasonService";
 import { preloadCaptainsData } from "@/lib/services/captainsPreloadService";
 import { log } from "@/lib/utils/logger";
@@ -42,6 +44,7 @@ export default function HomePage() {
 	const [showUpdateToast, setShowUpdateToast] = useState(true);
 	const [recentPlayers, setRecentPlayers] = useState<string[]>([]);
 	const [showStatsMenu, setShowStatsMenu] = useState(false);
+	const { toasts, dismissToast, showSuccess } = useToast();
 
 	// Initialize from localStorage and load filter data after mount
 	useEffect(() => {
@@ -357,7 +360,7 @@ export default function HomePage() {
 				<FooterNavigation />
 
 				{/* Filter Sidebar */}
-				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} />
+				<FilterSidebar isOpen={isFilterSidebarOpen} onClose={closeFilterSidebar} onSuccess={showSuccess} />
 				
 				{/* Stats Navigation Menu */}
 				<StatsNavigationMenu isOpen={showStatsMenu} onClose={() => setShowStatsMenu(false)} />
@@ -365,6 +368,9 @@ export default function HomePage() {
 
 			{/* Update Toast */}
 			{showUpdateToast && <UpdateToast onClose={() => setShowUpdateToast(false)} />}
+
+			{/* Toast Notifications */}
+			<ToastContainer toasts={toasts} onDismiss={dismissToast} />
 
 			{/* Development Clear Storage FAB */}
 			<DevClearStorageFAB />

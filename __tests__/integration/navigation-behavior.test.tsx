@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { act } from "react-dom/test-utils";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import StatsContainer from "@/components/StatsContainer";
+import StatsContainer from "@/components/stats/StatsContainer";
 import PlayerStats from "@/components/stats/PlayerStats";
 import Comparison from "@/components/stats/Comparison";
 
