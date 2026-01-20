@@ -168,6 +168,7 @@ export const allExampleQuestions: string[] = [
 	"How many games have I done for the 4s now?",
 	"What's the most goals we've scored in a game when I was playing?",
 	"How many goals did I get last season?",
+	"Which team have I kept the most clean sheets against?"
 ];
 
 export const usefulLinks: UsefulLink[] = [
