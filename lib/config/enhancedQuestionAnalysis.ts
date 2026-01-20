@@ -845,6 +845,16 @@ export class EnhancedQuestionAnalyzer {
 		const hasMultipleEntities = extractionResult.entities.length > 1;
 		const hasTimeFrames = extractionResult.timeFrames.length > 0;
 
+		// Check for count questions about team of the season for a player - must be checked BEFORE general season_totw check
+		const isSeasonTOTWCountQuestion = 
+			(lowerQuestion.includes("how many times") || lowerQuestion.includes("how many")) &&
+			(lowerQuestion.includes("team of the season") || lowerQuestion.includes("tots")) &&
+			(hasPlayerEntities || lowerQuestion.includes("i") || lowerQuestion.includes("i've") || lowerQuestion.includes("have i") || lowerQuestion.includes("has") || lowerQuestion.includes("been in"));
+
+		if (isSeasonTOTWCountQuestion) {
+			return "player";
+		}
+
 		// Check for team of the season (TOTS) queries - must be checked early to avoid misclassification
 		if (
 			(lowerQuestion.includes("team of the season") || 

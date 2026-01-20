@@ -719,6 +719,21 @@ export class ChatbotService {
 				}
 			}
 
+			// Check if this is a SeasonTOTW count question (e.g., "How many times have I been the team of the season?")
+			const isSeasonTOTWCountQuestion = type === "player" && 
+				(question.includes("how many times") || question.includes("how many")) &&
+				(question.includes("team of the season") || question.includes("tots")) &&
+				!(question.includes("weekly") || question.includes("week"));
+
+			if (isSeasonTOTWCountQuestion) {
+				// Use entities first, fallback to userContext
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected SeasonTOTW count question for player: ${playerName}`);
+					return await AwardsQueryHandler.queryPlayerTOTWData(playerName, "season", question);
+				}
+			}
+
 			// Check for historical award queries
 			const isHistoricalAwardQuestion = 
 				(question.includes("who won") && question.includes("award")) ||
@@ -4860,7 +4875,7 @@ export class ChatbotService {
 			const playerName = (data.playerName as string) || "You";
 			const count = (data.count as number) || 0;
 			const period = (data.period as string) || "weekly";
-			const periodLabel = period === "weekly" ? "Team of the Week" : "Season Team of the Week";
+			const periodLabel = period === "weekly" ? "Team of the Week" : "Team of the Season";
 			
 			if (count === 0) {
 				answer = `${playerName} have not been in ${periodLabel}.`;
