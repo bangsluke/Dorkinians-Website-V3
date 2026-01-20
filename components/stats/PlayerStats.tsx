@@ -26,6 +26,9 @@ import Skeleton, { SkeletonTheme } from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { ChartSkeleton, TableSkeleton, StatCardSkeleton, AwardsListSkeleton, DataTableSkeleton } from "@/components/skeletons";
 import { log } from "@/lib/utils/logger";
+import Button from "@/components/ui/Button";
+import { ErrorState, EmptyState } from "@/components/ui/StateComponents";
+import { useToast } from "@/lib/hooks/useToast";
 
 // Page-specific skeleton components (Player Stats only)
 function PositionalStatsSkeleton() {
@@ -215,9 +218,10 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 
 	const handleMouseEnter = () => {
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-mouse (300ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
-		}, 1000);
+		}, 300);
 	};
 
 	const handleMouseLeave = () => {
@@ -235,6 +239,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 			timeoutRef.current = null;
 		}
 		updateTooltipPosition();
+		// Use animation token: --delay-tooltip-touch (500ms)
 		timeoutRef.current = setTimeout(() => {
 			setShowTooltip(true);
 		}, 500);
@@ -258,7 +263,7 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 				onMouseLeave={handleMouseLeave}
 				onTouchStart={handleTouchStart}
 				onTouchEnd={handleTouchEnd}>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<div className='flex items-center justify-center w-6 h-6 md:w-8 md:h-8'>
 						<Image
 							src={`/stat-icons/${stat.iconName}.svg`}
@@ -269,10 +274,10 @@ function StatRow({ stat, value, playerData }: { stat: any; value: any; playerDat
 						/>
 					</div>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3'>
+				<td className='px-3 md:px-4 py-2 md:py-3'>
 					<span className='text-white font-medium text-xs md:text-sm'>{stat.displayText}</span>
 				</td>
-				<td className='px-2 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
+				<td className='px-3 md:px-4 py-2 md:py-3 text-right whitespace-nowrap'>
 					<span className='text-white font-mono text-xs md:text-sm'>
 						{(() => {
 							const formatted = formatStatValue(value, stat.statFormat, stat.numberDecimalPlaces, (stat as any).statUnit);
@@ -739,7 +744,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{scored > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-green-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-success)] mr-2'></span>
 									Penalties Scored
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{scored}</td>
@@ -748,7 +753,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{missed > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-red-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-error)] mr-2'></span>
 									Penalties Missed
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{missed}</td>
@@ -757,7 +762,7 @@ function PenaltyStatsVisualization({ scored, missed, saved, conceded, penaltySho
 						{saved > 0 && (
 							<tr className='border-b border-white/10'>
 								<td className='py-1 px-2'>
-									<span className='inline-block w-3 h-3 rounded-full bg-blue-500 mr-2'></span>
+									<span className='inline-block w-3 h-3 rounded-full bg-[var(--color-info)] mr-2'></span>
 									Penalties Saved
 								</td>
 								<td className='text-right py-1 px-2 font-mono'>{saved}</td>
@@ -1584,6 +1589,8 @@ function PositionalStatsVisualization({ gk, def, mid, fwd, appearances, gkMinute
 
 export default function PlayerStats() {
 	const { selectedPlayer, cachedPlayerData, isLoadingPlayerData, enterEditMode, setMainPage, currentStatsSubPage, playerFilters, filterData, getCachedPageData, setCachedPageData } = useNavigationStore();
+	const { showError } = useToast();
+	const [error, setError] = useState<string | null>(null);
 	
 	// State for seasonal and team performance charts
 	const [seasonalSelectedStat, setSeasonalSelectedStat] = useState<string>("Apps");
@@ -2280,13 +2287,37 @@ export default function PlayerStats() {
 		);
 	}
 
+	if (error) {
+		return (
+			<div className='h-full flex items-center justify-center p-4'>
+				<ErrorState 
+					message="Failed to load player stats" 
+					error={error}
+					onShowToast={showError}
+					showToast={true}
+					onRetry={() => {
+						setError(null);
+						// Data will refresh automatically when selectedPlayer changes
+					}}
+				/>
+			</div>
+		);
+	}
+
 	if (!cachedPlayerData || !playerData) {
 		return (
 			<div className='h-full flex items-center justify-center p-4'>
-				<div className='text-center'>
-					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-2 md:mb-4'>Stats</h2>
-					<p className='text-white text-sm md:text-base'>No player data available. Please try selecting the player again.</p>
-				</div>
+				<EmptyState 
+					title="No player data available"
+					message="Please select a player to view their statistics."
+					action={selectedPlayer ? undefined : {
+						label: "Select Player",
+						onClick: () => {
+							enterEditMode();
+							setMainPage("stats");
+						}
+					}}
+				/>
 			</div>
 		);
 	}
@@ -2684,7 +2715,9 @@ export default function PlayerStats() {
 					{/* Skeleton - shown while loading or icons not loaded */}
 					{(isLoadingPlayerData || !allIconsLoaded) && (
 						<div className='absolute inset-0 z-10 bg-transparent'>
-							<StatCardSkeleton />
+							<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+								<StatCardSkeleton />
+							</SkeletonTheme>
 						</div>
 					)}
 					{/* Actual content - always rendered so images can load */}
@@ -3560,19 +3593,22 @@ export default function PlayerStats() {
 			<div className='flex-shrink-0 p-2 md:p-4'>
 				<div className='flex items-center justify-center mb-2 md:mb-4 relative'>
 					<h2 className='text-xl md:text-2xl font-bold text-dorkinians-yellow text-center' data-testid="stats-page-heading">Stats - {selectedPlayer}</h2>
-					<button
+					<Button
+						variant="icon"
+						size="sm"
 						onClick={handleEditClick}
-						className='absolute right-0 flex items-center justify-center w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10 rounded-full transition-colors'
-						title='Edit player selection'>
-						<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />
-					</button>
+						title='Edit player selection'
+						className='absolute right-0 w-8 h-8 text-yellow-300 hover:text-yellow-200 hover:bg-yellow-400/10'
+						icon={<PenOnPaperIcon className='h-4 w-4 md:h-5 md:w-5' />} />
 				</div>
 				<div className='flex justify-center mb-2 md:mb-4'>
-					<button
+					<Button
+						variant="ghost"
+						size="sm"
 						onClick={() => setIsDataTableMode(!isDataTableMode)}
-						className='text-white underline hover:text-white/80 text-sm md:text-base cursor-pointer'>
+						className='underline'>
 						{isDataTableMode ? "Switch to data visualisation" : "Switch to data table"}
-					</button>
+					</Button>
 				</div>
 				<FilterPills playerFilters={playerFilters} filterData={filterData} currentStatsSubPage={currentStatsSubPage} />
 			</div>

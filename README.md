@@ -791,6 +791,15 @@ For development guidelines and best practices:
 
 See: [ENGINEERING_DOCTRINE.md](./docs/ENGINEERING_DOCTRINE.md)
 
+For design system and component usage:
+
+- Design tokens (colors, typography, spacing, animation)
+- UI component usage (Button, Input, State components, Toast)
+- State patterns (loading, error, empty states)
+- Animation guidelines and timing standards
+
+See: [Additional_Details.md](./docs/Additional_Details.md#design-system--component-usage)
+
 For user-facing documentation and guides:
 
 - Complete user guide for all app features

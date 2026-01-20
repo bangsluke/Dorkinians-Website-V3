@@ -1,6 +1,3 @@
----
-alwaysApply: true
----
 # Engineering Doctrine - V3 Dorkinians Website
 
 ## Table of Contents
@@ -29,20 +26,11 @@ alwaysApply: true
 - [Build \& Development Workflow](#build--development-workflow)
   - [TypeScript \& Build Safety](#typescript--build-safety)
   - [Component Architecture](#component-architecture)
-  - [TypeScript Path Aliases](#typescript-path-aliases)
-  - [Schema Synchronization Protocol](#schema-synchronization-protocol)
-- [Next.js App Router Patterns](#nextjs-app-router-patterns)
-  - [App Router File Structure](#app-router-file-structure)
-  - [Route Handlers](#route-handlers)
-  - [Metadata and Viewport Configuration](#metadata-and-viewport-configuration)
-  - [Server vs Client Components](#server-vs-client-components)
-  - [Next.js API Route Patterns](#nextjs-api-route-patterns)
-- [PWA Configuration](#pwa-configuration)
-  - [PWA Setup with next-pwa](#pwa-setup-with-next-pwa)
-  - [Service Worker Caching Strategies](#service-worker-caching-strategies)
-  - [PWA Manifest Configuration](#pwa-manifest-configuration)
-  - [PWA Update Notifications](#pwa-update-notifications)
-  - [Development vs Production PWA Behavior](#development-vs-production-pwa-behavior)
+- [Design System Integration](#design-system-integration)
+  - [Using Design Tokens](#using-design-tokens)
+  - [State Pattern Implementation](#state-pattern-implementation)
+  - [Animation Timing Standards](#animation-timing-standards)
+  - [Component Composition Patterns](#component-composition-patterns)
 - [Documentation Standards](#documentation-standards)
   - [Markdown Documentation Protocol](#markdown-documentation-protocol)
   - [Documentation Integration Protocol](#documentation-integration-protocol)
@@ -58,12 +46,6 @@ alwaysApply: true
   - [Iterative Correction Protocol](#iterative-correction-protocol)
   - [Documentation Verification Protocol](#documentation-verification-protocol)
 - [Testing \& Data Validation](#testing--data-validation)
-  - [Jest Configuration with ts-jest](#jest-configuration-with-ts-jest)
-  - [Test File Structure](#test-file-structure)
-  - [Production Database Testing](#production-database-testing)
-  - [Test Utilities and Helpers](#test-utilities-and-helpers)
-  - [Test Coverage Configuration](#test-coverage-configuration)
-  - [Test Output and Reporting](#test-output-and-reporting)
   - [Data Source Integrity Protocol](#data-source-integrity-protocol)
   - [Data Structure Verification Protocol](#data-structure-verification-protocol)
   - [Test Failure Logic Protocol](#test-failure-logic-protocol)
@@ -111,7 +93,7 @@ alwaysApply: true
   - [Progressive Development Protocol](#progressive-development-protocol)
   - [External Data Validation Protocol](#external-data-validation-protocol)
   - [Temporary File Management Protocol](#temporary-file-management-protocol)
-  - [Netlify Redirect Configuration Protocol](#netlify-redirect-configuration-protocol)
+  - [Netlify-Heroku Integration Protocol](#netlify-heroku-integration-protocol)
 - [Graph Database Operations](#graph-database-operations)
   - [Graph Data Safety Protocol](#graph-data-safety-protocol)
   - [Database Operations Protocol](#database-operations-protocol)
@@ -304,217 +286,73 @@ alwaysApply: true
 - **Rationale**: Makes components more testable and maintainable
 - **Implementation**: Use custom hooks for data fetching, Zustand for global state, and pure components for presentation
 
-### TypeScript Path Aliases
+## Design System Integration
 
-- **Rule**: Use TypeScript path aliases configured in tsconfig.json for consistent imports
-- **Rationale**: Path aliases improve code readability and make refactoring easier
+### Using Design Tokens
+
+- **Rule**: Always use CSS variable design tokens instead of hardcoded values
+- **Rationale**: Design tokens ensure consistency, enable theming, and simplify maintenance
 - **Implementation**:
-  - Use `@/` prefix for root-level imports (e.g., `@/components`, `@/lib`, `@/types`)
-  - Configure aliases in `tsconfig.json` under `compilerOptions.paths`
-  - Ensure Jest configuration includes matching `moduleNameMapper` for test imports
-- **Example**: `import { useNavigationStore } from '@/lib/stores/navigation'` instead of relative paths like `../../../lib/stores/navigation`
+  - Use `var(--color-primary)` instead of `#1C8841`
+  - Use `var(--duration-normal)` instead of `200ms`
+  - Use `var(--spacing-4)` for spacing values
+  - Reference `docs/component-usage-guide.md` for available tokens
+- **Example**: `transition: all var(--duration-normal) var(--ease-out)` instead of `transition: all 0.2s ease`
 
-### Schema Synchronization Protocol
+### State Pattern Implementation
 
-- **Rule**: Maintain schema consistency across repositories using the sync-config script
-- **Rationale**: Schema changes must be synchronized between `database-dorkinians` (master) and `V3-Dorkinians-Website` to ensure consistency
+- **Rule**: Use standardized state components (LoadingState, ErrorState, EmptyState) for all data-fetching components
+- **Rationale**: Consistent state patterns improve UX and reduce code duplication
 - **Implementation**:
-  - Master schema location: `database-dorkinians/config/schema.js`
-  - Master data sources: `database-dorkinians/config/dataSources.js`
-  - Run `npm run sync-config` from V3-Dorkinians-Website to sync schema files
-  - Always edit schema in the master location first, then sync
-  - Deploy both repositories after schema changes to maintain consistency
-- **Example**: Edit `database-dorkinians/config/schema.js` → run `npm run sync-config` in V3-Dorkinians-Website → deploy both repositories
-
-## Next.js App Router Patterns
-
-### App Router File Structure
-
-- **Rule**: Use Next.js 14 App Router with `app/` directory structure for routing and layouts
-- **Rationale**: App Router provides better performance, improved layouts, and server components by default
-- **Implementation**:
-  - Place route handlers in `app/api/*/route.ts` files
-  - Use `app/layout.tsx` for root layout with metadata and global providers
-  - Use nested `layout.tsx` files for shared layouts (e.g., `app/settings/layout.tsx`)
-  - Place page components in `page.tsx` files
-  - Use `error.tsx` for error boundaries at route level
-- **Example**: `app/api/chatbot/route.ts` for chatbot API, `app/page.tsx` for home page, `app/layout.tsx` for root layout
-
-### Route Handlers
-
-- **Rule**: Export named HTTP method functions (GET, POST, OPTIONS) from route.ts files
-- **Rationale**: Next.js App Router uses named exports to determine which HTTP methods are supported
-- **Implementation**:
-  - Export async functions named after HTTP methods: `export async function GET()`, `export async function POST()`, etc.
-  - Use `NextRequest` and `NextResponse` from `next/server` for type safety
-  - Handle OPTIONS requests for CORS preflight
-  - Return `NextResponse.json()` for JSON responses
+  - Import state components from `@/components/ui/StateComponents`
+  - Use `LoadingState` with spinner variant for actions, skeleton variant for content
+  - Use `ErrorState` with `onShowToast` callback to automatically show toast notifications
+  - Use `EmptyState` when no data is available
+  - Always provide retry functionality for error states when applicable
 - **Example**:
-  ```typescript
-  import { NextRequest, NextResponse } from 'next/server';
+  ```tsx
+  import { ErrorState } from "@/components/ui/StateComponents";
+  import { useToast } from "@/lib/hooks/useToast";
   
-  export async function OPTIONS() {
-    return new NextResponse(null, { status: 200, headers: corsHeaders });
-  }
+  const { showError } = useToast();
   
-  export async function POST(request: NextRequest) {
-    const body = await request.json();
-    return NextResponse.json({ data: body }, { headers: corsHeaders });
+  if (error) {
+    return (
+      <ErrorState
+        message="Failed to load data"
+        error={error}
+        onShowToast={showError}
+        showToast={true}
+        onRetry={handleRetry}
+      />
+    );
   }
   ```
 
-### Metadata and Viewport Configuration
+### Animation Timing Standards
 
-- **Rule**: Configure metadata and viewport in layout.tsx using Next.js metadata API
-- **Rationale**: Centralized metadata configuration improves SEO and PWA support
+- **Rule**: Use animation timing tokens for all animations and transitions
+- **Rationale**: Consistent timing creates a cohesive user experience
 - **Implementation**:
-  - Export `metadata` object with title, description, manifest, and PWA settings
-  - Export `viewport` object for responsive design configuration
-  - Use `appleWebApp` metadata for iOS PWA support
-  - Include startup images for different device sizes
-- **Example**:
-  ```typescript
-  export const metadata: Metadata = {
-    title: "Dorkinians FC Stats",
-    description: "Dorkinians FC Statistics and Chatbot - Mobile-first PWA",
-    manifest: "/manifest.json",
-    appleWebApp: { capable: true, statusBarStyle: "default" }
-  };
-  
-  export const viewport = {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 5
-  };
-  ```
+  - Use CSS variables for CSS transitions: `var(--duration-normal)`
+  - Use matching numeric values for Framer Motion: `duration: 0.2` (matches --duration-normal)
+  - Use `var(--delay-tooltip-mouse)` (300ms) and `var(--delay-tooltip-touch)` (500ms) for tooltip delays
+  - Reference `lib/constants/animations.ts` for TypeScript constants
+- **Example**: `transition={{ duration: 0.2 }}` in Framer Motion matches `var(--duration-normal)` in CSS
 
-### Server vs Client Components
+### Component Composition Patterns
 
-- **Rule**: Use Server Components by default, mark Client Components with "use client" directive only when needed
-- **Rationale**: Server Components reduce bundle size and improve performance by running on the server
+- **Rule**: Compose UI components from reusable building blocks
+- **Rationale**: Component composition reduces duplication and ensures consistency
 - **Implementation**:
-  - Default to Server Components (no directive needed)
-  - Add `"use client"` directive only for components using hooks, browser APIs, or event handlers
-  - Keep data fetching in Server Components when possible
-  - Use Client Components for interactive UI elements
-- **Example**: API routes and layouts are Server Components by default; components with useState/useEffect need "use client"
+  - Use Button component for all buttons (don't create custom button styles)
+  - Use Input component for all text inputs
+  - Use state components for loading/error/empty states
+  - Use ToastContainer and useToast hook for notifications
+  - Follow patterns established in `docs/component-usage-guide.md`
+- **Example**: Instead of creating custom error display, use `<ErrorState />` component
 
-### Next.js API Route Patterns
-
-- **Rule**: Implement consistent CORS handling, error responses, and request validation in API routes
-- **Rationale**: Standardized API patterns improve maintainability and security
-- **Implementation**:
-  - Define `corsHeaders` object with CORS configuration for reuse
-  - Always handle OPTIONS requests for CORS preflight
-  - Validate request body and parameters before processing
-  - Return structured error responses with appropriate status codes
-  - Use try-catch blocks with user-friendly error messages
-  - Log errors server-side but return sanitized messages to clients
-- **Example**:
-  ```typescript
-  const corsHeaders = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  };
-  
-  export async function POST(request: NextRequest) {
-    try {
-      const body = await request.json();
-      if (!body.question) {
-        return NextResponse.json(
-          { error: "Question is required" },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-      // Process request...
-      return NextResponse.json(response, { headers: corsHeaders });
-    } catch (error) {
-      console.error("API error:", error);
-      return NextResponse.json(
-        { error: "Internal server error" },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-  }
-  ```
-
-## PWA Configuration
-
-### PWA Setup with next-pwa
-
-- **Rule**: Configure PWA using next-pwa wrapper in next.config.js with appropriate caching strategies
-- **Rationale**: PWA configuration enables offline functionality and improved mobile experience
-- **Implementation**:
-  - Wrap Next.js config with `withPWA()` from `next-pwa`
-  - Disable PWA in development (`disable: process.env.NODE_ENV === "development"`)
-  - Configure runtime caching strategies for different asset types
-  - Set `skipWaiting: false` to ensure users get updates
-  - Output service worker to `public` directory
-- **Example**:
-  ```javascript
-  const withPWA = require("next-pwa")({
-    dest: "public",
-    register: true,
-    skipWaiting: false,
-    disable: process.env.NODE_ENV === "development",
-    runtimeCaching: [/* caching strategies */]
-  });
-  ```
-
-### Service Worker Caching Strategies
-
-- **Rule**: Use appropriate caching strategies for different asset types to balance performance and freshness
-- **Rationale**: Different assets have different update frequencies and importance
-- **Implementation**:
-  - Use `CacheFirst` for static assets (fonts, images) with long expiration
-  - Use `StaleWhileRevalidate` for assets that can be updated in background
-  - Configure `maxEntries` and `maxAgeSeconds` based on asset type
-  - Cache fonts for 1 year, images for 30 days
-- **Example**:
-  ```javascript
-  {
-    urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-    handler: "CacheFirst",
-    options: {
-      cacheName: "google-fonts",
-      expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 }
-    }
-  }
-  ```
-
-### PWA Manifest Configuration
-
-- **Rule**: Configure comprehensive PWA manifest with all required icons and metadata
-- **Rationale**: Complete manifest ensures proper PWA installation and display across platforms
-- **Implementation**:
-  - Include manifest.json in public directory with name, short_name, icons, theme_color
-  - Reference manifest in layout.tsx metadata
-  - Provide icons in multiple sizes (16x16 to 512x512)
-  - Configure appleWebApp metadata for iOS support
-  - Include startup images for different iOS device sizes
-- **Example**: Reference `/manifest.json` in metadata, provide icons in `public/icons/` directory
-
-### PWA Update Notifications
-
-- **Rule**: Implement PWA update notification system to inform users of new versions
-- **Rationale**: Users need to be notified when new service worker versions are available
-- **Implementation**:
-  - Listen for `controllerchange` event to detect service worker updates
-  - Show update notification UI when new version is available
-  - Provide "Update" button to skip waiting and activate new service worker
-  - Use `skipWaiting()` and `clients.claim()` to activate updates
-- **Example**: `PWAUpdateNotification` component listens for updates and shows notification banner
-
-### Development vs Production PWA Behavior
-
-- **Rule**: Disable PWA in development to avoid service worker caching issues during development
-- **Rationale**: Service worker caching can interfere with hot reloading and make debugging difficult
-- **Implementation**:
-  - Set `disable: process.env.NODE_ENV === "development"` in next-pwa config
-  - PWA features (service worker, offline support) only active in production builds
-  - Test PWA functionality in production builds, not development mode
-- **Example**: Service worker not registered in development, only in production builds
+> [Back to Table of Contents](#table-of-contents)
 
 ## Documentation Standards
 
@@ -637,84 +475,6 @@ alwaysApply: true
 4. No redundant or duplicate documentation files remain
 
 ## Testing & Data Validation
-
-### Jest Configuration with ts-jest
-
-- **Rule**: Use Jest with ts-jest preset for TypeScript testing with proper configuration
-- **Rationale**: ts-jest enables TypeScript compilation in Jest tests and provides type checking
-- **Implementation**:
-  - Configure Jest with `preset: "ts-jest"` in jest.config.js
-  - Use `tsconfig.test.json` for test-specific TypeScript configuration
-  - Configure `moduleNameMapper` to match tsconfig path aliases (`@/` imports)
-  - Set `testEnvironment: "node"` for API and service tests
-  - Configure `testTimeout: 60000` for database operations that may take longer
-  - Use `forceExit: true` to ensure tests complete cleanly
-- **Example**:
-  ```javascript
-  module.exports = {
-    preset: "ts-jest",
-    testEnvironment: "node",
-    moduleNameMapper: { "^@/(.*)$": "<rootDir>/$1" },
-    testTimeout: 60000,
-    forceExit: true
-  };
-  ```
-
-### Test File Structure
-
-- **Rule**: Organize tests in `__tests__` directory with clear categorization
-- **Rationale**: Organized test structure improves maintainability and makes test discovery easier
-- **Implementation**:
-  - Place test files in `__tests__/` directory at root level
-  - Organize by category: `services/`, `validation/`, `ux/`, `security/`, etc.
-  - Use descriptive test file names: `chatbotService.test.ts`, `dataAccuracyValidation.test.ts`
-  - Match test file patterns: `**/__tests__/**/*.ts` and `**/?(*.)+(spec|test).ts`
-- **Example**: `__tests__/services/chatbotService.test.ts`, `__tests__/validation/dataAccuracyValidation.test.ts`
-
-### Production Database Testing
-
-- **Rule**: Configure tests to connect to production database for real-world validation
-- **Rationale**: Testing against production database ensures tests validate actual system behavior and data accuracy
-- **Implementation**:
-  - Use production database credentials in test environment
-  - Set longer test timeout (60s) for database operations
-  - Implement proper connection cleanup in test teardown
-  - Use `clearMocks`, `resetMocks`, `restoreMocks` to ensure test isolation
-  - Test actual Neo4j queries and response times
-- **Example**: Tests connect to Neo4j Aura production database to validate real chatbot performance
-
-### Test Utilities and Helpers
-
-- **Rule**: Create reusable test utilities and helpers for common testing patterns
-- **Rationale**: Test utilities reduce duplication and improve test consistency
-- **Implementation**:
-  - Create `__tests__/utils/testUtils.ts` for shared test helpers
-  - Implement data fetching utilities for test data (CSV, API)
-  - Create mock data generators for consistent test data
-  - Implement assertion helpers for common validation patterns
-- **Example**: `testUtils.ts` provides CSV loading, data validation, and assertion helpers
-
-### Test Coverage Configuration
-
-- **Rule**: Configure test coverage collection for key directories with appropriate exclusions
-- **Rationale**: Coverage metrics help identify untested code and guide testing efforts
-- **Implementation**:
-  - Configure `collectCoverageFrom` to include `lib/**/*.ts` and `components/**/*.tsx`
-  - Exclude type definition files (`!**/*.d.ts`) and node_modules
-  - Use multiple coverage reporters: `["text", "lcov", "html"]`
-  - Set coverage directory for output files
-- **Example**: Coverage collected from lib and components, excluding type definitions
-
-### Test Output and Reporting
-
-- **Rule**: Configure clean test output with optional verbose mode for debugging
-- **Rationale**: Clean output improves readability, while verbose mode helps with debugging
-- **Implementation**:
-  - Use custom summary reporter for clean default output
-  - Enable verbose mode via `JEST_VERBOSE=true` environment variable
-  - Configure reporters conditionally based on verbose flag
-  - Use `jest.setup.js` for global test configuration
-- **Example**: Default clean output, verbose mode with `npm run test:debug` shows detailed logs
 
 ### Data Source Integrity Protocol
 
@@ -1171,20 +931,15 @@ alwaysApply: true
   - Preserve files that users specifically requested or that provide ongoing value
 - **Example**: Delete `debug-*.js` and `investigate-*.js` files, keep `test-data-integrity.js` if user requested it
 
-### Netlify Redirect Configuration Protocol
+### Netlify-Heroku Integration Protocol
 
-- **Rule**: When creating new API endpoints, always add corresponding redirects in netlify.toml to route requests appropriately
-- **Rationale**: Frontend calls to new endpoints will fail without proper routing configuration. The system uses a hybrid approach: Next.js API routes for most endpoints, with Netlify redirects for external services (Heroku) and legacy Netlify Functions
+- **Rule**: When creating new API endpoints, always add corresponding redirects in netlify.toml to route requests to the backend
+- **Rationale**: Frontend calls to new endpoints will fail without proper routing configuration
 - **Implementation**:
-  - For Next.js API routes (app/api/*/route.ts): No redirect needed - Next.js handles routing automatically
-  - For external services (Heroku debug/storage endpoints): Add redirect rules in netlify.toml pointing to external URLs
-  - For legacy Netlify Functions: Add redirect rules pointing to `/.netlify/functions/function-name`
+  - Add redirect rules for new API paths in netlify.toml
   - Test API endpoints directly before investigating frontend integration issues
-  - Verify that frontend can successfully call new endpoints through the routing system
-- **Example**: 
-  - Next.js route: `app/api/chatbot/route.ts` → no redirect needed
-  - External service: `/api/debug/*` → add redirect to `https://dorkinians-database-v3-0e9a731483c7.herokuapp.com//api/debug/:splat` in netlify.toml
-  - Netlify Function: `/api/trigger-seed` → add redirect to `/.netlify/functions/trigger-seed` in netlify.toml
+  - Verify that frontend can successfully call new endpoints through the redirect system
+- **Example**: New `/api/debug/*` endpoints → add redirect rule in netlify.toml → test frontend integration
 
 ## Graph Database Operations
 
@@ -1228,3 +983,4 @@ alwaysApply: true
   - Test generated queries with sample data before execution to catch syntax errors early
 - **Example**: Filter out system properties before building `SET n.property = value` clauses
 
+> [Back to Table of Contents](#table-of-contents)

@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigationStore } from "@/lib/stores/navigation";
-import Header from "@/components/Header";
-import FooterNavigation from "@/components/FooterNavigation";
-import StatsContainer from "@/components/StatsContainer";
-import TOTWContainer from "@/components/TOTWContainer";
-import ClubInfoContainer from "@/components/ClubInfoContainer";
+import Header from "@/components/layout/Header";
+import FooterNavigation from "@/components/layout/FooterNavigation";
+import StatsContainer from "@/components/stats/StatsContainer";
+import TOTWContainer from "@/components/totw/TOTWContainer";
+import ClubInfoContainer from "@/components/club-info/ClubInfoContainer";
 import Settings from "@/components/pages/Settings";
-import ChatbotInterface from "@/components/ChatbotInterface";
+import ChatbotInterface from "@/components/chatbot/ChatbotInterface";
 
 export default function HomePage() {
 	const { currentMainPage, setMainPage } = useNavigationStore();

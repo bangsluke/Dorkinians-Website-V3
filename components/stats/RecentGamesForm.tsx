@@ -267,11 +267,11 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const getBoxColor = (result: string): string => {
 		switch (result) {
 			case "W":
-				return "bg-green-500";
+				return "bg-[var(--color-success)]";
 			case "D":
 				return "bg-gray-500";
 			case "L":
-				return "bg-red-500";
+				return "bg-[var(--color-error)]";
 			default:
 				return "bg-gray-700";
 		}
@@ -291,11 +291,11 @@ export default function RecentGamesForm({ teamName, filters }: RecentGamesFormPr
 	const getCompTypeColor = (compType: string): string => {
 		switch (compType) {
 			case "League":
-				return "bg-blue-600/30 text-blue-300";
+				return "bg-[var(--color-info)]/30 text-blue-300";
 			case "Cup":
 				return "bg-purple-600/30 text-purple-300";
 			case "Friendly":
-				return "bg-green-600/30 text-green-300";
+				return "bg-[var(--color-success)]/30 text-green-300";
 			default:
 				return "bg-gray-700 text-gray-300";
 		}

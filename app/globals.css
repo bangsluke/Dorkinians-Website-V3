@@ -3,20 +3,101 @@
 @tailwind utilities;
 
 :root {
-	--dorkinians-yellow: #f9ed32;
-	--dorkinians-yellow-dark: #e5d12e;
-	--dorkinians-yellow-darker: #cfbf29;
-	--dorkinians-green: #1c8841;
-	--dorkinians-green-dark: #1a7a3a;
-	--dorkinians-green-darker: #156b32;
+	/* Primary Colors */
+	--color-primary: #1c8841; /* Dorkinians Green */
+	--color-primary-dark: #1a7a3a;
+	--color-primary-darker: #156b32;
+	--dorkinians-green: var(--color-primary);
+	--dorkinians-green-dark: var(--color-primary-dark);
+	--dorkinians-green-darker: var(--color-primary-darker);
+	
+	/* Secondary Colors */
+	--color-secondary: #f9ed32; /* Dorkinians Yellow */
+	--color-secondary-dark: #e5d12e;
+	--color-secondary-darker: #cfbf29;
+	--dorkinians-yellow: var(--color-secondary);
+	--dorkinians-yellow-dark: var(--color-secondary-dark);
+	--dorkinians-yellow-darker: var(--color-secondary-darker);
 
-	--field-bg: rgba(0, 0, 0, 0.55);
-
-	--text-light: #f3f3f3;
-	--text-dark: #0f0f0f;
-
+	/* WCAG-compliant text colors for dark backgrounds (4.5:1 contrast ratio) */
+	--dorkinians-yellow-text: #FFF176; /* ~15.68:1 on #0f0f0f */
+	--dorkinians-yellow-text-hover: #FFEB3B; /* Slightly darker for hover states */
+	--dorkinians-green-text: #66BB6A; /* ~7.51:1 on #0f0f0f */
+	
+	/* Semantic Colors */
+	--color-success: #10b981; /* green-500 */
+	--color-success-bg: rgba(16, 185, 129, 0.3);
+	--color-error: #ef4444; /* red-500 */
+	--color-error-bg: rgba(239, 68, 68, 0.2);
+	--color-warning: #f59e0b; /* amber-500 */
+	--color-warning-bg: rgba(245, 158, 11, 0.2);
+	--color-info: #3b82f6; /* blue-500 */
+	--color-info-bg: rgba(59, 130, 246, 0.2);
+	
+	/* Neutral Colors */
+	--color-background: #0f0f0f;
+	--color-surface: rgba(255, 255, 255, 0.1);
+	--color-surface-elevated: rgba(255, 255, 255, 0.15);
+	--color-text-primary: #f3f3f3;
+	--color-text-secondary: rgba(243, 243, 243, 0.8);
+	--color-text-tertiary: rgba(243, 243, 243, 0.6);
+	--color-border: rgba(255, 255, 255, 0.2);
+	--color-border-subtle: rgba(255, 255, 255, 0.1);
+	--text-light: var(--color-text-primary);
+	--text-dark: var(--color-background);
+	
+	/* Field Colors */
+	--color-field-bg: rgba(0, 0, 0, 0.55);
+	--color-field-border: rgba(255, 255, 255, 0.2);
+	--color-field-focus: rgba(249, 237, 50, 0.4);
+	--color-field-focus-ring: rgba(249, 237, 50, 0.1);
+	--field-bg: var(--color-field-bg);
+	
+	/* Additional Colors */
+	--color-dropdown-bg: rgb(14, 17, 15);
+	--color-gradient-green-start: rgba(28, 136, 65, 0.8);
+	--color-gradient-green-mid: rgba(28, 136, 65, 0.5);
+	--color-gradient-green-light: rgba(28, 136, 65, 0.3);
+	--color-gradient-yellow-start: rgba(249, 237, 50, 0.7);
+	--color-gradient-yellow-mid: rgba(249, 237, 50, 0.4);
+	--color-gradient-dark-1: rgba(15, 15, 15, 0.8);
+	--color-gradient-dark-2: rgba(15, 15, 15, 0.6);
+	--color-gradient-dark-3: rgba(15, 15, 15, 0.5);
+	--color-gradient-dark-4: rgba(15, 15, 15, 0.4);
+	--color-gradient-dark-5: rgba(10, 10, 10, 0.6);
+	--color-gradient-dark-6: rgba(10, 10, 10, 0.4);
+	--color-gradient-dark-7: rgba(10, 10, 10, 0.3);
+	--color-gradient-dark-8: rgba(5, 5, 5, 0.4);
+	--color-gradient-dark-9: rgba(5, 5, 5, 0.2);
+	--color-gradient-dark-10: rgba(5, 5, 5, 0.1);
+	--color-gradient-dark-11: rgba(0, 0, 0, 0.2);
+	--color-gradient-base-1: #1a1a1a;
+	--color-gradient-base-2: #0f0f0f;
+	--color-gradient-base-3: #0a0a0a;
+	
+	/* Scrollbar Colors */
+	--color-scrollbar-thumb: rgba(255, 255, 255, 0.15);
+	--color-scrollbar-thumb-hover: rgba(255, 255, 255, 0.25);
+	
+	/* Skeleton Colors */
 	--skeleton-base: #637469;
 	--skeleton-highlight: #6B6E6C;
+	
+	/* Animation Tokens */
+	--duration-fast: 150ms;
+	--duration-normal: 200ms;
+	--duration-slow: 300ms;
+	--duration-slower: 500ms;
+	
+	/* Easing */
+	--ease-in: cubic-bezier(0.4, 0, 1, 1);
+	--ease-out: cubic-bezier(0, 0, 0.2, 1);
+	--ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+	--ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+	
+	/* Delays */
+	--delay-tooltip-mouse: 300ms;
+	--delay-tooltip-touch: 500ms;
 }
 
 @layer base {
@@ -24,17 +105,17 @@
 		font-family: "Inter", system-ui, sans-serif;
 	}
 
-	/* Desktop font size reduction (30% smaller) */
+	/* Desktop font size reduction (15% smaller) */
 	@media (min-width: 768px) {
 		html {
-			font-size: 70%;
+			font-size: 85%;
 		}
 	}
 
 	body {
 		@apply bg-gray-50 text-gray-900;
-		background: #0f0f0f;
-		color: #f3f3f3;
+		background: var(--color-background);
+		color: var(--color-text-primary);
 	}
 
 	/* Mobile-first gradient background using Dorkinians brand colors */
@@ -46,53 +127,53 @@
 		background:
 			radial-gradient(
 				600px 500px at 25% 25%,
-				rgba(28, 136, 65, 0.8) 0%,
-				rgba(15, 15, 15, 0.6) 30%,
-				rgba(10, 10, 10, 0.4) 60%,
-				rgba(5, 5, 5, 0.2) 80%,
+				var(--color-gradient-green-start) 0%,
+				var(--color-gradient-dark-2) 30%,
+				var(--color-gradient-dark-6) 60%,
+				var(--color-gradient-dark-9) 80%,
 				transparent 100%
 			),
 			radial-gradient(
 				500px 400px at 75% 75%,
-				rgba(249, 237, 50, 0.7) 0%,
-				rgba(15, 15, 15, 0.5) 35%,
-				rgba(10, 10, 10, 0.3) 65%,
-				rgba(5, 5, 5, 0.1) 85%,
+				var(--color-gradient-yellow-start) 0%,
+				var(--color-gradient-dark-3) 35%,
+				var(--color-gradient-dark-7) 65%,
+				var(--color-gradient-dark-10) 85%,
 				transparent 100%
 			),
 			radial-gradient(
 				700px 600px at 50% 50%,
-				rgba(28, 136, 65, 0.3) 0%,
-				rgba(15, 15, 15, 0.4) 40%,
-				rgba(10, 10, 10, 0.3) 70%,
-				rgba(5, 5, 5, 0.2) 90%,
+				var(--color-gradient-green-light) 0%,
+				var(--color-gradient-dark-4) 40%,
+				var(--color-gradient-dark-7) 70%,
+				var(--color-gradient-dark-9) 90%,
 				transparent 100%
 			),
 			radial-gradient(
 				800px 700px at 15% 85%,
-				rgba(249, 237, 50, 0.4) 0%,
-				rgba(15, 15, 15, 0.5) 30%,
-				rgba(10, 10, 10, 0.3) 60%,
-				rgba(5, 5, 5, 0.1) 85%,
+				var(--color-gradient-yellow-mid) 0%,
+				var(--color-gradient-dark-3) 30%,
+				var(--color-gradient-dark-7) 60%,
+				var(--color-gradient-dark-10) 85%,
 				transparent 100%
 			),
 			radial-gradient(
 				900px 800px at 85% 15%,
-				rgba(28, 136, 65, 0.5) 0%,
-				rgba(15, 15, 15, 0.6) 25%,
-				rgba(10, 10, 10, 0.4) 55%,
-				rgba(5, 5, 5, 0.2) 80%,
+				var(--color-gradient-green-mid) 0%,
+				var(--color-gradient-dark-2) 25%,
+				var(--color-gradient-dark-6) 55%,
+				var(--color-gradient-dark-9) 80%,
 				transparent 100%
 			),
 			radial-gradient(
 				1000px 900px at 50% 50%,
-				rgba(15, 15, 15, 0.8) 0%,
-				rgba(10, 10, 10, 0.6) 30%,
-				rgba(5, 5, 5, 0.4) 60%,
-				rgba(0, 0, 0, 0.2) 85%,
+				var(--color-gradient-dark-1) 0%,
+				var(--color-gradient-dark-5) 30%,
+				var(--color-gradient-dark-8) 60%,
+				var(--color-gradient-dark-11) 85%,
 				transparent 100%
 			),
-			radial-gradient(1200px 1000px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+			radial-gradient(1200px 1000px at -5% -5%, var(--color-gradient-base-1) 0%, var(--color-gradient-base-2) 60%, var(--color-gradient-base-3) 100%);
 		filter: blur(15px) saturate(110%);
 		transform: scale(1.02);
 	}
@@ -103,53 +184,53 @@
 			background:
 				radial-gradient(
 					1200px 900px at 20% 30%,
-					rgba(28, 136, 65, 0.8) 0%,
-					rgba(15, 15, 15, 0.6) 30%,
-					rgba(10, 10, 10, 0.4) 60%,
-					rgba(5, 5, 5, 0.2) 80%,
+					var(--color-gradient-green-start) 0%,
+					var(--color-gradient-dark-2) 30%,
+					var(--color-gradient-dark-6) 60%,
+					var(--color-gradient-dark-9) 80%,
 					transparent 100%
 				),
 				radial-gradient(
 					1000px 800px at 80% 70%,
-					rgba(249, 237, 50, 0.7) 0%,
-					rgba(15, 15, 15, 0.5) 35%,
-					rgba(10, 10, 10, 0.3) 65%,
-					rgba(5, 5, 5, 0.1) 85%,
+					var(--color-gradient-yellow-start) 0%,
+					var(--color-gradient-dark-3) 35%,
+					var(--color-gradient-dark-7) 65%,
+					var(--color-gradient-dark-10) 85%,
 					transparent 100%
 				),
 				radial-gradient(
 					1400px 1000px at 50% 50%,
-					rgba(28, 136, 65, 0.3) 0%,
-					rgba(15, 15, 15, 0.4) 40%,
-					rgba(10, 10, 10, 0.3) 70%,
-					rgba(5, 5, 5, 0.2) 90%,
+					var(--color-gradient-green-light) 0%,
+					var(--color-gradient-dark-4) 40%,
+					var(--color-gradient-dark-7) 70%,
+					var(--color-gradient-dark-9) 90%,
 					transparent 100%
 				),
 				radial-gradient(
 					1600px 1200px at 10% 80%,
-					rgba(249, 237, 50, 0.4) 0%,
-					rgba(15, 15, 15, 0.5) 30%,
-					rgba(10, 10, 10, 0.3) 60%,
-					rgba(5, 5, 5, 0.1) 85%,
+					var(--color-gradient-yellow-mid) 0%,
+					var(--color-gradient-dark-3) 30%,
+					var(--color-gradient-dark-7) 60%,
+					var(--color-gradient-dark-10) 85%,
 					transparent 100%
 				),
 				radial-gradient(
 					1800px 1400px at 90% 20%,
-					rgba(28, 136, 65, 0.5) 0%,
-					rgba(15, 15, 15, 0.6) 25%,
-					rgba(10, 10, 10, 0.4) 55%,
-					rgba(5, 5, 5, 0.2) 80%,
+					var(--color-gradient-green-mid) 0%,
+					var(--color-gradient-dark-2) 25%,
+					var(--color-gradient-dark-6) 55%,
+					var(--color-gradient-dark-9) 80%,
 					transparent 100%
 				),
 				radial-gradient(
 					2000px 1600px at 50% 50%,
-					rgba(15, 15, 15, 0.8) 0%,
-					rgba(10, 10, 10, 0.6) 30%,
-					rgba(5, 5, 5, 0.4) 60%,
-					rgba(0, 0, 0, 0.2) 85%,
+					var(--color-gradient-dark-1) 0%,
+					var(--color-gradient-dark-5) 30%,
+					var(--color-gradient-dark-8) 60%,
+					var(--color-gradient-dark-11) 85%,
 					transparent 100%
 				),
-				radial-gradient(2200px 1800px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+				radial-gradient(2200px 1800px at -5% -5%, var(--color-gradient-base-1) 0%, var(--color-gradient-base-2) 60%, var(--color-gradient-base-3) 100%);
 			filter: blur(20px) saturate(120%);
 			transform: scale(1.05);
 		}
@@ -161,53 +242,53 @@
 			background:
 				radial-gradient(
 					1600px 1200px at 20% 30%,
-					rgba(28, 136, 65, 0.8) 0%,
-					rgba(15, 15, 15, 0.6) 30%,
-					rgba(10, 10, 10, 0.4) 60%,
-					rgba(5, 5, 5, 0.2) 80%,
+					var(--color-gradient-green-start) 0%,
+					var(--color-gradient-dark-2) 30%,
+					var(--color-gradient-dark-6) 60%,
+					var(--color-gradient-dark-9) 80%,
 					transparent 100%
 				),
 				radial-gradient(
 					1400px 1000px at 80% 70%,
-					rgba(249, 237, 50, 0.7) 0%,
-					rgba(15, 15, 15, 0.5) 35%,
-					rgba(10, 10, 10, 0.3) 65%,
-					rgba(5, 5, 5, 0.1) 85%,
+					var(--color-gradient-yellow-start) 0%,
+					var(--color-gradient-dark-3) 35%,
+					var(--color-gradient-dark-7) 65%,
+					var(--color-gradient-dark-10) 85%,
 					transparent 100%
 				),
 				radial-gradient(
 					1800px 1400px at 50% 50%,
-					rgba(28, 136, 65, 0.3) 0%,
-					rgba(15, 15, 15, 0.4) 40%,
-					rgba(10, 10, 10, 0.3) 70%,
-					rgba(5, 5, 5, 0.2) 90%,
+					var(--color-gradient-green-light) 0%,
+					var(--color-gradient-dark-4) 40%,
+					var(--color-gradient-dark-7) 70%,
+					var(--color-gradient-dark-9) 90%,
 					transparent 100%
 				),
 				radial-gradient(
 					2000px 1600px at 10% 80%,
-					rgba(249, 237, 50, 0.4) 0%,
-					rgba(15, 15, 15, 0.5) 30%,
-					rgba(10, 10, 10, 0.3) 60%,
-					rgba(5, 5, 5, 0.1) 85%,
+					var(--color-gradient-yellow-mid) 0%,
+					var(--color-gradient-dark-3) 30%,
+					var(--color-gradient-dark-7) 60%,
+					var(--color-gradient-dark-10) 85%,
 					transparent 100%
 				),
 				radial-gradient(
 					2200px 1800px at 90% 20%,
-					rgba(28, 136, 65, 0.5) 0%,
-					rgba(15, 15, 15, 0.6) 25%,
-					rgba(10, 10, 10, 0.4) 55%,
-					rgba(5, 5, 5, 0.2) 80%,
+					var(--color-gradient-green-mid) 0%,
+					var(--color-gradient-dark-2) 25%,
+					var(--color-gradient-dark-6) 55%,
+					var(--color-gradient-dark-9) 80%,
 					transparent 100%
 				),
 				radial-gradient(
 					2400px 2000px at 50% 50%,
-					rgba(15, 15, 15, 0.8) 0%,
-					rgba(10, 10, 10, 0.6) 30%,
-					rgba(5, 5, 5, 0.4) 60%,
-					rgba(0, 0, 0, 0.2) 85%,
+					var(--color-gradient-dark-1) 0%,
+					var(--color-gradient-dark-5) 30%,
+					var(--color-gradient-dark-8) 60%,
+					var(--color-gradient-dark-11) 85%,
 					transparent 100%
 				),
-				radial-gradient(2800px 2400px at -5% -5%, #1a1a1a 0%, #0f0f0f 60%, #0a0a0a 100%);
+				radial-gradient(2800px 2400px at -5% -5%, var(--color-gradient-base-1) 0%, var(--color-gradient-base-2) 60%, var(--color-gradient-base-3) 100%);
 			filter: blur(25px) saturate(130%);
 			transform: scale(1.08);
 		}
@@ -217,13 +298,20 @@
 @layer components {
 	/* Frosted glass - applied to frosted container further down */
 	.frosted-glass {
-		background-color: rgba(255, 255, 255, 0.15);
+		background-color: var(--color-surface-elevated);
 		backdrop-filter: blur(30px);
 		-webkit-backdrop-filter: blur(30px);
 	}
+	
+	/* Animation utility classes using design tokens */
+	.transition-normal {
+		transition-duration: var(--duration-normal);
+		transition-timing-function: var(--ease-out);
+	}
 
 	.btn-secondary {
-		@apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+		@apply bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.card {
@@ -234,46 +322,29 @@
 		@apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dorkinians-blue focus:border-transparent;
 	}
 
-	/* Dark input components with Dorkinians brand colors */
+	/* Dark input components - DEPRECATED: Use Input component from components/ui/Input.tsx instead */
+	/* Kept for backward compatibility but should be migrated to Input component */
 	.dark-input {
-		background: var(--field-bg);
-		color: var(--text-light);
+		background: var(--color-field-bg);
+		color: var(--color-text-primary);
 		@apply rounded-2xl px-4 py-3;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-input:focus {
 		outline: none;
-		border-color: rgba(249, 237, 50, 0.4);
-		box-shadow: 0 0 0 3px rgba(249, 237, 50, 0.1);
+		border-color: var(--color-field-focus);
+		box-shadow: 0 0 0 3px var(--color-field-focus-ring);
 	}
 
 	.dark-input::placeholder {
-		color: rgba(249, 237, 50, 0.5);
+		color: rgba(255, 241, 118, 0.6); /* WCAG-compliant yellow with opacity for placeholder */
 	}
 
-	.dark-button {
-		background: linear-gradient(135deg, var(--dorkinians-green) 0%, var(--dorkinians-green-dark) 100%);
-		color: white;
-		@apply rounded-2xl px-6 py-3 font-semibold;
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-
-	.dark-button:hover {
-		background: linear-gradient(135deg, var(--dorkinians-green-dark) 0%, var(--dorkinians-green-darker) 100%);
-		border-color: rgba(249, 237, 50, 0.5);
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
-	}
-
-	.dark-button:active {
-		transform: translateY(0);
-	}
 
 	.dark-dropdown {
-		background: rgb(14, 17, 15);
-		color: var(--text-light);
+		background: var(--color-dropdown-bg);
+		color: var(--color-text-primary);
 		@apply rounded-2xl;
 		box-shadow:
 			0 10px 25px rgba(0, 0, 0, 0.45),
@@ -282,60 +353,38 @@
 	}
 
 	.dark-dropdown-option {
-		background: rgb(14, 17, 15);
-		color: var(--text-light);
+		background: var(--color-dropdown-bg);
+		color: var(--color-text-primary);
 		@apply px-4 py-3;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-dropdown-option:hover {
 		background: rgba(249, 237, 50, 0.1);
-		color: var(--dorkinians-yellow);
+		color: var(--dorkinians-yellow-text);
 	}
 
 	.dark-dropdown-option.selected {
-		background: rgba(28, 136, 65, 0.3);
-		color: var(--dorkinians-yellow);
-		border-left: 3px solid var(--dorkinians-green);
+		background: var(--color-gradient-green-light);
+		color: var(--dorkinians-yellow-text);
+		border-left: 3px solid var(--color-primary);
 	}
 
-	/* Chat interface dark styling */
+	/* Chat interface dark styling - DEPRECATED: Use Input component from components/ui/Input.tsx instead */
+	/* Kept for backward compatibility but should be migrated to Input component */
 	.dark-chat-input {
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
-		color: var(--text-light);
+		color: var(--color-text-primary);
 		@apply rounded-2xl p-4;
-		transition: all 0.2s ease;
+		transition: all var(--duration-normal) var(--ease-out);
 	}
 
 	.dark-chat-input:focus {
 		outline: none;
-		border-color: rgba(249, 237, 50, 0.4);
-		box-shadow: 0 0 0 3px rgba(249, 237, 50, 0.1);
+		border-color: var(--color-field-focus);
+		box-shadow: 0 0 0 3px var(--color-field-focus-ring);
 	}
 
-	.dark-chat-button {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
-		color: white;
-		@apply rounded-2xl px-6 py-4 font-semibold;
-		transition: all 0.2s ease;
-		cursor: pointer;
-	}
-
-	.dark-chat-button:hover {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.25));
-		border-color: rgba(249, 237, 50, 0.5);
-		transform: translateY(-1px);
-		box-shadow: 0 4px 12px rgba(28, 136, 65, 0.3);
-	}
-
-	.dark-chat-button:disabled {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.05));
-		border-color: rgba(249, 237, 50, 0.1);
-		color: rgba(249, 237, 50, 0.5);
-		cursor: not-allowed;
-		transform: none;
-		box-shadow: none;
-	}
 
 	/* Responsive frosted glass container */
 	.frosted-container {
@@ -434,21 +483,6 @@
 	}
 }
 
-.CTA {
-	background: linear-gradient(135deg, var(--dorkinians-yellow) 0%, var(--dorkinians-yellow-dark) 100%);
-	color: var(--text-dark);
-	@apply font-medium px-4 py-2 rounded-lg;
-	transition: background-color 200ms ease;
-}
-
-.CTA:hover {
-	background: linear-gradient(135deg, var(--dorkinians-yellow-dark) 0%, var(--dorkinians-yellow-darker) 100%);
-}
-
-.CTA:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
 
 @layer utilities {
 	.text-balance {
@@ -467,23 +501,23 @@
 }
 
 ::-webkit-scrollbar-thumb {
-	background-color: rgba(255, 255, 255, 0.15);
+	background-color: var(--color-scrollbar-thumb);
 	border-radius: 6px;
 	border: 2px solid transparent;
 	background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-	background-color: rgba(255, 255, 255, 0.25);
+	background-color: var(--color-scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-button {
-	background-color: rgba(255, 255, 255, 0.15);
+	background-color: var(--color-scrollbar-thumb);
 	border-radius: 3px;
 }
 
 ::-webkit-scrollbar-button:hover {
-	background-color: rgba(255, 255, 255, 0.25);
+	background-color: var(--color-scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-button:single-button:vertical:decrement {
@@ -497,7 +531,7 @@
 /* Firefox scrollbar styling */
 * {
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+	scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
 
 /* Make Recharts active bar background highlight more transparent */
@@ -570,7 +604,7 @@
 
 .player-detail-scrollable {
 	scrollbar-width: thin;
-	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+	scrollbar-color: var(--color-scrollbar-thumb) transparent;
 }
 
 /* Hide scrollbar utility class */

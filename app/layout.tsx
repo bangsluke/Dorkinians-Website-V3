@@ -6,11 +6,11 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { headers } from "next/headers";
 import "./globals.css";
-import PWAUpdateNotification from "../components/PWAUpdateNotification";
-import UmamiAnalytics from "../components/UmamiAnalytics";
-import ErrorBoundaryWrapper from "../components/ErrorBoundaryWrapper";
-import SessionProvider from "../components/SessionProvider";
-import Neo4jPreWarm from "../components/Neo4jPreWarm";
+import PWAUpdateNotification from "@/components/admin/PWAUpdateNotification";
+import UmamiAnalytics from "../components/admin/UmamiAnalytics";
+import ErrorBoundaryWrapper from "@/components/ErrorBoundaryWrapper";
+import SessionProvider from "@/components/SessionProvider";
+import Neo4jPreWarm from "@/components/Neo4jPreWarm";
 import { validateEnv } from "@/lib/config/envValidation";
 import { logError } from "@/lib/utils/logger";
 

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { seedingStatusService } from "@/lib/services/seedingStatusService";
 import JobMonitoringDashboard from "./JobMonitoringDashboard";
-import { killJob as killJobUtil } from "../lib/jobUtils";
+import { killJob as killJobUtil } from "../../lib/jobUtils";
 
 interface SiteDetails {
 	lastSeededStats: string | null;
