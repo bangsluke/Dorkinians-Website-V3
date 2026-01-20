@@ -79,6 +79,8 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	// State for progress indicator
 	const [showProgressIndicator, setShowProgressIndicator] = useState(false);
 	const [applyStartTime, setApplyStartTime] = useState<number | null>(null);
+	// State to track client-side mount to prevent hydration mismatch
+	const [isMounted, setIsMounted] = useState(false);
 
 	// Get available filters for current page
 	const availableFilters: string[] = useMemo(() => {
@@ -116,6 +118,11 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 			});
 		});
 	}, [availableFilters, allAccordionSections]);
+
+	// Track client-side mount to prevent hydration mismatch
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
 
 	// Load filter data on mount if not already loaded
 	useEffect(() => {
@@ -892,7 +899,7 @@ export default function FilterSidebar({ isOpen, onClose, onSuccess }: FilterSide
 	return (
 		<>
 		<AnimatePresence>
-			{isOpen && (
+			{isOpen && isMounted && (
 				<>
 
 					{/* Backdrop */}

@@ -719,6 +719,21 @@ export class ChatbotService {
 				}
 			}
 
+			// Check if this is a SeasonTOTW count question (e.g., "How many times have I been the team of the season?")
+			const isSeasonTOTWCountQuestion = type === "player" && 
+				(question.includes("how many times") || question.includes("how many")) &&
+				(question.includes("team of the season") || question.includes("tots")) &&
+				!(question.includes("weekly") || question.includes("week"));
+
+			if (isSeasonTOTWCountQuestion) {
+				// Use entities first, fallback to userContext
+				const playerName = entities.length > 0 ? entities[0] : (userContext || "");
+				if (playerName) {
+					this.lastProcessingSteps.push(`Detected SeasonTOTW count question for player: ${playerName}`);
+					return await AwardsQueryHandler.queryPlayerTOTWData(playerName, "season", question);
+				}
+			}
+
 			// Check for historical award queries
 			const isHistoricalAwardQuestion = 
 				(question.includes("who won") && question.includes("award")) ||
@@ -1723,6 +1738,22 @@ export class ChatbotService {
 				return await RankingQueryHandler.queryRankingData(entities, metrics, analysis);
 			case "league_table":
 				return await LeagueTableQueryHandler.queryLeagueTableData(entities, metrics, analysis, userContext);
+			case "season_totw":
+				// Extract season from timeRange or question text
+				let season = analysis.timeRange || "";
+				if (!season && analysis.question) {
+					// Try to extract season from question (e.g., "2023/24", "22/23")
+					const seasonMatch = analysis.question.match(/\b(20\d{2}[/-]20\d{2}|20\d{2}[/-]\d{2}|\d{2}[/-]\d{2})\b/);
+					if (seasonMatch) {
+						season = seasonMatch[1].replace("-", "/");
+						// Normalize "22/23" to "2022/23"
+						if (season.match(/^\d{2}\/\d{2}$/)) {
+							const parts = season.split("/");
+							season = `20${parts[0]}/${parts[1]}`;
+						}
+					}
+				}
+				return await AwardsQueryHandler.querySeasonTOTW(season || undefined);
 			case "general":
 				return await this.queryGeneralData();
 			default:
@@ -3399,6 +3430,104 @@ export class ChatbotService {
 					},
 				};
 			}
+		} else if (data && data.type === "opposition_clean_sheets") {
+			// Handle clean sheets against opposition data
+			const playerName = (data.playerName as string) || "";
+			const oppositionCleanSheets = (data.data as Array<{ opposition: string; cleanSheets: number }>) || [];
+			
+			if (oppositionCleanSheets.length === 0) {
+				answer = "You have not kept any clean sheets against any opposition.";
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionCleanSheets[0];
+				answer = `You have kept the most clean sheets against ${topOpposition.opposition} with ${topOpposition.cleanSheets} ${topOpposition.cleanSheets === 1 ? "clean sheet" : "clean sheets"}.`;
+				answerValue = topOpposition.opposition;
+				
+				// Format data for table visualization
+				const tableData = oppositionCleanSheets.map((item) => ({
+					Opposition: item.opposition,
+					"Clean Sheets": item.cleanSheets,
+				}));
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: "Clean Sheets", label: "Clean Sheets" },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
+		} else if (data && data.type && typeof data.type === "string" && data.type.startsWith("opposition_") && data.type !== "opposition_goals" && data.type !== "opposition_clean_sheets") {
+			// Handle generic stat types against opposition (assists, saves, cards, mom, appearances, etc.)
+			const playerName = (data.playerName as string) || "";
+			const statType = (data.statType as string) || "";
+			const oppositionData = (data.data as Array<{ opposition: string; [key: string]: any }>) || [];
+			
+			// Get the stat value from the first item to determine the field name
+			const firstItem = oppositionData.length > 0 ? oppositionData[0] : null;
+			const statField = firstItem ? Object.keys(firstItem).find(key => key !== "opposition") : null;
+			
+			// Map stat type to display name
+			const statDisplayNames: Record<string, string> = {
+				"assists": "Assists",
+				"saves": "Saves",
+				"yellowCards": "Yellow Cards",
+				"redCards": "Red Cards",
+				"mom": "Man of the Match",
+				"appearances": "Appearances",
+				"ownGoals": "Own Goals",
+				"penaltiesScored": "Penalties Scored",
+				"penaltiesSaved": "Penalties Saved",
+				"penaltiesMissed": "Penalties Missed",
+			};
+			
+			const displayName = statDisplayNames[statType] || (statType.charAt(0).toUpperCase() + statType.slice(1).replace(/([A-Z])/g, " $1").trim());
+			const singularName = displayName.endsWith("s") ? displayName.slice(0, -1) : displayName;
+			
+			// Determine verb based on stat type
+			const verb = statType === "appearances" ? "made" : 
+			            statType === "mom" ? "won" :
+			            statType === "yellowCards" || statType === "redCards" ? "received" :
+			            "recorded";
+			
+			if (oppositionData.length === 0) {
+				answer = `You have ${verb} no ${displayName.toLowerCase()} against any opposition.`;
+				answerValue = 0;
+			} else {
+				const topOpposition = oppositionData[0];
+				const topValue = statField ? topOpposition[statField] : 0;
+				answer = `You have ${verb} the most ${displayName.toLowerCase()} against ${topOpposition.opposition} with ${topValue} ${topValue === 1 ? singularName.toLowerCase() : displayName.toLowerCase()}.`;
+				answerValue = topOpposition.opposition;
+				
+				// Format data for table visualization
+				const tableData = oppositionData.map((item) => {
+					const value = statField ? item[statField] : 0;
+					return {
+						Opposition: item.opposition,
+						[displayName]: value,
+					};
+				});
+				
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Opposition", label: "Opposition" },
+							{ key: displayName, label: displayName },
+						],
+						initialDisplayLimit: 5,
+						expandableLimit: 10,
+						isExpandable: true,
+					},
+				};
+			}
 		} else if (data && data.type === "most_played_against") {
 			// Handle most played against opposition data
 			const playerName = (data.playerName as string) || "You";
@@ -4455,6 +4584,46 @@ export class ChatbotService {
 				answer = `${gameData.dorkiniansGoals}-${gameData.conceded} vs ${gameData.opposition} ${location} on the ${formattedDate}`;
 				answerValue = answer;
 			}
+		} else if (data && data.type === "season_totw") {
+			// Handle Team of the Season queries
+			const totwData = data.data as {
+				season: string;
+				players: Array<{
+					playerName: string;
+					position: string;
+					ftpScore: number;
+				}>;
+			} | null;
+
+			if (!totwData || !totwData.players || totwData.players.length === 0) {
+				answer = (data.message as string) || `No Team of the Season data found${totwData?.season ? ` for ${totwData.season}` : ""}.`;
+			} else {
+				const season = totwData.season || "the current season";
+				answer = `The Team of the Season for ${season} consisted of ${totwData.players.length} players.`;
+				
+				// Create table visualization
+				const tableData = totwData.players.map((player) => ({
+					Position: player.position,
+					"Player Name": player.playerName,
+					"FTP Points": player.ftpScore
+				}));
+
+				visualization = {
+					type: "Table",
+					data: tableData,
+					config: {
+						columns: [
+							{ key: "Position", label: "Pos" },
+							{ key: "Player Name", label: "Player" },
+							{ key: "FTP Points", label: "FTP" }
+						]
+					}
+				};
+			}
+		} else if (data && (data.type === "season_totw_not_found" || data.type === "season_totw_no_players")) {
+			// Handle Team of the Season error cases
+			const season = (data.season as string) || "the specified season";
+			answer = (data.message as string) || `No Team of the Season data found for ${season}.`;
 		} else if (data && data.type === "highest_team_goals_in_player_game") {
 			// Handle highest team goals in games where player was playing queries
 			const gameData = data.data as {
@@ -4706,7 +4875,7 @@ export class ChatbotService {
 			const playerName = (data.playerName as string) || "You";
 			const count = (data.count as number) || 0;
 			const period = (data.period as string) || "weekly";
-			const periodLabel = period === "weekly" ? "Team of the Week" : "Season Team of the Week";
+			const periodLabel = period === "weekly" ? "Team of the Week" : "Team of the Season";
 			
 			if (count === 0) {
 				answer = `${playerName} have not been in ${periodLabel}.`;

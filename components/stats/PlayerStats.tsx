@@ -13,7 +13,13 @@ import { Listbox } from "@headlessui/react";
 import { ChevronUpDownIcon } from "@heroicons/react/20/solid";
 import FilterPills from "@/components/filters/FilterPills";
 import { BarChart, Bar, PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, XAxis, YAxis, CartesianGrid, Line, ComposedChart } from "recharts";
-import OppositionMap from "@/components/maps/OppositionMap";
+import dynamic from "next/dynamic";
+
+// Dynamically import OppositionMap to reduce initial bundle size (includes Google Maps)
+const OppositionMap = dynamic(() => import("@/components/maps/OppositionMap"), {
+	loading: () => <div className="text-white/60 text-sm p-4">Loading map...</div>,
+	ssr: false,
+});
 import OppositionPerformanceScatter from "@/components/stats/OppositionPerformanceScatter";
 /* COMMENTED OUT: Share Stats functionality - will be re-added in the future */
 // import ShareableStatsCard from "@/components/stats/ShareableStatsCard";

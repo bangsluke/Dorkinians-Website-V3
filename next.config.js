@@ -3,6 +3,11 @@ const fs = require("fs");
 const path = require("path");
 const webpack = require("webpack");
 
+// Bundle analyzer configuration
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+	enabled: process.env.ANALYZE === "true",
+});
+
 // Read version from package.json
 const packageJsonPath = path.join(__dirname, "package.json");
 const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
@@ -53,8 +58,8 @@ const withPWA = require("next-pwa")({
 const nextConfig = {
 	// output: 'export', // Disabled to enable API routes
 	images: {
-		unoptimized: true,
 		domains: ["docs.google.com"],
+		formats: ['image/avif', 'image/webp'],
 	},
 	// TypeScript configuration will be handled via tsconfig files
 	// Enable API routes for development and production
@@ -71,6 +76,8 @@ const nextConfig = {
 			exclude: ['error'],
 		} : false,
 	},
+	// SWC minification is already default in Next.js 14
+	swcMinify: true,
 	webpack: (config, { isServer }) => {
 		// Ignore optional dependencies that don't work in Next.js
 		config.plugins.push(
@@ -82,4 +89,4 @@ const nextConfig = {
 	},
 };
 
-module.exports = withPWA(nextConfig);
+module.exports = withBundleAnalyzer(withPWA(nextConfig));

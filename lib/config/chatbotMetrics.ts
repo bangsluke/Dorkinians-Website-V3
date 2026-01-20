@@ -173,7 +173,7 @@ export const metricConfigs: MetricConfig[] = [
 		displayName: "season team of the week",
 		singular: "season team of the week",
 		plural: "season teams of the week",
-		aliases: ["season totw", "season team of the week", "season selection", "yearly totw"],
+		aliases: ["season totw", "season team of the week", "season selection", "yearly totw", "team of the season", "tots"],
 		description: "Season team of the week selections",
 	},
 	{
