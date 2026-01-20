@@ -3,10 +3,18 @@ const fs = require("fs");
 const path = require("path");
 const webpack = require("webpack");
 
-// Bundle analyzer configuration
-const withBundleAnalyzer = require("@next/bundle-analyzer")({
-	enabled: process.env.ANALYZE === "true",
-});
+// Bundle analyzer configuration (only when ANALYZE=true and package is available)
+let withBundleAnalyzer = (config) => config;
+if (process.env.ANALYZE === "true") {
+	try {
+		withBundleAnalyzer = require("@next/bundle-analyzer")({
+			enabled: true,
+		});
+	} catch (error) {
+		// Bundle analyzer not available, skip it
+		console.warn("Bundle analyzer not available, skipping analysis");
+	}
+}
 
 // Read version from package.json
 const packageJsonPath = path.join(__dirname, "package.json");
