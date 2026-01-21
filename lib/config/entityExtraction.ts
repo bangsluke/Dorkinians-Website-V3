@@ -1855,8 +1855,10 @@ export class EntityExtractor {
 		// Extract season references (but exclude those already matched as "before")
 		// Enhanced regex to avoid matching dates: require 4-digit year (20xx) and 2-digit season (00-99)
 		// Exclude patterns that look like dates (DD/MM/YYYY or MM/DD/YYYY format)
-		const seasonMatches = this.findMatches(/\b(20\d{2}[/-]?\d{2}|20\d{2}\s*[/-]\s*20\d{2})\b/g);
+		// Updated regex to better match season formats: YYYY/YY, YYYY-YY, YYYY/YYYY, YYYY-YYYY
+		const seasonMatches = this.findMatches(/\b(20\d{2}[\/\-]\d{2}|20\d{2}[\/\-]20\d{2})\b/g);
 		seasonMatches.forEach((match) => {
+			
 			// Check if any character of this season match was already matched as "before"
 			let isBeforeSeason = false;
 			for (let i = match.position; i < match.position + match.text.length; i++) {
@@ -1880,6 +1882,7 @@ export class EntityExtractor {
 					originalText: match.text,
 					position: match.position,
 				});
+				
 			}
 		});
 
@@ -1895,6 +1898,21 @@ export class EntityExtractor {
 				position: match.position,
 			});
 		});
+
+		// Extract year ranges (e.g., "2021 to 2022", "2019 to 2020")
+		// This must come BEFORE date range extraction to avoid conflicts
+		const yearRangeRegex = /\b(\d{4})\s+to\s+(\d{4})\b/gi;
+		let yearRangeMatch;
+		while ((yearRangeMatch = yearRangeRegex.exec(this.question)) !== null) {
+			
+			timeFrames.push({
+				value: `${yearRangeMatch[1]} to ${yearRangeMatch[2]}`,
+				type: "range",
+				originalText: yearRangeMatch[0],
+				position: yearRangeMatch.index,
+			});
+			
+		}
 
 		// Extract date ranges (between X and Y)
 		// Enhanced regex to handle complex phrases like "whilst playing at home between X and Y"
@@ -1962,17 +1980,31 @@ export class EntityExtractor {
 		}
 
 		// Extract other time frame references
+		// Skip pseudonym matching for "to" if we already have a range extracted (to avoid overwriting year ranges)
+		const hasRange = timeFrames.some(tf => tf.type === "range");
 		Object.entries(TIME_FRAME_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
+				// Skip "to" pseudonym if we already have a range (year ranges use "to")
+				if (key === "between_dates" && pseudonym === "to" && hasRange) {
+					return;
+				}
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
 				const matches = this.findMatches(regex);
 				matches.forEach((match) => {
-					timeFrames.push({
-						value: key,
-						type: key === "between_dates" ? "range" : (key as any),
-						originalText: match.text,
-						position: match.position,
-					});
+					// Skip if this match overlaps with an existing range
+					const overlapsWithRange = timeFrames.some(tf => 
+						tf.type === "range" && 
+						match.position >= tf.position && 
+						match.position < tf.position + (tf.originalText?.length || 0)
+					);
+					if (!overlapsWithRange) {
+						timeFrames.push({
+							value: key,
+							type: key === "between_dates" ? "range" : (key as any),
+							originalText: match.text,
+							position: match.position,
+						});
+					}
 				});
 			});
 		});

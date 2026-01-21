@@ -3426,6 +3426,9 @@ export default function PlayerStats() {
 							})()}
 						</svg>
 					</div>
+					<div className='text-white text-sm md:text-base mt-2 text-center'>
+						Total Cards Cost: £{((toNumber(validPlayerData.yellowCards) * 13.5) + (toNumber(validPlayerData.redCards) * 55)).toLocaleString()}
+					</div>
 				</div>
 			)}
 

@@ -144,7 +144,20 @@ export class ResponseBuilder {
 			}
 		}
 
+		// Special handling for season-specific appearance queries with zero value
+		// Check if this is an appearance query (APP metric) with 0 value and a season timeFrame
 		const numericValue = typeof value === "number" ? value : Number(value);
+		if ((metric === "APP" || metric.toUpperCase() === "APP" || resolvedMetricForDisplay.toUpperCase() === "APP") && 
+			!Number.isNaN(numericValue) && numericValue === 0) {
+			// Check for season timeFrame in analysis
+			const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+			if (seasonFrame) {
+				// Normalize season format (handle both slash and dash)
+				let season = seasonFrame.value.replace("-", "/");
+				return `${playerName} did not make an appearance in the ${season} season.`;
+			}
+		}
+
 		if (!Number.isNaN(numericValue) && numericValue === 0) {
 			const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
 			if (zeroResponse) {

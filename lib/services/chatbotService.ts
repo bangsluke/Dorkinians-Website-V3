@@ -2029,9 +2029,7 @@ export class ChatbotService {
 		
 		// Determine goals-specific flags (only if no other metric detected)
 		const isGoalsConceded = !detectedMetric && question.includes("conceded");
-		const isOpenPlayGoals = question.includes("open play") || 
-		                        question.includes("openplay") ||
-		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
+		const isOpenPlayGoals = question.includes("open play") || question.includes("openplay") || extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
 		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
 
 		// Extract season and date range filters
@@ -2112,10 +2110,7 @@ export class ChatbotService {
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
-		const params: any = {
-			graphLabel,
-			teamName,
-		};
+		const params: Record<string, unknown> = { graphLabel, teamName };
 		
 		// Build WHERE conditions for filters
 		const whereConditions: string[] = [`f.team = $teamName`];
@@ -5944,6 +5939,25 @@ export class ChatbotService {
 					});
 				}
 			}
+			// Check if this is an APP metric query with a season timeFrame (e.g., "How many apps in 2019/20?")
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS")
+			) {
+				// Check for season timeFrame in analysis
+				const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+				if (seasonFrame) {
+					answerValue = 0;
+					// Normalize season format (handle both slash and dash)
+					let season = seasonFrame.value.replace("-", "/");
+					answer = `${String(playerName)} did not make an appearance in the ${season} season.`;
+				} else {
+					// No season filter, use default zero response
+					answerValue = 0;
+					answer = ResponseBuilder.buildContextualResponse(String(playerName), metric, 0, analysis);
+				}
+			}
 			// Check if this is a season-specific goals query (e.g., "2016/17GOALS") - explicitly state player did not score
 			else if (
 				metric &&
@@ -6046,7 +6060,7 @@ export class ChatbotService {
 					const totalGames = (playerData[0] as any)?.totalGames;
 					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
 						// Player has games but didn't win/lose/draw (depending on filter)
-						const resultType = analysis.results[0]?.toLowerCase();
+						const resultType = analysis.results?.[0]?.toLowerCase();
 						if (resultType === "win" || resultType === "w") {
 							answer = `${playerNameStr} has not won a home game.`;
 						} else if (resultType === "loss" || resultType === "l") {
@@ -6083,7 +6097,7 @@ export class ChatbotService {
 					const totalGames = (playerData[0] as any)?.totalGames;
 					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
 						// Player has games but didn't win/lose/draw (depending on filter)
-						const resultType = analysis.results[0]?.toLowerCase();
+						const resultType = analysis.results?.[0]?.toLowerCase();
 						if (resultType === "win" || resultType === "w") {
 							answer = `${playerNameStr} has not won an away game.`;
 						} else if (resultType === "loss" || resultType === "l") {
@@ -6962,9 +6976,12 @@ export class ChatbotService {
 						answer = `${playerName} has no season goals+assists data available.`;
 					}
 				}
+				
 				// Handle regular single-value queries
-				else {
+				} else {
 					const playerData = data.data as PlayerData[];
+					const playerName = data.playerName as string;
+					const metric = data.metric as string;
 					// For SEASON_COUNT_SIMPLE, value might be in playerSeasonCount field instead of value field
 					const value = playerData[0]?.value ?? (playerData[0] as any)?.playerSeasonCount;
 					const totalGames = (playerData[0] as any)?.totalGames;
@@ -7076,28 +7093,45 @@ export class ChatbotService {
 							} else {
 								answerValue = value as number;
 							
+								// Special handling for APP metric with 0 value and season timeFrame
+								const numericValue = typeof value === "number" ? value : Number(value);
+								const isAppMetric = metric && (metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS");
+								const isZeroValue = !Number.isNaN(numericValue) && numericValue === 0;
+								const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+								
 								// Check for team filter with goals/assists/other stats queries
-							const teamEntities = analysis.teamEntities || [];
-							const hasTeamFilter = teamEntities.length > 0;
-							const isGoalsQuery = metric && metric.toUpperCase() === "G";
-							const isAssistsQuery = metric && metric.toUpperCase() === "A";
-							const locations = analysis.extractionResult?.locations || [];
-							const hasHomeLocation = locations.some((loc) => loc.type === "home");
-							const hasAwayLocation = locations.some((loc) => loc.type === "away");
-							const timeFrames = analysis.extractionResult?.timeFrames || [];
-							const timeRange = analysis.timeRange;
-							
-							// Extract date range or "since"/"after" date from timeFrames or timeRange
-							let dateRangeText = "";
-							const lowerQuestion = analysis.question?.toLowerCase() || "";
-							
-							// Check for "since" or "after" patterns first
-							const sinceFrame = timeFrames.find(tf => tf.type === "since");
-							if (sinceFrame) {
-								// Handle "since [YEAR]" patterns
-								const sinceValue = sinceFrame.value;
-								// Check if it's a year (4 digits) or a date
-								if (/^\d{4}$/.test(sinceValue)) {
+								const teamEntities = analysis.teamEntities || [];
+								const hasTeamFilter = teamEntities.length > 0;
+								const isGoalsQuery = metric && metric.toUpperCase() === "G";
+								const isAssistsQuery = metric && metric.toUpperCase() === "A";
+								const locations = analysis.extractionResult?.locations || [];
+								const hasHomeLocation = locations.some((loc) => loc.type === "home");
+								const hasAwayLocation = locations.some((loc) => loc.type === "away");
+								const timeFrames = analysis.extractionResult?.timeFrames || [];
+								const timeRange = analysis.timeRange;
+								
+								// Handle APP metric with 0 value and season timeFrame BEFORE other logic
+								if (isAppMetric && isZeroValue && seasonFrame) {
+									
+									// Normalize season format (handle both slash and dash)
+									let season = seasonFrame.value.replace("-", "/");
+									answer = `${playerName} did not make an appearance in the ${season} season.`;
+									answerValue = 0;
+									
+								}
+								
+								// Extract date range or "since"/"after" date from timeFrames or timeRange
+								// Only build normal answer if special case wasn't handled
+								let dateRangeText = "";
+								const lowerQuestion = analysis.question?.toLowerCase() || "";
+								
+								// Check for "since" or "after" patterns first
+								const sinceFrame = timeFrames.find(tf => tf.type === "since");
+								if (sinceFrame) {
+									// Handle "since [YEAR]" patterns
+									const sinceValue = sinceFrame.value;
+									// Check if it's a year (4 digits) or a date
+									if (/^\d{4}$/.test(sinceValue)) {
 									// It's a year, format as "after [YEAR]" or "since [YEAR]" based on question
 									if (lowerQuestion.includes("after")) {
 										dateRangeText = `after ${sinceValue}`;
@@ -7390,7 +7424,7 @@ export class ChatbotService {
 									// Check if there's a result filter and if player has any home games
 									const hasResultFilter = analysis.results && analysis.results.length > 0;
 									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
-										const resultType = analysis.results[0]?.toLowerCase();
+										const resultType = analysis.results?.[0]?.toLowerCase();
 										if (resultType === "win" || resultType === "w") {
 											answer = `${playerName} has not won a home game.`;
 										} else if (resultType === "loss" || resultType === "l") {
@@ -7408,7 +7442,7 @@ export class ChatbotService {
 									// Check if there's a result filter and if player has any away games
 									const hasResultFilter = analysis.results && analysis.results.length > 0;
 									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
-										const resultType = analysis.results[0]?.toLowerCase();
+										const resultType = analysis.results?.[0]?.toLowerCase();
 										if (resultType === "win" || resultType === "w") {
 											answer = `${playerName} has not won an away game.`;
 										} else if (resultType === "loss" || resultType === "l") {
@@ -7488,7 +7522,8 @@ export class ChatbotService {
 							} else {
 								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 							}
-						}
+								}
+							}
 						
 						// Create NumberCard visualization for penalty conversion rate
 						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
@@ -7514,7 +7549,7 @@ export class ChatbotService {
 						}
 						// Create NumberCard visualization for goals queries with competition, location, or team filters
 						// Also handle OPENPLAYGOALS (open play goals)
-						else if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
+						if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
 							const hasHomeLocation = locations.some((loc) => loc.type === "home");
@@ -7984,7 +8019,7 @@ export class ChatbotService {
 							}
 						}
 						// Create NumberCard visualization for appearance queries (APP) with date filters
-						else if (metric && metric.toUpperCase() === "APP") {
+						if (metric && metric.toUpperCase() === "APP") {
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
 							const hasDateFilter = timeFrames.some((tf) => tf.type === "since" || tf.type === "range");
 							
@@ -8009,7 +8044,7 @@ export class ChatbotService {
 						}
 						// General fallback: Create NumberCard for any single-value query with filters (team, location, or date range)
 						// This handles stats like yellow cards, MoMs, etc. with filters (assists are handled above)
-						else if (!visualization && dataLength === 1) {
+						if (!visualization && dataLength === 1) {
 							const locations = analysis.extractionResult?.locations || [];
 							const teamEntities = analysis.teamEntities || [];
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
@@ -8044,32 +8079,30 @@ export class ChatbotService {
 								};
 							}
 						}
-					}
 					} else {
 						answer = "No data found for your query.";
+
+						// Handle other data types
+						const playerData = data.data as PlayerData[];
+						const playerName = playerData[0]?.playerName || analysis.entities[0] || "Unknown";
+						const value = playerData[0]?.value;
+						const metric = (data.metric as string) || analysis.metrics[0] || "G";
+
+						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+							const playerTeamCount = typeof value === "number" ? value : 0;
+							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+							answerValue = `${playerTeamCount}/${totalTeamCount}`;
+						} else if (value !== undefined && value !== null) {
+							answerValue = value as number;
+							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+						} else {
+							answer = "No data found for your query.";
+						}
 					}
 				}
-			} else {
-				// Handle other data types
-				const playerData = data.data as PlayerData[];
-				const playerName = playerData[0]?.playerName || analysis.entities[0] || "Unknown";
-				const value = playerData[0]?.value;
-				const metric = (data.metric as string) || analysis.metrics[0] || "G";
-
-				// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
-				if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
-					const playerTeamCount = typeof value === "number" ? value : 0;
-					const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
-					answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
-					answerValue = `${playerTeamCount}/${totalTeamCount}`;
-				} else if (value !== undefined && value !== null) {
-					answerValue = value as number;
-					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 				} else {
-					answer = "No data found for your query.";
-				}
-			}
-		} else {
 			// Fallback for unknown data types
 			// Don't check for clarification if we have streak data (it should have been handled above)
 			if (data && data.type === "streak") {

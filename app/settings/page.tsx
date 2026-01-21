@@ -378,9 +378,9 @@ export default function SettingsPage() {
 
 					{/* Right Column */}
 					<div className='space-y-4 mt-6 md:mt-0'>
-						{/* App Settings Section */}
+						{/* App Information Section */}
 						<div className='space-y-4'>
-							<h2 className='text-xl font-semibold text-white mb-6'>App Settings</h2>
+							<h2 className='text-xl font-semibold text-white mb-6'>App Information</h2>
 							<div className='space-y-3'>
 							{/* Version Release Details */}
 							<motion.div

@@ -1060,11 +1060,15 @@ export class PlayerDataQueryHandler {
 			if (!hasDatePattern && !hasCompetitionPattern) {
 				// Skip opposition extraction if question is about seasons
 				const hasSeasonKeyword = questionLower.includes("season") || questionLower.includes("seasons");
-				if (hasSeasonKeyword) {
+				// Also skip if there's a season timeFrame (e.g., "2018-19", "2019/20")
+				const hasSeasonTimeFrame = analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season");
+				if (hasSeasonKeyword || hasSeasonTimeFrame) {
+					// Skip opposition extraction for season queries
 				} else if (analysis.teamEntities && analysis.teamEntities.length > 0) {
 					// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
 				} else {
-					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					// Only match "play/played against" patterns, not "play in" patterns
+					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+against\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 					if (oppositionMatch && oppositionMatch[1]) {
 						const potentialOpposition = oppositionMatch[1];
 						// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
