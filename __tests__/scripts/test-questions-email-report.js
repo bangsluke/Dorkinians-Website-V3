@@ -91,7 +91,8 @@ process.on("SIGTERM", () => {
 	process.exit(0);
 });
 
-// Register ts-node to handle TypeScript imports
+// Register ts-node to handle TypeScript imports with path aliases
+const projectRoot = path.resolve(__dirname, "../..");
 require("ts-node").register({
 	transpileOnly: true,
 	compilerOptions: {
@@ -101,14 +102,61 @@ require("ts-node").register({
 		allowSyntheticDefaultImports: true,
 		skipLibCheck: true,
 		moduleResolution: "node",
+		baseUrl: projectRoot,
+		paths: {
+			"@/*": ["./*"],
+			"@/components/*": ["./components/*"],
+			"@/lib/*": ["./lib/*"],
+			"@/config/*": ["./config/*"],
+			"@/types/*": ["./types/*"],
+			"@/utils/*": ["./utils/*"],
+		},
 	},
 });
+
+// Register path alias resolver
+try {
+	require("tsconfig-paths").register({
+		baseUrl: projectRoot,
+		paths: {
+			"@/*": ["./*"],
+			"@/components/*": ["./components/*"],
+			"@/lib/*": ["./lib/*"],
+			"@/config/*": ["./config/*"],
+			"@/types/*": ["./types/*"],
+			"@/utils/*": ["./utils/*"],
+		},
+	});
+} catch (error) {
+	// Fallback: manual path resolution
+	const Module = require("module");
+	const originalResolveFilename = Module._resolveFilename;
+	Module._resolveFilename = function(request, parent, isMain) {
+		if (request.startsWith("@/")) {
+			const aliasPath = request.replace(/^@\//, "");
+			const resolvedPath = path.resolve(projectRoot, aliasPath);
+			try {
+				return originalResolveFilename.call(this, resolvedPath, parent, isMain);
+			} catch (e) {
+				// Try with .ts extension
+				try {
+					return originalResolveFilename.call(this, resolvedPath + ".ts", parent, isMain);
+				} catch (e2) {
+					// Fall back to original behavior
+					return originalResolveFilename.call(this, request, parent, isMain);
+				}
+			}
+		}
+		return originalResolveFilename.call(this, request, parent, isMain);
+	};
+}
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
 
 // Load testDataSources to get TBL_TestQuestions URL
-const { testDataSources } = require("../config/dataSources.js");
+const dataSourcesPath = path.resolve(__dirname, '../../config/dataSources.js');
+const { testDataSources } = require(dataSourcesPath);
 
 /**
  * Extract numeric value from chatbot answer for NumberCard responses
@@ -423,7 +471,8 @@ function loadChatbotService() {
 				delete require.extensions[".ts"];
 			}
 
-			// Register ts-node with minimal configuration
+			// Register ts-node with path alias support
+			const projectRootForService = path.resolve(__dirname, "../..");
 			require("ts-node").register({
 				transpileOnly: true,
 				skipProject: true,
@@ -435,13 +484,61 @@ function loadChatbotService() {
 					allowSyntheticDefaultImports: true,
 					skipLibCheck: true,
 					noEmit: true,
+					baseUrl: projectRootForService,
+					paths: {
+						"@/*": ["./*"],
+						"@/components/*": ["./components/*"],
+						"@/lib/*": ["./lib/*"],
+						"@/config/*": ["./config/*"],
+						"@/types/*": ["./types/*"],
+						"@/utils/*": ["./utils/*"],
+					},
 				},
 			});
+
+			// Register path alias resolver
+			try {
+				require("tsconfig-paths").register({
+					baseUrl: projectRootForService,
+					paths: {
+						"@/*": ["./*"],
+						"@/components/*": ["./components/*"],
+						"@/lib/*": ["./lib/*"],
+						"@/config/*": ["./config/*"],
+						"@/types/*": ["./types/*"],
+						"@/utils/*": ["./utils/*"],
+					},
+				});
+				console.log("✅ Path aliases registered");
+			} catch (error) {
+				// Fallback: manual path resolution
+				const Module = require("module");
+				const originalResolveFilename = Module._resolveFilename;
+				Module._resolveFilename = function(request, parent, isMain) {
+					if (request.startsWith("@/")) {
+						const aliasPath = request.replace(/^@\//, "");
+						const resolvedPath = path.resolve(projectRootForService, aliasPath);
+						try {
+							return originalResolveFilename.call(this, resolvedPath, parent, isMain);
+						} catch (e) {
+							// Try with .ts extension
+							try {
+								return originalResolveFilename.call(this, resolvedPath + ".ts", parent, isMain);
+							} catch (e2) {
+								// Fall back to original behavior
+								return originalResolveFilename.call(this, request, parent, isMain);
+							}
+						}
+					}
+					return originalResolveFilename.call(this, request, parent, isMain);
+				};
+				console.log("✅ Path aliases registered (manual fallback)");
+			}
 
 			console.log("✅ ts-node registered with minimal configuration");
 
 			// Load the TypeScript file
-			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
+			const chatbotPath = path.resolve(__dirname, "../../lib/services/chatbotService.ts");
 			console.log(`📁 Loading: ${chatbotPath}`);
 
 			const chatbotModule = require(chatbotPath);

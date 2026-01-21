@@ -144,7 +144,8 @@ process.on("SIGTERM", () => {
 	process.exit(0);
 });
 
-// Register ts-node to handle TypeScript imports
+// Register ts-node to handle TypeScript imports with path aliases
+const projectRoot = path.resolve(__dirname, "../..");
 require("ts-node").register({
 	transpileOnly: true,
 	compilerOptions: {
@@ -154,12 +155,60 @@ require("ts-node").register({
 		allowSyntheticDefaultImports: true,
 		skipLibCheck: true,
 		moduleResolution: "node",
+		baseUrl: projectRoot,
+		paths: {
+			"@/*": ["./*"],
+			"@/components/*": ["./components/*"],
+			"@/lib/*": ["./lib/*"],
+			"@/config/*": ["./config/*"],
+			"@/types/*": ["./types/*"],
+			"@/utils/*": ["./utils/*"],
+		},
 	},
 });
 
+// Register path alias resolver
+try {
+	require("tsconfig-paths").register({
+		baseUrl: projectRoot,
+		paths: {
+			"@/*": ["./*"],
+			"@/components/*": ["./components/*"],
+			"@/lib/*": ["./lib/*"],
+			"@/config/*": ["./config/*"],
+			"@/types/*": ["./types/*"],
+			"@/utils/*": ["./utils/*"],
+		},
+	});
+} catch (error) {
+	// Fallback: manual path resolution
+	const Module = require("module");
+	const originalResolveFilename = Module._resolveFilename;
+	Module._resolveFilename = function(request, parent, isMain) {
+		if (request.startsWith("@/")) {
+			const aliasPath = request.replace(/^@\//, "");
+			const resolvedPath = path.resolve(projectRoot, aliasPath);
+			try {
+				return originalResolveFilename.call(this, resolvedPath, parent, isMain);
+			} catch (e) {
+				// Try with .ts extension
+				try {
+					return originalResolveFilename.call(this, resolvedPath + ".ts", parent, isMain);
+				} catch (e2) {
+					// Fall back to original behavior
+					return originalResolveFilename.call(this, request, parent, isMain);
+				}
+			}
+		}
+		return originalResolveFilename.call(this, request, parent, isMain);
+	};
+}
+
 // Import STAT_TEST_CONFIGS and statObject from config.ts
-const { STAT_TEST_CONFIGS, statObject } = require('../config/config.ts');
-const { messageMatchesZeroStatPhrase } = require('../lib/services/zeroStatResponses.ts');
+const configPath = path.resolve(__dirname, '../../config/config.ts');
+const zeroStatResponsesPath = path.resolve(__dirname, '../../lib/services/zeroStatResponses.ts');
+const { STAT_TEST_CONFIGS, statObject } = require(configPath);
+const { messageMatchesZeroStatPhrase } = require(zeroStatResponsesPath);
 
 // Import chatbot service (will be loaded dynamically)
 let ChatbotService = null;
@@ -1017,27 +1066,74 @@ function loadChatbotService() {
 				delete require.extensions[".ts"];
 			}
 
-		// Register ts-node with minimal configuration to avoid type errors
-		require("ts-node").register({
-			transpileOnly: true,
-			skipProject: true,
-			compilerOptions: {
-				target: "es2020",
-				module: "commonjs",
-				moduleResolution: "node",
-				esModuleInterop: true,
-				allowSyntheticDefaultImports: true,
-				skipLibCheck: true,
-				noEmit: true,
-			},
-		});
+		// Register ts-node with path alias support
+		const projectRootForService = path.resolve(__dirname, "../..");
+			require("ts-node").register({
+				transpileOnly: true,
+				skipProject: true,
+				compilerOptions: {
+					target: "es2020",
+					module: "commonjs",
+					moduleResolution: "node",
+					esModuleInterop: true,
+					allowSyntheticDefaultImports: true,
+					skipLibCheck: true,
+					noEmit: true,
+					baseUrl: projectRootForService,
+					paths: {
+						"@/*": ["./*"],
+						"@/components/*": ["./components/*"],
+						"@/lib/*": ["./lib/*"],
+						"@/config/*": ["./config/*"],
+						"@/types/*": ["./types/*"],
+						"@/utils/*": ["./utils/*"],
+					},
+				},
+			});
 
-			console.log("✅ ts-node registered with minimal configuration");
+			// Register path alias resolver
+			try {
+				require("tsconfig-paths").register({
+					baseUrl: projectRootForService,
+				paths: {
+					"@/*": ["./*"],
+					"@/components/*": ["./components/*"],
+					"@/lib/*": ["./lib/*"],
+					"@/config/*": ["./config/*"],
+					"@/types/*": ["./types/*"],
+					"@/utils/*": ["./utils/*"],
+				},
+			});
+			console.log("✅ Path aliases registered");
+		} catch (error) {
+			// Fallback: manual path resolution
+			const Module = require("module");
+			const originalResolveFilename = Module._resolveFilename;
+			Module._resolveFilename = function(request, parent, isMain) {
+				if (request.startsWith("@/")) {
+					const aliasPath = request.replace(/^@\//, "");
+					const resolvedPath = path.resolve(projectRootForService, aliasPath);
+					try {
+						return originalResolveFilename.call(this, resolvedPath, parent, isMain);
+					} catch (e) {
+						// Try with .ts extension
+						try {
+							return originalResolveFilename.call(this, resolvedPath + ".ts", parent, isMain);
+						} catch (e2) {
+							// Fall back to original behavior
+							return originalResolveFilename.call(this, request, parent, isMain);
+						}
+					}
+				}
+				return originalResolveFilename.call(this, request, parent, isMain);
+			};
+			console.log("✅ Path aliases registered (manual fallback)");
+		}
 
-			// Load the TypeScript file with simplified approach
-			const path = require("path");
-			const fs = require("fs");
-			const chatbotPath = path.resolve(__dirname, "../lib/services/chatbotService.ts");
+		console.log("✅ ts-node registered with minimal configuration");
+
+		// Load the TypeScript file with simplified approach
+		const chatbotPath = path.resolve(__dirname, "../../lib/services/chatbotService.ts");
 			console.log(`📁 Loading: ${chatbotPath}`);
 
 			// Verify file exists and get timestamp
