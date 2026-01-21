@@ -1178,7 +1178,9 @@ export class EntityExtractor {
 		// player names to be extracted when team entities are present
 		// Updated pattern to handle names with multiple capitals (e.g., "McKrell", "O'Brien")
 		const hasClearPlayerNamePattern = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
-		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern) {
+		// Also check for simpler capitalized name patterns (e.g., "Ahmad Farooq")
+		const hasCapitalizedNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b)/.test(this.question);
+		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern || hasCapitalizedNamePattern) {
 			const playerNames = this.extractPlayerNamesWithNLP(extractedTeamNames);
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
@@ -1227,6 +1229,48 @@ export class EntityExtractor {
 					}
 				}
 			});
+			
+			// Fallback: If NLP didn't extract any players but we detected a name pattern, try regex extraction
+			// This handles cases where NLP doesn't recognize names like "Ahmad Farooq"
+			if (playerNames.length === 0 && (hasClearPlayerNamePattern || hasCapitalizedNamePattern)) {
+				const regexPlayerMatches = this.findMatches(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g);
+				regexPlayerMatches.forEach((match) => {
+					const potentialName = match.text.trim();
+					// Skip if it's already extracted or matches a team name
+					if (!addedPlayers.has(potentialName.toLowerCase()) && 
+					    !extractedTeamNames.has(potentialName.toLowerCase()) &&
+					    !isHatTrickTerm(potentialName)) {
+						// Check if it looks like a player name (not a common word or stat type)
+						const commonPhrases = ["How Many", "How Much", "What Is", "What Are", "Where Did", "When Did", "How Many", "How Many Times"];
+						const isCommonPhrase = commonPhrases.some(phrase => potentialName.toLowerCase().includes(phrase.toLowerCase()));
+						// Also check if it's a question word followed by a capitalized word (likely not a player name)
+						const words = potentialName.split(/\s+/);
+						const questionWords = ["how", "what", "where", "when", "why", "which", "who"];
+						const startsWithQuestionWord = words.length > 0 && questionWords.includes(words[0].toLowerCase());
+						
+						if (!isCommonPhrase && !startsWithQuestionWord && words.length >= 2) {
+							// Additional check: make sure it's not part of a longer phrase that's clearly not a name
+							const namePosition = match.position;
+							const beforeText = this.question.substring(Math.max(0, namePosition - 10), namePosition).toLowerCase();
+							const afterText = this.question.substring(namePosition + potentialName.length, Math.min(this.question.length, namePosition + potentialName.length + 10)).toLowerCase();
+							
+							// Skip if it's clearly part of a question phrase
+							const isQuestionPhrase = beforeText.includes("how many") || beforeText.includes("what is") || 
+							                         afterText.includes(" has") || afterText.includes(" have") ||
+							                         beforeText.includes("how many") || beforeText.includes("how much");
+							if (!isQuestionPhrase) {
+								addedPlayers.add(potentialName.toLowerCase());
+								entities.push({
+									value: potentialName,
+									type: "player",
+									originalText: potentialName,
+									position: match.position,
+								});
+							}
+						}
+					}
+				});
+			}
 		}
 
 		// Extract league references (detect league-related terms dynamically)

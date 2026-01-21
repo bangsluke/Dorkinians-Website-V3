@@ -815,13 +815,23 @@ export class ChatbotService {
 			}
 
 			// Check for distance/location queries
+			// CRITICAL: Only route to distance queries if there's no player mentioned in the question
+			// Check for potential player names in the question before routing to distance queries
+			const hasPotentialPlayerName = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/.test(question);
+			const extractionResult = analysis.extractionResult;
+			const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+			const hasPlayerEntity = playerEntities.length > 0;
+			
+			// Use word boundaries to avoid false positives (e.g., "Farooq" matching "far")
 			const isDistanceQuery = 
-				question.includes("distance") || question.includes("far") || question.includes("travel") ||
-				question.includes("furthest") || question.includes("furthest opposition");
+				/\bdistance\b/i.test(question) || /\bfar\b/i.test(question) || /\btravel/i.test(question) ||
+				/\bfurthest\b/i.test(question) || /\bfurthest opposition\b/i.test(question);
 
-			if (isDistanceQuery) {
-				const extractionResult = analysis.extractionResult;
-				const playerEntities = extractionResult?.entities?.filter(e => e.type === "player").map(e => e.value) || [];
+			// Only route to distance queries if:
+			// 1. It's explicitly a distance query AND
+			// 2. There's no player entity extracted AND
+			// 3. There's no potential player name pattern in the question (to avoid false positives)
+			if (isDistanceQuery && !hasPlayerEntity && !hasPotentialPlayerName) {
 				if (question.includes("furthest") && !entities.some(e => playerEntities.includes(e))) {
 					return await RelationshipQueryHandler.queryFurthestOpposition();
 				} else if (entities.length > 0 && playerEntities.length > 0 && playerEntities.includes(entities[0])) {
@@ -832,6 +842,14 @@ export class ChatbotService {
 				} else if (analysis.oppositionEntities && analysis.oppositionEntities.length > 0) {
 					return await RelationshipQueryHandler.queryDistanceToOpposition(analysis.oppositionEntities[0]);
 				}
+			}
+			
+			// If it's a distance query but we have a player entity, route to player distance query
+			if (isDistanceQuery && hasPlayerEntity && playerEntities.length > 0) {
+				const playerName = playerEntities[0];
+				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2,4})/);
+				const season = seasonMatch ? seasonMatch[0].replace("-", "/") : undefined;
+				return await RelationshipQueryHandler.queryPlayerDistanceTraveled(playerName, season);
 			}
 
 			// Check for "no goal involvement" streak questions - route to streak handler
