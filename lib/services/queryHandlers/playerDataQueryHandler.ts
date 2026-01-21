@@ -23,9 +23,6 @@ export class PlayerDataQueryHandler {
 	 * Returns clarification message if needed, null otherwise
 	 */
 	private static checkPartialNameClarification(playerName: string, userContext?: string): { needsClarification: boolean; message?: string } | null {
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:25',message:'checkPartialNameClarification called',data:{playerName,userContext},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-		// #endregion
 		if (!userContext) {
 			return null;
 		}
@@ -41,17 +38,11 @@ export class PlayerDataQueryHandler {
 
 		// Skip pronouns
 		if (pronouns.includes(normalizedName)) {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:35',message:'Skipped pronoun',data:{normalizedName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 			return null;
 		}
 		
 		// Skip common words (check both with and without punctuation)
 		if (commonWords.includes(normalizedName) || commonWords.includes(nameWithoutPunctuation)) {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:45',message:'Skipped common word',data:{normalizedName,nameWithoutPunctuation},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 			return null;
 		}
 
@@ -59,9 +50,6 @@ export class PlayerDataQueryHandler {
 		const isSingleWord = !normalizedName.includes(" ") && normalizedName.length >= 2 && normalizedName.length < 20;
 
 		if (isSingleWord) {
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:48',message:'Single word detected',data:{normalizedName,isSingleWord},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 			// Check special case: "Twat" -> "Kieran Mackrell"
 			if (normalizedName === "twat") {
 				return {
@@ -73,16 +61,10 @@ export class PlayerDataQueryHandler {
 			// Check if selected player contains this partial name
 			if (selectedPlayerLower.includes(normalizedName) && normalizedName.length >= 2) {
 				// Partial name matches selected player, no clarification needed
-				// #region agent log
-				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:56',message:'Partial name matches userContext',data:{normalizedName,selectedPlayerLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-				// #endregion
 				return null;
 			}
 
 			// Partial name doesn't match selected player, clarification needed
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:63',message:'Clarification needed',data:{normalizedName,selectedPlayerLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-			// #endregion
 			return {
 				needsClarification: true,
 				message: `Please provide clarification on who ${playerName} is.`,
@@ -1076,21 +1058,27 @@ export class PlayerDataQueryHandler {
 			                             (analysis.competitions && analysis.competitions.length > 0);
 			
 			if (!hasDatePattern && !hasCompetitionPattern) {
-				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-				if (oppositionMatch && oppositionMatch[1]) {
-					const potentialOpposition = oppositionMatch[1];
-					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
-					// Also skip competition-related words
-					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
-					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
-					const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
-					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
-					    !isDateKeyword &&
-					    !isCompetitionKeyword &&
-					    !afterMatch?.toLowerCase().startsWith("for") &&
-					    !afterMatch?.toLowerCase().startsWith("the")) {
-						extractedOppositionName = potentialOpposition;
-						loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
+				if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+				} else {
+					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					if (oppositionMatch && oppositionMatch[1]) {
+						const potentialOpposition = oppositionMatch[1];
+						// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+						// Also skip competition-related words, or common words like "for", "the"
+						const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+						const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+						const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
+						const isCommonWord = ["for", "the", "a", "an"].includes(potentialOpposition.toLowerCase());
+						if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+						    !isDateKeyword &&
+						    !isCompetitionKeyword &&
+						    !isCommonWord &&
+						    !afterMatch?.toLowerCase().startsWith("for") &&
+						    !afterMatch?.toLowerCase().startsWith("the")) {
+							extractedOppositionName = potentialOpposition;
+							loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+						}
 					}
 				}
 			}
@@ -2283,7 +2271,7 @@ export class PlayerDataQueryHandler {
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
-			const originalMetric = metrics[0] || "";
+			let originalMetric = metrics[0] || "";
 
 			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
@@ -2317,6 +2305,9 @@ export class PlayerDataQueryHandler {
 				} else if (questionLower.includes("own goal") || questionLower.includes("own goals")) {
 					// Check for own goals BEFORE general goals to ensure correct metric
 					detectedMetricFromQuestion = "OG";
+				} else if (questionLower.includes("penalt") && questionLower.includes("conceded")) {
+					// Check for penalties conceded BEFORE general conceded to ensure correct metric
+					detectedMetricFromQuestion = "PCO";
 				} else if (questionLower.includes("conceded") && hasPerAppearancePhrase) {
 					// Check for conceded per appearance BEFORE general conceded
 					detectedMetricFromQuestion = "CperAPP";
@@ -2350,6 +2341,22 @@ export class PlayerDataQueryHandler {
 					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
 						!questionLower.includes("yellow") && !questionLower.includes("red card")) {
 						detectedMetricFromQuestion = "APP";
+					}
+				}
+			}
+			
+			// CRITICAL: Convert TEAM_ANALYSIS to team-specific appearance metric when team entities are present and question asks about appearances/times
+			if (originalMetric && originalMetric.toUpperCase() === "TEAM_ANALYSIS" && analysis.teamEntities && analysis.teamEntities.length > 0) {
+				const teamEntity = analysis.teamEntities[0];
+				const teamMatch = teamEntity.match(/^(\d+)(?:st|nd|rd|th|s)?$/i);
+				if (teamMatch && (questionLower.includes("how many times") || questionLower.includes("times") || questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game"))) {
+					const teamNum = teamMatch[1];
+					const mappedTeam = TeamMappingUtils.mapTeamName(teamEntity);
+					// Extract team number from mapped name (e.g., "3rd XI" -> "3")
+					const mappedTeamMatch = mappedTeam.match(/^(\d+)(?:st|nd|rd|th)\s+XI$/i);
+					if (mappedTeamMatch) {
+						const mappedTeamNum = mappedTeamMatch[1];
+						originalMetric = `${mappedTeamNum}sApps`;
 					}
 				}
 			}
@@ -2518,13 +2525,7 @@ export class PlayerDataQueryHandler {
 			}
 
 			// Build the optimal query using unified architecture
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2497',message:'BEFORE buildPlayerQuery',data:{metric,analysisResults:analysis.results,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'P'})}).catch(()=>{});
-			// #endregion
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2498',message:'AFTER buildPlayerQuery',data:{query,metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'P'})}).catch(()=>{});
-			// #endregion
 
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
@@ -2548,9 +2549,6 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2517',message:'QUERY RESULT',data:{metric,metricToUse,resultLength:result?.length,result:result,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
-			// #endregion
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2592,9 +2590,6 @@ export class PlayerDataQueryHandler {
 				}
 
 				if ((!result || !Array.isArray(result) || result.length === 0) && isHomeAwayGamesMetric) {
-					// #region agent log
-					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2555',message:'HOME/AWAY GAMES EMPTY RESULT',data:{metricToUse,playerName:actualPlayerName,hasResultFilter:!!(analysis.results && analysis.results.length > 0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-					// #endregion
 					
 					// If there's a result filter (e.g., "won"), check if player has any games at all
 					// to distinguish between "no games played" vs "no games won"
@@ -2615,9 +2610,6 @@ export class PlayerDataQueryHandler {
 							const totalGamesResult = await neo4jService.executeQuery(totalGamesQuery, { playerName: actualPlayerName, graphLabel });
 							const totalGames = totalGamesResult && totalGamesResult.length > 0 ? (totalGamesResult[0].totalGames || 0) : 0;
 							
-							// #region agent log
-							fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2575',message:'TOTAL GAMES CHECK',data:{totalGames,metricToUse,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
-							// #endregion
 							
 							// If player has games but 0 wins, include totalGames in the response for response generation
 							if (totalGames > 0) {

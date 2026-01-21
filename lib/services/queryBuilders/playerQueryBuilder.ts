@@ -216,6 +216,26 @@ export class PlayerQueryBuilder {
 			case "POINTS":
 			case "FANTASYPOINTS":
 				return "coalesce(sum(CASE WHEN md.fantasyPoints IS NULL OR md.fantasyPoints = '' THEN 0 ELSE md.fantasyPoints END), 0) as value";
+			case "PCO":
+				return "coalesce(sum(CASE WHEN md.penaltiesConceded IS NULL OR md.penaltiesConceded = '' THEN 0 ELSE md.penaltiesConceded END), 0) as value";
+			case "PM":
+				return "coalesce(sum(CASE WHEN md.penaltiesMissed IS NULL OR md.penaltiesMissed = '' THEN 0 ELSE md.penaltiesMissed END), 0) as value";
+			case "PSV":
+				return "coalesce(sum(CASE WHEN md.penaltiesSaved IS NULL OR md.penaltiesSaved = '' THEN 0 ELSE md.penaltiesSaved END), 0) as value";
+			case "PSC":
+				return "coalesce(sum(CASE WHEN md.penaltiesScored IS NULL OR md.penaltiesScored = '' THEN 0 ELSE md.penaltiesScored END), 0) as value";
+			case "C":
+				return "coalesce(sum(CASE WHEN md.conceded IS NULL OR md.conceded = '' THEN 0 ELSE md.conceded END), 0) as value";
+			case "CLS":
+				return "coalesce(sum(CASE WHEN md.cleanSheets IS NULL OR md.cleanSheets = '' THEN 0 ELSE md.cleanSheets END), 0) as value";
+			case "OG":
+				return "coalesce(sum(CASE WHEN md.ownGoals IS NULL OR md.ownGoals = '' THEN 0 ELSE md.ownGoals END), 0) as value";
+			case "SAVES":
+				return "coalesce(sum(CASE WHEN md.saves IS NULL OR md.saves = '' THEN 0 ELSE md.saves END), 0) as value";
+			case "MIN":
+				return "coalesce(sum(CASE WHEN md.minutes IS NULL OR md.minutes = '' THEN 0 ELSE md.minutes END), 0) as value";
+			case "MOM":
+				return "coalesce(sum(CASE WHEN md.mom IS NULL OR md.mom = '' THEN 0 ELSE md.mom END), 0) as value";
 			// Team-specific appearance metrics (1sApps, 2sApps, etc.)
 			default:
 				// Check if it's a team-specific appearance metric
@@ -979,10 +999,11 @@ export class PlayerQueryBuilder {
 				WITH p, awayWins, homeGames, awayGames, (homeGames + awayGames) as totalGames
 				RETURN p.playerName as playerName, 
 					CASE 
-						WHEN awayGames > 0 THEN round(100.0 * awayWins / awayGames)
-						ELSE 0 
+						WHEN awayGames > 0 THEN 100.0 * awayWins / awayGames
+						ELSE 0.0 
 					END as value,
-					awayGames as totalGames
+					awayGames as totalGames,
+					awayWins as awayWins
 			`;
 		} else if (metricUpper === "GAMES%WON") {
 			return `

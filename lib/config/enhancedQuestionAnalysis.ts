@@ -329,6 +329,7 @@ export class EnhancedQuestionAnalyzer {
 		} else {
 			// Don't set clarification at analysis time for other cases - let queries run first
 			// Clarification will be requested only if queries return no data
+			// CRITICAL: Even if player name doesn't match userContext, if it's a full name, proceed without clarification
 			requiresClarification = false;
 		}
 
@@ -556,18 +557,45 @@ export class EnhancedQuestionAnalyzer {
 			// Clean originalText: remove "(resolved to: ...)" suffix and handle any duplication
 			let originalText = entity.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
 			// Handle duplication issue: if text contains the same word twice (e.g., "Luke Luke"), take only the first occurrence
+			// Also handle repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 			const words = originalText.split(/\s+/);
-			const uniqueWords: string[] = [];
-			for (const word of words) {
-				if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
-					uniqueWords.push(word);
+			if (words.length >= 4) {
+				const midPoint = Math.floor(words.length / 2);
+				const firstHalf = words.slice(0, midPoint).join(" ");
+				const secondHalf = words.slice(midPoint).join(" ");
+				if (firstHalf === secondHalf) {
+					originalText = firstHalf;
+				} else {
+					// Check for shorter repeating patterns
+					for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+						const pattern = words.slice(0, patternLen).join(" ");
+						let matches = true;
+						for (let i = patternLen; i < words.length; i += patternLen) {
+							const segment = words.slice(i, i + patternLen).join(" ");
+							if (segment !== pattern) {
+								matches = false;
+								break;
+							}
+						}
+						if (matches && words.length % patternLen === 0) {
+							originalText = pattern;
+							break;
+						}
+					}
 				}
+			} else {
+				// For shorter names, just remove consecutive duplicates
+				const uniqueWords: string[] = [];
+				for (const word of words) {
+					if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+						uniqueWords.push(word);
+					}
+				}
+				originalText = uniqueWords.join(" ").trim();
 			}
-			originalText = uniqueWords.join(" ").trim();
 
 			// Check if it's a single word (partial name)
 			const isSingleWord = !originalText.includes(" ") && originalText.length >= 2 && originalText.length < 20;
-			
 			if (isSingleWord) {
 				// Check special case: "Twat" -> "Kieran Mackrell"
 				if (originalText === "twat") {
@@ -644,16 +672,44 @@ export class EnhancedQuestionAnalyzer {
 			if (!matchedPlayerName) {
 				const nonIPlayerEntities = playerEntities.filter((e) => {
 					// Check originalText (the text before fuzzy matching)
-					const originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					// Deduplicate repeating phrase patterns
+					const words = originalText.split(/\s+/);
+					if (words.length >= 4) {
+						const midPoint = Math.floor(words.length / 2);
+						const firstHalf = words.slice(0, midPoint).join(" ");
+						const secondHalf = words.slice(midPoint).join(" ");
+						if (firstHalf === secondHalf) {
+							originalText = firstHalf;
+						}
+					}
 					return originalText !== "i" && 
 						originalText !== "i've" && 
 						originalText !== "me" && 
 						originalText !== "my" && 
 						originalText !== "myself";
 				});
-				// If we have player entities that don't match the selected player, flag for clarification
+				// Only flag for clarification if the extracted names are partial (single word)
+				// Full names (multiple words) should proceed without clarification
 				if (nonIPlayerEntities.length > 0) {
-					hasAmbiguousPlayerName = true;
+					const hasFullName = nonIPlayerEntities.some((e) => {
+						let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						// Deduplicate repeating phrase patterns
+						const words = originalText.split(/\s+/);
+						if (words.length >= 4) {
+							const midPoint = Math.floor(words.length / 2);
+							const firstHalf = words.slice(0, midPoint).join(" ");
+							const secondHalf = words.slice(midPoint).join(" ");
+							if (firstHalf === secondHalf) {
+								originalText = firstHalf;
+							}
+						}
+						return originalText.includes(" ") && originalText.split(/\s+/).length >= 2;
+					});
+					// Only require clarification if all names are partial (no full names found)
+					if (!hasFullName) {
+						hasAmbiguousPlayerName = true;
+					}
 				}
 			}
 		}
@@ -770,20 +826,59 @@ export class EnhancedQuestionAnalyzer {
 				});
 				if (nonIPlayerEntities.length > 0) {
 					// Use originalText for the clarification message to show what was actually extracted
+					// Deduplicate repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 					const playerNames = nonIPlayerEntities.map((e) => {
-						const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						let originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+						// Remove duplicate phrase patterns
+						const words = originalText.split(/\s+/);
+						if (words.length >= 4) {
+							const midPoint = Math.floor(words.length / 2);
+							const firstHalf = words.slice(0, midPoint).join(" ");
+							const secondHalf = words.slice(midPoint).join(" ");
+							if (firstHalf === secondHalf) {
+								originalText = firstHalf;
+							} else {
+								// Check for shorter repeating patterns
+								for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+									const pattern = words.slice(0, patternLen).join(" ");
+									let matches = true;
+									for (let i = patternLen; i < words.length; i += patternLen) {
+										const segment = words.slice(i, i + patternLen).join(" ");
+										if (segment !== pattern) {
+											matches = false;
+											break;
+										}
+									}
+									if (matches && words.length % patternLen === 0) {
+										originalText = pattern;
+										break;
+									}
+								}
+							}
+						}
 						return originalText;
-					}).join(", ");
-					// Check if it's a single first name (likely needs surname clarification)
-					const isSingleFirstName = nonIPlayerEntities.length === 1 && 
-						!playerNames.includes(" ") && 
-						playerNames.length > 0 && 
-						playerNames.length < 15; // Reasonable first name length
+					}).filter((name, index, self) => self.indexOf(name) === index); // Remove duplicate names
 					
-					if (isSingleFirstName) {
-						return `Please clarify which ${playerNames} you are asking about.`;
+					// Only require clarification if the extracted name is a partial name (single word)
+					// Full names (multiple words) should proceed without clarification, even if they don't match userContext
+					const uniquePlayerNames = [...new Set(playerNames)];
+					const hasFullName = uniquePlayerNames.some(name => name.includes(" ") && name.split(/\s+/).length >= 2);
+					if (!hasFullName) {
+						// All names are partial (single word) - require clarification
+						const playerNamesStr = uniquePlayerNames.join(", ");
+						// Check if it's a single first name (likely needs surname clarification)
+						const isSingleFirstName = uniquePlayerNames.length === 1 && 
+							!playerNamesStr.includes(" ") && 
+							playerNamesStr.length > 0 && 
+							playerNamesStr.length < 15; // Reasonable first name length
+						
+						if (isSingleFirstName) {
+							return `Please clarify which ${playerNamesStr} you are asking about.`;
+						}
+						return `I found a player name "${playerNamesStr}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
 					}
-					return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${this.userContext}". Please provide the full player name you're asking about, or confirm if you meant "${this.userContext}".`;
+					// Full name extracted - don't require clarification, proceed with the extracted name
+					// Don't return a clarification message - let the query proceed with the extracted name
 				}
 			}
 		}
@@ -2304,9 +2399,6 @@ export class EnhancedQuestionAnalyzer {
 			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+won/i,
 			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+played/i,
 		];
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2298',message:'correctHomeAwayGamesQueries CHECK',data:{lowerQuestion,statTypesIn:statTypes.map(s=>s.value),homeGamesMatches:homeGamesPatterns.map((p,i)=>({index:i,matches:p.test(lowerQuestion)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
-		// #endregion
 
 		// Patterns to detect away games queries
 		const awayGamesPatterns = [
@@ -2320,9 +2412,6 @@ export class EnhancedQuestionAnalyzer {
 
 		const isHomeGamesQuery = homeGamesPatterns.some(pattern => pattern.test(lowerQuestion));
 		const isAwayGamesQuery = awayGamesPatterns.some(pattern => pattern.test(lowerQuestion));
-		// #region agent log
-		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2314',message:'correctHomeAwayGamesQueries RESULT',data:{isHomeGamesQuery,isAwayGamesQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
-		// #endregion
 
 		if (isHomeGamesQuery || isAwayGamesQuery) {
 			// Filter out "Home", "Away", "Apps", "Games", "Appearances" if present
@@ -2344,9 +2433,6 @@ export class EnhancedQuestionAnalyzer {
 					position: lowerQuestion.indexOf("away games") !== -1 ? lowerQuestion.indexOf("away games") : lowerQuestion.indexOf("away"),
 				});
 			}
-			// #region agent log
-			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2330',message:'correctHomeAwayGamesQueries RETURN FILTERED',data:{filteredStats:filteredStats.map(s=>s.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
-			// #endregion
 			return filteredStats;
 		}
 
@@ -2546,7 +2632,7 @@ export class EnhancedQuestionAnalyzer {
 			const teamInfo = this.mapTeamReference(teamReference);
 			if (teamInfo) {
 				// Filter out ALL appearance-related metrics, per-appearance metrics, and Home/Away metrics
-				// Home/Away should never be included in team-specific appearance queries
+				// Also filter out "Team Analysis" which should not be used for team-specific appearance queries
 				const filteredStats = statTypes.filter((stat) =>
 					![
 						"Appearances",
@@ -2573,6 +2659,7 @@ export class EnhancedQuestionAnalyzer {
 						"Penalties Saved Per Appearance",
 						"Fantasy Points Per Appearance",
 						"Man of the Match Per Appearance",
+						"Team Analysis",
 					].includes(stat.value),
 				);
 

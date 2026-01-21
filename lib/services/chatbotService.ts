@@ -269,44 +269,71 @@ export class ChatbotService {
 			// Handle clarification needed case (only set if explicitly needed, not pre-emptively)
 			// Note: Clarification will be requested post-query if no data is found
 			if (analysis.type === "clarification_needed") {
-				// Store pending clarification if we have a session ID
-				if (context.sessionId) {
-					const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
-					// Extract partial name from clarification message if it's a partial name clarification
-					let partialName: string | undefined = undefined;
-					if (clarificationMessage.includes("Please provide clarification on who")) {
-						const match = clarificationMessage.match(/who (\w+) is/);
-						if (match) {
-							partialName = match[1];
+				// CRITICAL: Only block queries if clarification is actually needed (partial names)
+				// Full names should proceed even if they don't match userContext
+				// Check if the clarification is for a partial name or a full name
+				const playerEntities = analysis.extractionResult?.entities?.filter(ent => ent.type === "player") || [];
+				const hasFullName = playerEntities.some((e) => {
+					let originalText = e.originalText.toLowerCase().trim().replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+					// Deduplicate repeating phrase patterns
+					const words = originalText.split(/\s+/);
+					if (words.length >= 4) {
+						const midPoint = Math.floor(words.length / 2);
+						const firstHalf = words.slice(0, midPoint).join(" ");
+						const secondHalf = words.slice(midPoint).join(" ");
+						if (firstHalf === secondHalf) {
+							originalText = firstHalf;
 						}
 					}
-					conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
-				}
+					return originalText.includes(" ") && originalText.split(/\s+/).length >= 2;
+				});
 				
-				// If there's an explicit clarification message, use it regardless of confidence
-				const clarificationMessage = analysis.clarificationMessage || analysis.message;
-				if (clarificationMessage) {
+				// If we have a full name, proceed with the query even if type is "clarification_needed"
+				// This allows queries about other players to proceed
+				if (hasFullName) {
+					// Don't block the query - proceed with the extracted name
+					// Continue to query execution below
+				} else {
+					// Partial name - require clarification
+					// Store pending clarification if we have a session ID
+					if (context.sessionId) {
+						const clarificationMessage = analysis.clarificationMessage || analysis.message || "Please clarify your question.";
+						// Extract partial name from clarification message if it's a partial name clarification
+						let partialName: string | undefined = undefined;
+						if (clarificationMessage.includes("Please provide clarification on who")) {
+							const match = clarificationMessage.match(/who (\w+) is/);
+							if (match) {
+								partialName = match[1];
+							}
+						}
+						conversationContextManager.setPendingClarification(context.sessionId, context.question, clarificationMessage, analysis, partialName, context.userContext);
+					}
+					
+					// If there's an explicit clarification message, use it regardless of confidence
+					const clarificationMessage = analysis.clarificationMessage || analysis.message;
+					if (clarificationMessage) {
+						return {
+							answer: clarificationMessage,
+							sources: [],
+							answerValue: "Clarification needed",
+						};
+					}
+					
+					// Try to provide a better fallback response if no explicit clarification message
+					if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
+						const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
+						return {
+							answer: fallbackResponse,
+							sources: [],
+							answerValue: "Clarification needed",
+						};
+					}
 					return {
-						answer: clarificationMessage,
+						answer: "Please clarify your question.",
 						sources: [],
 						answerValue: "Clarification needed",
 					};
 				}
-				
-				// Try to provide a better fallback response if no explicit clarification message
-				if (analysis.confidence !== undefined && analysis.confidence < 0.5) {
-					const fallbackResponse = questionSimilarityMatcher.generateFallbackResponse(context.question, analysis);
-					return {
-						answer: fallbackResponse,
-						sources: [],
-						answerValue: "Clarification needed",
-					};
-				}
-				return {
-					answer: "Please clarify your question.",
-					sources: [],
-					answerValue: "Clarification needed",
-				};
 			}
 
 			// Create detailed breakdown for debugging
@@ -460,22 +487,60 @@ export class ChatbotService {
 
 		if (nonIPlayerEntities.length > 0) {
 			// Use originalText for the clarification message to show what was actually extracted
+			// Deduplicate repeating phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
 			const playerNames = nonIPlayerEntities.map((e) => {
-				const originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+				let originalText = e.originalText.replace(/\s*\(resolved to:.*?\)$/i, "").trim();
+				// Remove duplicate phrase patterns
+				const words = originalText.split(/\s+/);
+				if (words.length >= 4) {
+					const midPoint = Math.floor(words.length / 2);
+					const firstHalf = words.slice(0, midPoint).join(" ");
+					const secondHalf = words.slice(midPoint).join(" ");
+					if (firstHalf === secondHalf) {
+						originalText = firstHalf;
+					} else {
+						// Check for shorter repeating patterns
+						for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+							const pattern = words.slice(0, patternLen).join(" ");
+							let matches = true;
+							for (let i = patternLen; i < words.length; i += patternLen) {
+								const segment = words.slice(i, i + patternLen).join(" ");
+								if (segment !== pattern) {
+									matches = false;
+									break;
+								}
+							}
+							if (matches && words.length % patternLen === 0) {
+								originalText = pattern;
+								break;
+							}
+						}
+					}
+				}
 				return originalText;
-			}).join(", ");
+			}).filter((name, index, self) => self.indexOf(name) === index); // Remove duplicate names
 
-			// Check if it's a single first name (likely needs surname clarification)
-			const isSingleFirstName = nonIPlayerEntities.length === 1 && 
-				!playerNames.includes(" ") && 
-				playerNames.length > 0 && 
-				playerNames.length < 15; // Reasonable first name length
+			// Only require clarification if the extracted name is a partial name (single word)
+			// Full names (multiple words) should proceed without clarification, even if they don't match userContext
+			const uniquePlayerNames = [...new Set(playerNames)];
+			const hasFullName = uniquePlayerNames.some(name => name.includes(" ") && name.split(/\s+/).length >= 2);
+			
+			if (!hasFullName) {
+				// All names are partial (single word) - require clarification
+				const playerNamesStr = uniquePlayerNames.join(", ");
+				// Check if it's a single first name (likely needs surname clarification)
+				const isSingleFirstName = uniquePlayerNames.length === 1 && 
+					!playerNamesStr.includes(" ") && 
+					playerNamesStr.length > 0 && 
+					playerNamesStr.length < 15; // Reasonable first name length
 
-			if (isSingleFirstName) {
-				return `Please clarify which ${playerNames} you are asking about.`;
+				if (isSingleFirstName) {
+					return `Please clarify which ${playerNamesStr} you are asking about.`;
+				}
+
+				return `I found a player name "${playerNamesStr}" in your question, but it doesn't match the selected player "${userContext}". Please provide the full player name you're asking about, or confirm if you meant "${userContext}".`;
 			}
-
-			return `I found a player name "${playerNames}" in your question, but it doesn't match the selected player "${userContext}". Please provide the full player name you're asking about, or confirm if you meant "${userContext}".`;
+			// Full name extracted - don't require clarification, proceed with the extracted name
 		}
 
 		return null;
@@ -5977,6 +6042,38 @@ export class ChatbotService {
 				} else {
 					answer = `I couldn't find any ${metric} information for ${playerName}. This stat may not be available for this player.`;
 				}
+			}
+		} else if (data && data.type === "distance_traveled") {
+			// Handle distance traveled query
+			const playerName = (data.playerName as string) || "";
+			const distanceData = data.data as { playerName?: string; totalDistance?: number; awayGames?: number; averageDistance?: number } | undefined;
+			const totalDistance = distanceData?.totalDistance || 0;
+			const awayGames = distanceData?.awayGames || 0;
+			const averageDistance = distanceData?.averageDistance || 0;
+			
+			if (totalDistance > 0) {
+				answer = `${playerName} has travelled ${totalDistance.toFixed(1)} miles to get to games${awayGames > 0 ? ` across ${awayGames} ${awayGames === 1 ? "away game" : "away games"}` : ""}.`;
+				if (awayGames > 0 && averageDistance > 0) {
+					answer += ` That's an average of ${averageDistance.toFixed(1)} miles per away game.`;
+				}
+				answerValue = totalDistance;
+				
+				visualization = {
+					type: "NumberCard",
+					data: [{
+						name: "Distance Travelled",
+						wordedText: "miles travelled",
+						value: totalDistance,
+						iconName: "DistanceTravelled-Icon"
+					}],
+					config: {
+						title: `${playerName} - Distance Travelled`,
+						type: "bar",
+					},
+				};
+			} else {
+				answer = `${playerName} has not travelled to any away games.`;
+				answerValue = 0;
 			}
 		} else if (data && data.type === "penalties_taken") {
 			// Handle penalties taken query
