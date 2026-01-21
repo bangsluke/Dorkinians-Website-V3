@@ -1327,7 +1327,16 @@ export class EnhancedQuestionAnalyzer {
 		
 		// Check if question contains a potential player name pattern (even if not extracted)
 		// This helps catch misspelled names like "Kieran MCkrell" that might not be extracted
+		// Pattern: Two or more capitalized words in sequence (e.g., "Dom Venn", "Luke Bangs")
 		const hasPotentialPlayerName = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
+		
+		// Check for specific pattern: "has [name] scored/got for the [team]"
+		// This is a strong indicator of a player query, even if player entity wasn't extracted
+		const hasPlayerScoredForTeamPattern = 
+			lowerQuestion.includes("has") && 
+			(lowerQuestion.includes("scored") || lowerQuestion.includes("got")) &&
+			(lowerQuestion.includes("for the") || lowerQuestion.includes("for")) &&
+			hasPotentialPlayerName;
 		
 		if (
 			hasTeamEntities &&
@@ -1336,7 +1345,8 @@ export class EnhancedQuestionAnalyzer {
 			!lowerQuestion.includes("table") &&
 			!lowerQuestion.includes("league") &&
 			!(hasPlayerEntities && hasPlayerStatPhrases) &&
-			!(hasPotentialPlayerName && hasPlayerStatPhrases) // Also prioritize if there's a potential player name + stat phrases
+			!(hasPotentialPlayerName && hasPlayerStatPhrases) && // Also prioritize if there's a potential player name + stat phrases
+			!hasPlayerScoredForTeamPattern // CRITICAL: If pattern matches "has [name] scored for [team]", route to player handler
 		) {
 			return "team";
 		}
