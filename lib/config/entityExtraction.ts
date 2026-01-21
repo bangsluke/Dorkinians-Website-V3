@@ -2003,12 +2003,43 @@ export class EntityExtractor {
 
 	private extractCompetitions(): CompetitionInfo[] {
 		const competitions: CompetitionInfo[] = [];
+		
+		// Get team entities to check for conflicts
+		const teamEntities = this.extractEntityInfo().filter(e => e.type === "team");
+		const teamValues = new Set(teamEntities.map(e => e.value.toLowerCase()));
+		
+		// Patterns that indicate team context (not competition context)
+		// These patterns catch team references like "for the 7s", "7s team", "goals for the 7s", etc.
+		const teamContextPatterns = [
+			/\b(?:for|in|with|playing\s+for|played\s+for)\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+			/\b(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\s+(?:team|xi|teams?)\b/i,
+			/\bgoals?\s+(?:for|in|with)\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+			// Allow text between verb and "for" (e.g., "have Dean Knowles got for the 7s")
+			/\b(?:scored|got|have|has)\s+.*?\s+for\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+		];
 
 		Object.entries(COMPETITION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
 				const matches = this.findMatches(regex);
 				matches.forEach((match) => {
+					const matchTextLower = match.text.toLowerCase();
+					
+					// Skip if this matches a team entity
+					if (teamValues.has(matchTextLower)) {
+						return;
+					}
+					
+					// Skip if "7s" appears in team context (e.g., "for the 7s", "7s team")
+					// This prevents "7s" from being extracted as "Seven" competition when it's clearly a team reference
+					// Check both the matched text and the competition key (since "7s" maps to "Seven")
+					if ((matchTextLower === "7s" || matchTextLower === "7" || matchTextLower === "seven") || key === "Seven") {
+						const isTeamContext = teamContextPatterns.some(pattern => pattern.test(this.question));
+						if (isTeamContext) {
+							return;
+						}
+					}
+					
 					competitions.push({
 						value: key,
 						originalText: match.text,

@@ -654,19 +654,24 @@ export class PlayerQueryBuilder {
 		}
 
 		// Add competition filter if specified (but not for team-specific appearance or goals queries)
+		// CRITICAL: Also skip competition filter for goals queries (G) with team entities
+		// This prevents "7s" from being treated as "Seven" competition when asking about goals for a team
 		// Use exact match (=) instead of CONTAINS as per schema requirements
 		// This applies to goals queries (G) and other metrics that need Fixture data
+		const isGoalsQueryWithTeam = (metricUpper === "G" || metricUpper === "ALLGSC" || metricUpper === "OPENPLAYGOALS") && teamEntities.length > 0;
 		if (analysis.competitions && analysis.competitions.length > 0 && 
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Apps$/i) && 
 			!metric.match(/^\d+sApps$/i) &&
 			!metric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i) &&
-			!metric.match(/^\d+sGoals$/i)) {
+			!metric.match(/^\d+sGoals$/i) &&
+			!isGoalsQueryWithTeam) {
 			// Map competition names from pseudonyms to actual database values
 			const competitionFilters = analysis.competitions.map((comp) => {
 				// Use the competition name as-is (already mapped by extractCompetitions)
 				return `f.competition = '${comp}'`;
 			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
+		} else if (analysis.competitions && analysis.competitions.length > 0) {
 		}
 
 		// Add result filter if specified (but not for team-specific metrics - they don't need Fixture)
@@ -1674,9 +1679,10 @@ export class PlayerQueryBuilder {
 					}
 				}
 				if (teamNameForWithClause) {
-					// Remove team filter from WHERE conditions
-					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+					// Remove team filter from WHERE conditions - match both = and IN formats
+					const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForWithClause.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 				}
 			}
 			// For team-specific goals metrics, also remove team filter from WHERE conditions (we'll filter in WITH clause)
@@ -1694,15 +1700,21 @@ export class PlayerQueryBuilder {
 					}
 				}
 				if (teamNameForGoals) {
-					const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-					whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+					// Remove team filter from WHERE conditions - match both = and IN formats
+					const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+					const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+					whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 				}
 			}
 			// For goals queries with team entities (non-team-specific metric), also remove team filter from WHERE conditions (we'll filter in WITH clause)
 			if (hasTeamFilterForGoals && !hasTeamExclusions && teamEntities.length > 0) {
 				const teamNameForGoals = TeamMappingUtils.mapTeamName(teamEntities[0]);
-				const teamFilterPattern = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
-				whereConditions = whereConditions.filter(condition => !teamFilterPattern.test(condition));
+				// Match both formats: toUpper(md.team) = toUpper('...') and toUpper(md.team) IN [toUpper('...')]
+				// Use \\s* for IN to allow zero or more spaces (more flexible)
+				const teamFilterPattern1 = new RegExp(`toUpper\\(md\\.team\\)\\s*=\\s*toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)`, 'i');
+				// Match IN format - use \\s* to allow zero or more spaces (more flexible)
+				const teamFilterPattern2 = new RegExp(`toUpper\\(md\\.team\\)\\s*IN\\s*\\[toUpper\\('${teamNameForGoals.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'\\)\\]`, 'i');
+				whereConditions = whereConditions.filter(condition => !teamFilterPattern1.test(condition) && !teamFilterPattern2.test(condition));
 			}
 
 			// Add WHERE clause if we have conditions
@@ -1840,6 +1852,7 @@ export class PlayerQueryBuilder {
 			}
 		}
 
+		
 		// Return the built query
 		return query;
 	}
