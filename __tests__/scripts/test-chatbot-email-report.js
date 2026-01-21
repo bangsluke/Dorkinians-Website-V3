@@ -356,22 +356,52 @@ async function runTestsProgrammatically() {
 					// Store original value before normalization to check if it was truly N/A
 					let originalExpectedValue = null;
 					
-					if (player[statConfig.key] !== undefined && player[statConfig.key] !== "") {
+					// Get the raw CSV value
+					const rawCSVValue = player[statConfig.key];
+					
+					// Handle "NaN" strings and empty values - treat as missing data
+					const isNaNString = typeof rawCSVValue === "string" && rawCSVValue.toUpperCase() === "NAN";
+					const isEmpty = rawCSVValue === undefined || rawCSVValue === null || rawCSVValue === "" || isNaNString;
+					
+					// Check if this is a string-based stat (fractions, dates, percentages, team names)
+					const isStringBasedStat = 
+						statKey === "MostPlayedForTeam" || 
+						statKey === "NumberTeamsPlayedFor" || 
+						statKey === "MostScoredForTeam" ||
+						statKey === "MostProlificSeason" ||
+						statKey === "MostCommonPosition" ||
+						statKey.includes("%"); // Percentage stats
+					
+					// Check if value contains string indicators
+					const containsSlash = typeof rawCSVValue === "string" && rawCSVValue.includes("/");
+					const containsPercent = typeof rawCSVValue === "string" && rawCSVValue.includes("%");
+					const isStringValue = isStringBasedStat || containsSlash || containsPercent;
+					
+					if (!isEmpty) {
 						// CSV values are already formatted with correct decimal places
-						expectedValue = player[statConfig.key];
+						expectedValue = rawCSVValue;
 						originalExpectedValue = expectedValue;
-						logDebug(`✅ Found CSV data for ${statKey}: ${expectedValue} (already formatted)`);
+						logDebug(`✅ Found CSV data for ${statKey}: ${expectedValue} (${isStringValue ? 'string value' : 'numeric value'})`);
 					} else {
 						expectedValue = "N/A";
 						originalExpectedValue = "N/A";
-						logDebug(`❌ No CSV data found for ${statKey}`);
+						logDebug(`❌ No CSV data found for ${statKey}${isNaNString ? ' (was "NaN" string)' : ''}`);
 					}
 					
 					// Normalize "N/A" to "0" for all stats before validation
+					// EXCEPT for string-based stats (fractions, dates, percentages, team names)
+					// isStringBasedStat and isStringValue already declared above, reuse them
+					// Also check if the expectedValue itself contains string indicators (in case it was set to "N/A" but should be string)
+					const containsSlashInExpected = typeof expectedValue === "string" && expectedValue.includes("/");
+					const containsPercentInExpected = typeof expectedValue === "string" && expectedValue.includes("%");
+					const isStringValueForNormalization = isStringBasedStat || isStringValue || containsSlashInExpected || containsPercentInExpected;
+					
 					const wasNA = expectedValue === "N/A" || (typeof expectedValue === "string" && expectedValue.toUpperCase().trim() === "N/A");
-					if (wasNA) {
+					if (wasNA && !isStringValueForNormalization) {
 						expectedValue = "0";
 						logDebug(`🔁 Normalized N/A to 0 for ${statKey}`);
+					} else if (wasNA && isStringValueForNormalization) {
+						logDebug(`⚠️ Keeping N/A for string stat ${statKey} (not normalizing to 0)`);
 					}
 
 					try {
@@ -424,11 +454,60 @@ async function runTestsProgrammatically() {
 						// Special handling for MostCommonPosition - extract position from natural language
 						if (statKey === "MostCommonPosition") {
 							chatbotExtractedValue = extractPositionFromResponse(chatbotAnswer);
+						} else if (statKey === "MostPlayedForTeam") {
+							// Try the configured pattern first
+							const match = chatbotAnswer.match(statConfig.responsePattern);
+							if (match) {
+								chatbotExtractedValue = match[1];
+							} else {
+								// Fallback: Extract team name from "has played for the X most" format
+								// Pattern: "has played for the 7s the most" or "has played for the 1st XI the most"
+								// Try multiple patterns to catch different formats
+								const fallbackMatch = 
+									chatbotAnswer.match(/has played for the (\d+s)(?:\s+the most|\.|$)/i) ||
+									chatbotAnswer.match(/played for the (\d+s)(?:\s+the most|\.|$)/i) ||
+									chatbotAnswer.match(/for the (\d+s)(?:\s+the most|\.|$)/i) ||
+									chatbotAnswer.match(/has played for the (\d+(?:st|nd|rd|th)\s+XI)(?:\s+the most|\.|$)/i) ||
+									chatbotAnswer.match(/played for the (\d+(?:st|nd|rd|th)\s+XI)(?:\s+the most|\.|$)/i) ||
+									chatbotAnswer.match(/for the (\d+(?:st|nd|rd|th)\s+XI)(?:\s+the most|\.|$)/i);
+								if (fallbackMatch) {
+									chatbotExtractedValue = fallbackMatch[1].trim();
+								}
+							}
+						} else if (statKey === "NumberTeamsPlayedFor") {
+							// Try the configured pattern first (expects "X/Y" format)
+							const match = chatbotAnswer.match(statConfig.responsePattern);
+							if (match) {
+								chatbotExtractedValue = match[1];
+							} else {
+								// Fallback: Extract from "X of the clubs Y teams" format
+								// Pattern: "has played for 2 of the clubs 9 teams"
+								const fallbackMatch = chatbotAnswer.match(/(\d+)\s+of the clubs\s+(\d+)\s+teams/i);
+								if (fallbackMatch) {
+									chatbotExtractedValue = `${fallbackMatch[1]}/${fallbackMatch[2]}`;
+								}
+							}
 						} else {
 							// Try to extract value from the response using the response pattern
 							const match = chatbotAnswer.match(statConfig.responsePattern);
 							if (match) {
 								chatbotExtractedValue = match[1];
+								
+								// Special handling for team goals queries: if the extracted value matches the team number,
+								// it's likely we extracted the team number from "1s" instead of the goal count
+								// Check if this is a team goals query and if the answer contains "has not scored"
+								const isTeamGoalsQuery = /^\d+sGoals$/i.test(statKey) || /^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i.test(statKey);
+								if (isTeamGoalsQuery && chatbotAnswer.toLowerCase().includes("has not scored")) {
+									// Extract team number from stat key (e.g., "1sGoals" -> "1", "7sGoals" -> "7")
+									const teamNumberMatch = statKey.match(/^(\d+)sGoals$/i) || statKey.match(/^(\d+)(?:st|nd|rd|th)\s+XI\s+Goals$/i);
+									if (teamNumberMatch) {
+										const teamNumber = teamNumberMatch[1];
+										// If extracted value equals team number, it's a false match - treat as null
+										if (chatbotExtractedValue === teamNumber) {
+											chatbotExtractedValue = null;
+										}
+									}
+								}
 							} else if (statKey === "MostScoredForTeam") {
 								const fallbackMatch =
 									chatbotAnswer.match(/for the ([A-Za-z0-9\s]+?)(?:\s*\(|\.|$)/i) ||
@@ -448,7 +527,11 @@ async function runTestsProgrammatically() {
 					
 					// Fallback: If extraction failed but we have a valid zero-value message for a zero result,
 					// extract "0" or "0.0" based on the stat's decimal places
-					if (chatbotExtractedValue === null && isZeroResult && matchesZeroStatPhrase) {
+					// Also check for team-specific goal messages that don't match the standard zero stat phrase
+					const isTeamGoalsQuery = /^\d+sGoals$/i.test(statKey) || /^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i.test(statKey);
+					const hasTeamGoalsZeroMessageFallback = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored for");
+					
+					if (chatbotExtractedValue === null && isZeroResult && (matchesZeroStatPhrase || (isTeamGoalsQuery && hasTeamGoalsZeroMessageFallback))) {
 						// Check if this stat uses decimal places
 						const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
 						if (isAppearanceBasedAverage) {
@@ -473,7 +556,11 @@ async function runTestsProgrammatically() {
 					const isPositionQuery = ["GK", "DEF", "MID", "FWD"].includes(statKey);
 					const hasNeverPlayedMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has never played");
 					const hasNotScoredMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals");
-					const hasNotScoredForTeamMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored any goals for");
+					// Check for both "has not scored any goals for" and "has not scored for" (without "any goals")
+					const hasNotScoredForTeamMessage = chatbotAnswer && (
+						chatbotAnswer.toLowerCase().includes("has not scored any goals for") ||
+						chatbotAnswer.toLowerCase().includes("has not scored for the")
+					);
 					const hasSeasonDidNotPlayMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not play in");
 					const hasSeasonDidNotScoreMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not score a goal in");
 					const isSeasonAppsQuery = /\d{4}\/\d{2}apps/i.test(statKey);
@@ -499,9 +586,13 @@ async function runTestsProgrammatically() {
 					// BUT exclude appearance-based averages that incorrectly say "has not made an appearance yet" when a value was extracted
 					// NOTE: For appearance-based averages (CperAPP, GperAPP, etc.), stat-specific zero messages (like "has not conceded a goal")
 					// are valid and should be accepted - they indicate the stat is 0, not that there are no appearances
+					// Also check for team-specific goal queries (e.g., "1sGoals", "2nd XI Goals")
+					const isTeamGoalsQueryForValidation = /^\d+sGoals$/i.test(statKey) || /^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i.test(statKey);
+					const hasTeamGoalsZeroMessage = hasNotScoredForTeamMessage || (chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored for"));
 					const isValidZeroResponse = isZeroResult && !hasAppearanceBasedAverageError && (
 						(isPositionQuery && hasNeverPlayedMessage) ||
 						(hasNotScoredMessage || hasNotScoredForTeamMessage) ||
+						(isTeamGoalsQueryForValidation && hasTeamGoalsZeroMessage) ||
 						(isSeasonAppsQuery && hasSeasonDidNotPlayMessage) ||
 						(isSeasonGoalsQuery && hasSeasonDidNotScoreMessage) ||
 						matchesZeroStatPhrase // This handles stat-specific zero messages like "has not conceded a goal" for CperAPP
@@ -541,29 +632,63 @@ async function runTestsProgrammatically() {
 						percentageDifference: null,
 					};
 
-					if (chatbotExtractedValue !== null) {
-						// STEP 2: Calculate and log the difference between values
-						let expectedNumeric = null;
-						let chatbotNumeric = null;
-						
-						// Try to parse as numbers for difference calculation
-						if (!isNaN(parseFloat(expectedValue)) && isFinite(parseFloat(expectedValue))) {
-							expectedNumeric = parseFloat(expectedValue);
-						}
-						if (chatbotExtractedValue !== null && !isNaN(parseFloat(chatbotExtractedValue)) && isFinite(parseFloat(chatbotExtractedValue))) {
-							chatbotNumeric = parseFloat(chatbotExtractedValue);
-						}
+					// STEP 2: Calculate and log the difference between values (for numeric comparisons)
+					let expectedNumeric = null;
+					let chatbotNumeric = null;
+					
+					// Try to parse as numbers for difference calculation
+					// For percentage stats, strip "%" before parsing
+					const expectedForParsing = statKey.includes("%") && typeof expectedValue === "string" 
+						? expectedValue.replace(/%/g, "").trim() 
+						: expectedValue;
+					if (!isNaN(parseFloat(expectedForParsing)) && isFinite(parseFloat(expectedForParsing))) {
+						expectedNumeric = parseFloat(expectedForParsing);
+					}
+					const extractedForParsing = statKey.includes("%") && chatbotExtractedValue !== null
+						? String(chatbotExtractedValue).replace(/%/g, "").trim()
+						: chatbotExtractedValue;
+					if (extractedForParsing !== null && !isNaN(parseFloat(extractedForParsing)) && isFinite(parseFloat(extractedForParsing))) {
+						chatbotNumeric = parseFloat(extractedForParsing);
+					}
 
-						// Calculate difference if both are numeric
-						if (expectedNumeric !== null && chatbotNumeric !== null) {
-							comparisonDetails.difference = Math.abs(chatbotNumeric - expectedNumeric);
-							if (expectedNumeric !== 0) {
-								comparisonDetails.percentageDifference = ((comparisonDetails.difference / Math.abs(expectedNumeric)) * 100).toFixed(4);
-							} else {
-								comparisonDetails.percentageDifference = chatbotNumeric === 0 ? "0.0000" : "infinity";
-							}
+					// Calculate difference if both are numeric
+					if (expectedNumeric !== null && chatbotNumeric !== null) {
+						comparisonDetails.difference = Math.abs(chatbotNumeric - expectedNumeric);
+						if (expectedNumeric !== 0) {
+							comparisonDetails.percentageDifference = ((comparisonDetails.difference / Math.abs(expectedNumeric)) * 100).toFixed(4);
+						} else {
+							comparisonDetails.percentageDifference = chatbotNumeric === 0 ? "0.0000" : "infinity";
 						}
+					}
 
+					// Special handling for MostPlayedForTeam and NumberTeamsPlayedFor - check these FIRST regardless of extraction status
+					if (statKey === "MostPlayedForTeam") {
+						comparisonDetails.comparisonMethod = "team_name_normalized";
+						if (chatbotExtractedValue !== null) {
+							valuesMatch = normalizeTeamName(chatbotExtractedValue) === normalizeTeamName(expectedValue);
+						} else {
+							valuesMatch = false;
+						}
+					} else if (statKey === "NumberTeamsPlayedFor") {
+						comparisonDetails.comparisonMethod = "fraction_format_string";
+						valuesMatch = chatbotExtractedValue !== null && chatbotExtractedValue.toLowerCase().trim() === expectedValue.toLowerCase().trim();
+					} else if (statKey.includes("%") && chatbotExtractedValue !== null) {
+						// Percentage stats - handle values with or without "%" symbol
+						comparisonDetails.comparisonMethod = "percentage_numeric";
+						// Strip "%" from both values for comparison
+						const expectedClean = typeof expectedValue === "string" ? expectedValue.replace(/%/g, "").trim() : String(expectedValue);
+						const extractedClean = chatbotExtractedValue.replace(/%/g, "").trim();
+						// Compare as numbers with tolerance
+						const expectedNum = parseFloat(expectedClean);
+						const extractedNum = parseFloat(extractedClean);
+						if (!isNaN(expectedNum) && !isNaN(extractedNum)) {
+							const tolerance = 0.01; // Small tolerance for percentage values
+							valuesMatch = Math.abs(extractedNum - expectedNum) <= tolerance + Number.EPSILON;
+						} else {
+							// Fallback to string comparison
+							valuesMatch = extractedClean.toLowerCase() === expectedClean.toLowerCase();
+						}
+					} else if (chatbotExtractedValue !== null) {
 						// Special handling for zero results with valid zero-value messages
 						if (isZeroResult && isValidZeroResponse) {
 							// Zero result with correct zero-value message is a match
@@ -603,6 +728,16 @@ async function runTestsProgrammatically() {
 						// Handle case where extraction failed but we have a valid zero result message
 						comparisonDetails.comparisonMethod = "zero_result_extraction_failed";
 						valuesMatch = true;
+					} else if (chatbotExtractedValue !== null && isZeroResult) {
+						// Fallback: If extraction succeeded and we have a zero result, check if values match numerically
+						// This handles cases where the fallback set chatbotExtractedValue to "0" and expectedValue is "0"
+						if (expectedNumeric !== null && chatbotNumeric !== null && expectedNumeric === 0 && chatbotNumeric === 0) {
+							comparisonDetails.comparisonMethod = "zero_result_numeric_match";
+							valuesMatch = true;
+						} else {
+							comparisonDetails.comparisonMethod = "validation_failed";
+							valuesMatch = false;
+						}
 					} else {
 						comparisonDetails.comparisonMethod = "validation_failed";
 						valuesMatch = false;
@@ -663,13 +798,15 @@ async function runTestsProgrammatically() {
 						results.failedTests++;
 					}
 
-					// Store test details
+					// Store test details - use the CSV value as-is for display (before normalization)
+					// The expectedValue is used for comparison, but we display the original CSV value
+					const displayExpectedValue = originalExpectedValue !== null ? originalExpectedValue : expectedValue;
 					results.testDetails.push({
 						suite: "Comprehensive Stat Testing",
 						describe: getCategoryForStat(statKey),
 						test: `should handle ${statKey} stat correctly`,
 						assertion: passed ? "passed" : "failed",
-						expected: expectedValue,
+						expected: displayExpectedValue,
 						received: chatbotAnswer,
 						status: passed ? "PASSED" : "FAILED",
 						playerName: playerName,
@@ -964,25 +1101,61 @@ const ZERO_FALLBACK_STAT_KEYS = new Set(["MperG"]);
 function normalizeTestDataValue(header, value) {
 	const sanitizedValue = typeof value === "string" ? value.trim() : value;
 	const isTrackedStat = ZERO_FALLBACK_STAT_KEYS.has(header);
+	const isStringStat = header === "MostPlayedForTeam" || header === "NumberTeamsPlayedFor";
 	const isBlank = sanitizedValue === undefined || sanitizedValue === null || sanitizedValue === "";
 	const isNAString = typeof sanitizedValue === "string" && sanitizedValue.toUpperCase() === "N/A";
-	// Normalize "N/A" to "0" for all stats (not just tracked stats)
-	if (isNAString) {
+	// Normalize "N/A" to "0" for all stats EXCEPT string stats (MostPlayedForTeam, NumberTeamsPlayedFor)
+	if (isNAString && !isStringStat) {
 		logDebug(`🔁 Zero fallback applied for ${header} due to N/A test data`);
 		return "0";
 	}
-	if (isTrackedStat && isBlank) {
+	if (isTrackedStat && isBlank && !isStringStat) {
 		logDebug(`🔁 Zero fallback applied for ${header} due to blank test data`);
 		return "0";
+	}
+	// For string stats, preserve N/A or empty values as-is (don't normalize to "0")
+	if (isStringStat && (isNAString || isBlank)) {
+		logDebug(`⚠️ Preserving N/A/blank for string stat ${header} (not normalizing to 0)`);
+		return isNAString ? "N/A" : (isBlank ? "" : sanitizedValue);
 	}
 	return sanitizedValue;
 }
 
 // Helper function to format CSV values immediately when reading
 function formatCSVValue(header, value) {
-	const normalizedValue = normalizeTestDataValue(header, value);
-	if (normalizedValue === undefined || normalizedValue === null || normalizedValue === "") {
-		return normalizedValue;
+	// Don't normalize during CSV parsing - preserve original values for display
+	// Normalization will happen later when needed for comparison
+	const sanitizedValue = typeof value === "string" ? value.trim() : value;
+	
+	// Handle "NaN" strings - treat as empty/N/A
+	const isNaNString = typeof sanitizedValue === "string" && sanitizedValue.toUpperCase() === "NAN";
+	if (isNaNString) {
+		logDebug(`⚠️ Found "NaN" string in CSV for ${header}, treating as empty`);
+		return "";
+	}
+	
+	if (sanitizedValue === undefined || sanitizedValue === null || sanitizedValue === "") {
+		return sanitizedValue;
+	}
+
+	// Identify string-based stats that should be preserved as strings
+	const isStringStat = 
+		header === "MostPlayedForTeam" || 
+		header === "NumberTeamsPlayedFor" || 
+		header === "MostScoredForTeam" ||
+		header === "MostProlificSeason" ||
+		header === "MostCommonPosition" ||
+		header.includes("%"); // Percentage stats like "HomeGames%Won"
+	
+	// Check if value contains string indicators (fractions, dates, percentages)
+	const containsSlash = typeof sanitizedValue === "string" && sanitizedValue.includes("/");
+	const containsPercent = typeof sanitizedValue === "string" && sanitizedValue.includes("%");
+	const isStringValue = isStringStat || containsSlash || containsPercent;
+	
+	// For string stats or values with "/" or "%", preserve as string
+	if (isStringValue) {
+		logDebug(`🔧 Preserving string value for ${header}: "${sanitizedValue}"`);
+		return sanitizedValue;
 	}
 
 	const statConfig = STAT_TEST_CONFIGS.find((config) => config.key === header);
@@ -992,16 +1165,17 @@ function formatCSVValue(header, value) {
 		const statObj = statObject[statKey];
 		
 		if (statObj && statObj.numberDecimalPlaces !== undefined) {
-			if (!isNaN(parseFloat(normalizedValue)) && isFinite(normalizedValue)) {
+			// Only format if it's a valid number (not N/A or empty)
+			if (!isNaN(parseFloat(sanitizedValue)) && isFinite(parseFloat(sanitizedValue))) {
 				const decimalPlaces = statObj.numberDecimalPlaces;
-				const result = Number(normalizedValue).toFixed(decimalPlaces);
-				logDebug(`🔧 CSV formatting ${header}: ${normalizedValue} -> ${result} (${decimalPlaces} decimal places)`);
+				const result = Number(sanitizedValue).toFixed(decimalPlaces);
+				logDebug(`🔧 CSV formatting ${header}: ${sanitizedValue} -> ${result} (${decimalPlaces} decimal places)`);
 				return result;
 			}
 		}
 	}
 
-	return normalizedValue;
+	return sanitizedValue;
 }
 
 // Helper function to format values according to stat configuration (same as chatbot)

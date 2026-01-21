@@ -6965,7 +6965,8 @@ export class ChatbotService {
 				// Handle regular single-value queries
 				else {
 					const playerData = data.data as PlayerData[];
-					const value = playerData[0]?.value;
+					// For SEASON_COUNT_SIMPLE, value might be in playerSeasonCount field instead of value field
+					const value = playerData[0]?.value ?? (playerData[0] as any)?.playerSeasonCount;
 					const totalGames = (playerData[0] as any)?.totalGames;
 
 					// Define competition filter variables at higher scope for use in multiple branches
@@ -6981,12 +6982,12 @@ export class ChatbotService {
 							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
 							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
 							answerValue = `${playerTeamCount}/${totalTeamCount}`;
-						} else if (metric && (metric === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR"))) {
-							// Special handling for NumberSeasonsPlayedFor - format as "X/Y" where Y is total seasons
-							const playerSeasonCount = typeof value === "number" ? value : (playerData[0] as any)?.playerSeasonCount || 0;
+						} else if (metric && (metric === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR") || metric === "Season Count Simple" || metric.toUpperCase() === "SEASON COUNT SIMPLE" || metric === "SEASON_COUNT_SIMPLE" || metric.toUpperCase() === "SEASON_COUNT_SIMPLE")) {
+							// Special handling for NumberSeasonsPlayedFor and SEASON_COUNT_SIMPLE - format as "X out of Y" where Y is total seasons
+							const playerSeasonCount = typeof value === "number" ? value : (playerData[0] as any)?.playerSeasonCount || (playerData[0] as any)?.value || 0;
 							const totalSeasonCount = (playerData[0] as any)?.totalSeasonCount || 0;
 							if (totalSeasonCount > 0) {
-								answer = `${playerName} has played in ${playerSeasonCount}/${totalSeasonCount} seasons.`;
+								answer = `${playerName} has played in ${playerSeasonCount} out of the ${totalSeasonCount} recorded seasons.`;
 								answerValue = `${playerSeasonCount}/${totalSeasonCount}`;
 							} else {
 								answer = `${playerName} has played in ${playerSeasonCount} seasons.`;

@@ -1058,22 +1058,27 @@ export class PlayerDataQueryHandler {
 			                             (analysis.competitions && analysis.competitions.length > 0);
 			
 			if (!hasDatePattern && !hasCompetitionPattern) {
-				// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
-				if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+				// Skip opposition extraction if question is about seasons
+				const hasSeasonKeyword = questionLower.includes("season") || questionLower.includes("seasons");
+				if (hasSeasonKeyword) {
+				} else if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+					// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
 				} else {
 					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
 					if (oppositionMatch && oppositionMatch[1]) {
 						const potentialOpposition = oppositionMatch[1];
 						// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
-						// Also skip competition-related words, or common words like "for", "the"
+						// Also skip competition-related words, prepositions, or common words like "for", "the", "in", "with"
 						const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
 						const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
 						const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
-						const isCommonWord = ["for", "the", "a", "an"].includes(potentialOpposition.toLowerCase());
+						const isPreposition = ["for", "the", "a", "an", "in", "with", "at", "on", "by", "to"].includes(potentialOpposition.toLowerCase());
+						const isSeasonWord = ["season", "seasons"].includes(potentialOpposition.toLowerCase());
 						if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
 						    !isDateKeyword &&
 						    !isCompetitionKeyword &&
-						    !isCommonWord &&
+						    !isPreposition &&
+						    !isSeasonWord &&
 						    !afterMatch?.toLowerCase().startsWith("for") &&
 						    !afterMatch?.toLowerCase().startsWith("the")) {
 							extractedOppositionName = potentialOpposition;
@@ -1094,6 +1099,8 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
 			!questionLower.includes("scored") &&
+			!questionLower.includes("season") &&
+			!questionLower.includes("seasons") &&
 			!(analysis.competitionTypes && analysis.competitionTypes.length > 0) &&
 			!(analysis.competitions && analysis.competitions.length > 0);
 
@@ -2556,6 +2563,15 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
+			
+			// Transform SEASON_COUNT_SIMPLE results to ensure value field exists
+			if (metric === "SEASON_COUNT_SIMPLE" && result && Array.isArray(result) && result.length > 0) {
+				result.forEach((item: any) => {
+					if (item.playerSeasonCount !== undefined && item.value === undefined) {
+						item.value = item.playerSeasonCount;
+					}
+				});
+			}
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';

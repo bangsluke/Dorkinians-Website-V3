@@ -1364,7 +1364,7 @@ export class PlayerQueryBuilder {
 				WITH p, size(teams) as playerTeamCount, collect(DISTINCT allMd.team) as allTeams
 				RETURN p.playerName as playerName, playerTeamCount as value, size(allTeams) as totalTeamCount
 			`;
-		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR")) {
+		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR") || metric === "Season Count Simple" || metric.toUpperCase() === "SEASON COUNT SIMPLE" || metric === "SEASON_COUNT_SIMPLE" || metric.toUpperCase() === "SEASON_COUNT_SIMPLE") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
 				WHERE md.season IS NOT NULL AND md.season <> ""
@@ -1406,16 +1406,18 @@ export class PlayerQueryBuilder {
 		} else if (metric === "SEASON_COUNT_SIMPLE") {
 			return `
 				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
-				MATCH (f:Fixture)-[:HAS_MATCH_DETAILS]->(md:MatchDetail)
-				WHERE f.season IS NOT NULL
-				WITH p, collect(DISTINCT f.season) as seasons
-				WITH p, seasons, size(seasons) as seasonCount
-				UNWIND seasons as season
-				WITH p, seasonCount, season
+				WHERE md.season IS NOT NULL AND md.season <> ""
+				WITH p, collect(DISTINCT md.season) as playerSeasons
+				MATCH (allFixtures:Fixture {graphLabel: $graphLabel})
+				WHERE allFixtures.season IS NOT NULL AND allFixtures.season <> ""
+				WITH p, size(playerSeasons) as playerSeasonCount, collect(DISTINCT allFixtures.season) as allSeasons
+				UNWIND playerSeasons as season
+				WITH p, playerSeasonCount, allSeasons, season
 				ORDER BY season
-				WITH p, seasonCount, collect(season)[0] as firstSeason
-				RETURN p.playerName as playerName, 
-				       seasonCount as value,
+				WITH p, playerSeasonCount, size(allSeasons) as totalSeasonCount, collect(season)[0] as firstSeason
+				RETURN p.playerName as playerName,
+				       playerSeasonCount as value,
+				       totalSeasonCount,
 				       firstSeason
 			`;
 		} else if (metric.toUpperCase() === "MOSTSCOREDFORTEAM" || metric === "MostScoredForTeam") {
