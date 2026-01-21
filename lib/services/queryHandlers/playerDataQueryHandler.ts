@@ -2393,7 +2393,8 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "HOME" ||
 				originalMetric.toUpperCase() === "AWAY" ||
 				originalMetric.toUpperCase() === "TEAM_ANALYSIS" ||
-				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM"
+				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM" ||
+				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics

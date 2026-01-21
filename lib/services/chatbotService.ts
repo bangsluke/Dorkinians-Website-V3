@@ -581,10 +581,20 @@ export class ChatbotService {
 			}
 
 			// Check if this is a "which team has fewest/most goals conceded" question - This needs to be checked before player routing to avoid misclassification
+			// BUT: Exclude player-specific queries like "which team has [player] scored the most goals for?"
+			const isPlayerSpecificTeamQuery = 
+				(question.includes("which team") || question.includes("what team")) &&
+				question.includes("most") &&
+				question.includes("for") &&
+				(analysis.entities && analysis.entities.length > 0 || 
+				 // Also check for player name patterns in the question itself - "has [name] scored/made/played"
+				 (question.includes("has") && (question.includes("scored") || question.includes("made") || question.includes("played"))));
+			
 			const isTeamConcededRankingQuestion = 
 				(question.includes("which team") || question.includes("what team")) &&
 				(question.includes("fewest") || question.includes("most") || question.includes("least") || question.includes("highest")) &&
-				(question.includes("conceded") || question.includes("scored") || question.includes("goals"));
+				(question.includes("conceded") || question.includes("scored") || question.includes("goals")) &&
+				!isPlayerSpecificTeamQuery;
 
 			if (isTeamConcededRankingQuestion) {
 				return await ClubDataQueryHandler.queryClubData(entities, metrics, analysis);
@@ -6471,8 +6481,10 @@ export class ChatbotService {
 					if (teamData && teamData.length > 0) {
 						// Get the most played team (first in the sorted list)
 						const mostPlayedTeam = teamData[0].value;
-						answer = `${playerName} has played for the ${mostPlayedTeam} most.`;
-						answerValue = mostPlayedTeam;
+						// Convert team name to short format (e.g., "5th XI" -> "5s")
+						const shortTeamName = TeamMappingUtils.getShortTeamName(mostPlayedTeam);
+						answer = `${playerName} has played for the ${shortTeamName} the most.`;
+						answerValue = shortTeamName;
 						
 						// Create table visualization with all teams
 						const tableData = teamData.map((item) => ({
@@ -6490,6 +6502,24 @@ export class ChatbotService {
 								],
 							},
 						};
+					} else {
+						answer = `${playerName} has no team data available.`;
+					}
+				}
+				// Handle MostScoredForTeam - find team with most goals
+				else if (metric && (metric === "MostScoredForTeam" || metric.toUpperCase() === "MOSTSCOREDFORTEAM")) {
+					const playerData = data.data as PlayerData[];
+					if (playerData && playerData.length > 0) {
+						const teamName = playerData[0].value as string;
+						if (teamName) {
+							// Convert team name to short format (e.g., "5th XI" -> "5s")
+							const shortTeamName = TeamMappingUtils.getShortTeamName(teamName);
+							const statDisplayName = (analysis as any).mostScoredForTeamStatDisplayName || "goals";
+							answer = `${playerName} has scored the most ${statDisplayName} for the ${shortTeamName}.`;
+							answerValue = shortTeamName;
+						} else {
+							answer = `${playerName} has no team data available.`;
+						}
 					} else {
 						answer = `${playerName} has no team data available.`;
 					}

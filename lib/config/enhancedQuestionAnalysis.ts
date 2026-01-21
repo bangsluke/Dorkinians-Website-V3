@@ -1075,11 +1075,21 @@ export class EnhancedQuestionAnalyzer {
 
 		// Check for team ranking queries (which team has fewest/most...) - BEFORE general ranking check
 		// This must be checked early to avoid misclassification as player due to "conceded" being a player indicator
+		// BUT: Exclude player-specific queries like "which team has [player] scored the most goals for?"
+		const isPlayerSpecificTeamQuery = 
+			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+			lowerQuestion.includes("most") &&
+			lowerQuestion.includes("for") &&
+			(hasPlayerEntities || 
+			 // Also check for player name patterns in the question itself - "has [name] scored/made/played"
+			 (lowerQuestion.includes("has") && (lowerQuestion.includes("scored") || lowerQuestion.includes("made") || lowerQuestion.includes("played"))));
+		
 		if (
 			(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
 			(lowerQuestion.includes("fewest") || lowerQuestion.includes("most") || lowerQuestion.includes("least") || 
 			 lowerQuestion.includes("highest") || lowerQuestion.includes("lowest")) &&
-			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history"))
+			(lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals") || lowerQuestion.includes("history")) &&
+			!isPlayerSpecificTeamQuery
 		) {
 			return "club";
 		}
@@ -1156,8 +1166,27 @@ export class EnhancedQuestionAnalyzer {
 			(lowerQuestion.includes("highest") || lowerQuestion.includes("most") || lowerQuestion.includes("best") || lowerQuestion.includes("top") || 
 			 lowerQuestion.includes("fewest") || lowerQuestion.includes("least") || lowerQuestion.includes("lowest") || lowerQuestion.includes("worst"))
 		) {
-			// If it's asking about teams specifically, route to club handler
-			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals"))) {
+			// Check for "most goals for" / "most scored for" patterns - these are player queries
+			const isMostGoalsForTeamQuery = 
+				(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+				(lowerQuestion.includes("scored") || lowerQuestion.includes("score")) &&
+				lowerQuestion.includes("most") &&
+				(lowerQuestion.includes("goals") || lowerQuestion.includes("goal")) &&
+				lowerQuestion.includes("for");
+			
+			// Check for "most appearances for" patterns - these are also player queries
+			const isMostAppearancesForTeamQuery = 
+				(lowerQuestion.includes("which team") || lowerQuestion.includes("what team")) &&
+				(lowerQuestion.includes("most") && lowerQuestion.includes("appearances")) &&
+				lowerQuestion.includes("for");
+			
+			// If it's a "most goals/appearances for team" query with a player entity, route to player handler
+			if ((isMostGoalsForTeamQuery || isMostAppearancesForTeamQuery) && hasPlayerEntities) {
+				return "player";
+			}
+			
+			// If it's asking about teams specifically (without player entities), route to club handler
+			if (lowerQuestion.includes("team") && (lowerQuestion.includes("conceded") || lowerQuestion.includes("scored") || lowerQuestion.includes("goals")) && !hasPlayerEntities) {
 				return "club";
 			}
 			return "ranking";
@@ -3515,7 +3544,7 @@ export class EnhancedQuestionAnalyzer {
 		// Pattern to detect "which team has [player] scored the most goals/assists/etc for?" questions
 		// Updated pattern to match "scored the most goals for" or "scored most goals for" or "most goals for"
 		// Made more specific to ensure it matches correctly and doesn't conflict with "most appearances for"
-		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+(?:the\s+)?most\s+(?:goals?|assists?|.*?)\s+for|scored\s+the\s+most|scored\s+most|most\s+goals?\s+for)/i;
+		const mostScoredPattern = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:scored\s+(?:the\s+)?most\s+(?:goals?|assists?|.*?)\s+for|scored\s+(?:the\s+)?most\s+for|scored\s+the\s+most|scored\s+most|most\s+goals?\s+for)/i;
 
 		if (mostScoredPattern.test(lowerQuestion)) {
 			// Remove any existing stat types that might be incorrect (Goals, Assists, Most Played For Team, etc.)
