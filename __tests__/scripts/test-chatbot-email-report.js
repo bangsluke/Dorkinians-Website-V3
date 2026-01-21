@@ -204,10 +204,12 @@ try {
 	};
 }
 
-// Import STAT_TEST_CONFIGS and statObject from config.ts
+// Import STAT_TEST_CONFIGS from chatbot-tests-config.ts and statObject from config.ts
+const testConfigPath = path.resolve(__dirname, '../chatbot-tests-config.ts');
 const configPath = path.resolve(__dirname, '../../config/config.ts');
 const zeroStatResponsesPath = path.resolve(__dirname, '../../lib/services/zeroStatResponses.ts');
-const { STAT_TEST_CONFIGS, statObject } = require(configPath);
+const { STAT_TEST_CONFIGS } = require(testConfigPath);
+const { statObject } = require(configPath);
 const { messageMatchesZeroStatPhrase } = require(zeroStatResponsesPath);
 
 // Import chatbot service (will be loaded dynamically)
@@ -817,7 +819,7 @@ function generateEmailContent(testResults) {
       <div class="hidden-info">
         <h3>📋 Hidden Information</h3>
         <p><strong>${passedTestsCount} passed tests</strong> have been hidden from this report to reduce email length. 
-        To see all test results including passed tests, use the standard <code>npm run test:chatbot-report</code> command.</p>
+        To see all test results including passed tests, use the standard <code>npm run test:chatbot-players-report</code> command.</p>
       </div>
       ` : ""}
   `;

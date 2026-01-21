@@ -2758,6 +2758,10 @@ export class ChatbotService {
 		if (metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
 			return "PenConversionRate";
 		}
+		// Map OPENPLAYGOALS to G (statObject key) to get correct wordedText
+		if (metric.toUpperCase() === "OPENPLAYGOALS") {
+			return "G";
+		}
 		return findMetricByAlias(metric)?.key || metric;
 	}
 
@@ -5838,7 +5842,25 @@ export class ChatbotService {
 				} else if (metricStr.toUpperCase() === "HOME" || metricStr === "HomeGames" || metricStr === "Home Games") {
 					// For home games count queries
 					answerValue = 0;
-					answer = `${playerNameStr} has played 0 home games.`;
+					// Check if there's a result filter (e.g., "won") and if player has any home games
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					const playerData = data.data as PlayerData[];
+					const totalGames = (playerData[0] as any)?.totalGames;
+					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+						// Player has games but didn't win/lose/draw (depending on filter)
+						const resultType = analysis.results[0]?.toLowerCase();
+						if (resultType === "win" || resultType === "w") {
+							answer = `${playerNameStr} has not won a home game.`;
+						} else if (resultType === "loss" || resultType === "l") {
+							answer = `${playerNameStr} has not lost a home game.`;
+						} else if (resultType === "draw" || resultType === "d") {
+							answer = `${playerNameStr} has not drawn a home game.`;
+						} else {
+							answer = `${playerNameStr} has not played a home game.`;
+						}
+					} else {
+						answer = `${playerNameStr} has not played a home game.`;
+					}
 				} else if (metricStr.toUpperCase() === "HOMEGAMES%WON" || metricStr === "HomeGames%Won" || metricStr === "Home Games % Won") {
 					// For home games percentage won queries
 					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
@@ -5857,7 +5879,25 @@ export class ChatbotService {
 				} else if (metricStr.toUpperCase() === "AWAY" || metricStr === "AwayGames" || metricStr === "Away Games") {
 					// For away games count queries
 					answerValue = 0;
-					answer = `${playerNameStr} has played 0 away games.`;
+					// Check if there's a result filter (e.g., "won") and if player has any away games
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					const playerData = data.data as PlayerData[];
+					const totalGames = (playerData[0] as any)?.totalGames;
+					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+						// Player has games but didn't win/lose/draw (depending on filter)
+						const resultType = analysis.results[0]?.toLowerCase();
+						if (resultType === "win" || resultType === "w") {
+							answer = `${playerNameStr} has not won an away game.`;
+						} else if (resultType === "loss" || resultType === "l") {
+							answer = `${playerNameStr} has not lost an away game.`;
+						} else if (resultType === "draw" || resultType === "d") {
+							answer = `${playerNameStr} has not drawn an away game.`;
+						} else {
+							answer = `${playerNameStr} has not played an away game.`;
+						}
+					} else {
+						answer = `${playerNameStr} has not played an away game.`;
+					}
 				} else if (metricStr.toUpperCase() === "AWAYGAMES%WON" || metricStr === "AwayGames%Won" || metricStr === "Away Games % Won") {
 					// For away games percentage won queries
 					const zeroResponse = getZeroStatResponse(metricStr, playerNameStr);
@@ -7059,6 +7099,42 @@ export class ChatbotService {
 									
 									// Join parts and add period
 									answer = answerParts.join(" ") + ".";
+								} else if (metric && (metric.toUpperCase() === "HOMEGAMES" || metric.toUpperCase() === "HOME" || metric === "Home Games") && (value === 0 || value === "0" || (typeof value === "number" && value === 0))) {
+									// Special handling for home games with zero value
+									// Check if there's a result filter and if player has any home games
+									const hasResultFilter = analysis.results && analysis.results.length > 0;
+									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+										const resultType = analysis.results[0]?.toLowerCase();
+										if (resultType === "win" || resultType === "w") {
+											answer = `${playerName} has not won a home game.`;
+										} else if (resultType === "loss" || resultType === "l") {
+											answer = `${playerName} has not lost a home game.`;
+										} else if (resultType === "draw" || resultType === "d") {
+											answer = `${playerName} has not drawn a home game.`;
+										} else {
+											answer = `${playerName} has not played a home game.`;
+										}
+									} else {
+										answer = `${playerName} has not played a home game.`;
+									}
+								} else if (metric && (metric.toUpperCase() === "AWAYGAMES" || metric.toUpperCase() === "AWAY" || metric === "Away Games") && (value === 0 || value === "0" || (typeof value === "number" && value === 0))) {
+									// Special handling for away games with zero value
+									// Check if there's a result filter and if player has any away games
+									const hasResultFilter = analysis.results && analysis.results.length > 0;
+									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
+										const resultType = analysis.results[0]?.toLowerCase();
+										if (resultType === "win" || resultType === "w") {
+											answer = `${playerName} has not won an away game.`;
+										} else if (resultType === "loss" || resultType === "l") {
+											answer = `${playerName} has not lost an away game.`;
+										} else if (resultType === "draw" || resultType === "d") {
+											answer = `${playerName} has not drawn an away game.`;
+										} else {
+											answer = `${playerName} has not played an away game.`;
+										}
+									} else {
+										answer = `${playerName} has not played an away game.`;
+									}
 								} else {
 									// General fallback: Build answer text for any stat query with filters (team, location, or date range)
 									// This handles yellow cards, MoMs, and other stats with filters
@@ -7151,7 +7227,8 @@ export class ChatbotService {
 							};
 						}
 						// Create NumberCard visualization for goals queries with competition, location, or team filters
-						else if (metric && metric.toUpperCase() === "G") {
+						// Also handle OPENPLAYGOALS (open play goals)
+						else if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
 							const hasHomeLocation = locations.some((loc) => loc.type === "home");
@@ -7159,9 +7236,16 @@ export class ChatbotService {
 							const hasTeamFilter = teamEntities.length > 0;
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
 							const hasDateFilter = timeFrames.some((tf) => tf.type === "range" || tf.type === "since") || analysis.timeRange;
+							const competitions = analysis.competitions || [];
+							const hasCompetitionFilter = competitions.length > 0;
+							const competitionTypes = analysis.competitionTypes || [];
+							const hasCompetitionTypeFilter = competitionTypes.length > 0;
 							
 							const iconName = this.getIconNameForMetric(metric);
 							const roundedValue = this.roundValueByMetric(metric, value as number);
+							// Use "open play goals" for OPENPLAYGOALS, "goals" for G
+							const isOpenPlayGoals = metric.toUpperCase() === "OPENPLAYGOALS";
+							const wordedTextForGoals = isOpenPlayGoals ? "open play goals" : "goals";
 							
 							// Handle combinations of filters first (priority: location + team + date > location + team > location + date > team + date)
 							if ((hasHomeLocation || hasAwayLocation) && hasTeamFilter && hasDateFilter) {
@@ -7182,7 +7266,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7209,7 +7293,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7251,7 +7335,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7309,7 +7393,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7329,7 +7413,7 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
@@ -7348,12 +7432,27 @@ export class ChatbotService {
 									type: "NumberCard",
 									data: [{ 
 										name: "goals",
-										wordedText: "goals", 
+										wordedText: wordedTextForGoals, 
 										value: roundedValue,
 										iconName: iconName
 									}],
 									config: {
 										title: `${playerName} - Goals in ${competitions[0]}`,
+										type: "bar",
+									},
+								};
+							} else if (!hasHomeLocation && !hasAwayLocation && !hasTeamFilter && !hasDateFilter && !hasCompetitionTypeFilter && !hasCompetitionFilter) {
+								// No filters - create NumberCard for simple open play goals query
+								visualization = {
+									type: "NumberCard",
+									data: [{ 
+										name: isOpenPlayGoals ? "Open Play Goals" : "Goals",
+										wordedText: wordedTextForGoals, 
+										value: roundedValue,
+										iconName: iconName
+									}],
+									config: {
+										title: `${playerName} - ${isOpenPlayGoals ? "Open Play Goals" : "Goals"}`,
 										type: "bar",
 									},
 								};

@@ -1185,8 +1185,14 @@ export class EntityExtractor {
 				const normalizedName = player.text.toLowerCase();
 			// Filter out hattrick terms from player entity extraction
 			const isHatTrick = isHatTrickTerm(player.text);
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:1184',message:'Processing extracted player name',data:{playerText:player.text,normalizedName,isHatTrick},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+			// #endregion
 			if (!addedPlayers.has(normalizedName) && !isHatTrick) {
 					addedPlayers.add(normalizedName);
+					// #region agent log
+					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:1190',message:'Adding player entity',data:{value:player.text,type:'player',originalText:player.text},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+					// #endregion
 					entities.push({
 						value: player.text,
 						type: "player",
@@ -2085,10 +2091,11 @@ export class EntityExtractor {
 				"division",
 				"tier",
 				"level",
-				"home",
-				"away",
-				"playing",
-				"whilst",
+			"home",
+			"away",
+			"play",
+			"playing",
+			"whilst",
 				"between",
 				"and",
 				"got",
@@ -2138,9 +2145,19 @@ export class EntityExtractor {
 			// Find positions of potential names in the original text
 			for (const name of potentialNames) {
 				const normalizedName = name.trim();
+				// Strip punctuation before checking common words
+				const nameWithoutPunctuation = normalizedName.replace(/[?!.,;:]+$/, "").trim();
 
-				// Skip if it's a common word or too short
-				if (commonWords.includes(normalizedName.toLowerCase()) || normalizedName.length < 2) {
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:2140',message:'Checking potential name',data:{name,normalizedName,nameWithoutPunctuation},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+				// #endregion
+
+				// Skip if it's a common word or too short (check both with and without punctuation)
+				const isCommonWord = commonWords.includes(normalizedName.toLowerCase()) || commonWords.includes(nameWithoutPunctuation.toLowerCase());
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'entityExtraction.ts:2146',message:'Common word check',data:{normalizedName,nameWithoutPunctuation,isCommonWord,checkWithPunct:commonWords.includes(normalizedName.toLowerCase()),checkWithoutPunct:commonWords.includes(nameWithoutPunctuation.toLowerCase())},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'A'})}).catch(()=>{});
+				// #endregion
+				if (isCommonWord || normalizedName.length < 2) {
 					continue;
 				}
 
@@ -2207,9 +2224,19 @@ export class EntityExtractor {
 
 				// Trim the combined name at verb boundaries
 				const verbMatch = combinedName.match(verbBoundaryWords);
-				const trimmedName = verbMatch && verbMatch.index !== undefined
+				let trimmedName = verbMatch && verbMatch.index !== undefined
 					? combinedName.substring(0, verbMatch.index).trim()
 					: combinedName.trim();
+
+				// Remove consecutive duplicate words (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
+				const words = trimmedName.split(/\s+/);
+				const uniqueWords: string[] = [];
+				for (const word of words) {
+					if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+						uniqueWords.push(word);
+					}
+				}
+				trimmedName = uniqueWords.join(" ").trim();
 
 				combinedPlayers.push({
 					text: trimmedName,

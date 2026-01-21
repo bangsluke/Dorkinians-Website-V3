@@ -129,6 +129,21 @@ export class ResponseBuilder {
 			}
 		}
 
+		// Special handling for HomeGames and AwayGames with zero value
+		if ((metric === "HomeGames" || metric.toUpperCase() === "HOMEGAMES" || metric === "Home Games" || metric.toUpperCase() === "HOME")) {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				return `${playerName} has not played a home game.`;
+			}
+		}
+		
+		if ((metric === "AwayGames" || metric.toUpperCase() === "AWAYGAMES" || metric === "Away Games" || metric.toUpperCase() === "AWAY")) {
+			const numericValue = typeof value === "number" ? value : Number(value);
+			if (!Number.isNaN(numericValue) && numericValue === 0) {
+				return `${playerName} has not played an away game.`;
+			}
+		}
+
 		const numericValue = typeof value === "number" ? value : Number(value);
 		if (!Number.isNaN(numericValue) && numericValue === 0) {
 			const zeroResponse = getZeroStatResponse(resolvedMetricForDisplay, playerName, { metricDisplayName: metricName });
@@ -234,6 +249,13 @@ export class ResponseBuilder {
 		if (isGoalMetric && !mentionsOpenPlay && finalMetricName.toLowerCase().includes("open play")) {
 			// Replace "open play goals" with "goals"
 			finalMetricName = finalMetricName.toLowerCase().replace("open play ", "").replace("openplay ", "");
+		}
+
+		// Special handling for open play goals - use "scored" verb and format as "open play goals"
+		const isOpenPlayGoalsMetric = resolvedMetricForDisplay.toUpperCase() === "OPENPLAYGOALS";
+		if (isOpenPlayGoalsMetric) {
+			verb = "scored";
+			finalMetricName = "open play goals";
 		}
 
 		// Special handling for red cards - match question phrasing for "sent off"

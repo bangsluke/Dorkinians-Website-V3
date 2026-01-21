@@ -810,7 +810,7 @@ export class PlayerQueryBuilder {
 			`;
 		} else if (metric.toUpperCase() === "GPERAPP" || metric === "GperAPP") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 				WITH p, 
 					sum(coalesce(md.goals, 0)) + sum(coalesce(md.penaltiesScored, 0)) as totalGoals,
 					count(md) as totalAppearances
@@ -1443,7 +1443,16 @@ export class PlayerQueryBuilder {
 			
 			const mentionsGoals = questionLower.includes("goal") || questionLower.includes("scor");
 			const mentionsAssists = questionLower.includes("assist");
-			if (mentionsGoals && !mentionsAssists) {
+			const mentionsConceded = questionLower.includes("conceded");
+			const mentionsPenalties = questionLower.includes("penalt");
+			
+			// Only override to goals if:
+			// 1. Question mentions goals/scored
+			// 2. Question does NOT mention assists
+			// 3. Question does NOT mention conceded (goals conceded should use "conceded" field)
+			// 4. Question does NOT mention penalties (penalties scored should use "penaltiesScored" field)
+			// 5. A stat field wasn't already correctly identified from metrics (only override if still defaulting to "goals")
+			if (mentionsGoals && !mentionsAssists && !mentionsConceded && !mentionsPenalties && statField === "goals") {
 				statField = "goals";
 				statDisplayName = "goals";
 			}

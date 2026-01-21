@@ -23,16 +23,35 @@ export class PlayerDataQueryHandler {
 	 * Returns clarification message if needed, null otherwise
 	 */
 	private static checkPartialNameClarification(playerName: string, userContext?: string): { needsClarification: boolean; message?: string } | null {
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:25',message:'checkPartialNameClarification called',data:{playerName,userContext},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+		// #endregion
 		if (!userContext) {
 			return null;
 		}
 
 		const normalizedName = playerName.toLowerCase().trim();
+		// Strip punctuation before checking common words
+		const nameWithoutPunctuation = normalizedName.replace(/[?!.,;:]+$/, "").trim();
 		const selectedPlayerLower = userContext.toLowerCase().trim();
 		const pronouns = ["i", "i've", "me", "my", "myself"];
+		
+		// Common words that should not trigger clarification (including "play" from "open play")
+		const commonWords = ["play", "playing", "goals", "goal", "assists", "assist", "games", "game", "appearances", "appearance", "minutes", "saves", "cards", "penalties", "penalty"];
 
 		// Skip pronouns
 		if (pronouns.includes(normalizedName)) {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:35',message:'Skipped pronoun',data:{normalizedName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
+			return null;
+		}
+		
+		// Skip common words (check both with and without punctuation)
+		if (commonWords.includes(normalizedName) || commonWords.includes(nameWithoutPunctuation)) {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:45',message:'Skipped common word',data:{normalizedName,nameWithoutPunctuation},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
 			return null;
 		}
 
@@ -40,6 +59,9 @@ export class PlayerDataQueryHandler {
 		const isSingleWord = !normalizedName.includes(" ") && normalizedName.length >= 2 && normalizedName.length < 20;
 
 		if (isSingleWord) {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:48',message:'Single word detected',data:{normalizedName,isSingleWord},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
 			// Check special case: "Twat" -> "Kieran Mackrell"
 			if (normalizedName === "twat") {
 				return {
@@ -51,10 +73,16 @@ export class PlayerDataQueryHandler {
 			// Check if selected player contains this partial name
 			if (selectedPlayerLower.includes(normalizedName) && normalizedName.length >= 2) {
 				// Partial name matches selected player, no clarification needed
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:56',message:'Partial name matches userContext',data:{normalizedName,selectedPlayerLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+				// #endregion
 				return null;
 			}
 
 			// Partial name doesn't match selected player, clarification needed
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:63',message:'Clarification needed',data:{normalizedName,selectedPlayerLower},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
 			return {
 				needsClarification: true,
 				message: `Please provide clarification on who ${playerName} is.`,
@@ -2272,6 +2300,13 @@ export class PlayerDataQueryHandler {
 			);
 
 			if (!isPercentageMetric) {
+				// Check for per-appearance metrics FIRST (before general goals check)
+				const hasPerAppearancePhrase = questionLower.includes("per appearance") || 
+					questionLower.includes("per app") || 
+					questionLower.includes("per game") || 
+					questionLower.includes("per match") ||
+					(questionLower.includes("on average") && questionLower.includes("per"));
+				
 				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
 					// Handle typo "yelow" as well as correct "yellow"
 					detectedMetricFromQuestion = "Y";
@@ -2279,8 +2314,37 @@ export class PlayerDataQueryHandler {
 					detectedMetricFromQuestion = "R";
 				} else if (questionLower.includes("assist")) {
 					detectedMetricFromQuestion = "A";
+				} else if (questionLower.includes("own goal") || questionLower.includes("own goals")) {
+					// Check for own goals BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "OG";
+				} else if (questionLower.includes("conceded") && hasPerAppearancePhrase) {
+					// Check for conceded per appearance BEFORE general conceded
+					detectedMetricFromQuestion = "CperAPP";
+				} else if (questionLower.includes("conceded")) {
+					// Check for goals conceded BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "C";
+				} else if (questionLower.includes("penalt") && (questionLower.includes("scored") || questionLower.includes("score"))) {
+					// Check for penalties scored BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "PSC";
+				} else if ((questionLower.includes("open play") || questionLower.includes("openplay")) && questionLower.includes("goal")) {
+					// Check for open play goals BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "OPENPLAYGOALS";
+				} else if (questionLower.includes("fantasy points") && hasPerAppearancePhrase) {
+					// Check for fantasy points per appearance BEFORE general fantasy points
+					detectedMetricFromQuestion = "FTPperAPP";
+				} else if (questionLower.includes("goal") && hasPerAppearancePhrase && !questionLower.includes("assist")) {
+					// Check for goals per appearance BEFORE general goals
+					detectedMetricFromQuestion = "GperAPP";
 				} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
 					detectedMetricFromQuestion = "G";
+				} else if ((questionLower.includes("home games") || questionLower.includes("home game")) && 
+					(questionLower.includes("played") || questionLower.includes("won") || questionLower.includes("lost") || questionLower.includes("drawn"))) {
+					// Check for home games queries BEFORE general appearance check
+					detectedMetricFromQuestion = "HomeGames";
+				} else if ((questionLower.includes("away games") || questionLower.includes("away game")) && 
+					(questionLower.includes("played") || questionLower.includes("won") || questionLower.includes("lost") || questionLower.includes("drawn"))) {
+					// Check for away games queries BEFORE general appearance check
+					detectedMetricFromQuestion = "AwayGames";
 				} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
 					// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
 					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
@@ -2299,7 +2363,7 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
-			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason") with detected metrics
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games) with detected metrics
 			// These metrics have custom query builders and should be preserved
 			const isSpecialCaseMetric = originalMetric && (
 				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
@@ -2307,19 +2371,43 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "MOSTPROLIFICSEASON" ||
 				originalMetric.toUpperCase() === "MOSTMINUTESSEASON" ||
 				originalMetric.toUpperCase() === "MOSTAPPEARANCESSEASON" ||
-				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON"
+				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON" ||
+				originalMetric.toUpperCase() === "GPERAPP" ||
+				originalMetric.toUpperCase() === "CPERAPP" ||
+				originalMetric.toUpperCase() === "FTPPERAPP" ||
+				originalMetric.toUpperCase() === "MPERG" ||
+				originalMetric.toUpperCase() === "MPERCLS" ||
+				originalMetric.toUpperCase() === "HOMEGAMES" ||
+				originalMetric.toUpperCase() === "AWAYGAMES" ||
+				originalMetric.toUpperCase() === "HOME" ||
+				originalMetric.toUpperCase() === "AWAY"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
 			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
 			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
+			// BUT: Don't override per-appearance metrics or home/away games with general goals/appearances
 			const hasExplicitMetricRequest = detectedMetricFromQuestion && 
 				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
 				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
+			const isHomeAwayGamesMetric = originalMetric && (
+				originalMetric.toUpperCase() === "HOMEGAMES" ||
+				originalMetric.toUpperCase() === "AWAYGAMES" ||
+				originalMetric.toUpperCase() === "HOME" ||
+				originalMetric.toUpperCase() === "AWAY"
+			);
 			
 			// Use detected metric from question if available, but preserve team-specific metrics and special case metrics
 			// UNLESS question explicitly requests a different metric (and it's not a special case)
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric
+			// CRITICAL: If originalMetric is a per-appearance metric (GperAPP, CperAPP, FTPperAPP) or home/away games, preserve it
+			const isPerAppearanceMetric = originalMetric && (
+				originalMetric.toUpperCase() === "GPERAPP" ||
+				originalMetric.toUpperCase() === "CPERAPP" ||
+				originalMetric.toUpperCase() === "FTPPERAPP"
+			);
+			// If detected metric is HomeGames/AwayGames, use it (it was detected from question)
+			// If original metric is HomeGames/AwayGames, preserve it
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric || isPerAppearanceMetric || isHomeAwayGamesMetric
 				? originalMetric 
 				: (detectedMetricFromQuestion || originalMetric);
 
@@ -2343,6 +2431,10 @@ export class PlayerDataQueryHandler {
 				normalizedMetric = "AwayGames%Drawn";
 			} else if (metricToUse === "Games % Drawn") {
 				normalizedMetric = "Games%Drawn";
+			} else if (metricToUse === "Home Games") {
+				normalizedMetric = "HomeGames";
+			} else if (metricToUse === "Away Games") {
+				normalizedMetric = "AwayGames";
 			}
 
 			const metric = normalizedMetric.toUpperCase();
@@ -2426,7 +2518,13 @@ export class PlayerDataQueryHandler {
 			}
 
 			// Build the optimal query using unified architecture
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2497',message:'BEFORE buildPlayerQuery',data:{metric,analysisResults:analysis.results,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'P'})}).catch(()=>{});
+			// #endregion
 			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2498',message:'AFTER buildPlayerQuery',data:{query,metric},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'P'})}).catch(()=>{});
+			// #endregion
 
 			try {
 				// Store query for debugging - add to chatbotService for client visibility
@@ -2450,6 +2548,9 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2517',message:'QUERY RESULT',data:{metric,metricToUse,resultLength:result?.length,result:result,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'M'})}).catch(()=>{});
+			// #endregion
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2471,8 +2572,69 @@ export class PlayerDataQueryHandler {
 						/^\d+(?:st|nd|rd|th)\s+XI\s+Goals?$/i.test(originalMetricStr.replace(/\s+/g, ' '))
 					));
 				
+				// Check if this is a home/away games metric that should return 0 if no results
+				const isHomeAwayGamesMetric = metricToUse && (
+					metricToUse.toUpperCase() === "HOMEGAMES" ||
+					metricToUse.toUpperCase() === "AWAYGAMES" ||
+					metricToUse.toUpperCase() === "HOME" ||
+					metricToUse.toUpperCase() === "AWAY"
+				);
+				
 				if ((!result || !Array.isArray(result) || result.length === 0) && isTeamSpecificGoalsMetric) {
 					loggingService.log(`⚠️ No results found for ${actualPlayerName} with metric ${metric} (original: ${originalMetric}), returning 0`, null, "warn");
+					return { 
+						type: "specific_player", 
+						data: [{ playerName: actualPlayerName, value: 0 }], 
+						playerName: actualPlayerName, 
+						metric: metricToUse, 
+						cypherQuery: query 
+					};
+				}
+
+				if ((!result || !Array.isArray(result) || result.length === 0) && isHomeAwayGamesMetric) {
+					// #region agent log
+					fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2555',message:'HOME/AWAY GAMES EMPTY RESULT',data:{metricToUse,playerName:actualPlayerName,hasResultFilter:!!(analysis.results && analysis.results.length > 0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
+					// #endregion
+					
+					// If there's a result filter (e.g., "won"), check if player has any games at all
+					// to distinguish between "no games played" vs "no games won"
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					if (hasResultFilter) {
+						const graphLabel = neo4jService.getGraphLabel();
+						const isHome = metricToUse.toUpperCase() === "HOMEGAMES" || metricToUse.toUpperCase() === "HOME";
+						const locationFilter = isHome ? "f.homeOrAway = 'Home'" : "f.homeOrAway = 'Away'";
+						
+						const totalGamesQuery = `
+							MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+							MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+							WHERE ${locationFilter}
+							RETURN count(DISTINCT md) as totalGames
+						`;
+						
+						try {
+							const totalGamesResult = await neo4jService.executeQuery(totalGamesQuery, { playerName: actualPlayerName, graphLabel });
+							const totalGames = totalGamesResult && totalGamesResult.length > 0 ? (totalGamesResult[0].totalGames || 0) : 0;
+							
+							// #region agent log
+							fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:2575',message:'TOTAL GAMES CHECK',data:{totalGames,metricToUse,playerName:actualPlayerName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'N'})}).catch(()=>{});
+							// #endregion
+							
+							// If player has games but 0 wins, include totalGames in the response for response generation
+							if (totalGames > 0) {
+								return { 
+									type: "specific_player", 
+									data: [{ playerName: actualPlayerName, value: 0, totalGames }], 
+									playerName: actualPlayerName, 
+									metric: metricToUse, 
+									cypherQuery: query 
+								};
+							}
+						} catch (error) {
+							loggingService.log(`⚠️ Error checking total games for ${actualPlayerName}:`, error, "warn");
+						}
+					}
+					
+					loggingService.log(`⚠️ No results found for ${actualPlayerName} with metric ${metricToUse}, returning 0`, null, "warn");
 					return { 
 						type: "specific_player", 
 						data: [{ playerName: actualPlayerName, value: 0 }], 

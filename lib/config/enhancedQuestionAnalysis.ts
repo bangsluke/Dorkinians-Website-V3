@@ -1391,8 +1391,17 @@ export class EnhancedQuestionAnalyzer {
 		// CRITICAL FIX: Detect fantasy points queries (must run before open play goals correction)
 		const fantasyPointsCorrectedStats = this.correctFantasyPointsQueries(appearanceCorrectedStats);
 
+		// CRITICAL FIX: Detect goals per appearance queries
+		const goalsPerAppCorrectedStats = this.correctGoalsPerAppearanceQueries(fantasyPointsCorrectedStats);
+
+		// CRITICAL FIX: Detect conceded per appearance queries
+		const concededPerAppCorrectedStats = this.correctConcededPerAppearanceQueries(goalsPerAppCorrectedStats);
+
+		// CRITICAL FIX: Detect fantasy points per appearance queries
+		const fantasyPerAppCorrectedStats = this.correctFantasyPointsPerAppearanceQueries(concededPerAppCorrectedStats);
+
 		// CRITICAL FIX: Detect minutes per goal queries (must run before open play goals correction to filter out "score" matches)
-		const minutesPerGoalCorrectedStats = this.correctMinutesPerGoalQueries(fantasyPointsCorrectedStats);
+		const minutesPerGoalCorrectedStats = this.correctMinutesPerGoalQueries(fantasyPerAppCorrectedStats);
 
 		// CRITICAL FIX: Detect open play goals queries
 		const openPlayCorrectedStats = this.correctOpenPlayGoalsQueries(minutesPerGoalCorrectedStats);
@@ -2288,22 +2297,32 @@ export class EnhancedQuestionAnalyzer {
 
 		// Patterns to detect home games queries
 		const homeGamesPatterns = [
-			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
-			/home\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
+			/home\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
 			/games?\s+at\s+home/i,
 			/games?\s+played\s+at\s+home/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+won/i,
+			/(?:how\s+many\s+)?home\s+games?\s+(?:has|have|did)\s+.*?\s+played/i,
 		];
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2298',message:'correctHomeAwayGamesQueries CHECK',data:{lowerQuestion,statTypesIn:statTypes.map(s=>s.value),homeGamesMatches:homeGamesPatterns.map((p,i)=>({index:i,matches:p.test(lowerQuestion)}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
+		// #endregion
 
 		// Patterns to detect away games queries
 		const awayGamesPatterns = [
-			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
-			/away\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared)/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
+			/away\s+games?\s+.*?\s+(?:has|have|did)\s+.*?\s+(?:played|made|appeared|won|lost|drawn)/i,
 			/games?\s+away/i,
 			/games?\s+played\s+away/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+won/i,
+			/(?:how\s+many\s+)?away\s+games?\s+(?:has|have|did)\s+.*?\s+played/i,
 		];
 
 		const isHomeGamesQuery = homeGamesPatterns.some(pattern => pattern.test(lowerQuestion));
 		const isAwayGamesQuery = awayGamesPatterns.some(pattern => pattern.test(lowerQuestion));
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2314',message:'correctHomeAwayGamesQueries RESULT',data:{isHomeGamesQuery,isAwayGamesQuery},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
+		// #endregion
 
 		if (isHomeGamesQuery || isAwayGamesQuery) {
 			// Filter out "Home", "Away", "Apps", "Games", "Appearances" if present
@@ -2325,7 +2344,9 @@ export class EnhancedQuestionAnalyzer {
 					position: lowerQuestion.indexOf("away games") !== -1 ? lowerQuestion.indexOf("away games") : lowerQuestion.indexOf("away"),
 				});
 			}
-
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'enhancedQuestionAnalysis.ts:2330',message:'correctHomeAwayGamesQueries RETURN FILTERED',data:{filteredStats:filteredStats.map(s=>s.value)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'O'})}).catch(()=>{});
+			// #endregion
 			return filteredStats;
 		}
 
@@ -2434,8 +2455,8 @@ export class EnhancedQuestionAnalyzer {
 		const teamAppearancePattern2 = /(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)(?:\s+(?:team|teams?))?\s+(appearances?|apps?|games?)/i;
 		// Pattern 3: "appearance count for Xs" or "Xs appearance count" or "appearance count for X playing for Ys"
 		const teamAppearancePattern3 = /(?:what\s+is\s+the\s+)?(appearance\s+count|count)\s+(?:for\s+[^f]+?\s+)?(?:playing\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)|for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth))/i;
-		// Pattern 4: "how many times...played for Xs"
-		const teamAppearancePattern4 = /(?:how\s+many\s+times|times).*?(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
+		// Pattern 4: "how many times...played for Xs" - more flexible to match with player names in between
+		const teamAppearancePattern4 = /(?:how\s+many\s+times|times)(?:\s+has\s+.*?)?\s+(?:played|playing)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth)/i;
 		// Pattern 5: "games for Xs has...played"
 		const teamAppearancePattern5 = /(?:games?|appearances?|apps?)\s+for\s+(?:the\s+)?(1s|2s|3s|4s|5s|6s|7s|8s|1st|2nd|3rd|4th|5th|6th|7th|8th|first|second|third|fourth|fifth|sixth|seventh|eighth).*?(?:played|made|achieved)/i;
 		// Pattern 6: "appearances for Xs...made/achieved"
@@ -2870,6 +2891,186 @@ export class EnhancedQuestionAnalyzer {
 					value: "Fantasy Points Per Appearance",
 					originalText: "fantasy points per appearance",
 					position: perAppearancePosition !== -1 ? perAppearancePosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects goals per appearance queries - detects "goals on average per appearance" patterns
+	 */
+	private correctGoalsPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect goals per appearance queries
+		const goalsPerAppPatterns = [
+			/goals?\s+on\s+average.*?per\s+(?:appearance|app|game|match)/i,
+			/goals?\s+on\s+average.*?(?:has|have|does).*?scored.*?per\s+(?:appearance|app|game|match)/i,
+			/goals?\s+per\s+(?:appearance|app|game|match)/i,
+			/average.*?goals?.*?per\s+(?:appearance|app|game|match)/i,
+		];
+
+		const hasGoalsPerAppPattern = goalsPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasGoalsKeyword = lowerQuestion.includes("goal") || lowerQuestion.includes("goals");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasGoalsPerAppPattern || (hasGoalsKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Goals", "G", "AllGSC", "All Goals Scored", "Open Play Goals", "Saves"].includes(stat.value)
+			);
+
+			// Check if "Goals Per Appearance" is already in the stats
+			const hasGoalsPerAppStat = filteredStats.some((stat) => stat.value === "Goals Per Appearance");
+
+			if (!hasGoalsPerAppStat) {
+				const goalsPosition = lowerQuestion.indexOf("goal");
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: goalsPosition;
+				
+				filteredStats.push({
+					value: "Goals Per Appearance",
+					originalText: "goals per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : goalsPosition !== -1 ? goalsPosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects conceded per appearance queries - detects "goals on average does X concede per match" patterns
+	 */
+	private correctConcededPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect conceded per appearance queries
+		const concededPerAppPatterns = [
+			/goals?\s+on\s+average.*?does.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+			/goals?\s+on\s+average.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+			/conceded.*?per\s+(?:match|appearance|app|game)/i,
+			/goals?\s+conceded.*?per\s+(?:match|appearance|app|game)/i,
+			/average.*?concede.*?per\s+(?:match|appearance|app|game)/i,
+		];
+
+		const hasConcededPerAppPattern = concededPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasConcededKeyword = lowerQuestion.includes("concede") || lowerQuestion.includes("conceded");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasConcededPerAppPattern || (hasConcededKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Goals Conceded", "C", "Conceded", "Goals", "G", "AllGSC", "All Goals Scored"].includes(stat.value)
+			);
+
+			// Check if "Conceded Per Appearance" is already in the stats
+			const hasConcededPerAppStat = filteredStats.some((stat) => 
+				stat.value === "Conceded Per Appearance" || stat.value === "Goals Conceded Per Appearance"
+			);
+
+			if (!hasConcededPerAppStat) {
+				const concededPosition = lowerQuestion.indexOf("concede") !== -1 
+					? lowerQuestion.indexOf("concede")
+					: lowerQuestion.indexOf("conceded");
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: concededPosition;
+				
+				filteredStats.push({
+					value: "Conceded Per Appearance",
+					originalText: "conceded per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : concededPosition !== -1 ? concededPosition : 0,
+				});
+			}
+
+			return filteredStats;
+		}
+
+		return statTypes;
+	}
+
+	/**
+	 * Corrects fantasy points per appearance queries - detects "fantasy points does X score per appearance" patterns
+	 */
+	private correctFantasyPointsPerAppearanceQueries(statTypes: StatTypeInfo[]): StatTypeInfo[] {
+		const lowerQuestion = this.question.toLowerCase();
+
+		// Patterns to detect fantasy points per appearance queries
+		const fantasyPerAppPatterns = [
+			/fantasy\s+points?.*?does.*?score.*?per\s+(?:appearance|app|game|match)/i,
+			/fantasy\s+points?.*?per\s+(?:appearance|app|game|match)/i,
+			/average.*?fantasy\s+points?.*?per\s+(?:appearance|app|game|match)/i,
+		];
+
+		const hasFantasyPerAppPattern = fantasyPerAppPatterns.some(pattern => pattern.test(lowerQuestion));
+		const hasFantasyKeyword = lowerQuestion.includes("fantasy points") || 
+			lowerQuestion.includes("fantasy point") ||
+			lowerQuestion.includes("ftp");
+		const hasPerAppearancePhrase = lowerQuestion.includes("per appearance") || 
+			lowerQuestion.includes("per app") || 
+			lowerQuestion.includes("per game") || 
+			lowerQuestion.includes("per match") ||
+			(lowerQuestion.includes("on average") && lowerQuestion.includes("per"));
+
+		if (hasFantasyPerAppPattern || (hasFantasyKeyword && hasPerAppearancePhrase)) {
+			// Remove conflicting stats
+			const filteredStats = statTypes.filter((stat) => 
+				!["Fantasy Points", "FTP", "Goals", "G", "Saves"].includes(stat.value)
+			);
+
+			// Check if "Fantasy Points Per Appearance" is already in the stats
+			const hasFantasyPerAppStat = filteredStats.some((stat) => stat.value === "Fantasy Points Per Appearance");
+
+			if (!hasFantasyPerAppStat) {
+				const fantasyPosition = lowerQuestion.indexOf("fantasy points") !== -1
+					? lowerQuestion.indexOf("fantasy points")
+					: lowerQuestion.indexOf("fantasy point") !== -1
+						? lowerQuestion.indexOf("fantasy point")
+						: lowerQuestion.indexOf("ftp") !== -1
+							? lowerQuestion.indexOf("ftp")
+							: 0;
+				const perAppPosition = lowerQuestion.indexOf("per appearance") !== -1 
+					? lowerQuestion.indexOf("per appearance")
+					: lowerQuestion.indexOf("per app") !== -1
+						? lowerQuestion.indexOf("per app")
+						: lowerQuestion.indexOf("per game") !== -1
+							? lowerQuestion.indexOf("per game")
+							: lowerQuestion.indexOf("per match") !== -1
+								? lowerQuestion.indexOf("per match")
+								: fantasyPosition;
+				
+				filteredStats.push({
+					value: "Fantasy Points Per Appearance",
+					originalText: "fantasy points per appearance",
+					position: perAppPosition !== -1 ? perAppPosition : fantasyPosition,
 				});
 			}
 

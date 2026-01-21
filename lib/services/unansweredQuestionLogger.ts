@@ -28,9 +28,9 @@ export class UnansweredQuestionLogger {
 	 */
 	public async log(data: UnansweredQuestionData): Promise<void> {
 		try {
-			// Skip logging if running under test:chatbot-report or test:questions-report npm commands
+			// Skip logging if running under test:chatbot-players-report or test:questions-report npm commands
 			const npmLifecycleEvent = process.env.npm_lifecycle_event;
-			if (npmLifecycleEvent === "test:chatbot-report" || npmLifecycleEvent === "test:questions-report") {
+			if (npmLifecycleEvent === "test:chatbot-players-report" || npmLifecycleEvent === "test:questions-report") {
 				return;
 			}
 

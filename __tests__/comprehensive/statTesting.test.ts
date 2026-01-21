@@ -13,7 +13,7 @@ import {
 	STAT_TEST_CONFIGS,
 	TestPlayerData,
 } from "../utils/testUtils";
-import { TestConfig } from "../../config/config";
+import { TestConfig } from "../chatbot-tests-config";
 
 describe("Comprehensive Stat Testing", () => {
 	let chatbotService: ChatbotService;

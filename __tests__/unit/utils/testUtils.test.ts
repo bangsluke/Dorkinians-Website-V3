@@ -1,5 +1,5 @@
 import { fetchTestData, getAllStatConfigs, validateResponse, TestPlayerData, STAT_TEST_CONFIGS } from "@/__tests__/utils/testUtils";
-import { TestConfig } from "@/config/config";
+import { TestConfig } from "@/__tests__/chatbot-tests-config";
 
 describe("TestUtils Debug Tests", () => {
 	test("STAT_TEST_CONFIGS should have 70 entries", () => {
