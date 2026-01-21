@@ -1356,10 +1356,13 @@ export class PlayerQueryBuilder {
 			}
 		} else if (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor") {
 			return `
-				MATCH (p:Player {playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail)
+				MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
 				WHERE md.team IS NOT NULL AND md.team <> "Fun XI"
 				WITH p, collect(DISTINCT md.team) as teams
-				RETURN p.playerName as playerName, size(teams) as value
+				MATCH (allMd:MatchDetail {graphLabel: $graphLabel})
+				WHERE allMd.team IS NOT NULL AND allMd.team <> "Fun XI"
+				WITH p, size(teams) as playerTeamCount, collect(DISTINCT allMd.team) as allTeams
+				RETURN p.playerName as playerName, playerTeamCount as value, size(allTeams) as totalTeamCount
 			`;
 		} else if (metric.toUpperCase() === "NUMBERSEASONSPLAYEDFOR" || metric === "NumberSeasonsPlayedFor" || metric.toUpperCase().includes("NUMBERSEASONSPLAYEDFOR")) {
 			return `

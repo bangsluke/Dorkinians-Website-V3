@@ -2288,6 +2288,9 @@ export class PlayerDataQueryHandler {
 			);
 
 			if (!isPercentageMetric) {
+				// CRITICAL: Check for "most appearances for team" queries FIRST (before general appearance detection)
+				const isMostAppearancesForTeamQuery = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:made\s+the\s+most\s+appearances\s+for|made\s+most\s+appearances\s+for|most\s+appearances\s+for|played\s+for\s+most|played\s+most\s+for)/i.test(questionLower);
+				
 				// Check for per-appearance metrics FIRST (before general goals check)
 				const hasPerAppearancePhrase = questionLower.includes("per appearance") || 
 					questionLower.includes("per app") || 
@@ -2336,8 +2339,9 @@ export class PlayerDataQueryHandler {
 					(questionLower.includes("played") || questionLower.includes("won") || questionLower.includes("lost") || questionLower.includes("drawn"))) {
 					// Check for away games queries BEFORE general appearance check
 					detectedMetricFromQuestion = "AwayGames";
-				} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+				} else if (!isMostAppearancesForTeamQuery && (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game"))) {
 					// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+					// AND it's not a "most appearances for team" query (which should use TEAM_ANALYSIS)
 					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
 						!questionLower.includes("yellow") && !questionLower.includes("red card")) {
 						detectedMetricFromQuestion = "APP";
@@ -2387,7 +2391,9 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "HOMEGAMES" ||
 				originalMetric.toUpperCase() === "AWAYGAMES" ||
 				originalMetric.toUpperCase() === "HOME" ||
-				originalMetric.toUpperCase() === "AWAY"
+				originalMetric.toUpperCase() === "AWAY" ||
+				originalMetric.toUpperCase() === "TEAM_ANALYSIS" ||
+				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics

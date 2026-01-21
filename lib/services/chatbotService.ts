@@ -6070,18 +6070,19 @@ export class ChatbotService {
 			const averageDistance = distanceData?.averageDistance || 0;
 			
 			if (totalDistance > 0) {
-				answer = `${playerName} has travelled ${totalDistance.toFixed(1)} miles to get to games${awayGames > 0 ? ` across ${awayGames} ${awayGames === 1 ? "away game" : "away games"}` : ""}.`;
+				const roundedDistance = parseFloat(totalDistance.toFixed(1));
+				answer = `${playerName} has travelled ${roundedDistance.toFixed(1)} miles to get to games${awayGames > 0 ? ` across ${awayGames} ${awayGames === 1 ? "away game" : "away games"}` : ""}.`;
 				if (awayGames > 0 && averageDistance > 0) {
 					answer += ` That's an average of ${averageDistance.toFixed(1)} miles per away game.`;
 				}
-				answerValue = totalDistance;
+				answerValue = roundedDistance;
 				
 				visualization = {
 					type: "NumberCard",
 					data: [{
 						name: "Distance Travelled",
 						wordedText: "miles travelled",
-						value: totalDistance,
+						value: roundedDistance,
 						iconName: "DistanceTravelled-Icon"
 					}],
 					config: {
@@ -6832,90 +6833,96 @@ export class ChatbotService {
 					const hasCompetitionTypeFilter = competitionTypes.length > 0;
 
 					if (value !== undefined && value !== null) {
-						// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
-						const isPercentageQuery = metric && (
-							metric.toUpperCase().includes("HOMEGAMES%") ||
-							metric.toUpperCase().includes("AWAYGAMES%") ||
-							metric.toUpperCase().includes("GAMES%")
-						);
-
-						if (isPercentageQuery && totalGames !== undefined) {
-							// Format percentage with 1 decimal place
-							const percentageValue = typeof value === "number" ? value : Number(value);
-							const formattedPercentage = percentageValue.toFixed(1);
-							answerValue = percentageValue;
-
-							// Determine the result type and location
-							const metricUpper = metric.toUpperCase();
-							const isHome = metricUpper.includes("HOMEGAMES");
-							const isAway = metricUpper.includes("AWAYGAMES");
-							const isWon = metricUpper.includes("%WON");
-							const isLost = metricUpper.includes("%LOST");
-							const isDrawn = metricUpper.includes("%DRAWN");
-
-							const location = isHome ? "home" : isAway ? "away" : "";
-							const result = isWon ? "won" : isLost ? "lost" : isDrawn ? "drawn" : "";
-							const gameText = totalGames === 1 ? "game" : "games";
-
-							// Build response text: "Luke Bangs has won 40.5% of the 78 away games he has played"
-							const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
-							if (location) {
-								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${location} ${gameText} ${pronoun} has played.`;
-							} else {
-								answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${gameText} ${pronoun} has played.`;
-							}
-
-							// Create NumberCard visualization
-							// Determine icon name based on location (use same icon for all result types for home/away)
-							let iconName: string;
-							if (isAway) {
-								// Use PercentageAwayGamesWon-Icon for all away games percentage queries (won/lost/drawn)
-								iconName = "PercentageAwayGamesWon-Icon";
-							} else if (isHome) {
-								// Use PercentageHomeGamesWon-Icon for all home games percentage queries (won/lost/drawn)
-								iconName = "PercentageHomeGamesWon-Icon";
-							} else {
-								// General games percentage - use result-specific icons
-								if (isWon) {
-									iconName = "PercentageGamesWon-Icon";
-								} else if (isLost) {
-									iconName = "PercentageGamesLost-Icon";
-								} else {
-									iconName = "PercentageGamesDrawn-Icon";
-								}
-							}
-							// Format display name as "% of [location] games [result]" for NumberCard
-							const displayName = isAway 
-								? (isWon ? "% of away games won" : isLost ? "% of away games lost" : "% of away games drawn")
-								: isHome
-								? (isWon ? "% of home games won" : isLost ? "% of home games lost" : "% of home games drawn")
-								: (isWon ? "% of games won" : isLost ? "% of games lost" : "% of games drawn");
-
-							// Format value to 1 decimal place for NumberCard display
-							const formattedValue = parseFloat(percentageValue.toFixed(1));
-
-							visualization = {
-								type: "NumberCard",
-								data: [{
-									name: displayName,
-									value: formattedValue,
-									metric: metric,
-									iconName: iconName
-								}],
-								config: {
-									title: displayName,
-									type: "bar",
-								},
-							};
-						}
-						// Round answerValue for penalty conversion rate to 1 decimal place
-						else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
-							answerValue = this.roundValueByMetric(metric, value as number);
-							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+							const playerTeamCount = typeof value === "number" ? value : 0;
+							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+							answerValue = `${playerTeamCount}/${totalTeamCount}`;
 						} else {
-							answerValue = value as number;
+							// Check if this is a percentage query (Home/Away/Games % Won/Lost/Drawn)
+							const isPercentageQuery = metric && (
+								metric.toUpperCase().includes("HOMEGAMES%") ||
+								metric.toUpperCase().includes("AWAYGAMES%") ||
+								metric.toUpperCase().includes("GAMES%")
+							);
+
+							if (isPercentageQuery && totalGames !== undefined) {
+								// Format percentage with 1 decimal place
+								const percentageValue = typeof value === "number" ? value : Number(value);
+								const formattedPercentage = percentageValue.toFixed(1);
+								answerValue = percentageValue;
+
+								// Determine the result type and location
+								const metricUpper = metric.toUpperCase();
+								const isHome = metricUpper.includes("HOMEGAMES");
+								const isAway = metricUpper.includes("AWAYGAMES");
+								const isWon = metricUpper.includes("%WON");
+								const isLost = metricUpper.includes("%LOST");
+								const isDrawn = metricUpper.includes("%DRAWN");
+
+								const location = isHome ? "home" : isAway ? "away" : "";
+								const result = isWon ? "won" : isLost ? "lost" : isDrawn ? "drawn" : "";
+								const gameText = totalGames === 1 ? "game" : "games";
+
+								// Build response text: "Luke Bangs has won 40.5% of the 78 away games he has played"
+								const pronoun = userContext && playerName.toLowerCase() === userContext.toLowerCase() ? "he" : "they";
+								if (location) {
+									answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${location} ${gameText} ${pronoun} has played.`;
+								} else {
+									answer = `${playerName} has ${result} ${formattedPercentage}% of the ${totalGames} ${gameText} ${pronoun} has played.`;
+								}
+
+								// Create NumberCard visualization
+								// Determine icon name based on location (use same icon for all result types for home/away)
+								let iconName: string;
+								if (isAway) {
+									// Use PercentageAwayGamesWon-Icon for all away games percentage queries (won/lost/drawn)
+									iconName = "PercentageAwayGamesWon-Icon";
+								} else if (isHome) {
+									// Use PercentageHomeGamesWon-Icon for all home games percentage queries (won/lost/drawn)
+									iconName = "PercentageHomeGamesWon-Icon";
+								} else {
+									// General games percentage - use result-specific icons
+									if (isWon) {
+										iconName = "PercentageGamesWon-Icon";
+									} else if (isLost) {
+										iconName = "PercentageGamesLost-Icon";
+									} else {
+										iconName = "PercentageGamesDrawn-Icon";
+									}
+								}
+								// Format display name as "% of [location] games [result]" for NumberCard
+								const displayName = isAway 
+									? (isWon ? "% of away games won" : isLost ? "% of away games lost" : "% of away games drawn")
+									: isHome
+									? (isWon ? "% of home games won" : isLost ? "% of home games lost" : "% of home games drawn")
+									: (isWon ? "% of games won" : isLost ? "% of games lost" : "% of games drawn");
+
+								// Format value to 1 decimal place for NumberCard display
+								const formattedValue = parseFloat(percentageValue.toFixed(1));
+
+								visualization = {
+									type: "NumberCard",
+									data: [{
+										name: displayName,
+										value: formattedValue,
+										metric: metric,
+										iconName: iconName
+									}],
+									config: {
+										title: displayName,
+										type: "bar",
+									},
+								};
+							// Round answerValue for penalty conversion rate to 1 decimal place
+							} else if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
+								answerValue = this.roundValueByMetric(metric, value as number);
+								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
+							} else {
+								answerValue = value as number;
 							
-							// Check for team filter with goals/assists/other stats queries
+								// Check for team filter with goals/assists/other stats queries
 							const teamEntities = analysis.teamEntities || [];
 							const hasTeamFilter = teamEntities.length > 0;
 							const isGoalsQuery = metric && metric.toUpperCase() === "G";
@@ -7873,6 +7880,7 @@ export class ChatbotService {
 								};
 							}
 						}
+					}
 					} else {
 						answer = "No data found for your query.";
 					}
@@ -7884,7 +7892,13 @@ export class ChatbotService {
 				const value = playerData[0]?.value;
 				const metric = (data.metric as string) || analysis.metrics[0] || "G";
 
-				if (value !== undefined && value !== null) {
+				// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+				if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+					const playerTeamCount = typeof value === "number" ? value : 0;
+					const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+					answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+					answerValue = `${playerTeamCount}/${totalTeamCount}`;
+				} else if (value !== undefined && value !== null) {
 					answerValue = value as number;
 					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 				} else {
