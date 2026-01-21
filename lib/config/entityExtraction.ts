@@ -1178,23 +1178,99 @@ export class EntityExtractor {
 		// player names to be extracted when team entities are present
 		// Updated pattern to handle names with multiple capitals (e.g., "McKrell", "O'Brien")
 		const hasClearPlayerNamePattern = /\b([A-Z][A-Za-z']+(?:\s+[A-Z][A-Za-z']+)+)\b/.test(this.question);
-		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern) {
+		// Also check for simpler capitalized name patterns (e.g., "Ahmad Farooq")
+		const hasCapitalizedNamePattern = /\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b)/.test(this.question);
+		if (hasPlayerContext || extractedTeamNames.size === 0 || hasClearPlayerNamePattern || hasCapitalizedNamePattern) {
 			const playerNames = this.extractPlayerNamesWithNLP(extractedTeamNames);
 			const addedPlayers = new Set<string>();
 			playerNames.forEach((player) => {
 				const normalizedName = player.text.toLowerCase();
 			// Filter out hattrick terms from player entity extraction
 			const isHatTrick = isHatTrickTerm(player.text);
-			if (!addedPlayers.has(normalizedName) && !isHatTrick) {
-					addedPlayers.add(normalizedName);
-					entities.push({
-						value: player.text,
-						type: "player",
-						originalText: player.text,
-						position: player.position,
-					});
+			if (!isHatTrick) {
+					// Final deduplication check: remove any repeating phrase patterns from player.text
+					let finalPlayerName = player.text;
+					const words = finalPlayerName.split(/\s+/);
+					if (words.length >= 4) {
+						const midPoint = Math.floor(words.length / 2);
+						const firstHalf = words.slice(0, midPoint).join(" ");
+						const secondHalf = words.slice(midPoint).join(" ");
+						if (firstHalf === secondHalf) {
+							finalPlayerName = firstHalf;
+						} else {
+							// Check for shorter repeating patterns
+							for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+								const pattern = words.slice(0, patternLen).join(" ");
+								let matches = true;
+								for (let i = patternLen; i < words.length; i += patternLen) {
+									const segment = words.slice(i, i + patternLen).join(" ");
+									if (segment !== pattern) {
+										matches = false;
+										break;
+									}
+								}
+								if (matches && words.length % patternLen === 0) {
+									finalPlayerName = pattern;
+									break;
+								}
+							}
+						}
+					}
+					const finalNormalizedName = finalPlayerName.toLowerCase();
+					// Check the deduplicated name, not the original
+					if (!addedPlayers.has(finalNormalizedName)) {
+						addedPlayers.add(finalNormalizedName);
+						entities.push({
+							value: finalPlayerName,
+							type: "player",
+							originalText: finalPlayerName,
+							position: player.position,
+						});
+					}
 				}
 			});
+			
+			// Fallback: If NLP didn't extract any players but we detected a name pattern, try regex extraction
+			// This handles cases where NLP doesn't recognize names like "Ahmad Farooq"
+			if (playerNames.length === 0 && (hasClearPlayerNamePattern || hasCapitalizedNamePattern)) {
+				const regexPlayerMatches = this.findMatches(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g);
+				regexPlayerMatches.forEach((match) => {
+					const potentialName = match.text.trim();
+					// Skip if it's already extracted or matches a team name
+					if (!addedPlayers.has(potentialName.toLowerCase()) && 
+					    !extractedTeamNames.has(potentialName.toLowerCase()) &&
+					    !isHatTrickTerm(potentialName)) {
+						// Check if it looks like a player name (not a common word or stat type)
+						const commonPhrases = ["How Many", "How Much", "What Is", "What Are", "Where Did", "When Did", "How Many", "How Many Times"];
+						const isCommonPhrase = commonPhrases.some(phrase => potentialName.toLowerCase().includes(phrase.toLowerCase()));
+						// Also check if it's a question word followed by a capitalized word (likely not a player name)
+						const words = potentialName.split(/\s+/);
+						const questionWords = ["how", "what", "where", "when", "why", "which", "who"];
+						const startsWithQuestionWord = words.length > 0 && questionWords.includes(words[0].toLowerCase());
+						
+						if (!isCommonPhrase && !startsWithQuestionWord && words.length >= 2) {
+							// Additional check: make sure it's not part of a longer phrase that's clearly not a name
+							const namePosition = match.position;
+							const beforeText = this.question.substring(Math.max(0, namePosition - 10), namePosition).toLowerCase();
+							const afterText = this.question.substring(namePosition + potentialName.length, Math.min(this.question.length, namePosition + potentialName.length + 10)).toLowerCase();
+							
+							// Skip if it's clearly part of a question phrase
+							const isQuestionPhrase = beforeText.includes("how many") || beforeText.includes("what is") || 
+							                         afterText.includes(" has") || afterText.includes(" have") ||
+							                         beforeText.includes("how many") || beforeText.includes("how much");
+							if (!isQuestionPhrase) {
+								addedPlayers.add(potentialName.toLowerCase());
+								entities.push({
+									value: potentialName,
+									type: "player",
+									originalText: potentialName,
+									position: match.position,
+								});
+							}
+						}
+					}
+				});
+			}
 		}
 
 		// Extract league references (detect league-related terms dynamically)
@@ -1779,8 +1855,10 @@ export class EntityExtractor {
 		// Extract season references (but exclude those already matched as "before")
 		// Enhanced regex to avoid matching dates: require 4-digit year (20xx) and 2-digit season (00-99)
 		// Exclude patterns that look like dates (DD/MM/YYYY or MM/DD/YYYY format)
-		const seasonMatches = this.findMatches(/\b(20\d{2}[/-]?\d{2}|20\d{2}\s*[/-]\s*20\d{2})\b/g);
+		// Updated regex to better match season formats: YYYY/YY, YYYY-YY, YYYY/YYYY, YYYY-YYYY
+		const seasonMatches = this.findMatches(/\b(20\d{2}[\/\-]\d{2}|20\d{2}[\/\-]20\d{2})\b/g);
 		seasonMatches.forEach((match) => {
+			
 			// Check if any character of this season match was already matched as "before"
 			let isBeforeSeason = false;
 			for (let i = match.position; i < match.position + match.text.length; i++) {
@@ -1804,6 +1882,7 @@ export class EntityExtractor {
 					originalText: match.text,
 					position: match.position,
 				});
+				
 			}
 		});
 
@@ -1819,6 +1898,21 @@ export class EntityExtractor {
 				position: match.position,
 			});
 		});
+
+		// Extract year ranges (e.g., "2021 to 2022", "2019 to 2020")
+		// This must come BEFORE date range extraction to avoid conflicts
+		const yearRangeRegex = /\b(\d{4})\s+to\s+(\d{4})\b/gi;
+		let yearRangeMatch;
+		while ((yearRangeMatch = yearRangeRegex.exec(this.question)) !== null) {
+			
+			timeFrames.push({
+				value: `${yearRangeMatch[1]} to ${yearRangeMatch[2]}`,
+				type: "range",
+				originalText: yearRangeMatch[0],
+				position: yearRangeMatch.index,
+			});
+			
+		}
 
 		// Extract date ranges (between X and Y)
 		// Enhanced regex to handle complex phrases like "whilst playing at home between X and Y"
@@ -1886,17 +1980,31 @@ export class EntityExtractor {
 		}
 
 		// Extract other time frame references
+		// Skip pseudonym matching for "to" if we already have a range extracted (to avoid overwriting year ranges)
+		const hasRange = timeFrames.some(tf => tf.type === "range");
 		Object.entries(TIME_FRAME_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
+				// Skip "to" pseudonym if we already have a range (year ranges use "to")
+				if (key === "between_dates" && pseudonym === "to" && hasRange) {
+					return;
+				}
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
 				const matches = this.findMatches(regex);
 				matches.forEach((match) => {
-					timeFrames.push({
-						value: key,
-						type: key === "between_dates" ? "range" : (key as any),
-						originalText: match.text,
-						position: match.position,
-					});
+					// Skip if this match overlaps with an existing range
+					const overlapsWithRange = timeFrames.some(tf => 
+						tf.type === "range" && 
+						match.position >= tf.position && 
+						match.position < tf.position + (tf.originalText?.length || 0)
+					);
+					if (!overlapsWithRange) {
+						timeFrames.push({
+							value: key,
+							type: key === "between_dates" ? "range" : (key as any),
+							originalText: match.text,
+							position: match.position,
+						});
+					}
 				});
 			});
 		});
@@ -1927,12 +2035,43 @@ export class EntityExtractor {
 
 	private extractCompetitions(): CompetitionInfo[] {
 		const competitions: CompetitionInfo[] = [];
+		
+		// Get team entities to check for conflicts
+		const teamEntities = this.extractEntityInfo().filter(e => e.type === "team");
+		const teamValues = new Set(teamEntities.map(e => e.value.toLowerCase()));
+		
+		// Patterns that indicate team context (not competition context)
+		// These patterns catch team references like "for the 7s", "7s team", "goals for the 7s", etc.
+		const teamContextPatterns = [
+			/\b(?:for|in|with|playing\s+for|played\s+for)\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+			/\b(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\s+(?:team|xi|teams?)\b/i,
+			/\bgoals?\s+(?:for|in|with)\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+			// Allow text between verb and "for" (e.g., "have Dean Knowles got for the 7s")
+			/\b(?:scored|got|have|has)\s+.*?\s+for\s+(?:the\s+)?(\d+s|\d+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth)\b/i,
+		];
 
 		Object.entries(COMPETITION_PSEUDONYMS).forEach(([key, pseudonyms]) => {
 			pseudonyms.forEach((pseudonym) => {
 				const regex = new RegExp(`\\b${pseudonym.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "gi");
 				const matches = this.findMatches(regex);
 				matches.forEach((match) => {
+					const matchTextLower = match.text.toLowerCase();
+					
+					// Skip if this matches a team entity
+					if (teamValues.has(matchTextLower)) {
+						return;
+					}
+					
+					// Skip if "7s" appears in team context (e.g., "for the 7s", "7s team")
+					// This prevents "7s" from being extracted as "Seven" competition when it's clearly a team reference
+					// Check both the matched text and the competition key (since "7s" maps to "Seven")
+					if ((matchTextLower === "7s" || matchTextLower === "7" || matchTextLower === "seven") || key === "Seven") {
+						const isTeamContext = teamContextPatterns.some(pattern => pattern.test(this.question));
+						if (isTeamContext) {
+							return;
+						}
+					}
+					
 					competitions.push({
 						value: key,
 						originalText: match.text,
@@ -2085,10 +2224,11 @@ export class EntityExtractor {
 				"division",
 				"tier",
 				"level",
-				"home",
-				"away",
-				"playing",
-				"whilst",
+			"home",
+			"away",
+			"play",
+			"playing",
+			"whilst",
 				"between",
 				"and",
 				"got",
@@ -2138,9 +2278,12 @@ export class EntityExtractor {
 			// Find positions of potential names in the original text
 			for (const name of potentialNames) {
 				const normalizedName = name.trim();
+				// Strip punctuation before checking common words
+				const nameWithoutPunctuation = normalizedName.replace(/[?!.,;:]+$/, "").trim();
 
-				// Skip if it's a common word or too short
-				if (commonWords.includes(normalizedName.toLowerCase()) || normalizedName.length < 2) {
+				// Skip if it's a common word or too short (check both with and without punctuation)
+				const isCommonWord = commonWords.includes(normalizedName.toLowerCase()) || commonWords.includes(nameWithoutPunctuation.toLowerCase());
+				if (isCommonWord || normalizedName.length < 2) {
 					continue;
 				}
 
@@ -2207,9 +2350,49 @@ export class EntityExtractor {
 
 				// Trim the combined name at verb boundaries
 				const verbMatch = combinedName.match(verbBoundaryWords);
-				const trimmedName = verbMatch && verbMatch.index !== undefined
+				let trimmedName = verbMatch && verbMatch.index !== undefined
 					? combinedName.substring(0, verbMatch.index).trim()
 					: combinedName.trim();
+
+				// Remove duplicate phrase patterns (e.g., "Helder Freitas Helder Freitas" -> "Helder Freitas")
+				const words = trimmedName.split(/\s+/);
+				// Check if the name pattern repeats (e.g., "Helder Freitas Helder Freitas")
+				// Try to find the longest repeating pattern
+				if (words.length >= 4) {
+					// Check if first half matches second half
+					const midPoint = Math.floor(words.length / 2);
+					const firstHalf = words.slice(0, midPoint).join(" ");
+					const secondHalf = words.slice(midPoint).join(" ");
+					if (firstHalf === secondHalf) {
+						trimmedName = firstHalf;
+					} else {
+						// Check for shorter repeating patterns (e.g., "Helder Freitas" appears twice)
+						for (let patternLen = 1; patternLen <= midPoint; patternLen++) {
+							const pattern = words.slice(0, patternLen).join(" ");
+							let matches = true;
+							for (let i = patternLen; i < words.length; i += patternLen) {
+								const segment = words.slice(i, i + patternLen).join(" ");
+								if (segment !== pattern) {
+									matches = false;
+									break;
+								}
+							}
+							if (matches && words.length % patternLen === 0) {
+								trimmedName = pattern;
+								break;
+							}
+						}
+					}
+				} else {
+					// For shorter names, just remove consecutive duplicates
+					const uniqueWords: string[] = [];
+					for (const word of words) {
+						if (uniqueWords.length === 0 || uniqueWords[uniqueWords.length - 1] !== word) {
+							uniqueWords.push(word);
+						}
+					}
+					trimmedName = uniqueWords.join(" ").trim();
+				}
 
 				combinedPlayers.push({
 					text: trimmedName,

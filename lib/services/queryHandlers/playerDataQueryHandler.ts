@@ -28,11 +28,21 @@ export class PlayerDataQueryHandler {
 		}
 
 		const normalizedName = playerName.toLowerCase().trim();
+		// Strip punctuation before checking common words
+		const nameWithoutPunctuation = normalizedName.replace(/[?!.,;:]+$/, "").trim();
 		const selectedPlayerLower = userContext.toLowerCase().trim();
 		const pronouns = ["i", "i've", "me", "my", "myself"];
+		
+		// Common words that should not trigger clarification (including "play" from "open play")
+		const commonWords = ["play", "playing", "goals", "goal", "assists", "assist", "games", "game", "appearances", "appearance", "minutes", "saves", "cards", "penalties", "penalty"];
 
 		// Skip pronouns
 		if (pronouns.includes(normalizedName)) {
+			return null;
+		}
+		
+		// Skip common words (check both with and without punctuation)
+		if (commonWords.includes(normalizedName) || commonWords.includes(nameWithoutPunctuation)) {
 			return null;
 		}
 
@@ -1048,21 +1058,36 @@ export class PlayerDataQueryHandler {
 			                             (analysis.competitions && analysis.competitions.length > 0);
 			
 			if (!hasDatePattern && !hasCompetitionPattern) {
-				const oppositionMatch = analysis.question?.match(/(?:played|play)\s+(?:against\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
-				if (oppositionMatch && oppositionMatch[1]) {
-					const potentialOpposition = oppositionMatch[1];
-					// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
-					// Also skip competition-related words
-					const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
-					const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
-					const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
-					if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
-					    !isDateKeyword &&
-					    !isCompetitionKeyword &&
-					    !afterMatch?.toLowerCase().startsWith("for") &&
-					    !afterMatch?.toLowerCase().startsWith("the")) {
-						extractedOppositionName = potentialOpposition;
-						loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+				// Skip opposition extraction if question is about seasons
+				const hasSeasonKeyword = questionLower.includes("season") || questionLower.includes("seasons");
+				// Also skip if there's a season timeFrame (e.g., "2018-19", "2019/20")
+				const hasSeasonTimeFrame = analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season");
+				if (hasSeasonKeyword || hasSeasonTimeFrame) {
+					// Skip opposition extraction for season queries
+				} else if (analysis.teamEntities && analysis.teamEntities.length > 0) {
+					// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
+				} else {
+					// Only match "play/played against" patterns, not "play in" patterns
+					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+against\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					if (oppositionMatch && oppositionMatch[1]) {
+						const potentialOpposition = oppositionMatch[1];
+						// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
+						// Also skip competition-related words, prepositions, or common words like "for", "the", "in", "with"
+						const afterMatch = analysis.question?.substring(oppositionMatch.index! + oppositionMatch[0].length).trim();
+						const isDateKeyword = ["since", "before", "after", "until", "from"].includes(potentialOpposition.toLowerCase());
+						const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
+						const isPreposition = ["for", "the", "a", "an", "in", "with", "at", "on", "by", "to"].includes(potentialOpposition.toLowerCase());
+						const isSeasonWord = ["season", "seasons"].includes(potentialOpposition.toLowerCase());
+						if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
+						    !isDateKeyword &&
+						    !isCompetitionKeyword &&
+						    !isPreposition &&
+						    !isSeasonWord &&
+						    !afterMatch?.toLowerCase().startsWith("for") &&
+						    !afterMatch?.toLowerCase().startsWith("the")) {
+							extractedOppositionName = potentialOpposition;
+							loggingService.log(`🔍 Extracted opposition name from question: "${extractedOppositionName}"`, null, "log");
+						}
 					}
 				}
 			}
@@ -1078,6 +1103,8 @@ export class PlayerDataQueryHandler {
 			(questionLower.includes("played") || questionLower.includes("play")) &&
 			!questionLower.includes("goals") &&
 			!questionLower.includes("scored") &&
+			!questionLower.includes("season") &&
+			!questionLower.includes("seasons") &&
 			!(analysis.competitionTypes && analysis.competitionTypes.length > 0) &&
 			!(analysis.competitions && analysis.competitions.length > 0);
 
@@ -2255,7 +2282,7 @@ export class PlayerDataQueryHandler {
 		// If we have a specific player name and metrics, query their stats
 		if (entities.length > 0 && metrics.length > 0) {
 			const playerName = entities[0];
-			const originalMetric = metrics[0] || "";
+			let originalMetric = metrics[0] || "";
 
 			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
@@ -2272,6 +2299,16 @@ export class PlayerDataQueryHandler {
 			);
 
 			if (!isPercentageMetric) {
+				// CRITICAL: Check for "most appearances for team" queries FIRST (before general appearance detection)
+				const isMostAppearancesForTeamQuery = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:made\s+the\s+most\s+appearances\s+for|made\s+most\s+appearances\s+for|most\s+appearances\s+for|played\s+for\s+most|played\s+most\s+for)/i.test(questionLower);
+				
+				// Check for per-appearance metrics FIRST (before general goals check)
+				const hasPerAppearancePhrase = questionLower.includes("per appearance") || 
+					questionLower.includes("per app") || 
+					questionLower.includes("per game") || 
+					questionLower.includes("per match") ||
+					(questionLower.includes("on average") && questionLower.includes("per"));
+				
 				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
 					// Handle typo "yelow" as well as correct "yellow"
 					detectedMetricFromQuestion = "Y";
@@ -2279,13 +2316,62 @@ export class PlayerDataQueryHandler {
 					detectedMetricFromQuestion = "R";
 				} else if (questionLower.includes("assist")) {
 					detectedMetricFromQuestion = "A";
+				} else if (questionLower.includes("own goal") || questionLower.includes("own goals")) {
+					// Check for own goals BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "OG";
+				} else if (questionLower.includes("penalt") && questionLower.includes("conceded")) {
+					// Check for penalties conceded BEFORE general conceded to ensure correct metric
+					detectedMetricFromQuestion = "PCO";
+				} else if (questionLower.includes("conceded") && hasPerAppearancePhrase) {
+					// Check for conceded per appearance BEFORE general conceded
+					detectedMetricFromQuestion = "CperAPP";
+				} else if (questionLower.includes("conceded")) {
+					// Check for goals conceded BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "C";
+				} else if (questionLower.includes("penalt") && (questionLower.includes("scored") || questionLower.includes("score"))) {
+					// Check for penalties scored BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "PSC";
+				} else if ((questionLower.includes("open play") || questionLower.includes("openplay")) && questionLower.includes("goal")) {
+					// Check for open play goals BEFORE general goals to ensure correct metric
+					detectedMetricFromQuestion = "OPENPLAYGOALS";
+				} else if (questionLower.includes("fantasy points") && hasPerAppearancePhrase) {
+					// Check for fantasy points per appearance BEFORE general fantasy points
+					detectedMetricFromQuestion = "FTPperAPP";
+				} else if (questionLower.includes("goal") && hasPerAppearancePhrase && !questionLower.includes("assist")) {
+					// Check for goals per appearance BEFORE general goals
+					detectedMetricFromQuestion = "GperAPP";
 				} else if (questionLower.includes("goal") && !questionLower.includes("assist")) {
 					detectedMetricFromQuestion = "G";
-				} else if (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game")) {
+				} else if ((questionLower.includes("home games") || questionLower.includes("home game")) && 
+					(questionLower.includes("played") || questionLower.includes("won") || questionLower.includes("lost") || questionLower.includes("drawn"))) {
+					// Check for home games queries BEFORE general appearance check
+					detectedMetricFromQuestion = "HomeGames";
+				} else if ((questionLower.includes("away games") || questionLower.includes("away game")) && 
+					(questionLower.includes("played") || questionLower.includes("won") || questionLower.includes("lost") || questionLower.includes("drawn"))) {
+					// Check for away games queries BEFORE general appearance check
+					detectedMetricFromQuestion = "AwayGames";
+				} else if (!isMostAppearancesForTeamQuery && (questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game"))) {
 					// Only detect appearances if assists/goals/yellow cards/red cards are NOT mentioned
+					// AND it's not a "most appearances for team" query (which should use TEAM_ANALYSIS)
 					if (!questionLower.includes("assist") && !questionLower.includes("goal") && 
 						!questionLower.includes("yellow") && !questionLower.includes("red card")) {
 						detectedMetricFromQuestion = "APP";
+					}
+				}
+			}
+			
+			// CRITICAL: Convert TEAM_ANALYSIS to team-specific appearance metric when team entities are present and question asks about appearances/times
+			if (originalMetric && originalMetric.toUpperCase() === "TEAM_ANALYSIS" && analysis.teamEntities && analysis.teamEntities.length > 0) {
+				const teamEntity = analysis.teamEntities[0];
+				const teamMatch = teamEntity.match(/^(\d+)(?:st|nd|rd|th|s)?$/i);
+				if (teamMatch && (questionLower.includes("how many times") || questionLower.includes("times") || questionLower.includes("appearance") || questionLower.includes("app") || questionLower.includes("game"))) {
+					const teamNum = teamMatch[1];
+					const mappedTeam = TeamMappingUtils.mapTeamName(teamEntity);
+					// Extract team number from mapped name (e.g., "3rd XI" -> "3")
+					const mappedTeamMatch = mappedTeam.match(/^(\d+)(?:st|nd|rd|th)\s+XI$/i);
+					if (mappedTeamMatch) {
+						const mappedTeamNum = mappedTeamMatch[1];
+						originalMetric = `${mappedTeamNum}sApps`;
 					}
 				}
 			}
@@ -2299,7 +2385,7 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
-			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason") with detected metrics
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games) with detected metrics
 			// These metrics have custom query builders and should be preserved
 			const isSpecialCaseMetric = originalMetric && (
 				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
@@ -2307,19 +2393,46 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "MOSTPROLIFICSEASON" ||
 				originalMetric.toUpperCase() === "MOSTMINUTESSEASON" ||
 				originalMetric.toUpperCase() === "MOSTAPPEARANCESSEASON" ||
-				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON"
+				originalMetric.toUpperCase() === "HIGHESTGOALSASSISTSSEASON" ||
+				originalMetric.toUpperCase() === "GPERAPP" ||
+				originalMetric.toUpperCase() === "CPERAPP" ||
+				originalMetric.toUpperCase() === "FTPPERAPP" ||
+				originalMetric.toUpperCase() === "MPERG" ||
+				originalMetric.toUpperCase() === "MPERCLS" ||
+				originalMetric.toUpperCase() === "HOMEGAMES" ||
+				originalMetric.toUpperCase() === "AWAYGAMES" ||
+				originalMetric.toUpperCase() === "HOME" ||
+				originalMetric.toUpperCase() === "AWAY" ||
+				originalMetric.toUpperCase() === "TEAM_ANALYSIS" ||
+				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM" ||
+				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
 			// This fixes cases like "How many assists has Luke Bangs got when not playing for the 3s?"
 			// where the analysis incorrectly identifies "3sApps" but the question clearly asks for assists
+			// BUT: Don't override per-appearance metrics or home/away games with general goals/appearances
 			const hasExplicitMetricRequest = detectedMetricFromQuestion && 
 				(detectedMetricFromQuestion === "A" || detectedMetricFromQuestion === "G" || 
 				 detectedMetricFromQuestion === "Y" || detectedMetricFromQuestion === "R");
+			const isHomeAwayGamesMetric = originalMetric && (
+				originalMetric.toUpperCase() === "HOMEGAMES" ||
+				originalMetric.toUpperCase() === "AWAYGAMES" ||
+				originalMetric.toUpperCase() === "HOME" ||
+				originalMetric.toUpperCase() === "AWAY"
+			);
 			
 			// Use detected metric from question if available, but preserve team-specific metrics and special case metrics
 			// UNLESS question explicitly requests a different metric (and it's not a special case)
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric
+			// CRITICAL: If originalMetric is a per-appearance metric (GperAPP, CperAPP, FTPperAPP) or home/away games, preserve it
+			const isPerAppearanceMetric = originalMetric && (
+				originalMetric.toUpperCase() === "GPERAPP" ||
+				originalMetric.toUpperCase() === "CPERAPP" ||
+				originalMetric.toUpperCase() === "FTPPERAPP"
+			);
+			// If detected metric is HomeGames/AwayGames, use it (it was detected from question)
+			// If original metric is HomeGames/AwayGames, preserve it
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric || isPerAppearanceMetric || isHomeAwayGamesMetric
 				? originalMetric 
 				: (detectedMetricFromQuestion || originalMetric);
 
@@ -2343,6 +2456,10 @@ export class PlayerDataQueryHandler {
 				normalizedMetric = "AwayGames%Drawn";
 			} else if (metricToUse === "Games % Drawn") {
 				normalizedMetric = "Games%Drawn";
+			} else if (metricToUse === "Home Games") {
+				normalizedMetric = "HomeGames";
+			} else if (metricToUse === "Away Games") {
+				normalizedMetric = "AwayGames";
 			}
 
 			const metric = normalizedMetric.toUpperCase();
@@ -2450,6 +2567,15 @@ export class PlayerDataQueryHandler {
 				playerName: actualPlayerName,
 				graphLabel: neo4jService.getGraphLabel(),
 			});
+			
+			// Transform SEASON_COUNT_SIMPLE results to ensure value field exists
+			if (metric === "SEASON_COUNT_SIMPLE" && result && Array.isArray(result) && result.length > 0) {
+				result.forEach((item: any) => {
+					if (item.playerSeasonCount !== undefined && item.value === undefined) {
+						item.value = item.playerSeasonCount;
+					}
+				});
+			}
 
 				// For team-specific goals queries with OPTIONAL MATCH, if result is empty, return a row with value 0
 				const metricStr = metric && typeof metric === 'string' ? metric : '';
@@ -2471,8 +2597,63 @@ export class PlayerDataQueryHandler {
 						/^\d+(?:st|nd|rd|th)\s+XI\s+Goals?$/i.test(originalMetricStr.replace(/\s+/g, ' '))
 					));
 				
+				// Check if this is a home/away games metric that should return 0 if no results
+				const isHomeAwayGamesMetric = metricToUse && (
+					metricToUse.toUpperCase() === "HOMEGAMES" ||
+					metricToUse.toUpperCase() === "AWAYGAMES" ||
+					metricToUse.toUpperCase() === "HOME" ||
+					metricToUse.toUpperCase() === "AWAY"
+				);
+				
 				if ((!result || !Array.isArray(result) || result.length === 0) && isTeamSpecificGoalsMetric) {
 					loggingService.log(`⚠️ No results found for ${actualPlayerName} with metric ${metric} (original: ${originalMetric}), returning 0`, null, "warn");
+					return { 
+						type: "specific_player", 
+						data: [{ playerName: actualPlayerName, value: 0 }], 
+						playerName: actualPlayerName, 
+						metric: metricToUse, 
+						cypherQuery: query 
+					};
+				}
+
+				if ((!result || !Array.isArray(result) || result.length === 0) && isHomeAwayGamesMetric) {
+					
+					// If there's a result filter (e.g., "won"), check if player has any games at all
+					// to distinguish between "no games played" vs "no games won"
+					const hasResultFilter = analysis.results && analysis.results.length > 0;
+					if (hasResultFilter) {
+						const graphLabel = neo4jService.getGraphLabel();
+						const isHome = metricToUse.toUpperCase() === "HOMEGAMES" || metricToUse.toUpperCase() === "HOME";
+						const locationFilter = isHome ? "f.homeOrAway = 'Home'" : "f.homeOrAway = 'Away'";
+						
+						const totalGamesQuery = `
+							MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
+							MATCH (f:Fixture {graphLabel: $graphLabel})-[:HAS_MATCH_DETAILS]->(md)
+							WHERE ${locationFilter}
+							RETURN count(DISTINCT md) as totalGames
+						`;
+						
+						try {
+							const totalGamesResult = await neo4jService.executeQuery(totalGamesQuery, { playerName: actualPlayerName, graphLabel });
+							const totalGames = totalGamesResult && totalGamesResult.length > 0 ? (totalGamesResult[0].totalGames || 0) : 0;
+							
+							
+							// If player has games but 0 wins, include totalGames in the response for response generation
+							if (totalGames > 0) {
+								return { 
+									type: "specific_player", 
+									data: [{ playerName: actualPlayerName, value: 0, totalGames }], 
+									playerName: actualPlayerName, 
+									metric: metricToUse, 
+									cypherQuery: query 
+								};
+							}
+						} catch (error) {
+							loggingService.log(`⚠️ Error checking total games for ${actualPlayerName}:`, error, "warn");
+						}
+					}
+					
+					loggingService.log(`⚠️ No results found for ${actualPlayerName} with metric ${metricToUse}, returning 0`, null, "warn");
 					return { 
 						type: "specific_player", 
 						data: [{ playerName: actualPlayerName, value: 0 }], 

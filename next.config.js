@@ -74,7 +74,12 @@ const nextConfig = {
 		ignoreDuringBuilds: true,
 	},
 	images: {
-		domains: ["docs.google.com"],
+		remotePatterns: [
+			{
+				protocol: 'https',
+				hostname: 'docs.google.com',
+			},
+		],
 		formats: ['image/avif', 'image/webp'],
 		// Disable image optimization on Netlify to avoid 400 errors with static assets
 		// Netlify sets NETLIFY=true automatically, or we can use NEXT_PUBLIC_UNOPTIMIZED env var

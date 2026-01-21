@@ -154,7 +154,7 @@ if (!results.e2e) {
 
 // 5. Chatbot Report
 printSectionHeader("CHATBOT REPORT");
-results.chatbotReport = runCommand("npm run test:chatbot-report", "Chatbot Report", true);
+results.chatbotReport = runCommand("npm run test:chatbot-players-report", "Chatbot Report", true);
 
 if (!results.chatbotReport) {
 	hasFailures = true;

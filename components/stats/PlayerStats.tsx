@@ -1788,7 +1788,7 @@ export default function PlayerStats() {
 	// Check if all teams are selected (must be before early returns)
 	const allTeamsSelected = useMemo(() => {
 		if (!filterData?.teams) return playerFilters.teams.length === 0;
-		const allTeams = filterData.teams.map(team => team.name || team);
+		const allTeams = filterData.teams.map(team => typeof team === 'string' ? team : (team?.name || ''));
 		// Empty array means all teams selected (default behavior)
 		if (playerFilters.teams.length === 0) return true;
 		// Check if selected teams array contains all available teams
@@ -3425,6 +3425,9 @@ export default function PlayerStats() {
 								);
 							})()}
 						</svg>
+					</div>
+					<div className='text-white text-sm md:text-base mt-2 text-center'>
+						Total Cards Cost: £{((toNumber(validPlayerData.yellowCards) * 13.5) + (toNumber(validPlayerData.redCards) * 55)).toLocaleString()}
 					</div>
 				</div>
 			)}
