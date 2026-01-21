@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { STAT_TEST_CONFIGS, TestConfig } from "../../config/config";
+import { STAT_TEST_CONFIGS, TestConfig } from "../chatbot-tests-config";
 
 // Re-export STAT_TEST_CONFIGS for use in test files
 export { STAT_TEST_CONFIGS };

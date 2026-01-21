@@ -50,6 +50,7 @@
     - [Usage](#usage)
     - [Execution Order](#execution-order)
     - [Output Format](#output-format)
+    - [Console Output Modes](#console-output-modes)
     - [When to Use](#when-to-use)
     - [Exit Codes](#exit-codes)
 - [Test Coverage Analysis](#test-coverage-analysis)
@@ -741,19 +742,19 @@ See [GitHub Actions Setup for E2E Tests](#github-actions-setup-for-e2e-tests) fo
 
 ```bash
 # Run chatbot tests and send email report
-npm run test:chatbot-report
+npm run test:chatbot-players-report
 
 # Hide passed tests in report
-npm run test:chatbot-report:hide
+npm run test:chatbot-players-report:hide
 
 # Run with debug mode
-npm run test:chatbot-report:debug
+npm run test:chatbot-players-report:debug
 
 # Enhanced logging version
-npm run test:chatbot-report:enhanced-logging
+npm run test:chatbot-players-report:enhanced-logging
 
 # Analyze chatbot logs
-npm run test:chatbot-report:analyze-logs
+npm run test:chatbot-players-report:analyze-logs
 ```
 
 #### Questions Email Report
