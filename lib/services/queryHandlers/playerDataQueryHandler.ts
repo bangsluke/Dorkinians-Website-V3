@@ -1091,8 +1091,13 @@ export class PlayerDataQueryHandler {
 				} else if (analysis.teamEntities && analysis.teamEntities.length > 0) {
 					// Skip opposition extraction if team entities are present (indicates team query, not opposition query)
 				} else {
-					// Only match "play/played against" patterns, not "play in" patterns
-					const oppositionMatch = analysis.question?.match(/(?:played|play)\s+against\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					// Match both "play/played against [Opposition]" and "play/played [Opposition]" patterns
+					// Pattern 1: "played against Old Hamptonians"
+					let oppositionMatch = analysis.question?.match(/(?:played|play)\s+against\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					// Pattern 2: "played Old Hamptonians" (without "against") - for questions like "How many times have I played Old Hamptonians?"
+					if (!oppositionMatch) {
+						oppositionMatch = analysis.question?.match(/(?:played|play)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+					}
 					if (oppositionMatch && oppositionMatch[1]) {
 						const potentialOpposition = oppositionMatch[1];
 						// Skip if it's a team number (3s, 3rd, etc.), a date keyword, or if it's followed by "for" (team context)
@@ -1102,11 +1107,14 @@ export class PlayerDataQueryHandler {
 						const isCompetitionKeyword = ["cup", "league", "friendly", "competition", "competitions"].includes(potentialOpposition.toLowerCase());
 						const isPreposition = ["for", "the", "a", "an", "in", "with", "at", "on", "by", "to"].includes(potentialOpposition.toLowerCase());
 						const isSeasonWord = ["season", "seasons"].includes(potentialOpposition.toLowerCase());
+						// Also skip common question words that might be captured
+						const isQuestionWord = ["how", "many", "times", "have", "has", "did", "does", "do", "i", "you", "he", "she", "they"].includes(potentialOpposition.toLowerCase());
 						if (!potentialOpposition.match(/^\d+(st|nd|rd|th|s)?$/) && 
 						    !isDateKeyword &&
 						    !isCompetitionKeyword &&
 						    !isPreposition &&
 						    !isSeasonWord &&
+						    !isQuestionWord &&
 						    !afterMatch?.toLowerCase().startsWith("for") &&
 						    !afterMatch?.toLowerCase().startsWith("the")) {
 							extractedOppositionName = potentialOpposition;
@@ -1133,6 +1141,9 @@ export class PlayerDataQueryHandler {
 			!(analysis.competitions && analysis.competitions.length > 0);
 
 		loggingService.log(`🔍 Checking opposition appearance query. oppositionEntities: ${oppositionEntities.length}, extractedOppositionName: "${extractedOppositionName}", question: "${questionLower}", hasTeamExclusions: ${hasTeamExclusions}, isOppositionAppearanceQuery: ${isOppositionAppearanceQuery}`, null, "log");
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:1135',message:'Opposition appearance query check',data:{oppositionEntities:oppositionEntities.length,extractedOppositionName,questionLower,hasTeamExclusions,isOppositionAppearanceQuery,hasCompetitionFilter:!!(analysis.competitions&&analysis.competitions.length>0),hasCompetitionTypeFilter:!!(analysis.competitionTypes&&analysis.competitionTypes.length>0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+		// #endregion
 
 		if (isOppositionAppearanceQuery) {
 			// Resolve player name - use userContext if available (for "I" questions), otherwise use entities
@@ -1163,6 +1174,9 @@ export class PlayerDataQueryHandler {
 			}
 
 			loggingService.log(`🔍 Querying appearances against opposition: ${resolvedPlayerName} vs ${oppositionName}`, null, "log");
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:1165',message:'Routing to queryOppositionAppearances',data:{resolvedPlayerName,oppositionName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+			// #endregion
 			return await PlayerDataQueryHandler.queryOppositionAppearances(resolvedPlayerName, oppositionName);
 		}
 
@@ -3184,6 +3198,9 @@ export class PlayerDataQueryHandler {
 	 */
 	static async queryOppositionAppearances(playerName: string, oppositionName: string): Promise<Record<string, unknown>> {
 		loggingService.log(`🔍 Querying appearances against opposition: ${playerName} vs ${oppositionName}`, null, "log");
+		// #region agent log
+		fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3185',message:'queryOppositionAppearances entry',data:{playerName,oppositionName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+		// #endregion
 		const graphLabel = neo4jService.getGraphLabel();
 
 		// Query to count MatchDetail nodes where player played against the opposition
@@ -3201,8 +3218,14 @@ export class PlayerDataQueryHandler {
 		`;
 
 		try {
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3203',message:'Executing opposition appearances query',data:{query,playerName,oppositionName,graphLabel},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+			// #endregion
 			const result = await neo4jService.executeQuery(query, { playerName, oppositionName, graphLabel });
 			const appearances = result && result.length > 0 ? (result[0].appearances || 0) : 0;
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerDataQueryHandler.ts:3205',message:'Opposition appearances query result',data:{appearances,resultLength:result?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+			// #endregion
 			
 			return { 
 				type: "player_opposition_appearances", 
