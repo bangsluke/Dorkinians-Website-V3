@@ -193,7 +193,7 @@ export default function HomePage() {
 						exit={{ opacity: 0, y: -20 }}
 						className='flex flex-col h-full px-6 md:px-6'>
 						{/* Top Section: Welcome Header and Player Selection */}
-						<div className='pt-4 pb-4 md:pt-8 md:pb-6'>
+						<div className='pt-4 pb-0 md:pt-8 md:pb-6'>
 							{/* Welcome Header and Subtitle */}
 							<AnimatePresence mode='wait'>
 								{!isPlayerSelected && (
