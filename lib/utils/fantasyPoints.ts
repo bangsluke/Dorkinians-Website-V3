@@ -124,11 +124,12 @@ export function calculateFTPBreakdown(match: MatchDetailForFTP): FTPBreakdown[] 
 	});
 
 	// Saves (for goalkeepers)
+	// Calculate points per match: floor(saves/3)
 	const saves = match.saves || 0;
 	breakdown.push({
 		stat: "Saves",
 		value: saves,
-		points: Math.floor(saves * 0.34),
+		points: Math.floor(saves / 3),
 		show: saves > 0,
 	});
 

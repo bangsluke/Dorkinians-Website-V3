@@ -360,6 +360,7 @@ export class ChatbotService {
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
+			
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
@@ -2029,7 +2030,9 @@ export class ChatbotService {
 		
 		// Determine goals-specific flags (only if no other metric detected)
 		const isGoalsConceded = !detectedMetric && question.includes("conceded");
-		const isOpenPlayGoals = question.includes("open play") || question.includes("openplay") || extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
+		const isOpenPlayGoals = question.includes("open play") || 
+		                        question.includes("openplay") ||
+		                        extractedMetrics.some(m => m.toUpperCase() === "OPENPLAYGOALS" || m.toUpperCase() === "OPENPLAY");
 		const isGoalsScored = !detectedMetric && (question.includes("scored") || (question.includes("goals") && !isGoalsConceded));
 
 		// Extract season and date range filters
@@ -2110,7 +2113,10 @@ export class ChatbotService {
 		}
 
 		const graphLabel = neo4jService.getGraphLabel();
-		const params: Record<string, unknown> = { graphLabel, teamName };
+		const params: any = {
+			graphLabel,
+			teamName,
+		};
 		
 		// Build WHERE conditions for filters
 		const whereConditions: string[] = [`f.team = $teamName`];
@@ -5917,7 +5923,86 @@ export class ChatbotService {
 					answer = responseTemplateManager.formatResponse("player_metric", { playerName: String(playerName), value: String(0), metric: "appearances" });
 				}
 			}
-			// Check if this is a season-specific appearance query (e.g., "2017/18 Apps") - explicitly state player did not play
+			// Check if this is a season-specific appearance query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many apps did Rafa Mendonca make in 2017/18?" where metric is "APP" not "2017/18 Apps"
+			// Also handles date range queries like "2021 to 2022"
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS" || metric.toUpperCase() === "APPEARANCES" || metric.toUpperCase() === "APPEARANCE") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
+			) {
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} didn't make an appearance between ${dateRange.start} and ${dateRange.end}.`;
+				} else {
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						season = seasonFrame.value.replace("-", "/");
+					} else if (analysis.timeRange) {
+						const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						}
+					} else {
+						const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} didn't make an appearance in ${season}.`;
+					} else {
+						answer = responseTemplateManager.formatResponse("player_metric", {
+							playerName: String(playerName),
+							value: String(0),
+							metric: "appearances",
+						});
+					}
+				}
+			}
+			// Also check for metric pattern like "2017/18 Apps" (legacy pattern)
 			else if (
 				metric &&
 				typeof metric === "string" &&
@@ -5939,23 +6024,110 @@ export class ChatbotService {
 					});
 				}
 			}
-			// Check if this is an APP metric query with a season timeFrame (e.g., "How many apps in 2019/20?")
+			// Check if this is a season-specific goals query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many goals did Jack Murrell score in 2017-18?" where metric is "G" not "2017/18GOALS"
+			// Also handles date range queries like "2021 to 2022"
 			else if (
 				metric &&
 				typeof metric === "string" &&
-				(metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS")
+				(metric.toUpperCase() === "G" || metric.toUpperCase() === "GOALS" || metric.toUpperCase() === "GOAL") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.match(/\d{2}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{2}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{2}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
 			) {
-				// Check for season timeFrame in analysis
-				const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
-				if (seasonFrame) {
-					answerValue = 0;
-					// Normalize season format (handle both slash and dash)
-					let season = seasonFrame.value.replace("-", "/");
-					answer = `${String(playerName)} did not make an appearance in the ${season} season.`;
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} did not score a goal between ${dateRange.start} and ${dateRange.end}.`;
 				} else {
-					// No season filter, use default zero response
-					answerValue = 0;
-					answer = ResponseBuilder.buildContextualResponse(String(playerName), metric, 0, analysis);
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						// Validate that seasonFrame.value is actually a season format, not the literal word "season"
+						const isValidSeasonFormat = /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame.value);
+						if (isValidSeasonFormat) {
+							let seasonValue = seasonFrame.value.replace("-", "/");
+							// Expand abbreviated format if needed (20/21 -> 2020/21)
+							if (/^\d{2}[\/\-]\d{2}$/.test(seasonFrame.value)) {
+								const seasonMatch = seasonFrame.value.match(/(\d{2})[\/\-](\d{2})/);
+								if (seasonMatch) {
+									seasonValue = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+								}
+							}
+							season = seasonValue;
+						}
+					}
+					// Check timeRange or questionText if seasonFrame was invalid or not found
+					if (!season && analysis.timeRange) {
+						// Try full format first (2019/20)
+						let seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = analysis.timeRange.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
+						}
+					} else {
+						// Try full format first (2019/20)
+						let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} did not score in the ${season} season.`;
+					} else {
+						answer = `${String(playerName)} did not score any goals.`;
+					}
 				}
 			}
 			// Check if this is a season-specific goals query (e.g., "2016/17GOALS") - explicitly state player did not score
@@ -5968,7 +6140,7 @@ export class ChatbotService {
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
 				if (seasonMatch) {
 					const season = seasonMatch[1];
-					answer = `${String(playerName)} did not score a goal in the ${season} season.`;
+					answer = `${String(playerName)} did not score in the ${season} season.`;
 				} else {
 					answer = `${String(playerName)} did not score any goals.`;
 				}
@@ -6976,12 +7148,9 @@ export class ChatbotService {
 						answer = `${playerName} has no season goals+assists data available.`;
 					}
 				}
-				
 				// Handle regular single-value queries
-				} else {
+				else {
 					const playerData = data.data as PlayerData[];
-					const playerName = data.playerName as string;
-					const metric = data.metric as string;
 					// For SEASON_COUNT_SIMPLE, value might be in playerSeasonCount field instead of value field
 					const value = playerData[0]?.value ?? (playerData[0] as any)?.playerSeasonCount;
 					const totalGames = (playerData[0] as any)?.totalGames;
@@ -7092,46 +7261,29 @@ export class ChatbotService {
 								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 							} else {
 								answerValue = value as number;
-							
-								// Special handling for APP metric with 0 value and season timeFrame
-								const numericValue = typeof value === "number" ? value : Number(value);
-								const isAppMetric = metric && (metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS");
-								const isZeroValue = !Number.isNaN(numericValue) && numericValue === 0;
-								const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
 								
 								// Check for team filter with goals/assists/other stats queries
-								const teamEntities = analysis.teamEntities || [];
-								const hasTeamFilter = teamEntities.length > 0;
-								const isGoalsQuery = metric && metric.toUpperCase() === "G";
-								const isAssistsQuery = metric && metric.toUpperCase() === "A";
-								const locations = analysis.extractionResult?.locations || [];
-								const hasHomeLocation = locations.some((loc) => loc.type === "home");
-								const hasAwayLocation = locations.some((loc) => loc.type === "away");
-								const timeFrames = analysis.extractionResult?.timeFrames || [];
-								const timeRange = analysis.timeRange;
-								
-								// Handle APP metric with 0 value and season timeFrame BEFORE other logic
-								if (isAppMetric && isZeroValue && seasonFrame) {
-									
-									// Normalize season format (handle both slash and dash)
-									let season = seasonFrame.value.replace("-", "/");
-									answer = `${playerName} did not make an appearance in the ${season} season.`;
-									answerValue = 0;
-									
-								}
-								
-								// Extract date range or "since"/"after" date from timeFrames or timeRange
-								// Only build normal answer if special case wasn't handled
-								let dateRangeText = "";
-								const lowerQuestion = analysis.question?.toLowerCase() || "";
-								
-								// Check for "since" or "after" patterns first
-								const sinceFrame = timeFrames.find(tf => tf.type === "since");
-								if (sinceFrame) {
-									// Handle "since [YEAR]" patterns
-									const sinceValue = sinceFrame.value;
-									// Check if it's a year (4 digits) or a date
-									if (/^\d{4}$/.test(sinceValue)) {
+							const teamEntities = analysis.teamEntities || [];
+							const hasTeamFilter = teamEntities.length > 0;
+							const isGoalsQuery = metric && metric.toUpperCase() === "G";
+							const isAssistsQuery = metric && metric.toUpperCase() === "A";
+							const locations = analysis.extractionResult?.locations || [];
+							const hasHomeLocation = locations.some((loc) => loc.type === "home");
+							const hasAwayLocation = locations.some((loc) => loc.type === "away");
+							const timeFrames = analysis.extractionResult?.timeFrames || [];
+							const timeRange = analysis.timeRange;
+							
+							// Extract date range or "since"/"after" date from timeFrames or timeRange
+							let dateRangeText = "";
+							const lowerQuestion = analysis.question?.toLowerCase() || "";
+							
+							// Check for "since" or "after" patterns first
+							const sinceFrame = timeFrames.find(tf => tf.type === "since");
+							if (sinceFrame) {
+								// Handle "since [YEAR]" patterns
+								const sinceValue = sinceFrame.value;
+								// Check if it's a year (4 digits) or a date
+								if (/^\d{4}$/.test(sinceValue)) {
 									// It's a year, format as "after [YEAR]" or "since [YEAR]" based on question
 									if (lowerQuestion.includes("after")) {
 										dateRangeText = `after ${sinceValue}`;
@@ -7522,8 +7674,7 @@ export class ChatbotService {
 							} else {
 								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 							}
-								}
-							}
+						}
 						
 						// Create NumberCard visualization for penalty conversion rate
 						if (metric && metric.toUpperCase() === "PENALTY_CONVERSION_RATE") {
@@ -7549,7 +7700,7 @@ export class ChatbotService {
 						}
 						// Create NumberCard visualization for goals queries with competition, location, or team filters
 						// Also handle OPENPLAYGOALS (open play goals)
-						if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
+						else if (metric && (metric.toUpperCase() === "G" || metric.toUpperCase() === "OPENPLAYGOALS")) {
 							const locations = analysis.extractionResult?.locations || [];
 							const hasAwayLocation = locations.some((loc) => loc.type === "away");
 							const hasHomeLocation = locations.some((loc) => loc.type === "home");
@@ -8019,7 +8170,7 @@ export class ChatbotService {
 							}
 						}
 						// Create NumberCard visualization for appearance queries (APP) with date filters
-						if (metric && metric.toUpperCase() === "APP") {
+						else if (metric && metric.toUpperCase() === "APP") {
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
 							const hasDateFilter = timeFrames.some((tf) => tf.type === "since" || tf.type === "range");
 							
@@ -8044,7 +8195,7 @@ export class ChatbotService {
 						}
 						// General fallback: Create NumberCard for any single-value query with filters (team, location, or date range)
 						// This handles stats like yellow cards, MoMs, etc. with filters (assists are handled above)
-						if (!visualization && dataLength === 1) {
+						else if (!visualization && dataLength === 1) {
 							const locations = analysis.extractionResult?.locations || [];
 							const teamEntities = analysis.teamEntities || [];
 							const timeFrames = analysis.extractionResult?.timeFrames || [];
@@ -8079,30 +8230,32 @@ export class ChatbotService {
 								};
 							}
 						}
+					}
 					} else {
 						answer = "No data found for your query.";
-
-						// Handle other data types
-						const playerData = data.data as PlayerData[];
-						const playerName = playerData[0]?.playerName || analysis.entities[0] || "Unknown";
-						const value = playerData[0]?.value;
-						const metric = (data.metric as string) || analysis.metrics[0] || "G";
-
-						// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
-						if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
-							const playerTeamCount = typeof value === "number" ? value : 0;
-							const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
-							answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
-							answerValue = `${playerTeamCount}/${totalTeamCount}`;
-						} else if (value !== undefined && value !== null) {
-							answerValue = value as number;
-							answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
-						} else {
-							answer = "No data found for your query.";
-						}
 					}
 				}
+			} else {
+				// Handle other data types
+				const playerData = data.data as PlayerData[];
+				const playerName = playerData[0]?.playerName || analysis.entities[0] || "Unknown";
+				const value = playerData[0]?.value;
+				const metric = (data.metric as string) || analysis.metrics[0] || "G";
+
+				// Special handling for NumberTeamsPlayedFor - format as "X of the clubs Y teams"
+				if (metric && (metric === "NUMBERTEAMSPLAYEDFOR" || metric === "NumberTeamsPlayedFor")) {
+					const playerTeamCount = typeof value === "number" ? value : 0;
+					const totalTeamCount = (playerData[0] as any)?.totalTeamCount || 9; // Default to 9 if not provided
+					answer = `${playerName} has played for ${playerTeamCount} of the clubs ${totalTeamCount} teams.`;
+					answerValue = `${playerTeamCount}/${totalTeamCount}`;
+				} else if (value !== undefined && value !== null) {
+					answerValue = value as number;
+					answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 				} else {
+					answer = "No data found for your query.";
+				}
+			}
+		} else {
 			// Fallback for unknown data types
 			// Don't check for clarification if we have streak data (it should have been handled above)
 			if (data && data.type === "streak") {
@@ -8917,6 +9070,16 @@ export class ChatbotService {
 			this.logToBoth(`❌ Error in comparison query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying comparison data" };
 		}
+	}
+
+	// Helper function to expand abbreviated season format (e.g., "20/21" -> "2020/21")
+	private expandAbbreviatedSeason(startYear: string, endYear: string): string {
+		const start = parseInt(startYear, 10);
+		const end = parseInt(endYear, 10);
+		// If start year is 2 digits and < 50, assume 2000s (20 -> 2020)
+		// If start year is 2 digits and >= 50, assume 1900s (unlikely for this use case)
+		const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+		return `${fullStartYear}/${endYear}`;
 	}
 
 	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<Record<string, unknown>> {
