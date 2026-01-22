@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
+import { homepageQuestions, questionTypes, QuestionType, allExampleQuestions } from "@/config/config";
 import NumberCard from "./NumberCard";
 import Calendar from "./Calendar";
 import Table from "./Table";
@@ -232,13 +232,15 @@ export default function ChatbotInterface() {
 
 			const data: ChatbotResponse & { debug?: any } = await res.json(); // Parse the response as a ChatbotResponse object
 
-			// Log full debug info to the client
-			log("info", `🤖 [CLIENT] 🔍 DEBUG INFO:`, {
-				"1. question": data.debug.question,
-				"2. queryBreakdown": data.debug.processingDetails.queryBreakdown,
-				"3. processingSteps": data.debug.processingDetails.processingSteps,
-				"4. cypherQueries": data.debug.processingDetails.cypherQueries,
-			});
+			// Log full debug info to the client (only if debug is available)
+			if (data.debug) {
+				log("info", `🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+					"1. question": data.debug.question,
+					"2. queryBreakdown": data.debug.processingDetails?.queryBreakdown,
+					"3. processingSteps": data.debug.processingDetails?.processingSteps,
+					"4. cypherQueries": data.debug.processingDetails?.cypherQueries,
+				});
+			}
 
 			// Log Cypher queries prominently if available (development mode only)
 			if (isDevelopment && data.debug?.processingDetails?.cypherQueries?.length > 0) {
@@ -323,12 +325,60 @@ export default function ChatbotInterface() {
 			setShowExampleQuestions(false);
 			setQuestion(""); // Clear the question input
 		} catch (err) {
-			// If an error occurs, set the error state and log the error
+			// Log error to console but show graceful response to user
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			log("error", `🤖 Frontend: Error occurred:`, errorMessage);
-			setError(errorMessage);
+			
+			// Generate suggestions based on the question
+			const questionWords = questionToSubmit.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+			const scoredQuestions = allExampleQuestions
+				.filter(example => {
+					const exampleLower = example.toLowerCase().trim();
+					return exampleLower !== questionToSubmit.toLowerCase().trim();
+				})
+				.map(example => {
+					const exampleLower = example.toLowerCase();
+					let score = 0;
+					questionWords.forEach(word => {
+						if (exampleLower.includes(word)) {
+							score += 1;
+						}
+					});
+					return { question: example, score };
+				})
+				.sort((a, b) => b.score - a.score)
+				.filter(item => item.score > 0)
+				.slice(0, 5)
+				.map(item => item.question);
+			
+			// Create a graceful error response instead of showing error state
+			const gracefulResponse: ChatbotResponse = {
+				answer: "I'm sorry, I couldn't process your question. Please try rephrasing it or ask one of the suggested questions below.",
+				sources: [],
+				suggestions: scoredQuestions.length > 0 ? scoredQuestions : allExampleQuestions.slice(0, 5),
+				debug: {
+					question: questionToSubmit.trim(),
+				},
+			};
+			
+			setResponse(gracefulResponse);
+			setError(null);
+			
+			// Save to conversation history
+			const newConversation: SavedConversation = {
+				question: questionToSubmit.trim(),
+				response: gracefulResponse,
+				timestamp: Date.now(),
+				playerContext: selectedPlayer || undefined,
+			};
+			setConversationHistory((prev) => {
+				const updated = [...prev, newConversation];
+				return updated.slice(-3);
+			});
+			setShowExampleQuestions(false);
+			setQuestion("");
 		} finally {
-			setIsLoading(false); // Finally, set the loading state to false
+			setIsLoading(false);
 		}
 	};
 
@@ -440,7 +490,7 @@ export default function ChatbotInterface() {
 							onChange={(e) => setQuestion(e.target.value)}
 							placeholder='Ask me about player, club or team stats...'
 							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
-							size="md"
+							size="sm"
 							disabled={isLoading}
 							required
 							onKeyDown={(e) => {
@@ -454,7 +504,7 @@ export default function ChatbotInterface() {
 							data-testid="chatbot-submit"
 							type='submit'
 							variant="secondary"
-							size="md"
+							size="sm"
 							disabled={!question.trim() || isLoading}
 							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
 							className='w-full md:w-auto'>
@@ -501,14 +551,14 @@ export default function ChatbotInterface() {
 						exit={{ opacity: 0, y: -10 }}>
 						{/* Question */}
 						<div className='mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white mb-2 text-base'>Question:</h3>
-							<p className='text-white text-base'>{response.debug?.question}</p>
+							<h3 className='font-semibold text-white mb-2 text-sm'>Question:</h3>
+							<p className='text-white text-sm'>{response.debug?.question}</p>
 						</div>
 
 						{/* Answer */}
 						<div className='mb-3 md:mb-4' data-testid="chatbot-answer">
-							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>
-							<p className='text-yellow-100 text-base'>{response.answer}</p>
+							<h3 className='font-semibold text-white mb-2 text-sm'>Answer:</h3>
+							<p className='text-yellow-100 text-sm'>{response.answer}</p>
 						</div>
 
 						{/* Navigation button for full stats question */}
@@ -602,7 +652,7 @@ export default function ChatbotInterface() {
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
-						<h3 className='font-semibold text-white pb-4 pb-4mb-3 md:mb-4 text-base'>Try these questions:</h3>
+						<h3 className='font-semibold text-white pb-4 pb-4mb-3 md:mb-4 text-sm'>Try these questions:</h3>
 						<div className='space-y-2 md:space-y-3 pb-4'>
 							{homepageQuestions.map((q, index) => (
 								<motion.div
@@ -640,7 +690,7 @@ export default function ChatbotInterface() {
 				{conversationHistory.length > 0 && (
 					<div>
 						<div className='flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white text-base whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
+							<h3 className='font-semibold text-white text-sm whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
 							<Button
 								variant="ghost"
 								size="sm"
