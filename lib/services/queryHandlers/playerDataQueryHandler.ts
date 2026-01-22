@@ -192,11 +192,16 @@ export class PlayerDataQueryHandler {
 		const validEntities = entities.filter((entity) => {
 			const lowerEntity = entity.toLowerCase();
 			// Skip team numbers (3s, 3rd, etc.)
-			if (lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/)) return false;
+			if (lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/)) {
+				return false;
+			}
 			// Skip hattrick terms (hattrick, hat-trick, hat trick, etc.)
 			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
-			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) return false;
+			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) {
+				return false;
+			}
 			// Skip stat-related words that might be incorrectly extracted as player entities
+			// Use word boundary matching to avoid false positives (e.g., "Browne" contains "own" but shouldn't be filtered)
 			const statWords = [
 				"season", "best", "worst", "goals", "goal", "assists", "assist",
 				"saves", "save", "sheets", "sheet", "clean", "cards", "card", 
@@ -204,7 +209,17 @@ export class PlayerDataQueryHandler {
 				"conceded", "penalt", "penalties", "appearances", "appearance", 
 				"minutes", "minute"
 			];
-			if (statWords.some(word => lowerEntity.includes(word))) return false;
+			// Check if entity matches a stat word exactly, or if stat word appears as a whole word (with word boundaries)
+			const matchedStatWord = statWords.find(word => {
+				// Exact match
+				if (lowerEntity === word) return true;
+				// Whole word match (with word boundaries) - e.g., "own goal" but not "browne"
+				const wordBoundaryRegex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+				return wordBoundaryRegex.test(lowerEntity);
+			});
+			if (matchedStatWord) {
+				return false;
+			}
 			return true;
 		});
 
@@ -835,9 +850,18 @@ export class PlayerDataQueryHandler {
 				season = seasonFrame.value;
 				season = season.replace("-", "/");
 			} else {
-				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				// Try full format first (2019/20)
+				let seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
 				if (seasonMatch) {
 					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else {
+					// Try abbreviated format (20/21)
+					seasonMatch = question.match(/(\d{2})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						const start = parseInt(seasonMatch[1], 10);
+						const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+						season = `${fullStartYear}/${seasonMatch[2]}`;
+					}
 				}
 			}
 			
@@ -2279,15 +2303,28 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryPenaltyRecord(resolvedPlayerName);
 		}
 
-		// If we have a specific player name and metrics, query their stats
-		if (entities.length > 0 && metrics.length > 0) {
+		// CRITICAL: Check question text for position metrics FIRST (before checking if we have metrics)
+		// This ensures position queries work even if metrics array is empty
+		// Reuse questionLower defined earlier in the function
+		let detectedPositionMetric: string | null = null;
+		if (questionLower.includes("goalkeeper") || questionLower.includes("keeper") || questionLower.includes("goalie")) {
+			detectedPositionMetric = "GK";
+		} else if (questionLower.includes("defender") || questionLower.includes("defence") || questionLower.includes("defense")) {
+			detectedPositionMetric = "DEF";
+		} else if (questionLower.includes("midfielder") || questionLower.includes("midfield")) {
+			detectedPositionMetric = "MID";
+		} else if (questionLower.includes("forward") || questionLower.includes("striker") || questionLower.includes("attacker")) {
+			detectedPositionMetric = "FWD";
+		}
+
+		// If we have a specific player name and (metrics OR detected position metric), query their stats
+		if (entities.length > 0 && (metrics.length > 0 || detectedPositionMetric)) {
 			const playerName = entities[0];
-			let originalMetric = metrics[0] || "";
+			let originalMetric = metrics[0] || detectedPositionMetric || "";
 
 			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
-			const questionLower = (analysis.question?.toLowerCase() || "").trim();
-			let detectedMetricFromQuestion: string | null = null;
+			let detectedMetricFromQuestion: string | null = detectedPositionMetric;
 
 			// CRITICAL: Check if originalMetric is already a percentage metric - if so, don't override it
 			const isPercentageMetric = originalMetric && (
@@ -2298,7 +2335,8 @@ export class PlayerDataQueryHandler {
 				originalMetric.includes("Games % Drawn")
 			);
 
-			if (!isPercentageMetric) {
+			if (!isPercentageMetric && !detectedPositionMetric) {
+				
 				// CRITICAL: Check for "most appearances for team" queries FIRST (before general appearance detection)
 				const isMostAppearancesForTeamQuery = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:made\s+the\s+most\s+appearances\s+for|made\s+most\s+appearances\s+for|most\s+appearances\s+for|played\s+for\s+most|played\s+most\s+for)/i.test(questionLower);
 				
@@ -2309,6 +2347,8 @@ export class PlayerDataQueryHandler {
 					questionLower.includes("per match") ||
 					(questionLower.includes("on average") && questionLower.includes("per"));
 				
+				// Only check other metrics if position metric wasn't detected
+				if (!detectedMetricFromQuestion) {
 				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
 					// Handle typo "yelow" as well as correct "yellow"
 					detectedMetricFromQuestion = "Y";
@@ -2358,6 +2398,7 @@ export class PlayerDataQueryHandler {
 						detectedMetricFromQuestion = "APP";
 					}
 				}
+				} // Close the "if (!detectedMetricFromQuestion)" block
 			}
 			
 			// CRITICAL: Convert TEAM_ANALYSIS to team-specific appearance metric when team entities are present and question asks about appearances/times
@@ -2385,7 +2426,7 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
-			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games) with detected metrics
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games, position metrics) with detected metrics
 			// These metrics have custom query builders and should be preserved
 			const isSpecialCaseMetric = originalMetric && (
 				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
@@ -2405,7 +2446,11 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "AWAY" ||
 				originalMetric.toUpperCase() === "TEAM_ANALYSIS" ||
 				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM" ||
-				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM"
+				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM" ||
+				originalMetric.toUpperCase() === "GK" ||
+				originalMetric.toUpperCase() === "DEF" ||
+				originalMetric.toUpperCase() === "MID" ||
+				originalMetric.toUpperCase() === "FWD"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
@@ -2430,9 +2475,17 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "CPERAPP" ||
 				originalMetric.toUpperCase() === "FTPPERAPP"
 			);
+			// Check if detected metric is a position metric
+			const isPositionMetric = detectedMetricFromQuestion && (
+				detectedMetricFromQuestion.toUpperCase() === "GK" ||
+				detectedMetricFromQuestion.toUpperCase() === "DEF" ||
+				detectedMetricFromQuestion.toUpperCase() === "MID" ||
+				detectedMetricFromQuestion.toUpperCase() === "FWD"
+			);
 			// If detected metric is HomeGames/AwayGames, use it (it was detected from question)
 			// If original metric is HomeGames/AwayGames, preserve it
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric || isPerAppearanceMetric || isHomeAwayGamesMetric
+			// If detected metric is a position metric, use it (it was detected from question)
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || (isSpecialCaseMetric && !isPositionMetric) || isPerAppearanceMetric || isHomeAwayGamesMetric
 				? originalMetric 
 				: (detectedMetricFromQuestion || originalMetric);
 
@@ -2542,26 +2595,26 @@ export class PlayerDataQueryHandler {
 				return await RelationshipQueryHandler.queryPlayerOpponentsData(actualPlayerName);
 			}
 
-			// Build the optimal query using unified architecture
-			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
+		// Build the optimal query using unified architecture
+		const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
 
-			try {
-				// Store query for debugging - add to chatbotService for client visibility
-				// Security: Only log in development mode and sanitize input to prevent log injection
-				const isDevelopment = process.env.NODE_ENV === 'development';
-				const chatbotService = ChatbotService.getInstance();
+		try {
+			// Store query for debugging - add to chatbotService for client visibility
+			// Security: Only log in development mode and sanitize input to prevent log injection
+			const isDevelopment = process.env.NODE_ENV === 'development';
+			const chatbotService = ChatbotService.getInstance();
+			
+			if (isDevelopment) {
+				// Sanitize playerName to prevent log injection (escape single quotes and special characters)
+				const sanitizedPlayerName = JSON.stringify(actualPlayerName).slice(1, -1); // Remove outer quotes from JSON.stringify
+				const sanitizedGraphLabel = JSON.stringify(neo4jService.getGraphLabel()).slice(1, -1);
 				
-				if (isDevelopment) {
-					// Sanitize playerName to prevent log injection (escape single quotes and special characters)
-					const sanitizedPlayerName = JSON.stringify(actualPlayerName).slice(1, -1); // Remove outer quotes from JSON.stringify
-					const sanitizedGraphLabel = JSON.stringify(neo4jService.getGraphLabel()).slice(1, -1);
-					
-					// Create query with real values for client console display (development only)
-					const readyToExecuteQuery = query
-						.replace(/\$playerName/g, `'${sanitizedPlayerName}'`)
-						.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`);
-					chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
-				}
+				// Create query with real values for client console display (development only)
+				const readyToExecuteQuery = query
+					.replace(/\$playerName/g, `'${sanitizedPlayerName}'`)
+					.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`);
+				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+			}
 
 			const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
 				playerName: actualPlayerName,

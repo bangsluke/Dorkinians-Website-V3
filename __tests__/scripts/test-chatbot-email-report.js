@@ -309,6 +309,18 @@ async function runTestsProgrammatically() {
 		const testData = await fetchTestData();
 		console.log(`📊 Fetched ${testData.length} players from CSV data`);
 
+		// Check for #REF! errors in player names from Google Sheet
+		const refErrorPlayers = testData.filter((player) => {
+			const playerName = player["PLAYER NAME"];
+			return playerName && typeof playerName === "string" && playerName.toUpperCase().includes("#REF!");
+		});
+
+		if (refErrorPlayers.length > 0) {
+			const errorMessage = `❌ TEST FAILED: Found #REF! error(s) in Google Sheet player name(s). This indicates a broken reference in the source spreadsheet. Affected player(s): ${refErrorPlayers.map((p) => p["PLAYER NAME"]).join(", ")}. Please fix the Google Sheet references before running the test.`;
+			console.error(errorMessage);
+			throw new Error(errorMessage);
+		}
+
 		// Use the actual players from TBL_TestData CSV
 		const testPlayers = testData.slice(0, 3); // Use first 3 players for testing
 
@@ -528,10 +540,29 @@ async function runTestsProgrammatically() {
 					// Fallback: If extraction failed but we have a valid zero-value message for a zero result,
 					// extract "0" or "0.0" based on the stat's decimal places
 					// Also check for team-specific goal messages that don't match the standard zero stat phrase
+					// Also check for seasonal appearance messages (both "did not play in" and "didn't make an appearance")
+					// Also check for seasonal goals messages (both "did not score a goal in" and "did not score in the")
 					const isTeamGoalsQuery = /^\d+sGoals$/i.test(statKey) || /^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i.test(statKey);
 					const hasTeamGoalsZeroMessageFallback = chatbotAnswer && chatbotAnswer.toLowerCase().includes("has not scored for");
+					const isSeasonAppsQueryForFallback = /\d{4}\/\d{2}apps/i.test(statKey);
+					const hasSeasonAppearanceZeroMessage = chatbotAnswer && (
+						chatbotAnswer.toLowerCase().includes("did not play in") ||
+						chatbotAnswer.toLowerCase().includes("didn't make an appearance in") ||
+						chatbotAnswer.toLowerCase().includes("didn't make an appearance between")
+					);
+					const isSeasonGoalsQueryForFallback = /\d{4}\/\d{2}goals/i.test(statKey);
+					const hasSeasonGoalsZeroMessage = chatbotAnswer && (
+						chatbotAnswer.toLowerCase().includes("did not score a goal in") ||
+						chatbotAnswer.toLowerCase().includes("did not score in the") ||
+						chatbotAnswer.toLowerCase().includes("did not score a goal between")
+					);
 					
-					if (chatbotExtractedValue === null && isZeroResult && (matchesZeroStatPhrase || (isTeamGoalsQuery && hasTeamGoalsZeroMessageFallback))) {
+					if (chatbotExtractedValue === null && isZeroResult && (
+						matchesZeroStatPhrase || 
+						(isTeamGoalsQuery && hasTeamGoalsZeroMessageFallback) ||
+						(isSeasonAppsQueryForFallback && hasSeasonAppearanceZeroMessage) ||
+						(isSeasonGoalsQueryForFallback && hasSeasonGoalsZeroMessage)
+					)) {
 						// Check if this stat uses decimal places
 						const isAppearanceBasedAverage = /perAPP|perApp/i.test(statKey);
 						if (isAppearanceBasedAverage) {
@@ -561,8 +592,16 @@ async function runTestsProgrammatically() {
 						chatbotAnswer.toLowerCase().includes("has not scored any goals for") ||
 						chatbotAnswer.toLowerCase().includes("has not scored for the")
 					);
-					const hasSeasonDidNotPlayMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not play in");
-					const hasSeasonDidNotScoreMessage = chatbotAnswer && chatbotAnswer.toLowerCase().includes("did not score a goal in");
+					const hasSeasonDidNotPlayMessage = chatbotAnswer && (
+						chatbotAnswer.toLowerCase().includes("did not play in") ||
+						chatbotAnswer.toLowerCase().includes("didn't make an appearance in") ||
+						chatbotAnswer.toLowerCase().includes("didn't make an appearance between")
+					);
+					const hasSeasonDidNotScoreMessage = chatbotAnswer && (
+						chatbotAnswer.toLowerCase().includes("did not score a goal in") ||
+						chatbotAnswer.toLowerCase().includes("did not score in the") ||
+						chatbotAnswer.toLowerCase().includes("did not score a goal between")
+					);
 					const isSeasonAppsQuery = /\d{4}\/\d{2}apps/i.test(statKey);
 					const isSeasonGoalsQuery = /\d{4}\/\d{2}goals/i.test(statKey);
 					// matchesZeroStatPhrase already defined above for fallback extraction
@@ -744,7 +783,7 @@ async function runTestsProgrammatically() {
 					}
 
 					const passed = hasValidResponse && valuesMatch;
-
+					
 					// Log detailed information for failing tests
 					if (!passed) {
 						console.log(`❌ FAILED TEST DETAILS:`);

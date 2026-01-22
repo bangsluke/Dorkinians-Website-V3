@@ -29,6 +29,11 @@ export async function GET(request: NextRequest) {
 
 		const graphLabel = neo4jService.getGraphLabel();
 
+		// If "All Time" is selected, return empty weeks array
+		if (season === "All Time") {
+			return NextResponse.json({ weeks: [], currentWeek: null, latestGameweek: null, latestGameweekDate: null }, { headers: corsHeaders });
+		}
+
 		// Fetch weeks for the selected season
 		const weeksQuery = `
 			MATCH (wt:WeeklyTOTW {graphLabel: $graphLabel, season: $season})
@@ -64,6 +69,14 @@ export async function GET(request: NextRequest) {
 				dateLookup,
 				weekAdjusted,
 			};
+		});
+
+		// Add "Team of the Season" option at the top of weeks array
+		// Use week: 0 as a special identifier for "Team of the Season"
+		weeks.unshift({
+			week: 0,
+			dateLookup: "Team of the Season",
+			weekAdjusted: "Team of the Season",
 		});
 
 		// Get latest gameweek from SiteDetail if available

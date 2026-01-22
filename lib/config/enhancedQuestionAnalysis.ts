@@ -523,8 +523,8 @@ export class EnhancedQuestionAnalyzer {
 		const selectedPlayerLower = this.userContext.toLowerCase().trim();
 		const pronouns = ["i", "i've", "me", "my", "myself"];
 		// Common words that are unlikely to be player names but might be incorrectly extracted as player entities
-		// Includes: common nouns, competition names, location names, and other non-player terms
-		const commonWords = ["team", "teams", "week", "weeks", "weekend", "weekends", "history", "score", "scores", "goal", "goals", "time", "times", "row", "streak", "streaks", "consecutive", "clean", "sheet", "sheets", "premier", "league", "cup", "friendly", "competition", "competitions", "season", "seasons", "home", "away", "pixham", "opposition", "oppositions", "player", "players", "club", "games", "game", "matches", "match", "appearances", "appearance", "assists", "assist", "penalties", "penalty", "shootouts", "shootout", "sundays", "saturday", "saturdays", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "position", "positions", "finish", "finishes", "record", "records", "defensive", "involvements", "involvement", "number", "numbers", "highest", "longest", "best", "most", "combined", "shared", "pitch", "bang", "banged", "run", "runs", "total", "totals"];
+		// Includes: common nouns, competition names, location names, position words, and other non-player terms
+		const commonWords = ["team", "teams", "week", "weeks", "weekend", "weekends", "history", "score", "scores", "goal", "goals", "time", "times", "row", "streak", "streaks", "consecutive", "clean", "sheet", "sheets", "premier", "league", "cup", "friendly", "competition", "competitions", "season", "seasons", "home", "away", "pixham", "opposition", "oppositions", "player", "players", "club", "games", "game", "matches", "match", "appearances", "appearance", "assists", "assist", "penalties", "penalty", "shootouts", "shootout", "sundays", "saturday", "saturdays", "january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december", "position", "positions", "finish", "finishes", "record", "records", "defensive", "involvements", "involvement", "number", "numbers", "highest", "longest", "best", "most", "combined", "shared", "pitch", "bang", "banged", "run", "runs", "total", "totals", "goalkeeper", "goalkeepers", "keeper", "keepers", "goalie", "goalies", "defender", "defenders", "defence", "defense", "midfielder", "midfielders", "midfield", "forward", "forwards", "striker", "strikers", "attacker", "attackers"];
 
 		// Filter out pronouns and common words - only check actual potential player names
 		const nonPronounPlayerEntities = playerEntities.filter((entity) => {
@@ -2011,7 +2011,8 @@ export class EnhancedQuestionAnalyzer {
 			return statType; // Return as-is (e.g., "3sApps" -> "3sApps")
 		}
 
-		return mapping[statType] || statType;
+		const mappedKey = mapping[statType] || statType;
+		return mappedKey;
 	}
 
 	/**
