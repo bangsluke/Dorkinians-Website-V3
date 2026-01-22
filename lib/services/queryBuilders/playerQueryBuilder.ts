@@ -539,10 +539,12 @@ export class PlayerQueryBuilder {
 		// - Player has games but 0 wins (query returns value=0)
 
 		// Add opposition filter if specified (but not for team-specific metrics - they don't need Fixture)
+		// CRITICAL: Don't add opposition filter if there's a competition filter - competitions use f.competition, not od.opposition
 		// Filter through OppositionDetails nodes as per schema requirements
 		// Use CONTAINS for partial matching (e.g., "Old Hamptonians" matches "Old Hamptonians 2nd")
 		// Note: OppositionDetails node is matched in buildPlayerQuery, so we only need to link Fixture to it
-		if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
+		const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
+		if (oppositionEntities.length > 0 && !isTeamSpecificMetric && !hasCompetitionFilter) {
 			const oppositionName = oppositionEntities[0];
 			whereConditions.push(`toLower(od.opposition) CONTAINS toLower('${oppositionName}') AND toLower(f.opposition) CONTAINS toLower('${oppositionName}')`);
 		}
@@ -794,6 +796,9 @@ export class PlayerQueryBuilder {
 				return `f.competition = '${comp}'`;
 			});
 			whereConditions.push(`(${competitionFilters.join(" OR ")})`);
+			// #region agent log
+			fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerQueryBuilder.ts:796',message:'Added competition filter to WHERE conditions',data:{competitions:analysis.competitions,competitionFilters,metric,metricUpper},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+			// #endregion
 		} else if (analysis.competitions && analysis.competitions.length > 0) {
 		}
 
@@ -1769,8 +1774,10 @@ export class PlayerQueryBuilder {
 			// Use MatchDetail join query with simplified path pattern
 			if (needsFixture) {
 				// Use explicit path pattern to ensure we only count the player's own MatchDetail records
-				// Add OppositionDetails MATCH when opposition filter is present
-				if (oppositionEntities.length > 0 && !isTeamSpecificMetric) {
+				// Add OppositionDetails MATCH when opposition filter is present (but NOT when competition filter is present)
+				// CRITICAL: Don't add OppositionDetails MATCH if there's a competition filter - competition filters use f.competition, not od.opposition
+				const hasCompetitionFilter = analysis.competitions && analysis.competitions.length > 0;
+				if (oppositionEntities.length > 0 && !isTeamSpecificMetric && !hasCompetitionFilter) {
 					const oppositionName = oppositionEntities[0];
 					query = `
 						MATCH (p:Player {graphLabel: $graphLabel, playerName: $playerName})-[:PLAYED_IN]->(md:MatchDetail {graphLabel: $graphLabel})
@@ -1866,6 +1873,9 @@ export class PlayerQueryBuilder {
 			if (whereConditions.length > 0) {
 				const optimizedConditions = PlayerQueryBuilder.optimizeWhereConditionOrder(whereConditions);
 				query += ` WHERE ${optimizedConditions.join(" AND ")}`;
+				// #region agent log
+				fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'playerQueryBuilder.ts:1868',message:'Final query with WHERE clause',data:{whereConditions:optimizedConditions,queryLength:query.length,hasOppositionFilter:optimizedConditions.some(c=>c.includes('od.opposition')),hasCompetitionFilter:optimizedConditions.some(c=>c.includes('f.competition'))},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+				// #endregion
 			}
 
 			// Handle non-team-specific metrics with team exclusions FIRST (e.g., assists, goals)
