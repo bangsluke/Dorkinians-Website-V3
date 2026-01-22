@@ -35,7 +35,16 @@ You can still ask questions about other players when you already have a player s
 E.g. "How many goals has Oli Goddard scored?"
 :::
 
-<!-- TODO [Image: Home Page Screenshot] -->
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/660MVKSh/Homepage_Mobile.png"
+    alt="Homepage Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/qMvjjYHR/Homepage_Desktop.png"
+    alt="Homepage Desktop Screenshot"
+  />
+</div>
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -84,10 +93,10 @@ The chatbot interface is the primary way to interact with the app. You can ask q
 
 To ask a question, simply type it into the chatbot input field and press `Enter` or tap the send button. The chatbot understands natural language, so you can ask questions in various ways:
 
-- "How many goals has Luke Bangs scored?"
-- "Show me the top goal scorers this season"
-- "What's the 1st team's win percentage?"
-- "Who has the most appearances for the club?"
+- "How many goals have I scored for the 3rd team?"
+- "Where did the 2s finish in the 2017/18 season?"
+- "Which team has conceded the fewest goals in history?"
+- "How many clean sheets have I had in a row?"
 
 :::tip
 The chatbot understands typos and variations in player names, team names, and stat types. For example, "Luk Bangs" will be matched to "Luke Bangs".
@@ -96,7 +105,7 @@ The chatbot understands typos and variations in player names, team names, and st
 :::info
 If a question cannot be answered, the chatbot will return a message saying "I'm not sure how to answer that question. Please try again."
 
-The question will be sent to the developer for review to help train and improve the chatbot's responses.
+The question will automatically be sent to the developer for review to help train and improve the chatbot's responses.
 :::
 
 > [Back to Table of Contents](#table-of-contents)
@@ -108,7 +117,6 @@ The chatbot interface includes example questions that you can click to quickly a
 - Player statistics questions
 - Team performance queries
 - Club-wide statistics
-- Comparison questions
 - Historical data queries
 
 Clicking an example question will automatically populate the input field, and you can modify it or submit it as-is.
@@ -121,16 +129,14 @@ Use example questions as templates for your own queries - they show the best way
 
 ### Conversation History
 
-The chatbot maintains a conversation history during your session. Previous questions and answers are displayed above the input field, allowing you to:
+The chatbot maintains a conversation history during your session. Previous questions and answers are displayed below the chatbot, allowing you to:
 
 - Review previous queries and responses
 - See the context of your conversation
 - Reference earlier answers
 
-Conversation history is stored locally in your browser and persists across page refreshes within the same session.
-
 :::info
-Conversation history helps the chatbot understand context for follow-up questions, making your interactions more natural.
+Conversation history helps the chatbot understand context for follow-up questions, making your interactions more natural. For example, if you ask "How many goals have I scored?" followed by "What about assists?", the chatbot knows you're still asking about your own statistics.
 :::
 
 > [Back to Table of Contents](#table-of-contents)
