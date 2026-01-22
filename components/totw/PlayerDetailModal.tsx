@@ -333,9 +333,6 @@ export default function PlayerDetailModal({ playerName, matchDetails, aggregated
 											<tbody>
 												{aggregatedStats.ftpBreakdown
 													.filter((stat) => {
-														// #region agent log
-														if(stat.stat==="Man of the Match"){fetch('http://127.0.0.1:7242/ingest/c6deae9c-4dd4-4650-bd6a-0838bce2f6d8',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayerDetailModal.tsx:335',message:'Filtering MoM entry',data:{stat,show:stat.show,willPass:stat.show&&stat.stat!=="Penalties Conceded"},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});}
-														// #endregion
 														return stat.show && stat.stat !== "Penalties Conceded";
 													})
 													.map((stat, index) => {

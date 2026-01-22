@@ -6033,10 +6033,13 @@ export class ChatbotService {
 				(metric.toUpperCase() === "G" || metric.toUpperCase() === "GOALS" || metric.toUpperCase() === "GOAL") &&
 				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
 				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.match(/\d{2}[\/\-]\d{2}/) ||
 				 analysis.timeRange?.includes(" to ") ||
 				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{2}[\/\-]\d{2}/i) ||
 				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
 				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{2}[\/\-]\d{2}/i)) ||
 				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
 			) {
 				answerValue = 0;
@@ -6079,16 +6082,44 @@ export class ChatbotService {
 					// Check for season
 					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
 					if (seasonFrame) {
-						season = seasonFrame.value.replace("-", "/");
-					} else if (analysis.timeRange) {
-						const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						// Validate that seasonFrame.value is actually a season format, not the literal word "season"
+						const isValidSeasonFormat = /^(\d{4}|\d{2})[\/\-](\d{2})$/.test(seasonFrame.value);
+						if (isValidSeasonFormat) {
+							let seasonValue = seasonFrame.value.replace("-", "/");
+							// Expand abbreviated format if needed (20/21 -> 2020/21)
+							if (/^\d{2}[\/\-]\d{2}$/.test(seasonFrame.value)) {
+								const seasonMatch = seasonFrame.value.match(/(\d{2})[\/\-](\d{2})/);
+								if (seasonMatch) {
+									seasonValue = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+								}
+							}
+							season = seasonValue;
+						}
+					}
+					// Check timeRange or questionText if seasonFrame was invalid or not found
+					if (!season && analysis.timeRange) {
+						// Try full format first (2019/20)
+						let seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
 						if (seasonMatch) {
 							season = seasonMatch[1].replace("-", "/");
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = analysis.timeRange.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
 						}
 					} else {
-						const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						// Try full format first (2019/20)
+						let seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
 						if (seasonMatch) {
 							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						} else {
+							// Try abbreviated format (20/21)
+							seasonMatch = questionText.match(/(\d{2})[\/\-](\d{2})/i);
+							if (seasonMatch) {
+								season = this.expandAbbreviatedSeason(seasonMatch[1], seasonMatch[2]);
+							}
 						}
 					}
 					
@@ -9039,6 +9070,16 @@ export class ChatbotService {
 			this.logToBoth(`❌ Error in comparison query:`, error, "error");
 			return { type: "error", data: [], error: "Error querying comparison data" };
 		}
+	}
+
+	// Helper function to expand abbreviated season format (e.g., "20/21" -> "2020/21")
+	private expandAbbreviatedSeason(startYear: string, endYear: string): string {
+		const start = parseInt(startYear, 10);
+		const end = parseInt(endYear, 10);
+		// If start year is 2 digits and < 50, assume 2000s (20 -> 2020)
+		// If start year is 2 digits and >= 50, assume 1900s (unlikely for this use case)
+		const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+		return `${fullStartYear}/${endYear}`;
 	}
 
 	private async queryTemporalData(entities: string[], metrics: string[], timeRange?: string): Promise<Record<string, unknown>> {

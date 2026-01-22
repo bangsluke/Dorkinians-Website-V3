@@ -850,9 +850,18 @@ export class PlayerDataQueryHandler {
 				season = seasonFrame.value;
 				season = season.replace("-", "/");
 			} else {
-				const seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
+				// Try full format first (2019/20)
+				let seasonMatch = question.match(/(\d{4})[\/\-](\d{2})/);
 				if (seasonMatch) {
 					season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+				} else {
+					// Try abbreviated format (20/21)
+					seasonMatch = question.match(/(\d{2})[\/\-](\d{2})/);
+					if (seasonMatch) {
+						const start = parseInt(seasonMatch[1], 10);
+						const fullStartYear = start < 50 ? 2000 + start : 1900 + start;
+						season = `${fullStartYear}/${seasonMatch[2]}`;
+					}
 				}
 			}
 			
