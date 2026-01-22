@@ -373,7 +373,7 @@ export class ChatbotService {
 			}
 
 			// Log unanswered questions (fire-and-forget, non-blocking)
-			const shouldLog = response.answer === "I couldn't find relevant information for your question.";
+			const shouldLog = this.shouldLogAsUnanswered(response.answer);
 
 			if (shouldLog) {
 				unansweredQuestionLogger.log({
@@ -405,7 +405,7 @@ export class ChatbotService {
 			// Get processing details even on error so we can see what happened
 			const processingDetails = await this.getProcessingDetails();
 
-			return {
+			const errorChatbotResponse = {
 				answer: errorResponse.message,
 				sources: [],
 				cypherQuery: "N/A",
@@ -428,6 +428,25 @@ export class ChatbotService {
 					},
 				},
 			};
+
+			// Log unanswered questions from error responses (fire-and-forget, non-blocking)
+			// Only log if we have an analysis (errors before analysis are likely system errors, not unanswered questions)
+			if (this.shouldLogAsUnanswered(errorResponse.message)) {
+				const analysis = this.lastQuestionAnalysis;
+				if (analysis) {
+					unansweredQuestionLogger.log({
+						originalQuestion: context.question,
+						correctedQuestion: undefined,
+						analysis: analysis,
+						confidence: analysis.confidence,
+						userContext: context.userContext,
+					}).catch((err) => {
+						console.error("❌ Failed to log unanswered question:", err);
+					});
+				}
+			}
+
+			return errorChatbotResponse;
 		}
 	}
 
@@ -545,6 +564,22 @@ export class ChatbotService {
 		}
 
 		return null;
+	}
+
+	// Check if an answer should be logged as an unanswered question
+	private shouldLogAsUnanswered(answer: string): boolean {
+		if (!answer) return false;
+		const answerLower = answer.toLowerCase();
+
+		const errorPatterns = [
+			"i couldn't find relevant information for your question",
+			"the requested information was not found in the database",
+			"no data found for your query",
+			"i encountered an issue while retrieving the information",
+			"we encountered an error while processing your question",
+		];
+
+		return errorPatterns.some((pattern) => answerLower.includes(pattern));
 	}
 
 	private async queryRelevantData(analysis: EnhancedQuestionAnalysis, userContext?: string): Promise<Record<string, unknown> | null> {
