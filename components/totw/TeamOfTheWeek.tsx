@@ -324,7 +324,8 @@ export default function TeamOfTheWeek() {
 		}
 
 		// Handle "Team of the Season" selection
-		if (isSeasonTOTWSelected && selectedWeek === 0) {
+		// Only fetch if weeks have been loaded (to prevent fetching during initial load when selectedWeek is 0)
+		if (isSeasonTOTWSelected && selectedWeek === 0 && weeks.length > 0) {
 			if (appConfig.forceSkeletonView) {
 				setLoading(true);
 				return;
@@ -429,7 +430,7 @@ export default function TeamOfTheWeek() {
 			}
 		};
 		fetchWeekData();
-	}, [selectedSeason, selectedWeek, isAllTimeSelected, isSeasonTOTWSelected, getCachedTOTWWeekData, cacheTOTWWeekData]);
+	}, [selectedSeason, selectedWeek, isAllTimeSelected, isSeasonTOTWSelected, weeks, getCachedTOTWWeekData, cacheTOTWWeekData]);
 
 	// Update container width on resize and when data loads
 	useEffect(() => {
@@ -887,7 +888,7 @@ export default function TeamOfTheWeek() {
 					className='text-xl md:text-2xl font-bold text-dorkinians-yellow'
 					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
 				>
-					{isAllTimeSelected ? "Team of All Time" : isSeasonTOTWSelected ? "Team of the Season" : "Team of the Week"}
+					{loading ? "Team of the Week" : isAllTimeSelected ? "Team of All Time" : isSeasonTOTWSelected ? "Team of the Season" : "Team of the Week"}
 				</h1>
 				<button
 					className='relative min-w-[40px] min-h-[40px] flex items-center justify-center'
