@@ -192,11 +192,16 @@ export class PlayerDataQueryHandler {
 		const validEntities = entities.filter((entity) => {
 			const lowerEntity = entity.toLowerCase();
 			// Skip team numbers (3s, 3rd, etc.)
-			if (lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/)) return false;
+			if (lowerEntity.match(/^\d+(st|nd|rd|th|s)?$/)) {
+				return false;
+			}
 			// Skip hattrick terms (hattrick, hat-trick, hat trick, etc.)
 			// Handles various dash characters: regular hyphen (-), non-breaking hyphen (\u2011), en dash (–), em dash (—), and spaces
-			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) return false;
+			if (/^hat[-\u2011\u2013\u2014 ]?trick/i.test(lowerEntity)) {
+				return false;
+			}
 			// Skip stat-related words that might be incorrectly extracted as player entities
+			// Use word boundary matching to avoid false positives (e.g., "Browne" contains "own" but shouldn't be filtered)
 			const statWords = [
 				"season", "best", "worst", "goals", "goal", "assists", "assist",
 				"saves", "save", "sheets", "sheet", "clean", "cards", "card", 
@@ -204,7 +209,17 @@ export class PlayerDataQueryHandler {
 				"conceded", "penalt", "penalties", "appearances", "appearance", 
 				"minutes", "minute"
 			];
-			if (statWords.some(word => lowerEntity.includes(word))) return false;
+			// Check if entity matches a stat word exactly, or if stat word appears as a whole word (with word boundaries)
+			const matchedStatWord = statWords.find(word => {
+				// Exact match
+				if (lowerEntity === word) return true;
+				// Whole word match (with word boundaries) - e.g., "own goal" but not "browne"
+				const wordBoundaryRegex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+				return wordBoundaryRegex.test(lowerEntity);
+			});
+			if (matchedStatWord) {
+				return false;
+			}
 			return true;
 		});
 
@@ -2542,26 +2557,26 @@ export class PlayerDataQueryHandler {
 				return await RelationshipQueryHandler.queryPlayerOpponentsData(actualPlayerName);
 			}
 
-			// Build the optimal query using unified architecture
-			const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
+		// Build the optimal query using unified architecture
+		const query = PlayerQueryBuilder.buildPlayerQuery(actualPlayerName, metric, analysis);
 
-			try {
-				// Store query for debugging - add to chatbotService for client visibility
-				// Security: Only log in development mode and sanitize input to prevent log injection
-				const isDevelopment = process.env.NODE_ENV === 'development';
-				const chatbotService = ChatbotService.getInstance();
+		try {
+			// Store query for debugging - add to chatbotService for client visibility
+			// Security: Only log in development mode and sanitize input to prevent log injection
+			const isDevelopment = process.env.NODE_ENV === 'development';
+			const chatbotService = ChatbotService.getInstance();
+			
+			if (isDevelopment) {
+				// Sanitize playerName to prevent log injection (escape single quotes and special characters)
+				const sanitizedPlayerName = JSON.stringify(actualPlayerName).slice(1, -1); // Remove outer quotes from JSON.stringify
+				const sanitizedGraphLabel = JSON.stringify(neo4jService.getGraphLabel()).slice(1, -1);
 				
-				if (isDevelopment) {
-					// Sanitize playerName to prevent log injection (escape single quotes and special characters)
-					const sanitizedPlayerName = JSON.stringify(actualPlayerName).slice(1, -1); // Remove outer quotes from JSON.stringify
-					const sanitizedGraphLabel = JSON.stringify(neo4jService.getGraphLabel()).slice(1, -1);
-					
-					// Create query with real values for client console display (development only)
-					const readyToExecuteQuery = query
-						.replace(/\$playerName/g, `'${sanitizedPlayerName}'`)
-						.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`);
-					chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
-				}
+				// Create query with real values for client console display (development only)
+				const readyToExecuteQuery = query
+					.replace(/\$playerName/g, `'${sanitizedPlayerName}'`)
+					.replace(/\$graphLabel/g, `'${sanitizedGraphLabel}'`);
+				chatbotService.lastExecutedQueries.push(`READY_TO_EXECUTE: ${readyToExecuteQuery}`);
+			}
 
 			const result = await QueryExecutionUtils.executeQueryWithProfiling(query, {
 				playerName: actualPlayerName,

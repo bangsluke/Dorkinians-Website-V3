@@ -360,6 +360,7 @@ export class ChatbotService {
 
 			// Query the database
 			this.lastProcessingSteps.push(`Building Cypher query for analysis: ${analysis.type}`);
+			
 			const data = await this.queryRelevantData(analysis, context.userContext);
 			this.lastProcessingSteps.push(`Query completed, result type: ${data?.type || "null"}`);
 
@@ -5922,7 +5923,86 @@ export class ChatbotService {
 					answer = responseTemplateManager.formatResponse("player_metric", { playerName: String(playerName), value: String(0), metric: "appearances" });
 				}
 			}
-			// Check if this is a season-specific appearance query (e.g., "2017/18 Apps") - explicitly state player did not play
+			// Check if this is a season-specific appearance query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many apps did Rafa Mendonca make in 2017/18?" where metric is "APP" not "2017/18 Apps"
+			// Also handles date range queries like "2021 to 2022"
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "APP" || metric.toUpperCase() === "APPS" || metric.toUpperCase() === "APPEARANCES" || metric.toUpperCase() === "APPEARANCE") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
+			) {
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} didn't make an appearance between ${dateRange.start} and ${dateRange.end}.`;
+				} else {
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						season = seasonFrame.value.replace("-", "/");
+					} else if (analysis.timeRange) {
+						const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						}
+					} else {
+						const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} didn't make an appearance in ${season}.`;
+					} else {
+						answer = responseTemplateManager.formatResponse("player_metric", {
+							playerName: String(playerName),
+							value: String(0),
+							metric: "appearances",
+						});
+					}
+				}
+			}
+			// Also check for metric pattern like "2017/18 Apps" (legacy pattern)
 			else if (
 				metric &&
 				typeof metric === "string" &&
@@ -5944,6 +6024,81 @@ export class ChatbotService {
 					});
 				}
 			}
+			// Check if this is a season-specific goals query - check both metric pattern AND analysis timeFrames
+			// This handles queries like "How many goals did Jack Murrell score in 2017-18?" where metric is "G" not "2017/18GOALS"
+			// Also handles date range queries like "2021 to 2022"
+			else if (
+				metric &&
+				typeof metric === "string" &&
+				(metric.toUpperCase() === "G" || metric.toUpperCase() === "GOALS" || metric.toUpperCase() === "GOAL") &&
+				(analysis.extractionResult?.timeFrames?.some((tf) => tf.type === "season" || tf.type === "range") || 
+				 analysis.timeRange?.match(/\d{4}[\/\-]\d{2}/) ||
+				 analysis.timeRange?.includes(" to ") ||
+				 question.match(/\d{4}[\/\-]\d{2}/i) ||
+				 question.match(/\d{4}\s+to\s+\d{4}/i) ||
+				 (analysis.question && analysis.question.match(/\d{4}[\/\-]\d{2}/i)) ||
+				 (analysis.question && analysis.question.match(/\d{4}\s+to\s+\d{4}/i)))
+			) {
+				answerValue = 0;
+				// Extract season from timeFrames, timeRange, or question text
+				let season: string | null = null;
+				let dateRange: { start: string; end: string } | null = null;
+				
+				// Use original question from analysis if available, otherwise use question parameter
+				const questionText = analysis.question || question;
+				
+				// Check for range timeFrame first (date ranges like "2021 to 2022")
+				const rangeFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "range");
+				if (rangeFrame && rangeFrame.value.includes(" to ")) {
+					const rangeMatch = rangeFrame.value.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range frame, check timeRange directly
+				if (!dateRange && analysis.timeRange && analysis.timeRange.includes(" to ")) {
+					const rangeMatch = analysis.timeRange.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (rangeMatch) {
+						dateRange = { start: rangeMatch[1], end: rangeMatch[2] };
+					}
+				}
+				
+				// If no range, check question text for date range (try both question parameter and analysis.question)
+				if (!dateRange) {
+					const questionRangeMatch = questionText.match(/(\d{4})\s+to\s+(\d{4})/i);
+					if (questionRangeMatch) {
+						dateRange = { start: questionRangeMatch[1], end: questionRangeMatch[2] };
+					}
+				}
+				
+				// If we have a date range, use it
+				if (dateRange) {
+					answer = `${String(playerName)} did not score a goal between ${dateRange.start} and ${dateRange.end}.`;
+				} else {
+					// Check for season
+					const seasonFrame = analysis.extractionResult?.timeFrames?.find((tf) => tf.type === "season");
+					if (seasonFrame) {
+						season = seasonFrame.value.replace("-", "/");
+					} else if (analysis.timeRange) {
+						const seasonMatch = analysis.timeRange.match(/(\d{4}[\/\-]\d{2})/i);
+						if (seasonMatch) {
+							season = seasonMatch[1].replace("-", "/");
+						}
+					} else {
+						const seasonMatch = questionText.match(/(\d{4})[\/\-](\d{2})/i);
+						if (seasonMatch) {
+							season = `${seasonMatch[1]}/${seasonMatch[2]}`;
+						}
+					}
+					
+					if (season) {
+						answer = `${String(playerName)} did not score in the ${season} season.`;
+					} else {
+						answer = `${String(playerName)} did not score any goals.`;
+					}
+				}
+			}
 			// Check if this is a season-specific goals query (e.g., "2016/17GOALS") - explicitly state player did not score
 			else if (
 				metric &&
@@ -5954,7 +6109,7 @@ export class ChatbotService {
 				const seasonMatch = metric.match(/(\d{4}\/\d{2})/);
 				if (seasonMatch) {
 					const season = seasonMatch[1];
-					answer = `${String(playerName)} did not score a goal in the ${season} season.`;
+					answer = `${String(playerName)} did not score in the ${season} season.`;
 				} else {
 					answer = `${String(playerName)} did not score any goals.`;
 				}
@@ -6046,7 +6201,7 @@ export class ChatbotService {
 					const totalGames = (playerData[0] as any)?.totalGames;
 					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
 						// Player has games but didn't win/lose/draw (depending on filter)
-						const resultType = analysis.results[0]?.toLowerCase();
+						const resultType = analysis.results?.[0]?.toLowerCase();
 						if (resultType === "win" || resultType === "w") {
 							answer = `${playerNameStr} has not won a home game.`;
 						} else if (resultType === "loss" || resultType === "l") {
@@ -6083,7 +6238,7 @@ export class ChatbotService {
 					const totalGames = (playerData[0] as any)?.totalGames;
 					if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
 						// Player has games but didn't win/lose/draw (depending on filter)
-						const resultType = analysis.results[0]?.toLowerCase();
+						const resultType = analysis.results?.[0]?.toLowerCase();
 						if (resultType === "win" || resultType === "w") {
 							answer = `${playerNameStr} has not won an away game.`;
 						} else if (resultType === "loss" || resultType === "l") {
@@ -7075,7 +7230,7 @@ export class ChatbotService {
 								answer = ResponseBuilder.buildContextualResponse(playerName, metric, value, analysis);
 							} else {
 								answerValue = value as number;
-							
+								
 								// Check for team filter with goals/assists/other stats queries
 							const teamEntities = analysis.teamEntities || [];
 							const hasTeamFilter = teamEntities.length > 0;
@@ -7390,7 +7545,7 @@ export class ChatbotService {
 									// Check if there's a result filter and if player has any home games
 									const hasResultFilter = analysis.results && analysis.results.length > 0;
 									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
-										const resultType = analysis.results[0]?.toLowerCase();
+										const resultType = analysis.results?.[0]?.toLowerCase();
 										if (resultType === "win" || resultType === "w") {
 											answer = `${playerName} has not won a home game.`;
 										} else if (resultType === "loss" || resultType === "l") {
@@ -7408,7 +7563,7 @@ export class ChatbotService {
 									// Check if there's a result filter and if player has any away games
 									const hasResultFilter = analysis.results && analysis.results.length > 0;
 									if (hasResultFilter && totalGames !== undefined && totalGames > 0) {
-										const resultType = analysis.results[0]?.toLowerCase();
+										const resultType = analysis.results?.[0]?.toLowerCase();
 										if (resultType === "win" || resultType === "w") {
 											answer = `${playerName} has not won an away game.`;
 										} else if (resultType === "loss" || resultType === "l") {
