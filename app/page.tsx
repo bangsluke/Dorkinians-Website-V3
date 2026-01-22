@@ -204,7 +204,7 @@ export default function HomePage() {
 										transition={{ duration: 0.5 }}
 										className='text-center mb-4 md:mb-8'>
 										<h1 data-testid="home-welcome-heading" className='text-xl md:text-2xl font-bold text-dorkinians-yellow mb-3 md:mb-6'>Welcome to the Dorkinians FC Statistics Website</h1>
-										<p className='text-base text-white max-w-md mx-auto'>
+										<p className='text-sm text-white max-w-md mx-auto'>
 											Your comprehensive source for club statistics, player performance, and team insights.
 										</p>
 									</motion.div>

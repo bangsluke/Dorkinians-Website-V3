@@ -490,7 +490,7 @@ export default function ChatbotInterface() {
 							onChange={(e) => setQuestion(e.target.value)}
 							placeholder='Ask me about player, club or team stats...'
 							className='w-full border-2 border-dorkinians-yellow focus:border-dorkinians-yellow-dark'
-							size="md"
+							size="sm"
 							disabled={isLoading}
 							required
 							onKeyDown={(e) => {
@@ -504,7 +504,7 @@ export default function ChatbotInterface() {
 							data-testid="chatbot-submit"
 							type='submit'
 							variant="secondary"
-							size="md"
+							size="sm"
 							disabled={!question.trim() || isLoading}
 							iconLeft={!isLoading ? <MagnifyingGlassIcon className='h-5 w-5' /> : undefined}
 							className='w-full md:w-auto'>
@@ -551,14 +551,14 @@ export default function ChatbotInterface() {
 						exit={{ opacity: 0, y: -10 }}>
 						{/* Question */}
 						<div className='mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white mb-2 text-base'>Question:</h3>
-							<p className='text-white text-base'>{response.debug?.question}</p>
+							<h3 className='font-semibold text-white mb-2 text-sm'>Question:</h3>
+							<p className='text-white text-sm'>{response.debug?.question}</p>
 						</div>
 
 						{/* Answer */}
 						<div className='mb-3 md:mb-4' data-testid="chatbot-answer">
-							<h3 className='font-semibold text-white mb-2 text-base'>Answer:</h3>
-							<p className='text-yellow-100 text-base'>{response.answer}</p>
+							<h3 className='font-semibold text-white mb-2 text-sm'>Answer:</h3>
+							<p className='text-yellow-100 text-sm'>{response.answer}</p>
 						</div>
 
 						{/* Navigation button for full stats question */}
@@ -652,7 +652,7 @@ export default function ChatbotInterface() {
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
-						<h3 className='font-semibold text-white pb-4 pb-4mb-3 md:mb-4 text-base'>Try these questions:</h3>
+						<h3 className='font-semibold text-white pb-4 pb-4mb-3 md:mb-4 text-sm'>Try these questions:</h3>
 						<div className='space-y-2 md:space-y-3 pb-4'>
 							{homepageQuestions.map((q, index) => (
 								<motion.div
@@ -690,7 +690,7 @@ export default function ChatbotInterface() {
 				{conversationHistory.length > 0 && (
 					<div>
 						<div className='flex flex-col md:flex-row md:items-center md:justify-between mb-3 md:mb-4'>
-							<h3 className='font-semibold text-white text-base whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
+							<h3 className='font-semibold text-white text-sm whitespace-nowrap mb-2 md:mb-0'>Previous Conversations</h3>
 							<Button
 								variant="ghost"
 								size="sm"
