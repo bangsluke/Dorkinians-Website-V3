@@ -2294,15 +2294,28 @@ export class PlayerDataQueryHandler {
 			return await PlayerDataQueryHandler.queryPenaltyRecord(resolvedPlayerName);
 		}
 
-		// If we have a specific player name and metrics, query their stats
-		if (entities.length > 0 && metrics.length > 0) {
+		// CRITICAL: Check question text for position metrics FIRST (before checking if we have metrics)
+		// This ensures position queries work even if metrics array is empty
+		// Reuse questionLower defined earlier in the function
+		let detectedPositionMetric: string | null = null;
+		if (questionLower.includes("goalkeeper") || questionLower.includes("keeper") || questionLower.includes("goalie")) {
+			detectedPositionMetric = "GK";
+		} else if (questionLower.includes("defender") || questionLower.includes("defence") || questionLower.includes("defense")) {
+			detectedPositionMetric = "DEF";
+		} else if (questionLower.includes("midfielder") || questionLower.includes("midfield")) {
+			detectedPositionMetric = "MID";
+		} else if (questionLower.includes("forward") || questionLower.includes("striker") || questionLower.includes("attacker")) {
+			detectedPositionMetric = "FWD";
+		}
+
+		// If we have a specific player name and (metrics OR detected position metric), query their stats
+		if (entities.length > 0 && (metrics.length > 0 || detectedPositionMetric)) {
 			const playerName = entities[0];
-			let originalMetric = metrics[0] || "";
+			let originalMetric = metrics[0] || detectedPositionMetric || "";
 
 			// CRITICAL: Check question text for explicit metric keywords FIRST (before normalizing)
 			// This ensures "assists", "yellow cards", "red cards" are detected even if analysis incorrectly identifies team-specific metrics
-			const questionLower = (analysis.question?.toLowerCase() || "").trim();
-			let detectedMetricFromQuestion: string | null = null;
+			let detectedMetricFromQuestion: string | null = detectedPositionMetric;
 
 			// CRITICAL: Check if originalMetric is already a percentage metric - if so, don't override it
 			const isPercentageMetric = originalMetric && (
@@ -2313,7 +2326,8 @@ export class PlayerDataQueryHandler {
 				originalMetric.includes("Games % Drawn")
 			);
 
-			if (!isPercentageMetric) {
+			if (!isPercentageMetric && !detectedPositionMetric) {
+				
 				// CRITICAL: Check for "most appearances for team" queries FIRST (before general appearance detection)
 				const isMostAppearancesForTeamQuery = /(?:what\s+team\s+has|which\s+team\s+has|what\s+team\s+did|which\s+team\s+did).*?(?:made\s+the\s+most\s+appearances\s+for|made\s+most\s+appearances\s+for|most\s+appearances\s+for|played\s+for\s+most|played\s+most\s+for)/i.test(questionLower);
 				
@@ -2324,6 +2338,8 @@ export class PlayerDataQueryHandler {
 					questionLower.includes("per match") ||
 					(questionLower.includes("on average") && questionLower.includes("per"));
 				
+				// Only check other metrics if position metric wasn't detected
+				if (!detectedMetricFromQuestion) {
 				if (questionLower.includes("yellow card") || questionLower.includes("yelow card") || questionLower.includes("booking") || questionLower.includes("yellows")) {
 					// Handle typo "yelow" as well as correct "yellow"
 					detectedMetricFromQuestion = "Y";
@@ -2373,6 +2389,7 @@ export class PlayerDataQueryHandler {
 						detectedMetricFromQuestion = "APP";
 					}
 				}
+				} // Close the "if (!detectedMetricFromQuestion)" block
 			}
 			
 			// CRITICAL: Convert TEAM_ANALYSIS to team-specific appearance metric when team entities are present and question asks about appearances/times
@@ -2400,7 +2417,7 @@ export class PlayerDataQueryHandler {
 				originalMetric.match(/^\d+(?:st|nd|rd|th)\s+XI\s+Goals$/i)
 			);
 			
-			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games) with detected metrics
+			// CRITICAL: Don't override special case metrics (e.g., "BestSeasonForStat", "MostProlificSeason", per-appearance metrics, home/away games, position metrics) with detected metrics
 			// These metrics have custom query builders and should be preserved
 			const isSpecialCaseMetric = originalMetric && (
 				originalMetric.toUpperCase() === "BEST_SEASON_FOR_STAT" ||
@@ -2420,7 +2437,11 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "AWAY" ||
 				originalMetric.toUpperCase() === "TEAM_ANALYSIS" ||
 				originalMetric.toUpperCase() === "MOSTPLAYEDFORTEAM" ||
-				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM"
+				originalMetric.toUpperCase() === "MOSTSCOREDFORTEAM" ||
+				originalMetric.toUpperCase() === "GK" ||
+				originalMetric.toUpperCase() === "DEF" ||
+				originalMetric.toUpperCase() === "MID" ||
+				originalMetric.toUpperCase() === "FWD"
 			);
 			
 			// CRITICAL: If question explicitly mentions assists/goals/yellow cards/red cards, prioritize that over team-specific metrics
@@ -2445,9 +2466,17 @@ export class PlayerDataQueryHandler {
 				originalMetric.toUpperCase() === "CPERAPP" ||
 				originalMetric.toUpperCase() === "FTPPERAPP"
 			);
+			// Check if detected metric is a position metric
+			const isPositionMetric = detectedMetricFromQuestion && (
+				detectedMetricFromQuestion.toUpperCase() === "GK" ||
+				detectedMetricFromQuestion.toUpperCase() === "DEF" ||
+				detectedMetricFromQuestion.toUpperCase() === "MID" ||
+				detectedMetricFromQuestion.toUpperCase() === "FWD"
+			);
 			// If detected metric is HomeGames/AwayGames, use it (it was detected from question)
 			// If original metric is HomeGames/AwayGames, preserve it
-			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || isSpecialCaseMetric || isPerAppearanceMetric || isHomeAwayGamesMetric
+			// If detected metric is a position metric, use it (it was detected from question)
+			const metricToUse = (isTeamSpecificMetric && !hasExplicitMetricRequest) || (isSpecialCaseMetric && !isPositionMetric) || isPerAppearanceMetric || isHomeAwayGamesMetric
 				? originalMetric 
 				: (detectedMetricFromQuestion || originalMetric);
 
