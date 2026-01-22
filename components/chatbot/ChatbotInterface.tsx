@@ -598,7 +598,7 @@ export default function ChatbotInterface() {
 			</div>
 
 			{/* Questions Section - Show example questions when no past questions, or past questions when available */}
-			<div className='mt-6 md:mt-8 pt-6 border-t border-white/20'>
+			<div className='mt-4 md:mt-8 pt-4 md:pt-6 border-t border-white/20'>
 				{/* Show example questions when no past conversations exist */}
 				{conversationHistory.length === 0 && (
 					<div>
