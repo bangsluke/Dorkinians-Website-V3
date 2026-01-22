@@ -13,43 +13,60 @@ slug: /projects/dorkinians-website/totw-page
 - [Navigation](#navigation)
 - [Team of the Week](#team-of-the-week)
   - [Season and Week Selection](#season-and-week-selection)
-  - [Pitch Visualization](#pitch-visualization)
   - [Player Details](#player-details)
-  - [Star Man](#star-man)
   - [Points System](#points-system)
 - [Players of the Month](#players-of-the-month)
-  - [Monthly Awards](#monthly-awards)
-  - [Historical Winners](#historical-winners)
-- [Tips and Tricks](#tips-and-tricks)
+  - [This Months Top Players](#this-months-top-players)
+  - [This Month FTP Ranking and This Season FTP Ranking](#this-month-ftp-ranking-and-this-season-ftp-ranking)
 
 ## Overview
 
-The TOTW (Team of the Week) section displays the best performing players each week and monthly award winners. This section celebrates outstanding individual performances and provides a visual representation of the week's best XI.
+The TOTW (Team of the Week) section displays the best performing players each week and monthly top players.
+
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    alt="TOTW Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    alt="Players of the Month Desktop Screenshot"
+  />
+</div>
 
 :::info
-Team of the Week is calculated based on fantasy points earned in each match, with the highest-scoring players in each position selected for the team.
+Team of the Week is calculated based on fantasy points earned in each match, with the players that form the highest scoring formation included in the team.
 :::
 
-[Image: TOTW Page Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ## Navigation
 
 The TOTW section has two main sub-pages:
 
-- **Team of the Week**: Weekly best XI with visual pitch display
-- **Players of the Month**: Monthly player awards
+- **[Team of the Week](4TOTWPage.md#team-of-the-week)**: Weekly best XI with visual pitch display
+- **[Players of the Month](4TOTWPage.md#players-of-the-month)**: Monthly player awards
 
-You can navigate between these sub-pages by:
-- Tapping the sub-page indicators (dots) at the top
-- Swiping left or right on mobile devices
-- Using the navigation menu
+:::tip
+Navigate between the sub-pages on mobile devices by swiping left or right on the screen.
+:::
 
 > [Back to Table of Contents](#table-of-contents)
 
 ## Team of the Week
 
-The Team of the Week displays the best performing players from each week, arranged in a visual football pitch formation.
+The Team of the Week displays the best performing players from each week, arranged in the highest scoring formation.
+
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    alt="TOTW Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/v8z07ykB/TOTW_Desktop.png"
+    alt="TOTW Desktop Screenshot"
+  />
+</div>
 
 ### Season and Week Selection
 
@@ -57,85 +74,38 @@ To view a specific Team of the Week:
 
 1. **Select a Season**: Use the season dropdown to choose which season to view
    - Options include individual seasons (e.g., "2024/25") or "All Time"
-   - The current season is typically selected by default
+   - The current season is selected by default
 
 2. **Select a Week**: Once a season is selected, use the week dropdown to choose a specific week
-   - Weeks are numbered sequentially throughout the season
-   - The most recent week is typically selected by default
+   - Options include individual weeks (e.g., "Week 1 (Sat, 3 Jan 2026)") or "Team of the Season"
+   - The most recent week is selected by default
 
 :::tip
 If no week is available for the selected season, it means no matches were played that week or the data hasn't been processed yet.
 :::
 
-[Image: Season and Week Selection Screenshot]
-> [Back to Table of Contents](#table-of-contents)
-
-### Pitch Visualization
-
-The Team of the Week is displayed on a visual football pitch with players positioned in their respective roles:
-
-- **Goalkeeper**: Positioned in goal
-- **Defenders**: Positioned in the defensive line (typically 4 defenders)
-- **Midfielders**: Positioned in the midfield (typically 4 midfielders)
-- **Forwards**: Positioned in the attacking line (typically 2 forwards)
-
-Each player is displayed with:
-- Player name
-- Fantasy points earned that week
-- Position indicator
-- Kit visualization
-
-:::info
-The formation may vary slightly depending on the actual best-performing players and their positions for that week.
-:::
-
-[Image: Pitch Visualization Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Player Details
 
 To view detailed statistics for a player in the Team of the Week:
 
-1. **Tap on a Player**: Tap any player on the pitch to open their detailed statistics modal
+1. **Tap/click on a Player**: Tap/click any player on the pitch to open their detailed statistics modal
 2. **View Match Details**: The modal displays:
    - Player's total appearances
    - Match result for that week
-   - Detailed breakdown of statistics for that match:
-     - Minutes played
-     - Man of the Match
-     - Goals scored
-     - Assists provided
-     - Clean sheets
-     - Goals conceded
-     - Yellow cards
-     - Red cards
-     - Saves (for goalkeepers)
-     - Own goals
-     - Penalties scored/missed/conceded/saved
+   - Detailed breakdown of statistics for that match
    - Points breakdown showing how many fantasy points each statistic earned
    - Total fantasy points for the match
 
-3. **Close Modal**: Tap outside the modal or use the close button to return to the pitch view
-
 :::tip
-Use the player details modal to understand exactly how each player earned their fantasy points and why they were selected for Team of the Week.
+Use the player details modal to understand exactly how each player earned their fantasy points and why they were included in the Team of the Week.
 :::
 
-[Image: Player Details Modal Screenshot]
-> [Back to Table of Contents](#table-of-contents)
+:::info
+If two players have the same total fantasy points, the player who has appeared in the fewest TOTWs is selected.
+:::
 
-### Star Man
-
-The Star Man is the highest-scoring player in the Team of the Week, displayed prominently at the top of the pitch visualization.
-
-**Star Man Features:**
-- Highlighted display with special styling
-- Highest fantasy points total for that week
-- Featured position at the top of the pitch
-
-The Star Man represents the best individual performance of the week across all players and positions.
-
-[Image: Star Man Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
 ### Points System
@@ -144,27 +114,20 @@ The Team of the Week is selected based on a fantasy points system. Points are aw
 
 | Action | Points |
 | --- | --- |
-| Appearance | Base points |
-| Minutes Played | Points per minute |
-| Man of the Match | Bonus points |
-| Goal Scored | Points per goal |
-| Assist | Points per assist |
-| Clean Sheet | Points (defenders/goalkeepers) |
-| Goal Conceded | Negative points (defenders/goalkeepers) |
-| Yellow Card | Negative points |
-| Red Card | Negative points |
-| Save | Points (goalkeepers) |
-| Own Goal | Negative points |
-| Penalty Scored | Points |
-| Penalty Missed | Negative points |
-| Penalty Conceded | Negative points |
-| Penalty Saved | Points (goalkeepers) |
-
-:::info
-The exact point values may vary, but the system rewards positive contributions (goals, assists, clean sheets) and penalizes negative actions (cards, goals conceded, own goals).
-:::
-
-The player with the highest total fantasy points in each position is selected for the Team of the Week.
+| Minutes Played | 2 points for an appearance over 60 minutes, 1 point for an appearance less than 60 minutes |
+| Man of the Match | 3 points |
+| Goal Scored | 4 points for a FWD, 5 points for a MID, 6 points for a DEF or GK |
+| Assist | 3 points |
+| Clean Sheet | 4 points for a DEF or GK, 1 point for a MID |
+| Goal Conceded | -1 point for each 2 goals conceded for a DEF or GK |
+| Yellow Card | -1 point |
+| Red Card | -3 points |
+| Save | 1 point for every 3 saves |
+| Own Goal | -2 points |
+| Penalty Scored | Same as a goal scored, done by position |
+| Penalty Missed | -2 points |
+| Penalty Conceded | 0 points |
+| Penalty Saved | 5 points |
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -172,65 +135,39 @@ The player with the highest total fantasy points in each position is selected fo
 
 The Players of the Month section displays monthly award winners who have achieved outstanding performance over a calendar month.
 
-### Monthly Awards
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/9XpLP2S8/Players_of_the_Month_Mobile.png"
+    alt="Players of the Month Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    alt="Players of the Month Desktop Screenshot"
+  />
+</div>
 
-Players of the Month are selected based on their performance throughout a specific month, considering:
+### This Months Top Players
 
-- Total fantasy points earned in that month
-- Consistency of performance
-- Impact on team results
-- Notable achievements or milestones
+The top scoring fantasy players of the month are listed in this section, along with their total fantasy points for the month.
 
-**Viewing Monthly Awards:**
-1. Navigate to the Players of the Month sub-page
-2. Select a month and year (or season) from the dropdown
-3. View the award winner(s) for that month
-
-Each monthly award winner is displayed with:
-- Player name
-- Month and year of the award
-- Key statistics for that month
-- Fantasy points total for the month
+Past seasons and months can be viewed by selecting the dropdowns at the top of the page.
 
 :::tip
-Players of the Month often correlate with players who appeared multiple times in Team of the Week during that month.
+Click on a player's row to see a full breakdown of their statistics for the month with their scores per game.
 :::
 
-[Image: Players of the Month Screenshot]
 > [Back to Table of Contents](#table-of-contents)
 
-### Historical Winners
+### This Month FTP Ranking and This Season FTP Ranking
 
-The Players of the Month section allows you to browse historical award winners:
+This section shows the current selected player's FTP ranking for the month and season, along with the top 3 players in the club.
 
-- **Navigate Through Months**: Use the month/year selector to view winners from different time periods
-- **View Statistics**: See the statistics that earned each player their monthly award
-- **Compare Months**: Compare award winners across different months to see patterns and standout performers
-
-:::info
-Historical data is available for all months where matches were played and statistics were recorded.
-:::
-
-[Image: Historical Winners Screenshot]
-> [Back to Table of Contents](#table-of-contents)
-
-## Tips and Tricks
-
-1. **Check Weekly**: Visit the Team of the Week regularly to see the best performers from each week's matches
-
-2. **Explore Player Details**: Tap on players to see exactly how they earned their selection - this helps understand what makes a great performance
-
-3. **Compare Weeks**: Switch between different weeks to see how team composition and individual performances vary
-
-4. **Track Monthly Winners**: Check the Players of the Month section to identify consistently high-performing players
-
-5. **Understand the System**: Familiarize yourself with the points system to understand what actions contribute most to Team of the Week selection
-
-6. **Star Man Recognition**: Pay attention to the Star Man - they represent the single best performance of the week
-
-:::warning
-Team of the Week is based on fantasy points, which may not always align with subjective assessments of performance. The system is objective and data-driven.
-:::
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/j5VzN72q/This-Month-FTP-Ranking-Mobile.png"
+    alt="This Month FTP Ranking Mobile Screenshot"
+  />
+</div>
 
 > [Back to Table of Contents](#table-of-contents)
 

@@ -9,16 +9,16 @@ slug: /projects/dorkinians-website
 :::danger[HOT TIP]
 This app works best when installed as a native app on your phone or tablet and is highly recommended to do so.
 
-Navigate to the Settings Page using the icon in the top right of the screen and follow the steps for "**Add App to Home Screen**" to install the app.
+Navigate to the Settings Page using the icon in the top right of the screen and follow the steps for "**Add App to Home Screen**" to install the app. [More details here.](6SettingsPage.md#pwa-installation)
 :::
 
 ## Quick Links
 
-- [Home Page](2HomePage.md)
-- [Stats Page](3StatsPage.md)
-- [TOTW Page](4TOTWPage.md)
-- [Club Info Page](5ClubInfoPage.md)
-- [Settings Page](6SettingsPage.md)
+- [Home Page Documentation](2HomePage.md)
+- [Stats Page Documentation](3StatsPage.md)
+- [TOTW Page Documentation](4TOTWPage.md)
+- [Club Info Page Documentation](5ClubInfoPage.md)
+- [Settings Page Documentation](6SettingsPage.md)
 
 ## Table of Contents
 
@@ -32,26 +32,22 @@ Navigate to the Settings Page using the icon in the top right of the screen and 
   - [TOTW](#totw)
   - [Club Info](#club-info)
   - [Settings](#settings)
-- [Useful Links](#useful-links)
+- [Dorkinians Website Useful Links](#dorkinians-website-useful-links)
 
 ## Overview
 
-The Dorkinians Website is a mobile-first Progressive Web App (PWA) that provides comprehensive statistics and information about Dorkinians FC. The app features a chatbot interface, detailed player and team statistics, Team of the Week displays, and club information.
+The Dorkinians Website is a mobile-first Progressive Web App (PWA) that provides comprehensive statistics and information about Dorkinians Football Club. The app features a chatbot interface, detailed player, team, and club statistics, Team of the Week displays, and club information.
 
 > [Back to Table of Contents](#table-of-contents)
 
 ## Navigation
 
-The app uses a bottom navigation bar with four main tabs:
+On mobile devices, the app uses a bottom navigation bar with four main tabs:
 
-- **Home**: Chatbot interface for asking questions
-- **Stats**: Player, team, and club statistics
+- **Home**: Chatbot interface for asking questions and player selection
+- **Stats**: Player, team, and club statistics along with player comparison
 - **TOTW**: Team of the Week and Players of the Month
 - **Club Info**: Club information, league details, captains, awards, and useful links
-
-:::info
-There is also an easy navigation feature on the Settings Page to quickly navigate to any page.
-:::
 
 Within each tab, there can be multiple pages such as on the Stats tab.
 
@@ -59,10 +55,11 @@ Within each tab, there can be multiple pages such as on the Stats tab.
 You can swipe left and right between some pages on mobile devices for quick navigation or click on the white dots at the top of the screen.
 :::
 
-**Desktop Navigation:**
-- On desktop devices, a persistent sidebar navigation is available on the left side of the screen
-- The sidebar provides quick access to all main pages and sub-pages
-- Filter and menu icons are available in the sidebar when viewing Stats pages
+:::info
+There is also an easy navigation feature on the [Settings Page](6SettingsPage.md) to quickly navigate to any page.
+:::
+
+On desktop devices, a persistent sidebar navigation is available on the left side of the screen, providing quick access to all main pages and sub-pages.
 
 > [Back to Table of Contents](#table-of-contents)
 
@@ -70,12 +67,23 @@ You can swipe left and right between some pages on mobile devices for quick navi
 
 ### Home
 
-The Home page features the chatbot interface where you can ask questions about Dorkinians FC statistics.
+The Home page features the chatbot interface where you can select a player and then ask questions about Dorkinians FC statistics.
 
 Example questions are provided to get you started.
 
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/660MVKSh/Homepage_Mobile.png"
+    alt="Homepage Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/qMvjjYHR/Homepage_Desktop.png"
+    alt="Homepage Desktop Screenshot"
+  />
+</div>
+
 :::info
-[View Home Documentation →](2HomePage.md)
+[View the Home page documentation here.](2HomePage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
@@ -90,8 +98,19 @@ The Stats section provides comprehensive statistics for players, teams, and the 
 - **Club Stats**: Club-wide statistics and comparisons
 - **Comparison**: Side-by-side player comparison with radar charts
 
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/593s5JGk/Player_Stats_Mobile.png"
+    alt="Player Stats Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/zXG00MYX/Player_Stats_Desktop.png"
+    alt="Player Stats Desktop Screenshot"
+  />
+</div>
+
 :::info
-[View Stats Documentation →](3StatsPage.md)
+[View the Stats page documentation here.](3StatsPage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
@@ -104,8 +123,19 @@ The TOTW (Team of the Week) section displays the best performing players each we
 - **Team of the Week**: Weekly best XI with visual pitch display
 - **Players of the Month**: Monthly player awards
 
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/9XpLP2Sg/TOTW_Mobile.png"
+    alt="TOTW Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/8kHZdG9C/Players_of_the_Month_Desktop.png"
+    alt="Players of the Month Desktop Screenshot"
+  />
+</div>
+
 :::info
-[View TOTW Documentation →](4TOTWPage.md)
+[View the TOTW page documentation here.](4TOTWPage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
@@ -121,29 +151,45 @@ The Club Info section contains information about the club, leagues, captains, aw
 - **Club Awards**: Award information and winners
 - **Useful Links**: External resources and links
 
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/Wpn5mVKH/Club_Information_Mobile.png"
+    alt="Club Information Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/gk2NN5bb/League_Information_Desktop.png"
+    alt="League Information Desktop Screenshot"
+  />
+</div>
+
 :::info
-[View Club Info Documentation →](5ClubInfoPage.md)
+[View the Club Info page documentation here.](5ClubInfoPage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
 
 ### Settings
 
-The Settings page provides quick navigation to all app sections, database status information, and PWA installation options.
+The Settings page provides PWA installation options, links to help documentation, quick navigation to all app sections and app information features.
 
-**Features:**
-- Quick navigation to all screens
-- Database seeding status
-- PWA installation prompt
-- App version information
+<div className="sideBySide">
+  <img
+    src="https://i.postimg.cc/qBL1crYP/Settings_Mobile.png"
+    alt="Settings Mobile Screenshot"
+  />
+  <img
+    src="https://i.postimg.cc/v8z07yks/Settings_Desktop.png"
+    alt="Settings Desktop Screenshot"
+  />
+</div>
 
 :::info
-[View Settings Documentation →](6SettingsPage.md)
+[View the Settings page documentation here.](6SettingsPage.md)
 :::
 
 > [Back to Table of Contents](#table-of-contents)
 
-## Useful Links
+## Dorkinians Website Useful Links
 
 - <a href="https://dorkinians-website-v3.netlify.app/" target="_blank">Dorkinians Website</a>
 - <a href="https://github.com/bangsluke/Dorkinians-Website" target="_blank">GitHub Repository</a>
