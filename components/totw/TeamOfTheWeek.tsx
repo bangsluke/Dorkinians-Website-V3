@@ -58,6 +58,8 @@ export default function TeamOfTheWeek() {
 	const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 	const [loadingPlayerDetails, setLoadingPlayerDetails] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(800);
+	const [isAllTimeSelected, setIsAllTimeSelected] = useState(false);
+	const [isSeasonTOTWSelected, setIsSeasonTOTWSelected] = useState(false);
 
 	// Fetch seasons on mount - check cache first, then parallelize with current week data if available
 	useEffect(() => {
@@ -104,9 +106,9 @@ export default function TeamOfTheWeek() {
 				
 				if (seasonsData.seasons) {
 					setSeasons(seasonsData.seasons);
-					// Use currentSeason from API, or fallback to localStorage, or first season
+					// Use currentSeason from API, or fallback to localStorage, or first season (skip "All Time")
 					const seasonToUse = seasonsData.currentSeason || getCurrentSeasonFromStorage();
-					if (seasonToUse && seasonsData.seasons.includes(seasonToUse)) {
+					if (seasonToUse && seasonsData.seasons.includes(seasonToUse) && seasonToUse !== "All Time") {
 						setCurrentSeason(seasonToUse);
 						setSelectedSeason(seasonToUse);
 						
@@ -115,9 +117,11 @@ export default function TeamOfTheWeek() {
 							.then(res => res.ok ? res.json() : null)
 							.then(weeksData => {
 								if (weeksData?.weeks) {
+									// Skip week 0 (Team of the Season) for default selection
+									const regularWeeks = weeksData.weeks.filter((w: Week) => w.week !== 0);
 									const weekToSelect = weeksData.latestGameweek ? Number(weeksData.latestGameweek) : 
-										(weeksData.currentWeek ?? (weeksData.weeks.length > 0 ? weeksData.weeks[weeksData.weeks.length - 1].week : null));
-									if (weekToSelect) {
+										(weeksData.currentWeek ?? (regularWeeks.length > 0 ? regularWeeks[regularWeeks.length - 1].week : null));
+									if (weekToSelect && weekToSelect !== 0) {
 										cacheTOTWWeeks(seasonToUse, weeksData.weeks, weekToSelect, weeksData.latestGameweek);
 										// Pre-fetch current week data in background
 										fetch(`/api/totw/week-data?season=${encodeURIComponent(seasonToUse)}&week=${weekToSelect}`)
@@ -133,7 +137,13 @@ export default function TeamOfTheWeek() {
 							})
 							.catch(() => {});
 					} else if (seasonsData.seasons.length > 0) {
-						setSelectedSeason(seasonsData.seasons[0]);
+						// Skip "All Time" for default selection
+						const firstRegularSeason = seasonsData.seasons.find((s: string) => s !== "All Time");
+						if (firstRegularSeason) {
+							setSelectedSeason(firstRegularSeason);
+						} else {
+							setSelectedSeason(seasonsData.seasons[0]);
+						}
 					}
 					cacheTOTWSeasons(seasonsData.seasons, seasonsData.currentSeason || getCurrentSeasonFromStorage() || null);
 				}
@@ -144,9 +154,30 @@ export default function TeamOfTheWeek() {
 		fetchSeasonsAndCurrentWeek();
 	}, [getCachedTOTWSeasons, cacheTOTWSeasons, getCachedTOTWWeeks, cacheTOTWWeeks, getCachedTOTWWeekData, cacheTOTWWeekData]);
 
-	// Fetch weeks when season changes - check cache first
+	// Handle season selection change
 	useEffect(() => {
 		if (!selectedSeason) return;
+		
+		// Check if "All Time" is selected
+		const isAllTime = selectedSeason === "All Time";
+		setIsAllTimeSelected(isAllTime);
+		
+		// If "All Time" is selected, reset week selection and clear weeks
+		if (isAllTime) {
+			setWeeks([]);
+			setSelectedWeek(0);
+			setCurrentWeek(null);
+			setIsSeasonTOTWSelected(false);
+			return;
+		}
+		
+		// Reset season TOTW selection when season changes (unless it's "All Time")
+		setIsSeasonTOTWSelected(false);
+	}, [selectedSeason]);
+
+	// Fetch weeks when season changes - check cache first
+	useEffect(() => {
+		if (!selectedSeason || selectedSeason === "All Time") return;
 		if (appConfig.forceSkeletonView) {
 			setLoading(true);
 			return;
@@ -155,13 +186,17 @@ export default function TeamOfTheWeek() {
 		const cachedWeeks = getCachedTOTWWeeks(selectedSeason);
 		if (cachedWeeks) {
 			setWeeks(cachedWeeks.weeks);
-			if (cachedWeeks.currentWeek !== null) {
+			if (cachedWeeks.currentWeek !== null && cachedWeeks.currentWeek !== 0) {
 				setCurrentWeek(cachedWeeks.currentWeek);
 				setSelectedWeek(cachedWeeks.currentWeek);
 			} else if (cachedWeeks.weeks.length > 0) {
-				const weekToSelect = cachedWeeks.weeks[cachedWeeks.weeks.length - 1].week;
-				setCurrentWeek(weekToSelect);
-				setSelectedWeek(weekToSelect);
+				// Skip week 0 (Team of the Season) for default selection
+				const regularWeeks = cachedWeeks.weeks.filter(w => w.week !== 0);
+				if (regularWeeks.length > 0) {
+					const weekToSelect = regularWeeks[regularWeeks.length - 1].week;
+					setCurrentWeek(weekToSelect);
+					setSelectedWeek(weekToSelect);
+				}
 			}
 			return;
 		}
@@ -183,21 +218,26 @@ export default function TeamOfTheWeek() {
 				if (data.weeks && Array.isArray(data.weeks)) {
 					setWeeks(data.weeks);
 					// Prioritize latestGameweek from SiteDetail, then currentWeek, then last week in list
+					// Skip week 0 (Team of the Season) for default selection
 					let weekToSelect: number | null = null;
 					if (data.latestGameweek && data.latestGameweek !== "") {
 						const latestWeekNum = Number(data.latestGameweek);
-						if (!isNaN(latestWeekNum)) {
+						if (!isNaN(latestWeekNum) && latestWeekNum !== 0) {
 							weekToSelect = latestWeekNum;
 							log("info", "Setting week to latestGameweek from SiteDetail:", weekToSelect);
 						}
 					}
-					if (weekToSelect === null && data.currentWeek !== null && data.currentWeek !== undefined) {
+					if (weekToSelect === null && data.currentWeek !== null && data.currentWeek !== undefined && data.currentWeek !== 0) {
 						weekToSelect = data.currentWeek;
 						log("info", "Setting week to currentWeek from API:", weekToSelect);
 					}
 					if (weekToSelect === null && data.weeks.length > 0) {
-						weekToSelect = data.weeks[data.weeks.length - 1].week;
-						log("info", "Setting week to last week in list:", weekToSelect);
+						// Skip week 0 (Team of the Season) for default selection
+						const regularWeeks = data.weeks.filter((w: Week) => w.week !== 0);
+						if (regularWeeks.length > 0) {
+							weekToSelect = regularWeeks[regularWeeks.length - 1].week;
+							log("info", "Setting week to last week in list:", weekToSelect);
+						}
 					}
 					if (weekToSelect !== null) {
 						setCurrentWeek(weekToSelect);
@@ -219,9 +259,121 @@ export default function TeamOfTheWeek() {
 		fetchWeeks();
 	}, [selectedSeason, getCachedTOTWWeeks, cacheTOTWWeeks]);
 
+	// Handle week selection change
+	useEffect(() => {
+		if (selectedWeek === 0 && selectedSeason && selectedSeason !== "All Time") {
+			setIsSeasonTOTWSelected(true);
+		} else {
+			setIsSeasonTOTWSelected(false);
+		}
+	}, [selectedWeek, selectedSeason]);
+
 	// Fetch TOTW data when season/week changes - check cache first
 	useEffect(() => {
-		if (!selectedSeason || !selectedWeek || selectedWeek === 0) return;
+		if (!selectedSeason) return;
+		
+		// Handle "All Time" selection
+		if (isAllTimeSelected) {
+			if (appConfig.forceSkeletonView) {
+				setLoading(true);
+				return;
+			}
+
+			const fetchSeasonData = async () => {
+				setLoading(true);
+				try {
+					const response = await fetch(
+						`/api/totw/season-data?season=${encodeURIComponent(selectedSeason)}`,
+					);
+					
+					if (!response.ok) {
+						log("error", `[TOTW] Season-data API error: ${response.status} ${response.statusText}`);
+						const errorData = await response.json().catch(() => ({}));
+						log("error", `[TOTW] Error details:`, errorData);
+						setTotwData(null);
+						setPlayers([]);
+						return;
+					}
+					
+					const data = await response.json();
+					
+					if (data.totwData) {
+						setTotwData(data.totwData);
+						setPlayers(data.players || []);
+						
+						// Log player matching for debugging
+						if (data.players && data.players.length > 0) {
+							log("info", `[TOTW] Player FTP scores:`, data.players.map((p: any) => `${p.playerName}: ${p.ftpScore}`));
+						}
+					} else {
+						log("info", `[TOTW] No SeasonTOTW data found for ${selectedSeason}`);
+						setTotwData(null);
+						setPlayers([]);
+					}
+				} catch (error) {
+					log("error", "[TOTW] Error fetching season data:", error);
+					setTotwData(null);
+					setPlayers([]);
+				} finally {
+					setLoading(false);
+				}
+			};
+			fetchSeasonData();
+			return;
+		}
+
+		// Handle "Team of the Season" selection
+		if (isSeasonTOTWSelected && selectedWeek === 0) {
+			if (appConfig.forceSkeletonView) {
+				setLoading(true);
+				return;
+			}
+
+			const fetchSeasonData = async () => {
+				setLoading(true);
+				try {
+					const response = await fetch(
+						`/api/totw/season-data?season=${encodeURIComponent(selectedSeason)}`,
+					);
+					
+					if (!response.ok) {
+						log("error", `[TOTW] Season-data API error: ${response.status} ${response.statusText}`);
+						const errorData = await response.json().catch(() => ({}));
+						log("error", `[TOTW] Error details:`, errorData);
+						setTotwData(null);
+						setPlayers([]);
+						return;
+					}
+					
+					const data = await response.json();
+					
+					if (data.totwData) {
+						setTotwData(data.totwData);
+						setPlayers(data.players || []);
+						
+						// Log player matching for debugging
+						if (data.players && data.players.length > 0) {
+							log("info", `[TOTW] Player FTP scores:`, data.players.map((p: any) => `${p.playerName}: ${p.ftpScore}`));
+						}
+					} else {
+						log("info", `[TOTW] No SeasonTOTW data found for ${selectedSeason}`);
+						setTotwData(null);
+						setPlayers([]);
+					}
+				} catch (error) {
+					log("error", "[TOTW] Error fetching season data:", error);
+					setTotwData(null);
+					setPlayers([]);
+				} finally {
+					setLoading(false);
+				}
+			};
+			fetchSeasonData();
+			return;
+		}
+
+		// Handle normal week selection
+		if (!selectedWeek || selectedWeek === 0) return;
 		if (appConfig.forceSkeletonView) {
 			setLoading(true);
 			return;
@@ -276,7 +428,7 @@ export default function TeamOfTheWeek() {
 			}
 		};
 		fetchWeekData();
-	}, [selectedSeason, selectedWeek, getCachedTOTWWeekData, cacheTOTWWeekData]);
+	}, [selectedSeason, selectedWeek, isAllTimeSelected, isSeasonTOTWSelected, getCachedTOTWWeekData, cacheTOTWWeekData]);
 
 	// Update container width on resize and when data loads
 	useEffect(() => {
@@ -303,6 +455,11 @@ export default function TeamOfTheWeek() {
 
 	// Handle player click
 	const handlePlayerClick = async (playerName: string) => {
+		// Disable player click for "All Time" and "Team of the Season" since they don't have a specific week
+		if (isAllTimeSelected || isSeasonTOTWSelected) {
+			return;
+		}
+		
 		if (!selectedSeason || !selectedWeek || !playerName) return;
 
 		const queryUrl = `/api/totw/player-details?season=${encodeURIComponent(selectedSeason)}&week=${selectedWeek}&playerName=${encodeURIComponent(playerName)}`;
@@ -715,7 +872,7 @@ export default function TeamOfTheWeek() {
 					className='text-xl md:text-2xl font-bold text-dorkinians-yellow'
 					title='Select a week filter to begin reviewing past teams of the week. Or click on a player to see more details.'
 				>
-					Team of the Week
+					{isAllTimeSelected ? "Team of All Time" : isSeasonTOTWSelected ? "Team of the Season" : "Team of the Week"}
 				</h1>
 				<button
 					className='relative min-w-[40px] min-h-[40px] flex items-center justify-center'
@@ -778,14 +935,23 @@ export default function TeamOfTheWeek() {
 						</Listbox>
 					</div>
 					<div className='flex-1 md:w-1/2'>
-						<Listbox value={selectedWeek || 0} onChange={setSelectedWeek}>
+						<Listbox value={selectedWeek || 0} onChange={setSelectedWeek} disabled={isAllTimeSelected}>
 							<div className='relative'>
-								<Listbox.Button data-testid="totw-week-selector" className='relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm'>
+								<Listbox.Button 
+									data-testid="totw-week-selector" 
+									className={`relative w-full cursor-default dark-dropdown py-2 pl-3 pr-8 text-left shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400 focus-visible:ring-opacity-75 focus-visible:ring-offset-2 focus-visible:ring-offset-yellow-300 text-[0.65rem] md:text-sm ${isAllTimeSelected ? "opacity-50 cursor-not-allowed" : ""}`}
+									disabled={isAllTimeSelected}
+									aria-disabled={isAllTimeSelected}
+								>
 									<span className={`block truncate ${selectedWeek ? "text-white" : "text-yellow-300"}`}>
-										{weeks.length === 0 ? (
+										{isAllTimeSelected ? (
+											"Team of the Season"
+										) : weeks.length === 0 ? (
 											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
 												<Skeleton height={16} width={100} />
 											</SkeletonTheme>
+										) : selectedWeek === 0 ? (
+											"Team of the Season"
 										) : selectedWeek ? (
 											`Week ${selectedWeek}${weeks.find(w => w.week === selectedWeek) ? ` (${weeks.find(w => w.week === selectedWeek)?.dateLookup || ''})` : ''}`
 										) : (
@@ -796,31 +962,33 @@ export default function TeamOfTheWeek() {
 										<ChevronUpDownIcon className='h-4 w-4 text-yellow-300' aria-hidden='true' />
 									</span>
 								</Listbox.Button>
-								<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
-									{weeks.length === 0 ? (
-										<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
-											<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
-												<Skeleton height={16} width={100} />
-											</SkeletonTheme>
-										</Listbox.Option>
-									) : (
-										weeks.map((week) => (
-											<Listbox.Option
-												key={week.week}
-												data-testid={`totw-week-option-${week.week}`}
-												className={({ active }) =>
-													`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
-												}
-												value={week.week}>
-												{({ selected }) => (
-													<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
-														Week {week.week} ({week.dateLookup || ''})
-													</span>
-												)}
+								{!isAllTimeSelected && (
+									<Listbox.Options className='absolute z-[9999] mt-1 max-h-60 w-full overflow-auto dark-dropdown py-1 text-base shadow-lg ring-1 ring-yellow-400 ring-opacity-20 focus:outline-none text-[0.65rem] md:text-sm'>
+										{weeks.length === 0 ? (
+											<Listbox.Option value={0} className='relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 text-white'>
+												<SkeletonTheme baseColor="var(--skeleton-base)" highlightColor="var(--skeleton-highlight)">
+													<Skeleton height={16} width={100} />
+												</SkeletonTheme>
 											</Listbox.Option>
-										))
-									)}
-								</Listbox.Options>
+										) : (
+											weeks.map((week) => (
+												<Listbox.Option
+													key={week.week}
+													data-testid={`totw-week-option-${week.week}`}
+													className={({ active }) =>
+														`relative cursor-default select-none dark-dropdown-option py-2 pl-3 pr-9 ${active ? "hover:bg-yellow-400/10 text-yellow-300" : "text-white"}`
+													}
+													value={week.week}>
+													{({ selected }) => (
+														<span className={`block truncate ${selected ? "font-medium" : "font-normal"}`}>
+															{week.week === 0 ? "Team of the Season" : `Week ${week.week} (${week.dateLookup || ''})`}
+														</span>
+													)}
+												</Listbox.Option>
+											))
+										)}
+									</Listbox.Options>
+								)}
 							</div>
 						</Listbox>
 					</div>
@@ -854,7 +1022,11 @@ export default function TeamOfTheWeek() {
 									<div className='h-5 mb-2 flex items-center justify-center'>
 										<p className='text-gray-300 font-bold text-xs md:text-sm'>STAR MAN</p>
 									</div>
-									<div className='flex flex-col items-center gap-2 cursor-pointer hover:scale-105 transition-transform' onClick={() => handlePlayerClick(totwData.starMan)}>
+									<div className={`flex flex-col items-center gap-2 transition-transform ${
+										isAllTimeSelected || isSeasonTOTWSelected 
+											? "cursor-default" 
+											: "cursor-pointer hover:scale-105"
+									}`} onClick={() => handlePlayerClick(totwData.starMan)}>
 										<div className='relative w-12 h-12 md:w-14 md:h-14'>
 											<Image
 												src='/totw-images/Kit.svg'
@@ -925,7 +1097,11 @@ export default function TeamOfTheWeek() {
 								<div
 									key={`${player.name}-${index}`}
 									data-testid="totw-player"
-									className='absolute cursor-pointer hover:scale-110 hover:opacity-80 transition-transform transition-opacity z-10'
+									className={`absolute z-10 transition-transform transition-opacity ${
+										isAllTimeSelected || isSeasonTOTWSelected 
+											? "cursor-default" 
+											: "cursor-pointer hover:scale-110 hover:opacity-80"
+									}`}
 									style={{
 										left: `${adjustedX}%`,
 										top: `${position.y}%`,
