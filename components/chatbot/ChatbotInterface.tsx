@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChatbotResponse } from "@/lib/services/chatbotService";
 import { useNavigationStore } from "@/lib/stores/navigation";
 import { MagnifyingGlassIcon } from "@heroicons/react/24/outline";
-import { homepageQuestions, questionTypes, QuestionType } from "@/config/config";
+import { homepageQuestions, questionTypes, QuestionType, allExampleQuestions } from "@/config/config";
 import NumberCard from "./NumberCard";
 import Calendar from "./Calendar";
 import Table from "./Table";
@@ -232,13 +232,15 @@ export default function ChatbotInterface() {
 
 			const data: ChatbotResponse & { debug?: any } = await res.json(); // Parse the response as a ChatbotResponse object
 
-			// Log full debug info to the client
-			log("info", `🤖 [CLIENT] 🔍 DEBUG INFO:`, {
-				"1. question": data.debug.question,
-				"2. queryBreakdown": data.debug.processingDetails.queryBreakdown,
-				"3. processingSteps": data.debug.processingDetails.processingSteps,
-				"4. cypherQueries": data.debug.processingDetails.cypherQueries,
-			});
+			// Log full debug info to the client (only if debug is available)
+			if (data.debug) {
+				log("info", `🤖 [CLIENT] 🔍 DEBUG INFO:`, {
+					"1. question": data.debug.question,
+					"2. queryBreakdown": data.debug.processingDetails?.queryBreakdown,
+					"3. processingSteps": data.debug.processingDetails?.processingSteps,
+					"4. cypherQueries": data.debug.processingDetails?.cypherQueries,
+				});
+			}
 
 			// Log Cypher queries prominently if available (development mode only)
 			if (isDevelopment && data.debug?.processingDetails?.cypherQueries?.length > 0) {
@@ -323,12 +325,60 @@ export default function ChatbotInterface() {
 			setShowExampleQuestions(false);
 			setQuestion(""); // Clear the question input
 		} catch (err) {
-			// If an error occurs, set the error state and log the error
+			// Log error to console but show graceful response to user
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			log("error", `🤖 Frontend: Error occurred:`, errorMessage);
-			setError(errorMessage);
+			
+			// Generate suggestions based on the question
+			const questionWords = questionToSubmit.toLowerCase().split(/\s+/).filter(word => word.length > 2);
+			const scoredQuestions = allExampleQuestions
+				.filter(example => {
+					const exampleLower = example.toLowerCase().trim();
+					return exampleLower !== questionToSubmit.toLowerCase().trim();
+				})
+				.map(example => {
+					const exampleLower = example.toLowerCase();
+					let score = 0;
+					questionWords.forEach(word => {
+						if (exampleLower.includes(word)) {
+							score += 1;
+						}
+					});
+					return { question: example, score };
+				})
+				.sort((a, b) => b.score - a.score)
+				.filter(item => item.score > 0)
+				.slice(0, 5)
+				.map(item => item.question);
+			
+			// Create a graceful error response instead of showing error state
+			const gracefulResponse: ChatbotResponse = {
+				answer: "I'm sorry, I couldn't process your question. Please try rephrasing it or ask one of the suggested questions below.",
+				sources: [],
+				suggestions: scoredQuestions.length > 0 ? scoredQuestions : allExampleQuestions.slice(0, 5),
+				debug: {
+					question: questionToSubmit.trim(),
+				},
+			};
+			
+			setResponse(gracefulResponse);
+			setError(null);
+			
+			// Save to conversation history
+			const newConversation: SavedConversation = {
+				question: questionToSubmit.trim(),
+				response: gracefulResponse,
+				timestamp: Date.now(),
+				playerContext: selectedPlayer || undefined,
+			};
+			setConversationHistory((prev) => {
+				const updated = [...prev, newConversation];
+				return updated.slice(-3);
+			});
+			setShowExampleQuestions(false);
+			setQuestion("");
 		} finally {
-			setIsLoading(false); // Finally, set the loading state to false
+			setIsLoading(false);
 		}
 	};
 
